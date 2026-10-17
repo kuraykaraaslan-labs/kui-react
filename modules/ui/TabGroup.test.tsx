@@ -95,6 +95,13 @@ describe('TabGroup', () => {
     expect(screen.getByRole('tablist', { name: 'Settings sections' })).toBeInTheDocument();
   });
 
+  it('a row of tabs wider than its box scrolls inside the tab list: tabs keep one line and do not shrink', () => {
+    render(<TabGroup tabs={TABS} />);
+    const list = screen.getByRole('tablist');
+    expect(list).toHaveClass('overflow-x-auto', 'overflow-y-hidden');
+    for (const tab of screen.getAllByRole('tab')) expect(tab).toHaveClass('shrink-0', 'whitespace-nowrap');
+  });
+
   describe('order', () => {
     it('sorts tabs by order (missing counts as 0, ties keep array order)', () => {
       render(
