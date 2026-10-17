@@ -119,8 +119,9 @@ export function TabGroup({
   }
 
   return (
-    <div className={cn('w-full', className)}>
-      <div role="tablist" aria-label={label} className="flex border-b border-border pb-3">
+    <div className={cn('w-full min-w-0', className)}>
+      {/* A row wider than its box (many tabs, a phone) scrolls sideways inside the tab list instead of the page. */}
+      <div role="tablist" aria-label={label} className="flex overflow-x-auto overflow-y-hidden overscroll-x-contain border-b border-border pb-3">
         {ordered.map((tab, i) => {
           const isActive = tab.id === current;
           return (
@@ -135,8 +136,8 @@ export function TabGroup({
               onClick={() => !tab.disabled && activate(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, i)}
               className={cn(
-                'inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+                'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus',
                 isActive
                   ? 'border-primary text-primary'
                   : 'border-transparent text-text-secondary hover:text-text-primary hover:border-border',

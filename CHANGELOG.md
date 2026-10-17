@@ -58,6 +58,10 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- `TabGroup`: a row of tabs wider than its box (many tabs, a phone) scrolls sideways inside the tab list
+  (`overflow-x-auto`, tabs `shrink-0 whitespace-nowrap`) instead of widening the page; the focus ring is drawn inset
+  so the scroll box does not clip it. Keyboard and ARIA are unchanged. kui-ejs's `TabGroup` partial has the same
+  change; KUInative's already scrolls (a horizontal `ScrollView`).
 - `CommandPalette` no longer lists sample commands by default: pass `demo` (or your own `items`). Keyboard
   navigation now follows the on-screen group order. `CommandItem.category` is optional (alias of `group`).
 - `AppSidebarNavItem.badge` widened from `number` to `number | ReactNode`; code that reads it as a number
