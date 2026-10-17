@@ -158,6 +158,9 @@ not copied. The clip is kept in `localStorage` (`kui-ruleset-clipboard`) and off
 Ported from the OpenWrt editor; the pure parts are `graph/layout.ts`, `graph/snap.ts`, `graph/boxselect.ts` and
 `useMiniMap.ts` (`miniVisible`, `miniMapping`).
 
+The canvas background takes two optional theme tokens: `--canvas-bg` (default `--surface-base`) and `--canvas-dot` for
+the grid dots (default `--border`), the same `--canvas-bg` the WidgetKit board reads.
+
 - **Arrange** (the diagram button in the zoom bar, “Arrange the blocks” in the canvas menu, `ref.arrange()`): layered
   and deterministic. A block's column is the longest path from the entries; back wires of a loop are ignored. Inside a
   column blocks are ordered by the mean place of their neighbours (two sweeps down, two up). Separate parts of the
