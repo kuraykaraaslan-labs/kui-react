@@ -6,6 +6,7 @@
 import { catalogFromBlocks, type RawBlock } from './catalog/fromBlocks';
 import type { ParamChoices } from './catalog/types';
 import type { RuleEdge, RuleNode } from './types';
+import { diffView } from './graph/diff-view';
 
 const BLOCKS: RawBlock[] = [
   {
@@ -70,3 +71,20 @@ export const NEUTRAL_FLOW: { nodes: RuleNode[]; edges: RuleEdge[] } = {
   ],
   edges: [edge('e1', 'n1', 'out', 'n2'), edge('e2', 'n2', 'yes', 'n3'), edge('e3', 'n2', 'yes', 'n4')],
 };
+
+/**
+ * The next version of the flow, for the version compare demo: the threshold is raised, the CRM call is gone and a
+ * webhook to the accounting system is new.
+ */
+export const NEUTRAL_FLOW_NEXT: { nodes: RuleNode[]; edges: RuleEdge[] } = {
+  nodes: [
+    NEUTRAL_FLOW.nodes[0],
+    { ...NEUTRAL_FLOW.nodes[1], config: { ...NEUTRAL_FLOW.nodes[1].config, value: { kind: 'num', v: 5 } } },
+    NEUTRAL_FLOW.nodes[2],
+    node('n5', 'action.webhook', 'Tell accounting', 560, 280, { url: 'https://accounting.example.com/api/overdue', method: 'POST' }),
+  ],
+  edges: [edge('e1', 'n1', 'out', 'n2'), edge('e2', 'n2', 'yes', 'n3'), edge('e4', 'n2', 'yes', 'n5')],
+};
+
+/** both versions in one graph, with the tints (`RulesetEditor readOnly diffTint`) */
+export const NEUTRAL_DIFF = diffView(NEUTRAL_FLOW, NEUTRAL_FLOW_NEXT);

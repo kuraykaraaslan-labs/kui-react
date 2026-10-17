@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { NEUTRAL_CATALOG, NEUTRAL_CHOICES, NEUTRAL_FLOW } from './demo-neutral';
+import { NEUTRAL_CATALOG, NEUTRAL_CHOICES, NEUTRAL_DIFF, NEUTRAL_FLOW, NEUTRAL_FLOW_NEXT } from './demo-neutral';
 import { validateGraph } from './graph/validate';
 import { buildRoltekExport } from './transfer';
 import { roltekToChains } from './format/roltek';
 import { paletteGroups } from './catalog/palette';
 
 describe('the neutral demo', () => {
+  it('has a next version whose compare tints one changed, one added and one removed block', () => {
+    expect(validateGraph(NEUTRAL_FLOW_NEXT, NEUTRAL_CATALOG, { active: true })).toEqual({ errors: [], warnings: [] });
+    expect(NEUTRAL_DIFF.tint.nodes).toEqual({ n2: 'changed', n4: 'removed', n5: 'added' });
+    expect(NEUTRAL_DIFF.nodes.map((n) => n.nodeId)).toEqual(['n1', 'n2', 'n3', 'n5', 'n4']);
+  });
   it('has no device in it: the blocks are schedule, webhook in, compare, notification and webhook out', () => {
     expect(Object.keys(NEUTRAL_CATALOG.blocks).sort()).toEqual(['action.notify', 'action.webhook', 'cond.compare', 'trigger.schedule', 'trigger.webhook_in']);
     expect(JSON.stringify(NEUTRAL_CATALOG)).not.toMatch(/mqtt|modbus|device|sensor|telemetry/i);

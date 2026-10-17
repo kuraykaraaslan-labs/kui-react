@@ -68,6 +68,25 @@ All notable changes to this project will be documented here. Format follows [Kee
   - `applyOp` is exhaustive: an unknown stored op leaves the values unchanged instead of crashing `migrate`.
   - `WidgetSettingsEditor` shows a deprecated field that still holds a value read-only, under "No longer
     used", with the version that removes it and its replacement.
+- RulesetEditor version compare: `graph/diff.ts` `diffFlows(a, b)`, the router's `flowlib.js` `diff` ported (per node
+  added, removed, changed with field paths and short from/to texts, moved apart; connections and groups by key; flow
+  meta), with `edgeKey`, `stableJson`, `shortText`; it imports nothing, so a server can copy it. `graph/diff-view.ts`:
+  `diffGraphs`, `diffTints`, `edgeTintOf`, `graphDiffItem` and `diffView` (one graph with the removed blocks and
+  connections added back, plus the tints). `RulesetEditor` / `FlowWorkspace` `diffTint` outlines added (green),
+  changed (amber) and removed (dashed red) blocks with a badge and colours added and removed connections; messages
+  `diffAdded`, `diffChanged`, `diffRemoved`. Showcase variant "Version compare". Asked by next-boilerplate (automation
+  07 §7.8, 09 §9.4), which drew the change list only.
+- RulesetEditor `catalog/fields.ts`: `fromBlocksField(key, spec, params?)`, `fromBlocksFields(params)` and
+  `toParamSpec(field)` map a `blocks.d` param onto SchemaForm's `FieldSchema` and back (docs/phases/09 §9.10, OD-16),
+  lossless round trip; `when` → `showIf` with `isVisible`'s loose matches and default fallback spelled out
+  (`whenToShowIf`), and `isBlocksFieldVisible` for a `{ not }` condition, which FieldSchema cannot express. The field
+  adds `secret`, `unit`, `pattern` and `override` (the types a host renders through `fieldOverrides`).
+- RulesetEditor `format/roltek.ts` config nodes: `chainsToRoltek(chains, { configs })` and `buildRoltekExport` write the
+  configs a host passes with every secret as a `{ "$secret": true }` marker (listed in `omitted`); `roltekConfigs(file,
+  catalog?)` reads them back with secrets `null` (`secretsToEnter`) and skips bad ids, duplicates and unknown types;
+  `parseImport` returns them as the roltek preview's `configs`. `roltekToChains` takes `{ noteConfigs: false }` to
+  leave out its "config node(s) in the file not imported" note. `RoltekFile.configs` is typed `RoltekConfig[]`.
+
 - RulesetEditor canvas: optional theme tokens `--canvas-bg` (background, default `--surface-base`) and `--canvas-dot`
   (grid dots, default `--border`), as next-boilerplate's vendored copy had by hand.
 - `ParamForm` (RulesetEditor): `suggest({ key, spec, values, row? })` gives a text field its suggestions per field and per

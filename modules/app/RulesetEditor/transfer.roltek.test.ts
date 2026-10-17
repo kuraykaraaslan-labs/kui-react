@@ -67,6 +67,18 @@ describe('parseImport of roltek-automation-1', () => {
     expect(r.items[0].placeholders).toBe(2);
     expect(r.items[0].notes).toEqual(['2 nodes not available here (placeholder)']);
   });
+  it('carries the config nodes of the file, secrets empty, instead of a note per flow', () => {
+    const file = { ...FILE, configs: [{ id: 'acct', type: 'action.notify', params: { token: { $secret: true }, label: 'A' } }] };
+    const r = parseImport(JSON.stringify(file), [], { now: NOW, catalog }) as ImportPreview;
+    expect(r.configs).toEqual({ configs: [{ id: 'acct', type: 'action.notify', params: { token: null, label: 'A' } }], secretsToEnter: ['acct.token'], skipped: [] });
+    expect(r.items[0].notes).toEqual([]);
+    expect((parseImport(JSON.stringify(FILE), [], { now: NOW, catalog }) as ImportPreview).configs).toBeUndefined();
+  });
+  it('writes the configs it is given into a roltek export', () => {
+    const r = buildRoltekExport([chain()], { now: NOW, catalog, configs: [{ id: 'acct', type: 'action.notify', params: { token: 't' } }] });
+    expect(r.file.configs).toEqual([{ id: 'acct', type: 'action.notify', params: { token: { $secret: true } } }]);
+    expect(r.omitted).toContain('configs.acct.params.token');
+  });
   it('rejects a file without flows, or with too many', () => {
     expect(parseImport(JSON.stringify({ format: ROLTEK_FORMAT, flows: [] }), [])).toMatchObject({ ok: false, code: 'empty' });
     expect(parseImport(JSON.stringify({ format: ROLTEK_FORMAT }), [])).toMatchObject({ ok: false, code: 'empty' });

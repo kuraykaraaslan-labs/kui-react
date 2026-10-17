@@ -1361,3 +1361,26 @@ describe('RulesetEditor: script block', () => {
     expect(within(panel()).queryByTestId('script-api')).toBeNull();
   });
 });
+
+describe('diffTint (a version compare)', () => {
+  it('outlines and labels added, changed and removed blocks, and colours tinted connections', () => {
+    const { container } = setup({ readOnly: true, diffTint: { nodes: { n1: 'added', n2: 'changed', n3: 'removed' }, edges: { 'n1\u0000out\u0000n2': 'added', 'n2\u0000true\u0000n3': 'removed' } } });
+    expect(nodeEl('Source').getAttribute('data-diff')).toBe('added');
+    expect(nodeEl('Gate').getAttribute('data-diff')).toBe('changed');
+    expect(nodeEl('Sink')).toHaveAccessibleName(/, Removed$/);
+    expect(screen.getAllByTestId('node-diff').map((b) => b.textContent)).toEqual(['Added', 'Changed', 'Removed']);
+    const tinted = [...container.querySelectorAll('path[data-diff]')];
+    expect(tinted.map((p) => [p.getAttribute('data-diff'), p.getAttribute('stroke'), p.getAttribute('stroke-dasharray')])).toEqual([
+      ['added', 'var(--success)', null], ['removed', 'var(--error)', '6 4'],
+    ]);
+  });
+
+  it('draws nothing extra without it, and takes translated badge words', () => {
+    setup({ diffTint: { nodes: { n2: 'changed' } }, messages: { diffChanged: 'Geändert' } });
+    expect(screen.getByTestId('node-diff').textContent).toBe('Geändert');
+    expect(nodeEl('Source').hasAttribute('data-diff')).toBe(false);
+    cleanup();
+    setup();
+    expect(screen.queryByTestId('node-diff')).toBeNull();
+  });
+});

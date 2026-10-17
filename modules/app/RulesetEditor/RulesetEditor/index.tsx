@@ -29,6 +29,7 @@ import { Palette } from './canvas/Palette';
 import { Canvas } from './canvas/Canvas';
 import { IssuesPanel, ScopeBar } from './canvas/Overlays';
 import type { RuleNodeStatus } from './canvas/RuleNode';
+import type { CanvasDiffTint } from '../graph/diff-view';
 import { ContextMenu, type ContextMenuItem } from './canvas/ContextMenu';
 import { MiniMap } from './canvas/MiniMap';
 import { SelectionFrame } from './canvas/SelectionFrame';
@@ -134,6 +135,11 @@ export type RulesetEditorProps = {
   chainName?: string;
   /** live state per node id, shown under the node (e.g. from a running chain) */
   nodeStatus?: Record<string, RuleNodeStatus>;
+  /**
+   * A version compare: blocks and connections tinted as added, changed or removed (`diffTints(diffGraphs(a, b))`, or
+   * `diffView(a, b).tint` with its graph, which also shows what was removed). Usually with `readOnly`.
+   */
+  diffTint?: CanvasDiffTint;
   /** called when the selection of blocks changes, with their ids */
   onSelectionChange?: (ids: string[]) => void;
   /** more entries for the menu of a block (right click, long press); `label`s must be unique in the menu */
@@ -165,7 +171,7 @@ type GroupEdit = { kind: 'new'; ids: string[] } | { kind: 'edit'; groupId: strin
 export function RulesetEditor({
   initialNodes = [], initialEdges = [], initialGroups, initialSubflows,
   catalog: catalogProp, choices, paramEditors, unavailable, messages, onSave, active = false, subflowDepthLimit = DEFAULT_SUBFLOW_DEPTH, onChange,
-  readOnly = false, browserDebug = true, className, chainName = 'Rule Chain', nodeStatus, onSelectionChange, nodeMenuItems, toolbarExtra, bannerSlot, ref,
+  readOnly = false, browserDebug = true, className, chainName = 'Rule Chain', nodeStatus, diffTint, onSelectionChange, nodeMenuItems, toolbarExtra, bannerSlot, ref,
 }: RulesetEditorProps) {
   const m = useMergedMessages(messages);
   const ed = useGraphEditor({ nodes: initialNodes, edges: initialEdges, groups: initialGroups ?? [], subflows: initialSubflows ?? [] }, onChange);
@@ -872,6 +878,7 @@ export function RulesetEditor({
         mouse={mouse}
         readOnly={readOnly}
         nodeStatus={nodeStatus}
+        diffTint={diffTint}
         issues={issues}
         onPointerDown={onPointerDown}
         onPointerDownCapture={onPointerDownCapture}
