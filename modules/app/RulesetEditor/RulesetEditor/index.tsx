@@ -241,16 +241,16 @@ export function RulesetEditor({
   );
   const layouts = useMemo(() => new Map<string, NodeLayout>(nodes.map((n) => [n.nodeId, layoutOf(n, catalog)])), [nodes, catalog]);
 
-  /* what is wrong with the graph on the canvas */
+  /* what is wrong with the graph on the canvas (keyed on its lists: `ed.graph` is a new object on every render) */
   const validation = useMemo(() => {
     const subs = subflowMap(ed.state.subflows);
-    return validateGraph(ed.graph, catalog, {
+    return validateGraph({ nodes, edges }, catalog, {
       active,
       message: m.issueText,
       subflow: scopeSubflow ? { inputs: scopeSubflow.inputs, outputs: scopeSubflow.outputs } : undefined,
       nest: (id) => (scopeSubflow ? nestProblem(subs, scopeSubflow.subflowId, id, subflowDepthLimit) : placementProblem(subs, id, subflowDepthLimit)),
     });
-  }, [ed.graph, ed.state.subflows, catalog, active, scopeSubflow, subflowDepthLimit, m.issueText]);
+  }, [nodes, edges, ed.state.subflows, catalog, active, scopeSubflow, subflowDepthLimit, m.issueText]);
   const issues = useMemo(() => issuesByNode(validation), [validation]);
 
   const [find, setFind] = useState<{ query: string; index: number } | null>(null);

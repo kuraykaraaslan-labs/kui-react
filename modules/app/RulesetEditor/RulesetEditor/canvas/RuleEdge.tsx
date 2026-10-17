@@ -1,4 +1,5 @@
 'use client';
+import { memo } from 'react';
 import { portColor, portEdgeLabel } from '../node-meta';
 import { edgePath, inputAnchor, outputAnchor, type NodeLayout } from '../geometry';
 import type { RuleNode, RuleEdge as RuleEdgeType } from '../../types';
@@ -11,7 +12,7 @@ const DIFF_STROKE: Record<DiffTint, string> = { added: 'var(--success)', changed
 /** A click selects the connection (it is deleted with Delete / Backspace or the
  *  canvas button), so a stray click no longer removes it. A connection that leaves the
  *  error port is dashed and starts at the bottom of its node. */
-export function RuleEdge({ edge, nodes, layouts, readOnly, selected, diff, activity, lit = false, activityWindow, ghost = false, onSelect }: {
+function RuleEdgeView({ edge, nodes, layouts, readOnly, selected, diff, activity, lit = false, activityWindow, ghost = false, onSelect }: {
   edge: RuleEdgeType;
   nodes: RuleNode[];
   layouts: Map<string, NodeLayout>;
@@ -77,3 +78,19 @@ export function RuleEdge({ edge, nodes, layouts, readOnly, selected, diff, activ
     </g>
   );
 }
+
+type RuleEdgeProps = Parameters<typeof RuleEdgeView>[0];
+
+/** the same props, except that a counter is compared by its numbers (the host may send a fresh object each tick) */
+export function sameEdgeProps(a: RuleEdgeProps, b: RuleEdgeProps): boolean {
+  for (const k of Object.keys({ ...a, ...b }) as (keyof RuleEdgeProps)[]) {
+    if (k === 'activity') {
+      if (a.activity === b.activity) continue;
+      if (!a.activity || !b.activity || a.activity.count !== b.activity.count || a.activity.at !== b.activity.at) return false;
+    } else if (a[k] !== b[k]) return false;
+  }
+  return true;
+}
+
+/** Memoised: a live flash re-renders only the connections whose `lit` (or other props) changed. */
+export const RuleEdge = memo(RuleEdgeView, sameEdgeProps);
