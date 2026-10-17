@@ -10,6 +10,7 @@ import { isNote, noteText } from '../../catalog/note';
 import { nodeName } from '../../graph/names';
 import type { GraphIssue } from '../../graph/validate';
 import type { DiffTint } from '../../graph/diff-view';
+import { outTotal, type NodeActivity } from '../../graph/activity';
 import { useMessages } from '../messages';
 import type { RuleNode as RuleNodeType } from '../../types';
 
@@ -30,7 +31,7 @@ const TONE: Record<RuleNodeStatus['tone'], string> = {
   success: 'var(--success)', error: 'var(--error)', warning: 'var(--warning)', info: 'var(--info)', neutral: 'var(--text-secondary)',
 };
 
-export function RuleNode({ node, decl, layout, issues = [], search, diff, isSelected, isEditing, isDragging, status, onPointerDown }: {
+export function RuleNode({ node, decl, layout, issues = [], search, diff, isSelected, isEditing, isDragging, status, activity, activityWindow, onPointerDown }: {
   node: RuleNodeType;
   decl: BlockDecl | undefined;
   layout: NodeLayout;
@@ -43,6 +44,10 @@ export function RuleNode({ node, decl, layout, issues = [], search, diff, isSele
   isEditing: boolean;
   isDragging: boolean;
   status?: RuleNodeStatus;
+  /** the host's live counters of this block, shown in the hover card */
+  activity?: NodeActivity;
+  /** the span the counters cover ("last 24 h") */
+  activityWindow?: string;
   onPointerDown: (e: React.PointerEvent) => void;
 }) {
   const m = useMessages();
@@ -147,6 +152,11 @@ export function RuleNode({ node, decl, layout, issues = [], search, diff, isSele
           <p className="font-semibold">{name}</p>
           <p className="mt-0.5 text-text-secondary">{placeholder ? `${originalType} – ${m.nodeNotAvailable}` : m.nodeTipKind(node.type, title)}</p>
           {node.description && <p className="mt-1 whitespace-pre-wrap break-words">{node.description}</p>}
+          {activity && (
+            <p data-testid="node-tip-counters" className="mt-1 tabular-nums text-text-secondary">
+              {m.nodeCounters(activity.in ?? null, outTotal(activity), activity.errors ?? null, activityWindow)}
+            </p>
+          )}
         </div>
       )}
       {status && (

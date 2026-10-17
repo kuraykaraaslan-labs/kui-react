@@ -6,6 +6,36 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- RulesetEditor live activity (next-boilerplate automation 09 §9.5): `activity` (`CanvasActivity`: counters per connection
+  and per block, a `window` label). A connection whose count goes up lights up for 400 ms, at most twice a second
+  (`graph/activity.ts` `pulseStep`, `useEdgePulse`); hovering a connection shows its count, hovering a block its in / out /
+  errors (hover card), and the node panel's Messages tab repeats them. A connection the host does not list takes the count
+  of its source port (`edgeActivityOf`). Messages `edgeCount`, `edgeActivityTitle`, `nodeCounters`.
+- RulesetEditor node panel Messages tab (UI-33): `nodeMessages` (`{ [nodeId]: NodeMessage[] }`), `messageBodies` (bodies
+  only when the host says the viewer may see them) and `onTestMessage` ("Test with this input"). The panel takes `tabs`,
+  `bare`, `tab` / `onTabChange` for a host bar.
+- RulesetEditor UI-31: drag an end of the selected connection onto another port or block (handles on both ends); the same
+  rules as a new connection (`rewireEdge` in `graph/edit.ts`), one undo step, the id kept. `useEdgeRewire`; output ports
+  carry `data-out-node` / `data-out-port`.
+- RulesetEditor single-script test (next-boilerplate 06 §6.7): `onScriptTest(request) => Promise<ScriptTestResult>` and
+  `scriptTestSample(nodeId)`. A block with an `automation-script` code param gets "Test the script": code, message type,
+  originator, payload, metadata, optional context; outputs per port, log, status, context writes, CPU time; an error with
+  line and column is marked in the code. Save writes the code back into the block (one undo step).
+- RulesetEditor code fields: completion and hover from `SCRIPT_API_ITEMS` (`scriptSuggestions`, `scriptHover`), markers
+  from `lintScript` (reads the text, never runs it: brackets, open strings / templates / comments / regular expressions,
+  names the sandbox lacks, over 8 KiB), Format through `tidyScript`, and the CodeEditor toolbar. `messages.codeEditor`.
+- InsightPanel (debug comparison items 4 and 6): `deployProblems` ("Problems that stop a deploy" first in Errors, counted,
+  with block links); `slots` for Block, Help, Trace and Runs in the router's order; `extraTabs`; `header`; controlled
+  `tab` / `onTabChange`. RulesetEditor `sideBar` (`RulesetSideBar`) renders it as the editor's one side bar with the node
+  panel as Block and Help and the editor's validation errors in Errors.
+- CodeEditor M2 (textarea engine): Tab / Shift+Tab indent (Esc then Tab leaves), Ctrl/Cmd+/ comment toggle, auto-indent
+  on Enter, bracket and quote pairs, the toolbar (`showToolbar`: language, find, format, copy, full screen), find / replace
+  (Ctrl/Cmd+F), `format` and `formatOnSave`, `tabSize`. Edits go through `insertText` so Ctrl+Z undoes them. Multi-cursor
+  and bracket-match highlight are not in the textarea engine.
+- CodeEditor M3: `markers` (gutter dot, tinted line, a list under the field that jumps to the spot, `aria-invalid`),
+  `getSuggestions` (a listbox on typing or Ctrl+Space, filtered by the typed name, `prefix` in the context),
+  `getHover` (the name under the pointer). `messages` for every word; `editing.ts` holds the pure text operations.
+
 - RulesetEditor version compare: `graph/diff.ts` `diffFlows(a, b)`, the router's `flowlib.js` `diff` ported (per node
   added, removed, changed with field paths and short from/to texts, moved apart; connections and groups by key; flow
   meta), with `edgeKey`, `stableJson`, `shortText`; it imports nothing, so a server can copy it. `graph/diff-view.ts`:

@@ -4,6 +4,7 @@ import { paramIssueMessage } from '../catalog/params';
 import { ENGLISH_SUBFLOW_PROBLEMS, type SubflowProblemTexts } from '../graph/state';
 import { issueMessage, type IssueCode } from '../graph/validate';
 import type { ShortcutGroup, ShortcutId } from './shortcuts';
+import type { CodeEditorMessages } from '@/modules/ui/CodeEditor';
 
 /**
  * The words of the editor chrome, so a host can translate them: pass `messages` (any part of it) to `RulesetEditor`,
@@ -137,6 +138,32 @@ export type EditorMessages = {
   panelProblems: string; panelAvailableInputs: string; panelIn: string; panelOut: string; panelResetScript: string;
   panelAppliesAsYouType: string; panelPlaceholderTitle: string; panelOriginalType: string; panelSource: string;
   panelOriginalSettings: string;
+  /* live activity on the canvas (09 §9.5) and dragging a connection's end (UI-31) */
+  edgeCount: (count: number) => string;
+  edgeActivityTitle: (count: number, window?: string) => string;
+  /** a block's counters, in its hover card and the Messages tab; null where the host counts nothing */
+  nodeCounters: (inCount: number | null, outCount: number | null, errors: number | null, window?: string) => string;
+  edgeHandleSource: string; edgeHandleTarget: string;
+  /* the node panel's Messages tab (UI-33) and its script test (06 §6.7) */
+  panelTabMessages: string; panelMessagesNone: string; panelMessagesHidden: string; panelMessageIn: string; panelMessageTest: string; panelTestScript: string;
+  panelMessageOut: (port?: string) => string;
+  panelMessageRun: (run: string) => string;
+  /** the words of the kui CodeEditor in the code fields and the script test (toolbar, find bar, lists); English where not given */
+  codeEditor: Partial<CodeEditorMessages>;
+  /** who found a problem the code field lists: the browser's own check, or the test run */
+  scriptCheckSource: string; scriptTestSource: string;
+  scriptTestTitle: (blockLabel: string) => string;
+  scriptTestIntro: string; scriptTestRun: string; scriptTestRunning: string; scriptTestSave: string; scriptTestCode: string;
+  scriptTestMsgType: string; scriptTestOriginatorType: string; scriptTestOriginatorId: string; scriptTestPayload: string; scriptTestMetadata: string;
+  scriptTestContext: string; scriptTestContextHint: string; scriptTestBadJson: string; scriptTestBadObject: string;
+  scriptTestResult: string; scriptTestNoResult: string; scriptTestFailed: string; scriptTestNoOutput: string; scriptTestLog: string; scriptTestStatus: string;
+  scriptTestContextWrites: string;
+  scriptTestErrorAt: (line: number, column?: number) => string;
+  scriptTestOutput: (port: string) => string;
+  scriptTestCpu: (ms: number) => string;
+  /* the side bar: deploy problems in Errors (item 4), the Block, Help, Trace and Runs tabs (item 6) */
+  insDeployProblems: string; insProblemError: string; insProblemWarning: string;
+  insTabBlock: string; insTabHelp: string; insTabTrace: string; insTabRuns: string; sideBarPickBlock: string;
 };
 
 export const DEFAULT_MESSAGES: EditorMessages = {
@@ -265,6 +292,33 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   panelProblems: 'Problems with this node', panelAvailableInputs: 'Available inputs', panelIn: 'In', panelOut: 'Out', panelResetScript: 'Reset script',
   panelAppliesAsYouType: 'Changes apply as you type. Undo with Ctrl+Z.', panelPlaceholderTitle: 'Not available here',
   panelOriginalType: 'Original type', panelSource: 'Source', panelOriginalSettings: 'Original settings (read-only)',
+  edgeCount: (n) => (n === 1 ? '1 message' : `${n} messages`),
+  edgeActivityTitle: (n, window) => `${n === 1 ? '1 message' : `${n} messages`} on this connection${window ? ` (${window})` : ''}`,
+  nodeCounters: (inN, outN, errors, window) => [
+    inN !== null ? `In ${inN}` : '', outN !== null ? `Out ${outN}` : '', errors !== null ? `Errors ${errors}` : '',
+  ].filter(Boolean).join(' · ') + (window ? ` (${window})` : ''),
+  edgeHandleSource: 'Drag to another output', edgeHandleTarget: 'Drag to another input',
+  panelTabMessages: 'Messages', panelMessagesNone: 'No messages through this block yet.',
+  panelMessagesHidden: 'Message bodies are shown only to people who may debug.', panelMessageIn: 'In', panelMessageTest: 'Test with this input',
+  panelTestScript: 'Test the script',
+  panelMessageOut: (port) => (port ? `Out → ${port}` : 'Out'),
+  panelMessageRun: (run) => `run ${run}`,
+  codeEditor: {},
+  scriptCheckSource: 'check', scriptTestSource: 'test run',
+  scriptTestTitle: (label) => `Test the script of "${label}"`,
+  scriptTestIntro: 'Runs this code once on the message below, on the real script host. Nothing is deployed; Save puts the code into the block.',
+  scriptTestRun: 'Run', scriptTestRunning: 'Running…', scriptTestSave: 'Save into the block', scriptTestCode: 'Code',
+  scriptTestMsgType: 'Message type', scriptTestOriginatorType: 'Originator type', scriptTestOriginatorId: 'Originator id',
+  scriptTestPayload: 'Payload (JSON)', scriptTestMetadata: 'Metadata (JSON object)',
+  scriptTestContext: 'Context (optional JSON)', scriptTestContextHint: '{ "node": {…}, "flow": {…}, "global": {…} }',
+  scriptTestBadJson: 'This is not valid JSON.', scriptTestBadObject: 'This must be a JSON object.',
+  scriptTestResult: 'Result', scriptTestNoResult: 'Run the script to see what it sends.', scriptTestFailed: 'The test could not run.',
+  scriptTestNoOutput: 'The script sent nothing.', scriptTestLog: 'Log', scriptTestStatus: 'Status:', scriptTestContextWrites: 'Context written',
+  scriptTestErrorAt: (line, column) => `Line ${line}${column ? `, column ${column}` : ''}: `,
+  scriptTestOutput: (port) => `Output ${port}`,
+  scriptTestCpu: (ms) => `${ms} ms CPU`,
+  insDeployProblems: 'Problems that stop a deploy', insProblemError: 'Error', insProblemWarning: 'Warning',
+  insTabBlock: 'Block', insTabHelp: 'Help', insTabTrace: 'Trace', insTabRuns: 'Runs', sideBarPickBlock: 'Click a block on the canvas to edit it.',
 };
 
 const MessagesContext = createContext<EditorMessages>(DEFAULT_MESSAGES);

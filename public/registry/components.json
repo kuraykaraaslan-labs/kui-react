@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-17T13:38:51.985Z",
+  "generatedAt": "2026-10-17T19:01:23.894Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -3695,9 +3695,13 @@
       "category": "App",
       "filePath": "modules/ui/CodeEditor/index.tsx",
       "abbr": "CE",
-      "description": "Engine-agnostic code editor primitive. M1 ships a lightweight CodeMirror-style fallback engine (textarea + line-number gutter + active-line + theme + readonly + placeholder) so the public API is stable today. Future milestones: Monaco (VSCode) lazy engine, find/replace, multi-cursor, diagnostics (markers), custom autocomplete + hover, minimap, code folding, vim/emacs keymap. Pixel-identical EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs. Used by RulesetEditor M3 + RichTextEditor code-block insert (planned).",
-      "source": "import { CodeEditor } from '@/modules/ui/CodeEditor';\n\n// Read-only snippet:\n<CodeEditor\n  id=\"example\"\n  language=\"js\"\n  theme=\"light\"\n  value={source}\n  readonly\n/>\n\n// Editable markdown (controlled):\nconst [src, setSrc] = useState('');\n<CodeEditor\n  id=\"readme\"\n  name=\"readme\"\n  label=\"README.md\"\n  language=\"markdown\"\n  theme=\"dark\"\n  value={src}\n  onChange={setSrc}\n  placeholder=\"Start typing markdown…\"\n/>\n\n// Opt-in Monaco engine (lazy — M2):\n<CodeEditor engine=\"monaco\" language=\"ts\" value={code} onChange={setCode} />",
+      "description": "Engine-agnostic code editor primitive on a textarea engine (line-number gutter, active line, theme, readonly, placeholder). M2: Tab / Shift+Tab indent (Esc then Tab leaves), Ctrl/Cmd+/ comment toggle, auto-indent, bracket and quote pairs, a toolbar (find / replace, format, copy, full screen), format-on-save. M3: diagnostics (markers in the gutter, tinted lines, a list that jumps to the spot), completion (getSuggestions, a listbox) and hover (getHover). Later: Monaco lazy engine, multi-cursor, minimap, folding, vim/emacs keymap. EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs (M1 only). Used by the RulesetEditor code fields (the automation script with completion, hover and checks).",
+      "source": "import { CodeEditor } from '@/modules/ui/CodeEditor';\n\n// Read-only snippet:\n<CodeEditor\n  id=\"example\"\n  language=\"js\"\n  theme=\"light\"\n  value={source}\n  readonly\n/>\n\n// Editable markdown (controlled):\nconst [src, setSrc] = useState('');\n<CodeEditor\n  id=\"readme\"\n  name=\"readme\"\n  label=\"README.md\"\n  language=\"markdown\"\n  theme=\"dark\"\n  value={src}\n  onChange={setSrc}\n  placeholder=\"Start typing markdown…\"\n/>\n\n// Toolbar, diagnostics, completion and hover (M2 / M3):\n<CodeEditor\n  id=\"script\"\n  language=\"js\"\n  value={code}\n  onChange={setCode}\n  showToolbar\n  format={tidy}\n  markers={[{ line: 2, column: 4, severity: 'error', message: 'This ( is not closed.' }]}\n  getSuggestions={({ prefix }) => names}\n  getHover={({ word }) => ({ contents: helpOf(word) })}\n/>\n\n// Opt-in Monaco engine (falls back to the textarea engine for now):\n<CodeEditor engine=\"monaco\" language=\"ts\" value={code} onChange={setCode} />",
       "variants": [
+        {
+          "title": "Script with aids (M2 / M3)",
+          "code": "<CodeEditor id=\"script\" language=\"js\" value={code} onChange={setCode} showToolbar\n  markers={markers} format={tidy} getSuggestions={() => names} getHover={({ word }) => help(word)} />"
+        },
         {
           "title": "JavaScript readonly",
           "code": "<CodeEditor\n  id=\"example\"\n  label=\"example.js\"\n  language=\"js\"\n  theme=\"light\"\n  value={source}\n  readonly\n  showLineNumbers\n/>"
@@ -3726,7 +3730,27 @@
           },
           {
             "keys": "Ctrl/Cmd + Z",
-            "action": "Browser-native undo (M1 textarea fallback)"
+            "action": "Browser-native undo (edits go through insertText)"
+          },
+          {
+            "keys": "Tab / Shift + Tab",
+            "action": "Indent / outdent; Esc then Tab moves focus out"
+          },
+          {
+            "keys": "Ctrl/Cmd + /",
+            "action": "Toggle a line comment"
+          },
+          {
+            "keys": "Ctrl + Space",
+            "action": "Open suggestions; Arrow keys pick, Enter or Tab inserts, Esc closes"
+          },
+          {
+            "keys": "Ctrl/Cmd + F",
+            "action": "Find and replace"
+          },
+          {
+            "keys": "Shift + Alt + F",
+            "action": "Format (when the editor has a format function)"
           }
         ]
       },
@@ -4386,6 +4410,10 @@
         {
           "title": "In another language",
           "code": "<RulesetEditor\n  catalog={catalog}\n  messages={{ paletteTitle: 'Blocktypen', toolUndo: 'Rückgängig', menuPaste: 'Einfügen' /* … */ }}\n/>\n// Any part of the bundle can be given; the rest stays English. See EditorMessages."
+        },
+        {
+          "title": "Version compare",
+          "code": "import { diffView } from '@/modules/app/RulesetEditor';\n\n// both versions in one graph: what was removed comes back at its old place\nconst view = diffView(deployedGraph, draftGraph);\n<RulesetEditor readOnly catalog={catalog} initialNodes={view.nodes} initialEdges={view.edges} diffTint={view.tint} />\n// view.diff is the change list per block and field (diffFlows, the router's flowlib diff)"
         }
       ],
       "status": "beta",

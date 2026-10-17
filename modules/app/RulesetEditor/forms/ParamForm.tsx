@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
@@ -12,7 +12,8 @@ import { CodeEditor } from '@/modules/ui/CodeEditor';
 import { isVisible, optionLabel, paramLabel, validateParams, type ParamValues } from '../catalog/params';
 import type { ParamChoices, ParamSpec } from '../catalog/types';
 import { useMessages } from '../RulesetEditor/messages';
-import { SCRIPT_SIGNATURE } from '../RulesetEditor/script/api';
+import { SCRIPT_SIGNATURE, scriptHover, scriptSuggestions } from '../RulesetEditor/script/api';
+import { lintScript, tidyScript } from '../RulesetEditor/script/lint';
 import {
   choicesOf, DEFAULT_MAX_ROWS, DURATION_UNITS, isMissingChoice, isValueParam, itemSpec, joinList, MONO_TYPES, newRuleRow,
   numberFromText, parseJsonDraft, rowSchema, setField, splitDuration, splitList, toggleIn, toMs, valueOfKind, VALUE_KINDS,
@@ -371,16 +372,28 @@ function RulesField({ id, name, spec, value, onChange, readOnly, choices, error,
   );
 }
 
+const SCRIPT_COMPLETIONS = scriptSuggestions();
+
 function CodeField({ id, name, spec, value, onChange, readOnly, error }: FieldProps) {
   const m = useMessages();
+  const code = typeof value === 'string' ? value : '';
+  const script = spec.api === 'automation-script';
+  const markers = useMemo(() => (script ? lintScript(code).map((p) => ({ ...p, source: m.scriptCheckSource })) : undefined), [script, code, m.scriptCheckSource]);
   return (
     <div>
       {spec.api === 'automation-script' && (
         <p data-testid="script-signature" aria-label={m.scriptSignatureLabel} title={m.scriptSignatureLabel}
           className="mb-1.5 overflow-x-auto whitespace-nowrap rounded-md bg-surface-sunken px-2 py-1 font-mono text-[11px] text-text-secondary">{SCRIPT_SIGNATURE}</p>
       )}
-      <CodeEditor id={id} label={fieldLabel(name, spec)} value={typeof value === 'string' ? value : ''} readonly={readOnly} hint={spec.hint} error={error}
-        language={spec.lang && spec.lang !== 'text' ? spec.lang : 'plaintext'} minHeight={160} onChange={(v) => onChange(v)} />
+      <CodeEditor id={id} label={fieldLabel(name, spec)} value={code} readonly={readOnly} hint={spec.hint} error={error}
+        language={spec.lang && spec.lang !== 'text' ? spec.lang : 'plaintext'} minHeight={160} onChange={(v) => onChange(v)}
+        showToolbar messages={m.codeEditor}
+        {...(script && {
+          markers,
+          format: (v: string) => tidyScript(v),
+          getSuggestions: () => SCRIPT_COMPLETIONS,
+          getHover: ({ word }: { word: string }) => { const doc = scriptHover(word); return doc ? { contents: doc } : null; },
+        })} />
     </div>
   );
 }

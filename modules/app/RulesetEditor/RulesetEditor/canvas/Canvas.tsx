@@ -14,6 +14,8 @@ import { groupBounds } from '../../graph/groups';
 import type { Catalog } from '../../catalog/types';
 import type { GraphIssue } from '../../graph/validate';
 import { edgeTintOf, type CanvasDiffTint } from '../../graph/diff-view';
+import type { EdgeActivity, NodeActivity } from '../../graph/activity';
+import type { Rewiring } from '../hooks/useEdgeRewire';
 import type { RuleGroup, RuleNode as RuleNodeT, RuleEdge as RuleEdgeT } from '../../types';
 
 const zoomBtn = 'inline-flex h-7 w-7 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-text-secondary';
@@ -25,6 +27,7 @@ export function Canvas({
   onNodePointerDown, onOutputPortDown, onInputPortUp, onSelectEdge, onDeleteSelectedEdge, onGroupTabPointerDown, onGroupTabDoubleClick,
   onZoomIn, onZoomOut, onFit, canUndo, canRedo, onUndo, onRedo,
   guides = [], onPointerCancel, onArrange, canArrange = true, boxMode = false, onToggleBoxMode, miniOn = false, onToggleMini, fullscreen = false, onToggleFullscreen, onShowShortcuts, search, toolbarExtra, diffTint,
+  edgeActivity, litEdges, nodeActivity, activityWindow, rewiring = null, onEdgeEndDown, onOutputPortUp,
 }: {
   containerRef: React.RefObject<HTMLDivElement | null>;
   nodes: RuleNodeT[];
@@ -90,8 +93,35 @@ export function Canvas({
   toolbarExtra?: React.ReactNode;
   /** a version compare: added, changed and removed blocks and connections are tinted */
   diffTint?: CanvasDiffTint;
+  /** live counters per connection (shown on hover) and the connections lit just now */
+  edgeActivity?: Record<string, EdgeActivity>;
+  litEdges?: ReadonlySet<string>;
+  /** live counters per block, shown in its hover card */
+  nodeActivity?: Record<string, NodeActivity>;
+  /** the span the counters cover ("last 24 h") */
+  activityWindow?: string;
+  /** an end of a connection being dragged to another port (UI-31) */
+  rewiring?: Rewiring;
+  /** a press on an end handle of the selected connection; `at` is that end's world point. No handles without it */
+  onEdgeEndDown?: (e: React.PointerEvent, edgeId: string, end: 'source' | 'target', at: { x: number; y: number }) => void;
+  /** the pointer was released on an output port (the drop of a dragged source end) */
+  onOutputPortUp?: (e: React.PointerEvent, nodeId: string, portId: string) => void;
 }) {
   const m = useMessages();
+  /* the two ends of a connection, in world points (null while a block of it is missing) */
+  const endsOf = (edgeId: string | null) => {
+    const edge = edgeId ? edges.find((x) => x.edgeId === edgeId) : undefined;
+    const src = edge && nodes.find((n) => n.nodeId === edge.sourceNodeId);
+    const tgt = edge && nodes.find((n) => n.nodeId === edge.targetNodeId);
+    const sl = src && layouts.get(src.nodeId), tl = tgt && layouts.get(tgt.nodeId);
+    if (!edge || !src || !tgt || !sl || !tl) return null;
+    const from = outputAnchor(src, sl, edge.sourcePort);
+    const ti = tl.inputs.findIndex((p) => p.id === edge.targetPort);
+    if (!from || ti < 0) return null;
+    return { from, to: inputAnchor(tgt, tl, ti) };
+  };
+  const handles = !readOnly && onEdgeEndDown && !rewiring && !connecting ? endsOf(selectedEdgeId) : null;
+  const rewireEnds = rewiring ? endsOf(rewiring.edgeId) : null;
   const liveFrom = (() => {
     if (!connecting) return null;
     const n = nodes.find((x) => x.nodeId === connecting.nodeId);
@@ -107,7 +137,7 @@ export function Canvas({
         backgroundImage:'radial-gradient(circle, var(--canvas-dot, var(--border)) 1.5px, transparent 1.5px)',
         backgroundSize:`${GRID_SIZE * view.k}px ${GRID_SIZE * view.k}px`,
         backgroundPosition:`${view.x}px ${view.y}px`,
-        backgroundColor:'var(--canvas-bg, var(--surface-base))', cursor: connecting ? 'crosshair' : 'default', touchAction:'none',
+        backgroundColor:'var(--canvas-bg, var(--surface-base))', cursor: connecting || rewiring ? 'crosshair' : 'default', touchAction:'none',
       }}
       onDrop={onDrop} onDragOver={onDragOver} onWheel={onWheel} onKeyDown={onKeyDown}
       onPointerDown={onPointerDown} onPointerDownCapture={onPointerDownCapture} onPointerMove={onPointerMove} onPointerUp={onPointerUp}
@@ -131,8 +161,14 @@ export function Canvas({
           </defs>
           {edges.map((edge) => (
             <RuleEdge key={edge.edgeId} edge={edge} nodes={nodes} layouts={layouts} readOnly={readOnly}
-              selected={selectedEdgeId === edge.edgeId} diff={edgeTintOf(diffTint, edge)} onSelect={onSelectEdge} />
+              selected={selectedEdgeId === edge.edgeId} diff={edgeTintOf(diffTint, edge)} onSelect={onSelectEdge}
+              activity={edgeActivity?.[edge.edgeId]} lit={!!litEdges?.has(edge.edgeId)} activityWindow={activityWindow}
+              ghost={rewiring?.edgeId === edge.edgeId} />
           ))}
+          {rewireEnds && rewiring && (
+            <path data-testid="edge-rewire-path" d={rewiring.end === 'target' ? edgePath(rewireEnds.from, mouse) : edgePath({ ...mouse, down: false }, rewireEnds.to)}
+              stroke="var(--primary)" strokeWidth={2} fill="none" strokeDasharray="6 3" />
+          )}
           {liveFrom && (
             <path d={edgePath(liveFrom, mouse)}
               stroke="var(--border-strong)" strokeWidth={2} fill="none" strokeDasharray="6 3" />
@@ -159,6 +195,8 @@ export function Canvas({
                   const c = portColor(port.id);
                   return at && (
                     <circle key={`out-${port.id}`} cx={at.x} cy={at.y} r={PORT_R}
+                      data-out-node={node.nodeId} data-out-port={port.id}
+                      onPointerUp={onOutputPortUp && ((e) => onOutputPortUp(e, node.nodeId, port.id))}
                       fill={c} stroke={c} strokeWidth={1.5}
                       style={{ pointerEvents:'auto', cursor:'crosshair', opacity:0.9 }}
                       className="transition-opacity hover:opacity-100"
@@ -167,6 +205,8 @@ export function Canvas({
                 })}
                 {errorAt && (
                   <circle key="out-error" cx={errorAt.x} cy={errorAt.y} r={PORT_R - 1}
+                    data-out-node={node.nodeId} data-out-port="error"
+                    onPointerUp={onOutputPortUp && ((e) => onOutputPortUp(e, node.nodeId, 'error'))}
                     fill="var(--surface-base)" stroke={portColor('error')} strokeWidth={2}
                     style={{ pointerEvents:'auto', cursor:'crosshair' }}
                     className="transition-colors hover:fill-error-subtle"
@@ -175,6 +215,17 @@ export function Canvas({
                   </circle>
                 )}
               </g>
+            );
+          })}
+          {handles && selectedEdgeId && (['source', 'target'] as const).map((end) => {
+            const at = end === 'source' ? handles.from : handles.to;
+            return (
+              <circle key={`handle-${end}`} data-testid={`edge-handle-${end}`} cx={at.x} cy={at.y} r={PORT_R + 2}
+                fill="var(--primary)" stroke="var(--surface-base)" strokeWidth={2}
+                style={{ pointerEvents:'auto', cursor:'grab' }}
+                onPointerDown={(e) => { e.stopPropagation(); onEdgeEndDown?.(e, selectedEdgeId, end, { x: at.x, y: at.y }); }}>
+                <title>{end === 'source' ? m.edgeHandleSource : m.edgeHandleTarget}</title>
+              </circle>
             );
           })}
         </svg>
@@ -194,6 +245,8 @@ export function Canvas({
               isSelected={selectedIds.has(node.nodeId)}
               isDragging={dragNodeId === node.nodeId}
               status={nodeStatus?.[node.nodeId]}
+              activity={nodeActivity?.[node.nodeId]}
+              activityWindow={activityWindow}
               onPointerDown={(e) => onNodePointerDown(e, node.nodeId)}
             />
           );

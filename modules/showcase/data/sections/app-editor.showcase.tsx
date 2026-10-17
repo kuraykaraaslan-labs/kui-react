@@ -221,6 +221,38 @@ Edit this markdown — line numbers update live.
   );
 }
 
+const SCRIPT_NAMES = [
+  { label: 'msg.payload', detail: 'any', documentation: 'The body of the message.' },
+  { label: 'msg.metadata', detail: 'object', documentation: 'Writable except the system fields.' },
+  { label: 'node.send', insertText: 'node.send(', detail: 'send at once', documentation: 'Send a message on output 1 at once.' },
+  { label: 'node.warn', insertText: 'node.warn(', detail: 'log', documentation: 'Write to the block log.' },
+];
+
+function CodeEditorAidsDemo() {
+  const [src, setSrc] = useState('const t = msg.payload.temp;\nif (t > 30 {\n  node.warn("hot");\n}\nreturn msg;\n');
+  // a toy check for the demo: an opening bracket on a line without its closing one
+  const markers = src.split('\n').flatMap((line, i) =>
+    (line.match(/\(/g)?.length ?? 0) > (line.match(/\)/g)?.length ?? 0)
+      ? [{ line: i + 1, column: line.indexOf('(') + 1, severity: 'error' as const, message: 'This ( is not closed on its line.', source: 'demo' }]
+      : []);
+  return (
+    <CodeEditor
+      id="ce-aids"
+      label="script.js"
+      hint="Type msg. or press Ctrl+Space for suggestions; Ctrl+/ comments a line; Ctrl+F finds."
+      value={src}
+      onChange={setSrc}
+      language="js"
+      showToolbar
+      markers={markers}
+      format={(v) => v.split('\n').map((l) => l.replace(/\s+$/, '')).join('\n')}
+      getSuggestions={() => SCRIPT_NAMES}
+      getHover={({ word }) => { const s = SCRIPT_NAMES.find((x) => x.label === word); return s ? { contents: s.documentation } : null; }}
+      minHeight={180}
+    />
+  );
+}
+
 export function buildAppEditorData(): ShowcaseComponent[] {
   return [
     {
@@ -229,7 +261,7 @@ export function buildAppEditorData(): ShowcaseComponent[] {
       category: 'App',
       abbr: 'CE',
       description:
-        'Engine-agnostic code editor primitive. M1 ships a lightweight CodeMirror-style fallback engine (textarea + line-number gutter + active-line + theme + readonly + placeholder) so the public API is stable today. Future milestones: Monaco (VSCode) lazy engine, find/replace, multi-cursor, diagnostics (markers), custom autocomplete + hover, minimap, code folding, vim/emacs keymap. Pixel-identical EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs. Used by RulesetEditor M3 + RichTextEditor code-block insert (planned).',
+        'Engine-agnostic code editor primitive on a textarea engine (line-number gutter, active line, theme, readonly, placeholder). M2: Tab / Shift+Tab indent (Esc then Tab leaves), Ctrl/Cmd+/ comment toggle, auto-indent, bracket and quote pairs, a toolbar (find / replace, format, copy, full screen), format-on-save. M3: diagnostics (markers in the gutter, tinted lines, a list that jumps to the spot), completion (getSuggestions, a listbox) and hover (getHover). Later: Monaco lazy engine, multi-cursor, minimap, folding, vim/emacs keymap. EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs (M1 only). Used by the RulesetEditor code fields (the automation script with completion, hover and checks).',
       filePath: 'modules/ui/CodeEditor/index.tsx',
       sourceCode: `import { CodeEditor } from '@/modules/ui/CodeEditor';
 
@@ -255,7 +287,20 @@ const [src, setSrc] = useState('');
   placeholder="Start typing markdown…"
 />
 
-// Opt-in Monaco engine (lazy — M2):
+// Toolbar, diagnostics, completion and hover (M2 / M3):
+<CodeEditor
+  id="script"
+  language="js"
+  value={code}
+  onChange={setCode}
+  showToolbar
+  format={tidy}
+  markers={[{ line: 2, column: 4, severity: 'error', message: 'This ( is not closed.' }]}
+  getSuggestions={({ prefix }) => names}
+  getHover={({ word }) => ({ contents: helpOf(word) })}
+/>
+
+// Opt-in Monaco engine (falls back to the textarea engine for now):
 <CodeEditor engine="monaco" language="ts" value={code} onChange={setCode} />`,
       since: '2026-05',
       composes: [],
@@ -270,10 +315,22 @@ const [src, setSrc] = useState('');
         keyboardInteractions: [
           { keys: 'Tab',         action: 'Move focus into / out of the editor' },
           { keys: 'Arrow keys',  action: 'Move caret + sync active line gutter' },
-          { keys: 'Ctrl/Cmd + Z', action: 'Browser-native undo (M1 textarea fallback)' },
+          { keys: 'Ctrl/Cmd + Z', action: 'Browser-native undo (edits go through insertText)' },
+          { keys: 'Tab / Shift + Tab', action: 'Indent / outdent; Esc then Tab moves focus out' },
+          { keys: 'Ctrl/Cmd + /', action: 'Toggle a line comment' },
+          { keys: 'Ctrl + Space', action: 'Open suggestions; Arrow keys pick, Enter or Tab inserts, Esc closes' },
+          { keys: 'Ctrl/Cmd + F', action: 'Find and replace' },
+          { keys: 'Shift + Alt + F', action: 'Format (when the editor has a format function)' },
         ],
       },
       variants: [
+        {
+          title: 'Script with aids (M2 / M3)',
+          layout: 'stack' as const,
+          preview: <CodeEditorAidsDemo />,
+          code: `<CodeEditor id="script" language="js" value={code} onChange={setCode} showToolbar
+  markers={markers} format={tidy} getSuggestions={() => names} getHover={({ word }) => help(word)} />`,
+        },
         {
           title: 'JavaScript readonly',
           layout: 'stack' as const,

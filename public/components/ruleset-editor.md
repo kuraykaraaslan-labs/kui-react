@@ -57,6 +57,17 @@ A fixed form or a linear wizard: use SchemaForm or OnboardingWizard.
 // Any part of the bundle can be given; the rest stays English. See EditorMessages.
 ```
 
+### Version compare
+
+```tsx
+import { diffView } from '@/modules/app/RulesetEditor';
+
+// both versions in one graph: what was removed comes back at its old place
+const view = diffView(deployedGraph, draftGraph);
+<RulesetEditor readOnly catalog={catalog} initialNodes={view.nodes} initialEdges={view.edges} diffTint={view.tint} />
+// view.diff is the change list per block and field (diffFlows, the router's flowlib diff)
+```
+
 ## Full source
 
 ```tsx

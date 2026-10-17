@@ -112,6 +112,35 @@ export function changeEdgePort<N extends GraphNode, E extends GraphEdge>(graph: 
 }
 
 /**
+ * Move one end of a connection (UI-31, dragging its end): `end: 'target'` takes it to another input (`port`, or the first
+ * input of `nodeId`), `end: 'source'` to another output (`port`, or the port it leaves now when the new block has it, else
+ * its first output that is not the error path). The connection keeps its id, so it stays selected. The same rules as a new
+ * connection apply (`connectProblem`, with this connection taken out first). Null when it is refused or nothing changes.
+ */
+export function rewireEdge<N extends GraphNode, E extends GraphEdge>(graph: Graph<N, E>, catalog: Catalog, edgeId: string, end: 'source' | 'target', nodeId: string, port?: string): Graph<N, E> | null {
+  const edge = graph.edges.find((e) => e.edgeId === edgeId);
+  const node = graph.nodes.find((n) => n.nodeId === nodeId);
+  if (!edge || !node) return null;
+  const ports = nodePortsOf(catalog, node);
+  const rest = { nodes: graph.nodes, edges: graph.edges.filter((e) => e.edgeId !== edgeId) };
+  let next: E;
+  if (end === 'target') {
+    const toPort = port ?? ports.inputs[0]?.id;
+    if (!toPort) return null;
+    if (nodeId === edge.targetNodeId && toPort === edge.targetPort) return null;
+    if (connectProblem(rest, catalog, edge.sourceNodeId, edge.sourcePort, nodeId, toPort)) return null;
+    next = { ...edge, targetNodeId: nodeId, targetPort: toPort };
+  } else {
+    const fromPort = port ?? (ports.outputs.some((p) => p.id === edge.sourcePort) ? edge.sourcePort : ports.outputs.find((p) => p.id !== 'error')?.id);
+    if (!fromPort) return null;
+    if (nodeId === edge.sourceNodeId && fromPort === edge.sourcePort) return null;
+    if (connectProblem(rest, catalog, nodeId, fromPort, edge.targetNodeId, edge.targetPort)) return null;
+    next = { ...edge, sourceNodeId: nodeId, sourcePort: fromPort };
+  }
+  return { ...graph, edges: graph.edges.map((e) => (e.edgeId === edgeId ? next : e)) };
+}
+
+/**
  * Put a new node in the middle of a connection: the connection is replaced by one into the node and,
  * when the node has an output, one from its first output to the old target. Null for an unknown connection.
  */

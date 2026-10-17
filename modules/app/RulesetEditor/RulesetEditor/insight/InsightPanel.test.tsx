@@ -128,3 +128,34 @@ describe('InsightPanel: uiMessages', () => {
     expect(screen.getByText(/^Der Speicher aller Abläufe: .* von .* belegt \(25 %\)\.$/)).toBeTruthy();
   });
 });
+
+describe('InsightPanel: one bar (debug comparison items 4 and 6)', () => {
+  it('lists the problems that stop a deploy first in Errors and counts them', () => {
+    const onReveal = vi.fn();
+    render(<InsightPanel nodeNames={names} onReveal={onReveal} deployProblems={[{ message: 'needs a value', nodeId: 'n2', code: 'required' }, { message: 'over the plan', severity: 'warning' }]} />);
+    expect(screen.getByTestId('insight-err-count')).toHaveTextContent('2');
+    tab('errors');
+    const list = screen.getByTestId('insight-deploy-problems');
+    expect(list).toHaveTextContent('Gate: needs a value');
+    expect(list).toHaveTextContent('over the plan');
+    fireEvent.click(within(list).getByRole('button', { name: 'Gate: needs a value' }));
+    expect(onReveal).toHaveBeenCalledWith('n2');
+  });
+
+  it('orders the host tabs as the router does, shows the header and its own tabs, and follows a controlled tab', () => {
+    const onTabChange = vi.fn();
+    const { rerender } = render(<InsightPanel nodeNames={names} header={<p>level</p>} tab="runs" onTabChange={onTabChange}
+      slots={{ block: { content: <p>block</p> }, runs: { content: <p>runs</p>, count: 3 } }} extraTabs={[{ id: 'events', label: 'Events', content: <p>events</p> }]} />);
+    expect(screen.getAllByRole('tab').map((t) => t.getAttribute('data-testid'))).toEqual([
+      'insight-tab-block', 'insight-tab-debug', 'insight-tab-errors', 'insight-tab-runs', 'insight-tab-data', 'insight-tab-busiest', 'insight-tab-events',
+    ]);
+    expect(screen.getByText('runs')).toBeTruthy();
+    expect(screen.getByTestId('insight-header')).toHaveTextContent('level');
+    expect(screen.getByTestId('insight-runs-count')).toHaveTextContent('3');
+    tab('events');
+    expect(onTabChange).toHaveBeenCalledWith('events');
+    rerender(<InsightPanel nodeNames={names} header={<p>level</p>} tab="block" slots={{ block: { content: <p>block</p> } }} />);
+    expect(screen.getByText('block')).toBeTruthy();
+    expect(screen.queryByTestId('insight-header')).toBeNull();
+  });
+});
