@@ -6,7 +6,10 @@
 // aids). Monaco (VSCode) is opt-in via `engine="monaco"` and falls back to
 // the same engine until it lands.
 //
-// Pixel-identical EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs.
+// Pixel-identical EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs (kui-ejs), at parity:
+// the M2 editing aids and the M3 diagnostics, completion and hover. There the
+// `format` / `getSuggestions` / `getHover` options name global functions on the
+// server; in the browser `KuiCodeEditor.attach(root, opts)` takes functions.
 //
 // Adoption:
 //   - RulesetEditor's code fields (the automation script with completion,
