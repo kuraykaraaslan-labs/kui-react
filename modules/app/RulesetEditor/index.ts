@@ -8,6 +8,7 @@ export type { InsightPanelProps } from './RulesetEditor/insight/InsightPanel';
 export { DEFAULT_MESSAGES } from './RulesetEditor/messages';
 export type { EditorMessages } from './RulesetEditor/messages';
 export { ParamForm } from './forms/ParamForm';
+export type { ParamSuggest, ParamSuggestField, ParamSuggestion } from './forms/ParamForm';
 export { RunsPanel, DEFAULT_RUNS_LABELS } from './RulesetEditor/insight/RunsPanel';
 export type { RunsPanelProps, RunsLabels } from './RulesetEditor/insight/RunsPanel';
 export type { RunRow, RunStep, RunStatus } from './RulesetEditor/insight/runs';
