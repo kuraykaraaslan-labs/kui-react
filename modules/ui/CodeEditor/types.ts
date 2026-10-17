@@ -8,13 +8,20 @@
 // based engine when CodeMirror 6 is not installed), language prop (data attr
 // only in fallback), light/dark/high-contrast theme, readonly, placeholder.
 //
-// TODO M2: find/replace, multi-cursor, comment toggle, bracket matching,
-//          format-on-save, toolbar (Toolbar.tsx + parts/Toolbar).
-// TODO M3: diagnostics (markers), autocomplete (getSuggestions), hover,
-//          extraLibs (TS type defs).
+// M2 (done in the textarea engine): Tab / Shift+Tab indent (Esc, then Tab
+//          leaves the field), Ctrl/Cmd+/ comment toggle, auto-indent on
+//          Enter, bracket and quote pairs (wrap, step over, Backspace),
+//          find / replace bar (Ctrl/Cmd+F), toolbar (language, find, format,
+//          copy, fullscreen), format + formatOnSave through `format`.
+//          Not in the textarea engine: multi-cursor, bracket-match highlight.
+// M3 (done in the textarea engine): diagnostics (`markers`: gutter icon,
+//          tinted line, a list under the field that jumps to the spot),
+//          completion (`getSuggestions`, Ctrl+Space or typing, a listbox),
+//          hover (`getHover` on the word under the pointer).
+//          `extraLibs` stays unused until a real TS engine lands.
 // TODO M4: minimap, code folding, vim/emacs keymap, snippet expansion,
 //          collaborative cursor, split diff view.
-// TODO M5: a11y mode (screen reader), reduced motion, messages prop (i18n).
+// TODO M5: a11y mode (screen reader), reduced motion.
 
 export type Lang =
   | 'js'
@@ -32,7 +39,7 @@ export type CodeEditorEngine = 'codemirror' | 'monaco';
 
 export type CodeEditorTheme = 'light' | 'dark' | 'high-contrast';
 
-// TODO M3: full Marker shape — severity, source, code, fix actions.
+/** A diagnostic: 1-based `line` and `column`; `source` and `code` say who found it (shown with the message). */
 export type Marker = {
   line: number;
   column?: number;
@@ -40,15 +47,18 @@ export type Marker = {
   endColumn?: number;
   severity: 'error' | 'warning' | 'info' | 'hint';
   message: string;
+  source?: string;
+  code?: string;
 };
 
-// TODO M3: SuggestContext / Suggestion / HoverContext / Hover when wiring
-//          custom completion + hover providers.
+/** What a completion provider is asked: the text, the 1-based caret, and the dotted name being typed (`prefix`). */
 export type SuggestContext = {
   language: Lang;
   value: string;
   cursor: { line: number; column: number };
   triggerCharacter?: string;
+  /** the dotted name that ends at the caret (`msg.pay`); a suggestion replaces it */
+  prefix?: string;
 };
 
 export type Suggestion = {
@@ -73,6 +83,26 @@ export type CodeEditorMessages = {
   placeholder: string;
   loading: string;
   readOnlyLabel: string;
+  toolbarLabel: string;
+  find: string;
+  findPlaceholder: string;
+  replacePlaceholder: string;
+  findPrev: string;
+  findNext: string;
+  findClose: string;
+  replaceOne: string;
+  replaceAll: string;
+  matchCase: string;
+  findNone: string;
+  findCount: (current: number, total: number) => string;
+  format: string;
+  copy: string;
+  copied: string;
+  fullscreen: string;
+  exitFullscreen: string;
+  suggestions: string;
+  problems: string;
+  markerAt: (line: number, column: number | undefined, message: string) => string;
 };
 
 export type CodeEditorProps = {
@@ -120,19 +150,28 @@ export type CodeEditorProps = {
   /** Wrapper class. */
   className?: string;
 
-  // ── M2+ (declared so callers can opt-in early; engine ignores in M1) ──────
-  // TODO M2:
+  // ── M2 ──
+  /** The bar above the field: language, find, format (with `format`), copy, fullscreen. */
   showToolbar?: boolean;
+  /** Ctrl/Cmd+S runs `format` first (the key still reaches the page, e.g. a host's save). */
   formatOnSave?: boolean;
-  // TODO M3:
+  /** Tidies the code (the toolbar's Format button, Shift+Alt+F, `formatOnSave`); a throw leaves the code as it was. */
+  format?: (value: string) => string | Promise<string>;
+  /** The spaces one Tab inserts. Default 2. */
+  tabSize?: number;
+  // ── M3 ──
+  /** Diagnostics: an icon in the gutter, a tinted line, and a list under the field whose rows jump to the spot. */
   markers?: Marker[];
+  /** Completion: asked on Ctrl+Space and while a name or a dot is typed; the editor filters by what was typed. */
   getSuggestions?: (ctx: SuggestContext) => Suggestion[] | Promise<Suggestion[]>;
-  getHover?: (ctx: HoverContext) => Hover | Promise<Hover>;
+  /** Hover: asked for the dotted name under the pointer after a short rest; null or empty contents show nothing. */
+  getHover?: (ctx: HoverContext) => Hover | null | undefined | Promise<Hover | null | undefined>;
+  /** Type definitions for a TypeScript engine; unused by the textarea engine. */
   extraLibs?: { path: string; content: string }[];
   // TODO M4:
   showMinimap?: boolean;
   keymap?: 'default' | 'vim' | 'emacs';
-  // TODO M5:
+  /** The words of the toolbar, find bar and lists (English by default). */
   messages?: Partial<CodeEditorMessages>;
 };
 
@@ -154,5 +193,19 @@ export type CodeEditorEngineProps = Required<
   name?: string;
   className?: string;
   onChange?: (next: string) => void;
-  // TODO M3: markers / getSuggestions / getHover / extraLibs forwarded here.
+  markers?: Marker[];
+  getSuggestions?: CodeEditorProps['getSuggestions'];
+  getHover?: CodeEditorProps['getHover'];
+  tabSize?: number;
+  /** the textarea, for the find bar and the marker list */
+  textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  /** Ctrl/Cmd+F in the field */
+  onFind?: () => void;
+  /** Shift+Alt+F in the field */
+  onFormat?: () => void;
+  messages: CodeEditorMessages;
+  /** ids of the elements that describe the field (hint, problems) */
+  describedBy?: string;
+  /** the field has errors */
+  invalid?: boolean;
 };

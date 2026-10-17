@@ -1,10 +1,18 @@
 // The rule editor: a flow canvas for blocks of any catalog (IoT, automation, notifications …). Not tied to a domain.
 export { RulesetEditor } from './RulesetEditor';
-export type { RulesetEditorRef, RulesetEditorProps, RulesetGraph, NodeMenuContext, ContextMenuItem, ParamEditorProps } from './RulesetEditor';
+export type { RulesetEditorRef, RulesetEditorProps, RulesetGraph, NodeMenuContext, ContextMenuItem, ParamEditorProps, RulesetSideBar } from './RulesetEditor';
+export { edgeActivityOf, portCount, outTotal, PULSE_GAP_MS, PULSE_ON_MS } from './graph/activity';
+export type { CanvasActivity, EdgeActivity, NodeActivity } from './graph/activity';
+export type { NodeMessage } from './RulesetEditor/panels/NodeMessages';
+export type { ScriptTestRequest, ScriptTestResult, ScriptTestSample, ScriptTestMessage } from './RulesetEditor/dialogs/ScriptTestDialog';
+export { lintScript, tidyScript } from './RulesetEditor/script/lint';
+export type { ScriptProblem } from './RulesetEditor/script/lint';
+export { SCRIPT_API_ITEMS, scriptHover, scriptSuggestions } from './RulesetEditor/script/api';
 export { FlowWorkspace } from './RulesetEditor/workspace/FlowWorkspace';
 export type { FlowWorkspaceProps, FlowWorkspaceRef } from './RulesetEditor/workspace/FlowWorkspace';
 export { InsightPanel } from './RulesetEditor/insight/InsightPanel';
-export type { InsightPanelProps } from './RulesetEditor/insight/InsightPanel';
+export type { InsightPanelProps, InsightTabId, InsightSlot, InsightSlotId, InsightExtraTab } from './RulesetEditor/insight/InsightPanel';
+export type { DeployProblem } from './RulesetEditor/insight/ErrorsTab';
 export { DEFAULT_MESSAGES } from './RulesetEditor/messages';
 export type { EditorMessages } from './RulesetEditor/messages';
 export { ParamForm } from './forms/ParamForm';

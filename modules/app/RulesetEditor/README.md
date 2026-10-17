@@ -88,6 +88,10 @@ demo.ts             sample catalog and flow for the showcase and the demo page
 | `nodeMenuItems` | `({ nodeIds, readOnly }) => ContextMenuItem[]`: more entries in the menu of a block, between the built-in ones and Delete. Labels must be unique in the menu. |
 | `toolbarExtra` | A node at the start of the zoom bar (bottom right of the canvas). |
 | `bannerSlot` | A node above the canvas, full width of the canvas column (a “draft kept” bar, a conflict notice). |
+| `activity` | `{ edges?, nodes?, window? }` (`CanvasActivity`): live counters from the host. A connection whose count (or `at`) goes up lights up for 400 ms, at most twice a second (`pulseStep`); its count shows on hover (`edgeCount`), a block's in / out / errors in its hover card and the node panel's Messages tab. A connection the host does not list takes its source port's count (`edgeActivityOf`). |
+| `nodeMessages`, `messageBodies`, `onTestMessage` | `{ [nodeId]: NodeMessage[] }`: the recent messages through each block (UI-33). The node panel gets a Messages tab (newest first, with a count). Bodies (`msg`) show only with `messageBodies` (the host's permission); `onTestMessage(nodeId, message)` adds "Test with this input" to a received message with a body. |
+| `onScriptTest`, `scriptTestSample` | `(request) => Promise<ScriptTestResult>`: a block whose code param has `api: 'automation-script'` gets "Test the script" in the node panel: a pane with the code (completion, hover, checks), the message (type, originator, payload, metadata) and an optional context. Run calls the host; the outputs (one per port), log, status, context writes and CPU time show, and an error with a line and column is marked in the code. Save writes the edited code back into the block (one undo step); nothing is deployed. `scriptTestSample(nodeId)` prefills it. |
+| `sideBar` | `RulesetSideBar`: one side bar as on the router (debug comparison item 6): the InsightPanel with the node panel as its Block tab (Settings, Messages) and Help tab, the host's `traceTab` and `runsTab`, and Debug, Errors, Data, Busiest fed by the same props as `InsightPanel`. Picking a block opens it on Block; the Errors tab lists the editor's validation errors, then the host's `deployProblems`. Without it the node panel stands alone. |
 
 The ref has `getGraph()` (nodes, edges, groups and subflows; always the latest), `undo()`, `redo()`, `validate()`,
 `fit()` and `openRulesetDebug()`. `getGraph()` used to return only `{ nodes, edges }`; callers that read those two
@@ -99,6 +103,20 @@ keep working. For hosts that add to the editor:
 | `select(ids)` / `getSelection()` | Set and read the selected blocks (ids that are not on the canvas are ignored). |
 | `reveal(ids)` | Pan, and zoom out only if they do not fit, until the blocks are in view; no-op when they already are. |
 | `replaceGraph(graph, { key?, fit? })` | Replace the whole graph (nodes, edges, groups, subflows) as ONE undo step, e.g. a merge or a restored draft. Leaves a subflow that is gone. |
+
+Dragging a connection's end (UI-31): select a connection and two handles appear on its ends. Drag the target end onto
+another input (or a block: its first input), or the source end onto another output (or a block: the same port when it has
+one, else its first output). The rules of a new connection apply (`rewireEdge` in `graph/edit.ts`); a refused drop or one
+on the empty canvas leaves it as it was. One undo step; the connection keeps its id. "Change port…" in its menu stays.
+
+## Code fields
+
+A `code` param is the kui `CodeEditor` with its toolbar (find / replace, copy, full screen). One with `api:
+'automation-script'` also gets completion and hover from `SCRIPT_API_ITEMS` (the same list as the Help tab), the
+format button (`tidyScript`: indent by brackets, never inside a template string) and markers from `lintScript`, which
+only reads the text (brackets, open strings, templates, comments and regular expressions, names the sandbox lacks, a
+script over 8 KiB); the sidecar's compile at test and deploy is the real check. `messages.codeEditor` translates the
+CodeEditor's own words.
 
 ## The catalog
 
@@ -276,6 +294,10 @@ catalog data: a risky block has a red header.
 
 `RulesetEditor/insight/` is a standalone side panel (Debug with pause, kind filter and download; Busiest; Errors with the
 caught link; Data with the context fill bar), driven by host-supplied props. See [docs/insight.md](docs/insight.md).
+`deployProblems` puts "Problems that stop a deploy" first in Errors (counted on its tab, each with a link to its block);
+`slots` adds the Block, Help, Trace and Runs tabs in the router's order (Block, Debug, Help, Trace, Errors, Runs, Data,
+Busiest), `extraTabs` tabs of the host's own after Busiest, `header` a bar above every tab but Block and Help, and
+`tab` / `onTabChange` keep the open tab in the host.
 
 ## Flow workspace
 

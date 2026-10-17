@@ -35,6 +35,11 @@ import { MiniMap } from './canvas/MiniMap';
 import { SelectionFrame } from './canvas/SelectionFrame';
 import { lookOf } from './block-visual';
 import { NodeEditorPanel, type ParamEditorProps } from './panels/NodeEditorPanel';
+import type { NodeMessage } from './panels/NodeMessages';
+import { ScriptTestDialog, type ScriptTestRequest, type ScriptTestResult, type ScriptTestSample } from './dialogs/ScriptTestDialog';
+import { SCRIPT_API } from './script/api';
+import { InsightPanel, type InsightPanelProps, type InsightSlot } from './insight/InsightPanel';
+import type { DeployProblem } from './insight/ErrorsTab';
 
 /* the debug modals run the stored scripts of the chain in the browser (`new Function`): loaded only when the editor offers them */
 const NodeDebugModal = lazy(() => import('./modals/NodeDebugModal').then((m) => ({ default: m.NodeDebugModal })));
@@ -46,6 +51,9 @@ import { SubflowSettingsDialog } from './dialogs/SubflowSettingsDialog';
 import { useGraphEditor, type RulesetGraph } from './hooks/useGraphEditor';
 import { useNodeDrag } from './hooks/useNodeDrag';
 import { useEdgeConnect } from './hooks/useEdgeConnect';
+import { useEdgeRewire } from './hooks/useEdgeRewire';
+import { useEdgePulse } from './hooks/useEdgePulse';
+import { edgeActivityOf, type CanvasActivity } from '../graph/activity';
 import { usePaletteDrop } from './hooks/usePaletteDrop';
 import { useSnapDrag } from './hooks/useSnapDrag';
 import { useBoxSelect } from './hooks/useBoxSelect';
@@ -60,6 +68,28 @@ import { findNodes } from '../graph/search';
 import { NODE_HEADER_H, NODE_W, ZOOM_MIN, ZOOM_MAX, inputAnchor, layoutOf, outputAnchor, revealView, type NodeLayout, type View, type Point as ViewPoint } from './geometry';
 
 export type { RuleNodeStatus, RulesetGraph, ContextMenuItem, ParamEditorProps };
+
+/**
+ * The editor's single side bar (the router's, debug comparison item 6): the InsightPanel with the node panel as its Block
+ * tab (Settings and Messages) and Help tab, the host's Trace and Runs, and the Debug, Errors, Data and Busiest tabs fed
+ * by these props. Opening a block shows the bar on Block. The Errors tab lists the editor's own validation errors first,
+ * then the host's `deployProblems` (a pre-flight).
+ */
+export type RulesetSideBar = Omit<InsightPanelProps, 'slots' | 'onReveal' | 'selectedNodeId' | 'tab' | 'onTabChange' | 'uiMessages' | 'className' | 'onClose' | 'nodeNames'> & {
+  /** names of the blocks for the panel; default: what the canvas shows */
+  nodeNames?: Record<string, string>;
+  /** the Trace tab (the host's trace player); no tab without it */
+  traceTab?: InsightSlot;
+  /** the Runs tab (e.g. kui `RunsPanel` over the host's run records); no tab without it */
+  runsTab?: InsightSlot;
+  /** is the bar shown (default true); the editor shows it anyway while a block is open */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  tab?: string;
+  onTabChange?: (tab: string) => void;
+  /** a block was picked in the bar (a link in Debug, Errors, Busiest): the editor selects and shows it; this is told too */
+  onReveal?: (nodeId: string) => void;
+};
 
 /** what the panel edits of a node, as one comparable text */
 const nodeSnap = (n: RuleNode) => stable([n.label, n.description ?? null, n.config ?? null, n.script ?? null]);
@@ -136,6 +166,30 @@ export type RulesetEditorProps = {
   /** live state per node id, shown under the node (e.g. from a running chain) */
   nodeStatus?: Record<string, RuleNodeStatus>;
   /**
+   * Live traffic from the host (a socket, a poll): counters per connection and per block. A connection whose counter goes
+   * up lights up (at most twice a second); hovering a connection shows its count, hovering a block its in / out / errors,
+   * and the node panel shows them too. A connection the host does not list takes the count of its source port.
+   */
+  activity?: CanvasActivity;
+  /**
+   * The recent messages through each block, by block id (UI-33): the node panel gets a Messages tab with them, newest first,
+   * and the block's counters from `activity`. Without it there is no Messages tab.
+   */
+  nodeMessages?: Record<string, NodeMessage[]>;
+  /** the viewer may see message bodies (the host's permission); otherwise the Messages tab shows times, ports and runs only */
+  messageBodies?: boolean;
+  /** "Test with this input" on a message a block received (only offered with `messageBodies`) */
+  onTestMessage?: (nodeId: string, message: NodeMessage) => void;
+  /**
+   * Runs the code of a block with an automation script on one message (06 §6.7): the node panel offers "Test script", a pane
+   * with the code, the message and the result; its Save writes the edited code back into the block (one undo step).
+   */
+  onScriptTest?: (request: ScriptTestRequest) => Promise<ScriptTestResult>;
+  /** what the script test pane starts with for a block (the block sample, its last input) */
+  scriptTestSample?: (nodeId: string) => ScriptTestSample | undefined;
+  /** one side bar for the node panel and the runtime insight (see `RulesetSideBar`); without it the node panel stands alone */
+  sideBar?: RulesetSideBar;
+  /**
    * A version compare: blocks and connections tinted as added, changed or removed (`diffTints(diffGraphs(a, b))`, or
    * `diffView(a, b).tint` with its graph, which also shows what was removed). Usually with `readOnly`.
    */
@@ -171,7 +225,7 @@ type GroupEdit = { kind: 'new'; ids: string[] } | { kind: 'edit'; groupId: strin
 export function RulesetEditor({
   initialNodes = [], initialEdges = [], initialGroups, initialSubflows,
   catalog: catalogProp, choices, paramEditors, unavailable, messages, onSave, active = false, subflowDepthLimit = DEFAULT_SUBFLOW_DEPTH, onChange,
-  readOnly = false, browserDebug = true, className, chainName = 'Rule Chain', nodeStatus, diffTint, onSelectionChange, nodeMenuItems, toolbarExtra, bannerSlot, ref,
+  readOnly = false, browserDebug = true, className, chainName = 'Rule Chain', nodeStatus, activity, nodeMessages, messageBodies = false, onTestMessage, onScriptTest, scriptTestSample, sideBar, diffTint, onSelectionChange, nodeMenuItems, toolbarExtra, bannerSlot, ref,
 }: RulesetEditorProps) {
   const m = useMergedMessages(messages);
   const ed = useGraphEditor({ nodes: initialNodes, edges: initialEdges, groups: initialGroups ?? [], subflows: initialSubflows ?? [] }, onChange);
@@ -244,6 +298,12 @@ export function RulesetEditor({
   const [groupEdit, setGroupEdit]   = useState<GroupEdit | null>(null);
   const [convertIds, setConvertIds] = useState<string[] | null>(null);
   const [newSubflowOpen, setNewSubflowOpen] = useState(false);
+  const [scriptTest, setScriptTest] = useState<{ nodeId: string; key: string; code: string } | null>(null);
+  const [sideShownOwn, setSideShown] = useState(true);
+  const sideShown = sideBar?.open ?? sideShownOwn;
+  const [sideTabOwn, setSideTabOwn] = useState<string>(sideBar?.defaultTab ?? 'block');
+  const sideTab = sideBar?.tab ?? sideTabOwn;
+  const setSideTab = (t: string) => { setSideTabOwn(t); sideBar?.onTabChange?.(t); };
   const [settingsOpen, setSettingsOpen]     = useState(false);
 
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -356,6 +416,9 @@ export function RulesetEditor({
   const mini = useMiniMap({ containerRef, boxes: miniBoxes, view });
 
   const edgeConnect  = useEdgeConnect({ getGraph: ed.getGraph, apply: ed.apply, catalog, readOnly, setMouse });
+  const rewire       = useEdgeRewire({ getGraph: ed.getGraph, apply: ed.apply, catalog, readOnly, setMouse });
+  const edgeAct      = useMemo(() => edgeActivityOf(edges, activity), [edges, activity]);
+  const litEdges     = useEdgePulse(edgeAct);
   const nodeDrag     = useNodeDrag({ getGraph: ed.getGraph, setGraph: ed.setGraph, toWorld, readOnly, connecting: edgeConnect.connecting, resolve: snap.resolve, onEnd: snap.clear });
   const paletteDrop  = usePaletteDrop({ getGraph: ed.getGraph, apply: ed.apply, catalog, toWorld });
 
@@ -384,6 +447,11 @@ export function RulesetEditor({
   function openEditor(nodeId: string) {
     const node = nodes.find((n) => n.nodeId === nodeId);
     if (!node) return;
+    if (sideBar) {
+      // the router's bar: a picked block shows on the Block tab, and the bar comes up when it was closed
+      if (sideTab !== 'block' && sideTab !== 'help') setSideTab('block');
+      if (!sideShown) { setSideShown(true); sideBar.onOpenChange?.(true); }
+    }
     setEditingNodeId(nodeId);
     loadPanel(node);
     setShowRequired(false);
@@ -464,9 +532,9 @@ export function RulesetEditor({
       return;
     }
     if (box.move(e)) return;
-    if (edgeConnect.connecting) setMouse(toWorld(e.clientX, e.clientY));
+    if (edgeConnect.connecting || rewire.rewiring) setMouse(toWorld(e.clientX, e.clientY));
     const p = pan.current;
-    if (p && !nodeDrag.dragging && !edgeConnect.connecting) {
+    if (p && !nodeDrag.dragging && !edgeConnect.connecting && !rewire.rewiring) {
       p.moved ||= Math.abs(e.clientX - p.cx) + Math.abs(e.clientY - p.cy) > 3;
       setView((v) => ({ ...v, x: p.vx + e.clientX - p.cx, y: p.vy + e.clientY - p.cy }));
       return;
@@ -483,7 +551,8 @@ export function RulesetEditor({
     }
     if (box.end()) { pan.current = null; return; }
     const pressed = nodeDrag.dragNodeId;
-    if (edgeConnect.connecting) edgeConnect.finishAt(e.clientX, e.clientY);
+    if (rewire.rewiring) rewire.finishAt(e.clientX, e.clientY);
+    else if (edgeConnect.connecting) edgeConnect.finishAt(e.clientX, e.clientY);
     else if (pressed && !nodeDrag.dragMoved.current) {
       // a click on a node of a larger selection narrows the selection to it
       if (selection.length > 1) selectOnly(pressed);
@@ -515,6 +584,7 @@ export function RulesetEditor({
       box.cancel();
       nodeDrag.endDrag();
       edgeConnect.clearConnecting();
+      rewire.cancel();
       pan.current = null;
       const [a, b] = Array.from(pointers.current.values());
       const r = containerRef.current?.getBoundingClientRect();
@@ -776,6 +846,7 @@ export function RulesetEditor({
     setEditingNodeId(node.nodeId);
     loadPanel(node);
     setShowRequired(false);
+    if (sideBar && sideTab !== 'block') setSideTab('block');
   }
 
   function openFind() { setFind((f) => f ?? { query: '', index: 0 }); setFindTick((t) => t + 1); }
@@ -813,7 +884,7 @@ export function RulesetEditor({
         if (r) openMenu(r.left + 24, r.top + 24, el ?? containerRef.current!);
         return true;
       }
-      case 'cancel': edgeConnect.clearConnecting(); setSelectedEdgeId(null); return true;
+      case 'cancel': edgeConnect.clearConnecting(); rewire.cancel(); setSelectedEdgeId(null); return true;
       case 'note': addNote(centerWorld()); return true;
       case 'help': setShortcutsOpen(true); return true;
       case 'find': openFind(); return true;
@@ -836,6 +907,41 @@ export function RulesetEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPanel only reads the catalog of this render
   }, [editingNode]);
   const debugNode   = debugNodeId   ? nodes.find((n) => n.nodeId === debugNodeId)   ?? null : null;
+  /* the automation script param of the open block, for "Test script" */
+  const scriptKey = editingDecl ? Object.entries(editingDecl.params ?? {}).find(([, spec]) => spec.type === 'code' && spec.api === SCRIPT_API)?.[0] : undefined;
+  const openScriptTest = onScriptTest && editingNode && scriptKey
+    ? () => { const v = panelDraft.current.values[scriptKey]; setScriptTest({ nodeId: editingNode.nodeId, key: scriptKey, code: typeof v === 'string' ? v : '' }); }
+    : undefined;
+  if (scriptTest && scriptTest.nodeId !== editingNodeId) setScriptTest(null);
+  const panelProps = editingNode && editingLayout ? {
+    node: editingNode, decl: editingDecl, layout: editingLayout, readOnly,
+    draftLabel, draftDescription, draftValues, choices, showRequired,
+    issues: issues.get(editingNode.nodeId),
+    onLabelChange: (label: string) => writePanel({ label }),
+    onDescriptionChange: (description: string) => writePanel({ description }),
+    onValueChange: (key: string, value: unknown) => writePanel({ values: setField(panelDraft.current.values, key, value) }),
+    onValuesChange: (values: Record<string, unknown>) => writePanel({ values }),
+    paramEditor: paramEditors?.[editingNode.type],
+    onClose: () => setEditingNodeId(null),
+    onDelete: () => deleteNodes([editingNode.nodeId]),
+    onResetScript: defaultScriptOf(editingDecl?.params) !== undefined
+      ? () => writePanel({ values: formValues(editingDecl?.params, { ...splitFormValues(editingDecl?.params, panelDraft.current.values).config }, undefined) })
+      : null,
+    onDebug: canDebug ? () => setDebugNodeId(editingNode.nodeId) : undefined,
+    nodeMessages: nodeMessages ? nodeMessages[editingNode.nodeId] ?? [] : undefined,
+    messageBodies,
+    activity: activity?.nodes?.[editingNode.nodeId],
+    activityWindow: activity?.window,
+    onTestMessage: onTestMessage ? (msg: NodeMessage) => onTestMessage(editingNode.nodeId, msg) : undefined,
+    onTestScript: openScriptTest,
+  } : null;
+  /* the side bar: the editor's validation errors first in Errors, then the host's pre-flight */
+  const sideProblems = useMemo<DeployProblem[]>(() => [
+    ...validation.errors.map((i) => ({ message: i.message, nodeId: i.nodeId, code: i.code, severity: 'error' as const })),
+    ...(sideBar?.deployProblems ?? []),
+  ], [validation, sideBar?.deployProblems]);
+  const sideNames = useMemo(() => sideBar?.nodeNames ?? Object.fromEntries(nodes.map((n) => [n.nodeId, nodeName(n, catalog.blocks[n.type])])), [sideBar?.nodeNames, nodes, catalog]);
+  const sideVisible = !!sideBar && (sideShown || !!editingNode);
   const settingsUsers = scopeSubflow ? subflowUsers(ed.state, scopeSubflow.subflowId).map((id) => id || chainName) : [];
 
   return (
@@ -891,7 +997,22 @@ export function RulesetEditor({
         onDragOver={(e) => e.preventDefault()}
         onNodePointerDown={onNodePointerDown}
         onOutputPortDown={edgeConnect.onOutputPortDown}
-        onInputPortUp={edgeConnect.onInputPortUp}
+        onInputPortUp={(e, nodeId, portId) => {
+          if (!rewire.rewiring) return edgeConnect.onInputPortUp(e, nodeId, portId);
+          e.stopPropagation();
+          rewire.dropOn(nodeId, rewire.rewiring.end === 'target' ? portId : undefined);
+        }}
+        onOutputPortUp={(e, nodeId, portId) => {
+          if (!rewire.rewiring) return;
+          e.stopPropagation();
+          rewire.dropOn(nodeId, rewire.rewiring.end === 'source' ? portId : undefined);
+        }}
+        rewiring={rewire.rewiring}
+        onEdgeEndDown={readOnly ? undefined : rewire.start}
+        edgeActivity={activity ? edgeAct : undefined}
+        litEdges={litEdges}
+        nodeActivity={activity?.nodes}
+        activityWindow={activity?.window}
         onSelectEdge={(id) => { setSelectedEdgeId(id); setSelectedList([]); }}
         onDeleteSelectedEdge={() => selectedEdgeId && deleteEdge(selectedEdgeId)}
         onGroupTabPointerDown={onGroupTabPointerDown}
@@ -944,24 +1065,40 @@ export function RulesetEditor({
       </Canvas>
       </div>
 
-      {editingNode && editingLayout && (
-        <NodeEditorPanel
-          key={editingNode.nodeId}
-          node={editingNode} decl={editingDecl} layout={editingLayout} readOnly={readOnly}
-          draftLabel={draftLabel} draftDescription={draftDescription} draftValues={draftValues} choices={choices} showRequired={showRequired}
-          issues={issues.get(editingNode.nodeId)}
-          onLabelChange={(label) => writePanel({ label })}
-          onDescriptionChange={(description) => writePanel({ description })}
-          onValueChange={(key, value) => writePanel({ values: setField(panelDraft.current.values, key, value) })}
-          onValuesChange={(values) => writePanel({ values })}
-          paramEditor={paramEditors?.[editingNode.type]}
-          onClose={() => setEditingNodeId(null)}
-          onDelete={() => deleteNodes([editingNode.nodeId])}
-          onResetScript={defaultScriptOf(editingDecl?.params) !== undefined
-            ? () => writePanel({ values: formValues(editingDecl?.params, { ...splitFormValues(editingDecl?.params, panelDraft.current.values).config }, undefined) })
-            : null}
-          onDebug={canDebug ? () => setDebugNodeId(editingNode.nodeId) : undefined}
-        />
+      {!sideBar && panelProps && <NodeEditorPanel key={panelProps.node.nodeId} {...panelProps} />}
+
+      {sideBar && sideVisible && (() => {
+        const { traceTab, runsTab, open: _open, onOpenChange, tab: _tab, onTabChange: _onTab, onReveal: hostReveal, nodeNames: _names, deployProblems: _dp, ...insight } = sideBar;
+        const pick = <p className="p-4 text-xs text-text-secondary">{m.sideBarPickBlock}</p>;
+        return (
+          <InsightPanel
+            {...insight}
+            className="w-[22rem] shrink-0 max-md:absolute max-md:inset-0 max-md:z-50 max-md:w-auto"
+            uiMessages={messages}
+            nodeNames={sideNames}
+            selectedNodeId={primaryId}
+            deployProblems={sideProblems}
+            tab={sideTab}
+            onTabChange={setSideTab}
+            onReveal={(id) => { selectOnly(id); reveal(id); hostReveal?.(id); }}
+            onClose={() => { setEditingNodeId(null); setSideShown(false); onOpenChange?.(false); }}
+            slots={{
+              block: { content: panelProps ? <NodeEditorPanel key={panelProps.node.nodeId} {...panelProps} bare tabs={['settings', 'messages']} /> : pick },
+              help: { content: panelProps ? <NodeEditorPanel key={`help-${panelProps.node.nodeId}`} {...panelProps} bare tabs={['help']} /> : pick },
+              ...(traceTab && { trace: traceTab }),
+              ...(runsTab && { runs: runsTab }),
+            }}
+          />
+        );
+      })()}
+
+      {scriptTest && onScriptTest && editingNode && (
+        <ScriptTestDialog
+          nodeId={scriptTest.nodeId} blockLabel={nodeName(editingNode, editingDecl)} code={scriptTest.code} readOnly={readOnly}
+          sample={scriptTestSample?.(scriptTest.nodeId)}
+          onRun={onScriptTest}
+          onSave={(code) => { const key = scriptTest.key; setScriptTest(null); writePanel({ values: setField(panelDraft.current.values, key, code) }); }}
+          onClose={() => setScriptTest(null)} />
       )}
 
       {canDebug && debugNode && (

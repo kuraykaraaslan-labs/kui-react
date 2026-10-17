@@ -2,7 +2,7 @@
 import { cn } from '@/libs/utils/cn';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faTrash, faXmark, faRotateLeft, faBug,
+  faTrash, faXmark, faRotateLeft, faBug, faFlask,
 } from '@fortawesome/free-solid-svg-icons';
 import { Input } from '@/modules/ui/Input';
 import { Textarea } from '@/modules/ui/Textarea';
@@ -20,6 +20,11 @@ import type { ParamValues } from '../../catalog/params';
 import type { BlockDecl, ParamChoices } from '../../catalog/types';
 import type { GraphIssue } from '../../graph/validate';
 import type { RuleNode } from '../../types';
+import type { NodeActivity } from '../../graph/activity';
+import { NodeMessages, type NodeMessage } from './NodeMessages';
+
+/** the tabs of the node panel */
+export type NodePanelTab = 'settings' | 'messages' | 'help';
 
 const SOURCE_TITLE = { kui: 'kui ruleset', 'node-red': 'Node-RED', roltek: 'roltek-automation-1' } as const;
 
@@ -77,6 +82,7 @@ function PlaceholderDetails({ node }: { node: RuleNode }) {
 export function NodeEditorPanel({
   node, decl, layout, readOnly, draftLabel, draftDescription, draftValues, choices, issues = [], showRequired = false,
   onLabelChange, onDescriptionChange, onValueChange, onValuesChange, paramEditor: ParamEditor, onClose, onDelete, onResetScript, onDebug,
+  nodeMessages, messageBodies = false, activity, activityWindow, onTestMessage, onTestScript, tabs: onlyTabs, bare = false, tab: tabProp, onTabChange,
 }: {
   node: RuleNode;
   decl: BlockDecl | undefined;
@@ -103,24 +109,57 @@ export function NodeEditorPanel({
   onResetScript: (() => void) | null;
   /** the "Debug node" button is shown only when this is given */
   onDebug?: () => void;
+  /** the recent messages through this block (UI-33): the Messages tab is shown when this is given */
+  nodeMessages?: NodeMessage[];
+  /** the viewer may see message bodies */
+  messageBodies?: boolean;
+  /** the block's live counters, at the top of the Messages tab */
+  activity?: NodeActivity;
+  activityWindow?: string;
+  /** "Test with this input" on a received message */
+  onTestMessage?: (message: NodeMessage) => void;
+  /** the "Test script" button of a block with an automation script (06 §6.7) */
+  onTestScript?: () => void;
+  /** which tabs to offer (default: all that apply); one tab draws no tab strip */
+  tabs?: NodePanelTab[];
+  /** drawn inside another side bar: no frame, no width of its own */
+  bare?: boolean;
+  /** the open tab, when the host keeps it */
+  tab?: NodePanelTab;
+  onTabChange?: (tab: NodePanelTab) => void;
 }) {
   const m = useMessages();
-  const [tab, setTab] = useState<'settings' | 'help'>('settings');
+  const [ownTab, setOwnTab] = useState<NodePanelTab>('settings');
   const look = lookOf(decl);
   const placeholder = layout.placeholder;
-  const hasTabs = !placeholder && !isNote(node) && !!decl;
-  const onHelp = hasTabs && tab === 'help';
+  const canTab = !placeholder && !isNote(node) && !!decl;
+  const available: NodePanelTab[] = canTab
+    ? (['settings', 'messages', 'help'] as const).filter((t) => (t !== 'messages' || nodeMessages !== undefined) && (!onlyTabs || onlyTabs.includes(t)))
+    : ['settings'];
+  const wanted = tabProp ?? ownTab;
+  const tab: NodePanelTab = available.includes(wanted) ? wanted : available[0] ?? 'settings';
+  const setTab = (t: NodePanelTab) => { setOwnTab(t); onTabChange?.(t); };
+  const hasTabs = canTab && available.length > 1;
+  const onHelp = canTab && tab === 'help';
+  const onMessages = canTab && tab === 'messages';
   const title = placeholder ? m.panelNotAvailable : decl?.title ?? node.type;
   const hasScript = Object.values(decl?.params ?? {}).some((spec) => spec.store === 'script');
   const hasParams = Object.keys(decl?.params ?? {}).length > 0;
   return (
-    <aside aria-label={m.panelLabel(nodeName(node, decl))} className="flex w-80 shrink-0 flex-col overflow-hidden border-l border-border bg-surface-raised max-md:absolute max-md:inset-0 max-md:z-50 max-md:w-auto max-md:border-l-0">
+    <aside aria-label={m.panelLabel(nodeName(node, decl))} className={cn('flex flex-col overflow-hidden bg-surface-raised',
+      bare ? 'h-full min-h-0 w-full' : 'w-80 shrink-0 border-l border-border max-md:absolute max-md:inset-0 max-md:z-50 max-md:w-auto max-md:border-l-0')}>
       {/* Header */}
       <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
         <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', look.headerBg)}>
           <FontAwesomeIcon icon={look.icon} className={cn('w-3.5 h-3.5', look.iconColor)} aria-hidden="true" />
         </div>
         <p className="flex-1 min-w-0 truncate text-[11px] font-bold uppercase tracking-widest text-text-secondary">{title}</p>
+        {onTestScript && (
+          <button type="button" onClick={onTestScript} title={m.panelTestScript} aria-label={m.panelTestScript} data-testid="panel-test-script"
+            className="shrink-0 rounded p-1 text-text-secondary transition-colors hover:bg-primary-subtle hover:text-primary">
+            <FontAwesomeIcon icon={faFlask} className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+        )}
         {onDebug && (
           <button onClick={onDebug} title={m.panelDebugNode} aria-label={m.panelDebugNode}
             className="shrink-0 rounded p-1 text-text-secondary transition-colors hover:bg-primary-subtle hover:text-primary">
@@ -140,11 +179,16 @@ export function NodeEditorPanel({
       </div>
       {hasTabs && (
         <div role="tablist" aria-label={m.panelTabsLabel} className="flex gap-1 border-b border-border px-3 pt-1.5">
-          {(['settings', 'help'] as const).map((id) => (
+          {available.map((id) => (
             <button key={id} type="button" role="tab" aria-selected={tab === id} data-testid={`panel-tab-${id}`} onClick={() => setTab(id)}
-              className={cn('-mb-px rounded-t-md border-b-2 px-3 py-1.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+              className={cn('-mb-px inline-flex items-center gap-1.5 rounded-t-md border-b-2 px-3 py-1.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
                 tab === id ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary')}>
-              {id === 'settings' ? m.panelTabSettings : m.panelTabHelp}
+              {id === 'settings' ? m.panelTabSettings : id === 'messages' ? m.panelTabMessages : m.panelTabHelp}
+              {id === 'messages' && (nodeMessages?.length ?? 0) > 0 && (
+                <span data-testid="panel-messages-count" className="min-w-[1.1rem] rounded-full bg-primary px-[.3rem] text-center text-[0.625rem] leading-[1.1rem] text-primary-fg">
+                  {nodeMessages!.length > 99 ? '99+' : nodeMessages!.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -169,7 +213,10 @@ export function NodeEditorPanel({
             )}
           </div>
         )}
-        {!onHelp && <>
+        {onMessages && (
+          <NodeMessages messages={nodeMessages ?? []} bodies={messageBodies} activity={activity} activityWindow={activityWindow} onTest={onTestMessage} />
+        )}
+        {!onHelp && !onMessages && <>
         {!isNote(node) && <Input id={`node-${node.nodeId}-label`} label={m.panelNameLabel} placeholder={decl?.title} value={draftLabel} readOnly={readOnly} onChange={(e) => onLabelChange(e.target.value)} />}
         {!placeholder && !isNote(node) && (
           <Textarea id={`node-${node.nodeId}-description`} label={m.panelDescriptionLabel} hint={m.panelDescriptionHint} rows={2} maxLength={500}

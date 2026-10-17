@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2026-05
 
-Engine-agnostic code editor primitive. M1 ships a lightweight CodeMirror-style fallback engine (textarea + line-number gutter + active-line + theme + readonly + placeholder) so the public API is stable today. Future milestones: Monaco (VSCode) lazy engine, find/replace, multi-cursor, diagnostics (markers), custom autocomplete + hover, minimap, code folding, vim/emacs keymap. Pixel-identical EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs. Used by RulesetEditor M3 + RichTextEditor code-block insert (planned).
+Engine-agnostic code editor primitive on a textarea engine (line-number gutter, active line, theme, readonly, placeholder). M2: Tab / Shift+Tab indent (Esc then Tab leaves), Ctrl/Cmd+/ comment toggle, auto-indent, bracket and quote pairs, a toolbar (find / replace, format, copy, full screen), format-on-save. M3: diagnostics (markers in the gutter, tinted lines, a list that jumps to the spot), completion (getSuggestions, a listbox) and hover (getHover). Later: Monaco lazy engine, multi-cursor, minimap, folding, vim/emacs keymap. EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs (M1 only). Used by the RulesetEditor code fields (the automation script with completion, hover and checks).
 
 ## Accessibility
 
@@ -16,7 +16,12 @@ Engine-agnostic code editor primitive. M1 ships a lightweight CodeMirror-style f
 - Keyboard:
   - `Tab` — Move focus into / out of the editor
   - `Arrow keys` — Move caret + sync active line gutter
-  - `Ctrl/Cmd + Z` — Browser-native undo (M1 textarea fallback)
+  - `Ctrl/Cmd + Z` — Browser-native undo (edits go through insertText)
+  - `Tab / Shift + Tab` — Indent / outdent; Esc then Tab moves focus out
+  - `Ctrl/Cmd + /` — Toggle a line comment
+  - `Ctrl + Space` — Open suggestions; Arrow keys pick, Enter or Tab inserts, Esc closes
+  - `Ctrl/Cmd + F` — Find and replace
+  - `Shift + Alt + F` — Format (when the editor has a format function)
 
 ## Design tokens consumed
 
@@ -33,6 +38,13 @@ Engine-agnostic code editor primitive. M1 ships a lightweight CodeMirror-style f
 - `--error`
 
 ## Variants
+
+### Script with aids (M2 / M3)
+
+```tsx
+<CodeEditor id="script" language="js" value={code} onChange={setCode} showToolbar
+  markers={markers} format={tidy} getSuggestions={() => names} getHover={({ word }) => help(word)} />
+```
 
 ### JavaScript readonly
 
@@ -91,6 +103,19 @@ const [src, setSrc] = useState('');
   placeholder="Start typing markdown…"
 />
 
-// Opt-in Monaco engine (lazy — M2):
+// Toolbar, diagnostics, completion and hover (M2 / M3):
+<CodeEditor
+  id="script"
+  language="js"
+  value={code}
+  onChange={setCode}
+  showToolbar
+  format={tidy}
+  markers={[{ line: 2, column: 4, severity: 'error', message: 'This ( is not closed.' }]}
+  getSuggestions={({ prefix }) => names}
+  getHover={({ word }) => ({ contents: helpOf(word) })}
+/>
+
+// Opt-in Monaco engine (falls back to the textarea engine for now):
 <CodeEditor engine="monaco" language="ts" value={code} onChange={setCode} />
 ```
