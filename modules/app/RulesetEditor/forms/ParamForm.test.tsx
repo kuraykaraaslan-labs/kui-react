@@ -2,20 +2,20 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ParamForm } from './ParamForm';
+import { ParamForm, type ParamSuggest } from './ParamForm';
 import { setField } from './field-utils';
 import type { ParamChoices, ParamSpec } from '../catalog/types';
 import { DEFAULT_MESSAGES, MessagesProvider } from '../RulesetEditor/messages';
 
 /** a form that keeps its own values, the way the node panel does, and reports the latest ones */
-function Harness({ schema, initial = {}, onValues, readOnly, choices, showRequired }: {
+function Harness({ schema, initial = {}, onValues, readOnly, choices, showRequired, suggest }: {
   schema: Record<string, ParamSpec>; initial?: Record<string, unknown>; onValues?: (v: Record<string, unknown>) => void;
-  readOnly?: boolean; choices?: ParamChoices; showRequired?: boolean;
+  readOnly?: boolean; choices?: ParamChoices; showRequired?: boolean; suggest?: ParamSuggest;
 }) {
   const [values, setValues] = useState(initial);
   return (
     <ParamForm
-      schema={schema} values={values} readOnly={readOnly} choices={choices} showRequired={showRequired}
+      schema={schema} values={values} readOnly={readOnly} choices={choices} showRequired={showRequired} suggest={suggest}
       onChange={(key, value) => {
         const next = setField(values, key, value);
         setValues(next);
@@ -317,6 +317,43 @@ describe('ParamForm', () => {
       expect(screen.getAllByLabelText('Value')).toHaveLength(1);
       await user.click(screen.getByRole('button', { name: 'Remove rule 1' }));
       expect(onValues).toHaveBeenLastCalledWith({ rules: [{ op: 'eq', value: 'x' }] });
+    });
+
+    it('a row field with its own suggest gets a datalist of its own', () => {
+      const rows: Record<string, ParamSpec> = { to: { type: 'rules', items: { value: { type: 'string', suggest: ['ops', 'dev'] } } } };
+      const { container } = render(<Harness schema={rows} initial={{ to: [{}, {}] }} />);
+      const [first, second] = screen.getAllByLabelText('Value');
+      expect(first).toHaveAttribute('list', 'param-to-0-value-suggest');
+      expect(second).toHaveAttribute('list', 'param-to-1-value-suggest');
+      expect(container.querySelectorAll('datalist#param-to-1-value-suggest option')).toHaveLength(2);
+    });
+
+    it('suggest: the host suggests per row from the row\'s other fields; an empty list turns a field\'s suggestions off', async () => {
+      const user = userEvent.setup();
+      const rows: Record<string, ParamSpec> = {
+        to: { type: 'rules', items: { kind: { type: 'enum', options: ['user', 'role', 'email'], default: 'user' }, value: { type: 'string' } } },
+        subject: { type: 'string', suggest: ['Alarm'] },
+      };
+      const suggest = vi.fn<ParamSuggest>(({ key, row }) => {
+        if (key === 'subject') return [];
+        if (!row || key !== 'value') return undefined;
+        if (row.values.kind === 'role') return ['ADMIN', 'OWNER'];
+        if (row.values.kind === 'email') return [];
+        return [{ value: 'u1', label: 'Ayşe' }];
+      });
+      const { container } = render(<Harness schema={rows} initial={{ to: [{ kind: 'user' }, { kind: 'role' }, { kind: 'email' }] }} suggest={suggest} />);
+      const values = screen.getAllByLabelText('Value');
+      expect(values[0]).toHaveAttribute('list', 'param-to-0-value-suggest');
+      const user0 = container.querySelector('datalist#param-to-0-value-suggest option');
+      expect(user0).toHaveAttribute('value', 'u1');
+      expect(user0).toHaveAttribute('label', 'Ayşe');
+      expect(container.querySelectorAll('datalist#param-to-1-value-suggest option')).toHaveLength(2);
+      expect(values[2]).not.toHaveAttribute('list');
+      expect(screen.getByLabelText('Subject')).not.toHaveAttribute('list');
+      expect(suggest).toHaveBeenCalledWith(expect.objectContaining({ key: 'value', row: { param: 'to', index: 1, values: { kind: 'role' } }, values: expect.objectContaining({ to: expect.any(Array) }) }));
+      // a row whose kind changes is offered the other list
+      await user.selectOptions(screen.getAllByLabelText('Kind')[2], 'role');
+      expect(container.querySelectorAll('datalist#param-to-2-value-suggest option')).toHaveLength(2);
     });
   });
 

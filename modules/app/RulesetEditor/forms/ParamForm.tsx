@@ -21,6 +21,29 @@ import {
 
 type Change = (value: unknown) => void;
 
+/** one value a text field suggests: the value, and an optional text the browser shows beside it */
+export type ParamSuggestion = string | { value: string; label?: string };
+
+/**
+ * Where a field sits, for `ParamForm`'s `suggest`: `key` is the param (or, in a row of a `rules` field, the row's
+ * field) and `spec` its declaration; `values` are the params of the form. In a row, `row` names the `rules` param, the
+ * row's index and the row's own values (what another field of the same row holds).
+ */
+export type ParamSuggestField = {
+  key: string;
+  spec: ParamSpec;
+  values: ParamValues;
+  row?: { param: string; index: number; values: Record<string, unknown> };
+};
+
+/**
+ * The host's suggestions for a text field, per field and per row: a list (empty: none) replaces the spec's own
+ * `suggest`; `undefined` keeps it.
+ */
+export type ParamSuggest = (field: ParamSuggestField) => readonly ParamSuggestion[] | undefined;
+
+type RowRef = NonNullable<ParamSuggestField['row']>;
+
 type FieldProps = {
   id: string;
   name: string;
@@ -30,6 +53,10 @@ type FieldProps = {
   readOnly: boolean;
   choices?: ParamChoices;
   error?: string;
+  /** the suggestions of a text field (the host's `suggest`, else the spec's) */
+  suggestOf?: (key: string, spec: ParamSpec, row?: RowRef) => readonly ParamSuggestion[] | undefined;
+  /** set for a field in a row of a `rules` field */
+  row?: RowRef;
 };
 
 const MISSING = '__missing__';
@@ -51,15 +78,29 @@ function Fieldset({ legend, hint, error, children, id }: { legend: string; hint?
   );
 }
 
-function TextField({ id, name, spec, value, onChange, readOnly, error, type = 'text' }: FieldProps & { type?: string }) {
-  return (
+function TextField({ id, name, spec, value, onChange, readOnly, error, suggestOf, row, type = 'text' }: FieldProps & { type?: string }) {
+  const suggestions = (suggestOf ? suggestOf(name, spec, row) : spec.suggest) ?? [];
+  const input = (
     <Input
       id={id} label={fieldLabel(name, spec)} type={type} value={value == null ? '' : String(value)} readOnly={readOnly}
       required={spec.required} hint={spec.hint} error={error} maxLength={spec.max_len}
-      list={spec.suggest ? `${id}-suggest` : undefined}
+      list={suggestions.length ? `${id}-suggest` : undefined}
       className={cn(MONO_TYPES.has(spec.type) && 'font-mono')}
       onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)}
     />
+  );
+  if (!suggestions.length) return input;
+  // one box, so the list adds no gap to the form's spacing
+  return (
+    <div>
+      {input}
+      <datalist id={`${id}-suggest`}>
+        {suggestions.map((sug) => {
+          const { value: v, label } = typeof sug === 'string' ? { value: sug, label: undefined } : sug;
+          return <option key={v} value={v} label={label}>{label}</option>;
+        })}
+      </datalist>
+    </div>
   );
 }
 
@@ -293,7 +334,7 @@ function ValueField({ id, name, spec, value, onChange, readOnly, error }: FieldP
   );
 }
 
-function RulesField({ id, name, spec, value, onChange, readOnly, choices, error }: FieldProps) {
+function RulesField({ id, name, spec, value, onChange, readOnly, choices, error, suggestOf }: FieldProps) {
   const m = useMessages();
   const schema = rowSchema(spec);
   const rows = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
@@ -314,6 +355,7 @@ function RulesField({ id, name, spec, value, onChange, readOnly, choices, error 
             </div>
             {Object.entries(schema).filter(([, s]) => isVisible(s, row, schema)).map(([key, s]) => (
               <Field key={key} id={`${id}-${i}-${key}`} name={key} spec={s} value={row[key]} readOnly={readOnly} choices={choices}
+                suggestOf={suggestOf} row={{ param: name, index: i, values: row }}
                 onChange={(v) => onChange(rows.map((r, k) => (k === i ? setField(r, key, v) : r)))} />
             ))}
           </li>
@@ -367,23 +409,14 @@ function Field(props: FieldProps) {
   }
 }
 
-/** `<datalist>`s for the fields that suggest values */
-function Suggestions({ schema, idPrefix }: { schema: Record<string, ParamSpec>; idPrefix: string }) {
-  return (
-    <>
-      {Object.entries(schema).filter(([, s]) => s.suggest).map(([key, s]) => (
-        <datalist key={key} id={`${idPrefix}-${key}-suggest`}>{s.suggest!.map((v) => <option key={v} value={v} />)}</datalist>
-      ))}
-    </>
-  );
-}
-
 /**
  * The form of a block's params, built from its schema: one field per param, in schema order, shown only
  * when its `when` condition holds. The values are the params of a node (a param the block stores in
  * `script` is passed in `values` like any other). `onChange(key, undefined)` means the field was emptied.
+ * A text field that suggests (the spec's `suggest`, or the host's `suggest` for it) gets its own `<datalist>`, in a
+ * row of a `rules` field too.
  */
-export function ParamForm({ schema, values, onChange, readOnly = false, choices, idPrefix = 'param', showRequired = false }: {
+export function ParamForm({ schema, values, onChange, readOnly = false, choices, idPrefix = 'param', showRequired = false, suggest }: {
   schema: Record<string, ParamSpec>;
   values: ParamValues;
   onChange: (key: string, value: unknown) => void;
@@ -392,19 +425,24 @@ export function ParamForm({ schema, values, onChange, readOnly = false, choices,
   idPrefix?: string;
   /** show "is required" under empty required fields (after a first attempt to apply) */
   showRequired?: boolean;
+  /**
+   * Suggestions per text field, a row of a `rules` field included (members for the row whose kind is `user` …): a list
+   * replaces the field's own `suggest` (an empty one turns it off), `undefined` keeps it.
+   */
+  suggest?: ParamSuggest;
 }) {
   const m = useMessages();
+  const suggestOf = (key: string, spec: ParamSpec, row?: RowRef) => suggest?.({ key, spec, values, row }) ?? spec.suggest;
   const issues = validateParams({ params: schema }, values, m.paramIssueText);
   const errorOf = (key: string) => issues.find((i) => i.param === key && (showRequired || i.code !== 'required'))?.message;
   const keys = Object.keys(schema).filter((key) => isVisible(schema[key], values, schema));
   if (!keys.length) return null;
   return (
     <div className="space-y-4">
-      <Suggestions schema={schema} idPrefix={idPrefix} />
       {keys.map((key) => (
         <Field
           key={key} id={`${idPrefix}-${key}`} name={key} spec={schema[key]} value={values[key]} readOnly={readOnly} choices={choices}
-          error={errorOf(key)} onChange={(v) => onChange(key, v)}
+          error={errorOf(key)} suggestOf={suggestOf} onChange={(v) => onChange(key, v)}
         />
       ))}
     </div>

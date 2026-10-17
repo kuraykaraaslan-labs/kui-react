@@ -6,6 +6,11 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `ParamForm` (RulesetEditor): `suggest({ key, spec, values, row? })` gives a text field its suggestions per field and per
+  row of a `rules` field (`row` is `{ param, index, values }`), as strings or `{ value, label }`; a list replaces the
+  spec's `suggest`, an empty list turns it off. A field's datalist now sits with the field, so a rules row field with its
+  own `suggest` gets one too (it pointed at a list that was never rendered). Types `ParamSuggest`, `ParamSuggestField`,
+  `ParamSuggestion` are exported.
 - Extension surfaces (next-boilerplate phase 37, UI contributions and new extension surfaces):
   - `ContributionBoundary`: an exported error boundary for one contribution, with `fallback` (a node or
     `({ error, reset }) => node`, nothing by default), `onError(error, info)` and `resetKeys`. It replaces

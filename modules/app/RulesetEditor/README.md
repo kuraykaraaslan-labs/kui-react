@@ -123,6 +123,12 @@ unit, stored in ms), `time`, `weekdays`, `secret` (password; empty keeps a store
 value no longer offered shows as “not available now”), `list` (checkboxes for an enum or source, else comma text),
 `value` (`{ kind, v }` with a kind menu), `rules` (rows of a sub-schema, up to `max`, default 16).
 
+A text field that suggests gets its own `<datalist>`, in a row of a `rules` field too. A host that knows more than the
+schema (a member list for the row whose kind is `user`, the roles for a `role` row) passes `ParamForm` a `suggest`
+function: it gets `{ key, spec, values, row? }` (`row` is `{ param, index, values }` for a field of a rules row) and
+returns the suggestions (`string` or `{ value, label? }`) for that field; an empty list turns the field's own `suggest`
+off and `undefined` keeps it. The host never needs the form's element ids.
+
 Adding a field type: add it to `ParamType`, a case to `Field` in `forms/ParamForm.tsx`, and a test.
 
 ## Nodes, ports and ids
