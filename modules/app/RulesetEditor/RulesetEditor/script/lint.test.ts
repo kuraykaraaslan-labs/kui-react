@@ -54,4 +54,30 @@ describe('tidyScript', () => {
     const src = 'const t = `a\n   b {\n`;\n/* x\n    y */\nreturn t;';
     expect(tidyScript(src)).toBe(src);
   });
+  it('keeps the trailing spaces of a line that ends inside a template, and never touches its inner lines', () => {
+    const src = 'if (a) {\nconst t = `head   \n   body   \n  `;   \n}';
+    expect(tidyScript(src)).toBe('if (a) {\n  const t = `head   \n   body   \n  `;   \n}');
+  });
+  it('tracks ${} nesting: a backtick inside an expression opens an inner template, not the end of the outer one', () => {
+    const src = 'const t = `a ${ x ? `in ${y}` : "z" }\n  { body }  \n`;\nif (b) {\nreturn t;\n}';
+    expect(tidyScript(src)).toBe('const t = `a ${ x ? `in ${y}` : "z" }\n  { body }  \n`;\nif (b) {\n  return t;\n}');
+  });
+  it('re-indents code inside a multi-line ${} expression and leaves the template text alone', () => {
+    const src = 'const t = `a ${\nfoo(\n1\n)\n} b  \n  c`;\nreturn t;';
+    expect(tidyScript(src)).toBe('const t = `a ${\n  foo(\n    1\n  )\n} b  \n  c`;\nreturn t;');
+  });
+  it('a backtick or quote inside a regular expression opens nothing', () => {
+    const src = 'if (a) {\nconst r = /[`\'"]/g;\nconst q = s.replace(/`/, "");\nreturn x / 2 / y;\n}\nlet z = 1;   ';
+    expect(tidyScript(src)).toBe('if (a) {\n  const r = /[`\'"]/g;\n  const q = s.replace(/`/, "");\n  return x / 2 / y;\n}\nlet z = 1;');
+  });
+  it('a regex after return and a division after a value are told apart', () => {
+    const src = 'function f(s) {\nif (s) return /`/.test(s);\nconst h = a / b; const c = `x`;\nreturn h;\n}';
+    expect(tidyScript(src)).toBe('function f(s) {\n  if (s) return /`/.test(s);\n  const h = a / b; const c = `x`;\n  return h;\n}');
+  });
+  it('is idempotent and keeps string values (a string continued with a backslash is left alone)', () => {
+    const src = 'if (a) {\nconst s = \'one \\\n   two\';\nconst t = `${`${`deep`}`}  \n  `;\n}';
+    const once = tidyScript(src);
+    expect(once).toBe('if (a) {\n  const s = \'one \\\n   two\';\n  const t = `${`${`deep`}`}  \n  `;\n}');
+    expect(tidyScript(once)).toBe(once);
+  });
 });

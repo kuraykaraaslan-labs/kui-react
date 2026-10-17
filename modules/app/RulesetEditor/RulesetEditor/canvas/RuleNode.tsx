@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { memo, useEffect, useId, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { lookOf } from '../block-visual';
@@ -31,7 +31,11 @@ const TONE: Record<RuleNodeStatus['tone'], string> = {
   success: 'var(--success)', error: 'var(--error)', warning: 'var(--warning)', info: 'var(--info)', neutral: 'var(--text-secondary)',
 };
 
-export function RuleNode({ node, decl, layout, issues = [], search, diff, isSelected, isEditing, isDragging, status, activity, activityWindow, onPointerDown }: {
+/**
+ * One block. Memoised: the editor re-renders on every live flash and drag frame, and a block whose props did not change
+ * (the canvas hands it stable callbacks) is skipped.
+ */
+export const RuleNode = memo(function RuleNode({ node, decl, layout, issues = [], search, diff, isSelected, isEditing, isDragging, status, activity, activityWindow, onPointerDown }: {
   node: RuleNodeType;
   decl: BlockDecl | undefined;
   layout: NodeLayout;
@@ -48,7 +52,8 @@ export function RuleNode({ node, decl, layout, issues = [], search, diff, isSele
   activity?: NodeActivity;
   /** the span the counters cover ("last 24 h") */
   activityWindow?: string;
-  onPointerDown: (e: React.PointerEvent) => void;
+  /** a press on the block; the canvas passes one stable function for every block */
+  onPointerDown: (e: React.PointerEvent, nodeId: string) => void;
 }) {
   const m = useMessages();
   const tipId = useId();
@@ -83,7 +88,7 @@ export function RuleNode({ node, decl, layout, issues = [], search, diff, isSele
           diff && DIFF_LOOK[diff].outline,
           isDragging ? 'cursor-grabbing shadow-xl' : 'cursor-pointer')}
         style={{ left: node.x, top: node.y, width: NODE_W, height: layout.height, zIndex: isSelected || isEditing ? 20 : 4 }}
-        onPointerDown={onPointerDown}>
+        onPointerDown={(e) => onPointerDown(e, node.nodeId)}>
         {diffBadge}
         <p className={cn('h-full whitespace-pre-wrap break-words', !text && 'italic text-text-secondary')}>{text || m.noteEmpty}</p>
       </div>
@@ -117,7 +122,7 @@ export function RuleNode({ node, decl, layout, issues = [], search, diff, isSele
       }}
       onPointerLeave={hideTip}
       onBlur={hideTip}
-      onPointerDown={(e) => { hideTip(); onPointerDown(e); }}>
+      onPointerDown={(e) => { hideTip(); onPointerDown(e, node.nodeId); }}>
       {diffBadge}
       <div className={cn('flex items-center gap-2 rounded-t-[10px] border-b border-border px-3', placeholder && 'border-dashed', look.headerBg)} style={{ height:NODE_HEADER_H }}>
         <FontAwesomeIcon icon={look.icon} className={cn('h-3.5 w-3.5 shrink-0', look.iconColor)} aria-hidden="true" />
@@ -168,4 +173,4 @@ export function RuleNode({ node, decl, layout, issues = [], search, diff, isSele
       )}
     </div>
   );
-}
+});

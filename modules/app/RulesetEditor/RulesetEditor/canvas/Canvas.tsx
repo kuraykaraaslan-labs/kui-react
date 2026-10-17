@@ -1,4 +1,5 @@
 'use client';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMagnifyingGlassMinus, faMagnifyingGlassPlus, faExpand, faTrash, faRotateLeft, faRotateRight, faDiagramProject, faBinoculars, faVectorPolygon, faMaximize, faMinimize, faKeyboard } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -108,6 +109,11 @@ export function Canvas({
   onOutputPortUp?: (e: React.PointerEvent, nodeId: string, portId: string) => void;
 }) {
   const m = useMessages();
+  /* one stable function per callback for the memoised blocks and connections: they always call the latest handler */
+  const latest = useRef({ onNodePointerDown, onSelectEdge });
+  useLayoutEffect(() => { latest.current = { onNodePointerDown, onSelectEdge }; });
+  const nodeDown = useCallback((e: React.PointerEvent, nodeId: string) => latest.current.onNodePointerDown(e, nodeId), []);
+  const selectEdge = useCallback((edgeId: string) => latest.current.onSelectEdge(edgeId), []);
   /* the two ends of a connection, in world points (null while a block of it is missing) */
   const endsOf = (edgeId: string | null) => {
     const edge = edgeId ? edges.find((x) => x.edgeId === edgeId) : undefined;
@@ -161,7 +167,7 @@ export function Canvas({
           </defs>
           {edges.map((edge) => (
             <RuleEdge key={edge.edgeId} edge={edge} nodes={nodes} layouts={layouts} readOnly={readOnly}
-              selected={selectedEdgeId === edge.edgeId} diff={edgeTintOf(diffTint, edge)} onSelect={onSelectEdge}
+              selected={selectedEdgeId === edge.edgeId} diff={edgeTintOf(diffTint, edge)} onSelect={selectEdge}
               activity={edgeActivity?.[edge.edgeId]} lit={!!litEdges?.has(edge.edgeId)} activityWindow={activityWindow}
               ghost={rewiring?.edgeId === edge.edgeId} />
           ))}
@@ -247,7 +253,7 @@ export function Canvas({
               status={nodeStatus?.[node.nodeId]}
               activity={nodeActivity?.[node.nodeId]}
               activityWindow={activityWindow}
-              onPointerDown={(e) => onNodePointerDown(e, node.nodeId)}
+              onPointerDown={nodeDown}
             />
           );
         })}

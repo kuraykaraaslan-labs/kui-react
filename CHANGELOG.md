@@ -199,6 +199,14 @@ All notable changes to this project will be documented here. Format follows [Kee
 - WidgetKit settings migrations: `mapValue`, `rename` and `materializeDefault` look keys up as own keys only. A
   stored value such as `toString` or `__proto__` matched an inherited `Object.prototype` member through `in`, so
   `mapValue` replaced it with a function (or `Object.prototype`) instead of leaving it or applying `else`.
+- RulesetEditor `tidyScript` (Format) no longer changes a string's value: a line that starts inside a template string is
+  left exactly as it is and a line that ends inside one keeps its trailing spaces; `${}` nesting (a template inside an
+  expression, an expression spanning lines) and regular expression literals (a backtick or quote inside `/.../`) are
+  tracked, so they no longer flip the template state.
+- RulesetEditor live flashes no longer re-render the whole canvas: `useEdgePulse` lights the connections that went up
+  together as one batch (one state change and one timer per batch, one shared timer for the rises that wait their gap),
+  `RuleEdge` and `RuleNode` are memoised (the canvas hands them stable callbacks; a connection's counter is compared by
+  its numbers), and validation is keyed on the graph's lists, so it is not redone (with new issue arrays) on every render.
 - `SchemaForm` repeater items: the Up / Down / Remove buttons sat inside the item's `<summary>`, an interactive
   element, which axe reports as a serious `nested-interactive` violation (the widget-kit showcase failed its a11y
   check). They now sit over the summary's right end instead of inside it; the header looks and works the same.

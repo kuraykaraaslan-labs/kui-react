@@ -109,32 +109,80 @@ export function lintScript(code: string, o: { missing?: readonly string[]; warnB
 
 /**
  * Tidy (the code field's Format button): every line is indented two spaces per open bracket and loses its trailing
- * spaces. A line that starts inside a template string or a block comment is left exactly as it is, so the text of a
- * string never changes. Nothing else is rewritten.
+ * spaces. The value of a string never changes: a line that starts inside a template string (or a block comment, or a
+ * string continued with `\`) is left exactly as it is, and a line that ends inside one keeps its trailing spaces.
+ * Templates nest (`${ `inner` }`), and a backtick or quote inside a regular expression does not open anything.
+ * Nothing else is rewritten.
  */
 export function tidyScript(code: string, unit = '  '): string {
   const lines = code.split('\n');
-  const out: string[] = [];
-  let depth = 0;
-  let mode: 'code' | 'template' | 'comment' = 'code';
-  for (const raw of lines) {
-    const startMode = mode;
-    const body = startMode === 'code' ? raw.trim() : raw.replace(/\s+$/, '');
-    let lead = 0;
-    if (startMode === 'code') { const m = /^[)\]}]+/.exec(body); lead = m ? m[0].length : 0; }
-    out.push(startMode === 'code' ? (body ? unit.repeat(Math.max(0, depth - lead)) + body : '') : body);
-    // walk the line to find the depth and the mode at its end
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i], n = raw[i + 1];
-      if (mode === 'comment') { if (c === '*' && n === '/') { mode = 'code'; i++; } continue; }
-      if (mode === 'template') { if (c === '\\') i++; else if (c === '`') mode = 'code'; continue; }
-      if (c === '/' && n === '/') break;
-      if (c === '/' && n === '*') { mode = 'comment'; i++; continue; }
-      if (c === '`') { mode = 'template'; continue; }
-      if (c === '"' || c === "'") { i++; while (i < raw.length && raw[i] !== c) { if (raw[i] === '\\') i++; i++; } continue; }
-      if (c === '(' || c === '[' || c === '{') depth++;
-      else if (c === ')' || c === ']' || c === '}') depth = Math.max(0, depth - 1);
+  const states = scanLines(code);
+  return lines.map((raw, k) => {
+    const start = states[k], end = states[k + 1];
+    if (start.mode !== 'code') return raw;
+    let body = raw.replace(/^\s+/, '');
+    if (end.mode === 'code' || end.mode === 'line' || end.mode === 'block') body = body.replace(/\s+$/, '');
+    return body ? unit.repeat(Math.max(0, start.depth - start.lead)) + body : '';
+  }).join('\n');
+}
+
+type ScanMode = 'code' | 'line' | 'block' | 'sq' | 'dq' | 'tpl' | 'regex' | 'class';
+/** the state at the start of each line (and at the end of the text): mode, bracket depth and leading closers */
+type LineState = { mode: ScanMode; depth: number; lead: number };
+
+function scanLines(code: string): LineState[] {
+  const states: LineState[] = [];
+  let mode: ScanMode = 'code', depth = 0, esc = false, lastSig = '', lastWord = '', word = '';
+  let cur: LineState = { mode, depth, lead: 0 };
+  let atStart = true;  // only whitespace and closers seen on this line so far
+  const tpl: number[] = [];  // the depth of each open `${`
+  states.push(cur);
+  for (let i = 0; i < code.length; i++) {
+    const c = code[i], n = code[i + 1];
+    if (c === '\n') {
+      if (!esc && mode !== 'block' && mode !== 'tpl' && mode !== 'code') mode = 'code';
+      esc = false;
+      cur = { mode, depth, lead: 0 };
+      states.push(cur);
+      atStart = mode === 'code';
+      continue;
     }
+    if (esc) { esc = false; continue; }
+    if (mode !== 'code') {
+      if (mode === 'line') continue;
+      if (mode === 'block') { if (c === '*' && n === '/') { mode = 'code'; i++; } continue; }
+      if (c === '\\') { esc = true; continue; }
+      if (mode === 'sq' || mode === 'dq') { if (c === (mode === 'sq' ? "'" : '"')) { mode = 'code'; lastSig = c; lastWord = ''; } continue; }
+      if (mode === 'tpl') {
+        if (c === '`') { mode = 'code'; lastSig = c; lastWord = ''; }
+        else if (c === '$' && n === '{') { i++; depth++; tpl.push(depth); mode = 'code'; lastSig = '{'; lastWord = ''; }
+        continue;
+      }
+      if (mode === 'class') { if (c === ']') mode = 'regex'; continue; }
+      if (c === '[') mode = 'class';
+      else if (c === '/') { mode = 'code'; lastSig = 'a'; lastWord = ''; } // a regex ends like a value
+      continue;
+    }
+    if (/\s/.test(c)) continue;
+    const closer = c === ')' || c === ']' || c === '}';
+    if (atStart && !closer) atStart = false;
+    if (/[\w$]/.test(c)) {
+      word += c;
+      if (!/[\w$]/.test(n ?? '')) { lastWord = word; lastSig = 'a'; word = ''; }
+      continue;
+    }
+    if (c === '/' && n === '/') { mode = 'line'; i++; continue; }
+    if (c === '/' && n === '*') { mode = 'block'; i++; continue; }
+    if (c === '"') { mode = 'dq'; continue; }
+    if (c === "'") { mode = 'sq'; continue; }
+    if (c === '`') { mode = 'tpl'; continue; }
+    if (c === '/' && (REGEX_BEFORE.has(lastSig) || (lastSig === 'a' && REGEX_WORDS.has(lastWord)))) { mode = 'regex'; continue; }
+    if (atStart && closer) cur.lead++;
+    if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === '}' && tpl.length && tpl[tpl.length - 1] === depth) { tpl.pop(); depth--; mode = 'tpl'; atStart = false; continue; }
+    else if (closer) depth = Math.max(0, depth - 1);
+    lastSig = c; lastWord = '';
   }
-  return out.join('\n');
+  states.push({ mode, depth, lead: 0 });
+  return states;
 }
