@@ -101,10 +101,10 @@ export function Canvas({
       tabIndex={0} aria-label={m.canvasLabel}
       className="relative min-h-0 flex-1 overflow-hidden select-none outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus"
       style={{
-        backgroundImage:'radial-gradient(circle, var(--border) 1.5px, transparent 1.5px)',
+        backgroundImage:'radial-gradient(circle, var(--canvas-dot, var(--border)) 1.5px, transparent 1.5px)',
         backgroundSize:`${GRID_SIZE * view.k}px ${GRID_SIZE * view.k}px`,
         backgroundPosition:`${view.x}px ${view.y}px`,
-        backgroundColor:'var(--surface-base)', cursor: connecting ? 'crosshair' : 'default', touchAction:'none',
+        backgroundColor:'var(--canvas-bg, var(--surface-base))', cursor: connecting ? 'crosshair' : 'default', touchAction:'none',
       }}
       onDrop={onDrop} onDragOver={onDragOver} onWheel={onWheel} onKeyDown={onKeyDown}
       onPointerDown={onPointerDown} onPointerDownCapture={onPointerDownCapture} onPointerMove={onPointerMove} onPointerUp={onPointerUp}

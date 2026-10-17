@@ -68,6 +68,8 @@ All notable changes to this project will be documented here. Format follows [Kee
   - `applyOp` is exhaustive: an unknown stored op leaves the values unchanged instead of crashing `migrate`.
   - `WidgetSettingsEditor` shows a deprecated field that still holds a value read-only, under "No longer
     used", with the version that removes it and its replacement.
+- RulesetEditor canvas: optional theme tokens `--canvas-bg` (background, default `--surface-base`) and `--canvas-dot`
+  (grid dots, default `--border`), as next-boilerplate's vendored copy had by hand.
 - `ParamForm` (RulesetEditor): `suggest({ key, spec, values, row? })` gives a text field its suggestions per field and per
   row of a `rules` field (`row` is `{ param, index, values }`), as strings or `{ value, label }`; a list replaces the
   spec's `suggest`, an empty list turns it off. A field's datalist now sits with the field, so a rules row field with its
