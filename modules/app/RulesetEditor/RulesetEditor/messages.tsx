@@ -118,6 +118,8 @@ export type EditorMessages = {
   sfProblems: SubflowProblemTexts;
   /* a block on the canvas */
   nodeNotAvailable: string; nodeSkipped: string;
+  /** the badge of a block in a version compare (`diffTint`) */
+  diffAdded: string; diffChanged: string; diffRemoved: string;
   nodeAriaLabel: (label: string, kindTitle: string, skipped: boolean, problems: number) => string;
   nodeAriaPlaceholder: (label: string, originalType: string) => string;
   /** the line of the hover card that names the kind of block: the type, then the block's title */
@@ -245,6 +247,7 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   paramIssueText: paramIssueMessage,
   sfProblems: ENGLISH_SUBFLOW_PROBLEMS,
   nodeNotAvailable: 'Not available', nodeSkipped: 'Skipped',
+  diffAdded: 'Added', diffChanged: 'Changed', diffRemoved: 'Removed',
   nodeAriaLabel: (label, kind, skipped, problems) => `${label} (${kind})${skipped ? ', skipped' : ''}${problems ? `, ${problems} ${problems === 1 ? 'problem' : 'problems'}` : ''}`,
   nodeAriaPlaceholder: (label, type) => `${label} (Not available: ${type})`,
   nodeTipKind: (type, title) => `${type} – ${title}`,

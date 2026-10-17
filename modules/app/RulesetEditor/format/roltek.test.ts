@@ -3,7 +3,7 @@ import { BUILTIN_CATALOG, catalogFromBlocks } from '../catalog';
 import { catalogWithSubflows } from '../graph/subflows';
 import { validateGraph } from '../graph/validate';
 import type { RuleChain, RuleNode, RuleSubflow } from '../types';
-import { chainsToRoltek, FLOW_ID_RE, NODE_ID_RE, roltekToChains, ROLTEK_FORMAT } from './roltek';
+import { chainsToRoltek, FLOW_ID_RE, NODE_ID_RE, roltekConfigs, roltekToChains, ROLTEK_FORMAT } from './roltek';
 
 const NOW = new Date('2026-10-04T10:00:00Z');
 
@@ -349,5 +349,45 @@ describe('a block with no label in the roltek file', () => {
     const chain: RuleChain = { chainId: 'c', name: 'C', slug: 'c', active: false, nodes: [node('a', 'trigger.quota', { label: '' }), node('b', 'trigger.quota', { label: 'Mine' })], edges: [], groups: [], subflows: [] };
     const { file } = chainsToRoltek([chain], { catalog: cat, now: NOW });
     expect(file.flows[0].nodes.map((n) => n.name)).toEqual([undefined, 'Mine']);
+  });
+});
+
+describe('config nodes', () => {
+  const cat = catalogFromBlocks([[
+    { type: 'config.mqtt_broker', title: 'MQTT broker', params: { host: { type: 'string' }, password: { type: 'secret' }, pin_code: { type: 'secret' }, port: { type: 'number' } } },
+    { type: 'trigger.quota', title: 'Quota' },
+  ]]);
+  const chain: RuleChain = { chainId: 'c', name: 'C', slug: 'c', active: false, nodes: [node('a', 'trigger.quota')], edges: [], groups: [], subflows: [] };
+  const broker = { id: 'broker', type: 'config.mqtt_broker', name: 'Main', params: { host: 'mq.local', port: 1883, password: 'pw', pin_code: '', api_token: 'tok', tls: { ca: 'x', private_key: 'k' } } };
+
+  it('exports the configs it is given, every secret as a marker and listed in omitted', () => {
+    const { file, omitted } = chainsToRoltek([chain], { catalog: cat, now: NOW, configs: [broker, { ...broker, name: 'dup' }] });
+    expect(file.configs).toEqual([{ id: 'broker', type: 'config.mqtt_broker', name: 'Main', params: { host: 'mq.local', port: 1883, password: { $secret: true }, pin_code: { $secret: true }, api_token: { $secret: true }, tls: { ca: 'x' } } }]);
+    expect(omitted).toEqual(expect.arrayContaining(['configs.broker.params.password', 'configs.broker.params.api_token', 'configs.broker.params.tls.private_key']));
+    expect(omitted).not.toContain('configs.broker.params.pin_code');
+    expect(broker.params.password).toBe('pw');
+  });
+
+  it('writes no configs when none are given', () => {
+    expect(chainsToRoltek([chain], { catalog: cat, now: NOW }).file.configs).toEqual([]);
+  });
+
+  it('imports configs with every secret empty, and skips bad ids, duplicates and types the catalog lacks', () => {
+    const { file } = chainsToRoltek([chain], { catalog: cat, now: NOW, configs: [broker] });
+    const r = roltekConfigs({ ...file, configs: [...file.configs, { id: 'Bad Id', type: 'config.mqtt_broker', params: {} }, { id: 'broker', type: 'config.mqtt_broker', params: {} }, { id: 'other', type: 'config.unknown', params: {} }, 'junk'] }, cat);
+    expect(r.configs).toEqual([{ id: 'broker', type: 'config.mqtt_broker', name: 'Main', params: { host: 'mq.local', port: 1883, password: null, pin_code: null, api_token: null, tls: { ca: 'x' } } }]);
+    expect(r.secretsToEnter).toEqual(['broker.password', 'broker.pin_code', 'broker.api_token']);
+    expect(r.skipped).toEqual([{ id: 'Bad Id', reason: 'bad_id' }, { id: 'broker', reason: 'duplicate' }, { id: 'other', reason: 'unknown_type' }]);
+  });
+
+  it('keeps every type without a catalog, and a plain secret sent by mistake comes back empty too', () => {
+    const r = roltekConfigs({ configs: [{ id: 'x', type: 'config.unknown', params: { password: 'leaked', host: 'h' } }] });
+    expect(r.configs).toEqual([{ id: 'x', type: 'config.unknown', params: { password: null, host: 'h' } }]);
+  });
+
+  it('roltekToChains leaves the configs note out when the host imports them', () => {
+    const file = { format: ROLTEK_FORMAT, configs: [broker], flows: [{ id: 'f', name: 'F', nodes: [], edges: [] }] };
+    expect(roltekToChains(file, cat, NOW)[0].notes).toEqual(['1 config node in the file not imported']);
+    expect(roltekToChains(file, cat, NOW, { noteConfigs: false })[0].notes).toEqual([]);
   });
 });

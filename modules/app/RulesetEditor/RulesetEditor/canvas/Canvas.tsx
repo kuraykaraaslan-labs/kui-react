@@ -13,6 +13,7 @@ import type { GuideLine } from '../../graph/snap';
 import { groupBounds } from '../../graph/groups';
 import type { Catalog } from '../../catalog/types';
 import type { GraphIssue } from '../../graph/validate';
+import { edgeTintOf, type CanvasDiffTint } from '../../graph/diff-view';
 import type { RuleGroup, RuleNode as RuleNodeT, RuleEdge as RuleEdgeT } from '../../types';
 
 const zoomBtn = 'inline-flex h-7 w-7 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-text-secondary';
@@ -23,7 +24,7 @@ export function Canvas({
   onPointerDown, onPointerDownCapture, onPointerMove, onPointerUp, onContextMenu, onWheel, onKeyDown, onDrop, onDragOver, children,
   onNodePointerDown, onOutputPortDown, onInputPortUp, onSelectEdge, onDeleteSelectedEdge, onGroupTabPointerDown, onGroupTabDoubleClick,
   onZoomIn, onZoomOut, onFit, canUndo, canRedo, onUndo, onRedo,
-  guides = [], onPointerCancel, onArrange, canArrange = true, boxMode = false, onToggleBoxMode, miniOn = false, onToggleMini, fullscreen = false, onToggleFullscreen, onShowShortcuts, search, toolbarExtra,
+  guides = [], onPointerCancel, onArrange, canArrange = true, boxMode = false, onToggleBoxMode, miniOn = false, onToggleMini, fullscreen = false, onToggleFullscreen, onShowShortcuts, search, toolbarExtra, diffTint,
 }: {
   containerRef: React.RefObject<HTMLDivElement | null>;
   nodes: RuleNodeT[];
@@ -87,6 +88,8 @@ export function Canvas({
   search?: { matches: ReadonlySet<string>; current: string | null } | null;
   /** extra controls at the start of the zoom bar */
   toolbarExtra?: React.ReactNode;
+  /** a version compare: added, changed and removed blocks and connections are tinted */
+  diffTint?: CanvasDiffTint;
 }) {
   const m = useMessages();
   const liveFrom = (() => {
@@ -128,7 +131,7 @@ export function Canvas({
           </defs>
           {edges.map((edge) => (
             <RuleEdge key={edge.edgeId} edge={edge} nodes={nodes} layouts={layouts} readOnly={readOnly}
-              selected={selectedEdgeId === edge.edgeId} onSelect={onSelectEdge} />
+              selected={selectedEdgeId === edge.edgeId} diff={edgeTintOf(diffTint, edge)} onSelect={onSelectEdge} />
           ))}
           {liveFrom && (
             <path d={edgePath(liveFrom, mouse)}
@@ -185,6 +188,7 @@ export function Canvas({
               decl={catalog.blocks[node.type]}
               layout={layout}
               issues={issues.get(node.nodeId)}
+              diff={diffTint?.nodes[node.nodeId]}
               search={search ? (search.current === node.nodeId ? 'current' : search.matches.has(node.nodeId) ? 'match' : 'dim') : undefined}
               isEditing={editingNodeId === node.nodeId}
               isSelected={selectedIds.has(node.nodeId)}

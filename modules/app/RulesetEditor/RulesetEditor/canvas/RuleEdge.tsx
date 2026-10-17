@@ -2,16 +2,21 @@
 import { portColor, portEdgeLabel } from '../node-meta';
 import { edgePath, inputAnchor, outputAnchor, type NodeLayout } from '../geometry';
 import type { RuleNode, RuleEdge as RuleEdgeType } from '../../types';
+import type { DiffTint } from '../../graph/diff-view';
+
+const DIFF_STROKE: Record<DiffTint, string> = { added: 'var(--success)', changed: 'var(--warning)', removed: 'var(--error)' };
 
 /** A click selects the connection (it is deleted with Delete / Backspace or the
  *  canvas button), so a stray click no longer removes it. A connection that leaves the
  *  error port is dashed and starts at the bottom of its node. */
-export function RuleEdge({ edge, nodes, layouts, readOnly, selected, onSelect }: {
+export function RuleEdge({ edge, nodes, layouts, readOnly, selected, diff, onSelect }: {
   edge: RuleEdgeType;
   nodes: RuleNode[];
   layouts: Map<string, NodeLayout>;
   readOnly: boolean;
   selected: boolean;
+  /** in a version compare: the connection was added or removed (its colour; a removed one is dashed) */
+  diff?: DiffTint;
   onSelect: (edgeId: string) => void;
 }) {
   const src = nodes.find((n) => n.nodeId === edge.sourceNodeId);
@@ -23,7 +28,7 @@ export function RuleEdge({ edge, nodes, layouts, readOnly, selected, onSelect }:
   const tgtIdx = tgtLayout.inputs.findIndex((p) => p.id === edge.targetPort);
   if (!from || tgtIdx < 0) return null;
   const to = inputAnchor(tgt, tgtLayout, tgtIdx);
-  const color = portColor(edge.sourcePort), label = portEdgeLabel(edge.sourcePort);
+  const color = diff ? DIFF_STROKE[diff] : portColor(edge.sourcePort), label = portEdgeLabel(edge.sourcePort);
   const midX = (from.x + to.x) / 2, midY = (from.y + to.y) / 2;
   const lw = label ? label.length * 5.5 + 16 : 0;
   const d = edgePath(from, to);
@@ -32,7 +37,8 @@ export function RuleEdge({ edge, nodes, layouts, readOnly, selected, onSelect }:
       <path d={d} stroke="transparent" strokeWidth={14} fill="none" data-edge-id={edge.edgeId}
         style={{ pointerEvents:'stroke', cursor: readOnly ? 'default' : 'pointer' }}
         onPointerDown={(e) => { e.stopPropagation(); if (!readOnly) onSelect(edge.edgeId); }} />
-      <path d={d} stroke={color} strokeWidth={selected ? 3 : 2} fill="none" strokeDasharray={from.down ? '5 3' : undefined}
+      <path d={d} stroke={color} strokeWidth={selected || diff ? 3 : 2} fill="none" strokeDasharray={diff === 'removed' ? '6 4' : from.down ? '5 3' : undefined}
+        data-diff={diff}
         markerEnd="url(#re-arrow)" className="transition-opacity group-hover:opacity-60"
         style={selected ? { filter:'drop-shadow(0 0 3px var(--primary))' } : undefined} />
       {label && (
