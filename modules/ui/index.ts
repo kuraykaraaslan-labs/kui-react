@@ -124,3 +124,5 @@ export { TraceWaterfall, DEFAULT_TRACE_WATERFALL_MESSAGES, buildTraceTree, criti
 export type { TraceWaterfallProps, TraceWaterfallMessages, TraceSpan, TraceSpanInfo, SpanStatus } from './TraceWaterfall';
 export { LogViewer, useLogStream, DEFAULT_LOG_VIEWER_MESSAGES } from './LogViewer';
 export type { LogViewerProps, LogViewerMessages, LogLine, LogSeverity, LogFieldValue, LogStream, UseLogStreamOptions } from './LogViewer';
+export { ServiceMap, DEFAULT_SERVICE_MAP_MESSAGES, layoutServiceMap } from './ServiceMap';
+export type { ServiceMapProps, ServiceMapMessages, ServiceNode, ServiceEdge, ServiceHealth, MapLayout } from './ServiceMap';
