@@ -1384,7 +1384,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Breadcrumb.tsx",
       "abbr": "Bc",
-      "description": "Hierarchical navigation trail wrapped in nav aria-label=\"Breadcrumb\". Last item marked with aria-current=\"page\" and aria-hidden separators.",
+      "description": "Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default \"Breadcrumb\"). Last item marked with aria-current=\"page\" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation.",
       "status": "stable",
       "since": "2025-02",
       "designTokens": [
@@ -1396,7 +1396,7 @@
         "--text-primary",
         "--text-secondary"
       ],
-      "variantCount": 4
+      "variantCount": 5
     },
     {
       "id": "stepper",

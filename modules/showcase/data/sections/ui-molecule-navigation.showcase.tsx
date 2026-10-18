@@ -343,20 +343,21 @@ export function TabGroup({ tabs, defaultTab, label = 'Tabs', className }) {
       title: 'Breadcrumb',
       category: 'Organism',
       abbr: 'Bc',
-      description: 'Hierarchical navigation trail wrapped in nav aria-label="Breadcrumb". Last item marked with aria-current="page" and aria-hidden separators.',
+      description: 'Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default "Breadcrumb"). Last item marked with aria-current="page" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation.',
       filePath: 'modules/ui/Breadcrumb.tsx',
       sourceCode: `import { cn } from '@/libs/utils/cn';
 
-export function Breadcrumb({ items, className }) {
+export function Breadcrumb({ items, className, renderLink, ariaLabel = 'Breadcrumb' }) {
+  const linkClass = 'text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded';
   return (
-    <nav aria-label="Breadcrumb" className={className}>
+    <nav aria-label={ariaLabel} className={className}>
       <ol className="flex flex-wrap items-center gap-1 text-sm">
         {items.map((item, i) => {
           const isLast = i === items.length - 1;
           return (
             <li key={i} className="flex items-center gap-1">
               {!isLast && item.href ? (
-                <><a href={item.href} className="text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded">{item.label}</a><span aria-hidden="true" className="text-text-disabled">›</span></>
+                <>{renderLink ? renderLink({ ...item, href: item.href }, linkClass) : <a href={item.href} className={linkClass}>{item.label}</a>}<span aria-hidden="true" className="text-text-disabled">›</span></>
               ) : (
                 <span className={isLast ? 'text-text-primary font-medium' : 'text-text-secondary'} aria-current={isLast ? 'page' : undefined}>{item.label}</span>
               )}
@@ -408,6 +409,19 @@ export function Breadcrumb({ items, className }) {
             />
           ),
           code: `<Breadcrumb items={[/* 6 items */]} maxItems={3} />`,
+        },
+        {
+          title: 'Router link',
+          preview: (
+            <Breadcrumb
+              ariaLabel="Page trail"
+              items={[{ label: 'Home', href: '/' }, { label: 'Reports', href: '/reports' }, { label: 'Q3' }]}
+              renderLink={(item, className) => (
+                <a href={item.href} className={className} onClick={(e) => e.preventDefault()}>{item.label}</a>
+              )}
+            />
+          ),
+          code: `import Link from 'next/link';\n\n<Breadcrumb\n  ariaLabel="Page trail"\n  items={[...]}\n  renderLink={(item, className) => (\n    <Link href={item.href} className={className}>{item.label}</Link>\n  )}\n/>`,
         },
       ],
     },

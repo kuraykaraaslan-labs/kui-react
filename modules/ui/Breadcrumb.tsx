@@ -10,11 +10,17 @@ export function Breadcrumb({
   separator,
   maxItems,
   className,
+  renderLink,
+  ariaLabel = 'Breadcrumb',
 }: {
   items: BreadcrumbItem[];
   separator?: React.ReactNode;
   maxItems?: number;
   className?: string;
+  /** Render a linked item yourself (a router `Link` for client-side navigation); defaults to a plain anchor. */
+  renderLink?: (item: BreadcrumbItem & { href: string }, className: string) => React.ReactNode;
+  /** Accessible name of the nav landmark. Default = "Breadcrumb". */
+  ariaLabel?: string;
 }) {
   const sep = separator ?? <FontAwesomeIcon icon={faChevronRight} className="w-2.5 h-2.5 text-text-disabled" aria-hidden="true" />;
 
@@ -27,7 +33,7 @@ export function Breadcrumb({
   }
 
   return (
-    <nav aria-label="Breadcrumb" className={className}>
+    <nav aria-label={ariaLabel} className={className}>
       <ol className="flex flex-wrap items-center gap-1 text-sm">
         {displayed.map((item, i) => {
           const isLast = i === displayed.length - 1;
@@ -37,15 +43,15 @@ export function Breadcrumb({
             <li key={i} className="flex items-center gap-1">
               {!isLast && item.href ? (
                 <>
-                  <a
-                    href={item.href}
-                    className={cn(
+                  {(() => {
+                    const linkClass = cn(
                       'text-text-secondary hover:text-text-primary transition-colors',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded'
-                    )}
-                  >
-                    {item.label}
-                  </a>
+                    );
+                    return renderLink
+                      ? renderLink({ ...item, href: item.href }, linkClass)
+                      : <a href={item.href} className={linkClass}>{item.label}</a>;
+                  })()}
                   {sep}
                 </>
               ) : (

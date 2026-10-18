@@ -2334,8 +2334,8 @@
       "category": "Organism",
       "filePath": "modules/ui/Breadcrumb.tsx",
       "abbr": "Bc",
-      "description": "Hierarchical navigation trail wrapped in nav aria-label=\"Breadcrumb\". Last item marked with aria-current=\"page\" and aria-hidden separators.",
-      "source": "import { cn } from '@/libs/utils/cn';\n\nexport function Breadcrumb({ items, className }) {\n  return (\n    <nav aria-label=\"Breadcrumb\" className={className}>\n      <ol className=\"flex flex-wrap items-center gap-1 text-sm\">\n        {items.map((item, i) => {\n          const isLast = i === items.length - 1;\n          return (\n            <li key={i} className=\"flex items-center gap-1\">\n              {!isLast && item.href ? (\n                <><a href={item.href} className=\"text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded\">{item.label}</a><span aria-hidden=\"true\" className=\"text-text-disabled\">›</span></>\n              ) : (\n                <span className={isLast ? 'text-text-primary font-medium' : 'text-text-secondary'} aria-current={isLast ? 'page' : undefined}>{item.label}</span>\n              )}\n            </li>\n          );\n        })}\n      </ol>\n    </nav>\n  );\n}",
+      "description": "Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default \"Breadcrumb\"). Last item marked with aria-current=\"page\" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation.",
+      "source": "import { cn } from '@/libs/utils/cn';\n\nexport function Breadcrumb({ items, className, renderLink, ariaLabel = 'Breadcrumb' }) {\n  const linkClass = 'text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded';\n  return (\n    <nav aria-label={ariaLabel} className={className}>\n      <ol className=\"flex flex-wrap items-center gap-1 text-sm\">\n        {items.map((item, i) => {\n          const isLast = i === items.length - 1;\n          return (\n            <li key={i} className=\"flex items-center gap-1\">\n              {!isLast && item.href ? (\n                <>{renderLink ? renderLink({ ...item, href: item.href }, linkClass) : <a href={item.href} className={linkClass}>{item.label}</a>}<span aria-hidden=\"true\" className=\"text-text-disabled\">›</span></>\n              ) : (\n                <span className={isLast ? 'text-text-primary font-medium' : 'text-text-secondary'} aria-current={isLast ? 'page' : undefined}>{item.label}</span>\n              )}\n            </li>\n          );\n        })}\n      </ol>\n    </nav>\n  );\n}",
       "variants": [
         {
           "title": "Default",
@@ -2352,6 +2352,10 @@
         {
           "title": "Overflow / ellipsis",
           "code": "<Breadcrumb items={[/* 6 items */]} maxItems={3} />"
+        },
+        {
+          "title": "Router link",
+          "code": "import Link from 'next/link';\n\n<Breadcrumb\n  ariaLabel=\"Page trail\"\n  items={[...]}\n  renderLink={(item, className) => (\n    <Link href={item.href} className={className}>{item.label}</Link>\n  )}\n/>"
         }
       ],
       "status": "stable",

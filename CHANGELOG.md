@@ -14,6 +14,12 @@ All notable changes to this project will be documented here. Format follows [Kee
   `exportBoard` writes `version: 2` only for a 24-column board; `importBoard` accepts versions up to 2
   (`BOARD_DOCUMENT_VERSION` is now 2) and clamps geometry to the board's own columns. `GRID_COLUMNS` stays 12
   (the default). The IoT theme dashboard keeps the column count in its saved board.
+- Breadcrumb `renderLink?: (item: BreadcrumbItem & { href: string }, className: string) => React.ReactNode`
+  renders each linked item itself (a router `Link` for client-side navigation) and gets the link's classes;
+  the plain anchor stays the default, so the markup is unchanged. `ariaLabel` (default `'Breadcrumb'`) names
+  the nav landmark. The signature is next-boilerplate's (phase 07-dashboard 22.1), which can re-vendor the
+  component without touching its callers. kui-ejs takes `ariaLabel` and per-item `attrs` instead of a
+  render function (a host script takes the click); KUInative already has per-item `onPress`.
 - Label props for texts the primitives drew in English only: `tooltipTotalLabel` on BarChart, LineChart and
   AreaChart (default `'Total'`, the stacked tooltip's total row), `closeLabel` on Modal and Drawer (defaults
   `'Close dialog'` and `'Close drawer'`). kui-ejs takes the same locals.
