@@ -110,6 +110,23 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: 'Observability',
+    collapsible: true,
+    items: [
+      { id: 'trace-waterfall',        title: 'TraceWaterfall',        category: 'Organism', abbr: 'Wf', since: '2026-10', status: 'beta' },
+      { id: 'log-viewer',             title: 'LogViewer',             category: 'Organism', abbr: 'Lv', since: '2026-10', status: 'beta' },
+      { id: 'service-map',            title: 'ServiceMap',            category: 'Organism', abbr: 'Sm', since: '2026-10', status: 'beta' },
+      { id: 'citation-chip',          title: 'CitationChip',          category: 'Organism', abbr: 'Cc', since: '2026-10', status: 'beta' },
+      { id: 'evidence-list',          title: 'EvidenceList',          category: 'Organism', abbr: 'El', since: '2026-10', status: 'beta' },
+      { id: 'day-bar-chart',          title: 'DayBarChart',           category: 'Molecule', abbr: 'Db', since: '2026-10', status: 'beta' },
+      { id: 'ai-human-draft-editor',  title: 'AiHumanDraftEditor',    category: 'Organism', abbr: 'Ae', since: '2026-10', status: 'beta' },
+      { id: 'conversation-timeline',  title: 'ConversationTimeline',  category: 'Organism', abbr: 'Ln', since: '2026-10', status: 'beta' },
+      { id: 'inline-edit-list',       title: 'InlineEditList',        category: 'Organism', abbr: 'Ie', since: '2026-10', status: 'beta' },
+      { id: 'locale-switcher',        title: 'LocaleSwitcher',        category: 'Molecule', abbr: 'Lc', since: '2026-10', status: 'beta' },
+      { id: 'burn-chart',             title: 'BurnChart',             category: 'Molecule', abbr: 'Bu', since: '2026-10', status: 'beta' },
+    ],
+  },
+  {
     label: 'Domain — Common',
     collapsible: true,
     sectionStart: 'Domain — Common',

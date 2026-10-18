@@ -11,6 +11,7 @@ Token-aware primitive chart library at @/modules/ui/Chart. M1 ships seven SVG-ba
 
 ## Used by
 
+- `burn-chart`
 - `widget-kit`
 
 ## Accessibility

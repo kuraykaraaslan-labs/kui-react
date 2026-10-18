@@ -118,3 +118,23 @@ export { BulkActionTable } from './BulkActionTable';
 export type { BulkActionTableProps, BulkAction } from './BulkActionTable';
 export { Timeline } from './Timeline';
 export type { TimelineProps, TimelineItem } from './Timeline';
+
+// Observability components (virtualised lists, trace and service views)
+export { TraceWaterfall, DEFAULT_TRACE_WATERFALL_MESSAGES, buildTraceTree, criticalPathIds, rulerTicks } from './TraceWaterfall';
+export type { TraceWaterfallProps, TraceWaterfallMessages, TraceSpan, TraceSpanInfo, SpanStatus } from './TraceWaterfall';
+export { LogViewer, useLogStream, DEFAULT_LOG_VIEWER_MESSAGES } from './LogViewer';
+export type { LogViewerProps, LogViewerMessages, LogLine, LogSeverity, LogFieldValue, LogStream, UseLogStreamOptions } from './LogViewer';
+export { ServiceMap, DEFAULT_SERVICE_MAP_MESSAGES, layoutServiceMap } from './ServiceMap';
+export type { ServiceMapProps, ServiceMapMessages, ServiceNode, ServiceEdge, ServiceHealth, MapLayout } from './ServiceMap';
+export { CitationChip, EvidenceList, CitedText, evidenceDomId, DEFAULT_EVIDENCE_MESSAGES } from './Evidence';
+export type { CitationChipProps, EvidenceListProps, CitedTextProps, EvidenceItem, EvidenceKind, DroppedClaim, EvidenceMessages } from './Evidence';
+export { DayBarChart, dayStatus, meanAvailability, statusCounts, fillDays, DEFAULT_DAY_THRESHOLDS, DEFAULT_DAY_BAR_CHART_MESSAGES } from './DayBarChart';
+export type { DayBarChartProps, DayBarChartMessages, DayBar, DayIncident, DayStatus, DayThresholds, DayIncidentSeverity } from './DayBarChart';
+export { AiHumanDraftEditor, DEFAULT_AI_HUMAN_DRAFT_EDITOR_MESSAGES, buildSegments, applySegments } from './AiHumanDraftEditor';
+export type { AiHumanDraftEditorProps, AiHumanDraftEditorMessages, Hunk, Segment } from './AiHumanDraftEditor';
+export { ConversationTimeline, DEFAULT_CONVERSATION_TIMELINE_MESSAGES, computeTotals, formatCost } from './ConversationTimeline';
+export type { ConversationTimelineProps, ConversationTimelineMessages, ConversationStep, StepType, StepStatus, StepTokens, Totals } from './ConversationTimeline';
+export { InlineEditList, DEFAULT_INLINE_EDIT_LIST_MESSAGES } from './InlineEditList';
+export type { InlineEditListProps, InlineEditListMessages, InlineEditItem, InlineEditChange, InlineEditorContext } from './InlineEditList';
+export { LocaleSwitcher, localeDirection, DEFAULT_LOCALE_SWITCHER_MESSAGES } from './LocaleSwitcher';
+export type { LocaleSwitcherProps, LocaleSwitcherMessages, LocaleOption } from './LocaleSwitcher';

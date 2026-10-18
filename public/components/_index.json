@@ -1961,6 +1961,72 @@
     "category": "Domain",
     "file": "reviews-review-submit-form.md"
   },
+  "trace-waterfall": {
+    "name": "TraceWaterfall",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "trace-waterfall.md"
+  },
+  "log-viewer": {
+    "name": "LogViewer",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "log-viewer.md"
+  },
+  "service-map": {
+    "name": "ServiceMap",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "service-map.md"
+  },
+  "citation-chip": {
+    "name": "CitationChip",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "citation-chip.md"
+  },
+  "evidence-list": {
+    "name": "EvidenceList",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "evidence-list.md"
+  },
+  "day-bar-chart": {
+    "name": "DayBarChart",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "day-bar-chart.md"
+  },
+  "ai-human-draft-editor": {
+    "name": "AiHumanDraftEditor",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "ai-human-draft-editor.md"
+  },
+  "conversation-timeline": {
+    "name": "ConversationTimeline",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "conversation-timeline.md"
+  },
+  "inline-edit-list": {
+    "name": "InlineEditList",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "inline-edit-list.md"
+  },
+  "locale-switcher": {
+    "name": "LocaleSwitcher",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "locale-switcher.md"
+  },
+  "burn-chart": {
+    "name": "BurnChart",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "burn-chart.md"
+  },
   "lib-kui-viewer": {
     "name": "KUIViewer",
     "layer": "library",
