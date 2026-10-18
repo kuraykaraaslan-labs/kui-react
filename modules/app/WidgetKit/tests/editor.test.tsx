@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { WidgetSettingsEditor } from '../WidgetSettingsEditor';
 import { CORE_CARD, CORE_FORMAT, CORE_BOARD } from '../settings/core';
 import { STAT_VALUE } from '../templates/stat-value';
+import type { SettingsTemplate } from '../settings/types';
 
 const caps = { hasData: true, exportable: false, formatsNumbers: true };
 
@@ -38,6 +39,31 @@ describe('WidgetSettingsEditor', () => {
     render(<WidgetSettingsEditor templates={[STAT_VALUE, CORE_CARD, CORE_FORMAT]} settings={{ $v: { 'core:card': 5 } }} onChange={() => {}} caps={caps} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Card' }));
     expect(screen.getByRole('status')).toHaveTextContent('newer version');
+  });
+
+  it('shows a deprecated field that holds a value read-only, with its removal notice', () => {
+    const tpl: SettingsTemplate = {
+      id: 'tenant:demo', version: 2, namespace: '', label: 'Demo', groups: [], migrations: [{ from: 1, to: 2, note: 'x' }],
+      fields: {
+        heading: { label: 'Heading', type: 'text', since: 1 },
+        caption: { label: 'Caption', type: 'text', since: 1, deprecated: { since: 2, removeIn: 3, replacedBy: 'heading' } },
+        footer: { label: 'Footer', type: 'text', since: 1, deprecated: { since: 2, removeIn: 3 } },
+      },
+    };
+    const onChange = vi.fn();
+    render(<WidgetSettingsEditor templates={[tpl]} settings={{ caption: 'Old', $v: { 'tenant:demo': 2 } }} onChange={onChange} caps={caps} />);
+    const old = screen.getByRole('region', { name: 'No longer used' });
+    const caption = screen.getByRole('textbox', { name: 'Caption' });
+    expect(old).toContainElement(caption);
+    expect(caption).toHaveValue('Old');
+    expect(caption).toBeDisabled();
+    expect(old).toHaveTextContent('No longer used; removed in v3. Replaced by Heading.');
+    // A deprecated field without a stored value stays hidden; the active field is editable.
+    expect(screen.queryByRole('textbox', { name: 'Footer' })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Heading' })).not.toBeDisabled();
+    fireEvent.change(caption, { target: { value: 'New' } });
+    act(() => { vi.runAllTimers(); });
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('edits board settings with the board template alone', () => {

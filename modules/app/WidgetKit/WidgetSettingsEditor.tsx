@@ -37,7 +37,9 @@ export interface WidgetSettingsEditorProps {
 /**
  * The settings editor of one widget (ThingsBoard-style): the title above, then tabs (Display, Data,
  * Card, Actions), each a set of collapsible groups. Basic mode hides advanced fields unless they
- * differ from their default. A part written by a newer template version opens read-only.
+ * differ from their default. A part written by a newer template version opens read-only. A
+ * deprecated field is hidden, unless it still holds a stored value: then it is shown read-only under
+ * "No longer used", with the version that removes it and its replacement.
  */
 export function WidgetSettingsEditor({
   templates, settings, onChange, layers = {}, caps, boundSlots = [], title, onTitleChange,
@@ -67,14 +69,22 @@ export function WidgetSettingsEditor({
 
     for (const tab of TAB_ORDER) {
       const schema: Record<string, FieldSchema> = {};
+      // Deprecated fields are not edited; one that still holds a stored value is shown read-only.
+      const retiring: Record<string, FieldSchema> = {};
       for (const [k, f] of Object.entries(t.fields)) {
-        if (f.deprecated) continue;
         const g = f.group ? groupById.get(f.group) : undefined;
         const fieldTab = g?.tab ?? 'Display';
         if (fieldTab !== tab || (g && !groups.has(g.id))) continue;
-        schema[k] = { ...f, group: g?.label ?? f.group };
+        if (f.deprecated) {
+          if (read.parts[t.id]?.[k] === undefined) continue;
+          const by = f.deprecated.replacedBy;
+          const note = `No longer used; removed in v${f.deprecated.removeIn}.${by ? ` Replaced by ${t.fields[by]?.label ?? by}.` : ''}`;
+          retiring[k] = { ...f, group: undefined, description: f.description ? `${f.description} ${note}` : note };
+        } else {
+          schema[k] = { ...f, group: g?.label ?? f.group };
+        }
       }
-      if (!Object.keys(schema).length) continue;
+      if (!Object.keys(schema).length && !Object.keys(retiring).length) continue;
       const form = (
         <div key={`${t.id}-${tab}`} className="space-y-2">
           {newer.has(t.id) && (
@@ -82,17 +92,25 @@ export function WidgetSettingsEditor({
               These settings were saved by a newer version of this widget. Editing is disabled until this app is updated.
             </p>
           )}
-          <SchemaForm
-            schema={schema}
-            values={values}
-            defaults={base}
-            readOnly={newer.has(t.id)}
-            fieldOverrides={fieldOverrides}
-            errors={errors}
-            debounceMs={150}
-            fieldFilter={advanced ? undefined : (_k, f, v, d) => !f.advanced || (v !== undefined && JSON.stringify(v) !== JSON.stringify(d))}
-            onChange={(next) => onChange(writeNamespace(settings, t, prune(next, base)))}
-          />
+          {Object.keys(schema).length > 0 && (
+            <SchemaForm
+              schema={schema}
+              values={values}
+              defaults={base}
+              readOnly={newer.has(t.id)}
+              fieldOverrides={fieldOverrides}
+              errors={errors}
+              debounceMs={150}
+              fieldFilter={advanced ? undefined : (_k, f, v, d) => !f.advanced || (v !== undefined && JSON.stringify(v) !== JSON.stringify(d))}
+              onChange={(next) => onChange(writeNamespace(settings, t, prune(next, base)))}
+            />
+          )}
+          {Object.keys(retiring).length > 0 && (
+            <section aria-label="No longer used" className="space-y-2 rounded-md border border-dashed border-border px-3 py-2">
+              <p className="text-xs font-medium text-text-secondary">No longer used</p>
+              <SchemaForm schema={retiring} values={values} defaults={base} readOnly fieldOverrides={fieldOverrides} onChange={() => {}} />
+            </section>
+          )}
         </div>
       );
       tabContent.set(tab, [...(tabContent.get(tab) ?? []), form]);

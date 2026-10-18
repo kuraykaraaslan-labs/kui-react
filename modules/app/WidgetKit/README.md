@@ -45,7 +45,7 @@ See [/AGENTS.md](../../../AGENTS.md).
 | Add a field (its default renders exactly as before), an option, or change a label/group/`advanced` | No | Give the field `since: <current version>` |
 | Change a default, rename, retype, narrow a range, remove an option | Yes | Append a migration step (`ops` or `up`); never edit or delete an old step |
 | Remove a multi-select option | Yes | Append a step with `{ op: 'filterList', key, remove: [<option>] }` (or `keep: [<options left>]`); a list that ends up empty is removed, so the card falls back to its default |
-| Remove a field | Yes, twice | First `deprecated: { since, replacedBy?, removeIn }`, drop it at least one version later |
+| Remove a field | Yes, twice | First `deprecated: { since, replacedBy?, removeIn }`, drop it at least one version later. Until then the editor shows a stored value read-only under "No longer used" |
 
 The declarative ops (`MigrationOp`, the only kind a tenant-authored template may use) are `rename`,
 `mapValue`, `materializeDefault`, `clamp`, `drop`, `each` (the same ops on every item of a repeater) and
