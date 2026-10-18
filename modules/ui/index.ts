@@ -126,3 +126,7 @@ export { LogViewer, useLogStream, DEFAULT_LOG_VIEWER_MESSAGES } from './LogViewe
 export type { LogViewerProps, LogViewerMessages, LogLine, LogSeverity, LogFieldValue, LogStream, UseLogStreamOptions } from './LogViewer';
 export { ServiceMap, DEFAULT_SERVICE_MAP_MESSAGES, layoutServiceMap } from './ServiceMap';
 export type { ServiceMapProps, ServiceMapMessages, ServiceNode, ServiceEdge, ServiceHealth, MapLayout } from './ServiceMap';
+export { CitationChip, EvidenceList, CitedText, evidenceDomId, DEFAULT_EVIDENCE_MESSAGES } from './Evidence';
+export type { CitationChipProps, EvidenceListProps, CitedTextProps, EvidenceItem, EvidenceKind, DroppedClaim, EvidenceMessages } from './Evidence';
+export { DayBarChart, dayStatus, meanAvailability, statusCounts, fillDays, DEFAULT_DAY_THRESHOLDS, DEFAULT_DAY_BAR_CHART_MESSAGES } from './DayBarChart';
+export type { DayBarChartProps, DayBarChartMessages, DayBar, DayIncident, DayStatus, DayThresholds, DayIncidentSeverity } from './DayBarChart';
