@@ -6,7 +6,8 @@ import { cssColor, fontStyle, formatValue, rangeFor, type RangeEdges, type Value
 import type { Sparse } from '../settings/types';
 import type { PagedEcho, SlotData, WidgetKindView, WidgetViewProps } from '../kind';
 import { isInternalPath } from '../templates/map';
-import { SettingIcon, useWidgetKit } from '../WidgetKitContext';
+import { SettingIcon, useKitMessages, useWidgetKit } from '../WidgetKitContext';
+import type { CommonMessages, TableMessages } from '../messages';
 import { useNow } from '../useNow';
 import { Meta, Pill, tint } from './ui';
 
@@ -157,10 +158,13 @@ export function formatDateValue(at: number, opts: DateOptions = {}, locale?: str
 export const fullDate = (at: number, locale?: string) =>
   new Date(at).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 
-/** One cell as display text, by its declared type and the value format (dates by `date`, else as a full local date). */
+/**
+ * One cell as display text, by its declared type and the value format (dates by `date`, else as a full
+ * local date). `yesNo` words a boolean (default Yes / No).
+ */
 export function cellText(
   value: unknown, type: DeclaredColumn['type'] | undefined, format: ValueFormat, override: { unit?: string; decimals?: number }, locale?: string,
-  date?: DateOptions,
+  date?: DateOptions, yesNo?: CommonMessages,
 ): string {
   if (value === null || value === undefined || value === '') return '—';
   if (type === 'number' || override.unit !== undefined || override.decimals !== undefined) {
@@ -179,7 +183,7 @@ export function cellText(
     const json = JSON.stringify(value);
     return json.length > 200 ? `${json.slice(0, 197)}…` : json;
   }
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'boolean') return value ? yesNo?.yes ?? 'Yes' : yesNo?.no ?? 'No';
   return String(value);
 }
 
@@ -422,38 +426,7 @@ export interface TableRowActions {
 
 export type { PagedEcho } from '../kind';
 
-export interface TableMessages {
-  search: string;
-  clearSearch: string;
-  columns: string;
-  actions: string;
-  noMatches: string;
-  rowsShown: (shown: number, total: number) => string;
-  pageOf: (page: number, pages: number | null) => string;
-  rowCount: (count: number) => string;
-  /** "1–10 of 42" under a paged table. */
-  range: (from: number, to: number, total: number) => string;
-  previous: string;
-  next: string;
-  pager: string;
-  rowNumber: string;
-}
-
-const MESSAGES: TableMessages = {
-  search: 'Search',
-  clearSearch: 'Clear',
-  columns: 'Columns',
-  actions: 'Actions',
-  noMatches: 'No matching rows.',
-  rowsShown: (shown, total) => `Showing ${shown} of ${total} rows`,
-  pageOf: (page, pages) => (pages === null ? `Page ${page}` : `Page ${page} of ${pages}`),
-  rowCount: (count) => `${count} rows`,
-  range: (from, to, total) => `${from}–${to} of ${total}`,
-  previous: 'Previous',
-  next: 'Next',
-  pager: 'Table pages',
-  rowNumber: 'Row',
-};
+export type { TableMessages } from '../messages';
 
 export type DataTableViewProps = WidgetViewProps & {
   /** Row / cell / button actions (16.4). */
@@ -562,7 +535,9 @@ export function DataTableView({
   settings, format, data, locale, renderLink, rowActions, paging, messages, now,
 }: DataTableViewProps) {
   const s = settings as S;
-  const m = { ...MESSAGES, ...messages };
+  const kit = useKitMessages();
+  // The host's texts, then the explicit `messages` prop.
+  const m: TableMessages = { ...kit.table, ...messages };
   const clock = useNow(60_000);
   const { renderIcon } = useWidgetKit();
   const nowMs = now ?? clock;
@@ -586,7 +561,7 @@ export function DataTableView({
     now: nowMs,
     relativeStyle: 'narrow',
   });
-  const textOf = (c: TableColumn, raw: unknown) => cellText(raw, c.type, format, c.override, locale, dateOf(c));
+  const textOf = (c: TableColumn, raw: unknown) => cellText(raw, c.type, format, c.override, locale, dateOf(c), kit.common);
 
   const allRows = useMemo(() => result?.rows ?? [], [result]);
   const pageSize = Math.max(1, Math.min(100, Number(s.maxRows) || 10));

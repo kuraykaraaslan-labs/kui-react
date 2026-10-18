@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { ScatterChart, type PointShape } from '@/modules/ui/Chart';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
 import { cssColor, formatValue } from '../settings/style';
 import { rowsToScatterSeries, tableCsv } from './chart-data';
 import { animateOf, axisProps, legendProps, num, str, thresholdLines, tooltipProps } from './chart-props';
@@ -11,16 +12,18 @@ const col = (v: unknown, fallback: string) => (typeof v === 'string' && v ? v : 
 const RADIUS: Record<string, number> = { sm: 3, md: 4, lg: 6, xl: 8 };
 const SHAPES = new Set(['circle', 'square', 'diamond', 'triangle']);
 
-const pointsOf = (data: WidgetViewProps['data'], s: S) => rowsToScatterSeries(data.points?.rows, {
+const pointsOf = (data: WidgetViewProps['data'], s: S, unnamed?: string) => rowsToScatterSeries(data.points?.rows, {
   x: col(s.xColumn, 'x'),
   y: col(s.yColumn, 'y'),
   group: typeof s.groupColumn === 'string' && s.groupColumn ? s.groupColumn : undefined,
+  unnamed,
 });
 
 /** `chart.scatter`: points from a bound table, one series per group, with an optional trend line each. */
 export function ScatterChartView({ settings, data, locale }: WidgetViewProps) {
   const s = settings;
-  const raw = useMemo(() => pointsOf(data, s), [data, s]);
+  const m = useKitMessages().charts;
+  const raw = useMemo(() => pointsOf(data, s, m.series), [data, s, m.series]);
   const series = useMemo(() => {
     if (!raw) return null;
     const pinned = new Map<string, string>();
@@ -54,7 +57,7 @@ export function ScatterChartView({ settings, data, locale }: WidgetViewProps) {
         yFormat={(v) => formatValue(v, { unit: unit(s.yUnit), decimals: num(s.yDecimals) }, {}, locale)}
         thresholds={thresholdLines(s.thresholds)}
         animate={animateOf(s)}
-        ariaLabel="Scatter chart"
+        ariaLabel={m.scatterChart}
       />
     </div>
   );

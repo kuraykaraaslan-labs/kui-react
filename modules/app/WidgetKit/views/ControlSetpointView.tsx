@@ -3,6 +3,7 @@ import { ControlSetpoint } from '@/modules/ui/ControlTile';
 import { asNumber } from '@/modules/ui/ControlTile/control-logic';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle, formatValue } from '../settings/style';
+import { useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { confirmProps, controlBlockReason, controlMessages, requestControl, textOr, type FeedbackSettings } from './control-common';
 import { Meta, Metric, MetricHead, MetricLabel } from './ui';
@@ -41,7 +42,8 @@ export function ControlSetpointView(props: WidgetViewProps) {
   const s = props.settings as S;
   const value = props.data.value?.value;
   const current = asNumber(value);
-  const set = requestControl(props.onControl, 'set');
+  const m = useKitMessages().controls;
+  const set = requestControl(props.onControl, 'set', m);
   const layout = s.layout === 'stepper' || s.layout === 'dial' ? s.layout : 'input';
   const withUnit = s.unitDisplay !== 'hide';
   const fmt = (n: number) => formatValue(n, withUnit ? props.format : { ...props.format, unit: '' }, {}, props.locale);
@@ -49,11 +51,11 @@ export function ControlSetpointView(props: WidgetViewProps) {
   const unit = withUnit && props.format.unit ? props.format.unit : undefined;
   const apply = textOr(s.applyLabel);
   const { messages: policyMessages, ...confirm } = confirmProps(props.confirm);
-  const messages = controlMessages(s, policyMessages);
+  const messages = controlMessages(s, policyMessages, m);
   const label = <MetricLabel font={s.labelFont} color={s.labelColor}>{textOr(s.label)}</MetricLabel>;
   const head = s.showValue !== false ? (
     <span className="flex shrink-0 items-baseline gap-1.5">
-      <Meta>{textOr(s.currentLabel) ?? 'Now'}</Meta>
+      <Meta>{textOr(s.currentLabel) ?? m.now}</Meta>
       <Metric text={current === null ? '—' : bare(current)} unit={unit} unitPosition={props.format.unitPosition}
         size="md" font={s.currentFont} color={s.currentColor} />
     </span>
@@ -91,7 +93,7 @@ export function ControlSetpointView(props: WidgetViewProps) {
         dialColor={cssColor(s.dialColor) ?? cssColor(s.buttonColor)}
         dialTrackColor={cssColor(s.dialTrackColor)}
         messages={apply || messages ? { ...messages, ...(apply ? { apply } : {}) } : undefined}
-        disabledReason={controlBlockReason(props, s.disableWhen, current === null)}
+        disabledReason={controlBlockReason(props, s.disableWhen, current === null, m)}
       />
     </div>
   );

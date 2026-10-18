@@ -6,6 +6,8 @@ import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle } from '../settings/style';
 import type { Sparse } from '../settings/types';
 import { useNow } from '../useNow';
+import { useKitMessages } from '../WidgetKitContext';
+import { DEFAULT_WIDGET_KIT_MESSAGES, type StatViewMessages } from '../messages';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { IconTile, Meta, MetricHead, MetricLabel, Pill, tint } from './ui';
 
@@ -67,13 +69,14 @@ export interface StateOutcome {
 
 /**
  * First matching rule wins, otherwise the fallback. A missing value (or, when asked, a stale one)
- * is "unknown" in a neutral colour, never the fallback's.
+ * is "unknown" in a neutral colour, never the fallback's. Its label is the `unknownLabel` setting, unless
+ * that is empty or still the template's English default: then `unknownText` (the host's word for it).
  */
-export function evaluateState(value: unknown, settings: Sparse, stale = false): StateOutcome {
+export function evaluateState(value: unknown, settings: Sparse, stale = false, unknownText = 'Unknown'): StateOutcome {
   const s = settings as S;
   const neutral = 'var(--text-secondary)';
   if (isBlank(value) || (stale && s.staleAsUnknown !== false)) {
-    return { label: s.unknownLabel || 'Unknown', color: neutral, matched: false, unknown: true };
+    return { label: s.unknownLabel && s.unknownLabel !== 'Unknown' ? s.unknownLabel : unknownText, color: neutral, matched: false, unknown: true };
   }
   const rules = (Array.isArray(s.states) ? (s.states as Rule[]) : []).filter((r) => r && typeof r === 'object');
   const hit = rules.find((r) => ruleMatches(r, value));
@@ -98,14 +101,17 @@ export function evaluateState(value: unknown, settings: Sparse, stale = false): 
   };
 }
 
-/** "for 12 min", "for 3 h", "for 2 d". */
-export function forText(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 60_000) return 'just now';
+/** "for 12 min", "for 3 h", "for 2 d"; `texts` words them. */
+export function forText(
+  ms: number,
+  texts: Pick<StatViewMessages, 'justNow' | 'forMinutes' | 'forHours' | 'forDays'> = DEFAULT_WIDGET_KIT_MESSAGES.stat,
+): string {
+  if (!Number.isFinite(ms) || ms < 60_000) return texts.justNow;
   const min = Math.round(ms / 60_000);
-  if (min < 60) return `for ${min} min`;
+  if (min < 60) return texts.forMinutes(min);
   const h = Math.round(min / 60);
-  if (h < 48) return `for ${h} h`;
-  return `for ${Math.round(h / 24)} d`;
+  if (h < 48) return texts.forHours(h);
+  return texts.forDays(Math.round(h / 24));
 }
 
 /**
@@ -116,7 +122,8 @@ export function forText(ms: number): string {
 export function StateView({ settings, data, stale }: WidgetViewProps) {
   const s = settings as S;
   const raw = data.value?.value;
-  const out = evaluateState(raw, settings, stale);
+  const m = useKitMessages().stat;
+  const out = evaluateState(raw, settings, stale, m.unknown);
   const layout = s.layout ?? 'big';
   const center = (s.alignment ?? 'start') === 'center' || layout === 'icon';
   const iconSize = s.iconSize ?? 18;
@@ -127,10 +134,10 @@ export function StateView({ settings, data, stale }: WidgetViewProps) {
   const [seen, setSeen] = useState(() => ({ key: out.label, at: Number.isFinite(fetched) ? fetched : now }));
   if (seen.key !== out.label) setSeen({ key: out.label, at: now });
 
-  const staleNote = stale ? <span className="sr-only"> (stale)</span> : null;
+  const staleNote = stale ? <span className="sr-only"> {m.stale}</span> : null;
   const stateStyle = { ...fontStyle(s.stateFont), color: out.color };
   const metaParts: ReactNode[] = [];
-  if (s.showSince && !out.unknown) metaParts.push(<span key="since" data-part="since">{forText(now - seen.at)}</span>);
+  if (s.showSince && !out.unknown) metaParts.push(<span key="since" data-part="since">{forText(now - seen.at, m)}</span>);
   if (s.showValue && !isBlank(raw) && !out.unknown) {
     metaParts.push(<span key="value" className="tabular-nums" style={fontStyle(s.valueFont, s.valueColor)} data-part="value">{String(raw)}</span>);
   }

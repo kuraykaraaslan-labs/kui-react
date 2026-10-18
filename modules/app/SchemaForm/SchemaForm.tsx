@@ -3,7 +3,8 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { shouldShow, type FieldSchema } from './types';
 import { FieldControl, controlCls } from './fields/FieldControl';
-import { useFieldOverrides, type FieldOverrides } from './schema-form.context';
+import { SchemaFormMessagesProvider, useFieldOverrides, type FieldOverrides } from './schema-form.context';
+import { mergeSchemaFormMessages, type SchemaFormMessages } from './messages';
 
 export interface SchemaFormProps {
   schema: Record<string, FieldSchema>;
@@ -19,7 +20,10 @@ export interface SchemaFormProps {
   fieldOverrides?: FieldOverrides;
   /** Messages per field key, e.g. from `validateSchemaValues`. */
   errors?: Record<string, string | undefined>;
+  /** Shown when the schema has no field. Wins over `messages.empty`. */
   emptyMessage?: string;
+  /** The form's own texts (reset, search, the colour, font, JSON and repeater controls); the rest stays English. */
+  messages?: Partial<SchemaFormMessages>;
   className?: string;
   /** Keep only the fields this returns true for (e.g. a "Basic" mode hiding `advanced` fields). */
   fieldFilter?: (key: string, field: FieldSchema, value: unknown, defaultValue: unknown) => boolean;
@@ -39,11 +43,12 @@ function seedFromSchema(schema: Record<string, FieldSchema>): Record<string, unk
  */
 export function SchemaForm({
   schema, values, defaults = {}, onChange, searchable = false, debounceMs = 200,
-  fieldOverrides, errors = {}, emptyMessage = 'No settings.', className, fieldFilter, readOnly = false,
+  fieldOverrides, errors = {}, emptyMessage, messages, className, fieldFilter, readOnly = false,
 }: SchemaFormProps) {
   const baseId = useId();
   const ctxOverrides = useFieldOverrides();
   const overrides = fieldOverrides ?? ctxOverrides;
+  const m = useMemo(() => mergeSchemaFormMessages(messages), [messages]);
 
   const seed = useMemo(() => ({ ...defaults, ...seedFromSchema(schema), ...values }), [schema, values, defaults]);
   const [local, setLocal] = useState<Record<string, unknown>>(seed);
@@ -97,12 +102,12 @@ export function SchemaForm({
           <label htmlFor={id} className="text-xs font-medium text-text-secondary flex items-center gap-1">
             {field.label}
             {field.required && <span className="text-error" aria-hidden="true">*</span>}
-            {modified && <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" title="Modified from default" />}
+            {modified && <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" title={m.modified} />}
           </label>
           {dv !== undefined && (
-            <button type="button" onClick={() => update(key, dv)} aria-label={`Reset ${field.label} to default`}
+            <button type="button" onClick={() => update(key, dv)} aria-label={m.resetLabel(field.label)}
               className="px-1 text-[10px] text-text-disabled hover:text-text-primary focus-visible:ring-2 focus-visible:ring-border-focus rounded">
-              Reset
+              {m.reset}
             </button>
           )}
         </div>
@@ -115,21 +120,23 @@ export function SchemaForm({
     );
   };
 
-  if (Object.keys(schema).length === 0) return <p className="text-xs text-text-secondary">{emptyMessage}</p>;
+  if (Object.keys(schema).length === 0) return <p className="text-xs text-text-secondary">{emptyMessage ?? m.empty}</p>;
 
   return (
-    <fieldset disabled={readOnly} className={cn('min-w-0 space-y-4', className)}>
-      {searchable && Object.keys(schema).length > 6 && (
-        <input type="search" aria-label="Search settings" value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search settings..." className={controlCls} />
-      )}
-      {ungrouped.length > 0 && <div className="space-y-4">{ungrouped.map(renderField)}</div>}
-      {Object.entries(groups).map(([group, entries]) => (
-        <details key={group} open className="rounded-lg border border-border">
-          <summary className="px-3 py-2 text-xs font-medium uppercase tracking-wide cursor-pointer text-text-secondary">{group}</summary>
-          <div className="p-3 space-y-4 border-t border-border">{entries.map(renderField)}</div>
-        </details>
-      ))}
-    </fieldset>
+    <SchemaFormMessagesProvider value={m}>
+      <fieldset disabled={readOnly} className={cn('min-w-0 space-y-4', className)}>
+        {searchable && Object.keys(schema).length > 6 && (
+          <input type="search" aria-label={m.searchLabel} value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder={m.searchPlaceholder} className={controlCls} />
+        )}
+        {ungrouped.length > 0 && <div className="space-y-4">{ungrouped.map(renderField)}</div>}
+        {Object.entries(groups).map(([group, entries]) => (
+          <details key={group} open className="rounded-lg border border-border">
+            <summary className="px-3 py-2 text-xs font-medium uppercase tracking-wide cursor-pointer text-text-secondary">{group}</summary>
+            <div className="p-3 space-y-4 border-t border-border">{entries.map(renderField)}</div>
+          </details>
+        ))}
+      </fieldset>
+    </SchemaFormMessagesProvider>
   );
 }

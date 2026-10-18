@@ -17,6 +17,7 @@ import { CHART_PIE_VIEW } from '../views/PieChartView';
 import { CHART_SCATTER_VIEW } from '../views/ScatterChartView';
 import { CHART_HISTOGRAM_VIEW } from '../views/HistogramChartView';
 import { HEATMAP_VIEW } from '../views/HeatmapView';
+import { WidgetKitProvider } from '../WidgetKitContext';
 import { applySeriesRules, axisFormat, formatAxisLabels, histogramBins, mergeSeriesSlots, rowsToPieSeries, ruleFor, valueStats } from '../views/chart-data';
 
 beforeAll(() => {
@@ -390,5 +391,38 @@ describe('scatter, histogram and heatmap settings', () => {
     const legend = container.querySelector('[data-heat-legend="scale"]')!;
     expect(legend.textContent).toContain('1K');
     expect(legend.textContent).toContain('250K');
+  });
+});
+
+describe('chart texts from the host (WidgetKitProvider messages)', () => {
+  const charts = { total: 'Toplam', other: 'Diğer', pieChart: 'Pasta grafik', lineChart: 'Çizgi grafik', mean: (v: string) => `Ort. ${v}`, count: 'Adet' };
+  const inKit = (view: WidgetKindView, t: SettingsTemplate, data: Record<string, SlotData | undefined>, stored: Record<string, unknown> = {}) => {
+    const View = view.View;
+    return render(
+      <WidgetKitProvider value={{ messages: { charts } }}>
+        <View settings={effective(t, stored)} format={{ ...t.formatDefaults }} data={data} locale="en" />
+      </WidgetKitProvider>,
+    );
+  };
+
+  it('pie: the centre caption, the folded slice and the name; a placement caption wins', () => {
+    const rows = [{ label: 'A', value: 5 }, { label: 'B', value: 30 }, { label: 'C', value: 10 }, { label: 'D', value: 1 }];
+    const { unmount } = inKit(CHART_PIE_VIEW, CHART_PIE, { slices: table(rows) }, { layout: 'donut-total', maxSlices: 3 });
+    expect(screen.getByText('Toplam')).toBeInTheDocument();
+    expect(screen.getAllByText('Diğer').length).toBeGreaterThan(0);
+    expect(screen.getByRole('img', { name: 'Pasta grafik' })).toBeInTheDocument();
+    unmount();
+    inKit(CHART_PIE_VIEW, CHART_PIE, { slices: table(rows) }, { layout: 'donut-total', totalLabel: 'Sum', otherLabel: 'Rest', maxSlices: 3 });
+    expect(screen.getByText('Sum')).toBeInTheDocument();
+    expect(screen.getAllByText('Rest').length).toBeGreaterThan(0);
+  });
+
+  it('line chart name and histogram mean marker', () => {
+    const { unmount } = inKit(CHART_LINE_VIEW, CHART_LINE, { series: series(['a']) });
+    expect(screen.getByRole('img', { name: 'Çizgi grafik' })).toBeInTheDocument();
+    unmount();
+    const rows = [1, 2, 3, 4, 7].map((value) => ({ value }));
+    inKit(CHART_HISTOGRAM_VIEW, CHART_HISTOGRAM, { values: table(rows) }, { showMean: true });
+    expect(screen.getByText(/^Ort\. /)).toBeInTheDocument();
   });
 });

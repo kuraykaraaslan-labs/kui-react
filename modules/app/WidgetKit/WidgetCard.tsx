@@ -7,7 +7,7 @@ import { Tooltip } from '@/modules/ui/Tooltip';
 import { UnavailableContribution, type UnavailableContributionContent } from '@/modules/ui/UnavailableContribution';
 import { cssColor, fontStyle } from './settings/style';
 import type { CardSettings } from './settings/types';
-import { SettingIcon } from './WidgetKitContext';
+import { SettingIcon, useKitMessages } from './WidgetKitContext';
 
 export type { CardSettings };
 
@@ -22,8 +22,9 @@ export type WidgetCardProps = {
   stale?: boolean;
   /** When the shown data was produced (for "Updated …"). */
   updatedAt?: Date | string | number | null;
-  /** Shown to editors when the widget has no data bound yet. */
+  /** Shown to editors when the widget has no data bound yet. Default: the host's `card.unconfigured` text. */
   unconfiguredText?: string;
+  /** Default: the host's `card.error` text. */
   errorText?: string;
   onRetry?: () => void;
   /**
@@ -111,10 +112,10 @@ const iconBtn = cn(
  * tokens by default, any colour the author picks otherwise.
  */
 export function WidgetCard({
-  title, card, state = 'ready', stale = false, updatedAt, unconfiguredText = 'Not configured yet.',
-  errorText = 'This widget could not load its data.', onRetry, unavailable, onFullscreen, onExport, onRefresh, refreshing = false,
+  title, card, state = 'ready', stale = false, updatedAt, unconfiguredText, errorText, onRetry, unavailable, onFullscreen, onExport, onRefresh, refreshing = false,
   headerRight, badges, footer, children, className, style, locale, fixedHeight = false, ...rest
 }: WidgetCardProps) {
+  const m = useKitMessages().card;
   const variant = card.variant ?? 'raised';
   const bgMode = card.background ?? 'default';
   const image = bgMode === 'image' ? safeImageUrl(card.backgroundImage) : undefined;
@@ -179,14 +180,14 @@ export function WidgetCard({
                 <h3 className="truncate text-sm font-semibold" style={fontStyle(card.titleFont, card.titleColor)}>{title}</h3>
                 {card.titleTooltip && (
                   <Tooltip content={card.titleTooltip}>
-                    <button type="button" aria-label={`About ${title}`} className={cn(iconBtn, 'h-5 w-5')}>
+                    <button type="button" aria-label={m.about(title)} className={cn(iconBtn, 'h-5 w-5')}>
                       <FontAwesomeIcon icon={faCircleInfo} className="h-3 w-3" aria-hidden="true" />
                     </button>
                   </Tooltip>
                 )}
                 {badges}
                 {staleMode && (
-                  <span className="shrink-0 rounded-full bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-fg">Old data</span>
+                  <span className="shrink-0 rounded-full bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-fg">{m.oldData}</span>
                 )}
               </div>
             )}
@@ -194,23 +195,23 @@ export function WidgetCard({
               <p className="truncate text-xs text-text-secondary" style={{ color: cssColor(card.subtitleColor) }}>{card.subtitle}</p>
             )}
             {!showTitle && staleMode && (
-              <span className="rounded-full bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-fg">Old data</span>
+              <span className="rounded-full bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-fg">{m.oldData}</span>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity lg:opacity-0 lg:group-hover/wk:opacity-100 lg:group-focus-within/wk:opacity-100">
             {headerRight}
             {buttons.includes('refresh') && onRefresh && (
-              <button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Refresh" title="Refresh" className={iconBtn}>
+              <button type="button" onClick={onRefresh} disabled={refreshing} aria-label={m.refresh} title={m.refresh} className={iconBtn}>
                 <FontAwesomeIcon icon={faRotateRight} className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} aria-hidden="true" />
               </button>
             )}
             {buttons.includes('export') && onExport && (
-              <button type="button" onClick={onExport} aria-label="Download data (CSV)" title="Download data (CSV)" className={iconBtn}>
+              <button type="button" onClick={onExport} aria-label={m.download} title={m.download} className={iconBtn}>
                 <FontAwesomeIcon icon={faDownload} className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             )}
             {buttons.includes('fullscreen') && onFullscreen && (
-              <button type="button" onClick={onFullscreen} aria-label="Full screen" title="Full screen" className={iconBtn}>
+              <button type="button" onClick={onFullscreen} aria-label={m.fullscreen} title={m.fullscreen} className={iconBtn}>
                 <FontAwesomeIcon icon={faExpand} className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             )}
@@ -229,23 +230,23 @@ export function WidgetCard({
             title={unavailable?.title ?? (showTitle ? undefined : title)}
           />
         ) : bodyState === 'loading' ? (
-          <div className="flex h-full min-h-16 flex-col gap-2" role="status" aria-label="Loading">
+          <div className="flex h-full min-h-16 flex-col gap-2" role="status" aria-label={m.loading}>
             <div className="h-4 w-1/3 animate-pulse rounded bg-surface-sunken" />
             <div className="h-full min-h-8 w-full animate-pulse rounded bg-surface-sunken" />
           </div>
         ) : bodyState === 'empty' ? (
           <div className="flex h-full min-h-16 items-center justify-center text-center text-sm text-text-secondary">
-            {card.noDataText || 'No data'}
+            {card.noDataText || m.noData}
           </div>
         ) : bodyState === 'unconfigured' ? (
-          <div className="flex h-full min-h-16 items-center justify-center text-center text-sm text-text-secondary">{unconfiguredText}</div>
+          <div className="flex h-full min-h-16 items-center justify-center text-center text-sm text-text-secondary">{unconfiguredText ?? m.unconfigured}</div>
         ) : bodyState === 'error' ? (
           <div role="alert" className="flex h-full min-h-16 flex-col items-center justify-center gap-2 text-center text-sm text-error">
-            <p>{errorText}</p>
+            <p>{errorText ?? m.error}</p>
             {onRetry && (
               <button type="button" onClick={onRetry}
                 className="rounded-md border border-border px-2.5 py-1 text-xs text-text-primary hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
-                Retry
+                {m.retry}
               </button>
             )}
           </div>
@@ -257,7 +258,7 @@ export function WidgetCard({
       {(updated || footer) && (
         <footer className="relative flex items-center justify-between gap-2 text-xs text-text-secondary" style={{ padding: `${pad === 0 ? 6 : 0}px ${chromePad}px ${Math.max(pad - 4, 8)}px` }}>
           <span>{footer}</span>
-          {updated && <span>Updated {updated}</span>}
+          {updated && <span>{m.updated(updated)}</span>}
         </footer>
       )}
     </section>

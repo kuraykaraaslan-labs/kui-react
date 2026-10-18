@@ -9,6 +9,7 @@ import '@kuraykaraaslan/kui-viewer/styles.css';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type CSSProperties } from 'react';
 import { KUIViewer, ModelLoader, NavCube, useViewer, type KUIViewerProps } from '@kuraykaraaslan/kui-viewer/react';
 import { cn } from '@/libs/utils/cn';
+import { useKitMessages } from '../WidgetKitContext';
 import type { ModelSource, SensorMarker, ViewerModelSettings } from './ViewerModelView';
 import { ViewerStatus } from './ViewerModelView';
 
@@ -303,6 +304,7 @@ export interface ViewerModelCanvasProps {
 
 /** The live viewer, its models and the sensor overlay. The viewer is disposed when this unmounts. */
 export function ViewerModelCanvas({ models, sensors, settings, dark }: ViewerModelCanvasProps) {
+  const texts = useKitMessages().viewer;
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [outcome, setOutcome] = useState<Map<string, Handle | Error>>(() => new Map());
@@ -342,15 +344,15 @@ export function ViewerModelCanvas({ models, sensors, settings, dark }: ViewerMod
       <SensorOverlay viewer={viewer} sensors={sensors} settings={settings} />
       {!settled && models.length > 0 && (
         <ViewerStatus kind="loading" className="pointer-events-none bg-transparent"
-          text={models.length > 1 ? `Loading models (${done} of ${models.length})…` : 'Loading the model…'} />
+          text={models.length > 1 ? texts.loadingModels(done, models.length) : texts.loadingModel} />
       )}
       {settled && allFailed && (
-        <ViewerStatus kind="error" text={`The model${models.length > 1 ? 's' : ''} could not be loaded. ${(outcome.get(failed[0].url) as Error).message}`} />
+        <ViewerStatus kind="error" text={texts.loadFailed(models.length, (outcome.get(failed[0].url) as Error).message)} />
       )}
       {settled && !allFailed && failed.length > 0 && (
         <div role="status" data-part="viewer-partial"
           className={cn('pointer-events-none absolute left-2 top-2 z-20 rounded-md border border-border bg-surface-raised/90 px-2 py-1 text-[11px] text-text-secondary shadow-sm')}>
-          Not loaded: {failed.map((m) => m.label).join(', ')}
+          {texts.notLoaded(failed.map((f) => f.label).join(', '))}
         </div>
       )}
     </div>

@@ -4,7 +4,7 @@ import { ControlSlider, type ControlSliderParts } from '@/modules/ui/ControlTile
 import { asNumber } from '@/modules/ui/ControlTile/control-logic';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, formatValue } from '../settings/style';
-import { SettingIcon } from '../WidgetKitContext';
+import { SettingIcon, useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { confirmProps, controlBlockReason, controlMessages, requestControl, textOr, type FeedbackSettings } from './control-common';
 import { Meta, Metric, MetricHead, MetricLabel } from './ui';
@@ -44,7 +44,8 @@ type S = FeedbackSettings & {
 export function ControlSliderView(props: WidgetViewProps) {
   const s = props.settings as S;
   const value = props.data.value?.value;
-  const set = requestControl(props.onControl, 'set');
+  const m = useKitMessages().controls;
+  const set = requestControl(props.onControl, 'set', m);
   const layout = s.layout === 'extended' || s.layout === 'compact' ? s.layout : 'default';
   const vertical = s.orientation === 'vertical';
   const showValue = s.showValue !== false;
@@ -124,14 +125,14 @@ export function ControlSliderView(props: WidgetViewProps) {
       framed={false}
       value={value}
       {...confirm}
-      messages={controlMessages(s, policyMessages)}
+      messages={controlMessages(s, policyMessages, m)}
       onCommit={(next, confirmation) => set(next, confirmation)}
-      ariaLabel={textOr(s.label) ?? textOr(props.title)}
+      ariaLabel={textOr(s.label) ?? textOr(props.title) ?? m.value}
       min={s.min}
       max={s.max}
       step={s.step}
       format={(n) => formatValue(n, props.format, {}, props.locale)}
-      reportedLabel={(v) => `Reported: ${v}`}
+      reportedLabel={m.reported}
       orientation={vertical ? 'vertical' : 'horizontal'}
       thickness={s.thickness}
       thumbSize={s.thumbSize}
@@ -144,7 +145,7 @@ export function ControlSliderView(props: WidgetViewProps) {
       }}
       commitMode={s.commit === 'debounced' ? 'debounced' : 'release'}
       debounceMs={s.debounceMs}
-      disabledReason={controlBlockReason(props, s.disableWhen, asNumber(value) === null)}
+      disabledReason={controlBlockReason(props, s.disableWhen, asNumber(value) === null, m)}
     />
   );
 }

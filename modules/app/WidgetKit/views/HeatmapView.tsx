@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { HeatmapChart } from '@/modules/ui/Chart';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
 import { cssColor, formatValue, rangeFor, type ColorRange, type RangeEdges } from '../settings/style';
 import { rowsToHeatCells, tableCsv } from './chart-data';
 import { animateOf, compactFormatter, legendProps, num, str, tickStyleOf, valueLabelStyleOf } from './chart-props';
@@ -16,6 +17,7 @@ const cellsOf = (data: WidgetViewProps['data'], s: S) => rowsToHeatCells(data.ce
 /** `heatmap`: a colour grid; a low-to-high colour scale, or colour ranges (bands). */
 export function HeatmapView({ settings, format, data, locale }: WidgetViewProps) {
   const s = settings;
+  const m = useKitMessages().charts;
   const cells = useMemo(() => cellsOf(data, s), [data, s]);
   if (cells.length === 0) return <div className="h-full" />;
   const legend = legendProps(s, 2);
@@ -29,7 +31,7 @@ export function HeatmapView({ settings, format, data, locale }: WidgetViewProps)
       if (!c) return [];
       const from = typeof r.from === 'number' ? compact(r.from) : '';
       const to = typeof r.to === 'number' ? compact(r.to) : '';
-      return [{ color: c, label: r.label || (from && to ? `${from} – ${to}` : from ? `≥ ${from}` : to ? `< ${to}` : 'All') }];
+      return [{ color: c, label: r.label || (from && to ? `${from} – ${to}` : from ? `≥ ${from}` : to ? `< ${to}` : m.all) }];
     })
     : undefined;
   return (
@@ -44,7 +46,7 @@ export function HeatmapView({ settings, format, data, locale }: WidgetViewProps)
         colorFor={bands ? (v) => cssColor(rangeFor(v, bands, edges)?.color) : undefined}
         valueFormat={fmt}
         legendFormat={compact}
-        valueLabel={str(s.valueName) ?? 'Value'}
+        valueLabel={str(s.valueName) ?? m.value}
         showValues={s.valueLabels === 'value'}
         valueLabelStyle={valueLabelStyleOf(s)}
         cellGap={num(s.cellGap) ?? 2}
@@ -55,7 +57,7 @@ export function HeatmapView({ settings, format, data, locale }: WidgetViewProps)
         showTooltip={s.showTooltip !== false}
         tickStyle={tickStyleOf(s)}
         animate={animateOf(s)}
-        ariaLabel="Heatmap"
+        ariaLabel={m.heatmap}
       />
     </div>
   );

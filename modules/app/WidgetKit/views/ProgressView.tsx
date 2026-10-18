@@ -5,6 +5,7 @@ import { Progress, type ProgressMark, type ProgressSegment } from '@/modules/ui/
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle, formatValue, rangeFor, type ColorRange, type RangeEdges } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
 import { IconTile, Meta, Metric, MetricHead, MetricLabel } from './ui';
 
 const num = (v: unknown): number | null => {
@@ -65,6 +66,7 @@ function rangeSegments(ranges: unknown, target: number): ProgressSegment[] {
  * percentage: the number still shows, only the bar goes.
  */
 export function ProgressView({ settings, format, data, locale }: WidgetViewProps) {
+  const m = useKitMessages().stat;
   const s = settings as S;
   const value = num(data.value?.value);
   const target = num(data.target?.value) ?? num(s.target);
@@ -90,9 +92,9 @@ export function ProgressView({ settings, format, data, locale }: WidgetViewProps
   const pctStr = pct !== null ? `${formatValue(pct, { decimals: 0 }, {}, locale)} %` : null;
   const showsPercent = mode === 'percent' && pctStr !== null;
   const secondary = mode === 'none' ? null
-    : mode === 'percent' ? (targetStr !== null ? `of ${targetStr}` : null)
-      : [targetStr !== null ? `of ${targetStr}` : null, mode === 'both' ? pctStr : null].filter(Boolean).join(' · ') || null;
-  const aria = `${valueStr}${targetStr !== null ? ` of ${targetStr}` : ''}${pctStr ? `, ${pctStr}` : ''}`;
+    : mode === 'percent' ? (targetStr !== null ? m.of(targetStr) : null)
+      : [targetStr !== null ? m.of(targetStr) : null, mode === 'both' ? pctStr : null].filter(Boolean).join(' · ') || null;
+  const aria = m.progress(valueStr, targetStr, pctStr);
   const custom = s.autoScale === false && s.valueFont && Object.keys(s.valueFont).length > 0;
 
   const metric = (size: 'xl' | 'lg' | 'md', style?: CSSProperties) => mode === 'none' ? null : (

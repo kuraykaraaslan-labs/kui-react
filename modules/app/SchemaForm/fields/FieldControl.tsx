@@ -2,7 +2,8 @@
 import { useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { shouldShow, type FieldOption, type FieldSchema, type FontValue } from '../types';
-import type { FieldOverrides } from '../schema-form.context';
+import { useSchemaFormMessages, type FieldOverrides } from '../schema-form.context';
+import { THEME_COLOR_MESSAGE } from '../messages';
 
 export const controlCls =
   'w-full px-3 py-2 rounded-md text-sm bg-surface-raised text-text-primary border border-border ' +
@@ -28,6 +29,7 @@ export interface FieldControlProps {
 /** The input for one field. Pure presentation: values go in, `onChange` comes out. */
 export function FieldControl(props: FieldControlProps) {
   const { id, field, value, onChange, overrides, invalid, describedBy } = props;
+  const m = useSchemaFormMessages();
   const Override = overrides?.[field.type];
   if (Override) return <Override id={id} field={field} value={value} onChange={onChange} />;
 
@@ -44,7 +46,7 @@ export function FieldControl(props: FieldControlProps) {
     case 'data-key':
       return field.multiple ? (
         <input id={id} type="text" value={Array.isArray(value) ? (value as string[]).join(', ') : ''}
-          placeholder={field.placeholder || 'Comma separated'}
+          placeholder={field.placeholder || m.commaSeparated}
           onChange={(e) => onChange(e.target.value.split(',').map((x) => x.trim()).filter(Boolean))} className={controlCls} {...aria} />
       ) : (
         <input id={id} type="text" value={str} placeholder={field.placeholder} maxLength={128}
@@ -75,7 +77,7 @@ export function FieldControl(props: FieldControlProps) {
           <input id={id} type="checkbox" checked={Boolean(value ?? field.value ?? false)}
             onChange={(e) => onChange(e.target.checked)}
             className="h-4 w-4 rounded accent-primary focus-visible:ring-2 focus-visible:ring-border-focus" {...aria} />
-          {field.placeholder || 'Enabled'}
+          {field.placeholder || m.enabled}
         </label>
       );
     case 'select':
@@ -115,12 +117,13 @@ export function FieldControl(props: FieldControlProps) {
 }
 
 function MultiSelectControl({ id, field, value, onChange }: FieldControlProps) {
+  const m = useSchemaFormMessages();
   const current = Array.isArray(value) ? (value as string[]) : [];
   const options = field.options ?? [];
   const toggle = (v: string) => onChange(current.includes(v) ? current.filter((x) => x !== v) : [...current, v]);
   if (options.length === 0) {
     return (
-      <input id={id} type="text" value={current.join(', ')} placeholder={field.placeholder || 'Comma separated'}
+      <input id={id} type="text" value={current.join(', ')} placeholder={field.placeholder || m.commaSeparated}
         onChange={(e) => onChange(e.target.value.split(',').map((s) => s.trim()).filter(Boolean))} className={controlCls} />
     );
   }
@@ -137,7 +140,10 @@ function MultiSelectControl({ id, field, value, onChange }: FieldControlProps) {
   );
 }
 
-/** Theme colours offered first by every colour field: they follow light/dark and tenant themes. */
+/**
+ * Theme colours offered first by every colour field: they follow light/dark and tenant themes. The
+ * labels shown come from the form's messages, by `value` (`THEME_COLOR_MESSAGE`); these are the English.
+ */
 export const THEME_COLOR_TOKENS: ReadonlyArray<{ label: string; value: string }> = [
   { label: 'Primary', value: 'var(--primary)' },
   { label: 'Secondary', value: 'var(--secondary)' },
@@ -157,13 +163,19 @@ export const THEME_COLOR_TOKENS: ReadonlyArray<{ label: string; value: string }>
  * value: the native picker for a hex, or type rgb()/hsl()/hex by hand. Empty = the default.
  */
 function ColorControl({ id, value, field, onChange }: FieldControlProps) {
+  const m = useSchemaFormMessages();
+  const tokenLabel = (t: { label: string; value: string }) => {
+    const key = THEME_COLOR_MESSAGE[t.value];
+    const text = key ? m[key] : undefined;
+    return typeof text === 'string' ? text : t.label;
+  };
   const current = typeof value === 'string' ? value : '';
   const hex = /^#[0-9a-fA-F]{6}$/.test(current) ? current : '#000000';
   return (
     <div className="space-y-2">
-      <div role="radiogroup" aria-label={`${field.label}: theme colours`} className="flex flex-wrap gap-1.5">
+      <div role="radiogroup" aria-label={m.themeColours(field.label)} className="flex flex-wrap gap-1.5">
         {THEME_COLOR_TOKENS.map((t) => (
-          <button key={t.value} type="button" role="radio" aria-checked={current === t.value} title={t.label} aria-label={t.label}
+          <button key={t.value} type="button" role="radio" aria-checked={current === t.value} title={tokenLabel(t)} aria-label={tokenLabel(t)}
             onClick={() => onChange(t.value)}
             className={cn('h-6 w-6 rounded-full border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
               current === t.value && 'ring-2 ring-offset-1 ring-border-focus')}
@@ -171,14 +183,14 @@ function ColorControl({ id, value, field, onChange }: FieldControlProps) {
         ))}
       </div>
       <div className="flex items-center gap-2">
-        <input type="color" aria-label={`${field.label}: pick a colour`} value={hex}
+        <input type="color" aria-label={m.pickColour(field.label)} value={hex}
           onChange={(e) => onChange(e.target.value)} className="h-9 w-12 shrink-0 rounded border border-border bg-transparent p-0.5" />
-        <input id={id} type="text" value={current} placeholder={field.placeholder || 'Default'}
+        <input id={id} type="text" value={current} placeholder={field.placeholder || m.colourDefault}
           onChange={(e) => onChange(e.target.value.trim() || undefined)} className={controlCls} />
         {current && (
-          <button type="button" onClick={() => onChange(undefined)} aria-label={`Clear ${field.label}`}
+          <button type="button" onClick={() => onChange(undefined)} aria-label={m.clearLabel(field.label)}
             className="shrink-0 rounded px-2 text-xs text-text-secondary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-border-focus">
-            Clear
+            {m.clear}
           </button>
         )}
       </div>
@@ -217,6 +229,7 @@ const FONT_WEIGHTS = [300, 400, 500, 600, 700, 800] as const;
 
 /** Size + unit, weight, family, italic. An empty part inherits the theme's. */
 function FontControl({ id, field, value, onChange }: FieldControlProps) {
+  const m = useSchemaFormMessages();
   const f = (value && typeof value === 'object' ? value : (field.value ?? {})) as FontValue;
   const set = (patch: Partial<FontValue>) => {
     const next: FontValue = { ...f, ...patch };
@@ -226,30 +239,32 @@ function FontControl({ id, field, value, onChange }: FieldControlProps) {
   const small = cn(controlCls, 'px-2');
   return (
     <div id={id} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <input type="number" min={1} max={400} aria-label={`${field.label}: size`} placeholder="Size" value={f.size ?? ''}
+      <input type="number" min={1} max={400} aria-label={m.fontSize(field.label)} placeholder={m.fontSizePlaceholder} value={f.size ?? ''}
         onChange={(e) => set({ size: e.target.value === '' ? undefined : Number(e.target.value) })} className={small} />
-      <select aria-label={`${field.label}: unit`} value={f.unit ?? 'px'} onChange={(e) => set({ unit: e.target.value as FontValue['unit'] })} className={small}>
+      <select aria-label={m.fontUnit(field.label)} value={f.unit ?? 'px'} onChange={(e) => set({ unit: e.target.value as FontValue['unit'] })} className={small}>
         <option value="px">px</option><option value="rem">rem</option><option value="em">em</option>
       </select>
-      <select aria-label={`${field.label}: weight`} value={f.weight ?? ''}
+      <select aria-label={m.fontWeight(field.label)} value={f.weight ?? ''}
         onChange={(e) => set({ weight: e.target.value ? (Number(e.target.value) as FontValue['weight']) : undefined })} className={small}>
-        <option value="">Weight</option>
+        <option value="">{m.fontWeightPlaceholder}</option>
         {FONT_WEIGHTS.map((w) => <option key={w} value={w}>{w}</option>)}
       </select>
-      <select aria-label={`${field.label}: family`} value={f.family ?? ''}
+      <select aria-label={m.fontFamily(field.label)} value={f.family ?? ''}
         onChange={(e) => set({ family: (e.target.value || undefined) as FontValue['family'] })} className={small}>
-        <option value="">Font</option><option value="sans">Sans</option><option value="serif">Serif</option><option value="mono">Mono</option>
+        <option value="">{m.fontFamilyPlaceholder}</option><option value="sans">{m.fontSans}</option><option value="serif">{m.fontSerif}</option>
+        <option value="mono">{m.fontMono}</option>
       </select>
       <label className="col-span-2 inline-flex items-center gap-2 text-xs text-text-secondary sm:col-span-4">
         <input type="checkbox" checked={f.style === 'italic'} onChange={(e) => set({ style: e.target.checked ? 'italic' : undefined })}
           className="h-4 w-4 rounded accent-primary" />
-        Italic
+        {m.fontItalic}
       </label>
     </div>
   );
 }
 
 function JsonControl({ id, value, field, onChange, onJsonError, invalid }: FieldControlProps) {
+  const m = useSchemaFormMessages();
   const [raw, setRaw] = useState<string>(() => {
     const v = value ?? field.value;
     return v === undefined ? '' : JSON.stringify(v, null, 2);
@@ -267,7 +282,7 @@ function JsonControl({ id, value, field, onChange, onJsonError, invalid }: Field
           catch { setBad(true); onJsonError?.(true); }
         }}
         className={cn(controlCls, 'font-mono text-xs', bad && 'border-error')} />
-      {bad && <p role="alert" className="mt-1 text-xs text-error">Invalid JSON</p>}
+      {bad && <p role="alert" className="mt-1 text-xs text-error">{m.invalidJson}</p>}
     </>
   );
 }
@@ -275,6 +290,7 @@ function JsonControl({ id, value, field, onChange, onJsonError, invalid }: Field
 type Row = Record<string, unknown>;
 
 function RepeaterControl({ id, field, value, onChange, overrides, depth = 0 }: FieldControlProps) {
+  const m = useSchemaFormMessages();
   const sub = field.fields ?? {};
   const items: Row[] = Array.isArray(value) ? (value as Row[]) : [];
   const set = (i: number, k: string, v: unknown) => onChange(items.map((it, j) => (j === i ? { ...it, [k]: v } : it)));
@@ -294,7 +310,7 @@ function RepeaterControl({ id, field, value, onChange, overrides, depth = 0 }: F
   const btn = 'px-1.5 py-0.5 text-xs rounded text-text-secondary hover:text-text-primary disabled:opacity-30 focus-visible:ring-2 focus-visible:ring-border-focus';
   const title = (it: Row, i: number) => {
     for (const [k, f] of Object.entries(sub)) if (['text', 'url', 'select'].includes(f.type) && it[k]) return String(it[k]);
-    return `Item ${i + 1}`;
+    return m.item(i + 1);
   };
   return (
     <div id={id} className="space-y-2">
@@ -304,9 +320,9 @@ function RepeaterControl({ id, field, value, onChange, overrides, depth = 0 }: F
         // (nested-interactive). min-h-9 keeps the header the height the buttons gave it.
         <div key={i} className="relative">
           <span className="absolute top-px right-px z-10 flex items-center gap-0.5 h-9 px-3">
-            <button type="button" className={btn} disabled={i === 0} aria-label="Move up" onClick={() => move(i, -1)}>Up</button>
-            <button type="button" className={btn} disabled={i === items.length - 1} aria-label="Move down" onClick={() => move(i, 1)}>Down</button>
-            <button type="button" className={cn(btn, 'hover:text-error')} aria-label="Remove item" onClick={() => onChange(items.filter((_, j) => j !== i))}>Remove</button>
+            <button type="button" className={btn} disabled={i === 0} aria-label={m.moveUp} onClick={() => move(i, -1)}>{m.up}</button>
+            <button type="button" className={btn} disabled={i === items.length - 1} aria-label={m.moveDown} onClick={() => move(i, 1)}>{m.down}</button>
+            <button type="button" className={cn(btn, 'hover:text-error')} aria-label={m.removeItem} onClick={() => onChange(items.filter((_, j) => j !== i))}>{m.remove}</button>
           </span>
           <details open={i === items.length - 1} className="rounded-lg border border-border">
             <summary className="flex items-center min-h-9 px-3 pr-36 cursor-pointer select-none bg-surface-overlay">
@@ -330,7 +346,7 @@ function RepeaterControl({ id, field, value, onChange, overrides, depth = 0 }: F
       ))}
       <button type="button" onClick={add}
         className="w-full py-2 text-xs rounded-md border border-dashed border-border text-text-secondary hover:text-text-primary hover:border-border-strong focus-visible:ring-2 focus-visible:ring-border-focus">
-        Add item
+        {m.addItem}
       </button>
     </div>
   );

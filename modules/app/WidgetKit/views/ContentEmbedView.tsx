@@ -5,7 +5,7 @@ import { cssColor } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { EMBED_REFERRER_POLICY, embedSandbox, resolveEmbedUrl } from './content-logic';
 import { Meta } from './ui';
-import { useWidgetKit } from '../WidgetKitContext';
+import { useKitMessages, useWidgetKit } from '../WidgetKitContext';
 
 type S = {
   url?: string;
@@ -50,16 +50,17 @@ function useReloadTick(seconds: unknown): number {
 export function ContentEmbedView({ settings, title }: WidgetViewProps) {
   const s = settings as S;
   const { embedHosts } = useWidgetKit();
+  const m = useKitMessages().content;
   const result = useMemo(() => resolveEmbedUrl(s.url, embedHosts), [s.url, embedHosts]);
   const tick = useReloadTick(s.refreshSeconds);
   if (!result.ok) {
     return (
       <p className="flex h-full items-center justify-center p-4 text-center text-sm text-text-secondary">
         {result.reason === 'empty'
-          ? 'Set a page address in this widget’s settings.'
+          ? m.embedEmpty
           : result.reason === 'notAllowed'
-            ? `Pages from ${result.host} may not be embedded here. An administrator can add the site to the allowed embed sites.`
-            : 'This address cannot be embedded. Use a public https address.'}
+            ? m.embedRefused(result.host)
+            : m.embedInvalid}
       </p>
     );
   }
@@ -86,9 +87,9 @@ export function ContentEmbedView({ settings, title }: WidgetViewProps) {
         rel="noopener noreferrer nofollow"
         className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-sm text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
       >
-        {typeof s.openLabel === 'string' && s.openLabel.trim() ? s.openLabel : 'Open'}
+        {typeof s.openLabel === 'string' && s.openLabel.trim() ? s.openLabel : m.open}
         <span aria-hidden="true">↗</span>
-        <span className="sr-only"> (opens {result.host} in a new tab)</span>
+        <span className="sr-only"> {m.opensInNewTab(result.host)}</span>
       </a>
     </div>
   ) : null;
@@ -100,7 +101,7 @@ export function ContentEmbedView({ settings, title }: WidgetViewProps) {
           <iframe
             key={tick}
             src={result.url}
-            title={title?.trim() ? title : `Embedded page: ${result.host}`}
+            title={title?.trim() ? title : m.embedTitle(result.host)}
             sandbox={embedSandbox(s.sandboxAllow)}
             allow={s.allowFullscreen === false ? undefined : 'fullscreen'}
             allowFullScreen={s.allowFullscreen !== false}

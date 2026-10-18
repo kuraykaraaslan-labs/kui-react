@@ -4,7 +4,8 @@ import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle, formatValue, rangeFor, type ValueFormat } from '../settings/style';
 import type { Sparse } from '../settings/types';
-import { SettingIcon } from '../WidgetKitContext';
+import { SettingIcon, useKitMessages } from '../WidgetKitContext';
+import type { CommonMessages } from '../messages';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { Metric, Row } from './ui';
 
@@ -52,7 +53,10 @@ export function humanizeKey(key: string): string {
  * key is shown. Decimals: the field's, else the widget's, else automatic (17.4, not 17.40).
  * A field's colour ranges colour its value; its plain colour applies when no range matches.
  */
-export function attributeRows(record: Record<string, unknown> | undefined, settings: Sparse, format: ValueFormat, locale?: string): AttributeRow[] {
+export function attributeRows(
+  record: Record<string, unknown> | undefined, settings: Sparse, format: ValueFormat, locale?: string,
+  yesNo: CommonMessages = { yes: 'Yes', no: 'No' },
+): AttributeRow[] {
   if (!record) return [];
   const s = settings as S;
   const empty = typeof s.emptyValue === 'string' ? s.emptyValue : '—';
@@ -67,7 +71,7 @@ export function attributeRows(record: Record<string, unknown> | undefined, setti
     let value: string;
     let parts: Pick<AttributeRow, 'number' | 'unit' | 'unitPosition'> = {};
     if (raw === null || raw === undefined || raw === '') value = empty;
-    else if (typeof raw === 'boolean') value = raw ? 'Yes' : 'No';
+    else if (typeof raw === 'boolean') value = raw ? yesNo.yes : yesNo.no;
     else if (typeof raw === 'number') {
       if (Number.isFinite(raw)) {
         const decimals = typeof f.decimals === 'number' ? f.decimals : Number.isInteger(raw) ? 0 : format.decimals;
@@ -100,7 +104,8 @@ const GRID: Record<Exclude<NonNullable<S['layout']>, 'list'>, string> = {
 /** `stat.attributes`: a record as label / value rows (the kit's `Row`), or as a grid of small metrics. */
 export function StatAttributesView({ settings, format, data, locale }: WidgetViewProps) {
   const s = settings as S;
-  const rows = attributeRows(data.record?.record, settings, format, locale);
+  const yesNo = useKitMessages().common;
+  const rows = attributeRows(data.record?.record, settings, format, locale, yesNo);
   const layout = s.layout ?? 'list';
   const dividers = s.dividers !== false;
   const divider = cssColor(s.dividerColor);

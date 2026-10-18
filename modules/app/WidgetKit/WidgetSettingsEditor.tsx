@@ -7,11 +7,17 @@ import { SchemaForm } from '../SchemaForm/SchemaForm';
 import type { FieldSchema } from '../SchemaForm/types';
 import { effective, prune, readSettings, templateDefaults, visibleGroups, writeNamespace } from './settings/engine';
 import type { EditorTab, Issue, SettingsTemplate, Sparse, TemplateId, WidgetCaps } from './settings/types';
-import { useWidgetKit } from './WidgetKitContext';
+import { useKitMessages, useWidgetKit } from './WidgetKitContext';
+import { localizeTemplate } from './localize';
+import type { WidgetEditorMessages } from './messages';
 import { useLocalSetting } from './useLocalSetting';
 
 const MODE_KEY = 'kui.widgetSettings.mode';
 const TAB_ORDER: EditorTab[] = ['Display', 'Data', 'Card', 'Actions', 'Look', 'Toolbar', 'Behaviour'];
+/** The message of each tab; the tab ids stay the keys (`extraTabs`, a group's `tab`). */
+const TAB_LABEL: Record<EditorTab, keyof WidgetEditorMessages> = {
+  Display: 'tabDisplay', Data: 'tabData', Card: 'tabCard', Actions: 'tabActions', Look: 'tabLook', Toolbar: 'tabToolbar', Behaviour: 'tabBehaviour',
+};
 
 export interface WidgetSettingsEditorProps {
   /** The templates of this widget: its type first, then core:card, core:format, extensions. */
@@ -39,13 +45,16 @@ export interface WidgetSettingsEditorProps {
  * Card, Actions), each a set of collapsible groups. Basic mode hides advanced fields unless they
  * differ from their default. A part written by a newer template version opens read-only. A
  * deprecated field is hidden, unless it still holds a stored value: then it is shown read-only under
- * "No longer used", with the version that removes it and its replacement.
+ * "No longer used", with the version that removes it and its replacement. The texts come from the
+ * host's `messages.editor` and `messages.form`; the templates' own texts from its `templateText`.
  */
 export function WidgetSettingsEditor({
   templates, settings, onChange, layers = {}, caps, boundSlots = [], title, onTitleChange,
   extraTabs = {}, issues = [], className,
 }: WidgetSettingsEditorProps) {
-  const { fieldOverrides } = useWidgetKit();
+  const { fieldOverrides, templateText } = useWidgetKit();
+  const msgs = useKitMessages();
+  const m = msgs.editor;
   const [mode, setMode] = useLocalSetting(MODE_KEY);
   const advanced = mode === 'advanced';
   const toggleMode = () => setMode(advanced ? 'basic' : 'advanced');
@@ -53,11 +62,17 @@ export function WidgetSettingsEditor({
   const read = useMemo(() => readSettings(settings, {
     type: templates[0], card: templates[1], format: templates[2], extensions: templates.slice(3),
   }), [settings, templates]);
+  // Only what is shown is localized: keys, ids, values and versions stay the templates' own, so
+  // reading, pruning and writing below run on exactly what they did without the hook.
+  const shown = useMemo(
+    () => (templateText ? templates.map((t) => (t ? localizeTemplate(t, templateText) : t)) : templates),
+    [templates, templateText],
+  );
   const newer = new Set(read.newer.map((n) => n.id));
 
   // One SchemaForm per (tab, template): a template's fields are split by the tab of their group.
   const tabContent = new Map<EditorTab, ReactNode[]>();
-  for (const t of templates) {
+  for (const t of shown) {
     if (!t) continue;
     const groups = visibleGroups(t, caps, boundSlots);
     const groupById = new Map(t.groups.map((g) => [g.id, g]));
@@ -78,7 +93,7 @@ export function WidgetSettingsEditor({
         if (f.deprecated) {
           if (read.parts[t.id]?.[k] === undefined) continue;
           const by = f.deprecated.replacedBy;
-          const note = `No longer used; removed in v${f.deprecated.removeIn}.${by ? ` Replaced by ${t.fields[by]?.label ?? by}.` : ''}`;
+          const note = m.retiredNote(f.deprecated.removeIn, by ? t.fields[by]?.label ?? by : undefined);
           retiring[k] = { ...f, group: undefined, description: f.description ? `${f.description} ${note}` : note };
         } else {
           schema[k] = { ...f, group: g?.label ?? f.group };
@@ -89,7 +104,7 @@ export function WidgetSettingsEditor({
         <div key={`${t.id}-${tab}`} className="space-y-2">
           {newer.has(t.id) && (
             <p role="status" className="rounded-md bg-warning-subtle px-3 py-2 text-xs text-warning-fg">
-              These settings were saved by a newer version of this widget. Editing is disabled until this app is updated.
+              {m.newerVersion}
             </p>
           )}
           {Object.keys(schema).length > 0 && (
@@ -99,6 +114,7 @@ export function WidgetSettingsEditor({
               defaults={base}
               readOnly={newer.has(t.id)}
               fieldOverrides={fieldOverrides}
+              messages={msgs.form}
               errors={errors}
               debounceMs={150}
               fieldFilter={advanced ? undefined : (_k, f, v, d) => !f.advanced || (v !== undefined && JSON.stringify(v) !== JSON.stringify(d))}
@@ -106,9 +122,10 @@ export function WidgetSettingsEditor({
             />
           )}
           {Object.keys(retiring).length > 0 && (
-            <section aria-label="No longer used" className="space-y-2 rounded-md border border-dashed border-border px-3 py-2">
-              <p className="text-xs font-medium text-text-secondary">No longer used</p>
-              <SchemaForm schema={retiring} values={values} defaults={base} readOnly fieldOverrides={fieldOverrides} onChange={() => {}} />
+            <section aria-label={m.retired} className="space-y-2 rounded-md border border-dashed border-border px-3 py-2">
+              <p className="text-xs font-medium text-text-secondary">{m.retired}</p>
+              <SchemaForm schema={retiring} values={values} defaults={base} readOnly fieldOverrides={fieldOverrides} messages={msgs.form}
+                onChange={() => {}} />
             </section>
           )}
         </div>
@@ -121,7 +138,7 @@ export function WidgetSettingsEditor({
     .filter((tab) => tabContent.has(tab) || extraTabs[tab])
     .map((tab) => ({
       id: tab,
-      label: tab,
+      label: m[TAB_LABEL[tab]] as string,
       content: (
         <div className="space-y-4 pt-3">
           {extraTabs[tab]}
@@ -134,7 +151,7 @@ export function WidgetSettingsEditor({
     <div className={cn('space-y-3', className)}>
       {onTitleChange && (
         <div>
-          <label htmlFor="wk-title" className="mb-1.5 block text-xs font-medium text-text-secondary">Title</label>
+          <label htmlFor="wk-title" className="mb-1.5 block text-xs font-medium text-text-secondary">{m.title}</label>
           <input id="wk-title" type="text" value={title ?? ''} maxLength={120} onChange={(e) => onTitleChange(e.target.value)}
             className="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus" />
         </div>
@@ -142,10 +159,10 @@ export function WidgetSettingsEditor({
       <div className="flex justify-end">
         <button type="button" onClick={toggleMode} aria-pressed={advanced}
           className="rounded-md px-2 py-1 text-xs text-text-secondary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
-          {advanced ? 'Advanced settings: on' : 'Advanced settings: off'}
+          {advanced ? m.advancedOn : m.advancedOff}
         </button>
       </div>
-      {tabs.length > 0 ? <TabGroup tabs={tabs} label="Widget settings" /> : <p className="text-xs text-text-secondary">No settings.</p>}
+      {tabs.length > 0 ? <TabGroup tabs={tabs} label={m.tabsLabel} /> : <p className="text-xs text-text-secondary">{m.noSettings}</p>}
     </div>
   );
 }

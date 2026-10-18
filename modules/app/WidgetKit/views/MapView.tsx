@@ -6,6 +6,8 @@ import { hostImageSrc } from './content-logic';
 import { cssColor, rangeFor, type ColorRange, type RangeEdges } from '../settings/style';
 import type { Sparse } from '../settings/types';
 import type { SlotData, WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
+import type { CommonMessages } from '../messages';
 import { cellText, declaredColumns, expandLinkTemplate, matchValue, num, rawText, statusColor, type ValueColor } from './DataTableView';
 
 type S = {
@@ -99,9 +101,14 @@ function rowColor(row: Row, s: S): string | undefined {
 /**
  * Table rows → markers. Rows without finite, in-range coordinates are skipped, never plotted at
  * 0,0. A link is attached only when the template is an internal path (checked before expansion,
- * values URL-encoded). Capped at `MAX_MARKERS`.
+ * values URL-encoded). Capped at `MAX_MARKERS`. `texts` words the tooltip link (a placement's
+ * `linkLabel` wins) and boolean values; English by default.
  */
-export function buildMarkers(slot: SlotData | undefined, settings: Sparse, locale?: string, image: MapImage | null = null): BuiltMarkers {
+export function buildMarkers(
+  slot: SlotData | undefined, settings: Sparse, locale?: string, image: MapImage | null = null,
+  texts: { open?: string } & Partial<CommonMessages> = {},
+): BuiltMarkers {
+  const yesNo = texts.yes || texts.no ? { yes: texts.yes ?? 'Yes', no: texts.no ?? 'No' } : undefined;
   const s = settings as S;
   const valid = onMap(image);
   const declared = declaredColumns(slot);
@@ -129,7 +136,7 @@ export function buildMarkers(slot: SlotData | undefined, settings: Sparse, local
       if (v === null || v === undefined || v === '') return [];
       const def = declared.find((c) => c.key === key);
       const mapped = key === s.colorColumn ? matchValue(v, s.valueColors)?.label : undefined;
-      return [{ label: def?.label || key, value: mapped || cellText(v, def?.type, {}, {}, locale) }];
+      return [{ label: def?.label || key, value: mapped || cellText(v, def?.type, {}, {}, locale, undefined, yesNo) }];
     });
     // Coloured by a status column: the status names itself under the title (unless it is already a field).
     const statusRaw = byColumn && !fieldsOf.includes(s.colorColumn!) ? row[s.colorColumn!] : undefined;
@@ -153,7 +160,7 @@ export function buildMarkers(slot: SlotData | undefined, settings: Sparse, local
             fields,
             ...(own ? { color: own } : {}),
             ...(status ? { description: status } : {}),
-            ...(href ? { href, linkLabel: s.linkLabel || 'Open' } : {}),
+            ...(href ? { href, linkLabel: s.linkLabel || texts.open || 'Open' } : {}),
           },
         }
         : {}),
@@ -301,11 +308,16 @@ export function buildRoutes(slot: SlotData | undefined, settings: Sparse, image:
 
 /** `map`: bound rows as markers on a card-less map that fills the card, with an optional colour legend. */
 export function MapWidgetView({
-  settings, data, locale, renderLink, onMarkerClick, onNavigate, tiles, loadingLabel, ariaLabel, legendLabel = 'Legend', layerLabels, resolveUrl,
+  settings, data, locale, renderLink, onMarkerClick, onNavigate, tiles, loadingLabel, ariaLabel, legendLabel, layerLabels, resolveUrl,
 }: MapWidgetViewProps) {
   const s = settings as S;
   const image = useMemo(() => mapImage(settings, resolveUrl), [settings, resolveUrl]);
-  const { markers, rows } = useMemo(() => buildMarkers(data.points, settings, locale, image), [data.points, settings, locale, image]);
+  const kit = useKitMessages();
+  const m = kit.map;
+  const { markers, rows } = useMemo(
+    () => buildMarkers(data.points, settings, locale, image, { open: m.open, ...kit.common }),
+    [data.points, settings, locale, image, m.open, kit.common],
+  );
   const legend = useMemo(() => (s.legend === false ? [] : mapLegend(data.points, settings)), [data.points, settings, s.legend]);
   const zones = useMemo(() => buildZones(data.zones, settings, image), [data.zones, settings, image]);
   const routes = useMemo(() => buildRoutes(data.routes, settings, image), [data.routes, settings, image]);
@@ -313,7 +325,7 @@ export function MapWidgetView({
   const [shown, setShown] = useState({ markers: true, zones: true, routes: true });
   const layers = ([['markers', markers.length], ['zones', zones.length], ['routes', routes.length]] as const).filter(([, n]) => n > 0).map(([k]) => k);
   const showSwitch = s.layerToggles !== false && layers.length > 1;
-  const layerText = { layers: 'Layers', markers: 'Markers', zones: 'Zones', routes: 'Routes', ...layerLabels };
+  const layerText = { layers: m.layers, markers: m.markers, zones: m.zones, routes: m.routes, ...layerLabels };
   const fit = s.fitBounds !== false;
   const center: [number, number] | undefined = typeof s.centerLat === 'number' && typeof s.centerLng === 'number'
     ? [s.centerLat, s.centerLng] : undefined;
@@ -367,8 +379,8 @@ export function MapWidgetView({
         controlsPosition={controls}
         renderLink={renderLink}
         onMarkerClick={clickable ? handleClick : undefined}
-        loadingLabel={loadingLabel}
-        ariaLabel={ariaLabel}
+        loadingLabel={loadingLabel ?? m.loading}
+        ariaLabel={ariaLabel ?? m.map}
       />
       {showSwitch && (
         <fieldset
@@ -394,7 +406,7 @@ export function MapWidgetView({
       )}
       {legend.length > 0 && (
         <ul
-          aria-label={legendLabel}
+          aria-label={legendLabel ?? m.legend}
           data-part="legend"
           className={cn(
             'pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm',

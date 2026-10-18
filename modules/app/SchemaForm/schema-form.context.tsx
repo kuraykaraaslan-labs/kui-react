@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react';
 import type { FieldSchema } from './types';
+import { DEFAULT_SCHEMA_FORM_MESSAGES, type SchemaFormMessages } from './messages';
 
 /**
  * Props every injected field renderer receives. A host registers one per
@@ -32,4 +33,13 @@ export function SchemaFormProvider({
 
 export function useFieldOverrides(): FieldOverrides | undefined {
   return useContext(OverridesContext);
+}
+
+const MessagesContext = createContext<SchemaFormMessages>(DEFAULT_SCHEMA_FORM_MESSAGES);
+
+/** The texts of the form's own controls; SchemaForm supplies them from its `messages` prop. */
+export const SchemaFormMessagesProvider = MessagesContext.Provider;
+
+export function useSchemaFormMessages(): SchemaFormMessages {
+  return useContext(MessagesContext);
 }

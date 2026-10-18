@@ -3,6 +3,7 @@ import { GaugeChart, type GaugeBand, type GaugeLayout } from '@/modules/ui/Chart
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle, formatValue, type ColorRange, type RangeEdges } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
 import { IconTile, Metric, MetricHead, MetricLabel } from './ui';
 
 const num = (v: unknown): number | null => {
@@ -71,6 +72,7 @@ export function rangesToBands(ranges: unknown): GaugeBand[] {
  * metric, sized to the gauge. The card dims a stale gauge (`$card.staleDisplay: 'dim'`).
  */
 export function GaugeView({ settings, format, data, locale }: WidgetViewProps) {
+  const m = useKitMessages().charts;
   const s = settings as S;
   const value = num(data.value?.value);
   const min = num(data.min?.value) ?? num(s.min) ?? 0;
@@ -134,7 +136,7 @@ export function GaugeView({ settings, format, data, locale }: WidgetViewProps) {
           animate={s.animation !== false}
           scaleStyle={fontStyle(s.minMaxFont)}
           scaleColor={cssColor(s.minMaxColor)}
-          ariaLabel={s.label || s.unitTitle || 'Gauge'}
+          ariaLabel={s.label || s.unitTitle || m.gauge}
         />
       </div>
     </div>

@@ -6,7 +6,7 @@ import { WidgetCard, type WidgetCardState } from './WidgetCard';
 import { resolvePlacement, toCsvText } from './settings/resolve';
 import type { SettingsTemplate, Sparse } from './settings/types';
 import type { ControlRequest, SlotData, SlotSpec, WidgetKindView, WidgetViewProps } from './kind';
-import { useWidgetKit } from './WidgetKitContext';
+import { useKitMessages, useWidgetKit } from './WidgetKitContext';
 import { useNow } from './useNow';
 
 export interface PlacementCardProps {
@@ -76,6 +76,7 @@ export function PlacementCard({
   className, now: nowProp, viewProps, fixedHeight = false, exportData,
 }: PlacementCardProps) {
   const { locale } = useWidgetKit();
+  const m = useKitMessages();
   const ticking = useNow();
   const now = nowProp ?? ticking;
   const [full, setFull] = useState(false);
@@ -115,7 +116,7 @@ export function PlacementCard({
         state={state}
         stale={stale}
         updatedAt={fetchedAt}
-        unconfiguredText="Bind data to this widget in its settings."
+        unconfiguredText={m.card.bindData}
         errorText={error ?? undefined}
         onRetry={onRetry}
         onRefresh={onRefresh}

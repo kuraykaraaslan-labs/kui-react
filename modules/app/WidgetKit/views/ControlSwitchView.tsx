@@ -5,6 +5,7 @@ import { ControlSwitch, type ControlSwitchParts } from '@/modules/ui/ControlTile
 import { asBoolean } from '@/modules/ui/ControlTile/control-logic';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor } from '../settings/style';
+import { useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { confirmProps, controlBlockReason, controlMessages, requestControl, textOr, type FeedbackSettings } from './control-common';
 import { IconTile, Metric, MetricHead, MetricLabel, Pill } from './ui';
@@ -57,7 +58,8 @@ export function ControlSwitchView(props: WidgetViewProps) {
   const s = props.settings as S;
   const state = switchState(props.data.value?.value, s.onMatch);
   const iconSize = typeof s.iconSize === 'number' ? s.iconSize : 20;
-  const set = requestControl(props.onControl, 'set');
+  const m = useKitMessages().controls;
+  const set = requestControl(props.onControl, 'set', m);
   const layout = s.layout === 'left' || s.layout === 'centered' ? s.layout : 'right';
   const display = s.stateDisplay === 'pill' || s.stateDisplay === 'none' ? s.stateDisplay : 'text';
   const size = s.size === 'sm' || s.size === 'md' || s.size === 'lg' ? s.size : layout === 'centered' ? 'lg' : 'md';
@@ -105,20 +107,20 @@ export function ControlSwitchView(props: WidgetViewProps) {
       framed={false}
       value={state}
       {...confirm}
-      messages={controlMessages(s, policyMessages)}
+      messages={controlMessages(s, policyMessages, m)}
       onCommit={(next, confirmation) => set(next, confirmation)}
       // The switch's accessible name (the parts above draw the visible label).
       label={textOr(s.label) ?? textOr(props.title)}
-      onLabel={textOr(s.onLabel)}
-      offLabel={textOr(s.offLabel)}
-      unknownLabel={textOr(s.unknownLabel) ?? 'Unknown'}
+      onLabel={textOr(s.onLabel) ?? m.on}
+      offLabel={textOr(s.offLabel) ?? m.off}
+      unknownLabel={textOr(s.unknownLabel) ?? m.unknownLabel}
       size={size}
       renderLayout={render}
       colors={{
         on: onColor, off: cssColor(s.offColor), disabled: cssColor(s.disabledColor),
         thumb: cssColor(s.thumbColor), thumbOff: cssColor(s.thumbOffColor), thumbDisabled: cssColor(s.thumbDisabledColor),
       }}
-      disabledReason={controlBlockReason(props, s.disableWhen, state === null)}
+      disabledReason={controlBlockReason(props, s.disableWhen, state === null, m)}
     />
   );
 }

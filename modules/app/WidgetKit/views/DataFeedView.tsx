@@ -4,7 +4,8 @@ import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle } from '../settings/style';
 import type { Sparse } from '../settings/types';
-import { useWidgetKit } from '../WidgetKitContext';
+import { useKitMessages, useWidgetKit } from '../WidgetKitContext';
+import type { FeedMessages } from '../messages';
 import { useNow } from '../useNow';
 import type { SlotData, WidgetKindView, WidgetViewProps } from '../kind';
 import {
@@ -129,7 +130,7 @@ function dayLabel(at: number, now: number, locale?: string): string {
   return new Date(at).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-export interface FeedMessages { unknownDay: string }
+export type { FeedMessages } from '../messages';
 
 export type DataFeedViewProps = WidgetViewProps & {
   /** Fixed "now" for relative times (tests, snapshots). */
@@ -144,7 +145,8 @@ export function DataFeedView({ settings, data, locale, now, messages }: DataFeed
   const layout = s.layout ?? 'timeline';
   const clock = useNow(30_000);
   const nowMs = now ?? clock;
-  const unknownDay = messages?.unknownDay ?? 'Time unknown';
+  const kit = useKitMessages();
+  const unknownDay = messages?.unknownDay ?? kit.feed.unknownDay;
   const lines = typeof s.descriptionLines === 'number' ? s.descriptionLines : 2;
   const indicator = s.indicator ?? 'dot';
   const timeBelow = s.timePosition === 'below';

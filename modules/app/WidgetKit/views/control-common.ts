@@ -3,27 +3,34 @@
 // command (checked on the server) does the rest.
 
 import type { ControlConfirm, ControlRequest, WidgetViewProps } from '../kind';
+import { CONTROL_TILE_MESSAGE_KEYS, DEFAULT_WIDGET_KIT_MESSAGES, type WidgetControlMessages } from '../messages';
 
-export const CONTROL_REASONS = {
-  notConnected: 'Not connected: no command is set for this control.',
-  stale: 'The reading is old, so the control is disabled.',
-  unknown: 'The current state is unknown, so the control is disabled.',
+/** Why a control is disabled; a host words them through `messages.controls` (same keys). */
+export type ControlReasons = Pick<WidgetControlMessages, 'notConnected' | 'stale' | 'unknown'>;
+
+const KIT_CONTROLS = DEFAULT_WIDGET_KIT_MESSAGES.controls;
+
+export const CONTROL_REASONS: ControlReasons = {
+  notConnected: KIT_CONTROLS.notConnected,
+  stale: KIT_CONTROLS.stale,
+  unknown: KIT_CONTROLS.unknown,
 };
 
 /**
  * The reason a control is disabled, or `undefined` when it may be used. The host's reason wins;
- * then a missing `onControl`; then the `disableWhen` setting (`stale`, `unknown`).
+ * then a missing `onControl`; then the `disableWhen` setting (`stale`, `unknown`). `reasons` words them.
  */
 export function controlBlockReason(
   props: Pick<WidgetViewProps, 'controlDisabledReason' | 'onControl' | 'stale'>,
   disableWhen: unknown,
   unknown: boolean,
+  reasons: ControlReasons = CONTROL_REASONS,
 ): string | undefined {
   if (props.controlDisabledReason) return props.controlDisabledReason;
-  if (!props.onControl) return CONTROL_REASONS.notConnected;
+  if (!props.onControl) return reasons.notConnected;
   const when = Array.isArray(disableWhen) ? disableWhen : [];
-  if (when.includes('stale') && props.stale) return CONTROL_REASONS.stale;
-  if (when.includes('unknown') && unknown) return CONTROL_REASONS.unknown;
+  if (when.includes('stale') && props.stale) return reasons.stale;
+  if (when.includes('unknown') && unknown) return reasons.unknown;
   return undefined;
 }
 
@@ -33,11 +40,15 @@ export type Confirmation = { confirmed: true; typed?: string };
 /**
  * A commit function for the kui controls: resolves when the host is done, rejects on failure.
  * A confirmed write also carries `confirmation` on the request (the host passes it to the server,
- * which checks the policy again).
+ * which checks the policy again). Without `onControl` it rejects with `reasons.notConnected`.
  */
-export function requestControl(onControl: WidgetViewProps['onControl'], kind: ControlRequest['kind']) {
+export function requestControl(
+  onControl: WidgetViewProps['onControl'],
+  kind: ControlRequest['kind'],
+  reasons: Pick<ControlReasons, 'notConnected'> = CONTROL_REASONS,
+) {
   return async (value?: unknown, confirmation?: Confirmation): Promise<void> => {
-    if (!onControl) throw new Error(CONTROL_REASONS.notConnected);
+    if (!onControl) throw new Error(reasons.notConnected);
     const request: ControlRequest & { confirmation?: Confirmation } = kind === 'run' ? { kind } : { kind, value };
     if (confirmation) request.confirmation = confirmation;
     await onControl(request);
@@ -72,12 +83,26 @@ export type FeedbackSettings = {
 };
 
 /**
- * Control messages from the feedback settings, layered over the policy's own question. The
- * question override changes only what is SHOWN: the policy (none / confirm / typed) and the text to
- * type stay the command's, and the server checks them again.
+ * Control messages: the host's texts (`messages.controls`), then the policy's own question, then the
+ * feedback settings. The question override changes only what is SHOWN: the policy (none / confirm /
+ * typed) and the text to type stay the command's, and the server checks them again.
+ *
+ * A host text equal to the English default is left out, so the control keeps its own default; that
+ * matters for `failed`: a host-set failure text leads and the reason follows it in brackets.
  */
-export function controlMessages(s: FeedbackSettings, policyMessages?: { confirmPrompt: string }): Record<string, string> | undefined {
-  const out: Record<string, string> = { ...policyMessages };
+export function controlMessages(
+  s: FeedbackSettings,
+  policyMessages?: { confirmPrompt: string },
+  host?: Partial<WidgetControlMessages>,
+): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  if (host) {
+    for (const key of CONTROL_TILE_MESSAGE_KEYS) {
+      const v = host[key];
+      if (typeof v === 'string' && v && v !== KIT_CONTROLS[key]) out[key] = v;
+    }
+  }
+  Object.assign(out, policyMessages);
   const put = (key: string, v: unknown) => { const t = textOr(v); if (t) out[key] = t; };
   put('pending', s.pendingText);
   put('confirmed', s.successText);

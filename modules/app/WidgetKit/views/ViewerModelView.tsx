@@ -10,6 +10,8 @@ import { resolveModelUrl } from './content-logic';
 import { cellText, declaredColumns, matchValue, num, rawText, statusColor, type ValueColor } from './DataTableView';
 import { mapLegend } from './MapView';
 import { IconTile, Meta } from './ui';
+import { useKitMessages } from '../WidgetKitContext';
+import type { CommonMessages } from '../messages';
 
 export type ViewerModelSettings = {
   models?: Array<{ url?: string; label?: string; visible?: boolean }>;
@@ -109,7 +111,11 @@ function rowColor(row: Row, s: S): string | undefined {
  * Table rows → sensor markers. Rows without three finite coordinates are skipped (never placed at the
  * origin). Capped at `MAX_SENSORS`.
  */
-export function buildSensors(slot: SlotData | undefined, settings: Sparse, locale?: string): { sensors: SensorMarker[]; rows: Map<string, Row> } {
+export function buildSensors(
+  slot: SlotData | undefined, settings: Sparse, locale?: string,
+  texts: { reading?: string } & Partial<CommonMessages> = {},
+): { sensors: SensorMarker[]; rows: Map<string, Row> } {
+  const yesNo = texts.yes || texts.no ? { yes: texts.yes ?? 'Yes', no: texts.no ?? 'No' } : undefined;
   const s = settings as S;
   const declared = declaredColumns(slot);
   const def = (key: string) => declared.find((c) => c.key === key);
@@ -132,7 +138,7 @@ export function buildSensors(slot: SlotData | undefined, settings: Sparse, local
     const unit = s.unitColumn && typeof row[s.unitColumn] === 'string' && row[s.unitColumn] ? String(row[s.unitColumn]) : undefined;
     const valueText = raw === null || raw === undefined || raw === ''
       ? undefined
-      : cellText(raw, def(s.valueColumn!)?.type, {}, unit !== undefined ? { unit } : {}, locale);
+      : cellText(raw, def(s.valueColumn!)?.type, {}, unit !== undefined ? { unit } : {}, locale, undefined, yesNo);
     const own = rowColor(row, s);
     const color = own ?? fixed;
     const fields = fieldsOf.flatMap((key) => {
@@ -140,9 +146,9 @@ export function buildSensors(slot: SlotData | undefined, settings: Sparse, local
       if (v === null || v === undefined || v === '' || key === s.valueColumn) return [];
       const d = def(key);
       const mapped = key === s.colorColumn ? matchValue(v, s.valueColors)?.label : undefined;
-      return [{ label: d?.label || key, value: mapped || cellText(v, d?.type, {}, {}, locale) }];
+      return [{ label: d?.label || key, value: mapped || cellText(v, d?.type, {}, {}, locale, undefined, yesNo) }];
     });
-    if (valueText) fields.unshift({ label: (s.valueColumn && def(s.valueColumn)?.label) || 'Reading', value: valueText });
+    if (valueText) fields.unshift({ label: (s.valueColumn && def(s.valueColumn)?.label) || texts.reading || 'Reading', value: valueText });
     const statusRaw = byColumn && !fieldsOf.includes(s.colorColumn!) ? row[s.colorColumn!] : undefined;
     const status = statusRaw !== undefined && statusRaw !== null && statusRaw !== '' && !cssColor(statusRaw)
       ? matchValue(statusRaw, s.valueColors)?.label || String(statusRaw)
@@ -204,13 +210,19 @@ export type ViewerModelWidgetViewProps = WidgetViewProps & {
 
 /** `viewer.model`: a card-less 3D viewer that fills the card, with sensor markers and an optional colour legend. */
 export function ViewerModelWidgetView({
-  settings, data, locale, resolveUrl, title, loadingLabel = 'Loading 3D viewer…', ariaLabel, legendLabel = 'Legend',
+  settings, data, locale, resolveUrl, title, loadingLabel: loadingProp, ariaLabel, legendLabel,
 }: ViewerModelWidgetViewProps) {
   const s = settings as S;
   const client = useSyncExternalStore(noop, () => true, () => false);
   const dark = useDarkMode();
   const models = useMemo(() => modelSources(settings, resolveUrl), [settings, resolveUrl]);
-  const { sensors } = useMemo(() => buildSensors(data.sensors, settings, locale), [data.sensors, settings, locale]);
+  const kit = useKitMessages();
+  const m = kit.viewer;
+  const loadingLabel = loadingProp ?? m.loading;
+  const { sensors } = useMemo(
+    () => buildSensors(data.sensors, settings, locale, { reading: m.reading, ...kit.common }),
+    [data.sensors, settings, locale, m.reading, kit.common],
+  );
   const legend = useMemo(() => (s.legend === false || sensors.length === 0 ? [] : mapLegend(data.sensors, settings)), [data.sensors, settings, s.legend, sensors.length]);
   const webgl = useMemo(() => client && webglAvailable(), [client]);
   // The legend never sits under the view cube (top right).
@@ -219,11 +231,11 @@ export function ViewerModelWidgetView({
 
   let body: ReactNode;
   if (!client) body = <ViewerStatus kind="loading" text={loadingLabel} />;
-  else if (!webgl) body = <ViewerStatus kind="error" text="This browser cannot show 3D models: WebGL is switched off or not supported." />;
+  else if (!webgl) body = <ViewerStatus kind="error" text={m.noWebgl} />;
   else {
     // Catches the viewer failing to start (no WebGL context, a broken chunk) and shows the error state.
     body = (
-      <ContributionBoundary fallback={({ error: e }) => <ViewerStatus kind="error" text={`The 3D viewer could not start. ${e.message}`.trim()} />}>
+      <ContributionBoundary fallback={({ error: e }) => <ViewerStatus kind="error" text={m.startFailed(e.message ?? '')} />}>
         <Suspense fallback={<ViewerStatus kind="loading" text={loadingLabel} />}>
           <ViewerModelCanvas models={models} sensors={sensors} settings={s} dark={dark} />
         </Suspense>
@@ -232,12 +244,12 @@ export function ViewerModelWidgetView({
   }
 
   return (
-    <div role="region" aria-label={ariaLabel ?? title ?? '3D model'} data-part="viewer-model"
+    <div role="region" aria-label={ariaLabel ?? title ?? m.region} data-part="viewer-model"
       className="relative h-full min-h-40 w-full overflow-hidden" style={{ isolation: 'isolate' }}>
       {body}
       {legend.length > 0 && (
         <ul
-          aria-label={legendLabel}
+          aria-label={legendLabel ?? m.legend}
           data-part="legend"
           className={cn(
             'pointer-events-none absolute z-20 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm',

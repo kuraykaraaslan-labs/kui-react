@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { AreaChart, BarChart, LineChart, type CurveType, type PointShape, type Series } from '@/modules/ui/Chart';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
 import { formatValue } from '../settings/style';
 import type { SeriesPreset } from '../templates/series';
 import { applySeriesRules, axisFormat, mergeSeriesSlots, ruleFor, seriesCsv, toBandSeries, toTimeSeries } from './chart-data';
@@ -18,6 +19,7 @@ const SHAPES = new Set(['circle', 'square', 'diamond', 'triangle']);
  * changes the board window. The chart fills the card body.
  */
 export function SeriesChartView({ preset, settings, format, data, locale }: WidgetViewProps & { preset: SeriesPreset }) {
+  const m = useKitMessages().charts;
   const s = settings;
   const anyStack = Array.isArray(s.series) && (s.series as Array<{ stack?: string }>).some((r) => r && typeof r.stack === 'string' && r.stack);
   const stacked = preset !== 'line' && s.stacked === true;
@@ -64,7 +66,7 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
     animate: animateOf(s),
     showValues: s.valueLabels === 'value',
     valueLabelStyle: valueLabelStyleOf(s),
-    ariaLabel: preset === 'bar' ? 'Bar chart' : preset === 'area' ? 'Area chart' : 'Line chart',
+    ariaLabel: preset === 'bar' ? m.barChart : preset === 'area' ? m.areaChart : m.lineChart,
   };
   const curve = (s.curve === 'linear' || s.curve === 'step' ? s.curve : 'smooth') as CurveType;
   const lineWidth = num(s.lineWidth) ?? 2;

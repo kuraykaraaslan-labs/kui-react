@@ -3,6 +3,8 @@ import { useId } from 'react';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, formatValue, rangeFor, type RangeEdges } from '../settings/style';
 import type { SlotData, WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
+import { DEFAULT_WIDGET_KIT_MESSAGES, type StatViewMessages } from '../messages';
 import { Delta, IconTile, Meta, Metric, MetricHead, MetricLabel } from './ui';
 
 type S = {
@@ -73,14 +75,17 @@ export function sparkPath(points: Pt[], curve: S['curve']): string {
   return d;
 }
 
-/** "12 h", "3 d", "45 min": the span the line covers. */
-export function spanText(ms: number): string | null {
+/** "12 h", "3 d", "45 min": the span the line covers; `texts` words it. */
+export function spanText(
+  ms: number,
+  texts: Pick<StatViewMessages, 'spanMinutes' | 'spanHours' | 'spanDays'> = DEFAULT_WIDGET_KIT_MESSAGES.stat,
+): string | null {
   if (!Number.isFinite(ms) || ms <= 0) return null;
   const min = ms / 60_000;
-  if (min < 90) return `${Math.round(min)} min`;
+  if (min < 90) return texts.spanMinutes(Math.round(min));
   const h = min / 60;
-  if (h < 48) return `${Math.round(h)} h`;
-  return `${Math.round(h / 24)} d`;
+  if (h < 48) return texts.spanHours(Math.round(h));
+  return texts.spanDays(Math.round(h / 24));
 }
 
 const W = 100;
@@ -89,6 +94,7 @@ const H = 40;
 /** `stat.sparkline`: Stat's label, icon, number and change, plus the trend line of the series. */
 export function StatSparklineView({ settings, format, data, locale }: WidgetViewProps) {
   const s = settings as S;
+  const m = useKitMessages().stat;
   const gid = `ks${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const points = sparkPoints(data.series);
   const values = points.map((p) => p.v);
@@ -122,7 +128,7 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
       color: meaning === 'good' ? cssColor(s.upColor) : meaning === 'bad' ? cssColor(s.downColor) : undefined,
     };
   }
-  const span = points.length > 1 && Number.isFinite(points[0].t) ? spanText(points[points.length - 1].t - points[0].t) : null;
+  const span = points.length > 1 && Number.isFinite(points[0].t) ? spanText(points[points.length - 1].t - points[0].t, m) : null;
   const timeMode = s.timeRange ?? 'auto';
   const timeText = timeMode === 'off' ? null : timeMode === 'custom' ? (s.timeRangeText || null) : span ? `${change ? 'over' : 'last'} ${span}` : null;
 
@@ -147,7 +153,7 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
   const chart = (
     <div className="relative h-full w-full">
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 block h-full w-full overflow-visible"
-        role="img" aria-label={`Trend${span ? ` over ${span}` : ''}, ${values.length} points, from ${formatValue(first ?? last, format, {}, locale)} to ${formatValue(last, format, {}, locale)}`}>
+        role="img" aria-label={m.trend(span, values.length, formatValue(first ?? last, format, {}, locale), formatValue(last, format, {}, locale))}>
         {fillMode === 'gradient' && (
           <defs>
             <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
@@ -163,8 +169,8 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
         <path d={line} fill="none" stroke={lineColor} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round"
           vectorEffect="non-scaling-stroke" data-part="line" />
       </svg>
-      {s.showMinMax && pts.length > 2 && hi !== lo && [marker(iMin, 'min', `Min ${formatValue(lo, format, {}, locale)}`), marker(iMax, 'max', `Max ${formatValue(hi, format, {}, locale)}`)]}
-      {s.showLast !== false && pts.length > 1 && marker(pts.length - 1, 'last', `Latest ${formatValue(last, format, {}, locale)}`)}
+      {s.showMinMax && pts.length > 2 && hi !== lo && [marker(iMin, 'min', m.min(formatValue(lo, format, {}, locale))), marker(iMax, 'max', m.max(formatValue(hi, format, {}, locale)))]}
+      {s.showLast !== false && pts.length > 1 && marker(pts.length - 1, 'last', m.latest(formatValue(last, format, {}, locale)))}
     </div>
   );
 

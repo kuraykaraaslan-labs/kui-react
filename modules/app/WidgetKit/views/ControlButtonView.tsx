@@ -4,7 +4,7 @@ import { cn } from '@/libs/utils/cn';
 import { ControlButton } from '@/modules/ui/ControlTile';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle } from '../settings/style';
-import { SettingIcon } from '../WidgetKitContext';
+import { SettingIcon, useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { confirmProps, controlBlockReason, controlMessages, requestControl, textOr, type FeedbackSettings } from './control-common';
 import { MetricLabel, tint } from './ui';
@@ -90,7 +90,8 @@ export function ControlButtonView(props: WidgetViewProps) {
   const iconSize = typeof s.iconSize === 'number' ? s.iconSize : 16;
   const shown = layout === 'tile' ? Math.max(iconSize, 28) : layout === 'icon' ? Math.max(iconSize, size === 'lg' ? 28 : size === 'sm' ? 16 : 22) : iconSize;
   const icon = s.icon ? <SettingIcon name={s.icon} style={{ width: shown, height: shown, fontSize: shown }} /> : undefined;
-  const run = requestControl(props.onControl, 'run');
+  const m = useKitMessages().controls;
+  const run = requestControl(props.onControl, 'run', m);
   const look = buttonLookOf(s);
   const { messages: policyMessages, ...confirm } = confirmProps(props.confirm);
   const description = textOr(s.description);
@@ -111,10 +112,10 @@ export function ControlButtonView(props: WidgetViewProps) {
         align={s.align && ALIGNS.has(s.align) ? s.align : 'center'}
         buttonStyle={look.style}
         buttonClassName={look.className}
-        disabledReason={controlBlockReason(props, [], false)}
+        disabledReason={controlBlockReason(props, [], false, m)}
         pressed={typeof props.pressed === 'boolean' ? props.pressed : undefined}
         {...confirm}
-        messages={controlMessages(s, policyMessages)}
+        messages={controlMessages(s, policyMessages, m)}
         onCommit={(confirmation) => run(undefined, confirmation)}
       />
     </div>

@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { BarChart, type CategoryMarker, type Series } from '@/modules/ui/Chart';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
 import { cssColor, formatValue, type ValueFormat } from '../settings/style';
 import { histogramBins, valueStats, type HistogramBin } from './chart-data';
 import { animateOf, axisProps, num, str, tooltipProps, valueLabelStyleOf } from './chart-props';
@@ -55,10 +56,11 @@ export function edgeTicks(bins: HistogramBin[], format: ValueFormat, locale?: st
 /** `chart.histogram`: equal-width bins (on round edges by default) of one numeric column, drawn as bars. */
 export function HistogramChartView({ settings, format, data, locale }: WidgetViewProps) {
   const s = settings;
+  const m = useKitMessages().charts;
   const bins = useMemo(() => binsOf(data, s), [data, s]);
   const series = useMemo(
-    () => binSeries(bins, format, str(s.countLabel) ?? 'Count', locale, cssColor(s.barColor)),
-    [bins, s.countLabel, s.barColor, format, locale],
+    () => binSeries(bins, format, str(s.countLabel) ?? m.count, locale, cssColor(s.barColor)),
+    [bins, s.countLabel, s.barColor, format, locale, m.count],
   );
   const markers = useMemo(() => {
     const stats = s.showMean === true || s.showMedian === true ? valueStats(valuesOf(data, s)) : null;
@@ -68,10 +70,10 @@ export function HistogramChartView({ settings, format, data, locale }: WidgetVie
     const color = cssColor(s.markerColor) ?? 'var(--text-primary)';
     const out: CategoryMarker[] = [];
     const text = (v: number) => formatValue(v, { ...format, decimals: undefined }, {}, locale);
-    if (s.showMean === true) out.push({ at: (stats.mean - lo) / w, label: `Mean ${text(stats.mean)}`, color, style: 'dashed' });
-    if (s.showMedian === true) out.push({ at: (stats.median - lo) / w, label: `Median ${text(stats.median)}`, color, style: 'dotted' });
+    if (s.showMean === true) out.push({ at: (stats.mean - lo) / w, label: m.mean(text(stats.mean)), color, style: 'dashed' });
+    if (s.showMedian === true) out.push({ at: (stats.median - lo) / w, label: m.median(text(stats.median)), color, style: 'dotted' });
     return out;
-  }, [s, data, bins, format, locale]);
+  }, [s, data, bins, format, locale, m]);
   if (!series) return <div className="h-full" />;
   return (
     <div className="h-full min-h-0 w-full">
@@ -90,7 +92,7 @@ export function HistogramChartView({ settings, format, data, locale }: WidgetVie
         {...axisProps(s)}
         {...tooltipProps(s)}
         animate={animateOf(s)}
-        ariaLabel="Histogram"
+        ariaLabel={m.histogram}
       />
     </div>
   );

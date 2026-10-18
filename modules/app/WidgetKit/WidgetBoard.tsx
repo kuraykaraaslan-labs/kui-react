@@ -15,11 +15,13 @@ import { effective, readSettings } from './settings/engine';
 import { cssColor } from './settings/style';
 import { resolvePlacement } from './settings/resolve';
 import {
-  GRID_COLUMNS, exportBoard, importBoard, nextFreeRow, type BoardDocument, type BoardPlacement,
+  GRID_COLUMNS, exportBoard, importBoard, nextFreeRow, type BoardDocument, type BoardPlacement, type ImportRefusal,
 } from './settings/board';
 import type { BuiltinKindSpec, ControlRequest, SlotData, WidgetKindView } from './kind';
 import type { Sparse } from './settings/types';
-import { SettingIcon } from './WidgetKitContext';
+import { SettingIcon, useKitMessages, useWidgetKit } from './WidgetKitContext';
+import { localizeKind } from './localize';
+import type { WidgetBoardMessages } from './messages';
 
 export interface WidgetBoardProps {
   doc: BoardDocument;
@@ -60,7 +62,8 @@ const newId = (placements: BoardPlacement[]) => {
  * A whole dashboard: a 12-column grid of `PlacementCard`s laid out by each placement's geometry,
  * styled by the board's own settings (`core:board`). With `onChange` it has an edit mode: add,
  * duplicate, remove, move and resize cards, ThingsBoard-depth card and board settings, and JSON
- * export/import of the whole board with every card (owner decision D-21.4).
+ * export/import of the whole board with every card (owner decision D-21.4). Its texts come from the
+ * host's `messages.board`; the widget picker's type texts from its `kindText`.
  */
 export function WidgetBoard({
   doc, onChange, data = {}, kinds, views, onControl, renderDataEditor, controlDisabledReason, now, className,
@@ -71,6 +74,10 @@ export function WidgetBoard({
   const [boardOpen, setBoardOpen] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { kindText } = useWidgetKit();
+  const m = useKitMessages().board;
+  // The types as shown (picker, drawer title, a new card's title); the originals stay the data.
+  const shownKinds = useMemo(() => (kindText ? kinds.map((k) => localizeKind(k, kindText)) : kinds), [kinds, kindText]);
 
   const board = useMemo(() => effective(CORE_BOARD, readSettings(doc.board.settings, { type: CORE_BOARD }).parts['core:board']), [doc.board.settings]);
   const kindOf = (type: string) => kinds.find((k) => k.type === type);
@@ -95,6 +102,7 @@ export function WidgetBoard({
   const toolbar = new Set((board.toolbar as string[] | undefined) ?? []);
   const sel = doc.placements.find((p) => p.id === selected) ?? null;
   const selKind = sel ? kindOf(sel.type) : undefined;
+  const selLabel = sel ? shownKinds.find((k) => k.type === sel.type)?.label : undefined;
 
   const download = () => {
     const out = exportBoard(doc, kinds);
@@ -107,10 +115,10 @@ export function WidgetBoard({
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const upload = async (file: File) => {
-    const res = importBoard(await file.text(), kinds);
-    if ('error' in res) { setImportError(res.error); return; }
-    setImportError(res.unknownTypes.length ? `Skipped unknown widget types: ${res.unknownTypes.join(', ')}` : null);
-    if (window.confirm(`Replace this dashboard with "${res.doc.board.title}" (${res.doc.placements.length} widgets)?`)) onChange?.(res.doc);
+    const res = importBoard(await file.text(), kinds, { defaultTitle: m.defaultTitle });
+    if ('error' in res) { setImportError(importRefusalText(res, m)); return; }
+    setImportError(res.unknownTypes.length ? m.skippedTypes(res.unknownTypes.join(', ')) : null);
+    if (window.confirm(m.replaceConfirm(res.doc.board.title, res.doc.placements.length))) onChange?.(res.doc);
   };
 
   return (
@@ -122,28 +130,28 @@ export function WidgetBoard({
         <div className="flex flex-wrap items-center gap-2">
           {toolbar.has('export') && (
             <button type="button" onClick={download} className={toolBtn}>
-              <FontAwesomeIcon icon={faDownload} className="h-3.5 w-3.5" aria-hidden="true" /> Export
+              <FontAwesomeIcon icon={faDownload} className="h-3.5 w-3.5" aria-hidden="true" /> {m.export}
             </button>
           )}
           {onChange && editing && (
             <>
               <button type="button" onClick={() => fileRef.current?.click()} className={toolBtn}>
-                <FontAwesomeIcon icon={faUpload} className="h-3.5 w-3.5" aria-hidden="true" /> Import
+                <FontAwesomeIcon icon={faUpload} className="h-3.5 w-3.5" aria-hidden="true" /> {m.import}
               </button>
-              <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" aria-label="Import a dashboard file"
+              <input ref={fileRef} type="file" accept="application/json,.json" className="sr-only" aria-label={m.importFile}
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ''; }} />
               <button type="button" onClick={() => setBoardOpen(true)} className={toolBtn}>
-                <FontAwesomeIcon icon={faSliders} className="h-3.5 w-3.5" aria-hidden="true" /> Dashboard settings
+                <FontAwesomeIcon icon={faSliders} className="h-3.5 w-3.5" aria-hidden="true" /> {m.settings}
               </button>
               <button type="button" onClick={() => setPicking(true)} className={toolBtn}>
-                <FontAwesomeIcon icon={faPlus} className="h-3.5 w-3.5" aria-hidden="true" /> Add widget
+                <FontAwesomeIcon icon={faPlus} className="h-3.5 w-3.5" aria-hidden="true" /> {m.addWidget}
               </button>
             </>
           )}
           {onChange && (
             <button type="button" onClick={() => { setEditing((e) => !e); setSelected(null); }} aria-pressed={editing}
               className={cn(toolBtn, editing && 'border-primary bg-primary text-primary-fg hover:bg-primary-hover')}>
-              <FontAwesomeIcon icon={editing ? faCheck : faPen} className="h-3.5 w-3.5" aria-hidden="true" /> {editing ? 'Done' : 'Edit'}
+              <FontAwesomeIcon icon={editing ? faCheck : faPen} className="h-3.5 w-3.5" aria-hidden="true" /> {editing ? m.done : m.edit}
             </button>
           )}
         </div>
@@ -177,26 +185,26 @@ export function WidgetBoard({
                 />
                 {editing && (
                   <div className="absolute right-2 top-2 z-10 flex flex-wrap justify-end gap-1">
-                    <button type="button" className={iconBtn} aria-label={`Settings of ${p.title}`} onClick={() => setSelected(p.id)}>
+                    <button type="button" className={iconBtn} aria-label={m.settingsOf(p.title)} onClick={() => setSelected(p.id)}>
                       <FontAwesomeIcon icon={faGear} className="h-3.5 w-3.5" aria-hidden="true" />
                     </button>
-                    <button type="button" className={iconBtn} aria-label="Move left" disabled={p.x === 0} onClick={() => patch(p.id, { x: p.x - 1 })}>
+                    <button type="button" className={iconBtn} aria-label={m.moveLeft} disabled={p.x === 0} onClick={() => patch(p.id, { x: p.x - 1 })}>
                       <FontAwesomeIcon icon={faArrowLeft} className="h-3 w-3" aria-hidden="true" />
                     </button>
-                    <button type="button" className={iconBtn} aria-label="Move right" disabled={p.x + p.w >= GRID_COLUMNS} onClick={() => patch(p.id, { x: p.x + 1 })}>
+                    <button type="button" className={iconBtn} aria-label={m.moveRight} disabled={p.x + p.w >= GRID_COLUMNS} onClick={() => patch(p.id, { x: p.x + 1 })}>
                       <FontAwesomeIcon icon={faArrowRight} className="h-3 w-3" aria-hidden="true" />
                     </button>
-                    <button type="button" className={iconBtn} aria-label="Move up" disabled={p.y === 0} onClick={() => patch(p.id, { y: p.y - 1 })}>
+                    <button type="button" className={iconBtn} aria-label={m.moveUp} disabled={p.y === 0} onClick={() => patch(p.id, { y: p.y - 1 })}>
                       <FontAwesomeIcon icon={faArrowUp} className="h-3 w-3" aria-hidden="true" />
                     </button>
-                    <button type="button" className={iconBtn} aria-label="Move down" onClick={() => patch(p.id, { y: p.y + 1 })}>
+                    <button type="button" className={iconBtn} aria-label={m.moveDown} onClick={() => patch(p.id, { y: p.y + 1 })}>
                       <FontAwesomeIcon icon={faArrowDown} className="h-3 w-3" aria-hidden="true" />
                     </button>
-                    <button type="button" className={iconBtn} aria-label="Duplicate"
+                    <button type="button" className={iconBtn} aria-label={m.duplicate}
                       onClick={() => update([...doc.placements, { ...p, id: newId(doc.placements), y: nextFreeRow(doc.placements) }])}>
                       <FontAwesomeIcon icon={faCopy} className="h-3 w-3" aria-hidden="true" />
                     </button>
-                    <button type="button" className={cn(iconBtn, 'hover:text-error')} aria-label={`Remove ${p.title}`}
+                    <button type="button" className={cn(iconBtn, 'hover:text-error')} aria-label={m.remove(p.title)}
                       onClick={() => update(doc.placements.filter((x) => x.id !== p.id))}>
                       <FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />
                     </button>
@@ -208,23 +216,23 @@ export function WidgetBoard({
         </div>
         {ordered.length === 0 && (
           <div className="flex min-h-48 items-center justify-center text-sm text-text-secondary">
-            {onChange ? 'Empty dashboard. Press Edit, then Add widget.' : 'Empty dashboard.'}
+            {onChange ? m.emptyEditable : m.empty}
           </div>
         )}
       </div>
 
       {sel && selKind && (
-        <Drawer open onClose={() => setSelected(null)} title={`Settings: ${sel.title || selKind.label}`}>
-          <PlacementSettings placement={sel} kind={selKind} board={board} onChange={(p) => patch(sel.id, p)}
+        <Drawer open onClose={() => setSelected(null)} title={m.placementSettings(sel.title || selLabel || selKind.label)}>
+          <PlacementSettings placement={sel} kind={selKind} board={board} messages={m} onChange={(p) => patch(sel.id, p)}
             dataEditor={renderDataEditor?.(sel, (p) => patch(sel.id, p))} />
         </Drawer>
       )}
 
       {boardOpen && (
-        <Drawer open onClose={() => setBoardOpen(false)} title="Dashboard settings">
+        <Drawer open onClose={() => setBoardOpen(false)} title={m.settings}>
           <div className="space-y-3 p-1">
             <div>
-              <label htmlFor="wk-board-title" className="mb-1.5 block text-xs font-medium text-text-secondary">Dashboard title</label>
+              <label htmlFor="wk-board-title" className="mb-1.5 block text-xs font-medium text-text-secondary">{m.boardTitle}</label>
               <input id="wk-board-title" type="text" value={doc.board.title} maxLength={120}
                 onChange={(e) => onChange?.({ ...doc, board: { ...doc.board, title: e.target.value } })}
                 className="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus" />
@@ -237,8 +245,8 @@ export function WidgetBoard({
       )}
 
       {picking && (
-        <Drawer open onClose={() => setPicking(false)} title="Add widget">
-          <WidgetPicker kinds={kinds} onPick={(k) => {
+        <Drawer open onClose={() => setPicking(false)} title={m.addWidget}>
+          <WidgetPicker kinds={shownKinds} messages={m} onPick={(k) => {
             const id = newId(doc.placements);
             update([...doc.placements, { id, type: k.type, title: k.label, x: 0, y: nextFreeRow(doc.placements), w: k.defaultW, h: k.defaultH, settings: {} }]);
             setPicking(false);
@@ -250,8 +258,20 @@ export function WidgetBoard({
   );
 }
 
-function PlacementSettings({ placement, kind, board, onChange, dataEditor }: {
-  placement: BoardPlacement; kind: BuiltinKindSpec; board: Sparse;
+/** A refused import in the host's words (`importBoard`'s `code`); its English `error` otherwise. */
+function importRefusalText(res: ImportRefusal, m: WidgetBoardMessages): string {
+  switch (res.code) {
+    case 'invalid-json': return m.invalidJson;
+    case 'not-board': return m.notBoard;
+    case 'newer-format': return m.newerFormat(res.detail ?? '');
+    case 'newer-templates': return m.newerTemplates(res.detail ?? '');
+    // A code this host does not know yet (a newer kit): the English text.
+    default: return (res as ImportRefusal).error;
+  }
+}
+
+function PlacementSettings({ placement, kind, board, messages: m, onChange, dataEditor }: {
+  placement: BoardPlacement; kind: BuiltinKindSpec; board: Sparse; messages: WidgetBoardMessages;
   onChange: (p: Partial<BoardPlacement>) => void; dataEditor?: ReactNode;
 }) {
   const r = resolvePlacement({ template: kind.template, slotCount: kind.slots.length, settings: placement.settings, board });
@@ -279,12 +299,12 @@ function PlacementSettings({ placement, kind, board, onChange, dataEditor }: {
         ...(dataEditor ? { Data: dataEditor } : {}),
         Card: (
           <fieldset className="rounded-lg border border-border p-3">
-            <legend className="px-1 text-xs font-medium uppercase tracking-wide text-text-secondary">Position and size</legend>
+            <legend className="px-1 text-xs font-medium uppercase tracking-wide text-text-secondary">{m.positionSize}</legend>
             <div className="grid grid-cols-4 gap-2">
-              {num('Column', 'x', 0, GRID_COLUMNS - placement.w)}
-              {num('Row', 'y', 0, 10000)}
-              {num('Width', 'w', 1, GRID_COLUMNS)}
-              {num('Height', 'h', 1, 48)}
+              {num(m.column, 'x', 0, GRID_COLUMNS - placement.w)}
+              {num(m.row, 'y', 0, 10000)}
+              {num(m.width, 'w', 1, GRID_COLUMNS)}
+              {num(m.height, 'h', 1, 48)}
             </div>
           </fieldset>
         ),
@@ -293,7 +313,9 @@ function PlacementSettings({ placement, kind, board, onChange, dataEditor }: {
   );
 }
 
-function WidgetPicker({ kinds, onPick }: { kinds: readonly BuiltinKindSpec[]; onPick: (k: BuiltinKindSpec) => void }) {
+function WidgetPicker({ kinds, messages: m, onPick }: {
+  kinds: readonly BuiltinKindSpec[]; messages: WidgetBoardMessages; onPick: (k: BuiltinKindSpec) => void;
+}) {
   const [q, setQ] = useState('');
   const groups = new Map<string, BuiltinKindSpec[]>();
   for (const k of kinds) {
@@ -302,7 +324,7 @@ function WidgetPicker({ kinds, onPick }: { kinds: readonly BuiltinKindSpec[]; on
   }
   return (
     <div className="space-y-4 p-1">
-      <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search widgets…" aria-label="Search widgets"
+      <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={m.searchWidgetsPlaceholder} aria-label={m.searchWidgets}
         className="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus" />
       {[...groups.entries()].map(([cat, list]) => (
         <section key={cat}>

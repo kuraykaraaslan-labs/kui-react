@@ -2,6 +2,7 @@
 import { useMemo } from 'react';
 import { PieChart } from '@/modules/ui/Chart';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { useKitMessages } from '../WidgetKitContext';
 import { formatValue } from '../settings/style';
 import { rowsToPieSeries, tableCsv } from './chart-data';
 import { animateOf, legendProps, num, str, textStyleOf, useBoxSize } from './chart-props';
@@ -10,12 +11,12 @@ type S = Record<string, unknown>;
 const col = (v: unknown, fallback: string) => (typeof v === 'string' && v ? v : fallback);
 const LABELS = new Set(['none', 'percent', 'value', 'name', 'name-percent']);
 
-const slicesOf = (data: WidgetViewProps['data'], s: S) => rowsToPieSeries(data.slices?.rows, {
+const slicesOf = (data: WidgetViewProps['data'], s: S, other?: string) => rowsToPieSeries(data.slices?.rows, {
   label: col(s.labelColumn, 'label'),
   value: col(s.valueColumn, 'value'),
   max: typeof s.maxSlices === 'number' ? s.maxSlices : 8,
   sort: s.sort === 'asc' || s.sort === 'none' ? s.sort : 'desc',
-  otherLabel: typeof s.otherLabel === 'string' ? s.otherLabel : undefined,
+  otherLabel: typeof s.otherLabel === 'string' && s.otherLabel ? s.otherLabel : other,
   colors: s.colors,
 });
 
@@ -25,7 +26,8 @@ const slicesOf = (data: WidgetViewProps['data'], s: S) => rowsToPieSeries(data.s
  */
 export function PieChartView({ settings, format, data, locale }: WidgetViewProps) {
   const s = settings;
-  const series = useMemo(() => slicesOf(data, s), [data, s]);
+  const m = useKitMessages().charts;
+  const series = useMemo(() => slicesOf(data, s, m.other), [data, s, m.other]);
   const [ref, box] = useBoxSize();
   const legend = legendProps(s, series?.[0]?.data.length ?? 0);
   if (!series) return <div ref={ref} className="h-full" />;
@@ -41,7 +43,7 @@ export function PieChartView({ settings, format, data, locale }: WidgetViewProps
         fill
         innerRadius={layout === 'pie' ? 0 : 1 - ring / 100}
         showCenter={layout === 'donut-total'}
-        centerLabel={str(s.totalLabel) ?? (layout === 'donut-total' ? 'Total' : undefined)}
+        centerLabel={str(s.totalLabel) ?? (layout === 'donut-total' ? m.total : undefined)}
         labels={labels}
         labelPosition={s.labelPosition === 'outside' ? 'outside' : 'inside'}
         labelStyle={textStyleOf(s.labelFont, s.labelColor)}
@@ -57,7 +59,7 @@ export function PieChartView({ settings, format, data, locale }: WidgetViewProps
         showTooltip={s.showTooltip !== false}
         tooltipValue={s.tooltipValue === 'value' || s.tooltipValue === 'percent' ? s.tooltipValue : 'both'}
         animate={animateOf(s)}
-        ariaLabel="Pie chart"
+        ariaLabel={m.pieChart}
       />
     </div>
   );

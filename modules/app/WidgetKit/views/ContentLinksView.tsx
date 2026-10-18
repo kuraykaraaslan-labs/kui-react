@@ -3,7 +3,7 @@ import { useMemo, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle } from '../settings/style';
-import { SettingIcon } from '../WidgetKitContext';
+import { SettingIcon, useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { hostLink, toQuickLinks, type QuickLink } from './content-logic';
 import { IconTile } from './ui';
@@ -42,10 +42,11 @@ const LAYOUTS = new Set<Layout>(['list', 'grid', 'tiles', 'buttons']);
 /** `content.links`: quick links. Unsafe targets are dropped; internal paths go through the host's `renderLink`. */
 export function ContentLinksView({ settings, renderLink, resolveUrl }: WidgetViewProps) {
   const s = settings as S;
+  const m = useKitMessages().content;
   const links = useMemo(() => toQuickLinks(s.links), [s.links]);
   const layout: Layout = s.layout && LAYOUTS.has(s.layout) ? s.layout : 'list';
   if (links.length === 0) {
-    return <p className="flex h-full items-center justify-center p-4 text-center text-sm text-text-secondary">Add links in this widget’s settings.</p>;
+    return <p className="flex h-full items-center justify-center p-4 text-center text-sm text-text-secondary">{m.linksEmpty}</p>;
   }
   const buttons = layout === 'buttons';
   const iconSize = typeof s.iconSize === 'number' ? s.iconSize : 16;

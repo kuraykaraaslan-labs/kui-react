@@ -261,7 +261,8 @@ export function rowsToPieSeries(rows: Row[] | undefined, o: PieOptions): Series[
 /** Table rows → scatter series (one per distinct group, ≤ 8). A row without a finite x AND y is skipped. Capped. */
 export function rowsToScatterSeries(
   rows: Row[] | undefined,
-  cols: { x: string; y: string; group?: string },
+  /** `unnamed` names the series of rows without a group (default "Series"; its id stays `Series`). */
+  cols: { x: string; y: string; group?: string; unnamed?: string },
   maxPoints = 5000,
   maxGroups = 8,
 ): Series[] | null {
@@ -273,11 +274,12 @@ export function rowsToScatterSeries(
     const y = asNumber(row[cols.y]);
     if (x === null || y === null) continue;
     const raw = cols.group ? row[cols.group] : undefined;
-    const g = raw === null || raw === undefined || raw === '' ? 'Series' : String(raw);
+    const none = raw === null || raw === undefined || raw === '';
+    const g = none ? 'Series' : String(raw);
     let s = groups.get(g);
     if (!s) {
       if (groups.size >= maxGroups) continue;
-      s = { id: g, name: g, data: [] };
+      s = { id: g, name: none ? cols.unnamed || g : g, data: [] };
       groups.set(g, s);
     }
     s.data.push({ x, y });
