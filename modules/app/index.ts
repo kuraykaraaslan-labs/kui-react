@@ -112,6 +112,7 @@ export {
   validateSchemaValues,
   fromJsonSchema,
   fromFormBuilder,
+  DEFAULT_SCHEMA_FORM_MESSAGES,
 } from './SchemaForm';
 export type {
   SchemaFormProps,
@@ -121,6 +122,7 @@ export type {
   FieldOption as SchemaFieldOption,
   FieldType as SchemaFieldType,
   JsonSchemaSubset,
+  SchemaFormMessages,
 } from './SchemaForm';
 
 // Dashboard widget kit (next-boilerplate dashboard phase 21): card, settings templates, editor, views, board
@@ -130,6 +132,8 @@ export {
   WidgetSettingsEditor,
   WidgetBoard,
   WidgetKitProvider,
+  useKitMessages,
+  DEFAULT_WIDGET_KIT_MESSAGES,
   BUILTIN_KINDS,
   BUILTIN_VIEWS,
 } from './WidgetKit';
@@ -141,4 +145,7 @@ export type {
   WidgetBoardProps,
   BoardDocument,
   SettingsTemplate,
+  WidgetKitHost,
+  WidgetKitMessages,
+  WidgetKitMessagesInput,
 } from './WidgetKit';
