@@ -27,11 +27,28 @@ describe('board document (D-21.4: the dashboard carries every card)', () => {
   });
 
   it('refuses a newer format or newer templates with a clear message', () => {
-    expect(importBoard(JSON.stringify({ ...doc, version: 9 }), kinds)).toEqual({ error: expect.stringContaining('newer version') });
+    expect(importBoard(JSON.stringify({ ...doc, version: 9 }), kinds)).toEqual({
+      error: 'This dashboard was exported by a newer version (format 9). Update this app to import it.', code: 'newer-format', detail: '9',
+    });
     const newer = { ...doc, placements: [{ ...doc.placements[0], settings: { $v: { 'builtin:stat.value': 4 } } }] };
-    expect(importBoard(JSON.stringify(newer), kinds)).toEqual({ error: expect.stringContaining('builtin:stat.value v4') });
-    expect(importBoard('nope', kinds)).toEqual({ error: 'This file is not valid JSON.' });
-    expect(importBoard('{"format":"other"}', kinds)).toEqual({ error: 'This file is not a dashboard export.' });
+    expect(importBoard(JSON.stringify(newer), kinds)).toEqual({
+      error: 'This dashboard uses newer widget settings (builtin:stat.value v4). Update this app to import it.',
+      code: 'newer-templates', detail: 'builtin:stat.value v4',
+    });
+    expect(importBoard('nope', kinds)).toEqual({ error: 'This file is not valid JSON.', code: 'invalid-json' });
+    expect(importBoard('{"format":"other"}', kinds)).toEqual({ error: 'This file is not a dashboard export.', code: 'not-board' });
+  });
+
+  it('names an untitled board "Dashboard", or the host\'s default title', () => {
+    const untitled = JSON.stringify({ ...doc, board: { ...doc.board, title: '  ' } });
+    const en = importBoard(untitled, kinds);
+    const tr = importBoard(untitled, kinds, { defaultTitle: 'Pano' });
+    if ('error' in en || 'error' in tr) throw new Error('refused');
+    expect(en.doc.board.title).toBe('Dashboard');
+    expect(tr.doc.board.title).toBe('Pano');
+    const titled = importBoard(JSON.stringify(doc), kinds, { defaultTitle: 'Pano' });
+    if ('error' in titled) throw new Error(titled.error);
+    expect(titled.doc.board.title).toBe('Plant');
   });
 
   it('drops unknown types and bad values, clamps geometry', () => {

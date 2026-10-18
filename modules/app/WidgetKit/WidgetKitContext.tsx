@@ -1,7 +1,11 @@
 'use client';
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { FieldOverrides } from '../SchemaForm/schema-form.context';
+import {
+  DEFAULT_WIDGET_KIT_MESSAGES, mergeKitMessages, type KindTextFn, type TemplateTextFn, type WidgetKitMessages,
+  type WidgetKitMessagesInput,
+} from './messages';
 
 export interface WidgetKitHost {
   /** Draw an icon setting value ('fas fa-bolt', 'mdi:lamp', …). The host owns its icon set. */
@@ -16,15 +20,38 @@ export interface WidgetKitHost {
    * allows no embed at all. A refused card says which site was refused and frames nothing.
    */
   embedHosts?: readonly string[];
+  /**
+   * The texts the kit draws itself (card chrome, board, editor, form, controls, views), in the
+   * host's language: any group, any key; the rest stays English. Placement settings and explicit
+   * props still win. Keep the object stable (memoize it): it is merged once per change.
+   */
+  messages?: WidgetKitMessagesInput;
+  /**
+   * A template's label, description, placeholder, option or group label in the host's language
+   * (`undefined` keeps the English). Called by the settings editor; keyed by the template id, so
+   * a tenant template never picks up a builtin's text. Keep the function stable per language.
+   */
+  templateText?: TemplateTextFn;
+  /** A widget type's label, description, category or slot label (the board's widget picker). */
+  kindText?: KindTextFn;
 }
 
 const Ctx = createContext<WidgetKitHost>({});
+const MessagesCtx = createContext<WidgetKitMessages>(DEFAULT_WIDGET_KIT_MESSAGES);
 
 export function WidgetKitProvider({ value, children }: { value: WidgetKitHost; children: ReactNode }) {
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  const messages = useMemo(() => mergeKitMessages(value.messages), [value.messages]);
+  return (
+    <Ctx.Provider value={value}>
+      <MessagesCtx.Provider value={messages}>{children}</MessagesCtx.Provider>
+    </Ctx.Provider>
+  );
 }
 
 export const useWidgetKit = () => useContext(Ctx);
+
+/** The kit's texts: the host's `messages` over the English defaults (the defaults without a provider). */
+export const useKitMessages = () => useContext(MessagesCtx);
 
 /** An icon from a setting, through the host's resolver; nothing when there is none. */
 export function SettingIcon({ name, className, style }: { name?: unknown; className?: string; style?: CSSProperties }) {

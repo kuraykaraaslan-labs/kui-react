@@ -52,7 +52,15 @@ export interface ImportResult {
   unknownTypes: string[];
 }
 
-function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[]): ImportResult {
+/** Why `importBoard` refused a file: `error` is the English text, `code` + `detail` let a host word it. */
+export interface ImportRefusal {
+  error: string;
+  code: 'invalid-json' | 'not-board' | 'newer-format' | 'newer-templates';
+  /** `newer-format`: the file's format version; `newer-templates`: the newer templates, joined ("core:card v9"). */
+  detail?: string;
+}
+
+function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[], defaultTitle = 'Dashboard'): ImportResult {
   const issues: Issue[] = [];
   const newer: ImportResult['newer'] = [];
   const unknownTypes: string[] = [];
@@ -108,7 +116,7 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[]): Impo
       version: BOARD_DOCUMENT_VERSION,
       templates: stamp,
       board: {
-        title: typeof boardSrc.title === 'string' && boardSrc.title.trim() ? boardSrc.title.slice(0, 120) : 'Dashboard',
+        title: typeof boardSrc.title === 'string' && boardSrc.title.trim() ? boardSrc.title.slice(0, 120) : defaultTitle,
         ...(typeof boardSrc.description === 'string' ? { description: boardSrc.description.slice(0, 1000) } : {}),
         settings: boardSave.newer.length ? (boardSrc.settings as Sparse) : boardSave.settings,
       },
@@ -120,17 +128,26 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[]): Impo
   };
 }
 
-/** Read an uploaded board file. A newer document format is refused with a clear message. */
-export function importBoard(json: string, kinds: readonly BuiltinKindSpec[]): ImportResult | { error: string } {
+/**
+ * Read an uploaded board file. A newer document format is refused with a clear message (`error`, in
+ * English) and a `code` the host can word itself. `options.defaultTitle` names a board without a title.
+ */
+export function importBoard(
+  json: string,
+  kinds: readonly BuiltinKindSpec[],
+  options: { defaultTitle?: string } = {},
+): ImportResult | ImportRefusal {
   let parsed: unknown;
-  try { parsed = JSON.parse(json); } catch { return { error: 'This file is not valid JSON.' }; }
-  if (!isObj(parsed) || parsed.format !== BOARD_DOCUMENT_FORMAT) return { error: 'This file is not a dashboard export.' };
+  try { parsed = JSON.parse(json); } catch { return { error: 'This file is not valid JSON.', code: 'invalid-json' }; }
+  if (!isObj(parsed) || parsed.format !== BOARD_DOCUMENT_FORMAT) return { error: 'This file is not a dashboard export.', code: 'not-board' };
   if (typeof parsed.version !== 'number' || parsed.version > BOARD_DOCUMENT_VERSION) {
-    return { error: `This dashboard was exported by a newer version (format ${String(parsed.version)}). Update this app to import it.` };
+    const detail = String(parsed.version);
+    return { error: `This dashboard was exported by a newer version (format ${detail}). Update this app to import it.`, code: 'newer-format', detail };
   }
-  const res = normalizeBoard(parsed, kinds);
+  const res = normalizeBoard(parsed, kinds, options.defaultTitle?.trim() || undefined);
   if (res.newer.length) {
-    return { error: `This dashboard uses newer widget settings (${res.newer.map((n) => `${n.id} v${n.stored}`).join(', ')}). Update this app to import it.` };
+    const detail = res.newer.map((n) => `${n.id} v${n.stored}`).join(', ');
+    return { error: `This dashboard uses newer widget settings (${detail}). Update this app to import it.`, code: 'newer-templates', detail };
   }
   return res;
 }
