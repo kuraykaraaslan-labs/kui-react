@@ -238,14 +238,14 @@ export function WidgetBoard({
       </div>
 
       {sel && selKind && (
-        <Drawer open onClose={() => setSelected(null)} title={m.placementSettings(sel.title || selLabel || selKind.label)}>
+        <Drawer open onClose={() => setSelected(null)} closeLabel={m.closeDrawer} title={m.placementSettings(sel.title || selLabel || selKind.label)}>
           <PlacementSettings placement={sel} kind={selKind} board={board} messages={m} onChange={(p) => patch(sel.id, p)}
             dataEditor={renderDataEditor?.(sel, (p) => patch(sel.id, p))} />
         </Drawer>
       )}
 
       {boardOpen && (
-        <Drawer open onClose={() => setBoardOpen(false)} title={m.settings}>
+        <Drawer open onClose={() => setBoardOpen(false)} closeLabel={m.closeDrawer} title={m.settings}>
           <div className="space-y-3 p-1">
             <div>
               <label htmlFor="wk-board-title" className="mb-1.5 block text-xs font-medium text-text-secondary">{m.boardTitle}</label>
@@ -261,7 +261,7 @@ export function WidgetBoard({
       )}
 
       {picking && (
-        <Drawer open onClose={() => setPicking(false)} title={m.addWidget}>
+        <Drawer open onClose={() => setPicking(false)} closeLabel={m.closeDrawer} title={m.addWidget}>
           <WidgetPicker kinds={shownKinds} messages={m} onPick={(k) => {
             const id = newId(doc.placements);
             update([...doc.placements, { id, type: k.type, title: k.label, x: 0, y: nextFreeRow(doc.placements), w: k.defaultW, h: k.defaultH, settings: {} }]);

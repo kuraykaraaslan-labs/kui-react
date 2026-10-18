@@ -66,7 +66,7 @@ describe('WidgetBoard cells', () => {
 
 describe('WidgetBoard texts', () => {
   const board: WidgetKitMessagesInput['board'] = {
-    edit: 'Düzenle', done: 'Bitti', addWidget: 'Bileşen ekle', settings: 'Pano ayarları', import: 'İçe aktar', export: 'Dışa aktar',
+    edit: 'Düzenle', done: 'Bitti', addWidget: 'Bileşen ekle', closeDrawer: 'Paneli kapat', settings: 'Pano ayarları', import: 'İçe aktar', export: 'Dışa aktar',
     moveLeft: 'Sola taşı', remove: (t) => `${t} kaldır`, empty: 'Boş pano.', emptyEditable: 'Boş pano. Düzenle\'ye basın.',
     invalidJson: 'Geçerli JSON değil.', newerFormat: (v) => `Daha yeni biçim (${v}).`, searchWidgets: 'Bileşen ara',
   };
@@ -80,6 +80,14 @@ describe('WidgetBoard texts', () => {
     for (const name of ['Bitti', 'Bileşen ekle', 'Pano ayarları', 'İçe aktar', 'Sola taşı', 'A kaldır']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
     rerender(<WidgetKitProvider value={{ messages: { board } }}><WidgetBoard doc={doc([])} kinds={kinds} views={views} /></WidgetKitProvider>);
     expect(screen.getByText('Boş pano.')).toBeInTheDocument();
+  });
+
+  it('the board\'s drawers name their close button with board.closeDrawer', () => {
+    inKit(<WidgetBoard doc={doc([{ id: 'a', type: 'stat.value', title: 'A', x: 1, y: 0, w: 3, h: 2, settings: {} }])} onChange={() => {}} kinds={kinds} views={views} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Düzenle' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pano ayarları' }));
+    expect(screen.getByRole('button', { name: 'Paneli kapat' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close drawer' })).toBeNull();
   });
 
   it('words an import refusal by its code', async () => {

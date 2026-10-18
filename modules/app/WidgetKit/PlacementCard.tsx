@@ -132,7 +132,7 @@ export function PlacementCard({
         {body}
       </WidgetCard>
       {full && (
-        <Modal open fullscreen onClose={() => setFull(false)} title={title || template.label}>
+        <Modal open fullscreen onClose={() => setFull(false)} title={title || template.label} closeLabel={m.card.closeFullscreen}>
           <div className="@container h-full min-h-[60vh]">{body}</div>
         </Modal>
       )}

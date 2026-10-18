@@ -58,6 +58,7 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
     ...axisProps(s),
     yIncludeZero: preset === 'bar' || s.yFromZero !== false,
     ...tooltipProps(s),
+    tooltipTotalLabel: m.total,
     tooltipValueFormat: tooltipDecimals === undefined ? undefined : (v: number, ser: Series) => {
       const r = ruleFor(ser.id, s.series);
       return formatValue(v, format, { unit: r?.unit || undefined, decimals: tooltipDecimals }, locale);

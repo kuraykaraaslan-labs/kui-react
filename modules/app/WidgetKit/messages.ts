@@ -33,6 +33,8 @@ export interface WidgetCardMessages {
   updated: (when: string) => string;
   /** PlacementCard's "unconfigured" text: a required slot is not bound. */
   bindData: string;
+  /** The close button of the full-screen view. */
+  closeFullscreen: string;
 }
 
 /** WidgetBoard: the toolbar, the edit buttons, the drawers, import and its errors. */
@@ -74,6 +76,8 @@ export interface WidgetBoardMessages {
   newerTemplates: (templates: string) => string;
   /** The title of an imported board that has none. */
   defaultTitle: string;
+  /** The close button of the board's drawers (placement settings, board settings, the picker). */
+  closeDrawer: string;
 }
 
 /** WidgetSettingsEditor: tabs, the title field, the mode toggle and its notices. */
@@ -198,7 +202,7 @@ export interface ChartViewMessages {
   histogram: string;
   heatmap: string;
   gauge: string;
-  /** The donut's centre (a placement's `totalLabel` wins). */
+  /** The donut's centre (a placement's `totalLabel` wins) and a stacked chart's tooltip total row. */
   total: string;
   /** The slice the smallest fold into (a placement's `otherLabel` wins). */
   other: string;
@@ -293,6 +297,7 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     retry: 'Retry',
     updated: (when) => `Updated ${when}`,
     bindData: 'Bind data to this widget in its settings.',
+    closeFullscreen: 'Close dialog',
   },
   board: {
     export: 'Export',
@@ -327,6 +332,7 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     newerFormat: (version) => `This dashboard was exported by a newer version (format ${version}). Update this app to import it.`,
     newerTemplates: (templates) => `This dashboard uses newer widget settings (${templates}). Update this app to import it.`,
     defaultTitle: 'Dashboard',
+    closeDrawer: 'Close drawer',
   },
   editor: {
     tabDisplay: 'Display',

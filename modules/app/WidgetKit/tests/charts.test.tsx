@@ -82,6 +82,22 @@ function renderView(view: WidgetKindView, t: SettingsTemplate, data: Record<stri
 }
 
 describe('series chart views', () => {
+  it('a stacked tooltip\'s total row takes charts.total (bar and area)', () => {
+    for (const [view, t] of [[CHART_BAR_VIEW, CHART_BAR], [CHART_AREA_VIEW, CHART_AREA]] as const) {
+      const View = view.View;
+      const { container, unmount } = render(
+        <WidgetKitProvider value={{ messages: { charts: { total: 'Toplam' } } }}>
+          <View settings={effective(t, { stacked: true, tooltipTotal: true })} format={{ ...t.formatDefaults }} data={{ series: series(['a', 'b']) }} locale="en" />
+        </WidgetKitProvider>,
+      );
+      fireEvent.mouseMove(container.querySelector('svg[aria-label]')!, { clientX: 100, clientY: 100 });
+      const total = screen.getByRole('tooltip').querySelector('[data-tooltip-total]')?.textContent ?? '';
+      expect(total).toMatch(/^Toplam/);
+      expect(total).not.toMatch(/Total/);
+      unmount();
+    }
+  });
+
   it('the zoom reset button takes the host text (line and area)', () => {
     for (const [view, t] of [[CHART_LINE_VIEW, CHART_LINE], [CHART_AREA_VIEW, CHART_AREA]] as const) {
       const View = view.View;
