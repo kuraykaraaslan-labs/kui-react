@@ -22,7 +22,11 @@ WidgetCard.tsx        the frame: title row, buttons, body states, stale, footer
 PlacementCard.tsx     one placement: resolved settings + WidgetCard + view, full screen, CSV
 WidgetSettingsEditor.tsx  tabs (Display, Data, Card, Actions), Basic/Advanced, read-only newer parts
 WidgetBoard.tsx       a whole board: grid, edit mode, card + board settings, export/import
-WidgetKitContext.tsx  host hooks: icon resolver, field overrides, locale, embed site allow-list (`embedHosts`)
+board-cell.ts         cardCellResponsive: a card's small-screen settings on its grid cell (pure)
+WidgetKitContext.tsx  host hooks: icon resolver, field overrides, locale, embed site allow-list (`embedHosts`),
+                      the kit's texts (`messages`, `useKitMessages`), template and type texts (`templateText`, `kindText`)
+messages.ts           every text the kit draws, by group, with the English defaults; mergeKitMessages (pure)
+localize.ts           localizeTemplate, localizeKind: template and type texts through the host's hooks (pure)
 ```
 
 ## Rules
@@ -37,6 +41,42 @@ WidgetKitContext.tsx  host hooks: icon resolver, field overrides, locale, embed 
 4. No stored code and no raw CSS in settings (the only ThingsBoard features not taken).
 
 See [/AGENTS.md](../../../AGENTS.md).
+
+## Texts in the host's language
+
+Every text the kit draws itself (the card chrome, the board, the settings editor and its form, the
+controls, every view) comes from `messages.ts`, by group: `card`, `board`, `editor`, `form`, `controls`,
+`table`, `feed`, `map`, `viewer`, `charts`, `content`, `stat`, `common`. A host passes any of them:
+
+```tsx
+<WidgetKitProvider value={{
+  locale,
+  messages: { card: { refresh: t('Refresh') }, table: { rowCount: (n) => t('{{count}} rows', { count: n }) } },
+  templateText: ({ templateId, path, prop, value, english }) => lookup(templateId, path, prop, value),
+  kindText: ({ type, prop, key, english }) => lookup(type, prop, key),
+}}>
+```
+
+- Whatever the host leaves out stays English (`DEFAULT_WIDGET_KIT_MESSAGES`). A text that interpolates
+  is a function of its values; the control texts ControlTile fills itself keep its single-brace marks
+  (`typeToConfirm: 'Type "{text}" to confirm'`).
+- Precedence, lowest first: the defaults, the host's `messages`, a placement's own settings (the card's
+  "No data" text, a control's feedback texts, `unknownLabel`, `otherLabel`, `totalLabel`, `countLabel`,
+  `valueName`, `linkLabel`, `openLabel` …), explicit props (`errorText`, `unconfiguredText`, a view's
+  `messages`, `loadingLabel`, `legendLabel`, `layerLabels`, `controlDisabledReason`, SchemaForm's
+  `emptyMessage`).
+- `controls.failed`: when a host sets it, a failed write shows "failed (reason)". A host whose
+  `onControl` already rejects with a worded error should leave it out.
+- Keep `messages` stable (memoize it): the provider merges it once per change. Keep `templateText` and
+  `kindText` stable per language: `localizeTemplate` and `localizeKind` memoize per function, so a new
+  function (a language switch) re-localizes and an old one's labels never leak.
+- Template and type texts are looked up by template id (`core:card`, `builtin:stat.value`) and type, never
+  rendered as markup. Only what is shown changes: field keys, option values, stored values, versions and
+  the text a typed confirmation needs stay as they are.
+- Pure helpers take the texts as an optional argument (`controlBlockReason`, `requestControl`,
+  `controlMessages`, `forText`, `spanText`, `buildMarkers`, `validateSchemaValues`, `importBoard`'s
+  `defaultTitle`); `importBoard` refusals carry a `code` (`invalid-json`, `not-board`, `newer-format`,
+  `newer-templates`) and `detail`, so a host can word them.
 
 ## Changing a template
 

@@ -6,6 +6,21 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- WidgetKit texts in the host's language (next-boilerplate owner decision 2026-10-17 #6):
+  - `WidgetKitHost.messages`: every text the kit draws itself, by group (`card`, `board`, `editor`, `form`,
+    `controls`, `table`, `feed`, `map`, `viewer`, `charts`, `content`, `stat`, `common`); the rest stays English.
+    New exports: `DEFAULT_WIDGET_KIT_MESSAGES`, `mergeKitMessages`, `useKitMessages`, the group types and
+    `WidgetKitMessagesInput`. `TableMessages` and `FeedMessages` now live in `messages.ts` (the views re-export them).
+  - `WidgetKitHost.templateText` and `kindText`, with the pure `localizeTemplate` and `localizeKind`: template
+    labels, descriptions, placeholders, options (by value), groups and repeater fields, and widget-type
+    labels, descriptions, categories and slots, keyed by template id and type.
+  - SchemaForm: a `messages` prop (`SchemaFormMessages`, `DEFAULT_SCHEMA_FORM_MESSAGES`, `useSchemaFormMessages`);
+    `emptyMessage` still wins. `validateSchemaValues` takes an optional `messages.required`.
+  - `importBoard` refusals add `code` and `detail` (the English `error` is unchanged) and it takes an
+    optional `defaultTitle`. Pure helpers (`controlBlockReason`, `requestControl`, `controlMessages`,
+    `forText`, `spanText`, `evaluateState`, `buildMarkers`, `buildSensors`, `cellText`, `attributeRows`,
+    `rowsToScatterSeries`) take optional texts that default to English.
+  - `cardCellResponsive` (exported): a card's small-screen settings for its grid cell.
 - WidgetKit settings templates (next-boilerplate phase 21.8, decisions 7e and 7c):
   - a `filterList` migration op (`{ op: 'filterList', key, remove?, keep? }`) that drops removed options
     from a list value; a list that ends up empty removes the key. It works inside `each`.
@@ -77,6 +92,9 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Fixed
 
+- WidgetBoard: a cell's grid place applies from lg up only, so cards stack below lg instead of opening
+  implicit columns, and a card's hide-on-small-screens and small-screen order act on its cell.
+- StateView: a state's `unknownLabel` still at the template default ("Unknown") follows the host's text.
 - `SchemaForm` repeater items: the Up / Down / Remove buttons sat inside the item's `<summary>`, an interactive
   element, which axe reports as a serious `nested-interactive` violation (the widget-kit showcase failed its a11y
   check). They now sit over the summary's right end instead of inside it; the header looks and works the same.
