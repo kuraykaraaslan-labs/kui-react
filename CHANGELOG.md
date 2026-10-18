@@ -6,6 +6,10 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- WidgetKit settings templates (next-boilerplate phase 21.8, decision 7e):
+  - a `filterList` migration op (`{ op: 'filterList', key, remove?, keep? }`) that drops removed options
+    from a list value; a list that ends up empty removes the key. It works inside `each`.
+  - `applyOp` is exhaustive: an unknown stored op leaves the values unchanged instead of crashing `migrate`.
 - Extension surfaces (next-boilerplate phase 37, UI contributions and new extension surfaces):
   - `ContributionBoundary`: an exported error boundary for one contribution, with `fallback` (a node or
     `({ error, reset }) => node`, nothing by default), `onError(error, info)` and `resetKeys`. It replaces

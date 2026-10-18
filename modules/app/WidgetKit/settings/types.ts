@@ -47,14 +47,24 @@ export interface WidgetCaps {
 
 export type Sparse = Record<string, unknown>;
 
-/** Declarative migration operations: the only kind a tenant-authored template may use. */
+/**
+ * Declarative migration operations: the only kind a tenant-authored template may use (rename,
+ * mapValue, materializeDefault, clamp, drop, each, filterList). Every op is pure, sparse-safe and
+ * idempotent; an op the engine does not know leaves the values unchanged.
+ *
+ * `filterList` cleans a list value (e.g. a multi-select after an option was removed): it drops the
+ * items whose `String(item)` is in `remove`, or is not in `keep` when `keep` is given. A non-empty
+ * list that ends up empty removes the key, so the card falls back to its default. A non-array value
+ * or a missing key is left untouched.
+ */
 export type MigrationOp =
   | { op: 'rename'; from: string; to: string }
   | { op: 'mapValue'; key: string; map: Record<string, unknown>; else?: unknown }
   | { op: 'materializeDefault'; key: string; value: unknown }
   | { op: 'clamp'; key: string; min?: number; max?: number }
   | { op: 'drop'; key: string }
-  | { op: 'each'; key: string; ops: MigrationOp[] };
+  | { op: 'each'; key: string; ops: MigrationOp[] }
+  | { op: 'filterList'; key: string; remove?: string[]; keep?: string[] };
 
 export interface MigrationStep {
   from: number;

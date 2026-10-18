@@ -6,7 +6,7 @@ import { CORE_CARD, CORE_FORMAT, boardCardLayer } from '../settings/core';
 import { isColor, formatValue, rangeFor, fontStyle } from '../settings/style';
 import { since } from '../settings/packs';
 import { STAT_VALUE } from '../templates/stat-value';
-import type { SettingsTemplate } from '../settings/types';
+import type { MigrationOp, SettingsTemplate } from '../settings/types';
 
 const set = { type: STAT_VALUE, card: CORE_CARD, format: CORE_FORMAT };
 
@@ -115,6 +115,48 @@ describe('migrations (D-21.6)', () => {
     const r = migrate(v2, { x: 1 }, 7);
     expect(r.newer).toEqual({ stored: 7, known: 3 });
     expect(r.values).toEqual({ x: 1 });
+  });
+});
+
+describe('filterList', () => {
+  const tpl = (...ops: MigrationOp[]): SettingsTemplate => ({
+    id: 'tenant:demo', version: 2, namespace: '', label: 'Demo', groups: [],
+    fields: since(1, { tags: { label: 'Tags', type: 'multi-select' } }),
+    migrations: [{ from: 1, to: 2, note: 'options changed', ops }],
+  });
+  const run = (values: Record<string, unknown>, ...ops: MigrationOp[]) => migrate(tpl(...ops), values, 1).values;
+
+  it('remove drops the listed items and keeps the order of the rest', () => {
+    expect(run({ tags: ['c', 'a', 'b', 'a'] }, { op: 'filterList', key: 'tags', remove: ['b'] })).toEqual({ tags: ['c', 'a', 'a'] });
+  });
+  it('keep keeps only the listed items, compared as strings', () => {
+    expect(run({ tags: ['a', 'x', 2, 'b'] }, { op: 'filterList', key: 'tags', keep: ['a', '2'] })).toEqual({ tags: ['a', 2] });
+  });
+  it('a list that ends up empty removes the key', () => {
+    expect(run({ tags: ['c'], other: 1 }, { op: 'filterList', key: 'tags', remove: ['c'] })).toEqual({ other: 1 });
+  });
+  it('leaves an already empty list, a non-array value and a missing key untouched', () => {
+    const op: MigrationOp = { op: 'filterList', key: 'tags', remove: ['c'] };
+    expect(run({ tags: [] }, op)).toEqual({ tags: [] });
+    expect(run({ tags: 'c' }, op)).toEqual({ tags: 'c' });
+    expect(run({ other: 1 }, op)).toEqual({ other: 1 });
+  });
+  it('works inside each on repeater items', () => {
+    const out = run(
+      { rows: [{ tags: ['a', 'c'] }, { tags: ['c'] }, 'loose'] },
+      { op: 'each', key: 'rows', ops: [{ op: 'filterList', key: 'tags', remove: ['c'] }] },
+    );
+    expect(out).toEqual({ rows: [{ tags: ['a'] }, {}, 'loose'] });
+  });
+  it('is idempotent: migrating the output again changes nothing', () => {
+    const op: MigrationOp = { op: 'filterList', key: 'tags', remove: ['b'], keep: ['a', 'b', 'c'] };
+    const once = run({ tags: ['a', 'b', 'd', 'c'] }, op);
+    expect(once).toEqual({ tags: ['a', 'c'] });
+    expect(run(once, op)).toEqual(once);
+  });
+  it('an unknown op leaves the values unchanged and does not throw', () => {
+    const unknown = { op: 'fromTheFuture', key: 'tags' } as unknown as MigrationOp;
+    expect(run({ tags: ['a'] }, unknown, { op: 'drop', key: 'gone' })).toEqual({ tags: ['a'] });
   });
 });
 

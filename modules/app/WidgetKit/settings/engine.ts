@@ -103,6 +103,22 @@ function applyOp(values: Sparse, op: MigrationOp): Sparse {
         v[op.key] = (v[op.key] as unknown[]).map((item) => (isObj(item) ? op.ops.reduce(applyOp, item) : item));
       }
       return v;
+    case 'filterList': {
+      const list = v[op.key];
+      if (!Array.isArray(list) || !list.length) return v;
+      const remove = new Set(op.remove ?? []);
+      const keep = op.keep ? new Set(op.keep) : null;
+      const kept = list.filter((item) => !remove.has(String(item)) && (!keep || keep.has(String(item))));
+      if (kept.length) v[op.key] = kept;
+      else delete v[op.key];
+      return v;
+    }
+    default: {
+      // A stored op this code does not know (e.g. written by a newer version): leave the values be.
+      const unknownOp: never = op;
+      void unknownOp;
+      return v;
+    }
   }
 }
 
