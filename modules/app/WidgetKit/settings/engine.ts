@@ -71,24 +71,28 @@ export function effective(template: SettingsTemplate, ...layers: Array<Sparse | 
 
 // ── Migration ─────────────────────────────────────────────────────────────────
 
+// Own keys only: a stored value or a key named like an Object.prototype member (`toString`, `__proto__`)
+// must never match an inherited one through `in`.
+const has = (o: object, key: string) => Object.prototype.hasOwnProperty.call(o, key);
+
 function applyOp(values: Sparse, op: MigrationOp): Sparse {
   const v = { ...values };
   switch (op.op) {
     case 'rename':
-      if (op.from in v) {
-        if (!(op.to in v)) v[op.to] = v[op.from];
+      if (has(v, op.from)) {
+        if (!has(v, op.to)) v[op.to] = v[op.from];
         delete v[op.from];
       }
       return v;
     case 'mapValue': {
-      if (!(op.key in v)) return v;
+      if (!has(v, op.key)) return v;
       const key = String(v[op.key]);
-      if (key in op.map) v[op.key] = op.map[key];
+      if (has(op.map, key)) v[op.key] = op.map[key];
       else if ('else' in op) v[op.key] = op.else;
       return v;
     }
     case 'materializeDefault':
-      if (!(op.key in v)) v[op.key] = op.value;
+      if (!has(v, op.key)) v[op.key] = op.value;
       return v;
     case 'clamp': {
       const n = v[op.key];

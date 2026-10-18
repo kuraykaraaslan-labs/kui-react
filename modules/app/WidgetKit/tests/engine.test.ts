@@ -118,6 +118,30 @@ describe('migrations (D-21.6)', () => {
   });
 });
 
+describe('ops never match inherited Object.prototype members', () => {
+  const tpl = (...ops: MigrationOp[]): SettingsTemplate => ({
+    id: 'tenant:demo', version: 2, namespace: '', label: 'Demo', groups: [],
+    fields: since(1, { unit: { label: 'Unit', type: 'text' } }),
+    migrations: [{ from: 1, to: 2, note: 'n', ops }],
+  });
+  const run = (values: Record<string, unknown>, ...ops: MigrationOp[]) => migrate(tpl(...ops), values, 1).values;
+
+  it('mapValue looks a stored value up in the map\'s own keys only', () => {
+    const op: MigrationOp = { op: 'mapValue', key: 'unit', map: { kw: 'kW' } };
+    for (const unit of ['toString', 'constructor', '__proto__', 'hasOwnProperty']) {
+      expect(run({ unit }, op), unit).toEqual({ unit });
+    }
+    expect(run({ unit: 'toString' }, { ...op, else: 'W' })).toEqual({ unit: 'W' });
+    expect(run({ unit: 'kw' }, op)).toEqual({ unit: 'kW' });
+  });
+  it('a key named like a prototype member is absent unless the values hold it', () => {
+    expect(run({}, { op: 'mapValue', key: 'toString', map: {}, else: 'x' })).toEqual({});
+    expect(run({}, { op: 'rename', from: 'toString', to: 'unit' })).toEqual({});
+    expect(run({}, { op: 'materializeDefault', key: 'toString', value: 'kept' })).toEqual({ toString: 'kept' });
+    expect(run({ unit: 'a' }, { op: 'rename', from: 'unit', to: 'valueOf' })).toEqual({ valueOf: 'a' });
+  });
+});
+
 describe('filterList', () => {
   const tpl = (...ops: MigrationOp[]): SettingsTemplate => ({
     id: 'tenant:demo', version: 2, namespace: '', label: 'Demo', groups: [],
