@@ -95,6 +95,9 @@ All notable changes to this project will be documented here. Format follows [Kee
 - WidgetBoard: a cell's grid place applies from lg up only, so cards stack below lg instead of opening
   implicit columns, and a card's hide-on-small-screens and small-screen order act on its cell.
 - StateView: a state's `unknownLabel` still at the template default ("Unknown") follows the host's text.
+- WidgetKit settings migrations: `mapValue`, `rename` and `materializeDefault` look keys up as own keys only. A
+  stored value such as `toString` or `__proto__` matched an inherited `Object.prototype` member through `in`, so
+  `mapValue` replaced it with a function (or `Object.prototype`) instead of leaving it or applying `else`.
 - `SchemaForm` repeater items: the Up / Down / Remove buttons sat inside the item's `<summary>`, an interactive
   element, which axe reports as a serious `nested-interactive` violation (the widget-kit showcase failed its a11y
   check). They now sit over the summary's right end instead of inside it; the header looks and works the same.
