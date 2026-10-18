@@ -52,6 +52,23 @@ describe('SchemaForm', () => {
     expect((screen.getByLabelText('Sym') as HTMLInputElement).type).toBe('text');
   });
 
+  it('hands a searchable remote-select descriptor to the host override unchanged', () => {
+    const seen: FieldSchema[] = [];
+    const Remote = ({ field }: { field: FieldSchema }) => { seen.push(field); return <div data-testid="remote" />; };
+    const device: FieldSchema = {
+      label: 'Device', type: 'remote-select', endpoint: '/api/devices', dataKey: 'data',
+      labelKey: 'name', valueKey: 'id', searchKey: 'q', lookupKey: 'id',
+    };
+    render(<SchemaForm schema={{ device }} values={{ device: 'd-1' }} onChange={() => {}} fieldOverrides={{ 'remote-select': Remote }} />);
+    expect(screen.getByTestId('remote')).toBeTruthy();
+    expect(seen.at(-1)).toMatchObject({ searchKey: 'q', lookupKey: 'id' });
+  });
+
+  it('degrades a searchable remote-select without an override to a text input', () => {
+    render(<SchemaForm schema={{ device: { label: 'Device', type: 'remote-select', searchKey: 'q' } }} values={{ device: 'd-1' }} onChange={() => {}} />);
+    expect((screen.getByLabelText('Device') as HTMLInputElement).value).toBe('d-1');
+  });
+
   it('adds and edits repeater items', () => {
     vi.useFakeTimers();
     const onChange = vi.fn();

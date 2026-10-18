@@ -6,6 +6,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- SchemaForm `FieldSchema.searchKey` and `lookupKey` for `remote-select` (next-boilerplate phase 07-dashboard
+  22.2, built there as 17.1a): `searchKey` names the query parameter that carries the search text, so the
+  host's picker asks for a page per keystroke instead of loading the whole list; `lookupKey` names the
+  parameter that resolves one stored value to its row, so a reloaded or deep-linked value shows its label
+  and a vanished one reads as not found. Descriptor only: kui-react still ships no remote-select renderer
+  (the host plugs one in through `fieldOverrides`), because next-boilerplate's searchable picker is bound to
+  its tenant API. kui-ejs and KUInative have no SchemaForm.
 - WidgetBoard on 12 or 24 columns (next-boilerplate phase 21.10, owner-approved): `BoardDocument.board.gridCols`
   (absent = 12) sets the grid; the board settings drawer has a "Grid columns" field (`board.gridCols`,
   `gridColsOption`, `gridColsHint` messages) and a change rescales every card. New pure `settings/grid.ts`

@@ -2593,7 +2593,7 @@
       "category": "App",
       "filePath": "modules/app/SchemaForm/SchemaForm.tsx",
       "abbr": "ScF",
-      "description": "Schema-driven form on the FieldSchema vocabulary (moved from next-boilerplate, OD-16). Field types: text, url, textarea, number, boolean, select, multi-select, json, color, date, datetime and repeater; showIf hides a field until another value matches, group folds fields into sections, defaults seed values and power the reset button, writes are debounced. App-bound types (media, remote-select, symbol, color-token, icon, background) are plugged in through the fieldOverrides registry and degrade to a plain input when none is given. zodFromSchema / validateSchemaValues validate the result; fromJsonSchema (subset) and fromFormBuilder convert other schemas. React only.",
+      "description": "Schema-driven form on the FieldSchema vocabulary (moved from next-boilerplate, OD-16). Field types: text, url, textarea, number, boolean, select, multi-select, json, color, date, datetime and repeater; showIf hides a field until another value matches, group folds fields into sections, defaults seed values and power the reset button, writes are debounced. App-bound types (media, remote-select, symbol, color-token, icon, background) are plugged in through the fieldOverrides registry and degrade to a plain input when none is given. A remote-select with searchKey (and lookupKey to resolve the label of a stored value) describes a searchable picker for the host override. zodFromSchema / validateSchemaValues validate the result; fromJsonSchema (subset) and fromFormBuilder convert other schemas. React only.",
       "status": "beta",
       "since": "2026-10",
       "composes": [],

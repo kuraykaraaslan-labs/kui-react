@@ -32,6 +32,8 @@ export type FieldType =
   // lists items by `labelKey`, stores `valueKey`. Optionally offers an empty
   // ("all") option and a "Dynamic — from URL" option that stores ':slug'
   // (resolved at render by useDynamicValue). Reusable — not commerce-specific.
+  // With `searchKey` it is searchable (a page per search text) and `lookupKey`
+  // resolves a stored value's label.
   | 'remote-select'
   // A text style: `FontValue` ({ size, unit, weight, style, family, lineHeight? }). Colour is a
   // sibling `color` field, as in ThingsBoard, so a font and its colour can be reset independently.
@@ -95,6 +97,20 @@ export interface FieldSchema {
   labelKey?: string
   /** Item field stored as the value (default 'id'). */
   valueKey?: string
+  /**
+   * Makes a `remote-select` searchable: the name of the query parameter that carries the search
+   * text (e.g. `q`). The host's picker then asks the endpoint for a short page per keystroke instead
+   * of loading everything, so it works for an entity list too large to load whole. An identifier,
+   * never a URL part. kui-react ships no remote-select renderer; this only describes the field for
+   * the host's `fieldOverrides['remote-select']` (next-boilerplate dashboard phase 17.1).
+   */
+  searchKey?: string
+  /**
+   * With `searchKey`: the query parameter that resolves one stored value to its row (e.g. `id`), so a
+   * deep-linked or reloaded value shows its label rather than the raw id, and a value that no longer
+   * exists is reported as not found. Without it the label comes from what this page has already seen.
+   */
+  lookupKey?: string
   /** Label for the empty/"all" option; omit to not offer one. */
   emptyLabel?: string
   /** When true, offers a "Dynamic — from URL" option that stores ':slug'. */
