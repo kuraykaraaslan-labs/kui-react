@@ -134,3 +134,7 @@ export { AiHumanDraftEditor, DEFAULT_AI_HUMAN_DRAFT_EDITOR_MESSAGES, buildSegmen
 export type { AiHumanDraftEditorProps, AiHumanDraftEditorMessages, Hunk, Segment } from './AiHumanDraftEditor';
 export { ConversationTimeline, DEFAULT_CONVERSATION_TIMELINE_MESSAGES, computeTotals, formatCost } from './ConversationTimeline';
 export type { ConversationTimelineProps, ConversationTimelineMessages, ConversationStep, StepType, StepStatus, StepTokens, Totals } from './ConversationTimeline';
+export { InlineEditList, DEFAULT_INLINE_EDIT_LIST_MESSAGES } from './InlineEditList';
+export type { InlineEditListProps, InlineEditListMessages, InlineEditItem, InlineEditChange, InlineEditorContext } from './InlineEditList';
+export { LocaleSwitcher, localeDirection, DEFAULT_LOCALE_SWITCHER_MESSAGES } from './LocaleSwitcher';
+export type { LocaleSwitcherProps, LocaleSwitcherMessages, LocaleOption } from './LocaleSwitcher';

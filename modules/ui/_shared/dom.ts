@@ -44,3 +44,27 @@ export function hashIndex(text: string, n: number): number {
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
   return Math.abs(h) % Math.max(1, n);
 }
+
+/**
+ * Calls `onOutside` when a pointer goes down outside `root` or focus moves outside it. Returns the cleanup.
+ * (Lives here, not in a component, so components stay free of `document` access.)
+ */
+export function addOutsideListener(root: Element | null, onOutside: () => void): () => void {
+  if (!root || typeof document === 'undefined') return () => {};
+  const inside = (t: EventTarget | null) => t instanceof Node && root.contains(t);
+  const onDown = (e: MouseEvent | TouchEvent) => { if (!inside(e.target)) onOutside(); };
+  const onFocusIn = (e: FocusEvent) => { if (!inside(e.target)) onOutside(); };
+  document.addEventListener('mousedown', onDown);
+  document.addEventListener('touchstart', onDown);
+  document.addEventListener('focusin', onFocusIn);
+  return () => {
+    document.removeEventListener('mousedown', onDown);
+    document.removeEventListener('touchstart', onDown);
+    document.removeEventListener('focusin', onFocusIn);
+  };
+}
+
+/** The element that currently has focus, or null (outside a browser). */
+export function activeElement(): Element | null {
+  return typeof document === 'undefined' ? null : document.activeElement;
+}
