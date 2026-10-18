@@ -45,7 +45,7 @@ const TR: WidgetKitMessagesInput = {
   card: { refresh: 'Yenile', download: 'Veriyi indir (CSV)', fullscreen: 'Tam ekran', noData: 'Veri yok', unconfigured: 'Yapılandırılmadı.', error: 'Yüklenemedi.', retry: 'Tekrar dene', updated: (w) => `Güncellendi: ${w}`, about: (t) => `${t} hakkında`, oldData: 'Eski veri', loading: 'Yükleniyor' },
   editor: { tabDisplay: 'Görünüm', tabCard: 'Kart', tabData: 'Veri', title: 'Başlık', advancedOn: 'Gelişmiş: açık', advancedOff: 'Gelişmiş: kapalı', tabsLabel: 'Bileşen ayarları', newerVersion: 'Daha yeni bir sürüm kaydetti.' },
   form: { reset: 'Sıfırla', addItem: 'Öğe ekle', item: (n) => `Öğe ${n}`, searchLabel: 'Ayarlarda ara' },
-  controls: { notConnected: 'Bağlı değil.', on: 'Açık', off: 'Kapalı', unknownLabel: 'Bilinmiyor', now: 'Şimdi', value: 'Değer', reported: (v) => `Bildirilen: ${v}`, run: 'Çalıştır', confirm: 'Onayla', cancel: 'Vazgeç', typeToConfirm: 'Onaylamak için "{text}" yazın', failed: 'Değişiklik başarısız.' },
+  controls: { notConnected: 'Bağlı değil.', on: 'Açık', off: 'Kapalı', unknownLabel: 'Bilinmiyor', now: 'Şimdi', value: 'Değer', setpoint: 'Ayar noktası', reported: (v) => `Bildirilen: ${v}`, run: 'Çalıştır', confirm: 'Onayla', cancel: 'Vazgeç', typeToConfirm: 'Onaylamak için "{text}" yazın', failed: 'Değişiklik başarısız.' },
   table: { search: 'Ara', columns: 'Sütunlar' },
   feed: { unknownDay: 'Zaman bilinmiyor' },
   map: { loading: 'Harita yükleniyor…', map: 'Harita', open: 'Aç', legend: 'Açıklama' },
@@ -208,6 +208,22 @@ describe('localizeTemplate and localizeKind', () => {
     expect(out.groups.map((g) => g.label)).toEqual(['Genel', 'More']);
   });
 
+  it('a translation equal to a later group\'s untranslated English still keeps the groups apart', () => {
+    const out = localizeTemplate(DEMO, ({ prop, path }) => (prop === 'group' && path === 'main' ? 'More' : undefined));
+    const labels = out.groups.map((g) => g.label);
+    expect(labels[0]).toBe('More');
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('a later group whose translation and English are both taken gets a unique label', () => {
+    const tpl = { ...DEMO, groups: [...DEMO.groups, { id: 'extra', label: 'Main', tab: 'Display' as const, since: 1 }] };
+    const tr: Record<string, string> = { main: 'Genel', more: 'Main', extra: 'Genel' };
+    const out = localizeTemplate(tpl, ({ prop, path }) => (prop === 'group' ? tr[path] : undefined));
+    const labels = out.groups.map((g) => g.label);
+    expect(labels.slice(0, 2)).toEqual(['Genel', 'Main']);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
   it('localizes a kind\'s label, description, category and slots by type', () => {
     const out = localizeKind(STAT_VALUE_KIND, ({ type, prop, key }) => `${type}:${prop}${key ? `:${key}` : ''}`);
     expect([out.label, out.description, out.category]).toEqual(['stat.value:label', 'stat.value:description', 'stat.value:category']);
@@ -263,6 +279,7 @@ describe('control texts', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('Bağlı değil.');
     expect(screen.getByRole('slider', { name: 'Değer' })).toBeInTheDocument();
     expect(screen.getByText('Şimdi')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Ayar noktası' })).toBeInTheDocument();
   });
 
   it('a host failure text leads and the reason follows it in brackets', async () => {

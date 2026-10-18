@@ -112,7 +112,7 @@ export function PlacementCard({
     <>
       <WidgetCard
         title={title}
-        card={r.card}
+        card={isEditor && (r.card.hideOnMobile || r.card.hideOnDesktop) ? { ...r.card, hideOnMobile: false, hideOnDesktop: false } : r.card}
         state={state}
         stale={stale}
         updatedAt={fetchedAt}

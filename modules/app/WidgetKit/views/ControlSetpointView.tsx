@@ -70,7 +70,7 @@ export function ControlSetpointView(props: WidgetViewProps) {
       <ControlSetpoint
         framed={false}
         className="min-h-0 flex-1"
-        ariaLabel={textOr(s.label) ?? textOr(props.title)}
+        ariaLabel={textOr(s.label) ?? textOr(props.title) ?? m.setpoint}
         value={value}
         {...confirm}
         onCommit={(next, confirmation) => set(next, confirmation)}

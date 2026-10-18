@@ -134,6 +134,8 @@ export interface WidgetControlMessages {
   reported: (value: string) => string;
   /** The slider's accessible name when it has no label. */
   value: string;
+  /** The setpoint's accessible name when it has no label and no title. */
+  setpoint: string;
   /** The setpoint's current-value caption. */
   now: string;
 }
@@ -368,6 +370,7 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     unknownLabel: 'Unknown',
     reported: (value) => `Reported: ${value}`,
     value: 'Value',
+    setpoint: 'Set point',
     now: 'Now',
   },
   table: {

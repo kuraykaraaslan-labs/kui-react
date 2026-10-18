@@ -30,4 +30,5 @@ font size, colour, spacing or chip. Settings may override a part (a font, a colo
 - Empty and unconfigured states are the card's job (`WidgetCard`), never a view's.
 - Every text a view draws comes from `useKitMessages()` (the host's language), never a literal in the view.
 - On a board the grid cell is placed from lg up only (`--wk-gc` / `--wk-gr`); below lg cells stack in y, x
-  order, and a card's hide / order settings act on the cell (`cardCellResponsive`).
+  order, and a card's hide / order settings act on the cell (`cardCellResponsive`). In edit mode nothing
+  is hidden (cell or card), so a hidden card keeps its edit buttons and the setting can be undone.

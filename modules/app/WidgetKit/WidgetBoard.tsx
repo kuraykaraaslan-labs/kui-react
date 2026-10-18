@@ -168,7 +168,9 @@ export function WidgetBoard({
             const r = resolvePlacement({ template: kind.template, slotCount: kind.slots.length, settings: p.settings, board });
             // The cell is the grid item: its place applies from lg up only (below, cards stack in y, x
             // order), and the card's small-screen settings (hide, order) act on the cell, not just the card.
-            const cell = cardCellResponsive(r.card);
+            // While editing nothing is hidden: a hidden cell would take its edit buttons with it, and
+            // with them the only way back to the setting.
+            const cell = cardCellResponsive(editing ? { ...r.card, hideOnMobile: false, hideOnDesktop: false } : r.card);
             return (
               <div key={p.id} data-placement={p.id}
                 className={cn(

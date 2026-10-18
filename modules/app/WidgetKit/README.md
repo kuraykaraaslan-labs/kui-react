@@ -73,6 +73,9 @@ controls, every view) comes from `messages.ts`, by group: `card`, `board`, `edit
 - Template and type texts are looked up by template id (`core:card`, `builtin:stat.value`) and type, never
   rendered as markup. Only what is shown changes: field keys, option values, stored values, versions and
   the text a typed confirmation needs stay as they are.
+- Group labels are the editor's grouping key, so `localizeTemplate` never gives two groups the same
+  label: a later group whose translation is taken keeps its English, or gets `English (id)` when that is
+  taken too.
 - Pure helpers take the texts as an optional argument (`controlBlockReason`, `requestControl`,
   `controlMessages`, `forText`, `spanText`, `buildMarkers`, `validateSchemaValues`, `importBoard`'s
   `defaultTitle`); `importBoard` refusals carry a `code` (`invalid-json`, `not-board`, `newer-format`,

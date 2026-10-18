@@ -40,6 +40,20 @@ describe('WidgetBoard cells', () => {
     expect(cellOf('c').className).not.toMatch(/max-lg:hidden|order:var/);
   });
 
+  it('in edit mode a hidden card keeps its cell and its edit buttons (the hide can be undone)', () => {
+    render(<WidgetBoard doc={doc([
+      { id: 'd', type: 'stat.value', title: 'D', x: 0, y: 0, w: 3, h: 2, settings: { $card: { hideOnDesktop: true, mobileOrder: 1 } } },
+      { id: 'm', type: 'stat.value', title: 'M', x: 3, y: 0, w: 3, h: 2, settings: { $card: { hideOnMobile: true } } },
+    ])} kinds={kinds} views={views} onChange={() => {}} />);
+    expect(cellOf('d').className).toContain('lg:hidden');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(cellOf('d').className).not.toMatch(/(^|\s)lg:hidden/);
+    expect(cellOf('m').className).not.toContain('max-lg:hidden');
+    expect(cellOf('d').className).toContain('max-lg:[order:var(--wk-mo)]');
+    expect(screen.getByRole('button', { name: 'Settings of D' })).toBeInTheDocument();
+    for (const id of ['d', 'm']) expect(cellOf(id).querySelector('section')?.className).not.toMatch(/(^|\s)(max-)?lg:hidden/);
+  });
+
   it('stacks cells in y, x order below lg (the DOM order)', () => {
     render(<WidgetBoard doc={doc([
       { id: 'late', type: 'stat.value', title: 'L', x: 0, y: 4, w: 3, h: 2, settings: {} },

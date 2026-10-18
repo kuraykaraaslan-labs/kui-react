@@ -33,8 +33,9 @@ function localizeField<F extends FieldSchema>(f: F, path: string, text: (ref: Om
 /**
  * A copy of `template` with its labels, descriptions, placeholders, option labels and group labels
  * from `fn` (`undefined` or an empty string keeps the English). Group labels are also the editor's
- * grouping key, so a translation that two groups of the template would share is not used for the
- * later one (it keeps its English) and the groups stay apart. Memoized per `fn` and template.
+ * grouping key, so no two groups end up with the same label: a later group whose translation is
+ * taken keeps its English, and when that is taken too it gets `English (id)` (numbered if needed).
+ * Memoized per `fn` and template.
  */
 export function localizeTemplate(template: SettingsTemplate, fn: TemplateTextFn): SettingsTemplate {
   let byTemplate = templateCache.get(fn);
@@ -51,6 +52,8 @@ export function localizeTemplate(template: SettingsTemplate, fn: TemplateTextFn)
   const groups = template.groups.map((g) => {
     let label = text({ path: g.id, prop: 'group', english: g.label });
     if (used.has(label)) label = g.label;
+    if (used.has(label)) label = `${g.label} (${g.id})`;
+    for (let n = 2; used.has(label); n++) label = `${g.label} (${g.id} ${n})`;
     used.add(label);
     return label === g.label ? g : { ...g, label };
   });
