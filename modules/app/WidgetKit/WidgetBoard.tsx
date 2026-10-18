@@ -21,6 +21,7 @@ import type { BuiltinKindSpec, ControlRequest, SlotData, WidgetKindView } from '
 import type { Sparse } from './settings/types';
 import { SettingIcon, useKitMessages, useWidgetKit } from './WidgetKitContext';
 import { localizeKind } from './localize';
+import { cardCellResponsive } from './board-cell';
 import type { WidgetBoardMessages } from './messages';
 
 export interface WidgetBoardProps {
@@ -165,10 +166,23 @@ export function WidgetBoard({
             const view = views[p.type];
             if (!kind || !view) return null;
             const r = resolvePlacement({ template: kind.template, slotCount: kind.slots.length, settings: p.settings, board });
+            // The cell is the grid item: its place applies from lg up only (below, cards stack in y, x
+            // order), and the card's small-screen settings (hide, order) act on the cell, not just the card.
+            const cell = cardCellResponsive(r.card);
             return (
               <div key={p.id} data-placement={p.id}
-                className={cn('relative min-h-0', editing && 'outline-dashed outline-1 outline-border-strong rounded-xl', r.card.mobileHeight === undefined && 'max-lg:min-h-[var(--wk-mh,10rem)]')}
-                style={{ gridColumn: `${p.x + 1} / span ${p.w}`, gridRow: `${p.y + 1} / span ${p.h}`, ['--wk-mh' as string]: `${p.h * rowH}px` }}>
+                className={cn(
+                  'relative min-h-0 lg:[grid-column:var(--wk-gc)] lg:[grid-row:var(--wk-gr)]',
+                  editing && 'outline-dashed outline-1 outline-border-strong rounded-xl',
+                  r.card.mobileHeight === undefined && 'max-lg:min-h-[var(--wk-mh,10rem)]',
+                  cell.className,
+                )}
+                style={{
+                  ['--wk-gc' as string]: `${p.x + 1} / span ${p.w}`,
+                  ['--wk-gr' as string]: `${p.y + 1} / span ${p.h}`,
+                  ['--wk-mh' as string]: `${p.h * rowH}px`,
+                  ...cell.style,
+                }}>
                 <PlacementCard
                   title={p.title}
                   template={kind.template}

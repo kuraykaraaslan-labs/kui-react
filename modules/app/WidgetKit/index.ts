@@ -28,6 +28,7 @@ export type { PlacementCardProps } from './PlacementCard';
 export { exportBoard, importBoard, nextFreeRow, BOARD_DOCUMENT_FORMAT, BOARD_DOCUMENT_VERSION, GRID_COLUMNS } from './settings/board';
 export type { BoardDocument, BoardPlacement, ImportResult, ImportRefusal } from './settings/board';
 export { WidgetBoard } from './WidgetBoard';
+export { cardCellResponsive } from './board-cell';
 export type { WidgetBoardProps } from './WidgetBoard';
 export { useLocalSetting } from './useLocalSetting';
 export { useNow } from './useNow';
