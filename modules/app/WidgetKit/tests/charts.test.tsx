@@ -82,6 +82,24 @@ function renderView(view: WidgetKindView, t: SettingsTemplate, data: Record<stri
 }
 
 describe('series chart views', () => {
+  it('the zoom reset button takes the host text (line and area)', () => {
+    for (const [view, t] of [[CHART_LINE_VIEW, CHART_LINE], [CHART_AREA_VIEW, CHART_AREA]] as const) {
+      const View = view.View;
+      const { container, unmount } = render(
+        <WidgetKitProvider value={{ messages: { charts: { resetZoom: 'Yakınlaştırmayı sıfırla' } } }}>
+          <View settings={effective(t, {})} format={{ ...t.formatDefaults }} data={{ series: series(['a']) }} locale="en" />
+        </WidgetKitProvider>,
+      );
+      const svg = container.querySelector('svg[aria-label]')!;
+      fireEvent.mouseDown(svg, { button: 0, clientX: 150, clientY: 100 });
+      fireEvent.mouseMove(svg, { clientX: 350, clientY: 100 });
+      fireEvent.mouseUp(svg, { clientX: 350, clientY: 100 });
+      expect(screen.getByRole('button', { name: 'Yakınlaştırmayı sıfırla' })).toBeInTheDocument();
+      expect(screen.queryByText('Reset zoom')).toBeNull();
+      unmount();
+    }
+  });
+
   it('line: draws one path per series, applies colour / dash / width / step and hides a series until clicked', () => {
     const { container } = renderView(CHART_LINE_VIEW, CHART_LINE, { series: series(['temp', 'hum']) }, {
       curve: 'step',

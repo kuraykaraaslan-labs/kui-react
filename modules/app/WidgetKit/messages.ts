@@ -212,6 +212,8 @@ export interface ChartViewMessages {
   all: string;
   /** The heatmap's value name (a placement's `valueName` wins). */
   value: string;
+  /** The button that leaves a zoomed time range (line and area charts). */
+  resetZoom: string;
 }
 
 export interface ContentViewMessages {
@@ -428,6 +430,7 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     median: (value) => `Median ${value}`,
     all: 'All',
     value: 'Value',
+    resetZoom: 'Reset zoom',
   },
   content: {
     embedEmpty: 'Set a page address in this widget’s settings.',

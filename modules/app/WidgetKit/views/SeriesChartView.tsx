@@ -95,6 +95,7 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
           fillOpacity={FILL[String(s.fill)] ?? 0.2}
           xAxis={timeSeries ? 'time' : 'band'}
           zoom={s.zoom !== false}
+          resetZoomLabel={m.resetZoom}
           timeZone={timeZone}
           locale={locale}
           pointShape={pointShape}
@@ -108,6 +109,7 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
           strokeWidth={lineWidth}
           xAxis={timeSeries ? 'time' : 'band'}
           zoom={s.zoom !== false}
+          resetZoomLabel={m.resetZoom}
           timeZone={timeZone}
           locale={locale}
           pointShape={pointShape}
