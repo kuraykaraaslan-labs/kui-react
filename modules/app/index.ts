@@ -144,6 +144,7 @@ export type {
   WidgetSettingsEditorProps,
   WidgetBoardProps,
   BoardDocument,
+  GridCols,
   SettingsTemplate,
   WidgetKitHost,
   WidgetKitMessages,

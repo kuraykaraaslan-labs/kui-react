@@ -79,6 +79,10 @@ export interface WidgetBoardMessages {
   defaultTitle: string;
   /** The close button of the board's drawers (placement settings, board settings, the picker). */
   closeDrawer: string;
+  /** Board settings: the column count field, each option ("24 columns") and the hint under it. */
+  gridCols: string;
+  gridColsOption: (count: number) => string;
+  gridColsHint: string;
 }
 
 /** WidgetSettingsEditor: tabs, the title field, the mode toggle and its notices. */
@@ -342,6 +346,9 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     newerTemplates: (templates) => `This dashboard uses newer widget settings (${templates}). Update this app to import it.`,
     defaultTitle: 'Dashboard',
     closeDrawer: 'Close drawer',
+    gridCols: 'Grid columns',
+    gridColsOption: (count) => `${count} columns`,
+    gridColsHint: 'Changing it rescales every card so it keeps its share of the width; narrow neighbours may move down a row when going to 12.',
   },
   editor: {
     tabDisplay: 'Display',

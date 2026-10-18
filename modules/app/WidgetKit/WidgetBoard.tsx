@@ -15,8 +15,9 @@ import { effective, readSettings } from './settings/engine';
 import { cssColor } from './settings/style';
 import { resolvePlacement } from './settings/resolve';
 import {
-  GRID_COLUMNS, exportBoard, importBoard, nextFreeRow, type BoardDocument, type BoardPlacement, type ImportRefusal,
+  exportBoard, importBoard, nextFreeRow, type BoardDocument, type BoardPlacement, type ImportRefusal,
 } from './settings/board';
+import { DEFAULT_GRID_COLS, GRID_COL_OPTIONS, normalizeGridCols, scaleLayout, scaleWidth, type GridCols } from './settings/grid';
 import type { BuiltinKindSpec, ControlRequest, SlotData, WidgetKindView } from './kind';
 import type { Sparse } from './settings/types';
 import { SettingIcon, useKitMessages, useWidgetKit } from './WidgetKitContext';
@@ -50,6 +51,11 @@ const toolBtn = cn(
   'inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm text-text-primary',
   'hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
 );
+/** The lg grid of each column count, spelled out in full so Tailwind sees them. */
+const GRID_CLASS: Record<GridCols, string> = {
+  12: 'lg:grid-cols-12',
+  24: 'lg:grid-cols-[repeat(24,minmax(0,1fr))]',
+};
 const BG_SIZE: Record<string, string> = { cover: 'cover', contain: 'contain', fill: '100% 100%', auto: 'auto' };
 
 const safeUrl = (u: unknown) => (typeof u === 'string' && /^(https?:\/\/|\/(?!\/))/i.test(u) && !/["'()\\\s]/.test(u) ? u : undefined);
@@ -60,8 +66,9 @@ const newId = (placements: BoardPlacement[]) => {
 };
 
 /**
- * A whole dashboard: a 12-column grid of `PlacementCard`s laid out by each placement's geometry,
- * styled by the board's own settings (`core:board`). With `onChange` it has an edit mode: add,
+ * A whole dashboard: a grid of `PlacementCard`s laid out by each placement's geometry on the board's
+ * column count (`doc.board.gridCols`, 12 or 24; 12 when absent), styled by the board's own settings
+ * (`core:board`). Changing the column count in the board settings rescales every card's `x`/`w`. With `onChange` it has an edit mode: add,
  * duplicate, remove, move and resize cards, ThingsBoard-depth card and board settings, and JSON
  * export/import of the whole board with every card (owner decision D-21.4). Its texts come from the
  * host's `messages.board`; the widget picker's type texts from its `kindText`.
@@ -84,6 +91,19 @@ export function WidgetBoard({
   const kindOf = (type: string) => kinds.find((k) => k.type === type);
   const update = (placements: BoardPlacement[]) => onChange?.({ ...doc, placements });
   const patch = (id: string, p: Partial<BoardPlacement>) => update(doc.placements.map((x) => (x.id === id ? { ...x, ...p } : x)));
+
+  const cols = normalizeGridCols(doc.board.gridCols);
+  const setGridCols = (next: GridCols) => {
+    if (next === cols) return;
+    // The default is stored as no `gridCols` at all, so a 12-column board exports as version 1.
+    const nextBoard: BoardDocument['board'] = { ...doc.board, gridCols: next };
+    if (next === DEFAULT_GRID_COLS) delete nextBoard.gridCols;
+    onChange?.({
+      ...doc,
+      board: nextBoard,
+      placements: scaleLayout(doc.placements, cols, next),
+    });
+  };
 
   const ordered = [...doc.placements].sort((a, b) => a.y - b.y || a.x - b.x);
   const rowH = typeof board.rowHeight === 'number' ? board.rowHeight : 40;
@@ -160,7 +180,7 @@ export function WidgetBoard({
       {importError && <p role="alert" className="text-sm text-error">{importError}</p>}
 
       <div className="min-h-0 flex-1 rounded-xl" style={surface}>
-        <div className="grid grid-cols-1 lg:grid-cols-12 lg:[grid-auto-rows:var(--wk-row)]" style={gridStyle}>
+        <div className={cn('grid grid-cols-1 lg:[grid-auto-rows:var(--wk-row)]', GRID_CLASS[cols])} data-grid-cols={cols} style={gridStyle}>
           {ordered.map((p) => {
             const kind = kindOf(p.type);
             const view = views[p.type];
@@ -207,7 +227,7 @@ export function WidgetBoard({
                     <button type="button" className={iconBtn} aria-label={m.moveLeft} disabled={p.x === 0} onClick={() => patch(p.id, { x: p.x - 1 })}>
                       <FontAwesomeIcon icon={faArrowLeft} className="h-3 w-3" aria-hidden="true" />
                     </button>
-                    <button type="button" className={iconBtn} aria-label={m.moveRight} disabled={p.x + p.w >= GRID_COLUMNS} onClick={() => patch(p.id, { x: p.x + 1 })}>
+                    <button type="button" className={iconBtn} aria-label={m.moveRight} disabled={p.x + p.w >= cols} onClick={() => patch(p.id, { x: p.x + 1 })}>
                       <FontAwesomeIcon icon={faArrowRight} className="h-3 w-3" aria-hidden="true" />
                     </button>
                     <button type="button" className={iconBtn} aria-label={m.moveUp} disabled={p.y === 0} onClick={() => patch(p.id, { y: p.y - 1 })}>
@@ -239,7 +259,7 @@ export function WidgetBoard({
 
       {sel && selKind && (
         <Drawer open onClose={() => setSelected(null)} closeLabel={m.closeDrawer} title={m.placementSettings(sel.title || selLabel || selKind.label)}>
-          <PlacementSettings placement={sel} kind={selKind} board={board} messages={m} onChange={(p) => patch(sel.id, p)}
+          <PlacementSettings placement={sel} kind={selKind} board={board} cols={cols} messages={m} onChange={(p) => patch(sel.id, p)}
             dataEditor={renderDataEditor?.(sel, (p) => patch(sel.id, p))} />
         </Drawer>
       )}
@@ -253,6 +273,15 @@ export function WidgetBoard({
                 onChange={(e) => onChange?.({ ...doc, board: { ...doc.board, title: e.target.value } })}
                 className="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus" />
             </div>
+            <div>
+              <label htmlFor="wk-board-grid-cols" className="mb-1.5 block text-xs font-medium text-text-secondary">{m.gridCols}</label>
+              <select id="wk-board-grid-cols" value={cols} aria-describedby="wk-board-grid-cols-hint"
+                onChange={(e) => setGridCols(normalizeGridCols(Number(e.target.value)))}
+                className="w-full rounded-md border border-border bg-surface-raised px-3 py-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
+                {GRID_COL_OPTIONS.map((n) => <option key={n} value={n}>{m.gridColsOption(n)}</option>)}
+              </select>
+              <p id="wk-board-grid-cols-hint" className="mt-1 text-xs text-text-secondary">{m.gridColsHint}</p>
+            </div>
             <WidgetSettingsEditor templates={[CORE_BOARD]} settings={doc.board.settings}
               caps={{ hasData: false, exportable: false, formatsNumbers: false }}
               onChange={(settings) => onChange?.({ ...doc, board: { ...doc.board, settings } })} />
@@ -264,7 +293,8 @@ export function WidgetBoard({
         <Drawer open onClose={() => setPicking(false)} closeLabel={m.closeDrawer} title={m.addWidget}>
           <WidgetPicker kinds={shownKinds} messages={m} onPick={(k) => {
             const id = newId(doc.placements);
-            update([...doc.placements, { id, type: k.type, title: k.label, x: 0, y: nextFreeRow(doc.placements), w: k.defaultW, h: k.defaultH, settings: {} }]);
+            // A type's default width is "of 12": the same share of this board's columns.
+            update([...doc.placements, { id, type: k.type, title: k.label, x: 0, y: nextFreeRow(doc.placements), w: scaleWidth(k.defaultW, DEFAULT_GRID_COLS, cols), h: k.defaultH, settings: {} }]);
             setPicking(false);
             setSelected(id);
           }} />
@@ -286,8 +316,8 @@ function importRefusalText(res: ImportRefusal, m: WidgetBoardMessages): string {
   }
 }
 
-function PlacementSettings({ placement, kind, board, messages: m, onChange, dataEditor }: {
-  placement: BoardPlacement; kind: BuiltinKindSpec; board: Sparse; messages: WidgetBoardMessages;
+function PlacementSettings({ placement, kind, board, cols, messages: m, onChange, dataEditor }: {
+  placement: BoardPlacement; kind: BuiltinKindSpec; board: Sparse; cols: GridCols; messages: WidgetBoardMessages;
   onChange: (p: Partial<BoardPlacement>) => void; dataEditor?: ReactNode;
 }) {
   const r = resolvePlacement({ template: kind.template, slotCount: kind.slots.length, settings: placement.settings, board });
@@ -297,7 +327,7 @@ function PlacementSettings({ placement, kind, board, messages: m, onChange, data
       <input type="number" min={min} max={max} value={placement[key]}
         onChange={(e) => {
           const v = Math.min(max, Math.max(min, Math.round(Number(e.target.value) || 0)));
-          onChange(key === 'w' ? { w: v, x: Math.min(placement.x, GRID_COLUMNS - v) } : { [key]: v });
+          onChange(key === 'w' ? { w: v, x: Math.min(placement.x, cols - v) } : { [key]: v });
         }}
         className="rounded-md border border-border bg-surface-raised px-2 py-1.5 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus" />
     </label>
@@ -317,9 +347,9 @@ function PlacementSettings({ placement, kind, board, messages: m, onChange, data
           <fieldset className="rounded-lg border border-border p-3">
             <legend className="px-1 text-xs font-medium uppercase tracking-wide text-text-secondary">{m.positionSize}</legend>
             <div className="grid grid-cols-4 gap-2">
-              {num(m.column, 'x', 0, GRID_COLUMNS - placement.w)}
+              {num(m.column, 'x', 0, cols - placement.w)}
               {num(m.row, 'y', 0, 10000)}
-              {num(m.width, 'w', 1, GRID_COLUMNS)}
+              {num(m.width, 'w', 1, cols)}
               {num(m.height, 'h', 1, 48)}
             </div>
           </fieldset>

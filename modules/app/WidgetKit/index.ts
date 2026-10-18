@@ -27,6 +27,8 @@ export { PlacementCard } from './PlacementCard';
 export type { PlacementCardProps } from './PlacementCard';
 export { exportBoard, importBoard, nextFreeRow, BOARD_DOCUMENT_FORMAT, BOARD_DOCUMENT_VERSION, GRID_COLUMNS } from './settings/board';
 export type { BoardDocument, BoardPlacement, ImportResult, ImportRefusal } from './settings/board';
+export { GRID_COL_OPTIONS, DEFAULT_GRID_COLS, MAX_GRID_COLS, normalizeGridCols, scaleWidth, scaleLayout, resolveOverlaps, fitRect } from './settings/grid';
+export type { GridCols, GridRect } from './settings/grid';
 export { WidgetBoard } from './WidgetBoard';
 export { cardCellResponsive } from './board-cell';
 export type { WidgetBoardProps } from './WidgetBoard';

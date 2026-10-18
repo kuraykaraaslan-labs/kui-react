@@ -15,6 +15,7 @@ settings/packs.ts     field packs: value/label style, colour ranges, legend, axi
 settings/core.ts      core:card, core:format, core:board templates (pure)
 settings/resolve.ts   resolvePlacement (layers), toCsvText (pure)
 settings/board.ts     BoardDocument, exportBoard, importBoard (pure)
+settings/grid.ts      the board's column count (12 | 24): normalizeGridCols, scaleWidth, scaleLayout, resolveOverlaps (pure)
 templates/*.ts        one BuiltinKindSpec + SettingsTemplate per widget type; index.ts = BUILTIN_KINDS (pure)
 views/*.tsx           one view per widget type; index.ts = BUILTIN_VIEWS
 kind.ts               SlotData, SlotSpec, WidgetViewProps, WidgetKindView, BuiltinKindSpec
@@ -41,6 +42,17 @@ localize.ts           localizeTemplate, localizeKind: template and type texts th
 4. No stored code and no raw CSS in settings (the only ThingsBoard features not taken).
 
 See [/AGENTS.md](../../../AGENTS.md).
+
+## Columns
+
+A board lays out on 12 columns, or on 24 when `doc.board.gridCols` is 24 (the same rule as
+next-boilerplate's `gridCols`, phase 21.10). The board settings drawer has the field; a change rescales
+every card's `x` and `w` with `scaleLayout` (12 → 24 is exact; 24 → 12 pushes narrow neighbours that
+land on the same column down a row). A new card's width is its type's `defaultW` (of 12) as the same
+share. `exportBoard` writes `version: 2` and `board.gridCols` only for a 24-column board, so a
+12-column board stays a version 1 file; `importBoard` reads versions up to 2
+(`BOARD_DOCUMENT_VERSION`), clamps each card into the board's own columns and pushes clamped cards
+that collide down.
 
 ## Texts in the host's language
 

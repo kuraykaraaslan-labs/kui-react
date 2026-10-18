@@ -6,10 +6,16 @@ import { CORE_BOARD, CORE_CARD, CORE_FORMAT } from './core';
 import { prepareForSave, readStamp } from './engine';
 import type { Issue, SettingsStamp, SettingsTemplate, Sparse } from './types';
 import type { BuiltinKindSpec } from '../kind';
+import { DEFAULT_GRID_COLS, normalizeGridCols, resolveOverlaps, type GridCols } from './grid';
 
 export const BOARD_DOCUMENT_FORMAT = 'widgetkit.board';
-export const BOARD_DOCUMENT_VERSION = 1;
-export const GRID_COLUMNS = 12;
+/**
+ * The newest document version this code reads and writes. Version 2 adds `board.gridCols`; a board
+ * on the default 12 columns still exports as version 1, so older readers keep importing it.
+ */
+export const BOARD_DOCUMENT_VERSION = 2;
+/** The default column count (a board's own is `board.gridCols`, see `settings/grid.ts`). */
+export const GRID_COLUMNS = DEFAULT_GRID_COLS;
 
 export interface BoardPlacement {
   id: string;
@@ -29,7 +35,13 @@ export interface BoardDocument {
   version: number;
   /** The newest version of each template used inside (lets an importer refuse what it cannot read). */
   templates: SettingsStamp;
-  board: { title: string; description?: string; settings: Sparse };
+  board: {
+    title: string;
+    description?: string;
+    /** The board's column count (version 2); absent = 12. */
+    gridCols?: GridCols;
+    settings: Sparse;
+  };
   placements: BoardPlacement[];
 }
 
@@ -74,6 +86,8 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[], defau
   issues.push(...boardSave.issues.map((i) => ({ ...i, path: `board.settings.${i.path}` })));
   note(CORE_BOARD);
 
+  const cols = normalizeGridCols(boardSrc.gridCols);
+  let clamped = false;
   const placements: BoardPlacement[] = [];
   const seen = new Set<string>();
   const list = Array.isArray(src.placements) ? src.placements : [];
@@ -89,12 +103,14 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[], defau
     let id = typeof raw.id === 'string' && /^[\w-]{1,64}$/.test(raw.id) ? raw.id : `w${i + 1}`;
     while (seen.has(id)) id = `${id}-${i}`;
     seen.add(id);
-    const w = int(raw.w, 1, GRID_COLUMNS, kind.defaultW);
+    const w = int(raw.w, 1, cols, kind.defaultW);
+    const x = int(raw.x, 0, cols - w, 0);
+    if (w !== raw.w || x !== raw.x) clamped = true;
     placements.push({
       id,
       type: kind.type,
       title: typeof raw.title === 'string' ? raw.title.slice(0, 120) : kind.label,
-      x: int(raw.x, 0, GRID_COLUMNS - w, 0),
+      x,
       y: int(raw.y, 0, 10000, 0),
       w,
       h: int(raw.h, 1, 48, kind.defaultH),
@@ -102,6 +118,10 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[], defau
       ...(raw.binding !== undefined ? { binding: raw.binding } : {}),
     });
   });
+
+  // Cards clamped into the grid one by one may land on the same cells: push those down. A layout
+  // that needed no clamping is kept as it is (an editor may hold overlaps on purpose while moving).
+  const laidOut = clamped ? resolveOverlaps(placements) : placements;
 
   const fileStamp = readStamp({ $v: src.templates });
   for (const [id, v] of Object.entries(fileStamp)) {
@@ -113,14 +133,16 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[], defau
   return {
     doc: {
       format: BOARD_DOCUMENT_FORMAT,
-      version: BOARD_DOCUMENT_VERSION,
+      // Version 2 only when the document needs it (24 columns).
+      version: cols === DEFAULT_GRID_COLS ? 1 : 2,
       templates: stamp,
       board: {
         title: typeof boardSrc.title === 'string' && boardSrc.title.trim() ? boardSrc.title.slice(0, 120) : defaultTitle,
         ...(typeof boardSrc.description === 'string' ? { description: boardSrc.description.slice(0, 1000) } : {}),
+        ...(cols !== DEFAULT_GRID_COLS ? { gridCols: cols } : {}),
         settings: boardSave.newer.length ? (boardSrc.settings as Sparse) : boardSave.settings,
       },
-      placements,
+      placements: laidOut,
     },
     issues,
     newer,

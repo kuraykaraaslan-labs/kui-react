@@ -6,6 +6,14 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- WidgetBoard on 12 or 24 columns (next-boilerplate phase 21.10, owner-approved): `BoardDocument.board.gridCols`
+  (absent = 12) sets the grid; the board settings drawer has a "Grid columns" field (`board.gridCols`,
+  `gridColsOption`, `gridColsHint` messages) and a change rescales every card. New pure `settings/grid.ts`
+  (`GRID_COL_OPTIONS`, `DEFAULT_GRID_COLS`, `MAX_GRID_COLS`, `normalizeGridCols`, `scaleWidth`, `fitRect`,
+  `scaleLayout`, `resolveOverlaps`, `GridCols`, `GridRect`), the same rules as next-boilerplate's `grid-cols.ts`.
+  `exportBoard` writes `version: 2` only for a 24-column board; `importBoard` accepts versions up to 2
+  (`BOARD_DOCUMENT_VERSION` is now 2) and clamps geometry to the board's own columns. `GRID_COLUMNS` stays 12
+  (the default). The IoT theme dashboard keeps the column count in its saved board.
 - Label props for texts the primitives drew in English only: `tooltipTotalLabel` on BarChart, LineChart and
   AreaChart (default `'Total'`, the stacked tooltip's total row), `closeLabel` on Modal and Drawer (defaults
   `'Close dialog'` and `'Close drawer'`). kui-ejs takes the same locals.

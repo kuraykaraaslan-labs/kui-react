@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { exportBoard, importBoard, nextFreeRow, type BoardDocument } from '../settings/board';
+import { BOARD_DOCUMENT_VERSION, exportBoard, importBoard, nextFreeRow, type BoardDocument } from '../settings/board';
 import { toCsvText, resolvePlacement } from '../settings/resolve';
 import { STAT_VALUE_KIND } from '../templates/stat-value';
 
@@ -65,6 +65,52 @@ describe('board document (D-21.4: the dashboard carries every card)', () => {
   });
 
   it('places a new card under the others', () => expect(nextFreeRow(doc.placements)).toBe(2));
+});
+
+describe('board document columns (12 or 24)', () => {
+  const wide: BoardDocument = {
+    ...doc,
+    board: { ...doc.board, gridCols: 24 },
+    placements: [{ ...doc.placements[0], x: 18, w: 6 }],
+  };
+
+  it('a 12-column board stays version 1 with no gridCols; a 24-column board exports as version 2', () => {
+    const twelve = exportBoard(doc, kinds);
+    expect(twelve.version).toBe(1);
+    expect(twelve.board).not.toHaveProperty('gridCols');
+    const out = exportBoard(wide, kinds);
+    expect(out.version).toBe(2);
+    expect(out.board.gridCols).toBe(24);
+    expect(out.placements[0]).toMatchObject({ x: 18, w: 6 });
+    expect(BOARD_DOCUMENT_VERSION).toBe(2);
+  });
+
+  it('imports version 2 back identically and still refuses anything newer', () => {
+    const out = exportBoard(wide, kinds);
+    const back = importBoard(JSON.stringify(out), kinds);
+    if ('error' in back) throw new Error(back.error);
+    expect(back.doc).toEqual(out);
+    expect(importBoard(JSON.stringify({ ...out, version: 3 }), kinds)).toMatchObject({ code: 'newer-format', detail: '3' });
+  });
+
+  it('an unknown column count is 12, and geometry is clamped to the board\'s own columns', () => {
+    const odd = importBoard(JSON.stringify({ ...wide, board: { ...wide.board, gridCols: 16 } }), kinds);
+    if ('error' in odd) throw new Error(odd.error);
+    expect(odd.doc.version).toBe(1);
+    expect(odd.doc.board).not.toHaveProperty('gridCols');
+    expect(odd.doc.placements[0]).toMatchObject({ x: 6, w: 6 });
+  });
+
+  it('cards clamped onto the same cells are pushed down; an unclamped layout keeps its overlaps', () => {
+    const p = doc.placements[0];
+    const clash = { ...doc, placements: [{ ...p, id: 'a', x: 6, w: 6 }, { ...p, id: 'b', x: 20, w: 6 }] };
+    const res = importBoard(JSON.stringify(clash), kinds);
+    if ('error' in res) throw new Error(res.error);
+    expect(res.doc.placements.map(({ id, x, y }) => ({ id, x, y }))).toEqual([{ id: 'a', x: 6, y: 0 }, { id: 'b', x: 6, y: 2 }]);
+    const stacked = { ...doc, placements: [{ ...p, id: 'a' }, { ...p, id: 'b' }] };
+    const kept = exportBoard(stacked, kinds);
+    expect(kept.placements.map((x) => x.y)).toEqual([0, 0]);
+  });
 });
 
 describe('resolvePlacement', () => {

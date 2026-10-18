@@ -113,3 +113,77 @@ describe('WidgetBoard texts', () => {
     expect(onChange.mock.calls[0][0].placements[0]).toMatchObject({ type: 'stat.value', title: 'Sayı' });
   });
 });
+
+describe('WidgetBoard columns (12 or 24)', () => {
+  const card = (id: string, x: number, w: number) => ({ id, type: 'stat.value', title: id.toUpperCase(), x, y: 0, w, h: 2, settings: {} });
+  const grid = () => document.querySelector('[data-grid-cols]') as HTMLElement;
+  const openBoardSettings = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dashboard settings' }));
+  };
+
+  it('lays out on 12 columns by default and on 24 when the board says so', () => {
+    const { rerender } = render(<WidgetBoard doc={doc([card('a', 0, 3)])} kinds={kinds} views={views} />);
+    expect(grid().dataset.gridCols).toBe('12');
+    expect(grid().className).toContain('lg:grid-cols-12');
+    const wide = doc([card('a', 18, 6)]);
+    rerender(<WidgetBoard doc={{ ...wide, board: { ...wide.board, gridCols: 24 } }} kinds={kinds} views={views} />);
+    expect(grid().dataset.gridCols).toBe('24');
+    expect(grid().className).toContain('lg:grid-cols-[repeat(24,minmax(0,1fr))]');
+    expect(grid().className).not.toContain('lg:grid-cols-12');
+    expect(cellOf('a').style.getPropertyValue('--wk-gc')).toBe('19 / span 6');
+  });
+
+  it('the right-move button stops at the board\'s own right edge', () => {
+    const wide = doc([card('a', 9, 3)]);
+    render(<WidgetBoard doc={{ ...wide, board: { ...wide.board, gridCols: 24 } }} onChange={() => {}} kinds={kinds} views={views} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    expect(screen.getByRole('button', { name: 'Move right' })).toBeEnabled();
+  });
+
+  it('changing the column count in the board settings rescales every card', () => {
+    const onChange = vi.fn();
+    render(<WidgetBoard doc={doc([card('a', 0, 3), card('b', 3, 9)])} onChange={onChange} kinds={kinds} views={views} />);
+    openBoardSettings();
+    const select = screen.getByLabelText('Grid columns') as HTMLSelectElement;
+    expect(select.value).toBe('12');
+    expect([...select.options].map((o) => o.text)).toEqual(['12 columns', '24 columns']);
+    fireEvent.change(select, { target: { value: '24' } });
+    const next = onChange.mock.calls[0][0] as BoardDocument;
+    expect(next.board.gridCols).toBe(24);
+    expect(next.placements.map(({ x, w }) => ({ x, w }))).toEqual([{ x: 0, w: 6 }, { x: 6, w: 18 }]);
+  });
+
+  it('going back to 12 drops gridCols (the board exports as version 1)', () => {
+    const onChange = vi.fn();
+    const wide = doc([card('a', 0, 6)]);
+    render(<WidgetBoard doc={{ ...wide, board: { ...wide.board, gridCols: 24 } }} onChange={onChange} kinds={kinds} views={views} />);
+    openBoardSettings();
+    fireEvent.change(screen.getByLabelText('Grid columns'), { target: { value: '12' } });
+    const next = onChange.mock.calls[0][0] as BoardDocument;
+    expect(next.board).not.toHaveProperty('gridCols');
+    expect(next.placements[0]).toMatchObject({ x: 0, w: 3 });
+  });
+
+  it('a new card on 24 columns takes its type\'s default width as the same share', () => {
+    const onChange = vi.fn();
+    const wide = doc([]);
+    render(<WidgetBoard doc={{ ...wide, board: { ...wide.board, gridCols: 24 } }} onChange={onChange} kinds={kinds} views={views} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add widget' }));
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(STAT_VALUE_KIND.label) }));
+    expect(onChange.mock.calls[0][0].placements[0].w).toBe(STAT_VALUE_KIND.defaultW * 2);
+  });
+
+  it('the column field is translated through messages.board', () => {
+    render(
+      <WidgetKitProvider value={{ messages: { board: { edit: 'Düzenle', settings: 'Pano ayarları', gridCols: 'Izgara sütunları', gridColsOption: (n) => `${n} sütun` } } }}>
+        <WidgetBoard doc={doc([])} onChange={() => {}} kinds={kinds} views={views} />
+      </WidgetKitProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Düzenle' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pano ayarları' }));
+    const select = screen.getByLabelText('Izgara sütunları') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.text)).toEqual(['12 sütun', '24 sütun']);
+  });
+});
