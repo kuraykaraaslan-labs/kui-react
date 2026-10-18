@@ -118,3 +118,9 @@ export { BulkActionTable } from './BulkActionTable';
 export type { BulkActionTableProps, BulkAction } from './BulkActionTable';
 export { Timeline } from './Timeline';
 export type { TimelineProps, TimelineItem } from './Timeline';
+
+// Observability components (virtualised lists, trace and service views)
+export { TraceWaterfall, DEFAULT_TRACE_WATERFALL_MESSAGES, buildTraceTree, criticalPathIds, rulerTicks } from './TraceWaterfall';
+export type { TraceWaterfallProps, TraceWaterfallMessages, TraceSpan, TraceSpanInfo, SpanStatus } from './TraceWaterfall';
+export { LogViewer, useLogStream, DEFAULT_LOG_VIEWER_MESSAGES } from './LogViewer';
+export type { LogViewerProps, LogViewerMessages, LogLine, LogSeverity, LogFieldValue, LogStream, UseLogStreamOptions } from './LogViewer';
