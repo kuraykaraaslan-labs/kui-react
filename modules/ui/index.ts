@@ -130,3 +130,7 @@ export { CitationChip, EvidenceList, CitedText, evidenceDomId, DEFAULT_EVIDENCE_
 export type { CitationChipProps, EvidenceListProps, CitedTextProps, EvidenceItem, EvidenceKind, DroppedClaim, EvidenceMessages } from './Evidence';
 export { DayBarChart, dayStatus, meanAvailability, statusCounts, fillDays, DEFAULT_DAY_THRESHOLDS, DEFAULT_DAY_BAR_CHART_MESSAGES } from './DayBarChart';
 export type { DayBarChartProps, DayBarChartMessages, DayBar, DayIncident, DayStatus, DayThresholds, DayIncidentSeverity } from './DayBarChart';
+export { AiHumanDraftEditor, DEFAULT_AI_HUMAN_DRAFT_EDITOR_MESSAGES, buildSegments, applySegments } from './AiHumanDraftEditor';
+export type { AiHumanDraftEditorProps, AiHumanDraftEditorMessages, Hunk, Segment } from './AiHumanDraftEditor';
+export { ConversationTimeline, DEFAULT_CONVERSATION_TIMELINE_MESSAGES, computeTotals, formatCost } from './ConversationTimeline';
+export type { ConversationTimelineProps, ConversationTimelineMessages, ConversationStep, StepType, StepStatus, StepTokens, Totals } from './ConversationTimeline';
