@@ -6,6 +6,14 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- Label props for texts the primitives drew in English only: `tooltipTotalLabel` on BarChart, LineChart and
+  AreaChart (default `'Total'`, the stacked tooltip's total row), `closeLabel` on Modal and Drawer (defaults
+  `'Close dialog'` and `'Close drawer'`). kui-ejs takes the same locals.
+- WidgetKit: `charts.total` also names the stacked tooltip's total row, `card.closeFullscreen` and
+  `board.closeDrawer` the close buttons of the full-screen Modal and the board's Drawers. Settings issues carry
+  an optional `code` and `params` (`IssueCode`, `IssueParams`) next to the English `message`; the new `issues`
+  message group words each code and `WidgetSettingsEditor` shows an issue through `issueText` (exported) with
+  the field's label as shown.
 - WidgetKit texts in the host's language (next-boilerplate owner decision 2026-10-17 #6):
   - `WidgetKitHost.messages`: every text the kit draws itself, by group (`card`, `board`, `editor`, `form`,
     `controls`, `table`, `feed`, `map`, `viewer`, `charts`, `content`, `stat`, `common`); the rest stays English.
