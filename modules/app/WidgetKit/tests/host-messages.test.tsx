@@ -167,6 +167,23 @@ describe('WidgetSettingsEditor texts', () => {
     expect(edit(host({ templateText: TR_TEXT }))).toBe(edit({}));
   });
 
+  it('shows an issue with a code in the host words and the label as shown; one without keeps its message', () => {
+    const issues = [
+      { path: 'mode', message: 'Mode is required', code: 'required' as const, params: { label: 'Mode' } },
+      { path: 'items.0.name', message: 'Name: at most 2 characters', code: 'maxLength' as const, params: { label: 'Name', max: 2 } },
+      { path: 'heading', message: 'Host rule text' },
+    ];
+    inKit(<WidgetSettingsEditor templates={[DEMO]} settings={{ items: [{ name: 'abc' }] }} onChange={() => {}} caps={caps} issues={issues} />,
+      host({
+        templateText: TR_TEXT,
+        messages: { ...TR, issues: { required: (l) => `${l} gerekli`, maxLength: (l, p) => `${l}: en çok ${p.max} karakter` } },
+      }));
+    expect(screen.getByText('Kip gerekli')).toBeInTheDocument();
+    expect(screen.getByText('Ad: en çok 2 karakter')).toBeInTheDocument();
+    expect(screen.getByText('Host rule text')).toBeInTheDocument();
+    expect(screen.queryByText('Mode is required')).toBeNull();
+  });
+
   it('a new templateText function re-localizes (a language switch)', () => {
     const view = (fn: TemplateTextFn) => <WidgetKitProvider value={{ templateText: fn }}>
       <WidgetSettingsEditor templates={[DEMO]} settings={{}} onChange={() => {}} caps={caps} />

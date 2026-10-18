@@ -9,7 +9,7 @@ import { effective, prune, readSettings, templateDefaults, visibleGroups, writeN
 import type { EditorTab, Issue, SettingsTemplate, Sparse, TemplateId, WidgetCaps } from './settings/types';
 import { useKitMessages, useWidgetKit } from './WidgetKitContext';
 import { localizeTemplate } from './localize';
-import type { WidgetEditorMessages } from './messages';
+import { issueText, type WidgetEditorMessages } from './messages';
 import { useLocalSetting } from './useLocalSetting';
 
 const MODE_KEY = 'kui.widgetSettings.mode';
@@ -35,9 +35,22 @@ export interface WidgetSettingsEditorProps {
   onTitleChange?: (title: string) => void;
   /** Host-owned tab content (data binding, actions…), shown before the template groups of that tab. */
   extraTabs?: Partial<Record<EditorTab, ReactNode>>;
-  /** Messages from the server, by dotted path ('$card.padding', 'ranges.1.color'). */
+  /**
+   * Messages from the server, by dotted path ('$card.padding', 'ranges.1.color'). One with a `code`
+   * is shown in the host's language (`messages.issues`), with the field's label as shown; one
+   * without keeps its `message`.
+   */
   issues?: Issue[];
   className?: string;
+}
+
+/** The label (as shown) of the field an issue path names: a field, or a repeater item's field (`links.0.href`). */
+function fieldLabelAt(t: SettingsTemplate, parts: string[]): string | undefined {
+  const own = (o: object | undefined, k: string | undefined) => (o && k !== undefined && Object.prototype.hasOwnProperty.call(o, k) ? (o as Record<string, FieldSchema>)[k] : undefined);
+  const field = own(t.fields, parts[0]);
+  if (!field) return undefined;
+  if (parts.length >= 3) return own(field.fields, parts[2])?.label;
+  return field.label;
 }
 
 /**
@@ -80,7 +93,11 @@ export function WidgetSettingsEditor({
     const values = effective(t, layers[t.id], read.parts[t.id]);
     const prefix = t.namespace ? `${t.namespace}.` : '';
     const errors: Record<string, string> = {};
-    for (const i of issues) if (i.path.startsWith(prefix)) errors[i.path.slice(prefix.length).split('.')[0]] ??= i.message;
+    for (const i of issues) {
+      if (!i.path.startsWith(prefix)) continue;
+      const parts = i.path.slice(prefix.length).split('.');
+      errors[parts[0]] ??= issueText(i, msgs.issues, fieldLabelAt(t, parts));
+    }
 
     for (const tab of TAB_ORDER) {
       const schema: Record<string, FieldSchema> = {};

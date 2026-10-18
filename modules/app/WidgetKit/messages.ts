@@ -13,6 +13,7 @@
 // card's "No data" text, a control's feedback texts, a state's "Unknown" label …), explicit props.
 
 import { DEFAULT_SCHEMA_FORM_MESSAGES, mergeSchemaFormMessages, type SchemaFormMessages } from '../SchemaForm/messages';
+import type { Issue, IssueCode, IssueParams } from './settings/types';
 
 export type { SchemaFormMessages };
 
@@ -258,6 +259,13 @@ export interface StatViewMessages {
   progress: (value: string, target: string | null, percent: string | null) => string;
 }
 
+/**
+ * A settings issue's text by its `code` (the engine's field checks, the kit's cross-field rules),
+ * shown by WidgetSettingsEditor under the field. `label` is the field's label as the editor shows it
+ * (the template's own when the field is not found); the English defaults are the issues' `message`s.
+ */
+export type IssueMessages = { [C in IssueCode]: (label: string, params: IssueParams) => string };
+
 /** Texts more than one view draws. */
 export interface CommonMessages {
   yes: string;
@@ -277,6 +285,7 @@ export interface WidgetKitMessages {
   charts: ChartViewMessages;
   content: ContentViewMessages;
   stat: StatViewMessages;
+  issues: IssueMessages;
   common: CommonMessages;
 }
 
@@ -464,8 +473,51 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     of: (target) => `of ${target}`,
     progress: (value, target, percent) => `${value}${target !== null ? ` of ${target}` : ''}${percent ? `, ${percent}` : ''}`,
   },
+  issues: {
+    boolean: (label) => `${label}: must be on or off`,
+    number: (label) => `${label}: must be a number`,
+    min: (label, p) => `${label}: must be at least ${p.min}`,
+    max: (label, p) => `${label}: must be at most ${p.max}`,
+    option: (label) => `${label}: must be one of the options`,
+    notOption: (label) => `${label}: is not one of the options`,
+    optionList: (label) => `${label}: must be a list of options`,
+    unknownOption: (label, p) => `${label}: "${p.option}" is not one of the options`,
+    color: (label) => `${label}: is not a colour (use #hex, rgb(), hsl() or a theme colour)`,
+    icon: (label) => `${label}: is not an icon name`,
+    dataKeys: (label) => `${label}: must be a list of data keys`,
+    maxKeys: (label, p) => `${label}: at most ${p.max} keys`,
+    dataKey: (label) => `${label}: is not a data key`,
+    font: (label) => `${label}: is not a font`,
+    list: (label) => `${label}: must be a list`,
+    maxItems: (label, p) => `${label}: at most ${p.max} items`,
+    text: (label) => `${label}: must be text`,
+    maxLength: (label, p) => `${label}: at most ${p.max} characters`,
+    url: (label) => `${label}: must be an https/http address or an internal path`,
+    required: (label) => `${label} is required`,
+    minBelowMax: () => 'Maximum must be greater than minimum',
+    linkTarget: (label) => `${label} must be an internal path (/…) or an https, http or mailto address`,
+    imageSrc: () => 'The image must be an internal path (/…) or an https or http address',
+    embedUrl: () => 'Only a public https address can be embedded (no private hosts, ports or credentials)',
+    rowLinkTarget: () => 'Target must be an internal path (/…) or an https, http or mailto address',
+    modelUrl: () => 'A model must be an internal path (/…) or an https address',
+    positiveStep: () => 'Step must be greater than 0',
+  },
   common: { yes: 'Yes', no: 'No' },
 };
+
+/**
+ * An issue's text in the host's language: its `code`'s message with `label` (the field's label as
+ * shown; the issue's own `params.label` without one). An issue without a known code (a host's own
+ * rule, an older server) keeps its `message`.
+ */
+export function issueText(issue: Issue, m: IssueMessages, label?: string): string {
+  const code = issue.code;
+  if (!code || !Object.prototype.hasOwnProperty.call(m, code)) return issue.message;
+  const fn = m[code];
+  if (typeof fn !== 'function') return issue.message;
+  const params = issue.params && typeof issue.params === 'object' ? issue.params : {};
+  return fn(label ?? (typeof params.label === 'string' ? params.label : ''), params);
+}
 
 /**
  * The defaults with the host's texts over them, group by group (a shallow merge per group). An

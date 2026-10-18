@@ -135,5 +135,5 @@ export const disableWhenField = (group = 'safety'): F => ({
 /** `min < max` when both are set. */
 export const minBelowMax = (minKey: string, maxKey: string) => (v: Record<string, unknown>) =>
   typeof v[minKey] === 'number' && typeof v[maxKey] === 'number' && (v[minKey] as number) >= (v[maxKey] as number)
-    ? [{ path: maxKey, message: 'Maximum must be greater than minimum' }]
+    ? [{ path: maxKey, message: 'Maximum must be greater than minimum', code: 'minBelowMax' as const }]
     : [];

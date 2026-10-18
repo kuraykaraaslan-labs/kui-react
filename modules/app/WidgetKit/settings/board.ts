@@ -71,7 +71,7 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[], defau
 
   const boardSave = prepareForSave(isObj(boardSrc.settings) ? boardSrc.settings : {}, { type: CORE_BOARD });
   newer.push(...boardSave.newer);
-  issues.push(...boardSave.issues.map((i) => ({ path: `board.settings.${i.path}`, message: i.message })));
+  issues.push(...boardSave.issues.map((i) => ({ ...i, path: `board.settings.${i.path}` })));
   note(CORE_BOARD);
 
   const placements: BoardPlacement[] = [];
@@ -84,7 +84,7 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[], defau
     const set = { type: kind.template, card: CORE_CARD, format: kind.template.format ? CORE_FORMAT : undefined };
     const saved = prepareForSave(isObj(raw.settings) ? raw.settings : {}, set);
     newer.push(...saved.newer);
-    issues.push(...saved.issues.map((x) => ({ path: `placements.${i}.${x.path}`, message: x.message })));
+    issues.push(...saved.issues.map((x) => ({ ...x, path: `placements.${i}.${x.path}` })));
     note(kind.template); note(CORE_CARD); if (set.format) note(CORE_FORMAT);
     let id = typeof raw.id === 'string' && /^[\w-]{1,64}$/.test(raw.id) ? raw.id : `w${i + 1}`;
     while (seen.has(id)) id = `${id}-${i}`;

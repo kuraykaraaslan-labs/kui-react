@@ -11,7 +11,7 @@
 import { isColor } from './style';
 import { shouldShow, type FieldSchema } from '../../SchemaForm/types';
 import type {
-  Issue, MigrationOp, SettingsStamp, SettingsTemplate, Sparse, TemplateId, WidgetCaps,
+  Issue, IssueCode, IssueParams, MigrationOp, SettingsStamp, SettingsTemplate, Sparse, TemplateId, WidgetCaps,
 } from './types';
 
 export const STAMP_KEY = '$v';
@@ -164,44 +164,47 @@ const optionValues = (f: FieldSchema) =>
 /** One value against one field. Returns the cleaned value, or `undefined` to drop it, plus issues. */
 function checkField(field: FieldSchema, value: unknown, path: string, issues: Issue[]): unknown {
   if (value === undefined || value === null) return undefined;
-  const bad = (message: string) => { issues.push({ path, message: `${field.label}: ${message}` }); return undefined; };
+  const bad = (code: IssueCode, message: string, params: Omit<IssueParams, 'label'> = {}) => {
+    issues.push({ path, message: `${field.label}: ${message}`, code, params: { label: field.label, ...params } });
+    return undefined;
+  };
   switch (field.type) {
     case 'boolean':
-      return typeof value === 'boolean' ? value : bad('must be on or off');
+      return typeof value === 'boolean' ? value : bad('boolean', 'must be on or off');
     case 'number': {
-      if (typeof value !== 'number' || !Number.isFinite(value)) return bad('must be a number');
-      if (field.min !== undefined && value < field.min) return bad(`must be at least ${field.min}`);
-      if (field.max !== undefined && value > field.max) return bad(`must be at most ${field.max}`);
+      if (typeof value !== 'number' || !Number.isFinite(value)) return bad('number', 'must be a number');
+      if (field.min !== undefined && value < field.min) return bad('min', `must be at least ${field.min}`, { min: field.min });
+      if (field.max !== undefined && value > field.max) return bad('max', `must be at most ${field.max}`, { max: field.max });
       return value;
     }
     case 'select': {
-      if (typeof value !== 'string') return bad('must be one of the options');
+      if (typeof value !== 'string') return bad('option', 'must be one of the options');
       const allowed = optionValues(field);
       if (value === '' && !field.required) return undefined;
-      return allowed.length && !allowed.includes(value) ? bad('is not one of the options') : value;
+      return allowed.length && !allowed.includes(value) ? bad('notOption', 'is not one of the options') : value;
     }
     case 'multi-select': {
-      if (!Array.isArray(value) || value.some((x) => typeof x !== 'string')) return bad('must be a list of options');
+      if (!Array.isArray(value) || value.some((x) => typeof x !== 'string')) return bad('optionList', 'must be a list of options');
       const allowed = optionValues(field);
       const unknownOpt = allowed.length ? (value as string[]).find((x) => !allowed.includes(x)) : undefined;
-      return unknownOpt !== undefined ? bad(`"${unknownOpt}" is not one of the options`) : [...new Set(value as string[])];
+      return unknownOpt !== undefined ? bad('unknownOption', `"${unknownOpt}" is not one of the options`, { option: unknownOpt }) : [...new Set(value as string[])];
     }
     case 'color':
     case 'color-token':
       if (value === '') return undefined;
-      return isColor(value) ? (value as string).trim() : bad('is not a colour (use #hex, rgb(), hsl() or a theme colour)');
+      return isColor(value) ? (value as string).trim() : bad('color', 'is not a colour (use #hex, rgb(), hsl() or a theme colour)');
     case 'icon':
       if (value === '') return undefined;
-      return typeof value === 'string' && ICON_RE.test(value) ? value : bad('is not an icon name');
+      return typeof value === 'string' && ICON_RE.test(value) ? value : bad('icon', 'is not an icon name');
     case 'data-key':
       if (field.multiple) {
-        if (!Array.isArray(value) || value.some((x) => typeof x !== 'string' || !KEY_RE.test(x))) return bad('must be a list of data keys');
-        return field.max !== undefined && value.length > field.max ? bad(`at most ${field.max} keys`) : value;
+        if (!Array.isArray(value) || value.some((x) => typeof x !== 'string' || !KEY_RE.test(x))) return bad('dataKeys', 'must be a list of data keys');
+        return field.max !== undefined && value.length > field.max ? bad('maxKeys', `at most ${field.max} keys`, { max: field.max }) : value;
       }
       if (value === '') return undefined;
-      return typeof value === 'string' && (KEY_RE.test(value) || value === '*') ? value : bad('is not a data key');
+      return typeof value === 'string' && (KEY_RE.test(value) || value === '*') ? value : bad('dataKey', 'is not a data key');
     case 'font': {
-      if (!isObj(value)) return bad('is not a font');
+      if (!isObj(value)) return bad('font', 'is not a font');
       const out: Sparse = {};
       const { size, unit, weight, style, family, lineHeight } = value;
       if (typeof size === 'number' && size >= 1 && size <= 400) out.size = size;
@@ -213,9 +216,9 @@ function checkField(field: FieldSchema, value: unknown, path: string, issues: Is
       return Object.keys(out).length ? out : undefined;
     }
     case 'repeater': {
-      if (!Array.isArray(value)) return bad('must be a list');
+      if (!Array.isArray(value)) return bad('list', 'must be a list');
       const cap = field.max ?? 50;
-      if (value.length > cap) return bad(`at most ${cap} items`);
+      if (value.length > cap) return bad('maxItems', `at most ${cap} items`, { max: cap });
       const sub = field.fields ?? {};
       return value.map((item, i) => {
         const row: Sparse = {};
@@ -224,7 +227,7 @@ function checkField(field: FieldSchema, value: unknown, path: string, issues: Is
           const v = checkField(f, src[k] === '' && f.type !== 'text' && f.type !== 'textarea' ? undefined : src[k], `${path}.${i}.${k}`, issues);
           if (v !== undefined) row[k] = v;
           // Items are sparse like the rest: a required field with a default may be left out.
-          else if (f.required && f.value === undefined) issues.push({ path: `${path}.${i}.${k}`, message: `${f.label} is required` });
+          else if (f.required && f.value === undefined) issues.push({ path: `${path}.${i}.${k}`, message: `${f.label} is required`, code: 'required', params: { label: f.label } });
         }
         return row;
       });
@@ -236,10 +239,10 @@ function checkField(field: FieldSchema, value: unknown, path: string, issues: Is
       return value;
     default: {
       // text, textarea, url, rich-text, img, date, datetime, symbol, remote-select
-      if (typeof value !== 'string') return bad('must be text');
+      if (typeof value !== 'string') return bad('text', 'must be text');
       const cap = field.maxLength ?? (field.type === 'textarea' || field.type === 'rich-text' ? 20000 : 500);
-      if (value.length > cap) return bad(`at most ${cap} characters`);
-      if (field.type === 'url' && value && !/^(https?:\/\/|\/(?!\/))/i.test(value)) return bad('must be an https/http address or an internal path');
+      if (value.length > cap) return bad('maxLength', `at most ${cap} characters`, { max: cap });
+      if (field.type === 'url' && value && !/^(https?:\/\/|\/(?!\/))/i.test(value)) return bad('url', 'must be an https/http address or an internal path');
       return value;
     }
   }
@@ -265,7 +268,7 @@ export function validate(template: SettingsTemplate, values: Sparse): ValidateRe
     if (v !== undefined) out[k] = v;
   }
   for (const rule of template.rules ?? []) {
-    for (const issue of rule(out)) issues.push({ path: `${prefix}${issue.path}`, message: issue.message });
+    for (const issue of rule(out)) issues.push({ ...issue, path: `${prefix}${issue.path}` });
   }
   return { values: out, issues };
 }
@@ -277,7 +280,7 @@ export function missingRequired(template: SettingsTemplate, effectiveValues: Spa
     if (!f.required || !shouldShow(f, effectiveValues)) continue;
     const v = effectiveValues[k];
     if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)) {
-      issues.push({ path: `${template.namespace ? `${template.namespace}.` : ''}${k}`, message: `${f.label} is required` });
+      issues.push({ path: `${template.namespace ? `${template.namespace}.` : ''}${k}`, message: `${f.label} is required`, code: 'required', params: { label: f.label } });
     }
   }
   return issues;

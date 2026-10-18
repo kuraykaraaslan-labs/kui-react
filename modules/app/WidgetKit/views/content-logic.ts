@@ -7,6 +7,8 @@
 // is shown as text, never executed); URLs pass an allow-list of schemes; the embed URL also refuses
 // private hosts.
 
+import type { IssueCode, IssueParams } from '../settings/types';
+
 // ── URLs ───────────────────────────────────────────────────────────────────
 
 export interface SafeLink { href: string; external: boolean }
@@ -206,36 +208,39 @@ export function toQuickLinks(raw: unknown, max = 24): QuickLink[] {
 }
 
 // ── Template rules ─────────────────────────────────────────────────────────
+// Each issue carries a `code` (and the field's `label` when the text names it): the message stays
+// English for logs and API callers, and a host shows the code in its language (`messages.issues`).
 
-type Rule = (v: Record<string, unknown>) => Array<{ path: string; message: string }>;
+type RuleIssue = { path: string; message: string; code: IssueCode; params?: IssueParams };
+type Rule = (v: Record<string, unknown>) => RuleIssue[];
 
 /** Save-time: a link field must be an internal path, https, http or mailto. */
 export const safeLinkRule = (key: string, label: string): Rule => (v) =>
   typeof v[key] === 'string' && v[key] !== '' && !resolveLink(v[key])
-    ? [{ path: key, message: `${label} must be an internal path (/…) or an https, http or mailto address` }]
+    ? [{ path: key, message: `${label} must be an internal path (/…) or an https, http or mailto address`, code: 'linkTarget', params: { label } }]
     : [];
 
 /** Save-time: an image address must be an internal path, https or http. */
 export const safeImageRule = (key: string): Rule => (v) =>
   typeof v[key] === 'string' && v[key] !== '' && !resolveImageSrc(v[key])
-    ? [{ path: key, message: 'The image must be an internal path (/…) or an https or http address' }]
+    ? [{ path: key, message: 'The image must be an internal path (/…) or an https or http address', code: 'imageSrc' }]
     : [];
 
 /** Save-time: an embed address must pass the embed gate. */
 export const safeEmbedRule = (key: string): Rule => (v) => {
   if (typeof v[key] !== 'string' || v[key] === '') return [];
   const r = resolveEmbedUrl(v[key]);
-  return r.ok ? [] : [{ path: key, message: 'Only a public https address can be embedded (no private hosts, ports or credentials)' }];
+  return r.ok ? [] : [{ path: key, message: 'Only a public https address can be embedded (no private hosts, ports or credentials)', code: 'embedUrl' }];
 };
 
 /** Save-time: every repeater row's target must be a safe link. */
 export const safeRowLinksRule = (key: string, field: string): Rule => (v) => {
   const rows = Array.isArray(v[key]) ? (v[key] as Array<Record<string, unknown>>) : [];
-  const out: Array<{ path: string; message: string }> = [];
+  const out: RuleIssue[] = [];
   rows.forEach((row, i) => {
     const target = row && typeof row === 'object' ? row[field] : undefined;
     if (typeof target === 'string' && target !== '' && !resolveLink(target)) {
-      out.push({ path: `${key}.${i}.${field}`, message: 'Target must be an internal path (/…) or an https, http or mailto address' });
+      out.push({ path: `${key}.${i}.${field}`, message: 'Target must be an internal path (/…) or an https, http or mailto address', code: 'rowLinkTarget' });
     }
   });
   return out;
@@ -255,11 +260,11 @@ export function resolveModelUrl(raw: unknown): string | null {
 /** Save-time: every model row's address must be an internal path or https. */
 export const safeModelUrlsRule = (key: string, field = 'url'): Rule => (v) => {
   const rows = Array.isArray(v[key]) ? (v[key] as Array<Record<string, unknown>>) : [];
-  const out: Array<{ path: string; message: string }> = [];
+  const out: RuleIssue[] = [];
   rows.forEach((row, i) => {
     const url = row && typeof row === 'object' ? row[field] : undefined;
     if (typeof url === 'string' && url !== '' && !resolveModelUrl(url)) {
-      out.push({ path: `${key}.${i}.${field}`, message: 'A model must be an internal path (/…) or an https address' });
+      out.push({ path: `${key}.${i}.${field}`, message: 'A model must be an internal path (/…) or an https address', code: 'modelUrl' });
     }
   });
   return out;
@@ -267,4 +272,4 @@ export const safeModelUrlsRule = (key: string, field = 'url'): Rule => (v) => {
 
 /** Save-time: a positive step. */
 export const positiveStep = (key: string): Rule => (v) =>
-  typeof v[key] === 'number' && (v[key] as number) <= 0 ? [{ path: key, message: 'Step must be greater than 0' }] : [];
+  typeof v[key] === 'number' && (v[key] as number) <= 0 ? [{ path: key, message: 'Step must be greater than 0', code: 'positiveStep' }] : [];

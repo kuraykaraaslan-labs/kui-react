@@ -46,7 +46,7 @@ See [/AGENTS.md](../../../AGENTS.md).
 
 Every text the kit draws itself (the card chrome, the board, the settings editor and its form, the
 controls, every view) comes from `messages.ts`, by group: `card`, `board`, `editor`, `form`, `controls`,
-`table`, `feed`, `map`, `viewer`, `charts`, `content`, `stat`, `common`. A host passes any of them:
+`table`, `feed`, `map`, `viewer`, `charts`, `content`, `stat`, `issues`, `common`. A host passes any of them:
 
 ```tsx
 <WidgetKitProvider value={{
@@ -65,6 +65,14 @@ controls, every view) comes from `messages.ts`, by group: `card`, `board`, `edit
   `valueName`, `linkLabel`, `openLabel` …), explicit props (`errorText`, `unconfiguredText`, a view's
   `messages`, `loadingLabel`, `legendLabel`, `layerLabels`, `controlDisabledReason`, SchemaForm's
   `emptyMessage`).
+- `issues`: a settings issue (`Issue`) carries a `code` and `params` next to its English `message`; the
+  engine's field checks and the kit's cross-field rules (`minBelowMax`, the content and model URL rules,
+  `positiveStep`) set them. `WidgetSettingsEditor` shows an issue in `issues` through `issueText` with the
+  field's label as shown, so a server that sends the issues back with a 422 gets them in the host's
+  language; one without a code (a host's own rule) keeps its `message`.
+- The kit passes its texts to the primitives too: `charts.total` is the stacked tooltip's total row
+  (`tooltipTotalLabel`), `card.closeFullscreen` and `board.closeDrawer` name the close buttons of the
+  full-screen `Modal` and the board's `Drawer`s (`closeLabel`).
 - `controls.failed`: when a host sets it, a failed write shows "failed (reason)". A host whose
   `onControl` already rejects with a worded error should leave it out.
 - Keep `messages` stable (memoize it): the provider merges it once per change. Keep `templateText` and

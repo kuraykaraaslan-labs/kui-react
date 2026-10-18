@@ -90,7 +90,7 @@ export interface SettingsTemplate {
   /** Contiguous and append-only: migrations[i] goes from version i+1 to i+2. */
   migrations: MigrationStep[];
   /** Cross-field checks, e.g. min below max. */
-  rules?: Array<(values: Sparse) => Array<{ path: string; message: string }>>;
+  rules?: Array<(values: Sparse) => Issue[]>;
   /** The widget prints numbers (core:format applies). Type templates only. */
   format?: boolean;
   /** The widget's data can be exported as CSV. Type templates only. */
@@ -106,9 +106,30 @@ export interface SettingsTemplate {
 /** `settings.$v`: which template version wrote each part of a settings object. */
 export type SettingsStamp = Partial<Record<TemplateId, number>>;
 
+/**
+ * What an issue is about, so a host can show it in its own language (`messages.issues`). The engine's
+ * field checks and the kit's cross-field rules set one; a host's own rule may leave it out.
+ */
+export type IssueCode =
+  | 'boolean' | 'number' | 'min' | 'max' | 'option' | 'notOption' | 'optionList' | 'unknownOption'
+  | 'color' | 'icon' | 'dataKeys' | 'maxKeys' | 'dataKey' | 'font' | 'list' | 'maxItems' | 'text'
+  | 'maxLength' | 'url' | 'required'
+  | 'minBelowMax' | 'linkTarget' | 'imageSrc' | 'embedUrl' | 'rowLinkTarget' | 'modelUrl' | 'positiveStep';
+
+/** The values an issue's text names: the field's own label (as the template has it) and a bound or an option. */
+export interface IssueParams {
+  label?: string;
+  min?: number;
+  max?: number;
+  option?: string;
+}
+
 export interface Issue {
   path: string;
+  /** English, for logs and API callers; a host shows `code` + `params` in its language instead. */
   message: string;
+  code?: IssueCode;
+  params?: IssueParams;
 }
 
 /** Effective `core:card` values (defaults already layered in). */

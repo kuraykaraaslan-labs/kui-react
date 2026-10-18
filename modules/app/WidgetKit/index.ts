@@ -12,11 +12,11 @@ export { WidgetCard, formatUpdated } from './WidgetCard';
 export type { CardSettings, WidgetCardProps, WidgetCardState } from './WidgetCard';
 export { WidgetKitProvider, useWidgetKit, useKitMessages, SettingIcon } from './WidgetKitContext';
 export type { WidgetKitHost } from './WidgetKitContext';
-export { DEFAULT_WIDGET_KIT_MESSAGES, mergeKitMessages, CONTROL_TILE_MESSAGE_KEYS } from './messages';
+export { DEFAULT_WIDGET_KIT_MESSAGES, mergeKitMessages, CONTROL_TILE_MESSAGE_KEYS, issueText } from './messages';
 export type {
   WidgetKitMessages, WidgetKitMessagesInput, WidgetCardMessages, WidgetBoardMessages, WidgetEditorMessages, SchemaFormMessages,
   WidgetControlMessages, TableMessages, FeedMessages, MapViewMessages, ViewerModelMessages, ChartViewMessages,
-  ContentViewMessages, StatViewMessages, CommonMessages, TemplateTextRef, TemplateTextFn, KindTextRef, KindTextFn,
+  ContentViewMessages, StatViewMessages, IssueMessages, CommonMessages, TemplateTextRef, TemplateTextFn, KindTextRef, KindTextFn,
 } from './messages';
 export { localizeTemplate, localizeKind } from './localize';
 export { WidgetSettingsEditor } from './WidgetSettingsEditor';

@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_CONTROL_MESSAGES } from '@/modules/ui/ControlTile/ControlTile';
 import { DEFAULT_CONFIRM_MESSAGES } from '@/modules/ui/ControlTile/ControlConfirm';
-import { CONTROL_TILE_MESSAGE_KEYS, DEFAULT_WIDGET_KIT_MESSAGES as D, mergeKitMessages } from '../messages';
+import { CONTROL_TILE_MESSAGE_KEYS, DEFAULT_WIDGET_KIT_MESSAGES as D, issueText, mergeKitMessages } from '../messages';
+import { missingRequired, validate } from '../settings/engine';
+import { minBelowMax } from '../settings/packs';
+import type { Issue, SettingsTemplate } from '../settings/types';
+import { positiveStep, safeEmbedRule, safeImageRule, safeLinkRule, safeModelUrlsRule, safeRowLinksRule } from '../views/content-logic';
 import { DEFAULT_SCHEMA_FORM_MESSAGES } from '../../SchemaForm/messages';
 import { THEME_COLOR_TOKENS } from '../../SchemaForm/fields/FieldControl';
 import { CONTROL_REASONS, controlBlockReason, controlMessages, requestControl } from '../views/control-common';
@@ -57,6 +61,83 @@ describe('WidgetKit messages: the defaults are the English the kit drew before',
       D.form.colorText, D.form.colorMutedText, D.form.colorStrongBorder, D.form.colorRaisedSurface, D.form.colorSunkenSurface,
     ]);
     expect(D.form).toBe(DEFAULT_SCHEMA_FORM_MESSAGES);
+  });
+});
+
+describe('settings issues: a code, and the English message as the issues group words it', () => {
+  const T: SettingsTemplate = {
+    id: 'tenant:issues', version: 1, namespace: '', label: 'Issues', groups: [], migrations: [],
+    fields: {
+      on: { label: 'On', type: 'boolean', since: 1 },
+      n: { label: 'N', type: 'number', since: 1 },
+      lo: { label: 'Lo', type: 'number', min: 2, since: 1 },
+      hi: { label: 'Hi', type: 'number', max: 5, since: 1 },
+      sel: { label: 'Sel', type: 'select', options: ['a'], since: 1 },
+      sel2: { label: 'Sel2', type: 'select', options: ['a'], since: 1 },
+      multi: { label: 'Multi', type: 'multi-select', options: ['a'], since: 1 },
+      multi2: { label: 'Multi2', type: 'multi-select', options: ['a'], since: 1 },
+      color: { label: 'Colour', type: 'color', since: 1 },
+      icon: { label: 'Icon', type: 'icon', since: 1 },
+      keys: { label: 'Keys', type: 'data-key', multiple: true, since: 1 },
+      keys2: { label: 'Keys2', type: 'data-key', multiple: true, max: 1, since: 1 },
+      key: { label: 'Key', type: 'data-key', since: 1 },
+      font: { label: 'Font', type: 'font', since: 1 },
+      rows: { label: 'Rows', type: 'repeater', since: 1, fields: { name: { label: 'Name', type: 'text', required: true } } },
+      rows2: { label: 'Rows2', type: 'repeater', max: 1, since: 1, fields: {} },
+      text: { label: 'Text', type: 'text', since: 1 },
+      short: { label: 'Short', type: 'text', maxLength: 2, since: 1 },
+      url: { label: 'Address', type: 'url', since: 1 },
+      need: { label: 'Needed', type: 'text', required: true, since: 1 },
+    },
+  };
+  const bad = {
+    on: 'x', n: 'x', lo: 1, hi: 9, sel: 1, sel2: 'z', multi: 'x', multi2: ['z'], color: 'nope', icon: 'NOT AN ICON', keys: 'x',
+    keys2: ['a', 'b'], key: '\u0001', font: 3, rows: [{}], rows2: [{}, {}], text: 3, short: 'abc', url: 'ftp://x',
+  };
+  const engineIssues = (): Issue[] => [...validate(T, bad).issues, ...missingRequired(T, {})];
+
+  it('every engine check sets a code, and the default text is its message', () => {
+    const issues = engineIssues();
+    expect(new Set(issues.map((i) => i.code))).toEqual(new Set([
+      'boolean', 'number', 'min', 'max', 'option', 'notOption', 'optionList', 'unknownOption', 'color', 'icon', 'dataKeys',
+      'maxKeys', 'dataKey', 'font', 'list', 'maxItems', 'required', 'text', 'maxLength', 'url',
+    ].filter((c) => c !== 'list')));
+    for (const i of issues) expect(issueText(i, D.issues)).toBe(i.message);
+    expect(validate(T, { rows: 'x' }).issues[0]).toMatchObject({ code: 'list', params: { label: 'Rows' } });
+    expect(issueText(validate(T, { rows: 'x' }).issues[0], D.issues)).toBe('Rows: must be a list');
+  });
+
+  it('the kit rules set a code, and the default text is their message', () => {
+    const rules = [
+      minBelowMax('min', 'max')({ min: 5, max: 1 }),
+      safeLinkRule('href', 'Link')({ href: 'javascript:alert(1)' }),
+      safeImageRule('src')({ src: 'data:x' }),
+      safeEmbedRule('url')({ url: 'http://10.0.0.1/' }),
+      safeRowLinksRule('links', 'href')({ links: [{ href: 'javascript:x' }] }),
+      safeModelUrlsRule('models')({ models: [{ url: 'http://x/m.glb' }] }),
+      positiveStep('step')({ step: 0 }),
+    ].flat();
+    expect(rules.map((i) => i.code)).toEqual(['minBelowMax', 'linkTarget', 'imageSrc', 'embedUrl', 'rowLinkTarget', 'modelUrl', 'positiveStep']);
+    for (const i of rules) expect(issueText(i, D.issues)).toBe(i.message);
+    const withRule = validate({ ...T, fields: { min: { label: 'Min', type: 'number', since: 1 }, max: { label: 'Max', type: 'number', since: 1 } }, rules: [minBelowMax('min', 'max')] }, { min: 3, max: 1 });
+    expect(withRule.issues).toEqual([{ path: 'max', message: 'Maximum must be greater than minimum', code: 'minBelowMax' }]);
+  });
+
+  it('a host text gets the label (the shown one first) and the params', () => {
+    const issues = engineIssues();
+    const min = issues.find((i) => i.code === 'min')!;
+    expect(min.params).toEqual({ label: 'Lo', min: 2 });
+    const m = { ...D.issues, min: (l: string, p: { min?: number }) => `${l} en az ${p.min} olmalı` };
+    expect(issueText(min, m)).toBe('Lo en az 2 olmalı');
+    expect(issueText(min, m, 'Alt')).toBe('Alt en az 2 olmalı');
+    const opt = issues.find((i) => i.code === 'unknownOption')!;
+    expect(opt.params).toEqual({ label: 'Multi2', option: 'z' });
+  });
+
+  it('an issue without a known code keeps its message', () => {
+    expect(issueText({ path: 'x', message: 'Host rule' }, D.issues)).toBe('Host rule');
+    expect(issueText({ path: 'x', message: 'Older', code: 'nope' as never }, D.issues)).toBe('Older');
+    expect(issueText({ path: 'x', message: 'Proto', code: 'toString' as never }, D.issues)).toBe('Proto');
   });
 });
 
@@ -116,7 +197,7 @@ describe('messages.ts stays pure (next-boilerplate copies it into a server tree)
   const read = (rel: string) => readFileSync(path.resolve(__dirname, rel), 'utf8');
   const imports = (src: string) => [...src.matchAll(/^\s*(?:import|export)\b[^;]*?from\s+['"]([^'"]+)['"]/gm)].map((m) => m[1]);
 
-  it.each([['../messages.ts'], ['../../SchemaForm/messages.ts'], ['../views/control-common.ts'], ['../localize.ts']])('%s imports no React and no component', (file) => {
+  it.each([['../messages.ts'], ['../../SchemaForm/messages.ts'], ['../views/control-common.ts'], ['../localize.ts'], ['../views/content-logic.ts']])('%s imports no React and no component', (file) => {
     const src = read(file);
     for (const spec of imports(src)) {
       expect(spec).not.toMatch(/^react(-dom)?$/);
