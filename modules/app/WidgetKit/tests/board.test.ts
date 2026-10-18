@@ -101,6 +101,16 @@ describe('board document columns (12 or 24)', () => {
     expect(odd.doc.placements[0]).toMatchObject({ x: 6, w: 6 });
   });
 
+  it('a card with no usable width gets its type\'s default width scaled to the board\'s columns', () => {
+    const { w: _w, ...noWidth } = doc.placements[0];
+    const res = importBoard(JSON.stringify({ ...wide, placements: [{ ...noWidth, x: 0 }, { ...noWidth, id: 'b', x: 0, y: 4, w: 2.5 }] }), kinds);
+    if ('error' in res) throw new Error(res.error);
+    expect(res.doc.placements.map((p) => p.w)).toEqual([STAT_VALUE_KIND.defaultW * 2, STAT_VALUE_KIND.defaultW * 2]);
+    const twelve = importBoard(JSON.stringify({ ...doc, placements: [noWidth] }), kinds);
+    if ('error' in twelve) throw new Error(twelve.error);
+    expect(twelve.doc.placements[0].w).toBe(STAT_VALUE_KIND.defaultW);
+  });
+
   it('cards clamped onto the same cells are pushed down; an unclamped layout keeps its overlaps', () => {
     const p = doc.placements[0];
     const clash = { ...doc, placements: [{ ...p, id: 'a', x: 6, w: 6 }, { ...p, id: 'b', x: 20, w: 6 }] };

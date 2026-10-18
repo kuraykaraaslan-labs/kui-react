@@ -6,7 +6,7 @@ import { CORE_BOARD, CORE_CARD, CORE_FORMAT } from './core';
 import { prepareForSave, readStamp } from './engine';
 import type { Issue, SettingsStamp, SettingsTemplate, Sparse } from './types';
 import type { BuiltinKindSpec } from '../kind';
-import { DEFAULT_GRID_COLS, normalizeGridCols, resolveOverlaps, type GridCols } from './grid';
+import { DEFAULT_GRID_COLS, normalizeGridCols, resolveOverlaps, scaleWidth, type GridCols } from './grid';
 
 export const BOARD_DOCUMENT_FORMAT = 'widgetkit.board';
 /**
@@ -103,7 +103,8 @@ function normalizeBoard(input: unknown, kinds: readonly BuiltinKindSpec[], defau
     let id = typeof raw.id === 'string' && /^[\w-]{1,64}$/.test(raw.id) ? raw.id : `w${i + 1}`;
     while (seen.has(id)) id = `${id}-${i}`;
     seen.add(id);
-    const w = int(raw.w, 1, cols, kind.defaultW);
+    // A type's `defaultW` is "of 12": scale it to this board's columns, as the WidgetBoard picker does.
+    const w = int(raw.w, 1, cols, scaleWidth(kind.defaultW, DEFAULT_GRID_COLS, cols));
     const x = int(raw.x, 0, cols - w, 0);
     if (w !== raw.w || x !== raw.x) clamped = true;
     placements.push({
