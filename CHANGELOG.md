@@ -6,6 +6,18 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- WidgetKit layout thumbnails (next-boilerplate phase 07-dashboard 21, the open "layout thumbnails" item):
+  `renderWidgetPreview(id)` and `WIDGET_PREVIEW_IDS` in `previews.tsx` draw every `preview` id the builtin
+  and core templates name (stat, sparkline, attributes, gauge, progress, state, feed, button, switch,
+  slider, setpoint, line shape, pie, links, markdown and card style variants) as a 48 x 32 inline SVG in
+  `currentColor` and theme tokens, so it follows the picked state and the dark theme. SchemaForm takes
+  `renderOptionPreview?: (id: string) => ReactNode` (also through `OptionPreviewProvider` /
+  `useOptionPreview`, `OptionPreviewRenderer`) and a `display: 'cards'` select draws each option's
+  thumbnail above its label; without it the cards stay labels only. `WidgetKitHost.renderPreview` lets a
+  host draw its own ids or redraw a builtin one; the settings editor falls back to the kit's drawing.
+  A segmented or cards choice group now has one tab stop and moves the pick with the arrow keys, Home
+  and End (the WAI-ARIA radio pattern), and carries `aria-invalid` / `aria-describedby`. kui-ejs and
+  KUInative have no settings engine, so there is no parity change.
 - SchemaForm `FieldSchema.searchKey` and `lookupKey` for `remote-select` (next-boilerplate phase 07-dashboard
   22.2, built there as 17.1a): `searchKey` names the query parameter that carries the search text, so the
   host's picker asks for a page per keystroke instead of loading the whole list; `lookupKey` names the

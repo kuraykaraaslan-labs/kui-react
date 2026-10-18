@@ -3,7 +3,9 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { shouldShow, type FieldSchema } from './types';
 import { FieldControl, controlCls } from './fields/FieldControl';
-import { SchemaFormMessagesProvider, useFieldOverrides, type FieldOverrides } from './schema-form.context';
+import {
+  OptionPreviewProvider, SchemaFormMessagesProvider, useFieldOverrides, useOptionPreview, type FieldOverrides, type OptionPreviewRenderer,
+} from './schema-form.context';
 import { mergeSchemaFormMessages, type SchemaFormMessages } from './messages';
 
 export interface SchemaFormProps {
@@ -29,6 +31,12 @@ export interface SchemaFormProps {
   fieldFilter?: (key: string, field: FieldSchema, value: unknown, defaultValue: unknown) => boolean;
   /** Show the values but accept no edits (e.g. settings written by a newer version). */
   readOnly?: boolean;
+  /**
+   * Draws the thumbnail of an option's `preview` id in a `display: 'cards'` select; an option it
+   * returns `null` for shows its label only. Without it (and without an outer SchemaForm's), cards
+   * are labels only. WidgetKit's settings editor passes its layout thumbnails.
+   */
+  renderOptionPreview?: OptionPreviewRenderer;
 }
 
 function seedFromSchema(schema: Record<string, FieldSchema>): Record<string, unknown> {
@@ -44,10 +52,13 @@ function seedFromSchema(schema: Record<string, FieldSchema>): Record<string, unk
 export function SchemaForm({
   schema, values, defaults = {}, onChange, searchable = false, debounceMs = 200,
   fieldOverrides, errors = {}, emptyMessage, messages, className, fieldFilter, readOnly = false,
+  renderOptionPreview,
 }: SchemaFormProps) {
   const baseId = useId();
   const ctxOverrides = useFieldOverrides();
   const overrides = fieldOverrides ?? ctxOverrides;
+  const ctxPreview = useOptionPreview();
+  const preview = renderOptionPreview ?? ctxPreview;
   const m = useMemo(() => mergeSchemaFormMessages(messages), [messages]);
 
   const seed = useMemo(() => ({ ...defaults, ...seedFromSchema(schema), ...values }), [schema, values, defaults]);
@@ -124,19 +135,21 @@ export function SchemaForm({
 
   return (
     <SchemaFormMessagesProvider value={m}>
-      <fieldset disabled={readOnly} className={cn('min-w-0 space-y-4', className)}>
-        {searchable && Object.keys(schema).length > 6 && (
-          <input type="search" aria-label={m.searchLabel} value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder={m.searchPlaceholder} className={controlCls} />
-        )}
-        {ungrouped.length > 0 && <div className="space-y-4">{ungrouped.map(renderField)}</div>}
-        {Object.entries(groups).map(([group, entries]) => (
-          <details key={group} open className="rounded-lg border border-border">
-            <summary className="px-3 py-2 text-xs font-medium uppercase tracking-wide cursor-pointer text-text-secondary">{group}</summary>
-            <div className="p-3 space-y-4 border-t border-border">{entries.map(renderField)}</div>
-          </details>
-        ))}
-      </fieldset>
+      <OptionPreviewProvider value={preview}>
+        <fieldset disabled={readOnly} className={cn('min-w-0 space-y-4', className)}>
+          {searchable && Object.keys(schema).length > 6 && (
+            <input type="search" aria-label={m.searchLabel} value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder={m.searchPlaceholder} className={controlCls} />
+          )}
+          {ungrouped.length > 0 && <div className="space-y-4">{ungrouped.map(renderField)}</div>}
+          {Object.entries(groups).map(([group, entries]) => (
+            <details key={group} open className="rounded-lg border border-border">
+              <summary className="px-3 py-2 text-xs font-medium uppercase tracking-wide cursor-pointer text-text-secondary">{group}</summary>
+              <div className="p-3 space-y-4 border-t border-border">{entries.map(renderField)}</div>
+            </details>
+          ))}
+        </fieldset>
+      </OptionPreviewProvider>
     </SchemaFormMessagesProvider>
   );
 }

@@ -111,4 +111,39 @@ describe('validateSchemaValues', () => {
     expect(e.hidden).toBeUndefined();
     expect(validateSchemaValues(s, { title: 'x', n: 1 })).toEqual({});
   });
+
+  it('draws option thumbnails in a cards select only through renderOptionPreview', () => {
+    const s: Record<string, FieldSchema> = {
+      look: { label: 'Look', type: 'select', display: 'cards', value: 'a', options: [
+        { value: 'a', label: 'Alpha', preview: 'p-a' }, { value: 'b', label: 'Beta', preview: 'p-b' }, { value: 'c', label: 'Gamma' },
+      ] },
+    };
+    const { unmount } = render(<SchemaForm schema={s} values={{}} onChange={() => {}} debounceMs={0} />);
+    expect(screen.getByRole('radio', { name: 'Alpha' }).querySelector('i')).toBeNull();
+    unmount();
+    render(<SchemaForm schema={s} values={{}} onChange={() => {}} debounceMs={0}
+      renderOptionPreview={(id) => (id === 'p-a' ? <i data-testid="thumb-a" /> : null)} />);
+    expect(screen.getByRole('radio', { name: 'Alpha' })).toContainElement(screen.getByTestId('thumb-a'));
+    expect(screen.getAllByTestId(/^thumb-/)).toHaveLength(1);
+    expect(screen.getByRole('radio', { name: 'Gamma' })).toHaveTextContent('Gamma');
+  });
+
+  it('a choice group has one tab stop and arrow keys, Home and End move the pick', () => {
+    const onChange = vi.fn();
+    const s: Record<string, FieldSchema> = {
+      size: { label: 'Size', type: 'select', display: 'segmented', options: ['s', 'm', 'l'] },
+    };
+    render(<SchemaForm schema={s} values={{ size: 'm' }} onChange={onChange} debounceMs={0} />);
+    const [sm, md, lg] = screen.getAllByRole('radio');
+    expect([sm, md, lg].map((r) => r.getAttribute('tabindex'))).toEqual(['-1', '0', '-1']);
+    fireEvent.keyDown(md, { key: 'ArrowLeft' });
+    expect(onChange).toHaveBeenLastCalledWith({ size: 's' });
+    expect(sm).toHaveFocus();
+    fireEvent.keyDown(sm, { key: 'ArrowLeft' });
+    expect(onChange).toHaveBeenLastCalledWith({ size: 'l' });
+    fireEvent.keyDown(lg, { key: 'Home' });
+    expect(onChange).toHaveBeenLastCalledWith({ size: 's' });
+    fireEvent.keyDown(sm, { key: 'End' });
+    expect(onChange).toHaveBeenLastCalledWith({ size: 'l' });
+  });
 });

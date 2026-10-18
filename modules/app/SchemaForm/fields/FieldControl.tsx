@@ -1,8 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { shouldShow, type FieldOption, type FieldSchema, type FontValue } from '../types';
-import { useSchemaFormMessages, type FieldOverrides } from '../schema-form.context';
+import { useOptionPreview, useSchemaFormMessages, type FieldOverrides } from '../schema-form.context';
 import { THEME_COLOR_MESSAGE } from '../messages';
 
 export const controlCls =
@@ -198,26 +198,51 @@ function ColorControl({ id, value, field, onChange }: FieldControlProps) {
   );
 }
 
-/** A select drawn as a segmented row or as picture cards (`display`). */
-function ChoiceControl({ id, field, value, onChange }: FieldControlProps) {
+/**
+ * A select drawn as a segmented row or as picture cards (`display`): a radiogroup with one tab stop
+ * (the picked option, else the first) and arrow keys, Home and End moving the pick, as in the WAI-ARIA
+ * radio pattern. A card whose option carries a `preview` id shows the thumbnail the form's
+ * `renderOptionPreview` draws for it above its label.
+ */
+function ChoiceControl({ id, field, value, onChange, invalid, describedBy }: FieldControlProps) {
+  const renderPreview = useOptionPreview();
   const current = (value ?? field.value ?? '') as string;
   const cards = field.display === 'cards';
+  const options = field.options ?? [];
+  const picked = options.findIndex((o) => optVal(o) === current);
+  const thumbs = cards && !!renderPreview && options.some((o) => typeof o !== 'string' && o.preview);
+  const onKeyDown = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
+    const last = options.length - 1;
+    const to = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? (i >= last ? 0 : i + 1)
+      : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? (i <= 0 ? last : i - 1)
+        : e.key === 'Home' ? 0 : e.key === 'End' ? last : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    const group = e.currentTarget.parentElement;
+    onChange(optVal(options[to]));
+    (group?.children[to] as HTMLElement | undefined)?.focus();
+  };
   return (
-    <div id={id} role="radiogroup" aria-label={field.label}
-      className={cards ? 'grid grid-cols-2 gap-2 sm:grid-cols-3' : 'inline-flex flex-wrap rounded-md border border-border p-0.5'}>
-      {(field.options ?? []).map((o) => {
+    <div id={id} role="radiogroup" aria-label={field.label} aria-invalid={invalid || undefined} aria-describedby={describedBy}
+      className={cards ? cn('grid gap-2', thumbs ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3') : 'inline-flex flex-wrap rounded-md border border-border p-0.5'}>
+      {options.map((o, i) => {
         const v = optVal(o);
         const on = v === current;
+        const previewId = typeof o === 'string' ? undefined : o.preview;
+        const thumb = thumbs && previewId ? renderPreview(previewId) : null;
         return (
           <button key={v} type="button" role="radio" aria-checked={on} onClick={() => onChange(v)}
-            data-preview={typeof o === 'string' ? undefined : o.preview}
+            tabIndex={i === (picked < 0 ? 0 : picked) ? 0 : -1} onKeyDown={(e) => onKeyDown(e, i)}
+            data-preview={previewId}
             className={cn(
               'text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
               cards
-                ? cn('rounded-lg border px-2 py-3 text-center', on ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary hover:border-border-strong')
+                ? cn('rounded-lg border text-center', thumb ? 'flex flex-col items-center gap-1.5 px-1.5 py-2' : 'px-2 py-3',
+                  on ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary hover:border-border-strong hover:text-text-primary')
                 : cn('rounded px-2.5 py-1', on ? 'bg-primary text-primary-fg' : 'text-text-secondary hover:text-text-primary'),
             )}>
-            {optLabel(o)}
+            {thumb && <span className="flex w-full justify-center" aria-hidden="true">{thumb}</span>}
+            <span className={thumb ? 'leading-tight' : undefined}>{optLabel(o)}</span>
           </button>
         );
       })}

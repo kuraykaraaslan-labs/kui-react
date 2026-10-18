@@ -1,5 +1,5 @@
 'use client';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { TabGroup, type Tab } from '@/modules/ui/TabGroup';
@@ -11,6 +11,7 @@ import { useKitMessages, useWidgetKit } from './WidgetKitContext';
 import { localizeTemplate } from './localize';
 import { issueText, type WidgetEditorMessages } from './messages';
 import { useLocalSetting } from './useLocalSetting';
+import { renderWidgetPreview } from './previews';
 
 const MODE_KEY = 'kui.widgetSettings.mode';
 const TAB_ORDER: EditorTab[] = ['Display', 'Data', 'Card', 'Actions', 'Look', 'Toolbar', 'Behaviour'];
@@ -65,7 +66,9 @@ export function WidgetSettingsEditor({
   templates, settings, onChange, layers = {}, caps, boundSlots = [], title, onTitleChange,
   extraTabs = {}, issues = [], className,
 }: WidgetSettingsEditorProps) {
-  const { fieldOverrides, templateText } = useWidgetKit();
+  const { fieldOverrides, templateText, renderPreview } = useWidgetKit();
+  // Layout thumbnails: the host's drawing for an id it knows, else WidgetKit's.
+  const preview = useCallback((id: string) => renderPreview?.(id) ?? renderWidgetPreview(id), [renderPreview]);
   const msgs = useKitMessages();
   const m = msgs.editor;
   const [mode, setMode] = useLocalSetting(MODE_KEY);
@@ -132,6 +135,7 @@ export function WidgetSettingsEditor({
               readOnly={newer.has(t.id)}
               fieldOverrides={fieldOverrides}
               messages={msgs.form}
+              renderOptionPreview={preview}
               errors={errors}
               debounceMs={150}
               fieldFilter={advanced ? undefined : (_k, f, v, d) => !f.advanced || (v !== undefined && JSON.stringify(v) !== JSON.stringify(d))}
@@ -142,7 +146,7 @@ export function WidgetSettingsEditor({
             <section aria-label={m.retired} className="space-y-2 rounded-md border border-dashed border-border px-3 py-2">
               <p className="text-xs font-medium text-text-secondary">{m.retired}</p>
               <SchemaForm schema={retiring} values={values} defaults={base} readOnly fieldOverrides={fieldOverrides} messages={msgs.form}
-                onChange={() => {}} />
+                renderOptionPreview={preview} onChange={() => {}} />
             </section>
           )}
         </div>

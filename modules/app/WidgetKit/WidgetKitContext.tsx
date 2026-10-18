@@ -12,6 +12,12 @@ export interface WidgetKitHost {
   renderIcon?: (name: string, props: { className?: string; style?: CSSProperties }) => ReactNode;
   /** Field renderers for app-bound field types (icon, media, data-key pickers, …). */
   fieldOverrides?: FieldOverrides;
+  /**
+   * The thumbnail of a layout option's `preview` id in the settings editor (a tenant template's own
+   * ids, or a redrawn builtin one). Return `null`/`undefined` to fall back to WidgetKit's drawing
+   * (`renderWidgetPreview`); an id neither knows shows its label only.
+   */
+  renderPreview?: (id: string) => ReactNode;
   /** Locale for numbers and dates; defaults to the browser's. */
   locale?: string;
   /**

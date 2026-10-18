@@ -43,3 +43,18 @@ export const SchemaFormMessagesProvider = MessagesContext.Provider;
 export function useSchemaFormMessages(): SchemaFormMessages {
   return useContext(MessagesContext);
 }
+
+/**
+ * Draws an option's `preview` id (a select with `display: 'cards'`); `null` for an id it does not
+ * know. kui-react owns no drawings: WidgetKit supplies its layout thumbnails, a host its own.
+ */
+export type OptionPreviewRenderer = (id: string) => ReactNode;
+
+const OptionPreviewContext = createContext<OptionPreviewRenderer | undefined>(undefined);
+
+/** SchemaForm supplies it from its `renderOptionPreview` prop. */
+export const OptionPreviewProvider = OptionPreviewContext.Provider;
+
+export function useOptionPreview(): OptionPreviewRenderer | undefined {
+  return useContext(OptionPreviewContext);
+}

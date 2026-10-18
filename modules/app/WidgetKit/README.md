@@ -22,9 +22,10 @@ kind.ts               SlotData, SlotSpec, WidgetViewProps, WidgetKindView, Built
 WidgetCard.tsx        the frame: title row, buttons, body states, stale, footer
 PlacementCard.tsx     one placement: resolved settings + WidgetCard + view, full screen, CSV
 WidgetSettingsEditor.tsx  tabs (Display, Data, Card, Actions), Basic/Advanced, read-only newer parts
+previews.tsx          layout thumbnails: renderWidgetPreview(id), one inline SVG per option `preview` id
 WidgetBoard.tsx       a whole board: grid, edit mode, card + board settings, export/import
 board-cell.ts         cardCellResponsive: a card's small-screen settings on its grid cell (pure)
-WidgetKitContext.tsx  host hooks: icon resolver, field overrides, locale, embed site allow-list (`embedHosts`),
+WidgetKitContext.tsx  host hooks: icon resolver, field overrides, layout thumbnails (`renderPreview`), locale, embed site allow-list (`embedHosts`),
                       the kit's texts (`messages`, `useKitMessages`), template and type texts (`templateText`, `kindText`)
 messages.ts           every text the kit draws, by group, with the English defaults; mergeKitMessages (pure)
 localize.ts           localizeTemplate, localizeKind: template and type texts through the host's hooks (pure)
@@ -42,6 +43,21 @@ localize.ts           localizeTemplate, localizeKind: template and type texts th
 4. No stored code and no raw CSS in settings (the only ThingsBoard features not taken).
 
 See [/AGENTS.md](../../../AGENTS.md).
+
+## Layout thumbnails
+
+A layout option names a drawing: `opt('arc', 'Half circle', 'gauge-arc')`. A select with
+`display: 'cards'` (`layoutField`, the card style, the line shape, the pie layout) is a radiogroup of
+picture cards; SchemaForm asks its `renderOptionPreview(id)` for each option's drawing and shows the
+label only for an id that returns `null`. The settings editor passes the host's `renderPreview` first
+and `renderWidgetPreview` (in `previews.tsx`) for the ids the host leaves to the kit, so a tenant
+template can bring its own drawings and a host can redraw a builtin one.
+
+Every drawing is a 48 x 32 SVG in `currentColor` at a few opacities (and `var(--surface-raised)` for a
+mark on a solid fill): idle cards draw it in the secondary text colour, the picked one in the primary
+colour, and the dark theme follows the tokens. It is `aria-hidden`; the label is the radio's name. The
+group has one tab stop; the arrow keys, Home and End move the pick. A new `preview` id in a builtin
+template needs a drawing: `tests/previews.test.tsx` fails for an id `WIDGET_PREVIEW_IDS` lacks.
 
 ## Columns
 
