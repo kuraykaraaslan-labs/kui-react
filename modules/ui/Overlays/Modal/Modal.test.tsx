@@ -84,6 +84,16 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('closeLabel names the close button', () => {
+    render(
+      <Modal open onClose={() => {}} title="Dialog" closeLabel="Pencereyi kapat">
+        content
+      </Modal>,
+    );
+    expect(screen.getByRole('button', { name: 'Pencereyi kapat' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close dialog' })).toBeNull();
+  });
+
   it('renders the footer when given one', () => {
     render(
       <Modal open onClose={() => {}} title="Dialog" footer={<button>Confirm</button>}>

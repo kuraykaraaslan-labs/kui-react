@@ -322,4 +322,15 @@ describe('chart settings surface (phase 21 depth)', () => {
     expect(tip.querySelector('[data-tooltip-total]')?.textContent).toMatch(/Total/);
     expect(tip.textContent).not.toMatch(/Mon/);
   });
+  it('the total row takes tooltipTotalLabel (bar and stacked area)', () => {
+    const { container, unmount } = render(<BarChart series={cats} stacked tooltipTotal tooltipTotalLabel="Toplam" />);
+    fireEvent.mouseMove(container.querySelector('svg')!, { clientX: 100, clientY: 100 });
+    expect(screen.getByRole('tooltip').querySelector('[data-tooltip-total]')?.textContent).toMatch(/^Toplam/);
+    unmount();
+    const area = render(<AreaChart series={cats} stacked tooltipTotal tooltipTotalLabel="Toplam" />);
+    fireEvent.mouseMove(area.container.querySelector('svg')!, { clientX: 100, clientY: 100 });
+    const total = screen.getByRole('tooltip').querySelector('[data-tooltip-total]')?.textContent ?? '';
+    expect(total).toMatch(/^Toplam/);
+    expect(total).not.toMatch(/Total/);
+  });
 });

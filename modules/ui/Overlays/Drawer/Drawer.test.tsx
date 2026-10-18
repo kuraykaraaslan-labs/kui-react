@@ -87,6 +87,22 @@ describe('Drawer', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('closeLabel names the close button, with and without a custom header', () => {
+    const { rerender } = render(
+      <Drawer open onClose={() => {}} title="Filters" closeLabel="Paneli kapat">
+        content
+      </Drawer>,
+    );
+    expect(screen.getByRole('button', { name: 'Paneli kapat' })).toBeInTheDocument();
+    rerender(
+      <Drawer open onClose={() => {}} title="Filters" header={<span>Head</span>} closeLabel="Paneli kapat">
+        content
+      </Drawer>,
+    );
+    expect(screen.getByRole('button', { name: 'Paneli kapat' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close drawer' })).toBeNull();
+  });
+
   it('renders the footer when given one', () => {
     render(
       <Drawer open onClose={() => {}} title="Filters" footer={<button>Apply</button>}>

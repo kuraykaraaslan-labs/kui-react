@@ -66,6 +66,7 @@ export function SeriesChart({
   legendPosition = 'bottom', legendValues, legendStyle, legendToggle, yMin, yMax, yLabel, xLabel,
   thresholds, tooltipMode, gridColor, tickStyle, fill, yTickCount = 4, showXAxis = true, showYAxis = true,
   gridStyle, y2Min, y2Max, y2Label, y2Format, tooltipHeader = true, tooltipValueFormat, tooltipTotal = false,
+  tooltipTotalLabel = 'Total',
   animate = true, valueLabelStyle, pointShape, pointSize, showValues = false, valueLabelPosition = 'top',
   yIncludeZero = true,
 }: SeriesChartProps) {
@@ -231,7 +232,7 @@ export function SeriesChart({
           }
           const hoverX = anchor === null ? null : xPx(anchor);
           const total = tooltipTotal && isStacked && tip.length > 1
-            ? { label: 'Total', value: fmt(tip.reduce((a, d) => a + (d.y ?? 0), 0)) }
+            ? { label: tooltipTotalLabel, value: fmt(tip.reduce((a, d) => a + (d.y ?? 0), 0)) }
             : undefined;
 
           const local = (e: React.MouseEvent) => {

@@ -101,6 +101,7 @@ export function BarChart({
   tooltipHeader = true,
   tooltipValueFormat,
   tooltipTotal = false,
+  tooltipTotalLabel = 'Total',
   animate = true,
   valueLabelStyle,
 }: BarChartProps) {
@@ -256,7 +257,7 @@ export function BarChart({
             }
           }
           const hoverC = hover === null ? null : cPx(hover.index);
-          const total = tooltipTotal && isStacked && tip.length > 1 ? { label: 'Total', value: fmt(tip.reduce((a, d) => a + (d.y ?? 0), 0)) } : undefined;
+          const total = tooltipTotal && isStacked && tip.length > 1 ? { label: tooltipTotalLabel, value: fmt(tip.reduce((a, d) => a + (d.y ?? 0), 0)) } : undefined;
           const header = hover ? (categories[hover.index] ?? '') : '';
           const onFill = valueLabelPosition !== 'outside' || isStacked;
 

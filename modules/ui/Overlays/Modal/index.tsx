@@ -21,6 +21,8 @@ export type ModalProps = {
   fullscreen?: boolean;
   scrollable?: boolean;
   closeOnBackdropClick?: boolean;
+  /** Accessible name of the close button. Default = "Close dialog". */
+  closeLabel?: string;
   /**
    * TODO M6: when true, close on Next.js route change.
    * Accepted in M1 but currently a no-op (see useRouteClose stub).
@@ -47,6 +49,7 @@ export function Modal({
   fullscreen = false,
   scrollable = false,
   closeOnBackdropClick = true,
+  closeLabel = 'Close dialog',
   closeOnRouteChange,
   // TODO M5: reducedMotion
   reducedMotion: _reducedMotion,
@@ -119,7 +122,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={closeLabel}
             className="shrink-0 text-text-disabled hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded"
           >
             <FontAwesomeIcon icon={faXmark} className="w-4 h-4" aria-hidden="true" />

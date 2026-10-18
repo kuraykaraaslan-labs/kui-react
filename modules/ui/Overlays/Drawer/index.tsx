@@ -23,6 +23,8 @@ export type DrawerProps = {
   side?: 'left' | 'right';
   children?: React.ReactNode;
   footer?: React.ReactNode;
+  /** Accessible name of the close button. Default = "Close drawer". */
+  closeLabel?: string;
   /**
    * TODO M6: when true, close on Next.js route change. Drawer use case
    * is typical: closes when the user navigates from a nav drawer.
@@ -45,6 +47,7 @@ export function Drawer({
   side = 'right',
   children,
   footer,
+  closeLabel = 'Close drawer',
   closeOnRouteChange,
   // TODO M5: reducedMotion
   reducedMotion: _reducedMotion,
@@ -108,7 +111,7 @@ export function Drawer({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close drawer"
+              aria-label={closeLabel}
               className="p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-surface-overlay transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
             >
               <FontAwesomeIcon icon={faXmark} className="w-4 h-4" aria-hidden="true" />
@@ -120,7 +123,7 @@ export function Drawer({
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close drawer"
+              aria-label={closeLabel}
               className="text-text-disabled hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded"
             >
               <FontAwesomeIcon icon={faXmark} className="w-4 h-4" aria-hidden="true" />

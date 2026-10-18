@@ -186,6 +186,8 @@ export type BaseChartProps = {
   tooltipValueFormat?: (value: number, series: Series) => string;
   /** Stacked charts: a "Total" row in the tooltip. Default = false. */
   tooltipTotal?: boolean;
+  /** The label of that "Total" row. Default = "Total". */
+  tooltipTotalLabel?: string;
   /** Entrance animation (skipped when the OS asks for reduced motion). Default = true. */
   animate?: boolean;
   /** Text style of value labels (bars, points). */
