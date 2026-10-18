@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-17T13:38:51.985Z",
+  "generatedAt": "2026-10-18T07:02:28.328Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1080,6 +1080,7 @@
         "--text-secondary"
       ],
       "usedBy": [
+        "burn-chart",
         "widget-kit"
       ],
       "variantCount": 7
@@ -5627,6 +5628,547 @@
       ],
       "designTokens": [],
       "variantCount": 2
+    },
+    {
+      "id": "trace-waterfall",
+      "name": "TraceWaterfall",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/TraceWaterfall/index.tsx",
+      "abbr": "Wf",
+      "description": "A distributed trace as nested rows with offset and duration bars on a time ruler. Collapse and expand, critical-path highlight, error spans (icon and text, not only colour), a detail slot for the selected span, and a windowed list above 500 rows. Tree semantics (role tree and treeitem, aria-level, aria-expanded, aria-selected) with aria-activedescendant, so the keyboard works the same when rows are windowed.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "tree-view",
+        "timeline"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "tree",
+          "treeitem"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "ArrowUp / ArrowDown",
+            "action": "Move between spans"
+          },
+          {
+            "keys": "ArrowRight / ArrowLeft",
+            "action": "Expand, collapse, or move to the first child or the parent (mirrored in right-to-left pages)"
+          },
+          {
+            "keys": "Home / End / PageUp / PageDown",
+            "action": "Jump"
+          },
+          {
+            "keys": "Enter / Space",
+            "action": "Select the span and open its details"
+          },
+          {
+            "keys": "*",
+            "action": "Expand all siblings"
+          },
+          {
+            "keys": "Escape",
+            "action": "Clear the selection"
+          }
+        ]
+      },
+      "designTokens": [
+        "--surface-base",
+        "--surface-raised",
+        "--surface-overlay",
+        "--surface-sunken",
+        "--text-primary",
+        "--text-secondary",
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--primary-subtle",
+        "--error",
+        "--warning",
+        "--success"
+      ],
+      "dependencies": [
+        "@fortawesome/react-fontawesome"
+      ],
+      "variantCount": 3
+    },
+    {
+      "id": "log-viewer",
+      "name": "LogViewer",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/LogViewer/index.tsx",
+      "abbr": "Lv",
+      "description": "A windowed log list for 10k+ lines: severity as a text label and colour, search with highlight, severity and field facet chips, a wrap toggle, copy line, context lines pulled in around a selected line when the list is filtered, and a follow mode for a live tail (pauses when the user scrolls up, counts new lines, shows a drop counter). `useLogStream` is the producer side: it coalesces pushes, keeps the newest lines and counts drops.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "trace-waterfall",
+        "data-table"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "listbox",
+          "option",
+          "status"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "ArrowUp / ArrowDown / PageUp / PageDown / Home / End",
+            "action": "Move the selection through the lines"
+          },
+          {
+            "keys": "Escape",
+            "action": "Clear the selection"
+          },
+          {
+            "keys": "Enter (in the search box)",
+            "action": "Next match in highlight mode"
+          }
+        ]
+      },
+      "designTokens": [
+        "--surface-base",
+        "--surface-raised",
+        "--surface-overlay",
+        "--surface-sunken",
+        "--text-primary",
+        "--text-secondary",
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--primary-subtle",
+        "--error",
+        "--warning",
+        "--success"
+      ],
+      "dependencies": [
+        "@fortawesome/react-fontawesome"
+      ],
+      "variantCount": 3
+    },
+    {
+      "id": "service-map",
+      "name": "ServiceMap",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/ServiceMap/index.tsx",
+      "abbr": "Sm",
+      "description": "Services and the calls between them on a deterministic layered layout (no graph library): rate, error and latency badges, pan and zoom, roving-focus keyboard navigation along the call graph, and a selection slot. Errors are never colour alone: a warning icon and percentage, a heavier border and a dashed edge.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "trace-waterfall",
+        "tree-view"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "group",
+          "button"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "ArrowRight / ArrowLeft",
+            "action": "Follow a call downstream or upstream (mirrored in right-to-left pages)"
+          },
+          {
+            "keys": "ArrowUp / ArrowDown",
+            "action": "Siblings in the same layer"
+          },
+          {
+            "keys": "Enter / Space",
+            "action": "Select the service"
+          },
+          {
+            "keys": "+ / - / 0",
+            "action": "Zoom in, out, fit"
+          },
+          {
+            "keys": "Shift + arrows",
+            "action": "Pan"
+          },
+          {
+            "keys": "Ctrl + wheel",
+            "action": "Zoom at the cursor"
+          }
+        ]
+      },
+      "designTokens": [
+        "--surface-base",
+        "--surface-raised",
+        "--surface-overlay",
+        "--surface-sunken",
+        "--text-primary",
+        "--text-secondary",
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--primary-subtle",
+        "--error",
+        "--warning",
+        "--success"
+      ],
+      "dependencies": [
+        "@fortawesome/react-fontawesome"
+      ],
+      "variantCount": 3
+    },
+    {
+      "id": "citation-chip",
+      "name": "CitationChip",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/Evidence/index.tsx",
+      "abbr": "Cc",
+      "description": "A numbered evidence chip [1] that links to its evidence row (a same-page anchor, so it works without JavaScript). A citation that points at nothing renders as a dashed \"dropped\" chip with a warning icon and text, never as a dead link. `CitedText` turns [n] markers in an answer into chips.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "evidence-list",
+        "ai-chat-message"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "link"
+        ],
+        "notes": "Each chip is named \"Evidence n: title\". A dropped chip is text with a name that says the claim was dropped."
+      },
+      "designTokens": [
+        "--primary",
+        "--primary-subtle",
+        "--primary-fg",
+        "--warning",
+        "--warning-subtle",
+        "--border-focus"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "evidence-list",
+      "name": "EvidenceList",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/Evidence/index.tsx",
+      "abbr": "El",
+      "description": "The rows an AI answer cites: a number, a kind icon and label, a title that opens the row, a summary, source and time. Claims dropped for citing nothing openable are listed apart with a text indicator. Pair with CitationChip: a chip click highlights its row.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "citation-chip",
+        "timeline"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "list",
+          "status"
+        ],
+        "notes": "An ordered list. The dropped-claims block is a status region."
+      },
+      "designTokens": [
+        "--surface-base",
+        "--surface-raised",
+        "--surface-overlay",
+        "--surface-sunken",
+        "--text-primary",
+        "--text-secondary",
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--primary-subtle",
+        "--error",
+        "--warning",
+        "--success"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "day-bar-chart",
+      "name": "DayBarChart",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/DayBarChart/index.tsx",
+      "abbr": "Db",
+      "description": "One bar per day, the 90-day uptime strip of a status page. Coloured by availability, with height, an incident marker and the day's accessible name carrying the same meaning, a tooltip on hover and focus, a pinned details dialog on click, and a legend. Reusable per component and per region: pass a label.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "heatmap-chart",
+        "gauge-chart"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "group",
+          "dialog",
+          "tooltip"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "ArrowLeft / ArrowRight",
+            "action": "Previous or next day (mirrored in right-to-left pages)"
+          },
+          {
+            "keys": "Home / End",
+            "action": "First or last day"
+          },
+          {
+            "keys": "Enter / Space",
+            "action": "Pin the day's details"
+          },
+          {
+            "keys": "Escape",
+            "action": "Close the details"
+          }
+        ]
+      },
+      "designTokens": [
+        "--success",
+        "--warning",
+        "--error",
+        "--surface-sunken",
+        "--border",
+        "--primary",
+        "--text-primary",
+        "--text-secondary",
+        "--surface-raised",
+        "--border-focus"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "ai-human-draft-editor",
+      "name": "AiHumanDraftEditor",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/AiHumanDraftEditor/index.tsx",
+      "abbr": "Ae",
+      "description": "The AI's draft beside the human's text, diffed by words, with accept and reject per change and accept all. The text stays the human's until they accept; the value is controlled. A badge says the draft is AI-generated. Changes are marked by shape (strike and underline) and a number shown in both panels, and every button names its change.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "diff-viewer",
+        "ai-chat-message"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "group",
+          "status"
+        ],
+        "notes": "Each change is a group named \"Change n of m\"; accept and reject buttons say what they replace. Results are announced in a polite status region."
+      },
+      "designTokens": [
+        "--secondary",
+        "--error",
+        "--error-subtle",
+        "--success",
+        "--surface-raised",
+        "--surface-sunken",
+        "--border",
+        "--text-primary",
+        "--text-secondary",
+        "--primary",
+        "--primary-fg"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "conversation-timeline",
+      "name": "ConversationTimeline",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/ConversationTimeline/index.tsx",
+      "abbr": "Ln",
+      "description": "A vertical timeline of an AI investigation: model calls, tool calls, the evidence read, and whether each citation was kept or dropped, with tokens, cost and time per step and a total. Every step names its type in text; arguments and raw results collapse.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "timeline",
+        "evidence-list"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "list",
+          "region"
+        ],
+        "notes": "An ordered list; details toggles are buttons with aria-expanded and aria-controls."
+      },
+      "designTokens": [
+        "--secondary",
+        "--info",
+        "--primary",
+        "--success",
+        "--warning",
+        "--error",
+        "--border",
+        "--surface-raised",
+        "--surface-sunken",
+        "--text-primary",
+        "--text-secondary"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "inline-edit-list",
+      "name": "InlineEditList",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/InlineEditList/index.tsx",
+      "abbr": "Ie",
+      "description": "A list whose rows edit in place: add, edit, remove and reorder, all from the keyboard, with a validation message per row and an async save state per row. Controlled: every change goes through onChange(next, change); return a promise to show saving, reject to show the row's error.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "tag-input",
+        "data-table"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "list",
+          "alert",
+          "status"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "ArrowUp / ArrowDown / Home / End",
+            "action": "Move between rows"
+          },
+          {
+            "keys": "Enter / F2",
+            "action": "Edit the row"
+          },
+          {
+            "keys": "Delete",
+            "action": "Remove the row"
+          },
+          {
+            "keys": "Alt + ArrowUp / ArrowDown",
+            "action": "Move the row"
+          },
+          {
+            "keys": "Enter / Escape (in the editor)",
+            "action": "Save / cancel"
+          }
+        ]
+      },
+      "designTokens": [
+        "--surface-raised",
+        "--surface-base",
+        "--border",
+        "--border-focus",
+        "--error",
+        "--success",
+        "--primary",
+        "--primary-fg",
+        "--text-primary",
+        "--text-secondary"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "locale-switcher",
+      "name": "LocaleSwitcher",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/LocaleSwitcher/index.tsx",
+      "abbr": "Lc",
+      "description": "A language picker for public pages. Options are links when they have an href (a native details menu, so it works without JavaScript) or buttons when they do not. Names are shown in their own language with lang and dir set, the current locale is marked in text, and a locale whose page falls back to another language says so. Not the flag dropdown LanguageSwitcher of the common domain: no flag assets and no i18n dependency.",
+      "status": "beta",
+      "since": "2026-10",
+      "relatedTo": [
+        "common-language-switcher",
+        "dropdown-menu"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "disclosure",
+          "link"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "ArrowUp / ArrowDown / Home / End",
+            "action": "Move between options"
+          },
+          {
+            "keys": "Escape",
+            "action": "Close and return to the trigger"
+          }
+        ]
+      },
+      "designTokens": [
+        "--surface-base",
+        "--surface-raised",
+        "--surface-overlay",
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--warning",
+        "--warning-subtle",
+        "--text-primary",
+        "--text-secondary"
+      ],
+      "variantCount": 3
+    },
+    {
+      "id": "burn-chart",
+      "name": "BurnChart",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/Chart/charts/BurnChart.tsx",
+      "abbr": "Bu",
+      "description": "An SLO burn view on the Chart primitives: the error budget remaining with a projection that runs to zero at the recent pace, the burn rate with the alerting tiers as labelled thresholds (the SRE workbook's 14.4 / 6 / 3 / 1 by default), and annotations such as a deploy or an incident. Colour is not the only signal: tiers and annotations carry text, the projection is dashed, and a text summary states the budget, the active tier and the projected exhaustion.",
+      "status": "beta",
+      "since": "2026-10",
+      "composes": [
+        "chart"
+      ],
+      "relatedTo": [
+        "time-series-chart",
+        "gauge-chart",
+        "heatmap-chart"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "group",
+          "img"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "ArrowLeft / ArrowRight / Home / End",
+            "action": "Step the cursor through the points; the tooltip follows"
+          },
+          {
+            "keys": "Escape",
+            "action": "Clear the cursor"
+          }
+        ]
+      },
+      "designTokens": [
+        "--primary",
+        "--info",
+        "--warning",
+        "--error",
+        "--success",
+        "--border",
+        "--border-strong",
+        "--surface-base",
+        "--surface-raised",
+        "--text-secondary",
+        "--border-focus"
+      ],
+      "variantCount": 3
     },
     {
       "id": "lib-kui-viewer",

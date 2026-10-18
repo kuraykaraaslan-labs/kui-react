@@ -40,6 +40,7 @@ import { buildControlTileData } from './sections/ui-molecule-control-tile.showca
 import { buildTimeWindowPickerData } from './sections/ui-molecule-time-window-picker.showcase';
 import { buildUseAsyncControlData } from './sections/ui-molecule-use-async-control.showcase';
 import { buildPrimitiveChartSinglesData } from './sections/ui-primitive-chart-singles.showcase';
+import { buildObservabilityData } from './sections/ui-observability.showcase';
 import { buildLibKuiViewerData } from './sections/lib-kui-viewer.showcase';
 
 export function buildShowcaseData() {
@@ -84,6 +85,7 @@ export function buildShowcaseData() {
     ...buildIoTDomainData(),
     ...buildNftDomainData(),
     ...buildReviewsDomainData(),
+    ...buildObservabilityData(),
     ...buildLibKuiViewerData(),
   ];
 }

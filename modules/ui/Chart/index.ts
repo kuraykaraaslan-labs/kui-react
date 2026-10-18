@@ -34,6 +34,10 @@ export type { HeatCell } from './charts/_heatmap';
 export { GaugeChart, bandFor, arcPath } from './charts/GaugeChart';
 export type { GaugeChartProps, GaugeBand, GaugeTone } from './charts/GaugeChart';
 
+// ── SLO burn chart (error budget, burn-rate tiers, projection, annotations) ──
+export { BurnChart, DEFAULT_BURN_CHART_MESSAGES, DEFAULT_BURN_TIERS, projectBudget, activeTier, budgetState } from './charts/BurnChart';
+export type { BurnChartProps, BurnChartMessages, BurnPoint, BurnTier, BurnTone, BurnAnnotation } from './charts/BurnChart';
+
 // ── Charts (M3 stubs — render null today) ──────────────────────────
 export { BubbleChart } from './charts/BubbleChart';
 export { TreemapChart } from './charts/TreemapChart';
