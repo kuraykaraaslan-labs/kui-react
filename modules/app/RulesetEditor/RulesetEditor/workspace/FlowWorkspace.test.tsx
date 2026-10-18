@@ -5,7 +5,6 @@ import { FlowWorkspace, type FlowWorkspaceProps, type FlowWorkspaceRef } from '.
 import { catalogFromBlocks } from '../../catalog';
 import { createDraftStore, draftKey, type DraftStorage, type DraftStore } from '../../graph/draft';
 import { snapshotOf } from '../../graph/state';
-import { TAB_ORDER_KEY } from './tab-order';
 import type { RulesetGraph } from '../hooks/useGraphEditor';
 import type { RuleNode } from '../../types';
 
@@ -22,11 +21,16 @@ const CATALOG = catalogFromBlocks([[
 const node = (nodeId: string, type: string, label: string, x: number, config: Record<string, unknown> = {}): RuleNode => ({ nodeId, type, label, x, y: 0, config });
 const graph = (nodes: RuleNode[] = [node('n1', 'logic.step', 'First', 0), node('n2', 'logic.step', 'Second', 300)]): RulesetGraph => ({ nodes, edges: [], groups: [], subflows: [] });
 
-const TABS = [
-  { id: 'main', kind: 'flow' as const, name: 'Main flow', isRule: true },
+const FLOWS = [
+  { id: 'main', kind: 'flow' as const, name: 'Main flow' },
   { id: 'night', kind: 'flow' as const, name: 'Night' },
   { id: 'calc', kind: 'subflow' as const, name: 'Calc' },
 ];
+
+/** the open flow can leave only through a link jump: a link out whose link in is in the flow "night" */
+const LEAVER = (x = 300) => graph([node('out1', 'action.link_out', 'Send alarm', 0, { targets: ['alarm'] }), node('n2', 'logic.step', 'Second', x)]);
+const NIGHT = [{ id: 'night', kind: 'flow' as const, name: 'Night', nodes: [node('a1', 'trigger.link_in', 'Alarm in', 0, { name: 'alarm' })] }];
+const leaverProps = (): Partial<FlowWorkspaceProps> => ({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: LEAVER() }, loadFlows: vi.fn(async () => NIGHT) });
 
 function memory(): DraftStorage & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -37,177 +41,25 @@ function setup(props: Partial<FlowWorkspaceProps> = {}, store?: DraftStore) {
   const ref = createRef<FlowWorkspaceRef>();
   const mem = memory();
   const draftStore = store ?? createDraftStore(() => mem);
-  const handlers = { onOpen: vi.fn(), onCreate: vi.fn(), onDuplicate: vi.fn(), onRename: vi.fn() };
+  const handlers = { onOpen: vi.fn() };
   const full: FlowWorkspaceProps = {
-    ref, tabs: TABS, flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: graph() }, catalog: CATALOG, draftStore, ...handlers, ...props,
+    ref, flows: FLOWS, flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: graph() }, catalog: CATALOG, draftStore, ...handlers, ...props,
   };
   const utils = render(<FlowWorkspace {...full} />);
   return { ref, mem, draftStore, ...handlers, ...utils, rerender: (p: Partial<FlowWorkspaceProps> = {}) => utils.rerender(<FlowWorkspace {...full} {...p} />) };
 }
 
-const tab = (id: string) => screen.getByTestId(`flow-ftab-${id}`);
 const nodeEl = (label: string) => screen.getByRole('button', { name: new RegExp(`^${label} \\(`) });
-const tabNames = () => within(screen.getByRole('tablist')).getAllByRole('tab').map((t) => t.getAttribute('data-tab-id'));
+/** leave the open flow the one way there is: the "Go to the link in" entry of a link out */
+async function jumpAway() {
+  fireEvent.contextMenu(nodeEl('Send alarm'));
+  fireEvent.click(await within(await screen.findByRole('menu')).findByRole('menuitem', { name: 'Go to the link in' }));
+}
 
 /** put a graph in the editor as the host would: through the ref */
 function edit(ref: React.RefObject<FlowWorkspaceRef | null>, g: RulesetGraph, key = 'test') {
   act(() => ref.current!.editor!.replaceGraph(g, { key }));
 }
-
-describe('FlowWorkspace: tabs', () => {
-  it('shows flows, then subflows, with the Rule badge only where the host says', () => {
-    setup();
-    expect(tabNames()).toEqual(['main', 'night', 'calc']);
-    expect(within(tab('main')).getByText('Rule')).toBeInTheDocument();
-    expect(within(tab('night')).queryByText('Rule')).not.toBeInTheDocument();
-    expect(tab('main')).toHaveAttribute('aria-selected', 'true');
-    expect(tab('night')).toHaveAttribute('aria-selected', 'false');
-  });
-
-  it('shows a tab for a flow not saved yet, and one for a flow the host list lacks', () => {
-    setup({ flow: { id: null, kind: 'flow', name: 'Fresh', graph: graph() } });
-    expect(screen.getByTestId('flow-ftab-new')).toHaveTextContent('Fresh');
-    cleanup();
-    setup({ flow: { id: 'saved', kind: 'flow', name: 'Just saved', graph: graph() } });
-    expect(tab('saved')).toHaveAttribute('aria-selected', 'true');
-  });
-
-  it('asks the host to open another tab, and does nothing for the open one', () => {
-    const { onOpen } = setup();
-    fireEvent.click(tab('main'));
-    expect(onOpen).not.toHaveBeenCalled();
-    fireEvent.click(tab('calc'));
-    expect(onOpen).toHaveBeenCalledWith({ kind: 'subflow', id: 'calc' }, undefined);
-  });
-
-  it('"+" asks the host for a new flow, and is not there when the host cannot create', () => {
-    const { onCreate } = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'New flow' }));
-    expect(onCreate).toHaveBeenCalledTimes(1);
-    cleanup();
-    setup({ canCreate: false });
-    expect(screen.queryByRole('button', { name: 'New flow' })).not.toBeInTheDocument();
-  });
-
-  it('puts a dot on the open tab when it has unsaved changes', () => {
-    const { ref } = setup();
-    expect(screen.queryByRole('img', { name: 'Unsaved changes' })).not.toBeInTheDocument();
-    edit(ref, graph([node('n1', 'logic.step', 'First', 40), node('n2', 'logic.step', 'Second', 300)]));
-    expect(within(tab('main')).getByRole('img', { name: 'Unsaved changes' })).toBeInTheDocument();
-    expect(ref.current!.isDirty()).toBe(true);
-  });
-
-  it('reorders with Alt + arrow keys within a kind and keeps the order in this browser', () => {
-    setup();
-    fireEvent.keyDown(tab('main'), { key: 'ArrowRight', altKey: true });
-    expect(tabNames()).toEqual(['night', 'main', 'calc']);
-    expect(JSON.parse(localStorage.getItem(TAB_ORDER_KEY)!).flows).toEqual(['night', 'main']);
-    // a subflow does not move among the flows
-    fireEvent.keyDown(tab('calc'), { key: 'ArrowLeft', altKey: true });
-    expect(tabNames()).toEqual(['night', 'main', 'calc']);
-  });
-
-  it('starts from the saved order, and from the host order when there is none', () => {
-    localStorage.setItem(TAB_ORDER_KEY, JSON.stringify({ flows: ['night', 'main'] }));
-    setup();
-    expect(tabNames()).toEqual(['night', 'main', 'calc']);
-  });
-
-  it('reorders by drag and drop within a kind only', () => {
-    setup();
-    fireEvent.dragStart(tab('night'));
-    fireEvent.dragOver(tab('main'));
-    fireEvent.drop(tab('main'));
-    expect(tabNames()).toEqual(['night', 'main', 'calc']);
-    fireEvent.dragStart(tab('calc'));
-    fireEvent.dragOver(tab('main'));
-    fireEvent.drop(tab('main'));
-    expect(tabNames()).toEqual(['night', 'main', 'calc']);
-  });
-
-  it('still reorders for this visit when storage is blocked', () => {
-    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
-    setup();
-    fireEvent.keyDown(tab('night'), { key: 'ArrowLeft', altKey: true });
-    expect(tabNames()).toEqual(['night', 'main', 'calc']);
-    spy.mockRestore();
-  });
-});
-
-describe('FlowWorkspace: tab menu', () => {
-  it('opens on right click; Rename is for the open tab only', async () => {
-    const { onRename, onOpen } = setup();
-    fireEvent.contextMenu(tab('night'));
-    let menu = await screen.findByRole('menu');
-    expect(within(menu).getByRole('menuitem', { name: 'Rename…' })).toBeDisabled();
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Open' }));
-    expect(onOpen).toHaveBeenCalledWith({ kind: 'flow', id: 'night' }, undefined);
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Menu of this tab' }));
-    menu = await screen.findByRole('menu');
-    expect(within(menu).queryByRole('menuitem', { name: 'Open' })).not.toBeInTheDocument();
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Rename…' }));
-    expect(onRename).toHaveBeenCalledWith({ kind: 'flow', id: 'main' });
-  });
-
-  it('disables Rename when read only and Duplicate when the host cannot create', async () => {
-    setup({ readOnly: true, canCreate: false });
-    fireEvent.click(screen.getByRole('button', { name: 'Menu of this tab' }));
-    const menu = await screen.findByRole('menu');
-    expect(within(menu).getByRole('menuitem', { name: 'Rename…' })).toBeDisabled();
-    expect(within(menu).getByRole('menuitem', { name: 'Duplicate' })).toBeDisabled();
-  });
-
-  it('duplicates through the host and moves the tab', async () => {
-    const { onDuplicate } = setup();
-    fireEvent.contextMenu(tab('night'));
-    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Duplicate' }));
-    expect(onDuplicate).toHaveBeenCalledWith({ kind: 'flow', id: 'night' });
-    fireEvent.contextMenu(tab('night'));
-    const menu = await screen.findByRole('menu');
-    expect(within(menu).getByRole('menuitem', { name: 'Move right' })).toBeDisabled();
-    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Move left' }));
-    expect(tabNames()).toEqual(['night', 'main', 'calc']);
-  });
-
-  it('closes on Escape', async () => {
-    setup();
-    fireEvent.contextMenu(tab('main'));
-    fireEvent.keyDown(await screen.findByRole('menu'), { key: 'Escape' });
-    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-  });
-
-  it('exports the open tab as a roltek-automation-1 file, and another tab through the host', async () => {
-    const download = vi.fn();
-    const created: Blob[] = [];
-    URL.createObjectURL = vi.fn((b: Blob | MediaSource) => { created.push(b as Blob); return 'blob:x'; });
-    URL.revokeObjectURL = vi.fn();
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { download(this.download); });
-    const loadFlow = vi.fn(async () => ({ name: 'Night', graph: graph([node('z1', 'logic.step', 'Zed', 0)]) }));
-    setup({ loadFlow });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Menu of this tab' }));
-    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Export as a file' }));
-    expect(download).toHaveBeenCalledWith(expect.stringMatching(/^automation-main-flow-.*\.json$/));
-    expect(JSON.parse(await created[0].text()).format).toBe('roltek-automation-1');
-    expect(loadFlow).not.toHaveBeenCalled();
-
-    fireEvent.contextMenu(tab('night'));
-    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Export as a file' }));
-    await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
-    expect(loadFlow).toHaveBeenCalledWith('flow', 'night');
-    expect(download).toHaveBeenLastCalledWith(expect.stringMatching(/^automation-night-/));
-    click.mockRestore();
-  });
-
-  it('says so when the host cannot give the flow for an export', async () => {
-    setup({ loadFlow: async () => null });
-    fireEvent.contextMenu(tab('night'));
-    fireEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Export as a file' }));
-    expect(await screen.findByText('Could not read Night from the server.')).toBeInTheDocument();
-  });
-});
 
 describe('FlowWorkspace: browser draft', () => {
   const CHANGED = () => graph([node('n1', 'logic.step', 'First', 40), node('n2', 'logic.step', 'Second', 300)]);
@@ -292,30 +144,28 @@ describe('FlowWorkspace: browser draft', () => {
     expect(screen.queryByTestId('flow-draft')).not.toBeInTheDocument();
   });
 
-  it('writes the draft before leaving for another tab', () => {
-    const { ref, mem, onOpen } = setup();
-    edit(ref, CHANGED());
-    fireEvent.click(tab('night'));
+  it('writes the draft before leaving for another flow', async () => {
+    const { ref, mem, onOpen } = setup(leaverProps());
+    edit(ref, LEAVER(340));
+    await jumpAway();
+    await waitFor(() => expect(onOpen).toHaveBeenCalledTimes(1));
     expect(mem.data.has(draftKey('flow', 'main'))).toBe(true);
-    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it('refuses to leave with a message when the draft cannot be kept', () => {
+  it('refuses to leave with a message when the draft cannot be kept', async () => {
     const blocked = createDraftStore(() => null);
-    const { ref, onOpen, onCreate } = setup({}, blocked);
-    edit(ref, CHANGED());
-    fireEvent.click(tab('night'));
+    const { ref, onOpen } = setup(leaverProps(), blocked);
+    edit(ref, LEAVER(340));
+    await jumpAway();
+    await waitFor(() => expect(screen.getByTestId('flow-notice')).toHaveTextContent('Save or undo your changes first: this browser cannot keep a draft.'));
     expect(onOpen).not.toHaveBeenCalled();
-    expect(screen.getByTestId('flow-notice')).toHaveTextContent('Save or undo your changes first: this browser cannot keep a draft.');
-    fireEvent.click(screen.getByRole('button', { name: 'New flow' }));
-    expect(onCreate).not.toHaveBeenCalled();
   });
 
-  it('leaves freely when nothing changed, even with blocked storage', () => {
+  it('leaves freely when nothing changed, even with blocked storage', async () => {
     const blocked = createDraftStore(() => null);
-    const { onOpen } = setup({}, blocked);
-    fireEvent.click(tab('night'));
-    expect(onOpen).toHaveBeenCalledTimes(1);
+    const { onOpen } = setup(leaverProps(), blocked);
+    await jumpAway();
+    await waitFor(() => expect(onOpen).toHaveBeenCalledTimes(1));
   });
 });
 
@@ -499,22 +349,15 @@ describe('FlowWorkspace: merge', () => {
 
 describe('FlowWorkspace: messages', () => {
   const de = {
-    wsFlows: 'Abläufe', wsNewFlow: 'Neuer Ablauf', wsRuleBadge: 'Regel', wsTabMenu: 'Menü dieses Tabs', wsTabRename: 'Umbenennen…',
     wsDraftFound: (t: string) => `Ungespeicherte Änderungen von ${t} wurden in diesem Browser behalten.`, wsRestore: 'Wiederherstellen', wsDiscard: 'Verwerfen',
     wsConflictTitle: 'Dieser Ablauf wurde von jemand anderem gespeichert', wsConflictNewer: (w: string) => `Die Fassung von ${w} ist neuer.`,
     dialogCancel: 'Abbrechen', wsLocale: 'de-DE', paletteTitle: 'Knotentypen',
   };
 
-  it('translates the tabs, the tab menu and the editor below, a message left out stays English', () => {
+  it('translates the editor below, a message left out stays English', () => {
     setup({ messages: de });
-    expect(screen.getByRole('tablist', { name: 'Abläufe' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Neuer Ablauf' })).toBeInTheDocument();
-    expect(within(tab('main')).getByText('Regel')).toBeInTheDocument();
     expect(screen.getByText('Knotentypen')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('flow-ftab-more'));
-    const menu = screen.getByRole('menu', { name: 'Menü dieses Tabs' });
-    expect(within(menu).getByRole('menuitem', { name: 'Umbenennen…' })).toBeInTheDocument();
-    expect(within(menu).getByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Fullscreen' })).toBeInTheDocument();
   });
   it('translates the draft banner', () => {
     const mem = memory();
@@ -537,41 +380,41 @@ describe('FlowWorkspace: messages', () => {
 
 describe('FlowWorkspace: leave guard', () => {
   const unload = () => { const e = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; };
-  const change = (ref: React.RefObject<FlowWorkspaceRef | null>) => edit(ref, graph([node('n1', 'logic.step', 'First', 0)]));
+  const change = (ref: React.RefObject<FlowWorkspaceRef | null>) => edit(ref, LEAVER(340));
 
-  it('does nothing unless the host switches it on', () => {
+  it('does nothing unless the host switches it on', async () => {
     const confirm = vi.spyOn(window, 'confirm');
-    const { ref, onOpen } = setup();
+    const { ref, onOpen } = setup(leaverProps());
     change(ref);
     expect(unload()).toBe(false);
-    fireEvent.click(tab('night'));
+    await jumpAway();
+    await waitFor(() => expect(onOpen).toHaveBeenCalled());
     expect(confirm).not.toHaveBeenCalled();
-    expect(onOpen).toHaveBeenCalled();
     confirm.mockRestore();
   });
-  it('guards a reload and a tab that leaves, while the flow is dirty', () => {
+  it('guards a reload and a jump that leaves, while the flow is dirty', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const { ref, onOpen } = setup({ leaveGuard: true });
+    const { ref, onOpen } = setup({ ...leaverProps(), leaveGuard: true });
     expect(unload()).toBe(false); // clean
     change(ref);
     expect(unload()).toBe(true);
-    fireEvent.click(tab('night'));
-    expect(confirm).toHaveBeenCalledWith('You have changes that are not saved. Leave without saving them?');
+    await jumpAway();
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith('You have changes that are not saved. Leave without saving them?'));
     expect(onOpen).not.toHaveBeenCalled();
     confirm.mockReturnValue(true);
-    fireEvent.click(tab('night'));
-    expect(onOpen).toHaveBeenCalledWith({ kind: 'flow', id: 'night' }, undefined);
+    await jumpAway();
+    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ kind: 'flow', id: 'night' }, { nodeId: 'a1' }));
     confirm.mockRestore();
   });
-  it('lets the host decide with a function of dirty (a change already in the server draft is not guarded)', () => {
+  it('lets the host decide with a function of dirty (a change already in the server draft is not guarded)', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     let kept = true;
-    const { ref, onOpen } = setup({ leaveGuard: (dirty) => dirty && !kept });
+    const { ref, onOpen } = setup({ ...leaverProps(), leaveGuard: (dirty) => dirty && !kept });
     change(ref);
     expect(unload()).toBe(false);
-    fireEvent.click(tab('night'));
+    await jumpAway();
+    await waitFor(() => expect(onOpen).toHaveBeenCalled());
     expect(confirm).not.toHaveBeenCalled();
-    expect(onOpen).toHaveBeenCalled();
     kept = false;
     cleanup();
     const second = setup({ leaveGuard: (dirty) => dirty && !kept });
@@ -579,12 +422,12 @@ describe('FlowWorkspace: leave guard', () => {
     expect(unload()).toBe(true);
     confirm.mockRestore();
   });
-  it('says it in the host words', () => {
+  it('says it in the host words', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const { ref } = setup({ leaveGuard: true, messages: { wsLeaveConfirm: 'Ungespeicherte Änderungen verwerfen?' } });
+    const { ref } = setup({ ...leaverProps(), leaveGuard: true, messages: { wsLeaveConfirm: 'Ungespeicherte Änderungen verwerfen?' } });
     change(ref);
-    fireEvent.click(tab('night'));
-    expect(confirm).toHaveBeenCalledWith('Ungespeicherte Änderungen verwerfen?');
+    await jumpAway();
+    await waitFor(() => expect(confirm).toHaveBeenCalledWith('Ungespeicherte Änderungen verwerfen?'));
     confirm.mockRestore();
   });
 });
@@ -604,11 +447,11 @@ describe('FlowWorkspace: Ctrl+S', () => {
 });
 
 describe('FlowWorkspace: fullscreen', () => {
-  it('takes the whole workspace (tabs included), not only the canvas', () => {
+  it('takes the whole workspace, not only the canvas', () => {
     setup();
     fireEvent.click(screen.getByRole('button', { name: 'Fullscreen' }));
     const marked = document.querySelector('[data-fs="true"]') as HTMLElement;
     expect(marked).toHaveAttribute('data-ruleset-workspace');
-    expect(marked.contains(screen.getByRole('tablist'))).toBe(true);
+    expect(marked.contains(screen.getByLabelText('Rule chain canvas'))).toBe(true);
   });
 });

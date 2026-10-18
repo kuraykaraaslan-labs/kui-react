@@ -1,21 +1,17 @@
 'use client';
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
-import type { RuleChain } from '../../types';
 import type { DraftStore } from '../../graph/draft';
 import type { LinkFlow } from '../../graph/links';
 import { secretTestOf } from '../../graph/scrub';
 import type { MergeResult } from '../../graph/merge';
-import { buildRoltekExport } from '../../transfer';
 import { MessagesProvider, useMergedMessages, useMessages } from '../messages';
 import { RulesetEditor, type ContextMenuItem, type NodeMenuContext, type RulesetEditorProps, type RulesetEditorRef } from '../index';
 import type { RulesetGraph } from '../hooks/useGraphEditor';
 import { DraftBanner, NoticeBanner, type Notice } from './DraftBanner';
-import { FlowTabs } from './FlowTabs';
 import { LinkHitsDialog } from './LinkHitsDialog';
 import { ConflictDialog, MergedDialog } from './MergeDialog';
-import { orderTabs, readTabOrder, reorder, savedFor, writeTabOrder, type TabOrder } from './tab-order';
-import type { ActiveFlow, ConflictInfo, FlowKind, LoadedFlow, TabRef, WorkspaceTab } from './types';
+import type { ActiveFlow, ConflictInfo, FlowKind, FlowRef, LoadedFlow, WorkspaceFlow } from './types';
 import { FULLSCREEN_CLASSES } from '../hooks/useFullscreen';
 import { useLeaveGuard } from '../hooks/useLeaveGuard';
 import { useDraft } from './useDraft';
@@ -37,22 +33,15 @@ export type FlowWorkspaceRef = {
 type EditorProps = Omit<RulesetEditorProps, 'initialNodes' | 'initialEdges' | 'initialGroups' | 'initialSubflows' | 'chainName' | 'bannerSlot' | 'ref'>;
 
 export type FlowWorkspaceProps = EditorProps & {
-  /** every flow and subflow of the host (the open one may be left out until it is saved) */
-  tabs: WorkspaceTab[];
-  /** the flow in the editor. The workspace loads its graph once: give another flow to open another tab */
+  /** every flow and subflow of the host (the open one may be left out until it is saved); the workspace searches them for link jumps */
+  flows: WorkspaceFlow[];
+  /** the flow in the editor. The workspace loads its graph once: give another flow to open another one */
   flow: ActiveFlow;
-  /** a tab was clicked (or a link jump): show that flow. `nodeId` is a block to select and bring into view */
-  onOpen: (tab: TabRef, options?: { nodeId?: string }) => void;
-  /** the "+" tab */
-  onCreate?: () => void;
-  onDuplicate?: (tab: TabRef) => void;
-  /** rename the open flow (the menu offers it for the open tab only) */
-  onRename?: (tab: TabRef) => void;
-  /** may a new flow be made (shows "+" and enables Duplicate); default true */
-  canCreate?: boolean;
+  /** a link jump to another flow: show that flow. `nodeId` is a block to select and bring into view */
+  onOpen: (flow: FlowRef, options?: { nodeId?: string }) => void;
   /** other flows with their blocks, for link jumps across flows (kept 30 s). Without it only the open flow is searched */
   loadFlows?: (ids: string[]) => Promise<LinkFlow[] | null | undefined>;
-  /** one flow as the host has it: the other side of a merge, and the file of Export for a tab that is not open */
+  /** one flow as the host has it: the other side of a merge */
   loadFlow?: (kind: FlowKind, id: string) => Promise<LoadedFlow | null | undefined>;
   /** set when saving found a newer version: shows the conflict dialog with Merge */
   conflict?: ConflictInfo | null;
@@ -72,7 +61,7 @@ export type FlowWorkspaceProps = EditorProps & {
   draftStore?: DraftStore;
   /**
    * Guard against leaving with a change that is not kept anywhere else: while it is active, a reload or a closed tab asks
-   * the browser to confirm, and a tab or link that leaves this flow asks first. `true` guards while the flow is dirty; a
+   * the browser to confirm, and a link jump that leaves this flow asks first. `true` guards while the flow is dirty; a
    * function gets `dirty` and says (a host with a server draft returns `dirty && !serverDraftSaved`). Off by default.
    */
   leaveGuard?: boolean | ((dirty: boolean) => boolean);
@@ -82,31 +71,21 @@ export type FlowWorkspaceProps = EditorProps & {
   ref?: React.Ref<FlowWorkspaceRef>;
 };
 
-function downloadText(fileName: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 /**
- * `RulesetEditor` with the pieces a host that has many flows needs: a strip of flow tabs, a browser draft per flow,
- * jumps through link blocks and a three-way merge for a save conflict. The editor stays one flow at a time; a tab is
- * navigation, done through the host's callbacks. Use it instead of the bare editor, with the same props.
+ * `RulesetEditor` with the pieces a host that has many flows needs: a browser draft per flow, jumps through link blocks
+ * and a three-way merge for a save conflict. The editor stays one flow at a time; opening another flow is navigation,
+ * done through the host's `onOpen`. Flows are created, renamed, duplicated and exported from the host's list. Use it
+ * instead of the bare editor, with the same props.
  */
 export function FlowWorkspace(props: FlowWorkspaceProps) {
-  // the words of the tabs, banners and dialogs, and (through the editor props) of the editor
+  // the words of the banners and dialogs, and (through the editor props) of the editor
   const m = useMergedMessages(props.messages);
   // one editor, one draft and one set of dialogs per flow
   return <MessagesProvider value={m}><WorkspaceBody key={`${props.flow.kind}:${props.flow.id ?? 'new'}`} {...props} /></MessagesProvider>;
 }
 
 function WorkspaceBody({
-  tabs, flow, onOpen, onCreate, onDuplicate, onRename, canCreate = true, loadFlows, loadFlow, conflict, conflictActions, onConflictClose,
+  flows, flow, onOpen, loadFlows, loadFlow, conflict, conflictActions, onConflictClose,
   onMerged, focusNodeId, onDirtyChange, onChange, draftStore, leaveGuard, onSave, className, nodeMenuItems, ref, ...editorProps
 }: FlowWorkspaceProps) {
   const m = useMessages();
@@ -121,28 +100,6 @@ function WorkspaceBody({
   const draft = useDraft({ kind: flow.kind, id: flow.id, initial: flow.graph, readOnly, getGraph, replaceGraph, store: draftStore, secretTest, onDirtyChange });
   const guard = useLeaveGuard(typeof leaveGuard === 'function' ? leaveGuard(draft.dirty) : !!leaveGuard && draft.dirty, m.wsLeaveConfirm);
 
-  /* ── tabs ── */
-  const [order, setOrder] = useState<TabOrder>({});
-  // reads localStorage after hydration, so the server and first client render agree
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => setOrder(readTabOrder()), []);
-  const shown = useMemo(() => {
-    const list = (kind: FlowKind) => {
-      const a = tabs.filter((t) => t.kind === kind);
-      // the open flow has a tab even when the host's list does not have it yet (just saved)
-      if (flow.id && flow.kind === kind && !a.some((t) => t.id === flow.id)) a.push({ id: flow.id, kind, name: flow.name });
-      return orderTabs(a, savedFor(order, kind));
-    };
-    return { flows: list('flow'), subflows: list('subflow') };
-  }, [tabs, flow.id, flow.kind, flow.name, order]);
-
-  function moveTab(kind: FlowKind, id: string, to: number) {
-    const ids = (kind === 'subflow' ? shown.subflows : shown.flows).map((t) => t.id);
-    const next = reorder(order, kind, ids, id, to);
-    setOrder(next);
-    writeTabOrder(next);
-  }
-
   /** leaving this flow: the draft keeps what is unsaved; if the browser cannot keep it, stay and say so */
   function leave(): boolean {
     if (!guard.confirmLeave()) return false;
@@ -151,39 +108,13 @@ function WorkspaceBody({
     return false;
   }
 
-  function open(tab: TabRef, options?: { nodeId?: string }) {
-    if (leave()) onOpen(tab, options);
-  }
-
-  async function exportTab(ref: TabRef) {
-    const tab = [...shown.flows, ...shown.subflows].find((t) => t.id === ref.id && t.kind === ref.kind);
-    const cur = ref.id === flow.id && ref.kind === flow.kind;
-    let graph: RulesetGraph | undefined;
-    let name = tab?.name || ref.id;
-    if (cur) { graph = getGraph(); name = flow.name || name; }
-    else {
-      const got = await loadFlow?.(ref.kind, ref.id).catch(() => null);
-      graph = got?.graph;
-      name = got?.name || name;
-    }
-    if (!graph) { say(m.wsReadFail(name), 'error'); return; }
-    const chain: RuleChain = { chainId: ref.id, name, slug: ref.id, active: false, nodes: graph.nodes, edges: graph.edges, groups: graph.groups, subflows: graph.subflows };
-    const result = buildRoltekExport([chain], { catalog: editorProps.catalog });
-    try {
-      downloadText(result.fileName, result.json);
-      if (result.omitted.length || result.omittedDescriptions.length) say(m.wsSavedFile(result.fileName, result.omitted.length, result.omittedDescriptions.length));
-    } catch {
-      try { await navigator.clipboard.writeText(result.json); say(m.wsCopiedJson); } catch { say(m.wsNoDownload, 'error'); }
-    }
-  }
-
   /* ── link jumps ── */
   const revealNode = useCallback((nodeId: string) => {
     editorRef.current?.select([nodeId]);
     editorRef.current?.reveal(nodeId);
   }, []);
   const here = useMemo(() => ({ id: flow.id, kind: flow.kind, name: flow.name }), [flow.id, flow.kind, flow.name]);
-  const otherIds = useMemo(() => tabs.filter((t) => !(t.id === flow.id && t.kind === flow.kind)).map((t) => t.id), [tabs, flow.id, flow.kind]);
+  const otherIds = useMemo(() => flows.filter((t) => !(t.id === flow.id && t.kind === flow.kind)).map((t) => t.id), [flows, flow.id, flow.kind]);
   const links = useFlowLinks({
     here, getGraph, otherIds, loadFlows, reveal: revealNode, notify: say,
     jump: (hit) => { if (leave()) onOpen({ kind: hit.kind, id: hit.flow }, { nodeId: hit.node }); },
@@ -217,11 +148,6 @@ function WorkspaceBody({
 
   return (
     <div data-ruleset-workspace className={cn('flex h-full min-h-0 flex-col', FULLSCREEN_CLASSES, className)}>
-      <FlowTabs
-        flows={shown.flows} subflows={shown.subflows} active={flow} dirty={draft.dirty} readOnly={readOnly} canCreate={canCreate}
-        onOpen={open} onCreate={onCreate ? () => { if (leave()) onCreate(); } : undefined} onDuplicate={onDuplicate} onRename={onRename}
-        onExport={(t) => { void exportTab(t); }} onMove={moveTab}
-      />
       <div className="min-h-0 flex-1">
         <RulesetEditor
           {...editorProps}

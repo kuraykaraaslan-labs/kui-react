@@ -75,7 +75,7 @@ demo.ts             sample catalog and flow for the showcase and the demo page
 | `choices` | `{ [sourceName]: { value, label }[] }` for `source` and `list` fields. Without a list the field is plain text. |
 | `paramEditors` | `{ [blockType]: ComponentType<ParamEditorProps> }`: the host's own param editor for a block type, shown in the node panel in place of the generated form. It gets `{ params, onChange(params), disabled, node, decl, choices }` and replaces the params as a whole; validation, the issues list and saving work as for the form. A type without an editor keeps the form. |
 | `unavailable` | `{ [blockType]: reason }`: blocks the host cannot run now (a missing module, a plan without the feature). The palette, the block picker and the canvas menu grey them out with the reason as the hint and do not add them; blocks already on the canvas stay. |
-| `messages` | `Partial<EditorMessages>`: the words of the editor chrome (context menu, palette, node panel, the dialogs the editor opens, why a block cannot be added), so a host can translate them. What is not given stays English; a message that needs a number or a name is a function. Block titles and param labels come from the catalog. The remaining parts (canvas toolbar, issues panel, dialogs' inner texts, flow tabs, merge dialog, insight panel, debug modals, param form) are still English and move over one by one. |
+| `messages` | `Partial<EditorMessages>`: the words of the editor chrome (context menu, palette, node panel, the dialogs the editor opens, why a block cannot be added), so a host can translate them. What is not given stays English; a message that needs a number or a name is a function. Block titles and param labels come from the catalog. The remaining parts (canvas toolbar, issues panel, dialogs' inner texts, merge dialog, insight panel, debug modals, param form) are still English and move over one by one. |
 | `onSave` | `({ valid }) => void`: Ctrl+S (⌘+S) in the editor, its panel included and not a dialog, calls it and keeps the browser from saving the page; `valid` is false while the graph has errors. Without it the keys are left to the browser. `FlowWorkspace` passes `{ valid, dirty }`. |
 | `active` | Severity of “required param is empty”. |
 | `subflowDepthLimit` | How deep subflows may be nested. Default 4 (a host with a smaller engine passes its own limit). |
@@ -228,9 +228,8 @@ caught link; Data with the context fill bar), driven by host-supplied props. See
 
 ## Flow workspace
 
-`RulesetEditor/workspace/FlowWorkspace.tsx` wraps the editor for a host with many flows: a tab strip (reorder, menu, export),
-a browser draft per flow, link-block jumps across flows and a three-way merge for save conflicts. See
-[docs/workspace.md](docs/workspace.md). Demo: `/theme/iot/rulesets/workspace-demo`. `leaveGuard` (`true`, or a function of `dirty`) turns on a guard against losing a change: a reload or a closed tab asks the browser to confirm and a tab that leaves the flow asks first (`hooks/useLeaveGuard`, which a host can also use for its own links through `confirmLeave()`); off by default.
+`RulesetEditor/workspace/FlowWorkspace.tsx` wraps the editor for a host with many flows: a browser draft per flow, link-block jumps across flows and a three-way merge for save conflicts. See
+[docs/workspace.md](docs/workspace.md). Demo: `/theme/iot/rulesets/workspace-demo`. `leaveGuard` (`true`, or a function of `dirty`) turns on a guard against losing a change: a reload or a closed tab asks the browser to confirm and a link jump that leaves the flow asks first (`hooks/useLeaveGuard`, which a host can also use for its own links through `confirmLeave()`); off by default.
 
 ## Tests
 

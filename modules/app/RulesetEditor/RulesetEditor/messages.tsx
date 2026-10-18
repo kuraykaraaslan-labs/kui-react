@@ -71,21 +71,17 @@ export type EditorMessages = {
   sfRemoveParam: (nameOrNumber: string | number) => string;
   /* flow workspace: tabs, draft banner, merge and link dialogs, notices */
   wsLocale: string;
-  wsFlows: string; wsNewFlow: string; wsNewFlowName: string; wsUnsaved: string; wsRuleBadge: string; wsRuleBadgeTitle: string; wsTabMenu: string;
-  wsTabOpen: string; wsTabRename: string; wsTabOpenFirst: string; wsTabDuplicate: string; wsTabExport: string; wsTabMoveLeft: string; wsTabMoveRight: string;
   wsDraftStale: string; wsRestore: string; wsDiscard: string; wsDismiss: string;
   wsConflictTitle: string; wsMerge: string; wsMerging: string; wsMergeExplain: string; wsMergeReadFail: string;
   wsMergedTitle: string; wsOk: string; wsBothSides: string; wsYouDeleted: string; wsNoBothSides: string; wsMergedHint: string;
   wsClose: string; wsLinkInTitle: string; wsLinkOutTitle: string; wsLinkShowCallers: string; wsLinkGoTo: string; wsNoCaller: string;
-  wsLeaveConfirm: string; wsKeepDraftFail: string; wsCopiedJson: string; wsNoDownload: string;
+  wsLeaveConfirm: string; wsKeepDraftFail: string;
   wsDraftFound: (time: string) => string;
   wsConflictNewer: (whoWhen: string) => string;
   wsMergedSummary: (whoWhen: string, taken: number) => string;
   wsGroupName: (name: string) => string;
   wsSubflowName: (name: string) => string;
   wsNoLinkIn: (names: string) => string;
-  wsReadFail: (name: string) => string;
-  wsSavedFile: (fileName: string, secrets: number, descriptions: number) => string;
   /* param form (the fields of a block) */
   formUnit: string; formChoose: string; formUnchanged: string; formSecretStored: string; formOther: string; formOtherValue: string;
   formCommaNumbers: string; formComma: string; formValueType: string; formValue: string; formValueNow: string; formAddRule: string;
@@ -199,9 +195,6 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   sfRemoveOutput: (n) => `Remove output ${n}`,
   sfRemoveParam: (name) => `Remove param ${name}`,
   wsLocale: 'en-GB',
-  wsFlows: 'Flows', wsNewFlow: 'New flow', wsNewFlowName: 'New flow', wsUnsaved: 'Unsaved changes', wsRuleBadge: 'Rule', wsRuleBadgeTitle: 'A rule form can open this flow',
-  wsTabMenu: 'Menu of this tab', wsTabOpen: 'Open', wsTabRename: 'Rename…', wsTabOpenFirst: 'Open the tab first', wsTabDuplicate: 'Duplicate',
-  wsTabExport: 'Export as a file', wsTabMoveLeft: 'Move left', wsTabMoveRight: 'Move right',
   wsDraftStale: 'The flow changed on the server since: restoring replaces what is open now.', wsRestore: 'Restore', wsDiscard: 'Discard', wsDismiss: 'Dismiss',
   wsConflictTitle: 'This flow was saved by someone else', wsMerge: 'Merge', wsMerging: 'Merging…',
   wsMergeExplain: 'Merge keeps what only one side changed. Nothing is saved yet: look through the flow, then save.',
@@ -211,18 +204,13 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   wsClose: 'Close', wsLinkInTitle: 'Blocks that call this link in', wsLinkOutTitle: 'Where this link goes', wsLinkShowCallers: 'Show the blocks that call it',
   wsLinkGoTo: 'Go to the link in', wsNoCaller: 'No block calls this link in.',
   wsLeaveConfirm: 'You have changes that are not saved. Leave without saving them?',
-  wsKeepDraftFail: 'Save or undo your changes first: this browser cannot keep a draft.', wsCopiedJson: 'The flow was copied as JSON.',
-  wsNoDownload: 'The browser did not allow the download.',
+  wsKeepDraftFail: 'Save or undo your changes first: this browser cannot keep a draft.',
   wsDraftFound: (time) => `Unsaved changes from ${time} were kept in this browser.`,
   wsConflictNewer: (who) => `The version of ${who} is newer than the one you started from.`,
   wsMergedSummary: (who, taken) => `The version of ${who} was merged into your changes: ${taken} ${taken === 1 ? 'change' : 'changes'} taken from it.`,
   wsGroupName: (name) => `group ${name}`,
   wsSubflowName: (name) => `subflow ${name}`,
   wsNoLinkIn: (names) => `No link in is called ${names}.`,
-  wsReadFail: (name) => `Could not read ${name} from the server.`,
-  wsSavedFile: (file, secrets, descriptions) => `Saved ${file}.`
-    + (secrets ? ` ${secrets} secret ${secrets === 1 ? 'setting was' : 'settings were'} left out.` : '')
-    + (descriptions ? ` ${descriptions} block ${descriptions === 1 ? 'description was' : 'descriptions were'} left out: the router does not take them yet.` : ''),
   formUnit: 'Unit', formChoose: 'Choose…', formUnchanged: '(unchanged)', formSecretStored: 'A value is stored. Leave empty to keep it.',
   formOther: 'Other…', formOtherValue: 'Other value', formCommaNumbers: 'Comma separated numbers', formComma: 'Comma separated',
   formValueType: 'Type', formValue: 'Value', formValueNow: 'The time the message arrives.', formAddRule: 'Add rule',
