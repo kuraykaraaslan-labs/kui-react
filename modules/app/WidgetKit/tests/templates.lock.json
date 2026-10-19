@@ -238,15 +238,6 @@
     "cardPadding": {
       "type": "number"
     },
-    "header": {
-      "type": "select",
-      "value": "full",
-      "options": [
-        "full",
-        "compact",
-        "hidden"
-      ]
-    },
     "showTitle": {
       "type": "boolean",
       "value": true
@@ -269,49 +260,6 @@
         "fullscreen",
         "refresh",
         "export"
-      ]
-    },
-    "windowTabs": {
-      "type": "multi-select",
-      "value": [
-        "realtime",
-        "history"
-      ],
-      "options": [
-        "realtime",
-        "history"
-      ]
-    },
-    "windowControls": {
-      "type": "multi-select",
-      "value": [
-        "interval",
-        "aggregation",
-        "timezone"
-      ],
-      "options": [
-        "interval",
-        "aggregation",
-        "timezone"
-      ]
-    },
-    "windowAggregations": {
-      "type": "multi-select",
-      "value": [
-        "avg",
-        "min",
-        "max",
-        "sum",
-        "count",
-        "none"
-      ],
-      "options": [
-        "avg",
-        "min",
-        "max",
-        "sum",
-        "count",
-        "none"
       ]
     },
     "defaultRefreshSeconds": {
@@ -2989,23 +2937,6 @@
     }
   },
   "builtin:map@1": {
-    "mapKind": {
-      "type": "select",
-      "value": "geo",
-      "options": [
-        "geo",
-        "image"
-      ]
-    },
-    "imageSrc": {
-      "type": "text"
-    },
-    "imageWidth": {
-      "type": "number"
-    },
-    "imageHeight": {
-      "type": "number"
-    },
     "latColumn": {
       "type": "data-key",
       "value": "lat"
@@ -3188,20 +3119,6 @@
         "bottomright"
       ]
     },
-    "layerToggles": {
-      "type": "boolean",
-      "value": true
-    },
-    "layerTogglesPosition": {
-      "type": "select",
-      "value": "topright",
-      "options": [
-        "topright",
-        "topleft",
-        "bottomright",
-        "bottomleft"
-      ]
-    },
     "scrollZoom": {
       "type": "boolean",
       "value": false
@@ -3211,53 +3128,6 @@
     },
     "linkLabel": {
       "type": "text"
-    },
-    "zonePositionsColumn": {
-      "type": "data-key",
-      "value": "positions"
-    },
-    "zoneLabelColumn": {
-      "type": "data-key",
-      "value": "name"
-    },
-    "zoneVariant": {
-      "type": "select",
-      "value": "info",
-      "options": [
-        "primary",
-        "info",
-        "success",
-        "warning",
-        "error",
-        "neutral"
-      ]
-    },
-    "zoneVariantColumn": {
-      "type": "data-key"
-    },
-    "zoneOpacity": {
-      "type": "number",
-      "value": 0.2
-    },
-    "routePositionsColumn": {
-      "type": "data-key",
-      "value": "positions"
-    },
-    "routeLabelColumn": {
-      "type": "data-key",
-      "value": "name"
-    },
-    "routeColor": {
-      "type": "color",
-      "value": "var(--primary)"
-    },
-    "routeWeight": {
-      "type": "number",
-      "value": 3
-    },
-    "routeDashed": {
-      "type": "boolean",
-      "value": false
     }
   },
   "builtin:content.markdown@1": {
