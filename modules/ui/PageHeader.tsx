@@ -35,13 +35,13 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'flex items-start justify-between gap-4 pb-5 border-b border-border',
+        'flex items-center justify-between gap-4 pb-3',
         className
       )}
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-2xl font-bold text-text-primary leading-tight">{title}</h1>
+          <h1 className="text-xl font-semibold text-text-primary leading-tight">{title}</h1>
           {badge}
         </div>
         {subtitle && (
