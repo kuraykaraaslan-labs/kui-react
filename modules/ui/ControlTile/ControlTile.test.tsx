@@ -134,6 +134,14 @@ describe('layouts and parts', () => {
     expect(screen.getByText('0|50|100')).toBeInTheDocument();
     expect(screen.getAllByText('50')).toHaveLength(1);
   });
+  it('ControlSlider: no value reads "—", not the minimum the thumb rests on', () => {
+    render(
+      <ControlSlider value={null} min={10} max={100} ariaLabel="Speed" onCommit={vi.fn()}
+        renderLayout={(p) => <div>{p.slider}<span>{p.minText}|{p.valueText}|{p.maxText}</span></div>} />,
+    );
+    expect(screen.getByText('10|—|100')).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Speed' })).toHaveAttribute('aria-valuetext', '—');
+  });
   it('ControlSetpoint: the dial steps and renders its value through renderValue', async () => {
     const onCommit = vi.fn().mockResolvedValue(undefined);
     const { container } = render(

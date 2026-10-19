@@ -166,6 +166,9 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
           <path d={area} stroke="none" data-part="area"
             fill={fillMode === 'gradient' ? `url(#${gid})` : lineColor} fillOpacity={fillMode === 'gradient' ? undefined : fillOpacity} />
         )}
+        {pts.length === 0 && (
+          <line x1={0} y1={H / 2} x2={W} y2={H / 2} stroke="var(--border)" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" data-part="baseline" />
+        )}
         <path d={line} fill="none" stroke={lineColor} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round"
           vectorEffect="non-scaling-stroke" data-part="line" />
       </svg>
@@ -249,4 +252,5 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
 export const STAT_SPARKLINE_VIEW: WidgetKindView = {
   View: StatSparklineView,
   isEmpty: (data) => sparkValues(data.series).length === 0,
+  emptyShape: true,
 };

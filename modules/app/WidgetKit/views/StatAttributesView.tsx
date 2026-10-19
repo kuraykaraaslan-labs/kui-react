@@ -105,7 +105,8 @@ const GRID: Record<Exclude<NonNullable<S['layout']>, 'list'>, string> = {
 export function StatAttributesView({ settings, format, data, locale }: WidgetViewProps) {
   const s = settings as S;
   const yesNo = useKitMessages().common;
-  const rows = attributeRows(data.record?.record, settings, format, locale, yesNo);
+  // No record still lists the configured fields, each with the empty value: the empty shape.
+  const rows = attributeRows(data.record?.record ?? {}, settings, format, locale, yesNo);
   const layout = s.layout ?? 'list';
   const dividers = s.dividers !== false;
   const divider = cssColor(s.dividerColor);
@@ -183,4 +184,5 @@ export const STAT_ATTRIBUTES_VIEW: WidgetKindView = {
     ['key', 'value'],
     ...attributeRows(data.record?.record, settings, format).map((r) => [r.key, r.value]),
   ],
+  emptyShape: true,
 };

@@ -101,7 +101,7 @@ export function ProgressView({ settings, format, data, locale }: WidgetViewProps
     <span data-part="value">
       <Metric
         text={showsPercent ? formatValue(pct, { decimals: 0 }, {}, locale) : formatValue(value, bare, {}, locale)}
-        unit={showsPercent ? '%' : format.unit}
+        unit={showsPercent ? '%' : value === null ? undefined : format.unit}
         unitPosition={showsPercent ? 'after' : format.unitPosition}
         size={size}
         font={custom ? s.valueFont : undefined}
@@ -153,12 +153,14 @@ export function ProgressView({ settings, format, data, locale }: WidgetViewProps
     );
   }
 
-  const bar = pct !== null ? (
-    <Progress value={pct} color={barColor} gradient={gradient} trackColor={trackColor} thickness={thickness} rounded={rounded}
+  // No value still draws the empty track (and its scale) when there is a target: the empty shape.
+  const hasTarget = target !== null && target > 0;
+  const bar = hasTarget ? (
+    <Progress value={pct ?? 0} color={barColor} gradient={gradient} trackColor={trackColor} thickness={thickness} rounded={rounded}
       segments={segments} marks={marks} label={aria} className="min-w-0 flex-1" />
   ) : null;
   const tickN = Math.max(0, Math.min(11, s.tickCount ?? 0));
-  const scale: ReactNode = s.showTicks && pct !== null && targetStr !== null ? (
+  const scale: ReactNode = s.showTicks && hasTarget && targetStr !== null ? (
     <div className="relative mt-1 h-3 text-[11px] leading-none tabular-nums text-text-secondary" style={fontStyle(s.ticksFont, s.ticksColor)} data-part="ticks">
       <span className="absolute left-0">{formatValue(0, format, {}, locale)}</span>
       {tickN > 0 && Array.from({ length: tickN }, (_, i) => (i + 1) / (tickN + 1)).map((f) => (
@@ -203,4 +205,5 @@ export function ProgressView({ settings, format, data, locale }: WidgetViewProps
 export const PROGRESS_VIEW: WidgetKindView = {
   View: ProgressView,
   isEmpty: (data) => num(data.value?.value) === null,
+  emptyShape: true,
 };

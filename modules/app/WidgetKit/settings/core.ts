@@ -69,6 +69,11 @@ export const CORE_CARD: SettingsTemplate = {
 
     // Data display
     noDataText: { label: 'When there is no data', type: 'text', maxLength: 120, placeholder: 'No data', group: 'dataDisplay' },
+    emptyDisplay: {
+      label: 'Empty widget', type: 'select', value: 'shape', group: 'dataDisplay', required: true,
+      options: [opt('shape', 'Show its empty shape with the message'), opt('message', 'Show the message only')],
+      description: 'A widget that cannot draw an empty shape always shows the message.',
+    },
     showUpdated: {
       label: 'Show last update', type: 'select', value: 'off', group: 'dataDisplay', required: true,
       options: [opt('off', 'Off'), opt('relative', '2 min ago'), opt('time', '14:05'), opt('date', '15 Oct'), opt('datetime', '15 Oct 14:05')],

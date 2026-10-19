@@ -447,4 +447,5 @@ export const MAP_VIEW: WidgetKindView = {
     const { rows } = buildMarkers(data.points, settings);
     return [keys.map(label), ...[...rows.values()].map((row) => keys.map((k) => rawText(row[k])))];
   },
+  emptyShape: true,
 };

@@ -93,8 +93,8 @@ export function isPrivateHostname(hostname: string): boolean {
   if (!h) return true;
   if (h.includes(':')) return ipv6Blocked(h);
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return ipv4Blocked(h);
-  // Exotic numeric spellings that URL did not normalise to IPv4 are refused.
-  if (/^[0-9x.]+$/i.test(h)) return true;
+  // Exotic numeric spellings that URL did not normalise to IPv4 (hex `0x7f.1`, octal, a bare 32-bit integer) are refused.
+  if (h.split('.').every((l) => /^(0x[0-9a-f]*|\d+)$/i.test(l))) return true;
   if (!h.includes('.')) return true;                                // `intranet`, `localhost`
   return /\.(local|localhost|internal|intranet|lan|home|corp|test|example|invalid)$/.test(h);
 }

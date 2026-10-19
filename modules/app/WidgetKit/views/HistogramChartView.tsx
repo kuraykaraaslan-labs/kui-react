@@ -74,11 +74,11 @@ export function HistogramChartView({ settings, format, data, locale }: WidgetVie
     if (s.showMedian === true) out.push({ at: (stats.median - lo) / w, label: m.median(text(stats.median)), color, style: 'dotted' });
     return out;
   }, [s, data, bins, format, locale, m]);
-  if (!series) return <div className="h-full" />;
+  // No data draws the empty shape: axes without bars (and no edge ticks, which need a bin).
   return (
     <div className="h-full min-h-0 w-full">
       <BarChart
-        series={series}
+        series={series ?? []}
         fill
         showLegend={false}
         showValues={s.valueLabels === 'value'}
@@ -86,7 +86,7 @@ export function HistogramChartView({ settings, format, data, locale }: WidgetVie
         valueLabelStyle={valueLabelStyleOf(s)}
         radius={num(s.barRadius) ?? 3}
         barWidth={(num(s.barWidth) ?? 92) / 100}
-        categoryTicks={edgeTicks(bins, format, locale)}
+        categoryTicks={bins.length > 0 ? edgeTicks(bins, format, locale) : undefined}
         markers={markers}
         yFormat={(v) => String(Math.round(v * 100) / 100)}
         {...axisProps(s)}
@@ -102,4 +102,5 @@ export const CHART_HISTOGRAM_VIEW: WidgetKindView = {
   View: HistogramChartView,
   isEmpty: (data, settings) => binsOf(data, settings).length === 0,
   toCsv: (data, settings) => [['from', 'to', 'count'], ...binsOf(data, settings).map((b) => [String(b.from), String(b.to), String(b.count)])],
+  emptyShape: true,
 };

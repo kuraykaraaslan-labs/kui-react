@@ -24,6 +24,11 @@ export type WidgetCardProps = {
   updatedAt?: Date | string | number | null;
   /** Shown to editors when the widget has no data bound yet. Default: the host's `card.unconfigured` text. */
   unconfiguredText?: string;
+  /**
+   * The view drawn from no data (its empty shape, see `WidgetKindView.emptyShape`). When given, the empty
+   * and unconfigured states show it faded, inert and hidden from assistive tech, under their text.
+   */
+  emptyBody?: ReactNode;
   /** Default: the host's `card.error` text. */
   errorText?: string;
   onRetry?: () => void;
@@ -112,7 +117,7 @@ const iconBtn = cn(
  * tokens by default, any colour the author picks otherwise.
  */
 export function WidgetCard({
-  title, card, state = 'ready', stale = false, updatedAt, unconfiguredText, errorText, onRetry, unavailable, onFullscreen, onExport, onRefresh, refreshing = false,
+  title, card, state = 'ready', stale = false, updatedAt, unconfiguredText, emptyBody, errorText, onRetry, unavailable, onFullscreen, onExport, onRefresh, refreshing = false,
   headerRight, badges, footer, children, className, style, locale, fixedHeight = false, ...rest
 }: WidgetCardProps) {
   const m = useKitMessages().card;
@@ -143,6 +148,16 @@ export function WidgetCard({
   const pad = typeof card.padding === 'number' ? card.padding : 12;
   // The title row and footer keep readable side spacing even when the body has none (a map, a table).
   const chromePad = Math.max(pad, 12);
+  const placeholder = (text: ReactNode) => (emptyBody ? (
+    <div className="relative flex h-full min-h-16 flex-col">
+      <div aria-hidden="true" inert className="pointer-events-none flex h-full min-h-0 flex-1 select-none flex-col opacity-40">{emptyBody}</div>
+      <div className="absolute inset-0 flex items-center justify-center p-2">
+        <p className="rounded-full border border-border bg-surface-raised px-3 py-1 text-center text-xs text-text-secondary shadow-sm">{text}</p>
+      </div>
+    </div>
+  ) : (
+    <div className="flex h-full min-h-16 items-center justify-center text-center text-sm text-text-secondary">{text}</div>
+  ));
   const hasHeader = showTitle || !!headerRight || !!badges || buttons.length > 0 || staleMode !== null;
 
   return (
@@ -235,11 +250,9 @@ export function WidgetCard({
             <div className="h-full min-h-8 w-full animate-pulse rounded bg-surface-sunken" />
           </div>
         ) : bodyState === 'empty' ? (
-          <div className="flex h-full min-h-16 items-center justify-center text-center text-sm text-text-secondary">
-            {card.noDataText || m.noData}
-          </div>
+          placeholder(card.noDataText || m.noData)
         ) : bodyState === 'unconfigured' ? (
-          <div className="flex h-full min-h-16 items-center justify-center text-center text-sm text-text-secondary">{unconfiguredText ?? m.unconfigured}</div>
+          placeholder(unconfiguredText ?? m.unconfigured)
         ) : bodyState === 'error' ? (
           <div role="alert" className="flex h-full min-h-16 flex-col items-center justify-center gap-2 text-center text-sm text-error">
             <p>{errorText ?? m.error}</p>

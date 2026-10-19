@@ -111,7 +111,7 @@ export function GaugeView({ settings, format, data, locale }: WidgetViewProps) {
           valueContent={
             <Metric
               text={value === null ? '—' : formatValue(value, scaleFormat, {}, locale)}
-              unit={format.unit}
+              unit={value === null ? undefined : format.unit}
               unitPosition={format.unitPosition}
               font={customFont ? s.valueFont : undefined}
               color={cssColor(s.valueColor)}
@@ -146,4 +146,5 @@ export function GaugeView({ settings, format, data, locale }: WidgetViewProps) {
 export const GAUGE_VIEW: WidgetKindView = {
   View: GaugeView,
   isEmpty: (data) => data.value?.value === undefined || data.value?.value === null || data.value?.value === '',
+  emptyShape: true,
 };

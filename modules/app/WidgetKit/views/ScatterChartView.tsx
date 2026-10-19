@@ -36,19 +36,20 @@ export function ScatterChartView({ settings, data, locale }: WidgetViewProps) {
     const single = raw.length === 1 ? cssColor(s.pointColor) : undefined;
     return raw.map((g) => ({ ...g, ...(pinned.get(g.id) ?? single ? { color: pinned.get(g.id) ?? single } : {}) }));
   }, [raw, s.groupColors, s.pointColor]);
-  if (!series) return <div className="h-full" />;
+  // No data draws the empty shape: axes and grid without points.
+  const shown = series ?? [];
   const unit = (v: unknown) => str(v);
   return (
     <div className="h-full min-h-0 w-full">
       <ScatterChart
-        series={series}
+        series={shown}
         fill
         pointRadius={RADIUS[String(s.pointSize)] ?? 4}
         pointShape={SHAPES.has(String(s.pointShape)) ? (s.pointShape as PointShape) : 'circle'}
         pointOpacity={num(s.pointOpacity) ?? 0.8}
         trendLine={s.trendLine === true}
         trendColor={cssColor(s.trendColor)}
-        {...legendProps(s, series.length)}
+        {...legendProps(s, shown.length)}
         {...axisProps(s)}
         {...tooltipProps(s)}
         xMin={num(s.xMin)}
@@ -67,4 +68,5 @@ export const CHART_SCATTER_VIEW: WidgetKindView = {
   View: ScatterChartView,
   isEmpty: (data, settings) => pointsOf(data, settings) === null,
   toCsv: (data) => tableCsv(data.points),
+  emptyShape: true,
 };

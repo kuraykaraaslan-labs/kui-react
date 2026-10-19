@@ -285,4 +285,5 @@ export const VIEWER_MODEL_VIEW: WidgetKindView = {
     const { rows } = buildSensors(data.sensors, settings);
     return [keys.map(label), ...[...rows.values()].map((row) => keys.map((k) => rawText(row[k])))];
   },
+  emptyShape: true,
 };

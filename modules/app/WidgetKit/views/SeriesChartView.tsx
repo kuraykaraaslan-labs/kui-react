@@ -43,18 +43,18 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
       })
       : null;
   }, [timeSeries, result, locale, s.series, s.lineWidth, s.showPoints, s.defaultColor, s.pointSize, s.fillStyle, pointShape, preset, format]);
-  const yFormat = useMemo(() => (series ? axisFormat(series, s.series, format, locale, 'left') : undefined), [series, s.series, format, locale]);
-  const y2Format = useMemo(() => (series ? axisFormat(series, s.series, format, locale, 'right') : undefined), [series, s.series, format, locale]);
-
-  if (!series) return <div className="h-full" />;
+  // No data draws the empty shape: axes and grid without series. A null `timeSeries` keeps the x axis a band, never 1970.
+  const shown = useMemo(() => series ?? [], [series]);
+  const yFormat = useMemo(() => axisFormat(shown, s.series, format, locale, 'left'), [shown, s.series, format, locale]);
+  const y2Format = useMemo(() => axisFormat(shown, s.series, format, locale, 'right'), [shown, s.series, format, locale]);
 
   const tooltipDecimals = num(s.tooltipDecimals);
   const common = {
-    series,
+    series: shown,
     fill: true,
     yFormat,
     y2Format,
-    ...legendProps(s, series.length),
+    ...legendProps(s, shown.length),
     ...axisProps(s),
     yIncludeZero: preset === 'bar' || s.yFromZero !== false,
     ...tooltipProps(s),
@@ -135,5 +135,5 @@ export function seriesView(preset: SeriesPreset): WidgetKindView {
     return <SeriesChartView preset={preset} {...props} />;
   }
   View.displayName = `SeriesChartView(${preset})`;
-  return { View, isEmpty, toCsv };
+  return { View, isEmpty, toCsv, emptyShape: true };
 }

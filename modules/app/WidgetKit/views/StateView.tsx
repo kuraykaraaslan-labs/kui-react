@@ -225,4 +225,5 @@ export const STATE_VIEW: WidgetKindView = {
   View: StateView,
   // A bound slot answering null is "unknown", a state of its own; only a missing answer is empty.
   isEmpty: (data) => !data.value || data.value.value === undefined,
+  emptyShape: true,
 };

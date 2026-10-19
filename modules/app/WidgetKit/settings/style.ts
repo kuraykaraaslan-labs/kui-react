@@ -91,6 +91,8 @@ export type RangeEdges = 'from' | 'to';
 
 /** The first range the value falls in, or `undefined`. */
 export function rangeFor(value: unknown, ranges: unknown, edges: RangeEdges = 'from'): ColorRange | undefined {
+  // No value is no range: `Number(null)` and `Number('')` are 0, and would take the colour of a range around 0.
+  if (value === null || value === undefined || value === '') return undefined;
   const n = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(n) || !Array.isArray(ranges)) return undefined;
   for (const r of ranges as ColorRange[]) {

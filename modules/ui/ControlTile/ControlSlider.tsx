@@ -133,7 +133,8 @@ export function ControlSlider({
   const draft = dragged && dragged.base === bound ? dragged.v : null;
   const shown = draft ?? ctl.displayValue ?? range.min;
   const fmt = format ?? ((n: number) => `${formatValue(n, decimals)}${unit ? ` ${unit}` : ''}`);
-  const text = fmt(shown);
+  // No value yet reads "—": the thumb has to sit somewhere (the minimum), the text must not claim it.
+  const text = draft === null && ctl.displayValue == null ? '—' : fmt(shown);
   const locked = disabled || readOnly || !!disabledReason;
   const pending = ctl.state === 'pending';
 

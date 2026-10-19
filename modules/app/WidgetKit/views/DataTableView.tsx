@@ -311,7 +311,8 @@ function autoCell(decl: DeclaredColumn, cfg: ColumnSetting): TableColumn['cell']
 /**
  * The columns a table shows: the configured ones in their order (a key the query no longer
  * declares is skipped, never shown with an empty header), or every declared column when none is
- * configured. Hidden columns are left out.
+ * configured. Hidden columns are left out. With no result at all (the empty shape), the configured
+ * columns stand on their own settings, as text.
  */
 export function tableColumns(slot: SlotData | undefined, settings: Sparse): TableColumn[] {
   const s = settings as S;
@@ -319,7 +320,10 @@ export function tableColumns(slot: SlotData | undefined, settings: Sparse): Tabl
   const byKey = new Map(declared.map((c) => [c.key, c]));
   const configured = (Array.isArray(s.columns) ? s.columns : []).filter((c) => c && typeof c.key === 'string' && c.key);
   const source: Array<{ decl: DeclaredColumn; cfg: ColumnSetting }> = configured.length
-    ? configured.flatMap((cfg) => (byKey.has(cfg.key!) ? [{ decl: byKey.get(cfg.key!)!, cfg }] : []))
+    ? configured.flatMap((cfg) => {
+      const decl = byKey.get(cfg.key!) ?? (slot ? undefined : { key: cfg.key!, label: cfg.label?.trim() || cfg.key!, type: 'text' as const });
+      return decl ? [{ decl, cfg }] : [];
+    })
     : declared.map((decl) => ({ decl, cfg: {} }));
   const seen = new Set<string>();
   const out: TableColumn[] = [];
@@ -547,6 +551,8 @@ export function DataTableView({
   const allColumns = useMemo(() => tableColumns(result, settings), [result, settings]);
   const [hiddenByViewer, setHiddenByViewer] = useState<string[]>([]);
   const columns = allColumns.filter((c) => !hiddenByViewer.includes(c.key));
+  // No result at all: the empty shape, the configured headers over no rows, without a search or column picker.
+  const shapeOnly = !result && columns.length > 0;
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(
     s.defaultSort ? { key: s.defaultSort, dir: s.defaultSortDir ?? 'desc' } : null,
   );
@@ -745,7 +751,7 @@ export function DataTableView({
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-1.5">
-      {(showSearch || s.columnPicker) && (
+      {(showSearch || s.columnPicker) && !shapeOnly && (
         <div className="flex items-center gap-2 px-2 pt-1">
           {clientSearch && searchInput(query, (v) => { setQuery(v); setPage(1); })}
           {paged && echo!.searchable && s.search !== false && (
@@ -792,7 +798,7 @@ export function DataTableView({
 
       {/* Its own scroller: a wide result must not widen the board's grid cell. */}
       <div className="min-h-0 flex-1 overflow-auto">
-        {rows.length === 0 ? (
+        {rows.length === 0 && !shapeOnly ? (
           <p className="py-6 text-center text-[13px] text-text-secondary">{s.emptyText?.trim() || m.noMatches}</p>
         ) : (
           <table className="w-full border-separate border-spacing-0 text-[13px] text-text-primary" style={fontStyle(s.cellFont, s.cellColor)}>
@@ -966,7 +972,8 @@ export const DATA_TABLE_VIEW: WidgetKindView = {
   isEmpty: (data, settings) => !data.rows?.rows?.length || tableColumns(data.rows, settings).length === 0,
   toCsv: (data, settings) => {
     const cols = tableColumns(data.rows, settings);
-    if (!cols.length) return [];
+    if (!cols.length || !data.rows) return [];
     return [cols.map((c) => c.label), ...(data.rows?.rows ?? []).map((row) => cols.map((c) => rawText(row[c.key])))];
   },
+  emptyShape: true,
 };

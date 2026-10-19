@@ -158,6 +158,8 @@ export interface CardSettings {
   overlayBlur?: number;
   buttons?: Array<'fullscreen' | 'export' | 'refresh'>;
   noDataText?: string;
+  /** With no data: the widget's empty shape under the no-data text (`shape`, default) or the text alone. */
+  emptyDisplay?: 'shape' | 'message';
   showUpdated?: 'off' | 'relative' | 'time' | 'date' | 'datetime';
   staleAfterSeconds?: number;
   staleDisplay?: 'badge' | 'dim' | 'hide';

@@ -20,6 +20,8 @@ const slicesOf = (data: WidgetViewProps['data'], s: S, other?: string) => rowsTo
   colors: s.colors,
 });
 
+const EMPTY_PIE = [{ id: 'empty', name: '', data: [{ x: '', y: 1, color: 'var(--border)' }] }];
+
 /**
  * `chart.pie`: slices from a bound table; pie, donut or donut with the total in the centre. The
  * legend in `auto` sits to the right when the card is wide and below it, in tidy columns, when not.
@@ -30,11 +32,19 @@ export function PieChartView({ settings, format, data, locale }: WidgetViewProps
   const series = useMemo(() => slicesOf(data, s, m.other), [data, s, m.other]);
   const [ref, box] = useBoxSize();
   const legend = legendProps(s, series?.[0]?.data.length ?? 0);
-  if (!series) return <div ref={ref} className="h-full" />;
-  const wide = box.width > 0 && box.width >= box.height * 1.45 && box.width >= 300;
-  const position = s.legend === 'auto' || s.legend === undefined ? (wide ? 'right' : 'bottom') : legend.legendPosition;
   const layout = s.layout === 'donut' || s.layout === 'donut-total' ? s.layout : 'pie';
   const ring = num(s.donutWidth) ?? 40;
+  // No data draws the empty shape: one grey slice, without labels, legend, tooltip or a made-up total.
+  if (!series) {
+    return (
+      <div ref={ref} className="h-full min-h-0 w-full">
+        <PieChart series={EMPTY_PIE} fill innerRadius={layout === 'pie' ? 0 : 1 - ring / 100} sliceGap={0} labels="none"
+          showLegend={false} showTooltip={false} showCenter={false} animate={false} ariaLabel={m.pieChart} />
+      </div>
+    );
+  }
+  const wide = box.width > 0 && box.width >= box.height * 1.45 && box.width >= 300;
+  const position = s.legend === 'auto' || s.legend === undefined ? (wide ? 'right' : 'bottom') : legend.legendPosition;
   const labels = LABELS.has(String(s.valueLabels)) ? (s.valueLabels as 'none') : 'percent';
   return (
     <div ref={ref} className="h-full min-h-0 w-full">
@@ -69,4 +79,5 @@ export const CHART_PIE_VIEW: WidgetKindView = {
   View: PieChartView,
   isEmpty: (data, settings) => slicesOf(data, settings) === null,
   toCsv: (data) => tableCsv(data.slices),
+  emptyShape: true,
 };

@@ -49,6 +49,9 @@ export interface PlacementCardProps {
   viewProps?: Partial<WidgetViewProps> & Record<string, unknown>;
 }
 
+/** What a view's empty shape is drawn from: no slot at all. */
+const NO_DATA: Record<string, SlotData | undefined> = Object.freeze({}) as Record<string, SlotData | undefined>;
+
 /** The newest `fetchedAt` across bound slots. */
 function newestFetch(data: Record<string, SlotData | undefined>): number | null {
   let best: number | null = null;
@@ -99,6 +102,11 @@ export function PlacementCard({
     <view.View {...viewProps} settings={r.settings} format={r.format} data={data} locale={locale} stale={stale} title={title}
       onControl={onControl} controlDisabledReason={controlDisabledReason} renderLink={renderLink ?? viewProps?.renderLink} />
   );
+  // No data, no command to send, nothing old: the shape only. Drawn by WidgetCard only in its empty and unconfigured states.
+  const emptyBody = view.emptyShape && (r.card.emptyDisplay ?? 'shape') === 'shape'
+    ? <view.View {...viewProps} settings={r.settings} format={r.format} data={NO_DATA} locale={locale} stale={false} title={title}
+      onControl={undefined} renderLink={renderLink ?? viewProps?.renderLink} />
+    : undefined;
   const onExport = r.caps.exportable && view.toCsv
     ? async () => {
       let rows: Record<string, SlotData | undefined>;
@@ -117,6 +125,7 @@ export function PlacementCard({
         stale={stale}
         updatedAt={fetchedAt}
         unconfiguredText={m.card.bindData}
+        emptyBody={emptyBody}
         errorText={error ?? undefined}
         onRetry={onRetry}
         onRefresh={onRefresh}

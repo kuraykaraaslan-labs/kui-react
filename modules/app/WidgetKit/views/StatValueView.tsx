@@ -60,7 +60,7 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
   const metric = (
     <Metric
       text={formatValue(value, { ...format, unit: '' }, {}, locale)}
-      unit={format.unit}
+      unit={value === null ? undefined : format.unit}
       unitPosition={format.unitPosition}
       size={layout === 'compact' ? 'lg' : 'xl'}
       font={s.autoScale === false ? s.valueFont : undefined}
@@ -112,4 +112,5 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
 export const STAT_VALUE_VIEW: WidgetKindView = {
   View: StatValueView,
   isEmpty: (data) => data.value?.value === undefined || data.value?.value === null,
+  emptyShape: true,
 };

@@ -94,6 +94,12 @@ export interface WidgetKindView {
   View: ComponentType<WidgetViewProps>;
   /** True when the bound data has nothing to show (the card then shows its no-data text). */
   isEmpty?: (data: WidgetViewProps['data'], settings: Sparse) => boolean;
+  /**
+   * `View` draws a recognisable empty shape from no data (`data = {}`): axes without series, headers
+   * without rows, "—" for a value, never a made-up 0. The card then shows that shape, faded, under its
+   * no-data text (`$card.emptyDisplay`); a view without it gets the text alone.
+   */
+  emptyShape?: boolean;
   /** CSV rows (first row = header) for the card's download button. */
   toCsv?: (data: WidgetViewProps['data'], settings: Sparse, format: ValueFormat) => string[][];
 }

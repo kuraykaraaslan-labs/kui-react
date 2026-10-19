@@ -113,6 +113,14 @@
     "noDataText": {
       "type": "text"
     },
+    "emptyDisplay": {
+      "type": "select",
+      "value": "shape",
+      "options": [
+        "shape",
+        "message"
+      ]
+    },
     "showUpdated": {
       "type": "select",
       "value": "off",
