@@ -9,6 +9,7 @@
 // is decorative (`aria-hidden`); the option's label next to it is the accessible name.
 
 import type { ReactNode } from 'react';
+import { builtinKind } from './templates';
 
 const W = 48;
 const H = 32;
@@ -188,6 +189,105 @@ const DRAWINGS: Record<string, { body: ReactNode; frame?: boolean }> = {
   },
 };
 
+/** A map pin with its tip at (x, y). */
+const pin = (x: number, y: number, o = 0.85) => (
+  <>
+    <path d={`M ${x} ${y} C ${x - 1} ${y - 3}, ${x - 3.5} ${y - 4.5}, ${x - 3.5} ${y - 7} A 3.5 3.5 0 1 1 ${x + 3.5} ${y - 7} C ${x + 3.5} ${y - 4.5}, ${x + 1} ${y - 3}, ${x} ${y} Z`} fill={C} opacity={o} />
+    <circle cx={x} cy={y - 7} r={1.3} fill="var(--surface-raised)" />
+  </>
+);
+const axis = () => <>{b(5, 26, 38, 0.5, 0.3, 0)}{b(5, 5, 0.5, 21, 0.3, 0)}</>;
+
+/**
+ * The thumbnail of a widget TYPE, for a catalog or picker, by type: the types whose layout options
+ * carry no picture (bars, tables, maps, ...) are drawn here; the rest use their layout's drawing.
+ */
+const TYPE_DRAWINGS: Record<string, { body: ReactNode; frame?: boolean }> = {
+  'chart.bar': { body: <>{axis()}{[[8, 12], [15, 7], [22, 15], [29, 10], [36, 4]].map(([x, h]) => <g key={x}>{b(x, 6 + h, 5, 20 - h, 0.8, 1)}</g>)}</> },
+  'chart.area': { body: <>{b(5, 26, 38, 0.5, 0.3, 0)}{spark(5, 7, 38, 19, true)}</> },
+  'chart.scatter': {
+    body: <>{axis()}{[[10, 21], [14, 17], [18, 19], [21, 13], [26, 15], [29, 10], [33, 12], [37, 7], [40, 9]].map(([x, y]) => <g key={`${x}-${y}`}>{dot(x, y, 1.4, 0.75)}</g>)}</>,
+  },
+  'chart.histogram': {
+    body: <>{b(5, 26, 38, 0.5, 0.3, 0)}{[3, 7, 13, 18, 14, 8, 4].map((h, i) => <g key={i}>{b(7 + i * 5, 26 - h, 4.6, h, 0.8, 0.5)}</g>)}</>,
+  },
+  heatmap: {
+    body: [0, 1, 2, 3].flatMap((r) => [0, 1, 2, 3, 4, 5].map((c) => (
+      <g key={`${r}-${c}`}>{b(5 + c * 6.5, 5 + r * 5.75, 5.5, 4.75, [0.15, 0.35, 0.6, 0.85][(r * 3 + c * 2 + (r * c) % 3) % 4], 0.75)}</g>
+    ))),
+  },
+  'data.table': {
+    body: <>{b(4, 4, 40, 5, 0.25, 1)}{t(7, 5.5, 10, 2, 0.75)}{t(21, 5.5, 8, 2, 0.75)}{t(34, 5.5, 7, 2, 0.75)}
+      {rows([13, 19, 25], (y) => <>{t(7, y, 11)}{t(21, y, 9)}{t(34, y, 7, 2, 0.75)}</>)}</>,
+  },
+  map: {
+    body: <>
+      {b(3, 3, 42, 26, 0.12, 2)}
+      <path d="M 3 20 C 10 17, 14 24, 22 21 S 34 12, 45 15" fill="none" stroke={C} strokeWidth={1} strokeDasharray="2 1.5" opacity={0.4} />
+      {pin(15, 19)}{pin(31, 15, 0.6)}{pin(38, 25, 0.45)}
+    </>,
+  },
+  'viewer.model': {
+    body: <>
+      <path d="M 24 5 L 34 10.5 L 24 16 L 14 10.5 Z" fill={C} opacity={0.35} />
+      <path d="M 14 10.5 L 24 16 L 24 27 L 14 21.5 Z" fill={C} opacity={0.6} />
+      <path d="M 34 10.5 L 24 16 L 24 27 L 34 21.5 Z" fill={C} opacity={0.85} />
+    </>,
+  },
+  'content.image': {
+    body: <>{b(5, 4, 38, 24, 0.12, 2)}{dot(34, 10, 3, 0.5)}<path d="M 5 28 L 17 13 L 26 23 L 31 18 L 43 28 Z" fill={C} opacity={0.6} /></>,
+  },
+  'content.embed': {
+    body: <>{box(4, 3, 40, 26)}{b(4, 3, 40, 5, 0.2, 1.5)}{dot(7.5, 5.5, 0.9, 0.6)}{dot(10.5, 5.5, 0.9, 0.6)}{dot(13.5, 5.5, 0.9, 0.6)}
+      {t(8, 12, 22, 2, 0.75)}{t(8, 17, 30)}{t(8, 21, 26)}{t(8, 25, 18)}</>,
+  },
+};
+
+/** The `preview` id of the layout option a type's settings pick (its first picture-card select). */
+function layoutPreviewOf(type: string, settings?: Record<string, unknown> | null): string | null {
+  const kind = builtinKind(type);
+  if (!kind) return null;
+  for (const [key, f] of Object.entries(kind.template.fields)) {
+    if (f.type !== 'select' || f.display !== 'cards' || !f.options?.length) continue;
+    const pics = f.options.filter((o) => typeof o !== 'string' && o.preview) as { value: string; preview?: string }[];
+    if (pics.length === 0) continue;
+    const picked = settings?.[key] ?? f.value;
+    return (pics.find((o) => o.value === picked) ?? pics[0]).preview ?? null;
+  }
+  return null;
+}
+
+const svg = (id: string, d: { body: ReactNode; frame?: boolean }, className: string) => (
+  <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false" data-preview-id={id} className={className}>
+    {d.frame !== false && <rect x={0.5} y={0.5} width={W - 1} height={H - 1} rx={3} fill="none" stroke={C} strokeOpacity={0.25} />}
+    {d.body}
+  </svg>
+);
+
+const own = <T,>(rec: Record<string, T>, key: string): T | undefined =>
+  (Object.prototype.hasOwnProperty.call(rec, key) ? rec[key] : undefined);
+
+/** Every widget type with a drawing of its own (the others borrow their layout's). */
+export const WIDGET_TYPE_PREVIEW_TYPES: readonly string[] = Object.keys(TYPE_DRAWINGS);
+
+/**
+ * A static thumbnail of a builtin widget type, for a catalog or an "add widget" picker: the same
+ * `currentColor` drawings as the layout cards, so nothing mounts, nothing queries and no text can
+ * overflow. `settings` (a preset's defaults) picks the layout variant to draw. `null` for a type
+ * WidgetKit does not know. `className` sizes it (default: as wide as a layout card).
+ */
+export function renderWidgetTypePreview(
+  type: string,
+  settings?: Record<string, unknown> | null,
+  className = 'block h-auto w-full max-w-16',
+): ReactNode {
+  const mine = own(TYPE_DRAWINGS, type);
+  if (mine) return svg(`type:${type}`, mine, className);
+  const id = layoutPreviewOf(type, settings);
+  const d = id ? own(DRAWINGS, id) : undefined;
+  return id && d ? svg(id, d, className) : null;
+}
+
 /** Every preview id WidgetKit draws. */
 export const WIDGET_PREVIEW_IDS: readonly string[] = Object.keys(DRAWINGS);
 
@@ -196,13 +296,6 @@ export const WIDGET_PREVIEW_IDS: readonly string[] = Object.keys(DRAWINGS);
  * shows its label only). Pass it to SchemaForm's `renderOptionPreview`.
  */
 export function renderWidgetPreview(id: string): ReactNode {
-  const d = Object.prototype.hasOwnProperty.call(DRAWINGS, id) ? DRAWINGS[id] : undefined;
-  if (!d) return null;
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} aria-hidden="true" focusable="false" data-preview-id={id}
-      className="block h-auto w-full max-w-16">
-      {d.frame !== false && <rect x={0.5} y={0.5} width={W - 1} height={H - 1} rx={3} fill="none" stroke={C} strokeOpacity={0.25} />}
-      {d.body}
-    </svg>
-  );
+  const d = own(DRAWINGS, id);
+  return d ? svg(id, d, 'block h-auto w-full max-w-16') : null;
 }

@@ -20,7 +20,7 @@ export type {
 } from './messages';
 export { localizeTemplate, localizeKind } from './localize';
 export { WidgetSettingsEditor } from './WidgetSettingsEditor';
-export { renderWidgetPreview, WIDGET_PREVIEW_IDS } from './previews';
+export { renderWidgetPreview, renderWidgetTypePreview, WIDGET_PREVIEW_IDS, WIDGET_TYPE_PREVIEW_TYPES } from './previews';
 export type { WidgetSettingsEditorProps } from './WidgetSettingsEditor';
 export { resolvePlacement, capsOf, toCsvText } from './settings/resolve';
 export type { ResolvedPlacement } from './settings/resolve';

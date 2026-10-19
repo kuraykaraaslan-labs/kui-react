@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
-import { renderWidgetPreview, WIDGET_PREVIEW_IDS } from '../previews';
+import { renderWidgetPreview, renderWidgetTypePreview, WIDGET_PREVIEW_IDS } from '../previews';
 import { WidgetSettingsEditor } from '../WidgetSettingsEditor';
 import { WidgetKitProvider } from '../WidgetKitContext';
 import { BUILTIN_KINDS } from '../templates';
@@ -72,5 +72,32 @@ describe('layout thumbnails', () => {
     const group = screen.getByRole('radiogroup', { name: 'Layout' });
     expect(within(within(group).getByRole('radio', { name: 'Half circle' })).getByTestId('mine')).toBeInTheDocument();
     expect(within(group).getByRole('radio', { name: 'Donut' }).querySelector('svg[data-preview-id="gauge-donut"]')).not.toBeNull();
+  });
+});
+
+describe('widget type thumbnails', () => {
+  it('draws every builtin type, statically and in currentColor', () => {
+    for (const k of BUILTIN_KINDS) {
+      const { container, unmount } = render(<>{renderWidgetTypePreview(k.type)}</>);
+      const svg = container.querySelector('svg');
+      expect(svg, k.type).not.toBeNull();
+      expect(svg!.innerHTML).not.toMatch(/#[0-9a-f]{3,6}\b/i);
+      unmount();
+    }
+    expect(renderWidgetTypePreview('nope')).toBeNull();
+    expect(renderWidgetTypePreview('toString')).toBeNull();
+  });
+
+  it("a layout-variant type draws the layout its settings pick, its default otherwise", () => {
+    const at = (settings?: Record<string, unknown>) => {
+      const { container, unmount } = render(<>{renderWidgetTypePreview('gauge', settings, 'h-20')}</>);
+      const svg = container.querySelector('svg')!;
+      const out = { id: svg.getAttribute('data-preview-id'), cls: svg.getAttribute('class') };
+      unmount();
+      return out;
+    };
+    expect(at()).toEqual({ id: 'gauge-arc', cls: 'h-20' });
+    expect(at({ layout: 'donut' }).id).toBe('gauge-donut');
+    expect(at({ layout: 'gone' }).id).toBe('gauge-arc');
   });
 });

@@ -22,7 +22,8 @@ kind.ts               SlotData, SlotSpec, WidgetViewProps, WidgetKindView, Built
 WidgetCard.tsx        the frame: title row, buttons, body states, stale, footer
 PlacementCard.tsx     one placement: resolved settings + WidgetCard + view, full screen, CSV
 WidgetSettingsEditor.tsx  tabs (Display, Data, Card, Actions), Basic/Advanced, read-only newer parts
-previews.tsx          layout thumbnails: renderWidgetPreview(id), one inline SVG per option `preview` id
+previews.tsx          layout thumbnails: renderWidgetPreview(id), one inline SVG per option `preview` id;
+                      type thumbnails for a catalog/picker: renderWidgetTypePreview(type, settings?) (static, no view mounts)
 WidgetBoard.tsx       a whole board: grid, edit mode, card + board settings, export/import
 board-cell.ts         cardCellResponsive: a card's small-screen settings on its grid cell (pure)
 WidgetKitContext.tsx  host hooks: icon resolver, field overrides, layout thumbnails (`renderPreview`), locale, embed site allow-list (`embedHosts`),
