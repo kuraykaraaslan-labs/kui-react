@@ -155,6 +155,12 @@ export const CORE_BOARD: SettingsTemplate = {
     cardTextColor: colorField('Card text colour', 'cards'),
     cardRadius: { label: 'Card corner radius (px)', type: 'number', min: 0, max: 48, group: 'cards', nullable: true },
     cardPadding: { label: 'Card inner spacing (px)', type: 'number', min: 0, max: 64, group: 'cards', nullable: true },
+    // Added after v1 shipped: an additive field, so no version bump (a board without it reads 'full').
+    header: {
+      label: 'Header', type: 'select', display: 'segmented', value: 'full', group: 'toolbar', required: true,
+      options: [opt('full', 'Full'), opt('compact', 'Compact strip'), opt('hidden', 'Hidden')],
+      description: 'Compact folds the title row into a thin strip; hidden leaves only a small button group over the board. Viewers can still fold a full header for themselves.',
+    },
     showTitle: { label: 'Show the dashboard title', type: 'boolean', value: true, group: 'toolbar' },
     titleColor: colorField('Title colour', 'toolbar'),
     toolbar: {
