@@ -21,6 +21,7 @@ import { CONTENT_MARKDOWN_VIEW } from './ContentMarkdownView';
 import { CONTENT_IMAGE_VIEW } from './ContentImageView';
 import { CONTENT_LINKS_VIEW } from './ContentLinksView';
 import { CONTENT_EMBED_VIEW } from './ContentEmbedView';
+import { CONTENT_VIDEO_VIEW } from './ContentVideoView';
 import { CONTROL_BUTTON_VIEW } from './ControlButtonView';
 import { CONTROL_SWITCH_VIEW } from './ControlSwitchView';
 import { CONTROL_SLIDER_VIEW } from './ControlSliderView';
@@ -48,6 +49,7 @@ export const BUILTIN_VIEWS: Readonly<Record<string, WidgetKindView>> = {
   'content.image': CONTENT_IMAGE_VIEW,
   'content.links': CONTENT_LINKS_VIEW,
   'content.embed': CONTENT_EMBED_VIEW,
+  'content.video': CONTENT_VIDEO_VIEW,
   'control.button': CONTROL_BUTTON_VIEW,
   'control.switch': CONTROL_SWITCH_VIEW,
   'control.slider': CONTROL_SLIDER_VIEW,

@@ -236,6 +236,10 @@ export interface ContentViewMessages {
   /** The frame's title without a card title. */
   embedTitle: (host: string) => string;
   linksEmpty: string;
+  /** Video player: no playable address. */
+  videoEmpty: string;
+  videoLoading: string;
+  videoFailed: (detail: string) => string;
 }
 
 export interface StatViewMessages {
@@ -462,6 +466,9 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     opensInNewTab: (host) => `(opens ${host} in a new tab)`,
     embedTitle: (host) => `Embedded page: ${host}`,
     linksEmpty: 'Add links in this widget’s settings.',
+    videoEmpty: 'Set a video address in this widget’s settings, or bind one.',
+    videoLoading: 'Loading the player…',
+    videoFailed: (detail) => `The video player could not start. ${detail}`.trim(),
   },
   stat: {
     justNow: 'just now',
@@ -508,6 +515,8 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     rowLinkTarget: () => 'Target must be an internal path (/…) or an https, http or mailto address',
     modelUrl: () => 'A model must be an internal path (/…) or an https address',
     positiveStep: () => 'Step must be greater than 0',
+    mediaSrc: (label) => `${label} must be an internal path (/…) or an https or http address`,
+    subtitleSrc: () => 'A subtitle file must be an internal path (/…) or an https or http address',
   },
   common: { yes: 'Yes', no: 'No' },
 };

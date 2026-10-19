@@ -262,6 +262,49 @@
         "export"
       ]
     },
+    "windowTabs": {
+      "type": "multi-select",
+      "value": [
+        "realtime",
+        "history"
+      ],
+      "options": [
+        "realtime",
+        "history"
+      ]
+    },
+    "windowControls": {
+      "type": "multi-select",
+      "value": [
+        "interval",
+        "aggregation",
+        "timezone"
+      ],
+      "options": [
+        "interval",
+        "aggregation",
+        "timezone"
+      ]
+    },
+    "windowAggregations": {
+      "type": "multi-select",
+      "value": [
+        "avg",
+        "min",
+        "max",
+        "sum",
+        "count",
+        "none"
+      ],
+      "options": [
+        "avg",
+        "min",
+        "max",
+        "sum",
+        "count",
+        "none"
+      ]
+    },
     "defaultRefreshSeconds": {
       "type": "number"
     }
@@ -2937,6 +2980,23 @@
     }
   },
   "builtin:map@1": {
+    "mapKind": {
+      "type": "select",
+      "value": "geo",
+      "options": [
+        "geo",
+        "image"
+      ]
+    },
+    "imageSrc": {
+      "type": "text"
+    },
+    "imageWidth": {
+      "type": "number"
+    },
+    "imageHeight": {
+      "type": "number"
+    },
     "latColumn": {
       "type": "data-key",
       "value": "lat"
@@ -3119,6 +3179,20 @@
         "bottomright"
       ]
     },
+    "layerToggles": {
+      "type": "boolean",
+      "value": true
+    },
+    "layerTogglesPosition": {
+      "type": "select",
+      "value": "topright",
+      "options": [
+        "topright",
+        "topleft",
+        "bottomright",
+        "bottomleft"
+      ]
+    },
     "scrollZoom": {
       "type": "boolean",
       "value": false
@@ -3128,6 +3202,53 @@
     },
     "linkLabel": {
       "type": "text"
+    },
+    "zonePositionsColumn": {
+      "type": "data-key",
+      "value": "positions"
+    },
+    "zoneLabelColumn": {
+      "type": "data-key",
+      "value": "name"
+    },
+    "zoneVariant": {
+      "type": "select",
+      "value": "info",
+      "options": [
+        "primary",
+        "info",
+        "success",
+        "warning",
+        "error",
+        "neutral"
+      ]
+    },
+    "zoneVariantColumn": {
+      "type": "data-key"
+    },
+    "zoneOpacity": {
+      "type": "number",
+      "value": 0.2
+    },
+    "routePositionsColumn": {
+      "type": "data-key",
+      "value": "positions"
+    },
+    "routeLabelColumn": {
+      "type": "data-key",
+      "value": "name"
+    },
+    "routeColor": {
+      "type": "color",
+      "value": "var(--primary)"
+    },
+    "routeWeight": {
+      "type": "number",
+      "value": 3
+    },
+    "routeDashed": {
+      "type": "boolean",
+      "value": false
     }
   },
   "builtin:content.markdown@1": {
@@ -4233,6 +4354,66 @@
     "scrollZoom": {
       "type": "boolean",
       "value": false
+    }
+  },
+  "builtin:content.video@1": {
+    "src": {
+      "type": "url"
+    },
+    "poster": {
+      "type": "url"
+    },
+    "autoPlay": {
+      "type": "boolean",
+      "value": false
+    },
+    "startMuted": {
+      "type": "boolean",
+      "value": false
+    },
+    "loop": {
+      "type": "boolean",
+      "value": false
+    },
+    "autoHideControls": {
+      "type": "boolean",
+      "value": true
+    },
+    "fit": {
+      "type": "select",
+      "value": "contain",
+      "options": [
+        "contain",
+        "cover"
+      ]
+    },
+    "theme": {
+      "type": "select",
+      "value": "minimal",
+      "options": [
+        "minimal",
+        "broadcast",
+        "cinema"
+      ]
+    },
+    "showTitle": {
+      "type": "boolean",
+      "value": false
+    },
+    "subtitles": {
+      "type": "repeater",
+      "value": [],
+      "fields": {
+        "label": {
+          "type": "text"
+        },
+        "srclang": {
+          "type": "text"
+        },
+        "src": {
+          "type": "text"
+        }
+      }
     }
   }
 }

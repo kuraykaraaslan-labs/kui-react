@@ -226,6 +226,20 @@ export const safeImageRule = (key: string): Rule => (v) =>
     ? [{ path: key, message: 'The image must be an internal path (/…) or an https or http address', code: 'imageSrc' }]
     : [];
 
+/** Save-time: a media address (video, poster, subtitle file) must be an internal path or an https / http address. */
+export const safeMediaRule = (key: string, label: string): Rule => (v) =>
+  typeof v[key] === 'string' && v[key] !== '' && !resolveImageSrc(v[key])
+    ? [{ path: key, message: `${label} must be an internal path (/…) or an https or http address`, code: 'mediaSrc', params: { label } }]
+    : [];
+
+/** Save-time: every subtitle track's file passes the media check. */
+export const safeSubtitlesRule = (key: string): Rule => (v) => {
+  const list = Array.isArray(v[key]) ? (v[key] as Array<Record<string, unknown>>) : [];
+  return list.flatMap((t, i) => (typeof t?.src === 'string' && t.src !== '' && !resolveImageSrc(t.src)
+    ? [{ path: `${key}.${i}.src`, message: 'A subtitle file must be an internal path (/…) or an https or http address', code: 'subtitleSrc' }]
+    : []));
+};
+
 /** Save-time: an embed address must pass the embed gate. */
 export const safeEmbedRule = (key: string): Rule => (v) => {
   if (typeof v[key] !== 'string' || v[key] === '') return [];

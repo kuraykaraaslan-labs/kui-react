@@ -114,7 +114,8 @@ export type IssueCode =
   | 'boolean' | 'number' | 'min' | 'max' | 'option' | 'notOption' | 'optionList' | 'unknownOption'
   | 'color' | 'icon' | 'dataKeys' | 'maxKeys' | 'dataKey' | 'font' | 'list' | 'maxItems' | 'text'
   | 'maxLength' | 'url' | 'required'
-  | 'minBelowMax' | 'linkTarget' | 'imageSrc' | 'embedUrl' | 'rowLinkTarget' | 'modelUrl' | 'positiveStep';
+  | 'minBelowMax' | 'linkTarget' | 'imageSrc' | 'embedUrl' | 'rowLinkTarget' | 'modelUrl' | 'positiveStep'
+  | 'mediaSrc' | 'subtitleSrc';
 
 /** The values an issue's text names: the field's own label (as the template has it) and a bound or an option. */
 export interface IssueParams {

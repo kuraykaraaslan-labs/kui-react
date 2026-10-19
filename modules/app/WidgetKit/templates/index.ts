@@ -22,6 +22,7 @@ import { CONTENT_MARKDOWN_KIND } from './content-markdown';
 import { CONTENT_IMAGE_KIND } from './content-image';
 import { CONTENT_LINKS_KIND } from './content-links';
 import { CONTENT_EMBED_KIND } from './content-embed';
+import { CONTENT_VIDEO_KIND } from './content-video';
 import { CONTROL_BUTTON_KIND } from './control-button';
 import { CONTROL_SWITCH_KIND } from './control-switch';
 import { CONTROL_SLIDER_KIND } from './control-slider';
@@ -49,6 +50,7 @@ export const BUILTIN_KINDS: readonly BuiltinKindSpec[] = [
   CONTENT_IMAGE_KIND,
   CONTENT_LINKS_KIND,
   CONTENT_EMBED_KIND,
+  CONTENT_VIDEO_KIND,
   CONTROL_BUTTON_KIND,
   CONTROL_SWITCH_KIND,
   CONTROL_SLIDER_KIND,

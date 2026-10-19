@@ -237,6 +237,10 @@ const TYPE_DRAWINGS: Record<string, { body: ReactNode; frame?: boolean }> = {
   'content.image': {
     body: <>{b(5, 4, 38, 24, 0.12, 2)}{dot(34, 10, 3, 0.5)}<path d="M 5 28 L 17 13 L 26 23 L 31 18 L 43 28 Z" fill={C} opacity={0.6} /></>,
   },
+  'content.video': {
+    body: <>{b(4, 4, 40, 24, 0.85, 2)}<path d="M 21 10 L 29 15 L 21 20 Z" fill="var(--surface-raised)" />
+      {b(8, 24, 32, 1.5, 0.35, 0.75)}{b(8, 24, 13, 1.5, 1, 0.75)}<circle cx={21} cy={24.75} r={1.6} fill="var(--surface-raised)" /></>,
+  },
   'content.embed': {
     body: <>{box(4, 3, 40, 26)}{b(4, 3, 40, 5, 0.2, 1.5)}{dot(7.5, 5.5, 0.9, 0.6)}{dot(10.5, 5.5, 0.9, 0.6)}{dot(13.5, 5.5, 0.9, 0.6)}
       {t(8, 12, 22, 2, 0.75)}{t(8, 17, 30)}{t(8, 21, 26)}{t(8, 25, 18)}</>,

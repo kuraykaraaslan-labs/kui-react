@@ -7,7 +7,7 @@ import { CONTROL_TILE_MESSAGE_KEYS, DEFAULT_WIDGET_KIT_MESSAGES as D, issueText,
 import { missingRequired, validate } from '../settings/engine';
 import { minBelowMax } from '../settings/packs';
 import type { Issue, SettingsTemplate } from '../settings/types';
-import { positiveStep, safeEmbedRule, safeImageRule, safeLinkRule, safeModelUrlsRule, safeRowLinksRule } from '../views/content-logic';
+import { positiveStep, safeEmbedRule, safeImageRule, safeLinkRule, safeMediaRule, safeModelUrlsRule, safeRowLinksRule, safeSubtitlesRule } from '../views/content-logic';
 import { DEFAULT_SCHEMA_FORM_MESSAGES } from '../../SchemaForm/messages';
 import { THEME_COLOR_TOKENS } from '../../SchemaForm/fields/FieldControl';
 import { CONTROL_REASONS, controlBlockReason, controlMessages, requestControl } from '../views/control-common';
@@ -116,8 +116,10 @@ describe('settings issues: a code, and the English message as the issues group w
       safeRowLinksRule('links', 'href')({ links: [{ href: 'javascript:x' }] }),
       safeModelUrlsRule('models')({ models: [{ url: 'http://x/m.glb' }] }),
       positiveStep('step')({ step: 0 }),
+      safeMediaRule('src', 'The video address')({ src: 'javascript:x' }),
+      safeSubtitlesRule('subtitles')({ subtitles: [{ src: 'data:x' }] }),
     ].flat();
-    expect(rules.map((i) => i.code)).toEqual(['minBelowMax', 'linkTarget', 'imageSrc', 'embedUrl', 'rowLinkTarget', 'modelUrl', 'positiveStep']);
+    expect(rules.map((i) => i.code)).toEqual(['minBelowMax', 'linkTarget', 'imageSrc', 'embedUrl', 'rowLinkTarget', 'modelUrl', 'positiveStep', 'mediaSrc', 'subtitleSrc']);
     for (const i of rules) expect(issueText(i, D.issues)).toBe(i.message);
     const withRule = validate({ ...T, fields: { min: { label: 'Min', type: 'number', since: 1 }, max: { label: 'Max', type: 'number', since: 1 } }, rules: [minBelowMax('min', 'max')] }, { min: 3, max: 1 });
     expect(withRule.issues).toEqual([{ path: 'max', message: 'Maximum must be greater than minimum', code: 'minBelowMax' }]);

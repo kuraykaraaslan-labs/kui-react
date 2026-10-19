@@ -1,0 +1,22 @@
+{
+  "input": {
+    "autoPlay": false,
+    "startMuted": false,
+    "loop": false,
+    "autoHideControls": true,
+    "fit": "contain",
+    "theme": "minimal",
+    "showTitle": false,
+    "subtitles": []
+  },
+  "expected": {
+    "autoPlay": false,
+    "startMuted": false,
+    "loop": false,
+    "autoHideControls": true,
+    "fit": "contain",
+    "theme": "minimal",
+    "showTitle": false,
+    "subtitles": []
+  }
+}

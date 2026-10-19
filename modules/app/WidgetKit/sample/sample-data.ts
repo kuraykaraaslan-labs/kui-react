@@ -399,5 +399,8 @@ export const SAMPLE_GALLERY_BOARD: BoardDocument = {
     P('slider', 'control.slider', 'Fan speed', 0, 52, 6, 3, { value: 'sample.cpu' }, { $format: { unit: '%' }, label: 'Speed', startIcon: 'fas fa-fan', tickMarks: 5 }),
     P('setpoint', 'control.setpoint', 'Thermostat', 6, 52, 6, 3, { value: 'sample.setpoint' }, { $format: { unit: '°C', decimals: 1 }, label: 'Target temperature', layout: 'stepper', min: 10, max: 30, step: 0.5 }),
     P('viewer', 'viewer.model', 'Process plant (3D)', 0, 55, 12, 10, { sensors: 'sample.plant.sensors' }, PLANT_MODEL),
+    // A CC0 clip from MDN's examples (the same kind of public sample as the image above).
+    P('video', 'content.video', 'Line camera', 0, 65, 6, 6, {},
+      { src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4' }),
   ],
 };
