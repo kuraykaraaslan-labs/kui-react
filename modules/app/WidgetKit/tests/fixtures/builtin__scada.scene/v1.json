@@ -1,0 +1,28 @@
+{
+  "input": {
+    "width": 1200,
+    "height": 700,
+    "scale": 0.6,
+    "background": "none",
+    "showLabels": true,
+    "idleColor": "var(--text-secondary)",
+    "runningColor": "var(--success)",
+    "warningColor": "var(--warning)",
+    "criticalColor": "var(--error)",
+    "idColumn": "id",
+    "animation": true
+  },
+  "expected": {
+    "width": 1200,
+    "height": 700,
+    "scale": 0.6,
+    "background": "none",
+    "showLabels": true,
+    "idleColor": "var(--text-secondary)",
+    "runningColor": "var(--success)",
+    "warningColor": "var(--warning)",
+    "criticalColor": "var(--error)",
+    "idColumn": "id",
+    "animation": true
+  }
+}

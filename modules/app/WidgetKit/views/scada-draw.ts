@@ -1,0 +1,154 @@
+// Shared drawing helpers for the process symbols (pure, no React): the paint a symbol is drawn with, the metal / ink
+// colours, the pipe and wire builders every connected symbol uses, and the fan / blade rotation. The symbol files
+// (`scada-water.ts`, `scada-energy.ts`) build node trees from these; `scada-logic.ts` picks one and turns it.
+//
+// Every symbol lives in a box 100 units high whose connections sit on the centre lines (y = 50 for left / right,
+// x = 50 for top / bottom), so symbols placed on neighbouring grid cells of the same height join without a gap.
+// Nothing here uses gradients or ids: a shared `<defs>` would break the other symbols of a page when one card goes
+// away. Shading is layered flat shapes.
+
+import { el, polar, r2, type SvgNode } from './svg-node';
+import type { rangesToBands } from './gauge-logic';
+
+export type ScadaState = 'idle' | 'running' | 'warning' | 'critical';
+
+/** What every symbol is drawn with: the state, the reading and the colours resolved from the settings. */
+export interface Paint {
+  state: ScadaState;
+  /** The state's colour (idle: the idle colour). */
+  color: string;
+  idle: string;
+  running: boolean;
+  animate: boolean;
+  /** The first reading as a share of the scale (0..1), or null with no reading. */
+  level: number | null;
+  /** The liquid / charge colour. */
+  fill: string;
+  bands: ReturnType<typeof rangesToBands>;
+  min: number;
+  max: number;
+  value: number | null;
+  /** The second reading (a two-row meter), or null. */
+  value2: number | null;
+  ticks: boolean;
+  /** The colour of what flows in a pipe (cold, hot, water, custom), or null for "the state decides". */
+  medium: string | null;
+  /** Words a number for the symbol's own display (the unit included when the format says so). */
+  fmt: (n: number) => string;
+  /** Row names of the two-row meter. */
+  rows: [string, string];
+  /** How many cells long a straight pipe or wire is (1 to 3). */
+  length: number;
+  /** Draw flow-direction arrows on straight runs and on connections. */
+  arrows: boolean;
+}
+
+export interface Drawn {
+  nodes: SvgNode[];
+  w: number;
+  h: number;
+}
+
+export const METAL_OUT = 'var(--border-strong)';
+export const METAL = 'var(--surface-sunken)';
+export const SURFACE = 'var(--surface-raised)';
+export const BASE = 'var(--surface-base)';
+export const INK = 'var(--text-primary)';
+export const MUTED = 'var(--text-secondary)';
+
+/** The colour of a part that shows the state: muted while idle. */
+export const accent = (p: Paint): string => (p.state === 'idle' ? MUTED : p.color);
+
+/** The pipe walls and the flow: how thick, in box units (a cell is 100 high). */
+export const PIPE_WALL = 28;
+export const PIPE_BODY = 24;
+
+/** What runs in the pipe: a warning or an alarm shows its colour, else the medium, else the state when running. */
+export function flowColor(p: Paint): string | null {
+  if (p.state === 'warning' || p.state === 'critical') return p.color;
+  return p.medium ?? (p.running ? p.color : null);
+}
+
+const flowCore = (d: string, p: Paint): SvgNode[] => {
+  const color = flowColor(p);
+  if (!color) return [];
+  const moving = p.running && p.animate;
+  return [el('path', {
+    d, fill: 'none', stroke: color, 'stroke-width': 8, 'stroke-linecap': 'butt',
+    'stroke-opacity': p.running ? 0.9 : 0.35,
+    ...(p.running ? { 'stroke-dasharray': '14 8' } : {}),
+  }, moving ? [el('animate', { attributeName: 'stroke-dashoffset', from: 22, to: 0, dur: '0.9s', repeatCount: 'indefinite' })] : undefined)];
+};
+
+/** A flow arrowhead at (x, y) pointing along `deg` (0 = right, 90 = down), `size` long. */
+export function arrow(x: number, y: number, deg: number, size = 11, color: string = INK): SvgNode {
+  const tip = polar(x, y, size / 2, deg);
+  const l = polar(x, y, size / 2, deg + 150);
+  const r = polar(x, y, size / 2, deg - 150);
+  return el('polygon', { points: `${tip[0]},${tip[1]} ${l[0]},${l[1]} ${r[0]},${r[1]}`, fill: color, stroke: BASE, 'stroke-width': 1, 'stroke-linejoin': 'round' });
+}
+
+/** A coupling ring across a pipe at (x, y); `vertical` pipes get a ring that lies across them. */
+export const ring = (x: number, y: number, vertical = false): SvgNode =>
+  vertical
+    ? el('rect', { x: r2(x - 17), y: r2(y - 4), width: 34, height: 8, rx: 2, fill: METAL, stroke: METAL_OUT, 'stroke-width': 1.5 })
+    : el('rect', { x: r2(x - 4), y: r2(y - 17), width: 8, height: 34, rx: 2, fill: METAL, stroke: METAL_OUT, 'stroke-width': 1.5 });
+
+/**
+ * Pipes along the given paths: outline, body, a light highlight on straight horizontal ones, the flow, then the
+ * rings. Outlines of all paths come first, so branches merge into one body at a tee or a cross.
+ */
+export function pipes(paths: string[], p: Paint, rings: Array<[number, number, boolean?]> = [], highlight?: { x1: number; x2: number; y: number }): SvgNode[] {
+  return [
+    ...paths.map((d) => el('path', { d, fill: 'none', stroke: METAL_OUT, 'stroke-width': PIPE_WALL, 'stroke-linejoin': 'round' })),
+    ...paths.map((d) => el('path', { d, fill: 'none', stroke: METAL, 'stroke-width': PIPE_BODY, 'stroke-linejoin': 'round' })),
+    ...(highlight ? [el('line', { x1: highlight.x1, y1: highlight.y, x2: highlight.x2, y2: highlight.y, stroke: BASE, 'stroke-opacity': 0.55, 'stroke-width': 3, 'stroke-linecap': 'round' })] : []),
+    ...paths.flatMap((d) => flowCore(d, p)),
+    ...rings.map(([x, y, v]) => ring(x, y, v === true)),
+  ];
+}
+
+/** A wire along `d`: a thin dashed line that runs (moves) when it carries current. */
+export function wire(d: string, p: Paint, terminals: Array<[number, number]> = []): SvgNode[] {
+  const color = p.state === 'warning' || p.state === 'critical' ? p.color : p.medium ?? (p.running ? p.color : MUTED);
+  const moving = p.running && p.animate;
+  return [
+    el('path', {
+      d, fill: 'none', stroke: color, 'stroke-width': 2.5, 'stroke-dasharray': '5 4', 'stroke-linecap': 'butt', 'stroke-linejoin': 'round',
+      'stroke-opacity': p.running || p.medium ? 1 : 0.7,
+    }, moving ? [el('animate', { attributeName: 'stroke-dashoffset', from: 9, to: 0, dur: '0.7s', repeatCount: 'indefinite' })] : undefined),
+    ...terminals.map(([x, y]) => el('circle', { cx: x, cy: y, r: 4.5, fill: SURFACE, stroke: INK, 'stroke-width': 1.5 })),
+  ];
+}
+
+/** `turning(cx, cy, seconds, children)`: children that spin about a point while the part runs. */
+export function turning(cx: number, cy: number, seconds: number, p: Paint, children: SvgNode[]): SvgNode {
+  return el('g', undefined, [
+    ...children,
+    ...(p.running && p.animate
+      ? [el('animateTransform', { attributeName: 'transform', type: 'rotate', from: `0 ${cx} ${cy}`, to: `360 ${cx} ${cy}`, dur: `${seconds}s`, repeatCount: 'indefinite' })]
+      : []),
+  ]);
+}
+
+/** `blades(cx, cy, count, length, width, color)`: round-ended blades from the hub. */
+export function blades(cx: number, cy: number, count: number, length: number, width: number, color: string, from = -90): SvgNode[] {
+  return Array.from({ length: count }, (_, i) => {
+    const [x, y] = polar(cx, cy, length, from + (360 / count) * i);
+    return el('line', { x1: cx, y1: cy, x2: x, y2: y, stroke: color, 'stroke-width': width, 'stroke-linecap': 'round' });
+  });
+}
+
+/** The power glyph (a ring with a gap at the top and a bar) centred at (cx, cy). */
+export function powerGlyph(cx: number, cy: number, radius: number, color: string): SvgNode[] {
+  const start = polar(cx, cy, radius, -55);
+  const end = polar(cx, cy, radius, 235);
+  return [
+    el('path', { d: `M${start[0]} ${start[1]} A${radius} ${radius} 0 1 1 ${end[0]} ${end[1]}`, fill: 'none', stroke: color, 'stroke-width': 2.2, 'stroke-linecap': 'round' }),
+    el('line', { x1: cx, y1: r2(cy - radius - 1), x2: cx, y2: r2(cy - 1), stroke: color, 'stroke-width': 2.2, 'stroke-linecap': 'round' }),
+  ];
+}
+
+/** A pale vertical shine on a body, so a flat shape reads as round metal. */
+export const shine = (x: number, y1: number, y2: number): SvgNode =>
+  el('line', { x1: x, y1, x2: x, y2, stroke: BASE, 'stroke-opacity': 0.55, 'stroke-width': 3, 'stroke-linecap': 'round' });

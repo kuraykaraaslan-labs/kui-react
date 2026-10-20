@@ -1,0 +1,18 @@
+{
+  "input": {
+    "labelColor": "var(--text-secondary)",
+    "fromSource": true,
+    "showReset": true,
+    "disableWhen": [
+      "stale"
+    ]
+  },
+  "expected": {
+    "labelColor": "var(--text-secondary)",
+    "fromSource": true,
+    "showReset": true,
+    "disableWhen": [
+      "stale"
+    ]
+  }
+}

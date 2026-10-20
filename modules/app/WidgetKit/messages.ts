@@ -149,6 +149,16 @@ export interface WidgetControlMessages {
   setpoint: string;
   /** The setpoint's current-value caption. */
   now: string;
+  /** control.form: its save and reset buttons and its accessible name when it has no label and no title. */
+  save: string;
+  reset: string;
+  form: string;
+  /** control.form field errors; `{min}` / `{max}` are replaced. */
+  fieldRequired: string;
+  fieldNumber: string;
+  fieldInvalid: string;
+  atLeast: string;
+  atMost: string;
 }
 
 export interface TableMessages {
@@ -181,6 +191,16 @@ export interface MapViewMessages {
   routes: string;
   /** A marker tooltip's link (a placement's `linkLabel` wins). */
   open: string;
+}
+
+/** The process symbol and scene: the state words a screen reader hears and the diagram's accessible name. */
+export interface ScadaMessages {
+  idle: string;
+  running: string;
+  warning: string;
+  critical: string;
+  /** The scene's accessible name when the card has no title. */
+  scene: string;
 }
 
 export interface ViewerModelMessages {
@@ -291,6 +311,7 @@ export interface WidgetKitMessages {
   table: TableMessages;
   feed: FeedMessages;
   map: MapViewMessages;
+  scada: ScadaMessages;
   viewer: ViewerModelMessages;
   charts: ChartViewMessages;
   content: ContentViewMessages;
@@ -403,6 +424,14 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     value: 'Value',
     setpoint: 'Set point',
     now: 'Now',
+    save: 'Save',
+    reset: 'Reset',
+    form: 'Settings form',
+    fieldRequired: 'This field is required.',
+    fieldNumber: 'Enter a number.',
+    fieldInvalid: 'Choose one of the listed values.',
+    atLeast: 'Enter a value of at least {min}.',
+    atMost: 'Enter a value of at most {max}.',
   },
   table: {
     search: 'Search',
@@ -430,6 +459,7 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     routes: 'Routes',
     open: 'Open',
   },
+  scada: { idle: 'Idle', running: 'Running', warning: 'Warning', critical: 'Critical', scene: 'Process diagram' },
   viewer: {
     loading: 'Loading 3D viewer…',
     legend: 'Legend',

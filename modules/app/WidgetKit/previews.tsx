@@ -10,6 +10,8 @@
 
 import type { ReactNode } from 'react';
 import { builtinKind } from './templates';
+import { drawScada, scadaPaint, SCADA_SYMBOLS, type ScadaSymbol } from './views/scada-logic';
+import { SvgTree } from './views/SvgTree';
 
 const W = 48;
 const H = 32;
@@ -242,6 +244,17 @@ const TYPE_DRAWINGS: Record<string, { body: ReactNode; frame?: boolean }> = {
     body: <>{b(4, 4, 40, 24, 0.85, 2)}<path d="M 21 10 L 29 15 L 21 20 Z" fill="var(--surface-raised)" />
       {b(8, 24, 32, 1.5, 0.35, 0.75)}{b(8, 24, 13, 1.5, 1, 0.75)}<circle cx={21} cy={24.75} r={1.6} fill="var(--surface-raised)" /></>,
   },
+  'control.form': {
+    body: <>{t(6, 6, 10, 2, 0.6)}{box(19, 4, 23, 6, 0.55)}{t(6, 14, 12, 2, 0.6)}{box(19, 12, 23, 6, 0.55)}
+      {t(6, 22, 8, 2, 0.6)}{b(19, 20, 10, 7, 0.9, 2)}{box(32, 20, 10, 7, 0.45, 2)}</>,
+  },
+  'scada.symbol': {
+    body: <>{b(4, 13, 12, 6, 0.3, 1)}{b(32, 13, 12, 6, 0.3, 1)}{ring(24, 16, 8, 0.85, 2)}{line('M 20.5 16 L 27.5 16 M 25 13 L 28 16 L 25 19', 0.85, 1.4)}{b(12, 5, 4, 6, 0.3, 1)}</>,
+  },
+  'scada.scene': {
+    body: <>{box(4, 5, 12, 10, 0.55, 2)}{box(32, 5, 12, 10, 0.55, 2)}{ring(10, 24, 4, 0.7, 1.5)}{box(33, 19, 10, 8, 0.55, 2)}
+      {line('M 16 10 H 32', 0.7, 2.5)}{line('M 10 15 V 20', 0.7, 2.5)}{line('M 14.5 24 H 33', 0.7, 2.5)}{line('M 38 15 V 19', 0.7, 2.5)}</>,
+  },
   'content.embed': {
     body: <>{box(4, 3, 40, 26)}{b(4, 3, 40, 5, 0.2, 1.5)}{dot(7.5, 5.5, 0.9, 0.6)}{dot(10.5, 5.5, 0.9, 0.6)}{dot(13.5, 5.5, 0.9, 0.6)}
       {t(8, 12, 22, 2, 0.75)}{t(8, 17, 30)}{t(8, 21, 26)}{t(8, 25, 18)}</>,
@@ -293,14 +306,33 @@ export function renderWidgetTypePreview(
   return id && d ? svg(id, d, className) : null;
 }
 
+const SCADA_PREFIX = 'scada-';
+
+/** The picker thumbnail of a process symbol: its own drawing, running, a little full, standing still. */
+function scadaThumb(id: string, className: string): ReactNode {
+  const symbol = id.slice(SCADA_PREFIX.length) as ScadaSymbol;
+  const paint = scadaPaint({ symbol, min: 0, max: 100, animation: false, ticks: true }, {
+    value: { shape: 'scalar', value: 62 }, value2: { shape: 'scalar', value: 40 }, running: { shape: 'scalar', value: true },
+  }, { animate: false });
+  const drawn = drawScada(symbol, paint);
+  return (
+    <svg viewBox={`0 0 ${drawn.w} ${drawn.h}`} aria-hidden="true" focusable="false" data-preview-id={id} className={className}>
+      <SvgTree nodes={drawn.nodes} />
+    </svg>
+  );
+}
+
+const SCADA_PREVIEW_IDS: readonly string[] = SCADA_SYMBOLS.map((k) => `${SCADA_PREFIX}${k}`);
+
 /** Every preview id WidgetKit draws. */
-export const WIDGET_PREVIEW_IDS: readonly string[] = Object.keys(DRAWINGS);
+export const WIDGET_PREVIEW_IDS: readonly string[] = [...Object.keys(DRAWINGS), ...SCADA_PREVIEW_IDS];
 
 /**
  * The thumbnail of a WidgetKit layout variant, or `null` for an id it does not know (the card then
  * shows its label only). Pass it to SchemaForm's `renderOptionPreview`.
  */
 export function renderWidgetPreview(id: string): ReactNode {
+  if (SCADA_PREVIEW_IDS.includes(id)) return scadaThumb(id, 'block h-auto max-h-14 w-full max-w-16');
   const d = own(DRAWINGS, id);
   return d ? svg(id, d, 'block h-auto w-full max-w-16') : null;
 }

@@ -628,6 +628,33 @@
         }
       }
     },
+    "xAxis": {
+      "type": "select",
+      "value": "time",
+      "options": [
+        "time",
+        "category"
+      ]
+    },
+    "categoryColumn": {
+      "type": "data-key"
+    },
+    "valueColumn": {
+      "type": "data-key"
+    },
+    "categorySort": {
+      "type": "select",
+      "value": "none",
+      "options": [
+        "none",
+        "desc",
+        "asc"
+      ]
+    },
+    "maxBars": {
+      "type": "number",
+      "value": 30
+    },
     "stacked": {
       "type": "boolean",
       "value": false
@@ -1796,6 +1823,10 @@
       "type": "boolean",
       "value": true
     },
+    "showUpdated": {
+      "type": "boolean",
+      "value": false
+    },
     "compareLabel": {
       "type": "text"
     },
@@ -1969,6 +2000,13 @@
     },
     "timeRangeText": {
       "type": "text"
+    },
+    "compareLabel": {
+      "type": "text"
+    },
+    "showUpdated": {
+      "type": "boolean",
+      "value": false
     }
   },
   "builtin:stat.attributes@1": {
@@ -2403,7 +2441,8 @@
         "badge",
         "dot",
         "tile",
-        "icon"
+        "icon",
+        "lamp"
       ]
     },
     "alignment": {
@@ -2413,6 +2452,18 @@
         "start",
         "center"
       ]
+    },
+    "lampSize": {
+      "type": "number",
+      "value": 56
+    },
+    "lampLabel": {
+      "type": "boolean",
+      "value": true
+    },
+    "lampDim": {
+      "type": "color",
+      "value": "var(--border)"
     },
     "iconSize": {
       "type": "number",
@@ -2456,6 +2507,10 @@
         "pulse": {
           "type": "boolean",
           "value": false
+        },
+        "lit": {
+          "type": "boolean",
+          "value": true
         }
       }
     },
@@ -2687,6 +2742,14 @@
       "type": "boolean",
       "value": false
     },
+    "onlyChanges": {
+      "type": "boolean",
+      "value": false
+    },
+    "historyLayout": {
+      "type": "boolean",
+      "value": false
+    },
     "emptyText": {
       "type": "text"
     },
@@ -2777,8 +2840,22 @@
             "empty"
           ]
         },
+        "valueFrom": {
+          "type": "select",
+          "value": "value",
+          "options": [
+            "value",
+            "column"
+          ]
+        },
         "value": {
           "type": "text"
+        },
+        "valueColumn": {
+          "type": "data-key"
+        },
+        "gateColumn": {
+          "type": "data-key"
         },
         "color": {
           "type": "color",
@@ -4414,6 +4491,410 @@
           "type": "text"
         }
       }
+    }
+  },
+  "builtin:control.form@1": {
+    "label": {
+      "type": "text"
+    },
+    "labelFont": {
+      "type": "font"
+    },
+    "labelColor": {
+      "type": "color",
+      "value": "var(--text-secondary)"
+    },
+    "fields": {
+      "type": "repeater",
+      "fields": {
+        "key": {
+          "type": "text"
+        },
+        "label": {
+          "type": "text"
+        },
+        "type": {
+          "type": "select",
+          "value": "number",
+          "options": [
+            "number",
+            "boolean",
+            "text",
+            "enum"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "options": {
+          "type": "text"
+        },
+        "unit": {
+          "type": "text"
+        },
+        "gate": {
+          "type": "text"
+        },
+        "required": {
+          "type": "boolean",
+          "value": false
+        },
+        "readOnly": {
+          "type": "boolean",
+          "value": false
+        },
+        "placeholder": {
+          "type": "text"
+        },
+        "group": {
+          "type": "text"
+        }
+      }
+    },
+    "fromSource": {
+      "type": "boolean",
+      "value": true
+    },
+    "saveLabel": {
+      "type": "text"
+    },
+    "showReset": {
+      "type": "boolean",
+      "value": true
+    },
+    "resetLabel": {
+      "type": "text"
+    },
+    "disableWhen": {
+      "type": "multi-select",
+      "value": [
+        "stale"
+      ],
+      "options": [
+        "stale",
+        "unknown"
+      ]
+    },
+    "pendingText": {
+      "type": "text"
+    },
+    "successText": {
+      "type": "text"
+    },
+    "failureText": {
+      "type": "text"
+    },
+    "confirmQuestion": {
+      "type": "text"
+    },
+    "confirmLabel": {
+      "type": "text"
+    },
+    "cancelLabel": {
+      "type": "text"
+    }
+  },
+  "builtin:scada.symbol@1": {
+    "symbol": {
+      "type": "select",
+      "value": "tank.vertical",
+      "options": []
+    },
+    "orientation": {
+      "type": "select",
+      "value": "0",
+      "options": [
+        "0",
+        "90",
+        "180",
+        "270"
+      ]
+    },
+    "mirror": {
+      "type": "boolean",
+      "value": false
+    },
+    "length": {
+      "type": "select",
+      "value": "1",
+      "options": [
+        "1",
+        "2",
+        "3"
+      ]
+    },
+    "maxSize": {
+      "type": "number"
+    },
+    "min": {
+      "type": "number",
+      "value": 0
+    },
+    "max": {
+      "type": "number",
+      "value": 100
+    },
+    "ticks": {
+      "type": "boolean",
+      "value": true
+    },
+    "label": {
+      "type": "text"
+    },
+    "showLabel": {
+      "type": "boolean",
+      "value": true
+    },
+    "showValue": {
+      "type": "boolean",
+      "value": true
+    },
+    "rowLabel1": {
+      "type": "text"
+    },
+    "rowLabel2": {
+      "type": "text"
+    },
+    "fillColor": {
+      "type": "color",
+      "value": "var(--info)"
+    },
+    "idleColor": {
+      "type": "color",
+      "value": "var(--text-secondary)"
+    },
+    "runningColor": {
+      "type": "color",
+      "value": "var(--success)"
+    },
+    "warningColor": {
+      "type": "color",
+      "value": "var(--warning)"
+    },
+    "criticalColor": {
+      "type": "color",
+      "value": "var(--error)"
+    },
+    "medium": {
+      "type": "select",
+      "value": "none",
+      "options": [
+        "none",
+        "cold",
+        "hot",
+        "water",
+        "custom"
+      ]
+    },
+    "mediumColor": {
+      "type": "color",
+      "value": "var(--info)"
+    },
+    "arrows": {
+      "type": "boolean",
+      "value": false
+    },
+    "ranges": {
+      "type": "repeater",
+      "fields": {
+        "from": {
+          "type": "number"
+        },
+        "to": {
+          "type": "number"
+        },
+        "color": {
+          "type": "color",
+          "value": "var(--success)"
+        },
+        "label": {
+          "type": "text"
+        }
+      }
+    },
+    "rangeEdges": {
+      "type": "select",
+      "value": "from",
+      "options": [
+        "from",
+        "to"
+      ]
+    },
+    "animation": {
+      "type": "boolean",
+      "value": true
+    }
+  },
+  "builtin:scada.scene@1": {
+    "width": {
+      "type": "number",
+      "value": 1200
+    },
+    "height": {
+      "type": "number",
+      "value": 700
+    },
+    "scale": {
+      "type": "number",
+      "value": 0.6
+    },
+    "background": {
+      "type": "select",
+      "value": "none",
+      "options": [
+        "none",
+        "dots",
+        "panel"
+      ]
+    },
+    "showLabels": {
+      "type": "boolean",
+      "value": true
+    },
+    "elements": {
+      "type": "repeater",
+      "fields": {
+        "id": {
+          "type": "text"
+        },
+        "symbol": {
+          "type": "select",
+          "value": "tank.vertical",
+          "options": []
+        },
+        "x": {
+          "type": "number",
+          "value": 0
+        },
+        "y": {
+          "type": "number",
+          "value": 0
+        },
+        "turn": {
+          "type": "select",
+          "value": "0",
+          "options": [
+            "0",
+            "90",
+            "180",
+            "270"
+          ]
+        },
+        "mirror": {
+          "type": "boolean",
+          "value": false
+        },
+        "length": {
+          "type": "select",
+          "value": "1",
+          "options": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "scale": {
+          "type": "number"
+        },
+        "label": {
+          "type": "text"
+        },
+        "medium": {
+          "type": "select",
+          "value": "none",
+          "options": [
+            "none",
+            "cold",
+            "hot",
+            "water",
+            "custom"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "showValue": {
+          "type": "boolean",
+          "value": true
+        }
+      }
+    },
+    "links": {
+      "type": "repeater",
+      "fields": {
+        "from": {
+          "type": "text"
+        },
+        "to": {
+          "type": "text"
+        },
+        "kind": {
+          "type": "select",
+          "value": "pipe",
+          "options": [
+            "pipe",
+            "hose",
+            "cable",
+            "wire",
+            "strip",
+            "line"
+          ]
+        },
+        "id": {
+          "type": "text"
+        },
+        "medium": {
+          "type": "select",
+          "value": "none",
+          "options": [
+            "none",
+            "cold",
+            "hot",
+            "water",
+            "custom"
+          ]
+        },
+        "mid": {
+          "type": "number"
+        },
+        "arrows": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    },
+    "idleColor": {
+      "type": "color",
+      "value": "var(--text-secondary)"
+    },
+    "runningColor": {
+      "type": "color",
+      "value": "var(--success)"
+    },
+    "warningColor": {
+      "type": "color",
+      "value": "var(--warning)"
+    },
+    "criticalColor": {
+      "type": "color",
+      "value": "var(--error)"
+    },
+    "idColumn": {
+      "type": "data-key",
+      "value": "id"
+    },
+    "animation": {
+      "type": "boolean",
+      "value": true
     }
   }
 }

@@ -26,6 +26,9 @@ import { CONTROL_BUTTON_VIEW } from './ControlButtonView';
 import { CONTROL_SWITCH_VIEW } from './ControlSwitchView';
 import { CONTROL_SLIDER_VIEW } from './ControlSliderView';
 import { CONTROL_SETPOINT_VIEW } from './ControlSetpointView';
+import { CONTROL_FORM_VIEW } from './ControlFormView';
+import { SCADA_SYMBOL_VIEW } from './ScadaSymbolView';
+import { SCADA_SCENE_VIEW } from './ScadaSceneView';
 
 export const BUILTIN_VIEWS: Readonly<Record<string, WidgetKindView>> = {
   'chart.line': CHART_LINE_VIEW,
@@ -54,4 +57,7 @@ export const BUILTIN_VIEWS: Readonly<Record<string, WidgetKindView>> = {
   'control.switch': CONTROL_SWITCH_VIEW,
   'control.slider': CONTROL_SLIDER_VIEW,
   'control.setpoint': CONTROL_SETPOINT_VIEW,
+  'control.form': CONTROL_FORM_VIEW,
+  'scada.symbol': SCADA_SYMBOL_VIEW,
+  'scada.scene': SCADA_SCENE_VIEW,
 };

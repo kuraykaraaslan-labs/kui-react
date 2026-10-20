@@ -27,6 +27,9 @@ import { CONTROL_BUTTON_KIND } from './control-button';
 import { CONTROL_SWITCH_KIND } from './control-switch';
 import { CONTROL_SLIDER_KIND } from './control-slider';
 import { CONTROL_SETPOINT_KIND } from './control-setpoint';
+import { CONTROL_FORM_KIND } from './control-form';
+import { SCADA_SYMBOL_KIND } from './scada';
+import { SCADA_SCENE_KIND } from './scada-scene';
 
 export const BUILTIN_KINDS: readonly BuiltinKindSpec[] = [
   CHART_LINE_KIND,
@@ -55,6 +58,9 @@ export const BUILTIN_KINDS: readonly BuiltinKindSpec[] = [
   CONTROL_SWITCH_KIND,
   CONTROL_SLIDER_KIND,
   CONTROL_SETPOINT_KIND,
+  CONTROL_FORM_KIND,
+  SCADA_SYMBOL_KIND,
+  SCADA_SCENE_KIND,
 ];
 
 export const builtinKind = (type: string): BuiltinKindSpec | undefined => BUILTIN_KINDS.find((k) => k.type === type);
