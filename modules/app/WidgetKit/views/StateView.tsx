@@ -12,10 +12,13 @@ import type { ColumnMeta, WidgetKindView, WidgetViewProps } from '../kind';
 import { metaValue } from '../settings/source-meta';
 import { IconTile, Meta, MetricHead, MetricLabel, Pill, tint } from './ui';
 
-type Rule = { match?: string; gte?: number | null; lte?: number | null; label?: string; color?: string; background?: string; icon?: string; pulse?: boolean };
+type Rule = { match?: string; gte?: number | null; lte?: number | null; label?: string; color?: string; background?: string; icon?: string; pulse?: boolean; lit?: boolean };
 
 type S = {
-  layout?: 'big' | 'badge' | 'dot' | 'tile' | 'icon';
+  layout?: 'big' | 'badge' | 'dot' | 'tile' | 'icon' | 'lamp';
+  lampSize?: number;
+  lampLabel?: boolean;
+  lampDim?: string;
   alignment?: 'start' | 'center';
   label?: string;
   labelFont?: FontValue;
@@ -64,6 +67,8 @@ export interface StateOutcome {
   background?: string;
   icon?: string;
   pulse?: boolean;
+  /** Lamp layout: false draws the dim colour (a rule can say a state is not lit). */
+  lit?: boolean;
   matched: boolean;
   unknown: boolean;
 }
@@ -88,6 +93,7 @@ export function evaluateState(value: unknown, settings: Sparse, stale = false, u
       background: cssColor(hit.background),
       icon: hit.icon || undefined,
       ...(hit.pulse ? { pulse: true } : {}),
+      ...(hit.lit === false ? { lit: false } : {}),
       matched: true,
       unknown: false,
     };
@@ -131,7 +137,7 @@ export function StateView({ settings, data, stale }: WidgetViewProps) {
   const m = useKitMessages().stat;
   const out = evaluateState(raw, settings, stale, m.unknown, data.value?.meta);
   const layout = s.layout ?? 'big';
-  const center = (s.alignment ?? 'start') === 'center' || layout === 'icon';
+  const center = (s.alignment ?? 'start') === 'center' || layout === 'icon' || layout === 'lamp';
   const iconSize = s.iconSize ?? 18;
   const bg = out.background ?? tint(out.color, 14);
   const pulse = !!out.pulse && !out.unknown;
@@ -177,6 +183,22 @@ export function StateView({ settings, data, stale }: WidgetViewProps) {
         </span>
         {out.label}{staleNote}
       </span>
+    );
+  } else if (layout === 'lamp') {
+    const size = Math.min(200, Math.max(16, s.lampSize ?? 56));
+    const lit = !out.unknown && out.lit !== false;
+    const dim = cssColor(s.lampDim) ?? 'var(--border)';
+    main = (
+      <>
+        <span className="relative inline-flex shrink-0" style={{ width: size, height: size }} data-part="lamp" data-lit={lit ? 'true' : 'false'} aria-hidden="true">
+          {lit && pulse && <span className="absolute inset-0 rounded-full opacity-60 motion-safe:animate-ping" style={{ background: out.color }} />}
+          <span className="relative h-full w-full rounded-full"
+            style={{ background: lit ? out.color : dim, boxShadow: lit ? `0 0 ${Math.round(size / 3)}px ${Math.round(size / 12)}px ${tint(out.color, 45)}` : 'inset 0 0 0 1px var(--border)' }} />
+        </span>
+        {s.lampLabel !== false
+          ? <span className="text-base font-semibold leading-tight" style={stateStyle} data-part="label">{out.label}{staleNote}</span>
+          : <span className="sr-only" data-part="label">{out.label}{staleNote}</span>}
+      </>
     );
   } else if (layout === 'icon') {
     const size = Math.round(iconSize * 2.6);

@@ -138,6 +138,7 @@ const DRAWINGS: Record<string, { body: ReactNode; frame?: boolean }> = {
   'state-badge': { body: <>{t(16, 7, 16)}{b(12, 14, 24, 9, 0.85, 4.5)}{hole(17, 17.5, 14)}</> },
   'state-dot': { body: <>{dot(12, 16, 3, 0.85)}{t(18, 15, 20, 2.5, 0.75)}</> },
   'state-tile': { body: <>{b(4, 4, 40, 24, 0.25, 2)}{t(10, 9, 14)}{n(10, 15, 28, 6)}</> },
+  'state-lamp': { body: <>{dot(24, 13, 9, 0.2)}{dot(24, 13, 7, 0.9)}{t(17, 26, 14, 2, 0.6)}</> },
   'state-icon': { body: <>{dot(24, 13, 7, 0.4)}{dot(24, 13, 3, 0.9)}{t(16, 24, 16)}</> },
   // Feed
   'feed-timeline': {
