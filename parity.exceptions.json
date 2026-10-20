@@ -6,8 +6,13 @@
       "name": "SchemaForm",
       "layer": "app",
       "path": "modules/app/SchemaForm",
-      "presentIn": ["kui-react"],
-      "absentIn": ["kui-ejs", "KUInative"],
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
       "reason": "New in phase 9 (9.10, OD-16), no counterpart. kui-ejs deliberately reverted FormBuilder, so no schema form is added there without a scope decision; KUInative has no form-builder surface. Source of truth for next-boilerplate's FieldSchema, vendored back from here."
     },
     {
@@ -15,9 +20,139 @@
       "name": "ContributionBoundary",
       "layer": "ui",
       "path": "modules/ui/ContributionBoundary.tsx",
-      "presentIn": ["kui-react"],
-      "absentIn": ["kui-ejs", "KUInative"],
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
       "reason": "A React error boundary isolates contributed UI at render time (next-boilerplate phase 37). kui-ejs renders on the server, so there is no client render to isolate: a failing contribution is caught by the host route and rendered as the UnavailableContribution partial, which both repos have. KUInative keeps an equivalent private to TabGroup (isolate) and exports none until a native host needs one."
+    },
+    {
+      "id": "widget-kit-heavy-kinds",
+      "name": "WidgetKit: chart, map, control, video and 3D model kinds",
+      "layer": "app",
+      "path": "modules/app/WidgetKit/views",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs"
+      ],
+      "reason": "kui-ejs draws the WidgetKit kinds whose view is a pure function of its model (stat.value, stat.sparkline, stat.attributes, state, progress, gauge, data.table, data.feed, content.markdown, content.image, content.links, content.embed): the golden HTML comparison covers them. The rest are drawn by client scripts or need host wiring that has no server-rendered equivalent to compare: chart.line / area / bar / pie / scatter / histogram and heatmap (kui-ejs Chart.ejs draws in the browser from a JSON config), map (Leaflet), control.button / switch / slider / setpoint (a host command behind onControl and renderLayout slots), content.video (kui-player) and viewer.model (three.js). Their models are not vendored yet; the mapping onto the existing ui partials is the next step and gets a case in tests/parity/cases.ts when it is done.",
+      "kinds": [
+        "chart.line",
+        "chart.area",
+        "chart.bar",
+        "chart.pie",
+        "chart.scatter",
+        "chart.histogram",
+        "heatmap",
+        "map",
+        "control.button",
+        "control.switch",
+        "control.slider",
+        "control.setpoint",
+        "content.video",
+        "viewer.model"
+      ]
+    },
+    {
+      "id": "widget-kit-board-editor",
+      "name": "WidgetBoard, WidgetSettingsEditor, previews, localize",
+      "layer": "app",
+      "path": "modules/app/WidgetKit/WidgetBoard.tsx",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "The editing surface (board grid in edit mode, the settings editor, layout thumbnails, template localisation) is a React application built on SchemaForm, which is itself react-only (see schema-form). A server-rendered or native host draws placements; the dashboard editor lives in the host app (next-boilerplate)."
+    },
+    {
+      "id": "app-shell-react-only",
+      "name": "ConditionalShell, GoogleAnalytics",
+      "layer": "app",
+      "path": "modules/app/ConditionalShell.tsx",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs"
+      ],
+      "reason": "Next.js route-level pieces (path-dependent shell, analytics script component): kui-ejs renders its layout per route in Express, so there is nothing to port. Deliberate since ADR 0003.",
+      "components": [
+        "ConditionalShell",
+        "GoogleAnalytics"
+      ]
+    },
+    {
+      "id": "app-state-aliases",
+      "name": "EmptyErrorState, NotFoundPage",
+      "layer": "app",
+      "path": "modules/app/EmptyErrorState.tsx",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs"
+      ],
+      "reason": "Naming alias: kui-ejs ships the same states as ErrorState, NoAccessState and NotFoundState (modules/app).",
+      "components": [
+        "EmptyErrorState",
+        "NotFoundPage"
+      ]
+    },
+    {
+      "id": "form-builder-gantt",
+      "name": "FormBuilder, Gantt",
+      "layer": "app",
+      "path": "modules/app/FormBuilder",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs"
+      ],
+      "reason": "kui-ejs shipped both and deliberately reverted them (\"moved out of scope\" commits). Do not re-add without deciding scope first (ADR 0003, kui-ejs AGENTS.md).",
+      "components": [
+        "FormBuilder",
+        "Gantt"
+      ]
+    },
+    {
+      "id": "ruleset-editor",
+      "name": "RulesetEditor",
+      "layer": "app",
+      "path": "modules/app/RulesetEditor",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs"
+      ],
+      "reason": "The IoT rule canvas belongs to the iot vertical, which is react-only by design (ADR 0003); kui-ejs carries no iot vertical."
+    },
+    {
+      "id": "ui-react-modules",
+      "name": "Virtual, lazy, Toast.store",
+      "layer": "ui",
+      "path": "modules/ui/Virtual",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs"
+      ],
+      "reason": "Not components: a windowing hook (useVirtualList), a React.lazy helper and a zustand store. kui-ejs draws its windowing inside the partials that need it (TraceWaterfall, LogViewer) and has Toast.ejs with its own runtime.",
+      "components": [
+        "Virtual",
+        "lazy",
+        "Toast.store"
+      ]
     }
   ]
 }
