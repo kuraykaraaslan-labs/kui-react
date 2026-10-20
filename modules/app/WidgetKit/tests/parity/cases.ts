@@ -150,4 +150,10 @@ export const PARITY_CASES: ParityCase[] = [
   { id: 'gauge.bar-horizontal', kind: 'gauge', settings: { layout: 'bar-horizontal', min: 10, max: 90, ticks: 4, tickLabels: true, valueText: 'value' }, data: { value: scalar(55), min: scalar(0), max: scalar(100) } },
   { id: 'gauge.level', kind: 'gauge', settings: { layout: 'level', label: 'Tank', unitTitle: 'm', max: 5, ranges: [{ from: 0, to: 1, color: '#dc2626' }, { from: 1, to: 5, color: '#2563eb' }], rangeDisplay: 'track' }, data: { value: scalar(3.2, { meta: { unit: 'm', decimals: 1 } }) } },
   { id: 'gauge.empty-shape', kind: 'gauge', title: 'Pressure', settings: withTitle, data: {}, boundSlots: ['value'] },
+  // ── content.markdown
+  { id: 'markdown.plain', kind: 'content.markdown', title: 'Notes', settings: { ...withTitle, content: '# Shift notes\n\nPump **A** is *running*; see [the manual](https://docs.example.com/pumps) or [devices](/devices).\n\n- Level {{level}} m\n- Owner {{owner}}\n\n1. Check the valve\n2. Log it\n\n> Keep clear of the pit.\n\n```\nrun --safe\n```\n\n---\n\nUse `reset` after {{missing}}.' }, data: { record: { shape: 'record', record: { level: 4.2, owner: 'Ayşe' } } } },
+  { id: 'markdown.callout', kind: 'content.markdown', settings: { layout: 'callout', calloutStyle: 'warning', calloutIcon: 'fas fa-triangle-exclamation', content: 'Maintenance tonight at 22:00.', textSize: 'lg', align: 'center', padding: 8 } },
+  { id: 'markdown.callout-custom-clamp', kind: 'content.markdown', settings: { layout: 'callout', calloutStyle: 'custom', calloutColor: '#7c3aed', calloutBackground: '#f5f3ff', content: 'A long text that is clamped to two lines so it never grows the card past its cell and the rest is cut off with an ellipsis at the end of the second line.', overflow: 'clamp', clampLines: 2, linkUnderline: 'always' } },
+  { id: 'markdown.footer', kind: 'content.markdown', settings: { content: 'Gateway status', showRecord: true, recordKeys: ['model', 'uptimeHours', 'online'] }, data: { record: { shape: 'record', record: { model: 'Edge 4', uptimeHours: 412.5, online: true, extra: 'x' } } } },
+  { id: 'markdown.empty', kind: 'content.markdown', settings: {} },
 ];
