@@ -2167,6 +2167,153 @@
     "value"
    ],
    "html": "<section aria-label=\"Goal\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Goal</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col h-full min-h-16 relative\"><div aria-hidden=\"true\" class=\"flex flex-1 flex-col h-full min-h-0 opacity-40 pointer-events-none select-none\" inert=\"\"><div class=\"flex flex-col gap-2 h-full min-h-0\" data-layout=\"bar-labelled\"><div class=\"flex flex-col gap-2.5 mt-auto\"><div class=\"flex flex-wrap gap-x-2 gap-y-1 items-baseline min-w-0\"><span data-part=\"value\"><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:clamp(1.5rem, min(14cqi, 36cqb), 3rem)\"><span>—</span></span></span><span class=\"leading-snug text-[11px] text-text-secondary/80\"><span data-part=\"secondary\">of 100</span></span></div><div class=\"flex flex-col\"><div class=\"flex-1 min-w-0 w-full\"><div class=\"relative\"><div aria-label=\"— of 100\" aria-valuemax=\"100\" aria-valuemin=\"0\" aria-valuenow=\"0\" class=\"bg-surface-sunken overflow-hidden relative rounded-full w-full\" role=\"progressbar\" style=\"background:var(--border);height:8px\"><div class=\"duration-300 ease-out h-full relative rounded-full transition-[width]\" style=\"background:var(--primary);width:0%\"></div></div></div></div></div></div></div></div><div class=\"absolute flex inset-0 items-center justify-center p-2\"><p class=\"bg-surface-raised border border-border px-3 py-1 rounded-full shadow-sm text-center text-text-secondary text-xs\">No data</p></div></div></div></section>"
+  },
+  {
+   "id": "gauge.arc-bands",
+   "kind": "gauge",
+   "title": "Pressure",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    },
+    "label": "Line 1",
+    "unitTitle": "bar",
+    "ranges": [
+     {
+      "from": 0,
+      "to": 12,
+      "color": "#16a34a"
+     },
+     {
+      "from": 12,
+      "to": 18,
+      "color": "#f59e0b"
+     },
+     {
+      "from": 18,
+      "to": 24,
+      "color": "#dc2626"
+     }
+    ],
+    "max": 24,
+    "ticks": 3,
+    "tickLabels": true
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 14.5,
+     "fetchedAt": "2026-10-20T10:00:00.000Z",
+     "meta": {
+      "unit": "bar",
+      "decimals": 1
+     }
+    }
+   },
+   "html": "<section aria-label=\"Pressure\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Pressure</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col gap-2 h-full min-h-0 w-full\"><div class=\"flex gap-3 items-start justify-between\"><div class=\"min-w-0 pt-0.5\"><span class=\"block font-medium text-text-secondary text-xs truncate\" style=\"color:var(--text-secondary)\">Line 1</span></div></div><div class=\"flex-1 min-h-0 w-full\"><div aria-label=\"Line 1\" aria-valuemax=\"24\" aria-valuemin=\"0\" aria-valuenow=\"14.5\" aria-valuetext=\"14.5 bar\" class=\"flex flex-col h-full items-center justify-center min-h-0 relative w-full\" data-layout=\"arc\" role=\"meter\" style=\"container-type:size\"><div class=\"relative\" style=\"aspect-ratio:1.8286;container-type:inline-size;margin-bottom:16px;width:min(100cqw, calc((100cqh - 16px) * 1.8286))\"><svg aria-hidden=\"true\" class=\"absolute h-full inset-0 overflow-visible w-full\" viewbox=\"4.00 4.00 192.00 105.00\"><path d=\"M20.00 100.00 A80 80 0 0 1 180.00 100.00\" data-part=\"track\" fill=\"none\" stroke=\"var(--border)\" stroke-linecap=\"round\" stroke-width=\"14\"></path><path d=\"M8.00 100.00 A92 92 0 0 1 100.00 8.00\" data-part=\"band\" fill=\"none\" stroke=\"#16a34a\" stroke-width=\"4\"></path><path d=\"M100.00 8.00 A92 92 0 0 1 165.05 34.95\" data-part=\"band\" fill=\"none\" stroke=\"#f59e0b\" stroke-width=\"4\"></path><path d=\"M165.05 34.95 A92 92 0 0 1 192.00 100.00\" data-part=\"band\" fill=\"none\" stroke=\"#dc2626\" stroke-width=\"4\"></path><path d=\"M20.00 100.00 A80 80 0 0 1 180.00 100.00\" data-part=\"bar\" fill=\"none\" pathlength=\"1\" stroke=\"#f59e0b\" stroke-dasharray=\"0.6041666666666666 1\" stroke-linecap=\"round\" stroke-width=\"14\" style=\"transition:stroke 400ms ease-out, stroke-dasharray 400ms ease-out\"></path><line data-part=\"tick\" stroke=\"var(--border-strong)\" stroke-width=\"1.2\" x1=\"29\" x2=\"34\" y1=\"100\" y2=\"100\"></line><line data-part=\"tick\" stroke=\"var(--border-strong)\" stroke-width=\"1.2\" x1=\"100\" x2=\"100\" y1=\"29\" y2=\"34\"></line><line data-part=\"tick\" stroke=\"var(--border-strong)\" stroke-width=\"1.2\" x1=\"171\" x2=\"166\" y1=\"100\" y2=\"100\"></line></svg><div class=\"absolute\" style=\"bottom:7.619%;left:50%;transform:translateX(-50%)\"><span class=\"flex flex-col gap-1 items-center text-center\"><span class=\"leading-none\" style=\"font-size:clamp(0.875rem, 16cqw, 3rem)\"><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1em\"><span>14.5</span><span class=\"font-medium text-[max(0.5em,11px)] text-text-secondary\">bar</span></span></span><span class=\"leading-none text-[11px] text-text-secondary\" data-part=\"caption\">bar</span></span></div><span class=\"-translate-x-1/2 -translate-y-1/2 absolute leading-none tabular-nums text-[11px] whitespace-nowrap\" data-part=\"tick-label\" style=\"color:var(--text-secondary);left:50.000%;top:36.190%\">12.0</span><span class=\"absolute leading-none tabular-nums text-[11px] whitespace-nowrap\" data-part=\"min\" style=\"color:var(--text-secondary);left:4.688%;top:calc(98.095% + 4px)\">0.0</span><span class=\"absolute leading-none tabular-nums text-[11px] whitespace-nowrap\" data-part=\"max\" style=\"color:var(--text-secondary);right:4.688%;top:calc(98.095% + 4px)\">24.0</span></div></div></div></div></div></section>"
+  },
+  {
+   "id": "gauge.donut-needle",
+   "kind": "gauge",
+   "settings": {
+    "layout": "donut",
+    "needle": true,
+    "needleStyle": "arrow",
+    "icon": "fas fa-gauge",
+    "barColorMode": "constant",
+    "barColor": "#7c3aed",
+    "thickness": 18,
+    "roundedCaps": false,
+    "showMinMax": false
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 62,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col gap-2 h-full min-h-0 w-full\"><div class=\"flex gap-3 items-start justify-between\"><div class=\"min-w-0 pt-0.5\"></div><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--primary) 14%, transparent);height:36px;width:36px\"><i data-icon=\"gauge\"></i></span></div><div class=\"flex-1 min-h-0 w-full\"><div aria-label=\"Gauge\" aria-valuemax=\"100\" aria-valuemin=\"0\" aria-valuenow=\"62\" aria-valuetext=\"62\" class=\"flex flex-col h-full items-center justify-center min-h-0 relative w-full\" data-layout=\"donut\" role=\"meter\" style=\"container-type:size\"><div class=\"relative\" style=\"aspect-ratio:1.1671;container-type:inline-size;margin-bottom:0;width:min(100cqw, calc((100cqh - 0px) * 1.1671))\"><svg aria-hidden=\"true\" class=\"absolute h-full inset-0 overflow-visible w-full\" viewbox=\"9.01 9.01 181.97 155.92\"><path d=\"M43.43 156.57 A80 80 0 1 1 156.57 156.57\" data-part=\"track\" fill=\"none\" stroke=\"var(--border)\" stroke-linecap=\"butt\" stroke-width=\"18\"></path><path d=\"M43.43 156.57 A80 80 0 1 1 156.57 156.57\" data-part=\"bar\" fill=\"none\" pathlength=\"1\" stroke=\"#7c3aed\" stroke-dasharray=\"0.62 1\" stroke-linecap=\"butt\" stroke-width=\"18\" style=\"transition:stroke 400ms ease-out, stroke-dasharray 400ms ease-out\"></path><path d=\"M96.20 97.59 L135.90 43.43 L103.80 102.41 Z\" data-part=\"needle\" fill=\"var(--text-primary)\"></path><circle cx=\"100\" cy=\"100\" fill=\"var(--text-primary)\" r=\"6\"></circle></svg><div class=\"absolute\" style=\"left:50%;top:79.905%;transform:translate(-50%, -50%)\"><span class=\"flex flex-col gap-1 items-center text-center\"><span class=\"leading-none\" style=\"font-size:clamp(0.875rem, 15cqw, 3rem)\"><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1em\"><span>62</span></span></span></span></div></div></div></div></div></div></section>"
+  },
+  {
+   "id": "gauge.bar-horizontal",
+   "kind": "gauge",
+   "settings": {
+    "layout": "bar-horizontal",
+    "min": 10,
+    "max": 90,
+    "ticks": 4,
+    "tickLabels": true,
+    "valueText": "value"
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 55,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    },
+    "min": {
+     "shape": "scalar",
+     "value": 0,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    },
+    "max": {
+     "shape": "scalar",
+     "value": 100,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col gap-2 h-full min-h-0 w-full\"><div class=\"flex-1 min-h-0 w-full\"><div aria-label=\"Gauge\" aria-valuemax=\"100\" aria-valuemin=\"0\" aria-valuenow=\"55\" aria-valuetext=\"55\" class=\"flex flex-col h-full items-center justify-center min-h-0 relative w-full\" data-layout=\"bar-horizontal\" role=\"meter\" style=\"container-type:size\"><div class=\"flex flex-col gap-2 justify-center w-full\"><span class=\"flex flex-col gap-1 items-start\"><span class=\"leading-none\" style=\"font-size:clamp(1.5rem, min(14cqi, 30cqb), 3rem)\"><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1em\"><span>55</span></span></span></span><div class=\"relative w-full\" style=\"padding-top:0\"><div class=\"overflow-hidden relative rounded-full w-full\" data-part=\"track\" style=\"background:var(--border);height:14px\"><span class=\"absolute inset-y-0 left-0 rounded-full\" data-part=\"bar\" style=\"background:var(--primary);transition:width 400ms ease-out, background-color 400ms ease-out;width:55.000%\"></span></div><div aria-hidden=\"true\" class=\"h-1.5 relative w-full\"><span class=\"absolute h-1 top-0.5 w-px\" data-part=\"tick\" style=\"background:var(--border-strong);left:0.000%\"></span><span class=\"absolute h-1 top-0.5 w-px\" data-part=\"tick\" style=\"background:var(--border-strong);left:33.333%\"></span><span class=\"absolute h-1 top-0.5 w-px\" data-part=\"tick\" style=\"background:var(--border-strong);left:66.667%\"></span><span class=\"absolute h-1 top-0.5 w-px\" data-part=\"tick\" style=\"background:var(--border-strong);left:100.000%\"></span></div></div><div class=\"h-3 relative w-full\" style=\"color:var(--text-secondary)\"><span class=\"absolute leading-none left-0 tabular-nums text-[11px] top-0 whitespace-nowrap\" data-part=\"min\">0</span><span class=\"absolute leading-none right-0 tabular-nums text-[11px] top-0 whitespace-nowrap\" data-part=\"max\">100</span><span class=\"-translate-x-1/2 absolute leading-none tabular-nums text-[11px] top-0 whitespace-nowrap\" data-part=\"tick-label\" style=\"left:33.333%\">33</span><span class=\"-translate-x-1/2 absolute leading-none tabular-nums text-[11px] top-0 whitespace-nowrap\" data-part=\"tick-label\" style=\"left:66.667%\">67</span></div></div></div></div></div></div></section>"
+  },
+  {
+   "id": "gauge.level",
+   "kind": "gauge",
+   "settings": {
+    "layout": "level",
+    "label": "Tank",
+    "unitTitle": "m",
+    "max": 5,
+    "ranges": [
+     {
+      "from": 0,
+      "to": 1,
+      "color": "#dc2626"
+     },
+     {
+      "from": 1,
+      "to": 5,
+      "color": "#2563eb"
+     }
+    ],
+    "rangeDisplay": "track"
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 3.2,
+     "fetchedAt": "2026-10-20T10:00:00.000Z",
+     "meta": {
+      "unit": "m",
+      "decimals": 1
+     }
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col gap-2 h-full min-h-0 w-full\"><div class=\"flex gap-3 items-start justify-between\"><div class=\"min-w-0 pt-0.5\"><span class=\"block font-medium text-text-secondary text-xs truncate\" style=\"color:var(--text-secondary)\">Tank</span></div></div><div class=\"flex-1 min-h-0 w-full\"><div aria-label=\"Tank\" aria-valuemax=\"5\" aria-valuemin=\"0\" aria-valuenow=\"3.2\" aria-valuetext=\"3.2 m\" class=\"flex flex-col h-full items-center justify-center min-h-0 relative w-full\" data-layout=\"level\" role=\"meter\" style=\"container-type:size\"><div class=\"flex gap-2 h-full items-stretch min-h-0 py-1.5 w-full\"><div class=\"flex flex-col h-full items-center min-h-0 relative\" style=\"width:28px\"><div class=\"flex-1 min-h-0 relative w-full\" style=\"display:flex;justify-content:center\"><div class=\"h-full overflow-hidden relative rounded-t-full\" data-part=\"track\" style=\"background:var(--border);margin-bottom:-14px;width:14px\"><span class=\"absolute inset-x-0\" data-part=\"band\" style=\"background:#dc2626;bottom:0.000%;height:20.000%;opacity:0.35\"></span><span class=\"absolute inset-x-0\" data-part=\"band\" style=\"background:#2563eb;bottom:20.000%;height:80.000%;opacity:0.35\"></span><span class=\"absolute bottom-0 inset-x-0\" data-part=\"bar\" style=\"background:#2563eb;height:calc(64.000% + 14px);max-height:100%;transition:height 400ms ease-out, background-color 400ms ease-out\"></span></div></div><div class=\"relative rounded-full shrink-0\" data-part=\"bulb\" style=\"background:#2563eb;height:28px;transition:background-color 400ms ease-out;width:28px\"></div></div><div class=\"h-full min-h-0 relative\" style=\"color:var(--text-secondary);padding-bottom:14px\"><div class=\"h-full relative\" style=\"min-width:28px\"><span class=\"absolute leading-none left-2.5 tabular-nums text-[11px] translate-y-1/2 whitespace-nowrap\" data-part=\"min\" style=\"bottom:0\">0.0</span><span class=\"-translate-y-1/2 absolute leading-none left-2.5 tabular-nums text-[11px] whitespace-nowrap\" data-part=\"max\" style=\"top:0\">5.0</span></div></div><div class=\"flex flex-1 items-end justify-end min-w-0 pb-0.5\"><span class=\"flex flex-col gap-1 items-start\"><span class=\"leading-none\" style=\"font-size:clamp(1.5rem, min(14cqi, 30cqb), 3rem)\"><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1em\"><span>3.2</span><span class=\"font-medium text-[max(0.5em,11px)] text-text-secondary\">m</span></span></span><span class=\"leading-none text-[11px] text-text-secondary\" data-part=\"caption\">m</span></span></div></div></div></div></div></div></section>"
+  },
+  {
+   "id": "gauge.empty-shape",
+   "kind": "gauge",
+   "title": "Pressure",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    }
+   },
+   "data": {},
+   "boundSlots": [
+    "value"
+   ],
+   "html": "<section aria-label=\"Pressure\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Pressure</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col h-full min-h-16 relative\"><div aria-hidden=\"true\" class=\"flex flex-1 flex-col h-full min-h-0 opacity-40 pointer-events-none select-none\" inert=\"\"><div class=\"flex flex-col gap-2 h-full min-h-0 w-full\"><div class=\"flex-1 min-h-0 w-full\"><div aria-label=\"Gauge\" aria-valuemax=\"100\" aria-valuemin=\"0\" aria-valuetext=\"no value\" class=\"flex flex-col h-full items-center justify-center min-h-0 relative w-full\" data-layout=\"arc\" role=\"meter\" style=\"container-type:size\"><div class=\"relative\" style=\"aspect-ratio:1.8163;container-type:inline-size;margin-bottom:16px;width:min(100cqw, calc((100cqh - 16px) * 1.8163))\"><svg aria-hidden=\"true\" class=\"absolute h-full inset-0 overflow-visible w-full\" viewbox=\"11.00 11.00 178.00 98.00\"><path d=\"M20.00 100.00 A80 80 0 0 1 180.00 100.00\" data-part=\"track\" fill=\"none\" stroke=\"var(--border)\" stroke-linecap=\"round\" stroke-width=\"14\"></path></svg><div class=\"absolute\" style=\"bottom:8.163%;left:50%;transform:translateX(-50%)\"><span class=\"flex flex-col gap-1 items-center text-center\"><span class=\"leading-none\" style=\"font-size:clamp(0.875rem, 16cqw, 3rem)\"><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1em\"><span>—</span></span></span></span></div><span class=\"absolute leading-none tabular-nums text-[11px] whitespace-nowrap\" data-part=\"min\" style=\"color:var(--text-secondary);left:1.124%;top:calc(97.959% + 4px)\">0</span><span class=\"absolute leading-none tabular-nums text-[11px] whitespace-nowrap\" data-part=\"max\" style=\"color:var(--text-secondary);right:1.124%;top:calc(97.959% + 4px)\">100</span></div></div></div></div></div><div class=\"absolute flex inset-0 items-center justify-center p-2\"><p class=\"bg-surface-raised border border-border px-3 py-1 rounded-full shadow-sm text-center text-text-secondary text-xs\">No data</p></div></div></div></section>"
   }
  ]
 }

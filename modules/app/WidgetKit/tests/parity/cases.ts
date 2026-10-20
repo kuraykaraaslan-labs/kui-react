@@ -144,4 +144,10 @@ export const PARITY_CASES: ParityCase[] = [
   { id: 'progress.ring', kind: 'progress', title: 'Goal', settings: { ...withTitle, layout: 'ring', target: 200, valueText: 'both' }, data: { value: scalar(150) } },
   { id: 'progress.semicircle', kind: 'progress', settings: { layout: 'semicircle', target: 8, label: 'Shift', valueText: 'percent' }, data: { value: scalar(6) } },
   { id: 'progress.empty-shape', kind: 'progress', title: 'Goal', settings: { ...withTitle, target: 100 }, data: {}, boundSlots: ['value'] },
+  // ── gauge
+  { id: 'gauge.arc-bands', kind: 'gauge', title: 'Pressure', settings: { ...withTitle, label: 'Line 1', unitTitle: 'bar', ranges: [{ from: 0, to: 12, color: '#16a34a' }, { from: 12, to: 18, color: '#f59e0b' }, { from: 18, to: 24, color: '#dc2626' }], max: 24, ticks: 3, tickLabels: true }, data: { value: scalar(14.5, { meta: { unit: 'bar', decimals: 1 } }) } },
+  { id: 'gauge.donut-needle', kind: 'gauge', settings: { layout: 'donut', needle: true, needleStyle: 'arrow', icon: 'fas fa-gauge', barColorMode: 'constant', barColor: '#7c3aed', thickness: 18, roundedCaps: false, showMinMax: false }, data: { value: scalar(62) } },
+  { id: 'gauge.bar-horizontal', kind: 'gauge', settings: { layout: 'bar-horizontal', min: 10, max: 90, ticks: 4, tickLabels: true, valueText: 'value' }, data: { value: scalar(55), min: scalar(0), max: scalar(100) } },
+  { id: 'gauge.level', kind: 'gauge', settings: { layout: 'level', label: 'Tank', unitTitle: 'm', max: 5, ranges: [{ from: 0, to: 1, color: '#dc2626' }, { from: 1, to: 5, color: '#2563eb' }], rangeDisplay: 'track' }, data: { value: scalar(3.2, { meta: { unit: 'm', decimals: 1 } }) } },
+  { id: 'gauge.empty-shape', kind: 'gauge', title: 'Pressure', settings: withTitle, data: {}, boundSlots: ['value'] },
 ];
