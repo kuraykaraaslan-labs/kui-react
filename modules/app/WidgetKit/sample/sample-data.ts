@@ -6,6 +6,7 @@
 import type { SlotData } from '../kind';
 import type { BoardDocument, BoardPlacement } from '../settings/board';
 import { PLANT_MODEL } from './sample-boards';
+import { scadaSources } from './scada-scenes';
 
 export interface SampleSource {
   key: string;
@@ -338,6 +339,8 @@ function themedSources(now: number, at: (minAgo: number) => string): SampleSourc
         })),
       },
     },
+    // ── process diagrams (readings per symbol id, and a record for the form)
+    ...scadaSources(now),
   ];
 }
 

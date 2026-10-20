@@ -4753,6 +4753,22 @@
         "panel"
       ]
     },
+    "fit": {
+      "type": "select",
+      "value": "content",
+      "options": [
+        "content",
+        "canvas"
+      ]
+    },
+    "anchor": {
+      "type": "select",
+      "value": "center",
+      "options": [
+        "center",
+        "corner"
+      ]
+    },
     "showLabels": {
       "type": "boolean",
       "value": true
@@ -4805,6 +4821,23 @@
         "label": {
           "type": "text"
         },
+        "labelPos": {
+          "type": "select",
+          "value": "b",
+          "options": [
+            "b",
+            "t",
+            "n"
+          ]
+        },
+        "valuePos": {
+          "type": "select",
+          "value": "b",
+          "options": [
+            "b",
+            "r"
+          ]
+        },
         "medium": {
           "type": "select",
           "value": "none",
@@ -4815,6 +4848,10 @@
             "water",
             "custom"
           ]
+        },
+        "mediumColor": {
+          "type": "color",
+          "value": "var(--info)"
         },
         "min": {
           "type": "number"
@@ -4862,6 +4899,10 @@
             "water",
             "custom"
           ]
+        },
+        "mediumColor": {
+          "type": "color",
+          "value": "var(--info)"
         },
         "mid": {
           "type": "number"

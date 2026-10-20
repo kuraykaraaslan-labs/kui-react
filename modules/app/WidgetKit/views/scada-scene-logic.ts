@@ -28,9 +28,14 @@ export type SceneElementSetting = {
   scale?: number | null;
   label?: string;
   medium?: string;
+  mediumColor?: string;
   min?: number | null;
   max?: number | null;
   showValue?: boolean;
+  /** Where the name sits: under the symbol (default), above it, or nowhere. */
+  labelPos?: 'b' | 't' | 'n';
+  /** Where the number of a level or dial sits: under the symbol (default) or beside it. */
+  valuePos?: 'b' | 'r';
 };
 
 export type SceneLinkSetting = {
@@ -39,6 +44,7 @@ export type SceneLinkSetting = {
   to?: string;
   kind?: SceneLinkKind | string;
   medium?: string;
+  mediumColor?: string;
   mid?: number | null;
   arrows?: boolean;
 };
@@ -48,6 +54,10 @@ export type SceneSettings = {
   height?: number;
   scale?: number;
   background?: 'none' | 'dots' | 'panel';
+  /** What an element's x and y mean: its centre (default) or its top-left corner. */
+  anchor?: 'center' | 'corner';
+  /** The view: the content with a margin (default), or the whole canvas. */
+  fit?: 'content' | 'canvas';
   showLabels?: boolean;
   idColumn?: string;
   elements?: unknown;
@@ -58,6 +68,10 @@ export type SceneSettings = {
   warningColor?: string;
   criticalColor?: string;
 };
+
+/** The height of a label line and the margin around the content, in scene units. */
+const LABEL = 16;
+const MARGIN = 20;
 
 export const MAX_SCENE_ELEMENTS = 200;
 export const MAX_SCENE_LINKS = 300;
@@ -224,6 +238,7 @@ function symbolSettings(scene: SceneSettings, e: SceneElementSetting, link?: Sce
     min: typeof e.min === 'number' ? e.min : undefined,
     max: typeof e.max === 'number' ? e.max : undefined,
     medium: link?.medium ?? e.medium,
+    mediumColor: link?.mediumColor ?? e.mediumColor,
     arrows: link?.arrows === true,
     animation: scene.animation,
     idleColor: scene.idleColor,
@@ -251,6 +266,20 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
   const fmt = o.format ?? ((n: number) => String(r2(n)));
   const boxes = new Map<string, PlacedElement>();
   const settingsOf = new Map<string, SceneElementSetting>();
+  // A symbol on a line takes the medium of the first connection that touches it, so a pipe and the valve in it agree.
+  const touching = new Map<string, string>();
+  for (const l of links) {
+    if (typeof l.medium !== 'string' || l.medium === 'none') continue;
+    for (const ref of [l.from, l.to]) {
+      const port = parsePort(ref);
+      if (port && !touching.has(port.id)) touching.set(port.id, l.medium);
+    }
+  }
+  const centred = s.anchor !== 'corner';
+  let bounds: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  const grow = (x0: number, y0: number, x1: number, y1: number) => {
+    bounds = bounds ? { x0: Math.min(bounds.x0, x0), y0: Math.min(bounds.y0, y0), x1: Math.max(bounds.x1, x1), y1: Math.max(bounds.y1, y1) } : { x0, y0, x1, y1 };
+  };
   const elementNodes: SvgNode[] = [];
   const labelNodes: SvgNode[] = [];
   let problems = 0;
@@ -260,23 +289,32 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const def = SCADA_SYMBOL_DEFS[e.symbol] as SymbolDef;
     const k = scale * (typeof e.scale === 'number' && e.scale > 0 ? e.scale : 1);
     const row = rows.get(e.id);
-    const paint = scadaPaint(symbolSettings(s, e), rowSlots(row), { animate: o.animate, format: fmt });
+    const own = e.medium && e.medium !== 'none' ? e : { ...e, medium: touching.get(e.id) ?? 'none' };
+    const paint = scadaPaint(symbolSettings(s, own), rowSlots(row), { animate: o.animate, format: fmt });
     const turn = Number(e.turn);
     const drawn = drawScada(e.symbol, paint, turn === 90 || turn === 180 || turn === 270 ? turn : 0, e.mirror === true);
-    const x = finite(e.x, 0); const y = finite(e.y, 0);
-    const box: PlacedElement = { id: e.id, symbol: e.symbol, x, y, w: r2(drawn.w * k), h: r2(drawn.h * k), k };
+    const w = r2(drawn.w * k); const h = r2(drawn.h * k);
+    const x = r2(finite(e.x, 0) - (centred ? w / 2 : 0)); const y = r2(finite(e.y, 0) - (centred ? h / 2 : 0));
+    const box: PlacedElement = { id: e.id, symbol: e.symbol, x, y, w, h, k };
     boxes.set(e.id, box);
     settingsOf.set(e.id, e);
+    const named = s.showLabels !== false && (!!e.label || typeof row?.label === 'string') && e.labelPos !== 'n';
+    grow(x - 2, y - (named && e.labelPos === 't' ? LABEL : 2), x + w + (e.valuePos === 'r' ? 56 : 2), y + h + (s.showLabels !== false && e.labelPos !== 'n' ? LABEL * 2 + 2 : 2));
     elementNodes.push(el('g', { transform: `translate(${x} ${y}) scale(${r2(k * 1000) / 1000})` }, drawn.nodes));
     if (s.showLabels !== false) {
       const name = typeof row?.label === 'string' && row.label ? row.label : e.label ?? '';
       const showValue = def.valueUnder === true && e.showValue !== false && paint.value !== null;
-      let ty = y + box.h + 11;
-      if (name) {
-        labelNodes.push(text(r2(x + box.w / 2), r2(ty), name, { 'text-anchor': 'middle', 'font-size': 11, fill: MUTED, 'font-family': 'inherit' }));
-        ty += 13;
+      let ty = y + box.h + 14;
+      if (name && e.labelPos !== 'n') {
+        const above = e.labelPos === 't';
+        labelNodes.push(text(r2(x + box.w / 2), r2(above ? y - 7 : ty), name, { 'text-anchor': 'middle', 'font-size': 14, fill: MUTED, 'font-family': 'inherit' }));
+        if (!above) ty += 16;
       }
-      if (showValue) labelNodes.push(text(r2(x + box.w / 2), r2(ty), fmt(paint.value as number), { 'text-anchor': 'middle', 'font-size': 11, 'font-weight': 600, fill: INK, 'font-family': 'inherit' }));
+      if (showValue) {
+        const beside = e.valuePos === 'r';
+        labelNodes.push(text(r2(beside ? x + box.w + 8 : x + box.w / 2), r2(beside ? y + box.h / 2 + 5 : ty), fmt(paint.value as number),
+          { 'text-anchor': beside ? 'start' : 'middle', 'font-size': 14, 'font-weight': 600, fill: INK, 'font-family': 'inherit' }));
+      }
     }
   }
 
@@ -290,21 +328,26 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const paint = scadaPaint(symbolSettings(s, settingsOf.get(a.id) ?? {}, l), rowSlots(rows.get(stateId)), { animate: o.animate, format: fmt });
     const pa = portPoint(ba, a.side, a.at); const pb = portPoint(bb, b.side, b.at);
     const route = routeLink(pa, a.side, pb, b.side, l.mid ?? null);
+    for (const pt of route) grow(pt.x - 8, pt.y - 8, pt.x + 8, pt.y + 8);
     linkNodeList.push(...linkNodes(kind, route, paint, scale));
   }
 
+  // The view: the content with a margin, or the whole canvas.
+  const box = (s.fit === 'canvas' || !bounds) ? { x0: 0, y0: 0, x1: width, y1: height }
+    : { x0: Math.floor((bounds as { x0: number }).x0 - MARGIN), y0: Math.floor((bounds as { y0: number }).y0 - MARGIN), x1: Math.ceil((bounds as { x1: number }).x1 + MARGIN), y1: Math.ceil((bounds as { y1: number }).y1 + MARGIN) };
+  const vw = box.x1 - box.x0; const vh = box.y1 - box.y0;
   const background: SvgNode[] = [];
   if (s.background === 'dots') {
     let d = '';
-    for (let yy = 25; yy < height; yy += 50) for (let xx = 25; xx < width; xx += 50) d += `M${xx} ${yy}h0`;
+    for (let yy = Math.ceil(box.y0 / 50) * 50 + 25; yy < box.y1; yy += 50) for (let xx = Math.ceil(box.x0 / 50) * 50 + 25; xx < box.x1; xx += 50) d += `M${xx} ${yy}h0`;
     background.push(el('path', { d, stroke: 'var(--border)', 'stroke-width': 3, 'stroke-linecap': 'round', fill: 'none' }));
   } else if (s.background === 'panel') {
-    background.push(el('rect', { x: 0, y: 0, width, height, rx: 8, fill: 'var(--surface-raised)', stroke: 'var(--border)', 'stroke-width': 2 }));
+    background.push(el('rect', { x: box.x0, y: box.y0, width: vw, height: vh, rx: 8, fill: 'var(--surface-raised)', stroke: 'var(--border)', 'stroke-width': 2 }));
   }
 
   return {
-    width, height, scale, problems,
-    viewBox: `0 0 ${width} ${height}`,
+    width: vw, height: vh, scale, problems,
+    viewBox: `${box.x0} ${box.y0} ${vw} ${vh}`,
     empty: boxes.size === 0,
     nodes: [...background, ...linkNodeList, ...elementNodes, ...labelNodes],
   };

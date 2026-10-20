@@ -3,6 +3,7 @@
 // them as starting points. Every placement's settings pass its template unchanged (tests/sample-boards).
 
 import type { BoardDocument, BoardPlacement } from '../settings/board';
+import { SAMPLE_SCADA_BOARDS } from './scada-boards';
 
 const P = (id: string, type: string, title: string, x: number, y: number, w: number, h: number, binding: Record<string, string>, settings: Record<string, unknown> = {}): BoardPlacement =>
   ({ id, type, title, x, y, w, h, settings, binding });
@@ -218,5 +219,5 @@ export const SAMPLE_SITES_BOARD = board('Sites and devices', [
 
 /** The themed boards, in the order a person would look at them. */
 export const SAMPLE_BOARDS: readonly BoardDocument[] = [
-  SAMPLE_PLANT_BOARD, SAMPLE_SALES_BOARD, SAMPLE_ENERGY_BOARD, SAMPLE_INFRA_BOARD, SAMPLE_SITES_BOARD,
+  SAMPLE_PLANT_BOARD, SAMPLE_SALES_BOARD, SAMPLE_ENERGY_BOARD, SAMPLE_INFRA_BOARD, SAMPLE_SITES_BOARD, ...SAMPLE_SCADA_BOARDS,
 ];
