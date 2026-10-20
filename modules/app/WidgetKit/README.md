@@ -3,7 +3,9 @@
 The dashboard widget kit: one card around every widget, versioned settings templates (ThingsBoard-depth
 editing), a settings editor, the presentational view of every builtin widget type, and a board with
 JSON export/import. Source of truth for next-boilerplate's dashboard (phase 21), which vendors this
-directory into `modules/common/ui/kui/widget-kit/` with `scripts/kui/vendor-widgetkit.mjs`.
+directory into `modules/common/ui/kui/widget-kit/` with `scripts/kui/vendor-widgetkit.mjs`. It is also the source
+of the sibling repos' WidgetKit: kui-ejs (EJS partials) and KUInative (React Native) vendor its pure logic and draw
+it with their own markup (see "Siblings" below).
 
 ## Files
 
@@ -18,6 +20,13 @@ settings/board.ts     BoardDocument, exportBoard, importBoard (pure)
 settings/grid.ts      the board's column count (12 | 24): normalizeGridCols, scaleWidth, scaleLayout, resolveOverlaps (pure)
 templates/*.ts        one BuiltinKindSpec + SettingsTemplate per widget type; index.ts = BUILTIN_KINDS (pure)
 views/*.tsx           one view per widget type; index.ts = BUILTIN_VIEWS
+views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` functions that decide everything the view
+                      draws as plain data. `*-model.ts` is the same for the content widgets. The .tsx files only
+                      map a model to JSX; kui-ejs and KUInative vendor these files (pure)
+card-logic.ts         cardModel (the frame's classes, styles, body state), formatUpdated, styleAttribute (pure)
+placement-logic.ts    placementStatus: bound slots, stale, the card state (pure)
+tests/parity/         the reference rendering: cases.ts (49+ widget cases as JSON), golden.json (the HTML kui-react
+                      draws for them, normalised by normalize.ts), golden.test.tsx (fails when a view's markup changes)
 kind.ts               SlotData, SlotSpec, WidgetViewProps, WidgetKindView, BuiltinKindSpec
 WidgetCard.tsx        the frame: title row, buttons, body states, stale, footer
 PlacementCard.tsx     one placement: resolved settings + WidgetCard + view, full screen, CSV
@@ -31,6 +40,25 @@ WidgetKitContext.tsx  host hooks: icon resolver, field overrides, layout thumbna
 messages.ts           every text the kit draws, by group, with the English defaults; mergeKitMessages (pure)
 localize.ts           localizeTemplate, localizeKind: template and type texts through the host's hooks (pure)
 ```
+
+## Siblings
+
+A widget must look and behave the same in kui-react, kui-ejs and KUInative. The way this is kept true:
+
+1. **One implementation of every decision.** A view's logic lives in a pure `views/*-logic.ts` (`*Model(settings,
+   format, data, locale, …)`); `WidgetCard`'s lives in `card-logic.ts`. A setting therefore means the same thing in
+   all three; only the drawing is per platform.
+2. **Vendoring, not copying by hand.** kui-ejs (`src/widget-kit/`) and KUInative (`modules/app/WidgetKit/kit/`) have a
+   `scripts/kui/vendor-widgetkit.mjs` that copies the pure files at a pinned kui-react commit. A vendored file is
+   never edited there; change it here, commit, bump the pin.
+3. **Machine-checked parity.** `tests/parity/golden.json` holds the HTML kui-react draws for each case in
+   `cases.ts`. kui-ejs draws the same cases with its partials and compares the normalised HTML. After a change that
+   alters a view's markup, `UPDATE_PARITY_GOLDEN=1 npx vitest run modules/app/WidgetKit/tests/parity` rewrites the golden
+   file: that diff is the list of what the siblings must follow. KUInative has no DOM to compare; it compares the
+   visible text of every case.
+4. **Pure means pure.** A `*-logic.ts` / `*-model.ts` file imports no React and no kui-react component module (a
+   type-only import of one is re-pointed at a host shim by the vendor scripts). Its only runtime dependencies are
+   `clsx` and `tailwind-merge`, through `@/libs/utils/cn`, so class merging is the same everywhere.
 
 ## Rules
 
