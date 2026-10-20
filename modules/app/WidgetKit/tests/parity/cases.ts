@@ -137,4 +137,11 @@ export const PARITY_CASES: ParityCase[] = [
   { id: 'feed.compact-bar', kind: 'data.feed', settings: { layout: 'compact', indicator: 'bar', colorColumn: 'severity', divider: false }, data: { events: EVENTS } },
   { id: 'feed.cards', kind: 'data.feed', settings: { layout: 'cards', colorColumn: 'severity', descriptionColumn: 'description', indicator: 'icon', iconColumn: 'icon' }, data: { events: EVENTS } },
   { id: 'feed.empty', kind: 'data.feed', title: 'Events', settings: withTitle, data: { events: { shape: 'table', rows: [] } } },
+  // ── progress
+  { id: 'progress.bar-labelled', kind: 'progress', title: 'Storage', settings: { ...withTitle, label: 'Used', target: 500, valueText: 'both', ranges: [{ from: 0, to: 300, color: '#16a34a' }, { from: 300, to: 500, color: '#dc2626' }], rangeDisplay: 'both', marker: 400, markerLabel: 'Quota' }, data: { value: scalar(320, { meta: { unit: 'GB', decimals: 0 } }) } },
+  { id: 'progress.bar-ticks', kind: 'progress', settings: { layout: 'bar', target: 100, showTicks: true, tickCount: 3, valueText: 'percent', barGradient: true, thickness: 12 }, data: { value: scalar(42) } },
+  { id: 'progress.bar-below-icon', kind: 'progress', settings: { textPosition: 'below', icon: 'fas fa-hard-drive', label: 'Disk', roundedEnds: false }, data: { value: scalar(7), target: scalar(10) } },
+  { id: 'progress.ring', kind: 'progress', title: 'Goal', settings: { ...withTitle, layout: 'ring', target: 200, valueText: 'both' }, data: { value: scalar(150) } },
+  { id: 'progress.semicircle', kind: 'progress', settings: { layout: 'semicircle', target: 8, label: 'Shift', valueText: 'percent' }, data: { value: scalar(6) } },
+  { id: 'progress.empty-shape', kind: 'progress', title: 'Goal', settings: { ...withTitle, target: 100 }, data: {}, boundSlots: ['value'] },
 ];
