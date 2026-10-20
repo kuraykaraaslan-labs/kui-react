@@ -34,6 +34,15 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       (`control*Model(settings, value?, format?, host)`: the static look and the request a
                       control would send; the host answers `onControl`).
                       Video: `videoModel` in content-model.ts (player props, subtitles, autoplay rules).
+                      Process symbols (`scada.symbol`) and diagrams (`scada.scene`): `svg-node.ts` (an SVG element tree
+                      as plain data, `svgToString` for kui-ejs, `SvgTree.tsx` for React), `scada-draw.ts` (the shared
+                      pen, see SCADA_STYLE.md), `scada-water.ts` / `scada-network.ts` / `scada-oil.ts` /
+                      `scada-energy.ts` / `scada-line.ts` / `scada-instruments.ts` (the symbols and the pipe, hose,
+                      cable, wire and strip connections), `scada-logic.ts` (`scadaModel`, the registry of 70 symbols),
+                      `scada-scene-logic.ts` (`sceneModel`: placement by coordinates and the link router).
+                      Forms: `control-form-logic.ts` (`controlFormModel`: fields, checks, payload, dirty state).
+                      Map extras: `map-logic.ts` also holds the status pictures, the satellite preset, the floor plan
+                      address, drag write-back and the route replay model (`replayModel`, `replayAt`, `replayMarkers`).
 card-logic.ts         cardModel (the frame's classes, styles, body state), formatUpdated, styleAttribute (pure)
 placement-logic.ts    placementStatus: bound slots, stale, the card state (pure)
 tests/parity/         the reference rendering: cases.ts (49+ widget cases as JSON), golden.json (the HTML kui-react
