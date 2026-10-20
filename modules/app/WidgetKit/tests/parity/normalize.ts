@@ -96,7 +96,8 @@ export function normalizeHtml(html: string): string {
     }
     if (name === 'i' && !selfClosing) iElements.push(false);
     const kept = list
-      .filter(([k]) => k !== 'data-reactroot')
+      // `data-wk-*` are a host's wiring hooks (the EJS partials' button actions); React wires its handlers in code.
+      .filter(([k]) => k !== 'data-reactroot' && !k.startsWith('data-wk-'))
       .map(([k, v]): Attr => (k === 'class' ? [k, classes(v).join(' ')] : k === 'style' ? [k, normStyle(v)] : [k, v]))
       .filter(([k, v]) => !((k === 'class' || k === 'style') && v === ''))
       .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
