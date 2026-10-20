@@ -9,6 +9,7 @@ export const STAT_SPARKLINE: SettingsTemplate = {
   namespace: '',
   label: 'Stat with trend',
   format: true,
+  directionField: 'increaseIs',
   exportable: false,
   formatDefaults: { decimals: 0 },
   groups: [
@@ -74,6 +75,11 @@ export const STAT_SPARKLINE: SettingsTemplate = {
       options: [opt('auto', 'over 12 h'), opt('custom', 'My text'), opt('off', 'Off')],
     },
     timeRangeText: { label: 'Text', type: 'text', maxLength: 40, placeholder: 'since Monday', group: 'change', showIf: { timeRange: 'custom' } },
+    compareLabel: {
+      label: 'Comparison label', type: 'text', maxLength: 40, placeholder: 'vs previous period', group: 'change', advanced: true,
+      description: 'Shown instead of the time span when a "Compare with" value is bound.',
+    },
+    showUpdated: { label: 'Show "Updated … ago"', type: 'boolean', value: false, group: 'change', advanced: true },
   }),
   migrations: [],
 };
@@ -86,6 +92,9 @@ export const STAT_SPARKLINE_KIND: BuiltinKindSpec = {
   icon: 'fas fa-arrow-trend-up',
   defaultW: 3,
   defaultH: 3,
-  slots: [{ key: 'series', label: 'Series', shape: 'series', required: true }],
+  slots: [
+    { key: 'series', label: 'Series', shape: 'series', required: true },
+    { key: 'compare', label: 'Compare with', shape: 'scalar', required: false },
+  ],
   template: STAT_SPARKLINE,
 };

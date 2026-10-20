@@ -1,5 +1,6 @@
 'use client';
 import type { FontValue } from '../../SchemaForm/types';
+import { UpdatedAgo } from './UpdatedAgo';
 import { metaLabel } from '../settings/source-meta';
 import { cssColor, formatValue, rangeFor, type RangeEdges } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
@@ -29,6 +30,7 @@ type S = {
   increaseIs?: 'good' | 'bad' | 'neutral';
   showArrow?: boolean;
   compareLabel?: string;
+  showUpdated?: boolean;
   upColor?: string;
   downColor?: string;
 };
@@ -75,6 +77,7 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
       background={s.iconBackground} />
   ) : null;
   const delta = cmp ? <Delta text={cmp.text} direction={cmp.direction} meaning={cmp.meaning} color={cmp.color} label={s.compareLabel} /> : null;
+  const tail = <>{delta}{s.showUpdated ? <UpdatedAgo at={data.value?.fetchedAt} locale={locale} /> : null}</>;
   const surface = rc && target === 'background' ? { background: tint(rc, 14), borderRadius: 8, padding: 8 } : undefined;
 
   if (layout === 'compact') {
@@ -82,7 +85,7 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
       <div className="flex h-full items-center gap-3" style={surface}>
         {icon}
         <div className="min-w-0 flex-1">{label}</div>
-        <div className="flex flex-col items-end gap-1">{metric}{delta}</div>
+        <div className="flex flex-col items-end gap-1">{metric}{tail}</div>
       </div>
     );
   }
@@ -90,14 +93,14 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
     return (
       <div className="flex h-full items-center gap-4" style={surface}>
         {icon}
-        <div className="flex min-w-0 flex-col gap-1.5">{label}{metric}{delta}</div>
+        <div className="flex min-w-0 flex-col gap-1.5">{label}{metric}{tail}</div>
       </div>
     );
   }
   if (layout === 'centered') {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-center" style={surface}>
-        {icon}{metric}{label}{delta}
+        {icon}{metric}{label}{tail}
       </div>
     );
   }
@@ -105,7 +108,7 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
     <div className="flex h-full min-h-0 flex-col gap-2" style={surface}>
       <MetricHead label={label} icon={icon} />
       {/* Number and change share a line (wrapping when narrow), so a short card keeps both visible. */}
-      <div className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1">{metric}{delta}</div>
+      <div className="mt-auto flex flex-wrap items-baseline gap-x-2.5 gap-y-1">{metric}{tail}</div>
     </div>
   );
 }

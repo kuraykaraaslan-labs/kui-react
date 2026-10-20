@@ -49,6 +49,7 @@ export const STAT_VALUE: SettingsTemplate = {
       options: [opt('good', 'Good'), opt('bad', 'Bad'), opt('neutral', 'Neutral')],
     },
     showArrow: { label: 'Arrow', type: 'boolean', value: true, group: 'comparison', advanced: true },
+    showUpdated: { label: 'Show "Updated … ago"', type: 'boolean', value: false, group: 'label', advanced: true },
     compareLabel: { label: 'Comparison label', type: 'text', maxLength: 40, placeholder: 'vs previous period', group: 'comparison', advanced: true },
     upColor: colorField('Colour when good', 'comparison', 'var(--success)', { advanced: true }),
     downColor: colorField('Colour when bad', 'comparison', 'var(--error)', { advanced: true }),

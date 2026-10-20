@@ -5,6 +5,7 @@ import { cssColor, formatValue, rangeFor, type RangeEdges } from '../settings/st
 import type { SlotData, WidgetKindView, WidgetViewProps } from '../kind';
 import { useKitMessages } from '../WidgetKitContext';
 import { DEFAULT_WIDGET_KIT_MESSAGES, type StatViewMessages } from '../messages';
+import { UpdatedAgo } from './UpdatedAgo';
 import { Delta, IconTile, Meta, Metric, MetricHead, MetricLabel } from './ui';
 
 type S = {
@@ -36,6 +37,8 @@ type S = {
   downColor?: string;
   timeRange?: 'auto' | 'custom' | 'off';
   timeRangeText?: string;
+  compareLabel?: string;
+  showUpdated?: boolean;
 };
 
 type TV = { t: number; v: number };
@@ -99,7 +102,10 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
   const points = sparkPoints(data.series);
   const values = points.map((p) => p.v);
   const last = values.length ? values[values.length - 1] : null;
-  const first = values.length > 1 ? values[0] : null;
+  // A bound `compare` scalar (the same quantity over an earlier window) replaces "first point of the line" as the base.
+  const compareValue = data.compare?.value;
+  const compared = typeof compareValue === 'number' ? compareValue : typeof compareValue === 'string' && compareValue.trim() !== '' && Number.isFinite(Number(compareValue)) ? Number(compareValue) : null;
+  const first = compared !== null ? compared : values.length > 1 ? values[0] : null;
   const layout = s.layout ?? 'stacked';
   const rangeColor = cssColor(rangeFor(last, s.ranges, s.rangeEdges ?? 'from')?.color);
   const target = s.rangeTarget ?? 'value';
@@ -130,7 +136,9 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
   }
   const span = points.length > 1 && Number.isFinite(points[0].t) ? spanText(points[points.length - 1].t - points[0].t, m) : null;
   const timeMode = s.timeRange ?? 'auto';
-  const timeText = timeMode === 'off' ? null : timeMode === 'custom' ? (s.timeRangeText || null) : span ? `${change ? 'over' : 'last'} ${span}` : null;
+  const timeText = compared !== null
+    ? (s.compareLabel || null)
+    : timeMode === 'off' ? null : timeMode === 'custom' ? (s.timeRangeText || null) : span ? `${change ? 'over' : 'last'} ${span}` : null;
 
   // Points in the drawing box (y grows downwards; a flat line sits in the middle).
   const lo = Math.min(...values);
@@ -197,8 +205,10 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
   const delta = change ? (
     <span data-part="change"><Delta text={change.text} direction={change.direction} meaning={change.meaning} color={change.color} label={timeText ?? undefined} /></span>
   ) : timeText ? <Meta>{timeText}</Meta> : null;
+  const updatedAt = Number.isFinite(points[points.length - 1]?.t) ? points[points.length - 1].t : data.series?.fetchedAt;
+  const updated = s.showUpdated ? <UpdatedAgo at={updatedAt} locale={locale} /> : null;
   const numberBlock = (
-    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">{metric}{delta}</div>
+    <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">{metric}{delta}{updated}</div>
   );
 
   if (layout === 'chart-only') {
@@ -214,7 +224,7 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
       <div className="flex h-full min-h-0 items-end gap-4">
         <div className="flex min-w-0 shrink-0 flex-col gap-1.5 self-stretch">
           <MetricHead label={label} icon={null} />
-          <div className="mt-auto flex flex-col gap-1.5">{metric}{delta}</div>
+          <div className="mt-auto flex flex-col gap-1.5">{metric}{delta}{updated}</div>
         </div>
         <div className="h-full max-h-24 min-w-0 flex-1 self-end">{chart}</div>
       </div>
@@ -226,7 +236,7 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
       <div className="relative flex h-full min-h-0 flex-col gap-2">
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 opacity-40">{chart}</div>
         <div className="relative"><MetricHead label={label} icon={icon} /></div>
-        <div className="relative mt-auto flex flex-col gap-1.5">{metric}{delta}</div>
+        <div className="relative mt-auto flex flex-col gap-1.5">{metric}{delta}{updated}</div>
       </div>
     );
   }
