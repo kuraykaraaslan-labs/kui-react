@@ -17,21 +17,57 @@ export const CONTROL_REASONS: ControlReasons = {
 };
 
 /**
+ * What a control model needs of the platform: whether a host can act (`onControl` present), its own reason not to,
+ * whether the data is stale, the command's confirmation policy, the card title (a fallback accessible name), the
+ * toggle state of a button, and the host's texts (`messages.controls`).
+ */
+export interface ControlHost {
+  connected: boolean;
+  stale?: boolean;
+  disabledReason?: string;
+  confirm?: ControlConfirm;
+  title?: string;
+  pressed?: boolean;
+  messages: WidgetControlMessages;
+}
+
+/** The `ControlHost` of a view's props. */
+export function controlHostOf(
+  props: Pick<WidgetViewProps, 'controlDisabledReason' | 'onControl' | 'stale' | 'confirm' | 'title' | 'pressed'>,
+  messages: WidgetControlMessages,
+): ControlHost {
+  return {
+    connected: !!props.onControl, stale: props.stale, disabledReason: props.controlDisabledReason,
+    confirm: props.confirm, title: props.title, pressed: props.pressed, messages,
+  };
+}
+
+/**
  * The reason a control is disabled, or `undefined` when it may be used. The host's reason wins;
  * then a missing `onControl`; then the `disableWhen` setting (`stale`, `unknown`). `reasons` words them.
  */
+export function controlBlockReasonOf(
+  host: Pick<ControlHost, 'disabledReason' | 'connected' | 'stale'>,
+  disableWhen: unknown,
+  unknown: boolean,
+  reasons: ControlReasons = CONTROL_REASONS,
+): string | undefined {
+  if (host.disabledReason) return host.disabledReason;
+  if (!host.connected) return reasons.notConnected;
+  const when = Array.isArray(disableWhen) ? disableWhen : [];
+  if (when.includes('stale') && host.stale) return reasons.stale;
+  if (when.includes('unknown') && unknown) return reasons.unknown;
+  return undefined;
+}
+
+/** `controlBlockReasonOf` for a view's props. */
 export function controlBlockReason(
   props: Pick<WidgetViewProps, 'controlDisabledReason' | 'onControl' | 'stale'>,
   disableWhen: unknown,
   unknown: boolean,
   reasons: ControlReasons = CONTROL_REASONS,
 ): string | undefined {
-  if (props.controlDisabledReason) return props.controlDisabledReason;
-  if (!props.onControl) return reasons.notConnected;
-  const when = Array.isArray(disableWhen) ? disableWhen : [];
-  if (when.includes('stale') && props.stale) return reasons.stale;
-  if (when.includes('unknown') && unknown) return reasons.unknown;
-  return undefined;
+  return controlBlockReasonOf({ disabledReason: props.controlDisabledReason, connected: !!props.onControl, stale: props.stale }, disableWhen, unknown, reasons);
 }
 
 /** What the user confirmed, as the kui controls hand it over. */
