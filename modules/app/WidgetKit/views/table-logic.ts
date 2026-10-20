@@ -798,6 +798,10 @@ export function tableModel(i: TableModelInput) {
     clientSearch: !paged && s.search !== false,
     serverSearch: paged && echo!.searchable && s.search !== false,
     searchQuery: echo?.q,
+    /** The text in the search box (a host that keeps the viewer's state, like a server-rendered page, writes it back). */
+    searchValue: i.viewer.query,
+    /** The column picker's entries, with whether each is shown. */
+    pickerColumns: allColumns.map((c) => ({ key: c.key, label: c.label, checked: !i.viewer.hiddenColumns.includes(c.key) })),
     showToolbar: ((!paged && s.search !== false) || (paged && echo!.searchable && s.search !== false) || !!s.columnPicker) && !shapeOnly,
     columnPicker: !!s.columnPicker,
     empty: rows.length === 0 && !shapeOnly,
