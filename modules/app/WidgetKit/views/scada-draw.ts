@@ -49,7 +49,48 @@ export interface Drawn {
   h: number;
 }
 
+// ─── The style every symbol shares (SCADA_STYLE.md) ──────────────────────────
+// One pen: three line weights, three corner radii, one steel, one rule for where the state shows. `harmonize` snaps
+// whatever a drawing asks for to this scale, and tests/scada-style.test.ts fails on anything outside it.
+
+/** The line weights: a hairline (ticks), a detail line, a silhouette, a strong active line, a bold part. */
+export const W = { hair: 1, detail: 1.5, out: 2.5, active: 3.5, bold: 5 } as const;
+/** The corner radii of rectangles: small parts, housings, big cabinets. A pill (a radius of half the side) stays a pill. */
+export const R = { sm: 3, md: 6, lg: 10 } as const;
+
+const WEIGHTS: number[] = [W.hair, W.detail, W.out, W.active, W.bold];
+const snapWeight = (w: number): number => (w <= 1.25 ? W.hair : w <= 2 ? W.detail : w <= 3 ? W.out : w <= 4 ? W.active : W.bold);
+const snapRadius = (r: number): number => (r <= 4.5 ? R.sm : r <= 8 ? R.md : R.lg);
+
+/**
+ * Snaps the line weights (below 8: pipe walls, flows and hoses are wider and stay) and the rectangle radii of a tree to
+ * the style scale. A pill (a radius of half its shortest side or more) and a circle are left alone.
+ */
+export function harmonize(nodes: SvgNode[]): SvgNode[] {
+  return nodes.map((n) => {
+    let a = n.a;
+    if (a) {
+      const next: Record<string, string | number> = { ...a };
+      const sw = a['stroke-width'];
+      if (typeof sw === 'number' && sw < 8) next['stroke-width'] = snapWeight(sw);
+      if (n.t === 'rect' && typeof a.rx === 'number' && typeof a.width === 'number' && typeof a.height === 'number') {
+        const half = Math.min(a.width, a.height) / 2;
+        if (a.rx < half - 0.5) next.rx = Math.min(snapRadius(a.rx), half);
+      }
+      a = next;
+    }
+    return { ...n, ...(a ? { a } : {}), ...(n.c ? { c: harmonize(n.c) } : {}) };
+  });
+}
+
+/** Whether a number is on the weight scale (for tests and tools). */
+export const isWeight = (w: number): boolean => w >= 8 || WEIGHTS.includes(w);
+
 export const METAL_OUT = 'var(--border-strong)';
+/** How strongly any liquid (water, coating, mud, spray) shows: the same in every vessel. */
+export const LIQUID = 0.6;
+/** Hard steel (rams, coils, solenoid bodies): one tone everywhere. */
+export const STEEL = { fill: 'var(--text-secondary)', 'fill-opacity': 0.8 } as const;
 export const METAL = 'var(--surface-sunken)';
 export const SURFACE = 'var(--surface-raised)';
 export const BASE = 'var(--surface-base)';
