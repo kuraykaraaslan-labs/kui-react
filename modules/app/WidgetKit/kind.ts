@@ -53,6 +53,8 @@ export interface SlotSpec {
   required: boolean;
   /** May be bound to several sources (`<slot>`, `<slot>#2` … `<slot>#8`). */
   repeatable?: boolean;
+  /** Slots that share a group are alternatives: the widget is configured once ANY of them is bound (none of them is `required`). */
+  anyOf?: string;
 }
 
 /** What a control asks its host to do. The host runs the command and checks everything server-side. */

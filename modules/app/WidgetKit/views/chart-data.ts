@@ -256,6 +256,32 @@ export function rowsToPieSeries(rows: Row[] | undefined, o: PieOptions): Series[
   return [{ id: 'pie', name: 'pie', data }];
 }
 
+/**
+ * Table rows → one series with one bar per row (chart.bar in category mode): the latest value per entity.
+ * A row without a label or a finite value is skipped; zero and negative values stay (a bar may be empty or
+ * go below the axis). `sort` orders by value; the list is cut to `max` AFTER ordering, so "largest first, 10"
+ * keeps the ten largest.
+ */
+export function rowsToCategorySeries(
+  rows: Row[] | undefined,
+  o: { label?: string; value?: string; sort?: 'none' | 'desc' | 'asc'; max?: number; name?: string },
+): Series[] | null {
+  if (!o.label || !o.value) return null;
+  const bars: Array<{ x: string; y: number; at: number }> = [];
+  for (const row of rows ?? []) {
+    const y = asNumber(row[o.value]);
+    const l = row[o.label];
+    if (y === null || l === null || l === undefined || l === '') continue;
+    bars.push({ x: String(l), y, at: bars.length });
+  }
+  if (bars.length === 0) return null;
+  if (o.sort === 'desc') bars.sort((a, b) => b.y - a.y || a.at - b.at);
+  else if (o.sort === 'asc') bars.sort((a, b) => a.y - b.y || a.at - b.at);
+  const limit = Math.max(1, Math.min(100, Math.trunc(o.max ?? 30) || 30));
+  const name = o.name || o.value;
+  return [{ id: name, name, data: bars.slice(0, limit).map((b) => ({ x: b.x, y: b.y })) }];
+}
+
 // ── chart.scatter ──────────────────────────────────────────────────────────
 
 /** Table rows → scatter series (one per distinct group, ≤ 8). A row without a finite x AND y is skipped. Capped. */

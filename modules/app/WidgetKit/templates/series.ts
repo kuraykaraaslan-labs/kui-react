@@ -108,7 +108,19 @@ const labelFields = (preset: SeriesPreset): Pack => ({
 const presetFields = (preset: SeriesPreset): Pack => {
   if (preset === 'bar') {
     const bars: Pack = {
-      stacked: { label: 'Stack the series', type: 'boolean', value: false, group: 'bars' },
+      xAxis: {
+        label: 'One bar per', type: 'select', display: 'segmented', value: 'time', group: 'bars', required: true,
+        options: [opt('time', 'Time step'), opt('category', 'Row of a table')],
+        description: 'A row of a table: the latest value per entity (a device, a site, a status).',
+      },
+      categoryColumn: { label: 'Bar label column', type: 'data-key', slot: 'rows', group: 'bars', showIf: { xAxis: 'category' } },
+      valueColumn: { label: 'Bar value column', type: 'data-key', slot: 'rows', group: 'bars', showIf: { xAxis: 'category' } },
+      categorySort: {
+        label: 'Order', type: 'select', display: 'segmented', value: 'none', group: 'bars', required: true, showIf: { xAxis: 'category' },
+        options: [opt('none', 'As the rows come'), opt('desc', 'Largest first'), opt('asc', 'Smallest first')],
+      },
+      maxBars: { label: 'Most bars', type: 'number', min: 1, max: 100, value: 30, group: 'bars', advanced: true, showIf: { xAxis: 'category' } },
+      stacked: { label: 'Stack the series', type: 'boolean', value: false, group: 'bars', showIf: { xAxis: 'time' } },
       orientation: {
         label: 'Bars', type: 'select', display: 'segmented', value: 'vertical', group: 'bars', required: true,
         options: [opt('vertical', 'Columns'), opt('horizontal', 'Horizontal bars')],
@@ -237,6 +249,12 @@ export function seriesTemplate(preset: SeriesPreset, label: string): SettingsTem
 }
 
 /** The catalog entry for one series preset. */
+/** A bar chart is drawn from a time series or, in category mode, one bar per row of a table. */
+const BAR_SLOTS: SlotSpec[] = [
+  { ...SERIES_SLOT, required: false, anyOf: 'values' },
+  { key: 'rows', label: 'Rows (one bar each)', shape: 'table', required: false, anyOf: 'values' },
+];
+
 export function seriesKind(preset: SeriesPreset, template: SettingsTemplate, label: string, description: string, icon: string): BuiltinKindSpec {
   return {
     type: `chart.${preset}`,
@@ -246,7 +264,7 @@ export function seriesKind(preset: SeriesPreset, template: SettingsTemplate, lab
     icon,
     defaultW: 6,
     defaultH: 4,
-    slots: [SERIES_SLOT],
+    slots: preset === 'bar' ? BAR_SLOTS : [SERIES_SLOT],
     template,
   };
 }

@@ -5,8 +5,17 @@ import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { useKitMessages } from '../WidgetKitContext';
 import { formatValue } from '../settings/style';
 import type { SeriesPreset } from '../templates/series';
-import { applySeriesRules, axisFormat, mergeSeriesSlots, ruleFor, seriesCsv, toBandSeries, toTimeSeries } from './chart-data';
+import { applySeriesRules, axisFormat, mergeSeriesSlots, rowsToCategorySeries, ruleFor, seriesCsv, tableCsv, toBandSeries, toTimeSeries } from './chart-data';
 import { animateOf, axisProps, legendProps, num, thresholdLines, tooltipProps, valueLabelStyleOf } from './chart-props';
+
+/** Category mode of chart.bar: one bar per row of the `rows` slot. */
+const categoryMode = (preset: SeriesPreset, s: Record<string, unknown>) => preset === 'bar' && s.xAxis === 'category';
+const categoryOptions = (s: Record<string, unknown>) => ({
+  label: typeof s.categoryColumn === 'string' ? s.categoryColumn : undefined,
+  value: typeof s.valueColumn === 'string' ? s.valueColumn : undefined,
+  sort: (s.categorySort === 'desc' || s.categorySort === 'asc' ? s.categorySort : 'none') as 'none' | 'desc' | 'asc',
+  max: typeof s.maxBars === 'number' ? s.maxBars : undefined,
+});
 
 const FILL: Record<string, number> = { none: 0, soft: 0.2, medium: 0.35, solid: 0.6 };
 const SHAPES = new Set(['circle', 'square', 'diamond', 'triangle']);
@@ -24,13 +33,16 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
   const anyStack = Array.isArray(s.series) && (s.series as Array<{ stack?: string }>).some((r) => r && typeof r.stack === 'string' && r.stack);
   const stacked = preset !== 'line' && s.stacked === true;
   const result = useMemo(() => mergeSeriesSlots(data), [data]);
+  const byCategory = categoryMode(preset, s);
   const timeSeries = useMemo(
     () => (preset === 'bar' || (preset === 'area' && (stacked || anyStack)) ? null : toTimeSeries(result)),
     [result, preset, stacked, anyStack],
   );
   const pointShape = SHAPES.has(String(s.pointShape)) ? (s.pointShape as PointShape) : undefined;
   const series: Series[] | null = useMemo(() => {
-    const base = timeSeries ?? toBandSeries(result, locale);
+    const base = byCategory
+      ? rowsToCategorySeries(data.rows?.rows, { ...categoryOptions(s), name: data.rows?.columns?.find((c) => c.key === s.valueColumn)?.label })
+      : timeSeries ?? toBandSeries(result, locale);
     return base
       ? applySeriesRules(base, s.series, {
         format, locale,
@@ -42,7 +54,7 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
         fillGradient: preset === 'area' ? s.fillStyle !== 'opacity' : undefined,
       })
       : null;
-  }, [timeSeries, result, locale, s.series, s.lineWidth, s.showPoints, s.defaultColor, s.pointSize, s.fillStyle, pointShape, preset, format]);
+  }, [byCategory, data.rows, s.categoryColumn, s.valueColumn, s.categorySort, s.maxBars, timeSeries, result, locale, s.series, s.lineWidth, s.showPoints, s.defaultColor, s.pointSize, s.fillStyle, pointShape, preset, format]);
   // No data draws the empty shape: axes and grid without series. A null `timeSeries` keeps the x axis a band, never 1970.
   const shown = useMemo(() => series ?? [], [series]);
   const yFormat = useMemo(() => axisFormat(shown, s.series, format, locale, 'left'), [shown, s.series, format, locale]);
@@ -122,12 +134,14 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
   );
 }
 
-const isEmpty: WidgetKindView['isEmpty'] = (data) => {
+const isEmpty: WidgetKindView['isEmpty'] = (data, settings) => {
+  if (settings && categoryMode('bar', settings)) return !rowsToCategorySeries(data.rows?.rows, categoryOptions(settings));
   const r = mergeSeriesSlots(data);
   return !r?.series?.some((s) => s.points.length > 0);
 };
 
-const toCsv: WidgetKindView['toCsv'] = (data) => seriesCsv(mergeSeriesSlots(data));
+const toCsv: WidgetKindView['toCsv'] = (data, settings) =>
+  (settings && categoryMode('bar', settings) ? tableCsv(data.rows) : seriesCsv(mergeSeriesSlots(data)));
 
 /** The kind view for one series preset. */
 export function seriesView(preset: SeriesPreset): WidgetKindView {

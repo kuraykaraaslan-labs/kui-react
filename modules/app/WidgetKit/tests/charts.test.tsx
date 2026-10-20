@@ -46,8 +46,15 @@ describe('chart templates', () => {
     expect(kind.slots.length).toBeGreaterThan(0);
   });
   it('series charts have a repeatable series slot, export and full-screen buttons', () => {
-    for (const k of [CHART_LINE_KIND, CHART_BAR_KIND, CHART_AREA_KIND]) {
+    for (const k of [CHART_LINE_KIND, CHART_AREA_KIND]) {
       expect(k.slots).toEqual([{ key: 'series', label: 'Series', shape: 'series', required: true, repeatable: true }]);
+    }
+    // The bar chart can also draw one bar per row of a table (24.3a): either slot configures it.
+    expect(CHART_BAR_KIND.slots).toEqual([
+      { key: 'series', label: 'Series', shape: 'series', required: false, repeatable: true, anyOf: 'values' },
+      { key: 'rows', label: 'Rows (one bar each)', shape: 'table', required: false, anyOf: 'values' },
+    ]);
+    for (const k of [CHART_LINE_KIND, CHART_BAR_KIND, CHART_AREA_KIND]) {
       expect(k.template.exportable).toBe(true);
       expect(k.template.cardDefaults).toEqual({ buttons: ['fullscreen', 'export'] });
     }

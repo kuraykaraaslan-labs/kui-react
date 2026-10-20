@@ -91,7 +91,10 @@ export function PlacementCard({
     [template, slots.length, settings, board, definitionDefaults, sourceMeta],
   );
   const bound = boundSlots ?? Object.keys(data).filter((k) => data[k] !== undefined);
-  const requiredUnbound = slots.some((s) => s.required && !bound.some((b) => b === s.key || b.startsWith(`${s.key}#`)));
+  const isBound = (s: SlotSpec) => bound.some((b) => b === s.key || b.startsWith(`${s.key}#`));
+  const groups = [...new Set(slots.flatMap((s) => (s.anyOf ? [s.anyOf] : [])))];
+  const requiredUnbound = slots.some((s) => s.required && !isBound(s))
+    || groups.some((g) => !slots.some((s) => s.anyOf === g && isBound(s)));
   const fetchedAt = newestFetch(data);
   const stale = !!r.card.staleAfterSeconds && fetchedAt !== null && now - fetchedAt > r.card.staleAfterSeconds * 1000;
 
