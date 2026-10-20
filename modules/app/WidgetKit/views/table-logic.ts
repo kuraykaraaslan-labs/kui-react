@@ -4,10 +4,11 @@
 
 import type { FontValue } from '../../SchemaForm/types';
 import { metaFormat, valueMapList } from '../settings/source-meta';
-import { cssColor, formatValue, type RangeEdges, type ValueFormat } from '../settings/style';
+import { cssColor, fontStyle, formatValue, rangeFor, tint, type RangeEdges, type ValueFormat } from '../settings/style';
+import type { StyleRecord } from '../card-logic';
 import type { Sparse } from '../settings/types';
 import type { SlotData } from '../kind';
-import type { CommonMessages } from '../messages';
+import type { CommonMessages, TableMessages } from '../messages';
 import { isInternalPath } from '../templates/map';
 
 // ── Shared data helpers (also used by the feed and map views) ───────────────────
@@ -450,3 +451,356 @@ export function csvCell(c: TableColumn, raw: unknown): string {
   return rawText(raw);
 }
 
+
+// ── The table's whole description ───────────────────────────────────────────────
+
+/** Row heights (DESIGN.md: 36px rows, compact 28px). */
+const ROW_H: Record<NonNullable<TableSettings['density']>, string> = { compact: 'h-7', normal: 'h-9', comfortable: 'h-11' };
+const ALIGN: Record<TableColumn['align'], string> = { start: 'text-left', center: 'text-center', end: 'text-right' };
+export const JUSTIFY: Record<TableColumn['align'], string> = { start: 'justify-start', center: 'justify-center', end: 'justify-end' };
+const WIDTH: Record<TableColumn['width'], string> = { auto: '', narrow: 'w-20', wide: 'min-w-60', px: '' };
+const VISIBLE: Record<Visible, string | false> = { always: false, hidden: false, desktop: 'hidden md:table-cell', mobile: 'md:hidden' };
+const WRAP: Record<Wrap, string> = { nowrap: 'whitespace-nowrap', truncate: 'max-w-64 truncate', wrap: 'whitespace-normal break-words' };
+/** An icon class list a row may name (`fas fa-bolt`). */
+const ICON_RE = /^[a-z0-9:-]+(?: [a-z0-9:-]+){0,3}$/i;
+const join = (...p: Array<string | false | undefined>) => [...new Set(p.filter(Boolean).join(' ').split(' ').filter(Boolean))].join(' ');
+
+export const LINK_CLASS = 'font-medium text-primary underline-offset-2 hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
+export const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
+
+export type CellContent =
+  | { kind: 'dash' }
+  | { kind: 'text'; text: string }
+  | { kind: 'badge'; label: string; color?: string; icon?: string; variant: 'soft' | 'dot' | 'solid' }
+  | { kind: 'icon'; label: string; name?: string; color: string; justify: string }
+  | { kind: 'bar'; n: number; max: number; pct: number; color: string; label: string; columnLabel: string; progress: boolean; trackBackground?: string }
+  | { kind: 'link'; href: string; text: string }
+  | { kind: 'time'; dateTime: string; title: string; text: string };
+
+export interface TableCell {
+  key: string;
+  className: string;
+  style: StyleRecord;
+  content: CellContent;
+  /** A host cell action wraps the content in a button. */
+  clickable: boolean;
+  color?: string;
+}
+
+export interface TableHeadCell {
+  key: string;
+  label: string;
+  className: string;
+  style: StyleRecord;
+  ariaSort?: 'ascending' | 'descending';
+  /** The viewer can click the header to sort. */
+  sortable: boolean;
+  dir: 'asc' | 'desc' | null;
+  alignEnd: boolean;
+}
+
+export interface TableRowModel {
+  index: number;
+  style: StyleRecord;
+  accent?: string;
+  /** The row number cell, when row numbers are on. */
+  numberCell: { className: string; style: StyleRecord; text: number } | null;
+  cells: TableCell[];
+  buttonsCell: { className: string; style: StyleRecord } | null;
+  raw: Row;
+}
+
+export type TableFooter =
+  | { kind: 'none' }
+  | { kind: 'rowsShown'; text: string }
+  | { kind: 'pager'; info: string; page: number; pages: number | null; canNext: boolean; pageOf: string };
+
+export interface TableViewerState {
+  sort: { key: string; dir: 'asc' | 'desc' } | null;
+  query: string;
+  page: number;
+  hiddenColumns: string[];
+}
+
+export interface TableModelInput {
+  settings: Sparse;
+  format: ValueFormat;
+  rows: SlotData | undefined;
+  locale?: string;
+  now: number;
+  messages: { table: TableTextMessages; common: CommonMessages };
+  viewer: TableViewerState;
+  /** The host can page the slot on the server AND the result echoes it. */
+  paged: boolean;
+  /** Row, cell and button actions the host runs. */
+  actions?: { interactive: boolean; cellClickColumns: string[]; buttons: Array<{ id: string; label: string }>; hasCellActions: boolean };
+  /** Whether an icon name can be drawn by the host (kui-react asks its icon resolver; a server host always can). */
+  iconAvailable?: (name: string) => boolean;
+}
+
+/** The table messages the model words (the rest are button labels the view draws). */
+export type TableTextMessages = Pick<TableMessages, 'noMatches' | 'rowsShown' | 'range' | 'rowCount' | 'pageOf' | 'rowNumber' | 'actions'>;
+
+/**
+ * Everything the table draws, decided once and as plain data: the columns the viewer sees, the rows (sorted,
+ * searched, paged, history-filtered), each cell's content kind and look, the header, the row colour rules and
+ * the footer. `DataTableView.tsx` (React), kui-ejs's `DataTable.ejs` and KUInative draw from it.
+ */
+export function tableModel(i: TableModelInput) {
+  const s = i.settings as TableSettings;
+  const { format, locale, now } = i;
+  const m = i.messages.table;
+  const result = i.rows;
+  const echo = result?.paging;
+  const paged = i.paged && !!echo;
+  const allColumns = tableColumns(result, i.settings);
+  const columns = allColumns.filter((c) => !i.viewer.hiddenColumns.includes(c.key));
+  // No result at all: the empty shape, the configured headers over no rows, without a search or column picker.
+  const shapeOnly = !result && columns.length > 0;
+  const textOf = (c: TableColumn, raw: unknown) => cellText(raw, c.type, format, c.override, locale, {
+    display: c.dateFormat ?? s.dateFormat ?? 'relative',
+    pattern: c.dateFormat ? c.datePattern : s.datePattern,
+    now,
+    relativeStyle: 'narrow',
+  }, i.messages.common);
+
+  const allRows = s.onlyChanges && !paged ? dropRepeats(result?.rows ?? [], allColumns) : result?.rows ?? [];
+  const pageSize = Math.max(1, Math.min(100, Number(s.maxRows) || 10));
+  const mode = s.paging ?? 'none';
+
+  const prepared = (() => {
+    if (paged) return allRows;
+    let rows = allRows;
+    const q = i.viewer.query.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((row) => columns.some((c) => {
+        const mapped = matchValue(row[c.key], c.valueMap)?.label;
+        return (mapped ?? textOf(c, row[c.key])).toLowerCase().includes(q) || rawText(row[c.key]).toLowerCase().includes(q);
+      }));
+    }
+    const sort = i.viewer.sort;
+    if (sort) {
+      const col = allColumns.find((c) => c.key === sort.key) ?? declaredColumns(result).find((c) => c.key === sort.key);
+      rows = sortRows(rows, sort.key, sort.dir, col?.type);
+    }
+    return rows;
+  })();
+
+  const clientPages = !paged && mode === 'pages' ? Math.max(1, Math.ceil(prepared.length / pageSize)) : 1;
+  const current = Math.min(i.viewer.page, clientPages);
+  const offset = mode === 'pages' && !paged ? (current - 1) * pageSize : 0;
+  const rows = paged
+    ? prepared
+    : mode === 'pages'
+      ? prepared.slice(offset, offset + pageSize)
+      : mode === 'scroll' ? prepared : prepared.slice(0, pageSize);
+
+  // Bar scales: the largest absolute value per bar column over the loaded rows.
+  const barMax: Record<string, number> = {};
+  for (const c of allColumns) {
+    if (c.cell === 'bar') barMax[c.key] = c.barMax ?? Math.max(0, ...allRows.map((r) => Math.abs(num(r[c.key]) ?? 0)));
+    if (c.cell === 'progress') barMax[c.key] = c.barMax ?? 100;
+  }
+
+  const actions = i.actions;
+  const buttons = actions?.buttons ?? [];
+  const cellClickable = (key: string) => !!actions && (actions.cellClickColumns.includes('*') || actions.cellClickColumns.includes(key));
+  const rowH = ROW_H[s.density ?? 'normal'] ?? ROW_H.normal;
+  const border = cssColor(s.borderColor);
+  const edges = s.rangeEdges ?? 'from';
+  const lines = s.gridLines ?? 'rows';
+  const sticky = s.stickyHeader !== false;
+  const rules = Array.isArray(s.rowRules) ? s.rowRules : [];
+
+  // Header: 12px medium secondary on a subtle band (DESIGN.md). A sticky header stays opaque over scrolling rows.
+  const headBg = cssColor(s.headerBackground);
+  const band = tint('var(--text-primary)', 5)!;
+  const headerStyle: StyleRecord = {
+    ...fontStyle(s.headerFont, s.headerColor) as StyleRecord,
+    ...(headBg
+      ? { background: headBg }
+      : sticky
+        ? { backgroundColor: 'var(--surface-raised)', backgroundImage: `linear-gradient(${band}, ${band})` }
+        : { background: band }),
+  };
+  const cellBorder = join(lines !== 'none' && 'border-b border-border', lines === 'all' && 'border-r last:border-r-0');
+  const borderStyle: StyleRecord | undefined = border ? { borderColor: border } : undefined;
+
+  const sortDirOf = (key: string): 'asc' | 'desc' | null => (paged ? (echo!.sort?.key === key ? echo!.sort.dir : null) : i.viewer.sort?.key === key ? i.viewer.sort.dir : null);
+  const canSort = (c: TableColumn) => s.sortable !== false && c.sortable && (paged ? echo!.sortable.includes(c.key) : true);
+  const rangeColorOf = (c: TableColumn, v: unknown) => cssColor(rangeFor(v, c.ranges ?? s.ranges, edges)?.color);
+
+  const content = (c: TableColumn, row: Row): CellContent => {
+    const raw = row[c.key];
+    const empty = raw === null || raw === undefined || raw === '';
+    const text = textOf(c, raw);
+    const n = num(raw);
+    if (empty) return { kind: 'dash' };
+    const mapped = matchValue(raw, c.valueMap);
+    if (c.cell === 'badge') {
+      const color = cssColor(mapped?.color) ?? statusColor(raw) ?? (n !== null ? rangeColorOf(c, n) : undefined) ?? cssColor(c.color);
+      return { kind: 'badge', label: mapped?.label || text, color, icon: mapped?.icon || undefined, variant: c.badgeStyle };
+    }
+    if (c.cell === 'icon') {
+      const name = mapped?.icon || (typeof raw === 'string' && ICON_RE.test(raw.trim()) && raw.includes('fa-') ? raw.trim() : undefined) || c.icon;
+      const color = cssColor(mapped?.color) ?? statusColor(raw) ?? cssColor(c.color) ?? 'var(--text-secondary)';
+      return {
+        kind: 'icon', label: mapped?.label || text, color, justify: JUSTIFY[c.align],
+        name: name && (i.iconAvailable ? i.iconAvailable(name) : true) ? name : undefined,
+      };
+    }
+    if (c.cell === 'bar' || c.cell === 'progress') {
+      if (n === null) return { kind: 'text', text };
+      const max = barMax[c.key] || 0;
+      const pct = max > 0 ? Math.min(100, Math.max(0, (Math.abs(n) / max) * 100)) : 0;
+      const color = rangeColorOf(c, n) ?? cssColor(c.color) ?? 'var(--primary)';
+      const label = c.cell === 'progress' && !c.override.unit && !format.unit ? `${formatValue(pct, { decimals: 0 }, {}, locale)} %` : text;
+      return {
+        kind: 'bar', n, max, pct, color, label, columnLabel: c.label, progress: c.cell === 'progress',
+        trackBackground: c.cell === 'progress' ? tint(color, 18) : tint('var(--text-primary)', 8),
+      };
+    }
+    if (c.cell === 'link') {
+      const href = c.linkTemplate ? expandLinkTemplate(c.linkTemplate, row) : isInternalPath(raw) ? (raw as string) : null;
+      if (href) return { kind: 'link', href, text: mapped?.label || text };
+    }
+    if (c.cell === 'date' || c.type === 'date') {
+      const at = toEpoch(raw);
+      if (at !== null) return { kind: 'time', dateTime: new Date(at).toISOString(), title: fullDate(at, locale), text };
+    }
+    return { kind: 'text', text: mapped?.label || text };
+  };
+
+  /** A text/number/date cell's colour: its value map, then ranges, then the column colour. */
+  const textColor = (c: TableColumn, row: Row): string | undefined => {
+    if (c.cell === 'badge' || c.cell === 'bar' || c.cell === 'progress' || c.cell === 'icon') return undefined;
+    return cssColor(matchValue(row[c.key], c.valueMap)?.color)
+      ?? (c.ranges ? rangeColorOf(c, row[c.key]) : undefined)
+      ?? cssColor(c.color);
+  };
+
+  const rowLook = (row: Row, idx: number): { style: StyleRecord; accent?: string } => {
+    const rule = rules.find((r) => ruleMatches(r, row));
+    const ruleColor = rule ? cssColor(rule.color) ?? statusColor(rule.color) : undefined;
+    const style: StyleRecord = {};
+    let accent: string | undefined;
+    if (ruleColor && rule?.target === 'text') style.color = ruleColor;
+    else if (ruleColor && rule?.target === 'bar') accent = ruleColor;
+    else if (ruleColor) style.background = tint(ruleColor, 12);
+    if (!style.background) {
+      const byColumn = s.rowColorColumn ? statusColor(row[s.rowColorColumn]) : undefined;
+      if (byColumn) style.background = tint(byColumn, 12);
+      else if (s.striped && idx % 2 === 1) style.background = cssColor(s.stripeColor) ?? tint('var(--text-primary)', 3);
+    }
+    return { style, accent };
+  };
+
+  const head: TableHeadCell[] = columns.map((c) => {
+    const dir = sortDirOf(c.key);
+    return {
+      key: c.key,
+      label: c.label,
+      className: join(
+        'h-8 whitespace-nowrap px-2 text-xs font-medium text-text-secondary first:rounded-l-md last:rounded-r-md',
+        ALIGN[c.align], WIDTH[c.width], VISIBLE[c.visible],
+        // The leading timestamp column of the history layout sits above the other sticky headers (one z-index, as tailwind-merge leaves it).
+        sticky && 'sticky top-0',
+        sticky && !(s.historyLayout && c.key === columns[0]?.key) && 'z-10',
+        s.historyLayout && c.key === columns[0]?.key && 'sticky left-0 z-20',
+      ),
+      style: {
+        ...headerStyle,
+        ...(cssColor(c.headerColor) ? { color: cssColor(c.headerColor) } : {}),
+        ...(c.width === 'px' && c.widthPx ? { width: c.widthPx, minWidth: c.widthPx } : {}),
+      },
+      ariaSort: dir ? (dir === 'asc' ? 'ascending' : 'descending') : undefined,
+      sortable: canSort(c),
+      dir,
+      alignEnd: c.align === 'end',
+    };
+  });
+
+  const bodyRows: TableRowModel[] = rows.map((row, idx) => {
+    const look = rowLook(row, idx);
+    return {
+      index: idx,
+      style: look.style,
+      accent: look.accent,
+      raw: row,
+      numberCell: s.showRowNumbers
+        ? {
+          className: join(rowH, cellBorder, 'w-8 px-2 text-right text-xs tabular-nums text-text-secondary'),
+          style: { ...borderStyle, ...(look.accent ? { boxShadow: `inset 3px 0 0 ${look.accent}` } : {}) },
+          text: offset + idx + 1,
+        }
+        : null,
+      cells: columns.map((c, ci) => {
+        const color = textColor(c, row);
+        return {
+          key: c.key,
+          color,
+          className: join(
+            rowH, cellBorder, 'px-2 py-0.5',
+            ALIGN[c.align], WIDTH[c.width], VISIBLE[c.visible], WRAP[c.wrap],
+            (c.cell === 'number' || c.cell === 'bar' || c.cell === 'progress') && 'tabular-nums',
+            ci === 0 && c.cell === 'text' && 'font-medium',
+            s.historyLayout && ci === 0 && 'sticky left-0 z-[1]',
+          ),
+          style: {
+            ...(s.historyLayout && ci === 0 ? { backgroundColor: 'var(--surface-raised)' } : {}),
+            ...borderStyle,
+            ...fontStyle(c.font) as StyleRecord,
+            ...(color ? { color } : {}),
+            ...(c.width === 'px' && c.widthPx ? { width: c.widthPx, minWidth: c.widthPx, maxWidth: c.widthPx } : {}),
+            ...(look.accent && ci === 0 && !s.showRowNumbers ? { boxShadow: `inset 3px 0 0 ${look.accent}` } : {}),
+          },
+          content: content(c, row),
+          clickable: !!actions?.hasCellActions && cellClickable(c.key) && c.cell !== 'link',
+        };
+      }),
+      buttonsCell: buttons.length > 0 ? { className: join(rowH, cellBorder, 'whitespace-nowrap px-2 text-right'), style: { ...borderStyle } } : null,
+    };
+  });
+
+  let footer: TableFooter = { kind: 'none' };
+  if (paged) {
+    const total = result?.total;
+    const pages = total !== undefined ? Math.max(1, Math.ceil(total / echo!.pageSize)) : null;
+    const from = (echo!.page - 1) * echo!.pageSize + 1;
+    footer = {
+      kind: 'pager',
+      info: total !== undefined ? m.range(Math.min(from, total), Math.min(from + allRows.length - 1, total), total) : m.rowCount(allRows.length),
+      page: echo!.page, pages, canNext: pages !== null ? echo!.page < pages : allRows.length >= echo!.pageSize,
+      pageOf: m.pageOf(echo!.page, pages),
+    };
+  } else if (mode === 'none' && prepared.length > rows.length) {
+    footer = { kind: 'rowsShown', text: m.rowsShown(rows.length, prepared.length) };
+  } else if (mode === 'pages' && clientPages > 1) {
+    footer = {
+      kind: 'pager', info: m.range(offset + 1, offset + rows.length, prepared.length), page: current, pages: clientPages,
+      canNext: current < clientPages, pageOf: m.pageOf(current, clientPages),
+    };
+  }
+
+  return {
+    s, allColumns, columns, shapeOnly, head, rows: bodyRows,
+    clientSearch: !paged && s.search !== false,
+    serverSearch: paged && echo!.searchable && s.search !== false,
+    searchQuery: echo?.q,
+    showToolbar: ((!paged && s.search !== false) || (paged && echo!.searchable && s.search !== false) || !!s.columnPicker) && !shapeOnly,
+    columnPicker: !!s.columnPicker,
+    empty: rows.length === 0 && !shapeOnly,
+    emptyText: s.emptyText?.trim() || m.noMatches,
+    tableStyle: fontStyle(s.cellFont, s.cellColor) as StyleRecord,
+    headerStyle,
+    rowNumberHead: s.showRowNumbers
+      ? { className: join('h-8 w-8 px-2 text-right text-xs font-medium text-text-secondary first:rounded-l-md', sticky && 'sticky top-0 z-10'), style: headerStyle, label: m.rowNumber }
+      : null,
+    buttonsHead: buttons.length > 0
+      ? { className: join('h-8 px-2 last:rounded-r-md', sticky && 'sticky top-0 z-10'), style: headerStyle, label: m.actions }
+      : null,
+    rowClass: join('group/row [&:last-child>td]:border-b-0', s.rowHover !== false && 'hover:bg-[color-mix(in_srgb,var(--text-primary)_4%,transparent)]', actions?.interactive && 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus'),
+    footer,
+    offset,
+  };
+}
