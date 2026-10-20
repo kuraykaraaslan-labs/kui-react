@@ -65,11 +65,12 @@ export function normalizeHtml(html: string): string {
   const out: string[] = [];
   const iElements: boolean[] = [];   // for <i>: true when it was an icon (its close tag is dropped)
   let svgDepth = 0;                  // > 0: inside an icon <svg>, whose children are dropped
+  let hostScript = false;            // inside a host's <script data-wk-…> (the browser runtime's data): dropped whole
   const re = /<(\/?)([a-zA-Z][\w:-]*)((?:[^>"']|"[^"]*"|'[^']*')*?)(\/?)>|([^<]+)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(src))) {
     if (m[5] !== undefined) {
-      if (svgDepth) continue;
+      if (svgDepth || hostScript) continue;
       const t = decode(m[5]).replace(/\s+/g, ' ').trim();
       if (t) out.push(encodeText(t));
       continue;
@@ -77,6 +78,7 @@ export function normalizeHtml(html: string): string {
     const closing = m[1] === '/';
     const name = m[2].toLowerCase();
     const selfClosing = m[4] === '/';
+    if (hostScript) { if (name === 'script' && closing) hostScript = false; continue; }
     if (svgDepth) {
       if (name === 'svg') svgDepth += closing ? -1 : selfClosing ? 0 : 1;
       continue;
@@ -87,6 +89,7 @@ export function normalizeHtml(html: string): string {
       continue;
     }
     const list = parseAttrs(m[3]);
+    if (name === 'script' && !selfClosing && list.some(([k]) => k.startsWith('data-wk-'))) { hostScript = true; continue; }
     const icon = iconOf(name, list);
     if (icon) {
       out.push(`<i data-icon="${encodeAttr(icon.icon)}"${icon.rest.length ? ` class="${encodeAttr([...new Set(icon.rest)].sort().join(' '))}"` : ''}></i>`);
