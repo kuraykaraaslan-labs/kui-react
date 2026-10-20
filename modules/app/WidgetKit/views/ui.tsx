@@ -4,17 +4,11 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
-import { cssColor, fontStyle, tint } from '../settings/style';
+import { fontStyle, tint } from '../settings/style';
+import { META_CLASS, METRIC_CLASS, METRIC_LABEL_CLASS, METRIC_UNIT_CLASS, deltaModel, iconTileModel, metricStyle, pillModel } from './ui-logic';
 import { SettingIcon } from '../WidgetKitContext';
 
 export { tint };
-
-const METRIC_SIZE: Record<'xl' | 'lg' | 'md' | 'sm', string> = {
-  xl: 'clamp(1.5rem, min(14cqi, 36cqb), 3rem)',
-  lg: '1.5rem',
-  md: '1.125rem',
-  sm: '0.9375rem',
-};
 
 /** A number with its unit, in the kit's metric style. `text` is already formatted (unit included or not). */
 export function Metric({
@@ -30,13 +24,12 @@ export function Metric({
   className?: string;
   style?: CSSProperties;
 }) {
-  const custom = font && Object.keys(font).length > 0;
   // The unit is half the number's size, but never smaller than readable text.
-  const u = unit ? <span className="text-[max(0.5em,11px)] font-medium text-text-secondary">{unit}</span> : null;
+  const u = unit ? <span className={METRIC_UNIT_CLASS}>{unit}</span> : null;
   return (
     <span
-      className={cn('inline-flex items-baseline gap-[0.25em] font-semibold leading-none tracking-tight tabular-nums text-text-primary', className)}
-      style={{ ...(custom ? {} : { fontSize: METRIC_SIZE[size] }), ...fontStyle(custom ? font : undefined, color), ...style }}
+      className={cn(METRIC_CLASS, className)}
+      style={metricStyle({ size, font, color, style: style as Record<string, string | number | undefined> }) as CSSProperties}
     >
       {unitPosition === 'before' && u}
       <span>{text}</span>
@@ -48,13 +41,13 @@ export function Metric({
 /** What a number is ("Orders today"): small, muted, one line. */
 export function MetricLabel({ children, font, color, className }: { children: ReactNode; font?: FontValue; color?: string; className?: string }) {
   if (children === null || children === undefined || children === '') return null;
-  return <span className={cn('block truncate text-xs font-medium text-text-secondary', className)} style={fontStyle(font, color)}>{children}</span>;
+  return <span className={cn(METRIC_LABEL_CLASS, className)} style={fontStyle(font, color)}>{children}</span>;
 }
 
 /** Secondary information (a time, "of 100K", a caption). */
 export function Meta({ children, className, style, title }: { children: ReactNode; className?: string; style?: CSSProperties; title?: string }) {
   if (children === null || children === undefined || children === '') return null;
-  return <span title={title} className={cn('text-[11px] leading-snug text-text-secondary/80', className)} style={style}>{children}</span>;
+  return <span title={title} className={cn(META_CLASS, className)} style={style}>{children}</span>;
 }
 
 /** A change chip: ▲ +12 % in the colour of what the change means. */
@@ -68,11 +61,10 @@ export function Delta({
   color?: string;
   label?: string;
 }) {
-  const c = cssColor(color) ?? (meaning === 'good' ? 'var(--success)' : meaning === 'bad' ? 'var(--error)' : 'var(--text-secondary)');
-  const arrow = direction === 'up' ? '▲' : direction === 'down' ? '▼' : '•';
+  const { color: c, background, arrow } = deltaModel({ direction, meaning, color });
   return (
     <span className="inline-flex items-center gap-1.5 text-xs">
-      <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium tabular-nums" style={{ color: c, background: tint(c, 12) }}>
+      <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium tabular-nums" style={{ color: c, background }}>
         <span aria-hidden="true" className="text-[0.7em]">{arrow}</span>{text}
       </span>
       {label && <span className="text-text-secondary">{label}</span>}
@@ -83,11 +75,10 @@ export function Delta({
 /** An icon in a tinted tile. */
 export function IconTile({ name, color, background, size = 36 }: { name?: string; color?: string; background?: string; size?: number }) {
   if (!name) return null;
-  const c = cssColor(color) ?? 'var(--primary)';
-  const bg = background === '' ? undefined : cssColor(background) ?? tint(c);
+  const t = iconTileModel({ color, background, size });
   return (
-    <span className="inline-flex shrink-0 items-center justify-center rounded-lg" style={{ width: size, height: size, background: bg }}>
-      <SettingIcon name={name} style={{ width: size / 2, height: size / 2, fontSize: size / 2, color: c }} />
+    <span className="inline-flex shrink-0 items-center justify-center rounded-lg" style={t.tileStyle as CSSProperties}>
+      <SettingIcon name={name} style={t.iconStyle as CSSProperties} />
     </span>
   );
 }
@@ -104,20 +95,17 @@ export function Pill({
   variant?: 'soft' | 'solid' | 'dot';
   className?: string;
 }) {
-  const c = cssColor(color) ?? 'var(--text-secondary)';
-  const pad = size === 'lg' ? 'px-3 py-1.5 text-sm gap-2' : size === 'sm' ? 'px-2 py-0.5 text-[11px] gap-1' : 'px-2.5 py-1 text-xs gap-1.5';
-  if (variant === 'dot') {
+  const p = pillModel({ color, background, size, variant });
+  if (p.variant === 'dot') {
     return (
-      <span className={cn('inline-flex items-center font-medium text-text-primary', size === 'lg' ? 'gap-2 text-sm' : 'gap-1.5 text-xs', className)}>
-        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c }} />{label}
+      <span className={cn(p.className, className)}>
+        <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: p.dotColor }} />{label}
       </span>
     );
   }
-  const solid = variant === 'solid';
   return (
-    <span className={cn('inline-flex items-center rounded-full font-medium', pad, className)}
-      style={{ color: solid ? 'var(--primary-fg)' : c, background: cssColor(background) ?? (solid ? c : tint(c)) }}>
-      {icon ? <SettingIcon name={icon} style={{ width: '1em', height: '1em', fontSize: '1em' }} /> : <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: solid ? 'currentColor' : c }} />}
+    <span className={cn(p.className, className)} style={p.style as CSSProperties}>
+      {icon ? <SettingIcon name={icon} style={{ width: '1em', height: '1em', fontSize: '1em' }} /> : <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: p.dotColor }} />}
       {label}
     </span>
   );
