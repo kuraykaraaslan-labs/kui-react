@@ -24,6 +24,12 @@ export function metricStyle(o: { size?: 'xl' | 'lg' | 'md' | 'sm'; font?: FontVa
 export const METRIC_LABEL_CLASS = 'block truncate text-xs font-medium text-text-secondary';
 export const META_CLASS = 'text-[11px] leading-snug text-text-secondary/80';
 
+/** META_CLASS plus extra classes; an extra text colour replaces the muted one (what tailwind-merge does in the React block). */
+export function metaClass(extra?: string): string {
+  const own = extra && /(^|\s)text-text-[a-z]+(\/\d+)?(\s|$)/.test(extra) ? META_CLASS.replace(' text-text-secondary/80', '') : META_CLASS;
+  return extra ? `${own} ${extra}` : own;
+}
+
 /** The change chip: its colour, background and arrow. */
 export function deltaModel(o: { direction: 'up' | 'down' | 'flat'; meaning: 'good' | 'bad' | 'neutral'; color?: string }) {
   const c = cssColor(o.color) ?? (o.meaning === 'good' ? 'var(--success)' : o.meaning === 'bad' ? 'var(--error)' : 'var(--text-secondary)');

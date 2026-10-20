@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
 import { fontStyle, tint } from '../settings/style';
-import { META_CLASS, METRIC_CLASS, METRIC_LABEL_CLASS, METRIC_UNIT_CLASS, deltaModel, iconTileModel, metricStyle, pillModel } from './ui-logic';
+import { METRIC_CLASS, METRIC_LABEL_CLASS, METRIC_UNIT_CLASS, deltaModel, iconTileModel, metaClass, metricStyle, pillModel } from './ui-logic';
 import { SettingIcon } from '../WidgetKitContext';
 
 export { tint };
@@ -47,7 +47,7 @@ export function MetricLabel({ children, font, color, className }: { children: Re
 /** Secondary information (a time, "of 100K", a caption). */
 export function Meta({ children, className, style, title }: { children: ReactNode; className?: string; style?: CSSProperties; title?: string }) {
   if (children === null || children === undefined || children === '') return null;
-  return <span title={title} className={cn(META_CLASS, className)} style={style}>{children}</span>;
+  return <span title={title} className={metaClass(className)} style={style}>{children}</span>;
 }
 
 /** A change chip: ▲ +12 % in the colour of what the change means. */
