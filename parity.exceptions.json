@@ -153,6 +153,133 @@
         "lazy",
         "Toast.store"
       ]
+    },
+    {
+      "id": "native-app-layer",
+      "name": "Application layer (everything under modules/app but WidgetKit)",
+      "layer": "app",
+      "path": "modules/app",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "KUInative"
+      ],
+      "reason": "KUInative README: the heavier kui-react layers (modules/domains, modules/app) are intentionally omitted from the minimal base and are added the same way when a native screen needs them. modules/app/WidgetKit is the first app-layer pattern there (wave 1 kinds). The other patterns are web shells and page-level organisms with no native consumer yet.",
+      "components": [
+        "AccessibilityKit",
+        "AppBreadcrumbs",
+        "AppCommandBar",
+        "AppDrawer",
+        "AppFooter",
+        "AppNav",
+        "AppShell",
+        "AppSidebar",
+        "AppTopBar",
+        "Calendar",
+        "CommandPalette",
+        "CommentThread",
+        "ConditionalShell",
+        "ContextMenu",
+        "DetailHeader",
+        "EmptyErrorState",
+        "FileUploadSection",
+        "FilterBar",
+        "Form",
+        "FormBuilder",
+        "FormField",
+        "Gantt",
+        "GlobalSearch",
+        "GoogleAnalytics",
+        "ImageGallery",
+        "InlineAlert",
+        "KanbanBoard",
+        "LoadingState",
+        "MaintenancePage",
+        "MentionPicker",
+        "NavDrawer",
+        "NotFoundPage",
+        "NotificationSystem",
+        "OnboardingWizard",
+        "RichTextEditor",
+        "RulesetEditor",
+        "SchemaForm",
+        "SectionCard",
+        "ShareDialog",
+        "SplashScreen",
+        "StepFlow",
+        "StepShell",
+        "ThemeSwitcher"
+      ]
+    },
+    {
+      "id": "native-ui-not-ported",
+      "name": "ui components with no native counterpart yet",
+      "layer": "ui",
+      "path": "modules/ui",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "KUInative"
+      ],
+      "reason": "Not created in KUInative until a native screen needs them (the rule of docs/phases/09 and 10: a component absent from a sibling is not created there, and gets a record here). The table family (DataTable, AdvancedDataTable, ServerDataTable), CodeEditor, TimeWindowPicker / TimeWindowSelect, DateRangePicker and ControlTile are web interaction surfaces; the observability and AI pieces (LogViewer, TraceWaterfall, ServiceMap, ConversationTimeline, DayBarChart, Evidence, AiHumanDraftEditor, InlineEditList, LocaleSwitcher) were added to kui-react on 2026-10-18 for the next-boilerplate observability platform. Virtual, lazy and Toast.store are React modules, not components.",
+      "components": [
+        "AdvancedDataTable",
+        "AiHumanDraftEditor",
+        "CodeEditor",
+        "ControlTile",
+        "ConversationTimeline",
+        "DataTable",
+        "DateRangePicker",
+        "DayBarChart",
+        "Evidence",
+        "InlineEditList",
+        "LocaleSwitcher",
+        "LogViewer",
+        "ServerDataTable",
+        "ServiceMap",
+        "TimeWindowPicker",
+        "TimeWindowSelect",
+        "TraceWaterfall",
+        "Virtual",
+        "lazy",
+        "Toast.store"
+      ]
+    },
+    {
+      "id": "widget-kit-native-kinds",
+      "name": "WidgetKit kinds not drawn natively yet",
+      "layer": "app",
+      "path": "modules/app/WidgetKit/views",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "KUInative"
+      ],
+      "reason": "KUInative draws the wave 1 kinds (stat.value, stat.sparkline, state, data.table, content.image, content.links, content.embed as a link, not a frame: react-native-webview is not a dependency). Not yet: stat.attributes, progress, gauge, data.feed, content.markdown (their models are vendorable and the parity cases exist), and the chart, map, control, video and 3D kinds.",
+      "kinds": [
+        "stat.attributes",
+        "progress",
+        "gauge",
+        "data.feed",
+        "content.markdown",
+        "chart.line",
+        "chart.area",
+        "chart.bar",
+        "chart.pie",
+        "chart.scatter",
+        "chart.histogram",
+        "heatmap",
+        "map",
+        "control.button",
+        "control.switch",
+        "control.slider",
+        "control.setpoint",
+        "content.video",
+        "viewer.model"
+      ]
     }
   ]
 }
