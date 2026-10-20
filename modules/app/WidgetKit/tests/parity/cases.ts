@@ -157,7 +157,7 @@ export const PARITY_CASES: ParityCase[] = [
   { id: 'scada.pipe-hot-arrows', kind: 'scada.symbol', settings: { symbol: 'pipe.straight', length: 2, medium: 'hot', arrows: true }, data: { running: scalar(true) } },
   { id: 'scada.valve-warning', kind: 'scada.symbol', settings: { symbol: 'valve.ball' }, data: { running: scalar(true), status: scalar('warning') } },
   { id: 'scada.hose-elbow-turned', kind: 'scada.symbol', settings: { symbol: 'hose.elbow', orientation: '90', mirror: true, medium: 'water' }, data: { running: scalar(true) } },
-  { id: 'scada.cable-tee', kind: 'scada.symbol', settings: { symbol: 'cable.tee' }, data: { running: scalar(true), critical: scalar(true) } },
+  { id: 'scada.cable-tee', kind: 'scada.symbol', settings: { symbol: 'cable.tee' }, data: { running: scalar(true), status: scalar('critical') } },
   { id: 'scada.inverter-reading', kind: 'scada.symbol', settings: { symbol: 'inverter' }, data: { value: scalar(20, { meta: { unit: 'kWh', decimals: 1 } }), running: scalar(true) } },
   { id: 'scada.meter-two-rows', kind: 'scada.symbol', settings: { symbol: 'meter.energy', rowLabel1: 'T1', rowLabel2: 'T2' }, data: { value: scalar(1284.5), value2: scalar(912.3) } },
   { id: 'scada.dial-bands', kind: 'scada.symbol', settings: { symbol: 'meter.pressure', min: 0, max: 10, ranges: [{ from: 0, to: 6, color: '#16a34a' }, { from: 6, to: 8, color: '#f59e0b' }, { from: 8, to: 10, color: '#dc2626' }] }, data: { value: scalar(7.2) } },
