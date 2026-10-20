@@ -148,7 +148,13 @@ export function cardModel(i: CardModelInput) {
  * An inline style record as a `style=""` attribute value, the way React writes it: camelCase to kebab-case,
  * a bare number in pixels except for the properties that take none. Empty values drop out.
  */
-const UNITLESS = new Set(['opacity', 'flex', 'flexGrow', 'flexShrink', 'order', 'zIndex', 'lineHeight', 'fontWeight', 'zoom', 'scale']);
+const UNITLESS = new Set([
+  'animationIterationCount', 'aspectRatio', 'borderImageOutset', 'borderImageSlice', 'borderImageWidth', 'columnCount', 'columns',
+  'flex', 'flexGrow', 'flexPositive', 'flexShrink', 'flexNegative', 'flexOrder', 'fontWeight', 'gridArea', 'gridRow', 'gridRowEnd',
+  'gridRowSpan', 'gridRowStart', 'gridColumn', 'gridColumnEnd', 'gridColumnSpan', 'gridColumnStart', 'lineClamp', 'WebkitLineClamp',
+  'lineHeight', 'opacity', 'order', 'orphans', 'scale', 'tabSize', 'widows', 'zIndex', 'zoom',
+  'fillOpacity', 'floodOpacity', 'stopOpacity', 'strokeDasharray', 'strokeDashoffset', 'strokeMiterlimit', 'strokeOpacity', 'strokeWidth',
+]);
 export function styleAttribute(style: StyleRecord | undefined): string {
   if (!style) return '';
   return Object.entries(style)
