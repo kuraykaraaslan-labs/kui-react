@@ -1,0 +1,7261 @@
+{
+ "now": "2026-10-20T10:05:00.000Z",
+ "locale": "en",
+ "cases": [
+  {
+   "id": "line.rules-right-axis",
+   "kind": "chart.line",
+   "settings": {
+    "series": [
+     {
+      "key": "Temperature",
+      "label": "${name} (room)",
+      "color": "#dc2626",
+      "unit": "°C",
+      "decimals": 1,
+      "width": 3,
+      "showPoints": "on",
+      "pointShape": "diamond",
+      "pointSize": 4
+     },
+     {
+      "key": "Humidity",
+      "axis": "right",
+      "unit": "%",
+      "decimals": 0,
+      "lineStyle": "dashed"
+     }
+    ],
+    "y2Label": "Humidity",
+    "yLabel": "Temperature",
+    "thresholds": [
+     {
+      "value": 22,
+      "label": "Limit",
+      "color": "#dc2626"
+     },
+     {
+      "value": 55,
+      "axis": "right",
+      "style": "dotted"
+     }
+    ],
+    "legendValues": [
+     "latest",
+     "max"
+    ],
+    "tooltipTotal": false,
+    "curve": "step"
+   },
+   "data": {
+    "series": {
+     "shape": "series",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "series": [
+      {
+       "name": "Temperature",
+       "points": [
+        {
+         "t": "2026-10-20T05:05:00.000Z",
+         "v": 18.2
+        },
+        {
+         "t": "2026-10-20T06:05:00.000Z",
+         "v": 19.5
+        },
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 21.04
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 22.8
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 21.3
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 20.1
+        }
+       ]
+      },
+      {
+       "name": "Humidity",
+       "points": [
+        {
+         "t": "2026-10-20T05:05:00.000Z",
+         "v": 61
+        },
+        {
+         "t": "2026-10-20T06:05:00.000Z",
+         "v": 58
+        },
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 52
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 49
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 55
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 59
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "curve": "step",
+     "lineWidth": 2,
+     "showPoints": false,
+     "pointShape": "circle",
+     "valueLabels": "none",
+     "valueLabelPosition": "top",
+     "showGrid": true,
+     "yFromZero": false,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "legendValues": [
+      "latest",
+      "max"
+     ],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "animate": true,
+     "zoom": true,
+     "series": [
+      {
+       "key": "Temperature",
+       "label": "${name} (room)",
+       "color": "#dc2626",
+       "unit": "°C",
+       "decimals": 1,
+       "width": 3,
+       "showPoints": "on",
+       "pointShape": "diamond",
+       "pointSize": 4
+      },
+      {
+       "key": "Humidity",
+       "axis": "right",
+       "unit": "%",
+       "decimals": 0,
+       "lineStyle": "dashed"
+      }
+     ],
+     "y2Label": "Humidity",
+     "yLabel": "Temperature",
+     "thresholds": [
+      {
+       "value": 22,
+       "label": "Limit",
+       "color": "#dc2626"
+      },
+      {
+       "value": 55,
+       "axis": "right",
+       "style": "dotted"
+      }
+     ],
+     "tooltipTotal": false
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "preset": "line",
+    "byCategory": false,
+    "stacked": false,
+    "xAxis": "time",
+    "series": [
+     {
+      "id": "Temperature",
+      "name": "Temperature (room)",
+      "data": [
+       {
+        "x": 1792472700000,
+        "y": 18.2
+       },
+       {
+        "x": 1792476300000,
+        "y": 19.5
+       },
+       {
+        "x": 1792479900000,
+        "y": 21.04
+       },
+       {
+        "x": 1792483500000,
+        "y": 22.8
+       },
+       {
+        "x": 1792487100000,
+        "y": 21.3
+       },
+       {
+        "x": 1792490700000,
+        "y": 20.1
+       }
+      ],
+      "color": "#dc2626",
+      "strokeWidth": 3,
+      "showPoints": true,
+      "pointShape": "diamond",
+      "pointSize": 4,
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard"
+       },
+       "override": {
+        "unit": "°C",
+        "decimals": 1
+       }
+      }
+     },
+     {
+      "id": "Humidity",
+      "name": "Humidity",
+      "data": [
+       {
+        "x": 1792472700000,
+        "y": 61
+       },
+       {
+        "x": 1792476300000,
+        "y": 58
+       },
+       {
+        "x": 1792479900000,
+        "y": 52
+       },
+       {
+        "x": 1792483500000,
+        "y": 49
+       },
+       {
+        "x": 1792487100000,
+        "y": 55
+       },
+       {
+        "x": 1792490700000,
+        "y": 59
+       }
+      ],
+      "lineStyle": "dashed",
+      "strokeWidth": 2,
+      "pointShape": "circle",
+      "yAxis": "right",
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard"
+       },
+       "override": {
+        "unit": "%",
+        "decimals": 0
+       }
+      }
+     }
+    ],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {
+      "unit": "°C",
+      "decimals": 1
+     },
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {
+      "unit": "%",
+      "decimals": 0
+     },
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": true,
+     "legendPosition": "bottom",
+     "legendValues": [
+      "latest",
+      "max"
+     ],
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "yLabel": "Temperature",
+     "y2Label": "Humidity",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": false,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": null,
+    "thresholds": [
+     {
+      "value": 22,
+      "label": "Limit",
+      "color": "#dc2626",
+      "style": "dashed"
+     },
+     {
+      "value": 55,
+      "style": "dotted",
+      "yAxis": "right"
+     }
+    ],
+    "animate": true,
+    "showValues": false,
+    "ariaLabel": "Line chart",
+    "line": {
+     "curve": "step",
+     "strokeWidth": 2,
+     "zoom": true,
+     "resetZoomLabel": "Reset zoom",
+     "pointShape": "circle",
+     "valueLabelPosition": "top"
+    },
+    "bar": null
+   }
+  },
+  {
+   "id": "line.defaults-single",
+   "kind": "chart.line",
+   "format": {
+    "unit": "kW",
+    "decimals": 2,
+    "unitPosition": "after"
+   },
+   "data": {
+    "series": {
+     "shape": "series",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "series": [
+      {
+       "name": "Power",
+       "points": [
+        {
+         "t": "2026-10-20T06:05:00.000Z",
+         "v": 3
+        },
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 4.5
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 4.25
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 8
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 6
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "curve": "smooth",
+     "lineWidth": 2,
+     "showPoints": false,
+     "pointShape": "circle",
+     "valueLabels": "none",
+     "valueLabelPosition": "top",
+     "showGrid": true,
+     "yFromZero": false,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "legendValues": [],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "animate": true,
+     "zoom": true
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "unit": "kW",
+     "decimals": 2
+    }
+   },
+   "model": {
+    "preset": "line",
+    "byCategory": false,
+    "stacked": false,
+    "xAxis": "time",
+    "series": [
+     {
+      "id": "Power",
+      "name": "Power",
+      "data": [
+       {
+        "x": 1792476300000,
+        "y": 3
+       },
+       {
+        "x": 1792479900000,
+        "y": 4.5
+       },
+       {
+        "x": 1792483500000,
+        "y": 4.25
+       },
+       {
+        "x": 1792487100000,
+        "y": 8
+       },
+       {
+        "x": 1792490700000,
+        "y": 6
+       }
+      ],
+      "strokeWidth": 2,
+      "pointShape": "circle",
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard",
+        "unit": "kW",
+        "decimals": 2
+       }
+      }
+     }
+    ],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "unit": "kW",
+      "decimals": 2
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "unit": "kW",
+      "decimals": 2
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": false,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": false,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": null,
+    "animate": true,
+    "showValues": false,
+    "ariaLabel": "Line chart",
+    "line": {
+     "curve": "smooth",
+     "strokeWidth": 2,
+     "zoom": true,
+     "resetZoomLabel": "Reset zoom",
+     "pointShape": "circle",
+     "valueLabelPosition": "top"
+    },
+    "bar": null
+   }
+  },
+  {
+   "id": "line.compact-tooltip-decimals",
+   "kind": "chart.line",
+   "settings": {
+    "tooltipDecimals": 1,
+    "legend": "top",
+    "yMin": 0,
+    "yMax": 20000,
+    "zoom": false,
+    "valueLabels": "value",
+    "valueLabelPosition": "bottom",
+    "animate": false
+   },
+   "format": {
+    "notation": "compact",
+    "unit": "Wh"
+   },
+   "data": {
+    "series": {
+     "shape": "series",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "series": [
+      {
+       "name": "Energy",
+       "points": [
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 1200
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 5400
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 18250
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 9000
+        }
+       ]
+      }
+     ],
+     "window": {
+      "explicitTimezone": "Europe/Istanbul"
+     }
+    }
+   },
+   "host": {},
+   "input": {
+    "settings": {
+     "curve": "smooth",
+     "lineWidth": 2,
+     "showPoints": false,
+     "pointShape": "circle",
+     "valueLabels": "value",
+     "valueLabelPosition": "bottom",
+     "showGrid": true,
+     "yFromZero": false,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "top",
+     "legendValues": [],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "animate": false,
+     "zoom": false,
+     "tooltipDecimals": 1,
+     "yMin": 0,
+     "yMax": 20000
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "compact",
+     "unit": "Wh"
+    }
+   },
+   "model": {
+    "preset": "line",
+    "byCategory": false,
+    "stacked": false,
+    "xAxis": "time",
+    "series": [
+     {
+      "id": "Energy",
+      "name": "Energy",
+      "data": [
+       {
+        "x": 1792479900000,
+        "y": 1200
+       },
+       {
+        "x": 1792483500000,
+        "y": 5400
+       },
+       {
+        "x": 1792487100000,
+        "y": 18250
+       },
+       {
+        "x": 1792490700000,
+        "y": 9000
+       }
+      ],
+      "strokeWidth": 2,
+      "pointShape": "circle",
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "compact",
+        "unit": "Wh"
+       }
+      }
+     }
+    ],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "compact",
+      "unit": "Wh"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "compact",
+      "unit": "Wh"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": true,
+     "legendPosition": "top",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "yMin": 0,
+     "yMax": 20000,
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": false,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": {
+     "fallback": {
+      "base": {
+       "unitPosition": "after",
+       "notation": "compact",
+       "unit": "Wh"
+      },
+      "override": {
+       "decimals": 1
+      }
+     },
+     "bySeries": {
+      "Energy": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "compact",
+        "unit": "Wh"
+       },
+       "override": {
+        "decimals": 1
+       }
+      }
+     }
+    },
+    "animate": false,
+    "showValues": true,
+    "ariaLabel": "Line chart",
+    "line": {
+     "curve": "smooth",
+     "strokeWidth": 2,
+     "zoom": false,
+     "resetZoomLabel": "Reset zoom",
+     "timeZone": "Europe/Istanbul",
+     "pointShape": "circle",
+     "valueLabelPosition": "bottom"
+    },
+    "bar": null
+   }
+  },
+  {
+   "id": "line.empty",
+   "kind": "chart.line",
+   "settings": {},
+   "data": {},
+   "input": {
+    "settings": {
+     "curve": "smooth",
+     "lineWidth": 2,
+     "showPoints": false,
+     "pointShape": "circle",
+     "valueLabels": "none",
+     "valueLabelPosition": "top",
+     "showGrid": true,
+     "yFromZero": false,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "legendValues": [],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "animate": true,
+     "zoom": true
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "preset": "line",
+    "byCategory": false,
+    "stacked": false,
+    "xAxis": "band",
+    "series": [],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": false,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": false,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": null,
+    "animate": true,
+    "showValues": false,
+    "ariaLabel": "Line chart",
+    "line": {
+     "curve": "smooth",
+     "strokeWidth": 2,
+     "zoom": true,
+     "resetZoomLabel": "Reset zoom",
+     "pointShape": "circle",
+     "valueLabelPosition": "top"
+    },
+    "bar": null
+   }
+  },
+  {
+   "id": "area.time-gradient",
+   "kind": "chart.area",
+   "settings": {
+    "fill": "medium",
+    "fillStyle": "gradient",
+    "series": [
+     {
+      "key": "*",
+      "color": "#2563eb"
+     }
+    ]
+   },
+   "data": {
+    "series": {
+     "shape": "series",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "series": [
+      {
+       "name": "Flow",
+       "points": [
+        {
+         "t": "2026-10-20T06:05:00.000Z",
+         "v": 4
+        },
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 6
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 5
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 9
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 7
+        }
+       ]
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "curve": "smooth",
+     "lineWidth": 2,
+     "showPoints": false,
+     "pointShape": "circle",
+     "stacked": false,
+     "fill": "medium",
+     "fillStyle": "gradient",
+     "valueLabels": "none",
+     "valueLabelPosition": "top",
+     "showGrid": true,
+     "yFromZero": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "legendValues": [],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "tooltipTotal": false,
+     "animate": true,
+     "zoom": true,
+     "series": [
+      {
+       "key": "*",
+       "color": "#2563eb"
+      }
+     ]
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "preset": "area",
+    "byCategory": false,
+    "stacked": false,
+    "xAxis": "time",
+    "series": [
+     {
+      "id": "Flow",
+      "name": "Flow",
+      "data": [
+       {
+        "x": 1792476300000,
+        "y": 4
+       },
+       {
+        "x": 1792479900000,
+        "y": 6
+       },
+       {
+        "x": 1792483500000,
+        "y": 5
+       },
+       {
+        "x": 1792487100000,
+        "y": 9
+       },
+       {
+        "x": 1792490700000,
+        "y": 7
+       }
+      ],
+      "color": "#2563eb",
+      "strokeWidth": 2,
+      "pointShape": "circle",
+      "fillGradient": true,
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard"
+       }
+      }
+     }
+    ],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": false,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": true,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": null,
+    "animate": true,
+    "showValues": false,
+    "ariaLabel": "Area chart",
+    "line": {
+     "curve": "smooth",
+     "strokeWidth": 2,
+     "zoom": true,
+     "resetZoomLabel": "Reset zoom",
+     "pointShape": "circle",
+     "valueLabelPosition": "top",
+     "fillOpacity": 0.35
+    },
+    "bar": null
+   }
+  },
+  {
+   "id": "area.stacked-band",
+   "kind": "chart.area",
+   "settings": {
+    "stacked": true,
+    "tooltipTotal": true,
+    "fill": "solid",
+    "legend": "right",
+    "series": [
+     {
+      "key": "Humidity",
+      "stack": "b"
+     }
+    ]
+   },
+   "data": {
+    "series": {
+     "shape": "series",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "series": [
+      {
+       "name": "Temperature",
+       "points": [
+        {
+         "t": "2026-10-20T05:05:00.000Z",
+         "v": 18.2
+        },
+        {
+         "t": "2026-10-20T06:05:00.000Z",
+         "v": 19.5
+        },
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 21.04
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 22.8
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 21.3
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 20.1
+        }
+       ]
+      },
+      {
+       "name": "Humidity",
+       "points": [
+        {
+         "t": "2026-10-20T05:05:00.000Z",
+         "v": 61
+        },
+        {
+         "t": "2026-10-20T06:05:00.000Z",
+         "v": 58
+        },
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 52
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 49
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 55
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 59
+        }
+       ]
+      }
+     ],
+     "window": {
+      "explicitTimezone": "UTC"
+     }
+    }
+   },
+   "input": {
+    "settings": {
+     "curve": "smooth",
+     "lineWidth": 2,
+     "showPoints": false,
+     "pointShape": "circle",
+     "stacked": true,
+     "fill": "solid",
+     "fillStyle": "gradient",
+     "valueLabels": "none",
+     "valueLabelPosition": "top",
+     "showGrid": true,
+     "yFromZero": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "right",
+     "legendValues": [],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "tooltipTotal": true,
+     "animate": true,
+     "zoom": true,
+     "series": [
+      {
+       "key": "Humidity",
+       "stack": "b"
+      }
+     ]
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "preset": "area",
+    "byCategory": false,
+    "stacked": true,
+    "xAxis": "band",
+    "series": [
+     {
+      "id": "Temperature",
+      "name": "Temperature",
+      "data": [
+       {
+        "x": "05:05",
+        "y": 18.2
+       },
+       {
+        "x": "06:05",
+        "y": 19.5
+       },
+       {
+        "x": "07:05",
+        "y": 21.04
+       },
+       {
+        "x": "08:05",
+        "y": 22.8
+       },
+       {
+        "x": "09:05",
+        "y": 21.3
+       },
+       {
+        "x": "10:05",
+        "y": 20.1
+       }
+      ],
+      "strokeWidth": 2,
+      "pointShape": "circle",
+      "fillGradient": true,
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard"
+       }
+      }
+     },
+     {
+      "id": "Humidity",
+      "name": "Humidity",
+      "data": [
+       {
+        "x": "05:05",
+        "y": 61
+       },
+       {
+        "x": "06:05",
+        "y": 58
+       },
+       {
+        "x": "07:05",
+        "y": 52
+       },
+       {
+        "x": "08:05",
+        "y": 49
+       },
+       {
+        "x": "09:05",
+        "y": 55
+       },
+       {
+        "x": "10:05",
+        "y": 59
+       }
+      ],
+      "strokeWidth": 2,
+      "pointShape": "circle",
+      "fillGradient": true,
+      "stack": "b",
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard"
+       }
+      }
+     }
+    ],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": true,
+     "legendPosition": "right",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": true,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": true,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": null,
+    "animate": true,
+    "showValues": false,
+    "ariaLabel": "Area chart",
+    "line": {
+     "curve": "smooth",
+     "strokeWidth": 2,
+     "zoom": true,
+     "resetZoomLabel": "Reset zoom",
+     "timeZone": "UTC",
+     "pointShape": "circle",
+     "valueLabelPosition": "top",
+     "fillOpacity": 0.6
+    },
+    "bar": null
+   }
+  },
+  {
+   "id": "bar.stacked-vertical",
+   "kind": "chart.bar",
+   "settings": {
+    "stacked": true,
+    "barRadius": 2,
+    "barWidth": 60,
+    "barGap": 4,
+    "valueLabels": "value",
+    "valueLabelPosition": "inside",
+    "tooltipTotal": true
+   },
+   "data": {
+    "series": {
+     "shape": "series",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "series": [
+      {
+       "name": "Day",
+       "points": [
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 5
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 7
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 6
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 4
+        }
+       ]
+      },
+      {
+       "name": "Night",
+       "points": [
+        {
+         "t": "2026-10-20T07:05:00.000Z",
+         "v": 2
+        },
+        {
+         "t": "2026-10-20T08:05:00.000Z",
+         "v": 3
+        },
+        {
+         "t": "2026-10-20T09:05:00.000Z",
+         "v": 3
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 1
+        }
+       ]
+      }
+     ],
+     "window": {
+      "explicitTimezone": "UTC"
+     }
+    }
+   },
+   "input": {
+    "settings": {
+     "xAxis": "time",
+     "categorySort": "none",
+     "maxBars": 30,
+     "stacked": true,
+     "orientation": "vertical",
+     "barWidth": 60,
+     "barGap": 4,
+     "barRadius": 2,
+     "valueLabels": "value",
+     "valueLabelPosition": "inside",
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "legendValues": [],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "tooltipTotal": true,
+     "animate": true
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "preset": "bar",
+    "byCategory": false,
+    "stacked": true,
+    "xAxis": "band",
+    "series": [
+     {
+      "id": "Day",
+      "name": "Day",
+      "data": [
+       {
+        "x": "07:05",
+        "y": 5
+       },
+       {
+        "x": "08:05",
+        "y": 7
+       },
+       {
+        "x": "09:05",
+        "y": 6
+       },
+       {
+        "x": "10:05",
+        "y": 4
+       }
+      ],
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard"
+       }
+      }
+     },
+     {
+      "id": "Night",
+      "name": "Night",
+      "data": [
+       {
+        "x": "07:05",
+        "y": 2
+       },
+       {
+        "x": "08:05",
+        "y": 3
+       },
+       {
+        "x": "09:05",
+        "y": 3
+       },
+       {
+        "x": "10:05",
+        "y": 1
+       }
+      ],
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard"
+       }
+      }
+     }
+    ],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": true,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": true,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": true,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": null,
+    "animate": true,
+    "showValues": true,
+    "ariaLabel": "Bar chart",
+    "line": null,
+    "bar": {
+     "orientation": "vertical",
+     "valueLabelPosition": "inside",
+     "radius": 2,
+     "barWidth": 0.6,
+     "barGap": 4
+    }
+   }
+  },
+  {
+   "id": "bar.horizontal-grouped",
+   "kind": "chart.bar",
+   "settings": {
+    "orientation": "horizontal",
+    "yFromZero": false,
+    "series": [
+     {
+      "key": "Night",
+      "color": "#7c3aed",
+      "label": "After dark"
+     }
+    ]
+   },
+   "format": {
+    "decimals": 0
+   },
+   "data": {
+    "series": {
+     "shape": "series",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "series": [
+      {
+       "name": "Day",
+       "points": [
+        {
+         "t": "2026-10-18T10:05:00.000Z",
+         "v": 5
+        },
+        {
+         "t": "2026-10-19T10:05:00.000Z",
+         "v": 7
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 6
+        }
+       ]
+      },
+      {
+       "name": "Night",
+       "points": [
+        {
+         "t": "2026-10-18T10:05:00.000Z",
+         "v": 2
+        },
+        {
+         "t": "2026-10-19T10:05:00.000Z",
+         "v": 3
+        },
+        {
+         "t": "2026-10-20T10:05:00.000Z",
+         "v": 3
+        }
+       ]
+      }
+     ],
+     "window": {
+      "explicitTimezone": "UTC"
+     }
+    }
+   },
+   "input": {
+    "settings": {
+     "xAxis": "time",
+     "categorySort": "none",
+     "maxBars": 30,
+     "stacked": false,
+     "orientation": "horizontal",
+     "barWidth": 70,
+     "barGap": 2,
+     "barRadius": 4,
+     "valueLabels": "none",
+     "valueLabelPosition": "outside",
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "legendValues": [],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "tooltipTotal": false,
+     "animate": true,
+     "yFromZero": false,
+     "series": [
+      {
+       "key": "Night",
+       "color": "#7c3aed",
+       "label": "After dark"
+      }
+     ]
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "decimals": 0
+    }
+   },
+   "model": {
+    "preset": "bar",
+    "byCategory": false,
+    "stacked": false,
+    "xAxis": "band",
+    "series": [
+     {
+      "id": "Day",
+      "name": "Day",
+      "data": [
+       {
+        "x": "10:05",
+        "y": 5
+       },
+       {
+        "x": "10:05",
+        "y": 7
+       },
+       {
+        "x": "10:05",
+        "y": 6
+       }
+      ],
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard",
+        "decimals": 0
+       }
+      }
+     },
+     {
+      "id": "Night",
+      "name": "After dark",
+      "data": [
+       {
+        "x": "10:05",
+        "y": 2
+       },
+       {
+        "x": "10:05",
+        "y": 3
+       },
+       {
+        "x": "10:05",
+        "y": 3
+       }
+      ],
+      "color": "#7c3aed",
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard",
+        "decimals": 0
+       }
+      }
+     }
+    ],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 0
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 0
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": true,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": true,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": null,
+    "animate": true,
+    "showValues": false,
+    "ariaLabel": "Bar chart",
+    "line": null,
+    "bar": {
+     "orientation": "horizontal",
+     "valueLabelPosition": "outside",
+     "radius": 4,
+     "barWidth": 0.7,
+     "barGap": 2
+    }
+   }
+  },
+  {
+   "id": "bar.category-sorted",
+   "kind": "chart.bar",
+   "settings": {
+    "xAxis": "category",
+    "categoryColumn": "region",
+    "valueColumn": "sales",
+    "categorySort": "desc",
+    "maxBars": 4,
+    "series": [
+     {
+      "key": "*",
+      "color": "#16a34a"
+     }
+    ]
+   },
+   "format": {
+    "unit": "k€",
+    "unitPosition": "after"
+   },
+   "data": {
+    "rows": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "region": "North",
+       "sales": 120
+      },
+      {
+       "region": "South",
+       "sales": 340
+      },
+      {
+       "region": "East",
+       "sales": 90
+      },
+      {
+       "region": "West",
+       "sales": 210
+      },
+      {
+       "region": "Centre",
+       "sales": 10
+      },
+      {
+       "region": "Islands",
+       "sales": 5
+      },
+      {
+       "region": "Broken",
+       "sales": "n/a"
+      },
+      {
+       "region": "Zero",
+       "sales": 0
+      }
+     ],
+     "columns": [
+      {
+       "key": "region",
+       "label": "Region",
+       "type": "text"
+      },
+      {
+       "key": "sales",
+       "label": "Sales",
+       "type": "number"
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "xAxis": "category",
+     "categorySort": "desc",
+     "maxBars": 4,
+     "stacked": false,
+     "orientation": "vertical",
+     "barWidth": 70,
+     "barGap": 2,
+     "barRadius": 4,
+     "valueLabels": "none",
+     "valueLabelPosition": "outside",
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "legendValues": [],
+     "tooltip": "axis",
+     "tooltipTime": true,
+     "tooltipTotal": false,
+     "animate": true,
+     "categoryColumn": "region",
+     "valueColumn": "sales",
+     "series": [
+      {
+       "key": "*",
+       "color": "#16a34a"
+      }
+     ]
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "unit": "k€"
+    }
+   },
+   "model": {
+    "preset": "bar",
+    "byCategory": true,
+    "stacked": false,
+    "xAxis": "band",
+    "series": [
+     {
+      "id": "Sales",
+      "name": "Sales",
+      "data": [
+       {
+        "x": "South",
+        "y": 340
+       },
+       {
+        "x": "West",
+        "y": 210
+       },
+       {
+        "x": "North",
+        "y": 120
+       },
+       {
+        "x": "East",
+        "y": 90
+       }
+      ],
+      "color": "#16a34a",
+      "format": {
+       "base": {
+        "unitPosition": "after",
+        "notation": "standard",
+        "unit": "k€"
+       }
+      }
+     }
+    ],
+    "yFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "unit": "k€"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "y2Format": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "unit": "k€"
+     },
+     "override": {},
+     "mode": "tick"
+    },
+    "legend": {
+     "showLegend": false,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "yIncludeZero": true,
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false,
+     "tooltipTotalLabel": "Total"
+    },
+    "tooltipValueFormat": null,
+    "animate": true,
+    "showValues": false,
+    "ariaLabel": "Bar chart",
+    "line": null,
+    "bar": {
+     "orientation": "vertical",
+     "valueLabelPosition": "outside",
+     "radius": 4,
+     "barWidth": 0.7,
+     "barGap": 2
+    }
+   }
+  },
+  {
+   "id": "pie.folds-into-other",
+   "kind": "chart.pie",
+   "settings": {
+    "maxSlices": 4,
+    "layout": "donut",
+    "donutWidth": 35,
+    "valueLabels": "name-percent",
+    "legend": "auto",
+    "colors": [
+     {
+      "key": "South",
+      "color": "#2563eb"
+     },
+     {
+      "key": "Other",
+      "color": "#9ca3af"
+     }
+    ]
+   },
+   "format": {
+    "unit": "k€"
+   },
+   "data": {
+    "slices": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "label": "North",
+       "value": 120
+      },
+      {
+       "label": "South",
+       "value": 340
+      },
+      {
+       "label": "East",
+       "value": 90
+      },
+      {
+       "label": "West",
+       "value": 210
+      },
+      {
+       "label": "Centre",
+       "value": 10
+      },
+      {
+       "label": "Islands",
+       "value": 5
+      },
+      {
+       "label": "Broken",
+       "value": "n/a"
+      },
+      {
+       "label": "Zero",
+       "value": 0
+      }
+     ]
+    }
+   },
+   "host": {
+    "box": {
+     "width": 480,
+     "height": 240
+    }
+   },
+   "input": {
+    "settings": {
+     "labelColumn": "label",
+     "valueColumn": "value",
+     "layout": "donut",
+     "donutWidth": 35,
+     "startAngle": 0,
+     "sliceGap": 2,
+     "maxSlices": 4,
+     "sort": "desc",
+     "valueLabels": "name-percent",
+     "labelPosition": "inside",
+     "legend": "auto",
+     "legendValue": "none",
+     "showTooltip": true,
+     "tooltipValue": "both",
+     "animate": true,
+     "colors": [
+      {
+       "key": "South",
+       "color": "#2563eb"
+      },
+      {
+       "key": "Other",
+       "color": "#9ca3af"
+      }
+     ]
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "unit": "k€"
+    }
+   },
+   "model": {
+    "empty": false,
+    "layout": "donut",
+    "chart": {
+     "series": [
+      {
+       "id": "pie",
+       "name": "pie",
+       "data": [
+        {
+         "x": "South",
+         "y": 340,
+         "color": "#2563eb"
+        },
+        {
+         "x": "West",
+         "y": 210
+        },
+        {
+         "x": "North",
+         "y": 120
+        },
+        {
+         "x": "Other",
+         "y": 105,
+         "color": "#9ca3af"
+        }
+       ]
+      }
+     ],
+     "innerRadius": 0.65,
+     "showCenter": false,
+     "labels": "name-percent",
+     "labelPosition": "inside",
+     "valueFormat": {
+      "base": {
+       "unitPosition": "after",
+       "notation": "standard",
+       "unit": "k€"
+      }
+     },
+     "startAngle": 0,
+     "sliceGap": 2,
+     "showLegend": true,
+     "legendPosition": "right",
+     "legendLayout": "wrap",
+     "legendToggle": true,
+     "legendValue": "none",
+     "showTooltip": true,
+     "tooltipValue": "both",
+     "animate": true,
+     "ariaLabel": "Pie chart"
+    }
+   }
+  },
+  {
+   "id": "pie.donut-total-narrow",
+   "kind": "chart.pie",
+   "settings": {
+    "layout": "donut-total",
+    "totalLabel": "All regions",
+    "legendValue": "percent",
+    "tooltipValue": "value",
+    "sort": "none",
+    "otherLabel": "Rest",
+    "maxSlices": 3
+   },
+   "data": {
+    "slices": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "label": "North",
+       "value": 120
+      },
+      {
+       "label": "South",
+       "value": 340
+      },
+      {
+       "label": "East",
+       "value": 90
+      },
+      {
+       "label": "West",
+       "value": 210
+      },
+      {
+       "label": "Centre",
+       "value": 10
+      },
+      {
+       "label": "Islands",
+       "value": 5
+      },
+      {
+       "label": "Broken",
+       "value": "n/a"
+      },
+      {
+       "label": "Zero",
+       "value": 0
+      }
+     ]
+    }
+   },
+   "host": {
+    "box": {
+     "width": 200,
+     "height": 260
+    }
+   },
+   "input": {
+    "settings": {
+     "labelColumn": "label",
+     "valueColumn": "value",
+     "layout": "donut-total",
+     "donutWidth": 40,
+     "startAngle": 0,
+     "sliceGap": 2,
+     "maxSlices": 3,
+     "sort": "none",
+     "valueLabels": "percent",
+     "labelPosition": "inside",
+     "legend": "auto",
+     "legendValue": "percent",
+     "showTooltip": true,
+     "tooltipValue": "value",
+     "animate": true,
+     "totalLabel": "All regions",
+     "otherLabel": "Rest"
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "empty": false,
+    "layout": "donut-total",
+    "chart": {
+     "series": [
+      {
+       "id": "pie",
+       "name": "pie",
+       "data": [
+        {
+         "x": "South",
+         "y": 340
+        },
+        {
+         "x": "West",
+         "y": 210
+        },
+        {
+         "x": "Rest",
+         "y": 225
+        }
+       ]
+      }
+     ],
+     "innerRadius": 0.6,
+     "showCenter": true,
+     "centerLabel": "All regions",
+     "labels": "percent",
+     "labelPosition": "inside",
+     "valueFormat": {
+      "base": {
+       "unitPosition": "after",
+       "notation": "standard"
+      }
+     },
+     "startAngle": 0,
+     "sliceGap": 2,
+     "showLegend": true,
+     "legendPosition": "bottom",
+     "legendLayout": "grid",
+     "legendToggle": true,
+     "legendValue": "percent",
+     "showTooltip": true,
+     "tooltipValue": "value",
+     "animate": true,
+     "ariaLabel": "Pie chart"
+    }
+   }
+  },
+  {
+   "id": "pie.columns-custom",
+   "kind": "chart.pie",
+   "settings": {
+    "labelColumn": "kind",
+    "valueColumn": "n",
+    "layout": "pie",
+    "legend": "left",
+    "labelPosition": "outside",
+    "sliceGap": 0,
+    "startAngle": 90,
+    "sort": "asc"
+   },
+   "data": {
+    "slices": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "kind": "Run",
+       "n": 5
+      },
+      {
+       "kind": "Stop",
+       "n": 2
+      },
+      {
+       "kind": "Idle",
+       "n": 9
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "labelColumn": "kind",
+     "valueColumn": "n",
+     "layout": "pie",
+     "donutWidth": 40,
+     "startAngle": 90,
+     "sliceGap": 0,
+     "maxSlices": 8,
+     "sort": "asc",
+     "valueLabels": "percent",
+     "labelPosition": "outside",
+     "legend": "left",
+     "legendValue": "none",
+     "showTooltip": true,
+     "tooltipValue": "both",
+     "animate": true
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "empty": false,
+    "layout": "pie",
+    "chart": {
+     "series": [
+      {
+       "id": "pie",
+       "name": "pie",
+       "data": [
+        {
+         "x": "Stop",
+         "y": 2
+        },
+        {
+         "x": "Run",
+         "y": 5
+        },
+        {
+         "x": "Idle",
+         "y": 9
+        }
+       ]
+      }
+     ],
+     "innerRadius": 0,
+     "showCenter": false,
+     "labels": "percent",
+     "labelPosition": "outside",
+     "valueFormat": {
+      "base": {
+       "unitPosition": "after",
+       "notation": "standard"
+      }
+     },
+     "startAngle": 90,
+     "sliceGap": 0,
+     "showLegend": true,
+     "legendPosition": "left",
+     "legendLayout": "wrap",
+     "legendToggle": true,
+     "legendValue": "none",
+     "showTooltip": true,
+     "tooltipValue": "both",
+     "animate": true,
+     "ariaLabel": "Pie chart"
+    }
+   }
+  },
+  {
+   "id": "pie.empty",
+   "kind": "chart.pie",
+   "settings": {
+    "layout": "donut"
+   },
+   "data": {},
+   "input": {
+    "settings": {
+     "labelColumn": "label",
+     "valueColumn": "value",
+     "layout": "donut",
+     "donutWidth": 40,
+     "startAngle": 0,
+     "sliceGap": 2,
+     "maxSlices": 8,
+     "sort": "desc",
+     "valueLabels": "percent",
+     "labelPosition": "inside",
+     "legend": "auto",
+     "legendValue": "none",
+     "showTooltip": true,
+     "tooltipValue": "both",
+     "animate": true
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "empty": true,
+    "layout": "donut",
+    "chart": {
+     "series": [
+      {
+       "id": "empty",
+       "name": "",
+       "data": [
+        {
+         "x": "",
+         "y": 1,
+         "color": "var(--border)"
+        }
+       ]
+      }
+     ],
+     "innerRadius": 0.6,
+     "sliceGap": 0,
+     "labels": "none",
+     "showLegend": false,
+     "showTooltip": false,
+     "showCenter": false,
+     "animate": false,
+     "ariaLabel": "Pie chart"
+    }
+   }
+  },
+  {
+   "id": "scatter.groups-trend",
+   "kind": "chart.scatter",
+   "settings": {
+    "groupColumn": "unit",
+    "trendLine": true,
+    "trendColor": "#111827",
+    "pointSize": "lg",
+    "pointShape": "square",
+    "pointOpacity": 0.6,
+    "groupColors": [
+     {
+      "key": "A",
+      "color": "#2563eb"
+     }
+    ],
+    "xUnit": "rpm",
+    "yUnit": "bar",
+    "yDecimals": 1
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "x": 1000,
+       "y": 2.1,
+       "unit": "A"
+      },
+      {
+       "x": 1500,
+       "y": 3.3,
+       "unit": "A"
+      },
+      {
+       "x": 2000,
+       "y": 4.2,
+       "unit": "B"
+      },
+      {
+       "x": 2500,
+       "y": 5.8,
+       "unit": "B"
+      },
+      {
+       "x": "bad",
+       "y": 1,
+       "unit": "B"
+      },
+      {
+       "x": 3000,
+       "y": 6.04
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "xColumn": "x",
+     "yColumn": "y",
+     "pointColor": "var(--primary)",
+     "pointSize": "lg",
+     "pointShape": "square",
+     "pointOpacity": 0.6,
+     "trendLine": true,
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "showTooltip": true,
+     "tooltipTime": true,
+     "animate": true,
+     "groupColumn": "unit",
+     "trendColor": "#111827",
+     "groupColors": [
+      {
+       "key": "A",
+       "color": "#2563eb"
+      }
+     ],
+     "xUnit": "rpm",
+     "yUnit": "bar",
+     "yDecimals": 1
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "series": [
+     {
+      "id": "A",
+      "name": "A",
+      "data": [
+       {
+        "x": 1000,
+        "y": 2.1
+       },
+       {
+        "x": 1500,
+        "y": 3.3
+       }
+      ],
+      "color": "#2563eb"
+     },
+     {
+      "id": "B",
+      "name": "B",
+      "data": [
+       {
+        "x": 2000,
+        "y": 4.2
+       },
+       {
+        "x": 2500,
+        "y": 5.8
+       }
+      ]
+     },
+     {
+      "id": "Series",
+      "name": "Series",
+      "data": [
+       {
+        "x": 3000,
+        "y": 6.04
+       }
+      ]
+     }
+    ],
+    "pointRadius": 6,
+    "pointShape": "square",
+    "pointOpacity": 0.6,
+    "trendLine": true,
+    "trendColor": "#111827",
+    "legend": {
+     "showLegend": true,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false
+    },
+    "xFormat": {
+     "base": {
+      "unit": "rpm"
+     }
+    },
+    "yFormat": {
+     "base": {
+      "unit": "bar",
+      "decimals": 1
+     }
+    },
+    "animate": true,
+    "ariaLabel": "Scatter chart"
+   }
+  },
+  {
+   "id": "scatter.single-colour-thresholds",
+   "kind": "chart.scatter",
+   "settings": {
+    "pointColor": "#f59e0b",
+    "xColumn": "a",
+    "yColumn": "b",
+    "xMin": 0,
+    "xMax": 10,
+    "thresholds": [
+     {
+      "value": 5,
+      "label": "Target"
+     }
+    ],
+    "legend": "bottom"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "a": 1,
+       "b": 2
+      },
+      {
+       "a": 4,
+       "b": 5
+      },
+      {
+       "a": 9,
+       "b": 3
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "xColumn": "a",
+     "yColumn": "b",
+     "pointColor": "#f59e0b",
+     "pointSize": "md",
+     "pointShape": "circle",
+     "pointOpacity": 0.8,
+     "trendLine": false,
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "bottom",
+     "showTooltip": true,
+     "tooltipTime": true,
+     "animate": true,
+     "xMin": 0,
+     "xMax": 10,
+     "thresholds": [
+      {
+       "value": 5,
+       "label": "Target"
+      }
+     ]
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "series": [
+     {
+      "id": "Series",
+      "name": "Series",
+      "data": [
+       {
+        "x": 1,
+        "y": 2
+       },
+       {
+        "x": 4,
+        "y": 5
+       },
+       {
+        "x": 9,
+        "y": 3
+       }
+      ],
+      "color": "#f59e0b"
+     }
+    ],
+    "pointRadius": 4,
+    "pointShape": "circle",
+    "pointOpacity": 0.8,
+    "trendLine": false,
+    "legend": {
+     "showLegend": true,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false
+    },
+    "xMin": 0,
+    "xMax": 10,
+    "xFormat": {
+     "base": {}
+    },
+    "yFormat": {
+     "base": {}
+    },
+    "thresholds": [
+     {
+      "value": 5,
+      "label": "Target",
+      "style": "dashed"
+     }
+    ],
+    "animate": true,
+    "ariaLabel": "Scatter chart"
+   }
+  },
+  {
+   "id": "scatter.empty",
+   "kind": "chart.scatter",
+   "settings": {},
+   "data": {},
+   "input": {
+    "settings": {
+     "xColumn": "x",
+     "yColumn": "y",
+     "pointColor": "var(--primary)",
+     "pointSize": "md",
+     "pointShape": "circle",
+     "pointOpacity": 0.8,
+     "trendLine": false,
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "legend": "auto",
+     "showTooltip": true,
+     "tooltipTime": true,
+     "animate": true
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": true,
+    "series": [],
+    "pointRadius": 4,
+    "pointShape": "circle",
+    "pointOpacity": 0.8,
+    "trendLine": false,
+    "legend": {
+     "showLegend": false,
+     "legendPosition": "bottom",
+     "legendToggle": true
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false
+    },
+    "xFormat": {
+     "base": {}
+    },
+    "yFormat": {
+     "base": {}
+    },
+    "animate": true,
+    "ariaLabel": "Scatter chart"
+   }
+  },
+  {
+   "id": "histogram.nice-mean-median",
+   "kind": "chart.histogram",
+   "settings": {
+    "showMean": true,
+    "showMedian": true,
+    "markerColor": "#dc2626",
+    "countLabel": "Devices",
+    "valueLabels": "value",
+    "barColor": "#2563eb"
+   },
+   "format": {
+    "unit": "ms"
+   },
+   "data": {
+    "values": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "value": 102
+      },
+      {
+       "value": 118
+      },
+      {
+       "value": 121
+      },
+      {
+       "value": 140
+      },
+      {
+       "value": 141
+      },
+      {
+       "value": 150
+      },
+      {
+       "value": 163
+      },
+      {
+       "value": 170
+      },
+      {
+       "value": 188
+      },
+      {
+       "value": 201
+      },
+      {
+       "value": 205
+      },
+      {
+       "value": 236
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "valueColumn": "value",
+     "binEdges": "nice",
+     "barColor": "#2563eb",
+     "barWidth": 92,
+     "barRadius": 3,
+     "valueLabels": "value",
+     "valueLabelPosition": "outside",
+     "showMean": true,
+     "showMedian": true,
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "showTooltip": true,
+     "tooltipTime": true,
+     "animate": true,
+     "markerColor": "#dc2626",
+     "countLabel": "Devices"
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "unit": "ms"
+    }
+   },
+   "model": {
+    "bins": [
+     {
+      "from": 100,
+      "to": 150,
+      "count": 5
+     },
+     {
+      "from": 150,
+      "to": 200,
+      "count": 4
+     },
+     {
+      "from": 200,
+      "to": 250,
+      "count": 3
+     }
+    ],
+    "empty": false,
+    "series": [
+     {
+      "id": "histogram",
+      "name": "Devices",
+      "color": "#2563eb",
+      "format": {
+       "base": {},
+       "mode": "round"
+      },
+      "data": [
+       {
+        "x": "100–150 ms",
+        "y": 5
+       },
+       {
+        "x": "150–200 ms",
+        "y": 4
+       },
+       {
+        "x": "200–250 ms",
+        "y": 3
+       }
+      ]
+     }
+    ],
+    "showLegend": false,
+    "showValues": true,
+    "valueLabelPosition": "outside",
+    "radius": 3,
+    "barWidth": 0.92,
+    "categoryTicks": [
+     {
+      "at": 0,
+      "label": "100 ms"
+     },
+     {
+      "at": 1,
+      "label": "150 ms"
+     },
+     {
+      "at": 2,
+      "label": "200 ms"
+     },
+     {
+      "at": 3,
+      "label": "250 ms"
+     }
+    ],
+    "markers": [
+     {
+      "at": 1.225,
+      "label": "Mean 161.25 ms",
+      "color": "#dc2626",
+      "style": "dashed"
+     },
+     {
+      "at": 1.13,
+      "label": "Median 156.5 ms",
+      "color": "#dc2626",
+      "style": "dotted"
+     }
+    ],
+    "yFormat": {
+     "base": {},
+     "mode": "round2"
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false
+    },
+    "animate": true,
+    "ariaLabel": "Histogram"
+   }
+  },
+  {
+   "id": "histogram.exact-edges-range",
+   "kind": "chart.histogram",
+   "settings": {
+    "binEdges": "exact",
+    "bins": 4,
+    "min": 0,
+    "max": 1,
+    "valueColumn": "ratio",
+    "barRadius": 0,
+    "barWidth": 100
+   },
+   "format": {
+    "unit": "€",
+    "unitPosition": "before",
+    "decimals": 2
+   },
+   "data": {
+    "values": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "ratio": 0.1
+      },
+      {
+       "ratio": 0.12
+      },
+      {
+       "ratio": 0.4
+      },
+      {
+       "ratio": 0.45
+      },
+      {
+       "ratio": 0.46
+      },
+      {
+       "ratio": 0.9
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "valueColumn": "ratio",
+     "binEdges": "exact",
+     "barColor": "var(--primary)",
+     "barWidth": 100,
+     "barRadius": 0,
+     "valueLabels": "none",
+     "valueLabelPosition": "outside",
+     "showMean": false,
+     "showMedian": false,
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "showTooltip": true,
+     "tooltipTime": true,
+     "animate": true,
+     "bins": 4,
+     "min": 0,
+     "max": 1
+    },
+    "format": {
+     "unitPosition": "before",
+     "notation": "standard",
+     "unit": "€",
+     "decimals": 2
+    }
+   },
+   "model": {
+    "bins": [
+     {
+      "from": 0,
+      "to": 0.25,
+      "count": 2
+     },
+     {
+      "from": 0.25,
+      "to": 0.5,
+      "count": 3
+     },
+     {
+      "from": 0.5,
+      "to": 0.75,
+      "count": 0
+     },
+     {
+      "from": 0.75,
+      "to": 1,
+      "count": 1
+     }
+    ],
+    "empty": false,
+    "series": [
+     {
+      "id": "histogram",
+      "name": "Count",
+      "color": "var(--primary)",
+      "format": {
+       "base": {},
+       "mode": "round"
+      },
+      "data": [
+       {
+        "x": "€ 0.00–0.25",
+        "y": 2
+       },
+       {
+        "x": "€ 0.25–0.50",
+        "y": 3
+       },
+       {
+        "x": "€ 0.50–0.75",
+        "y": 0
+       },
+       {
+        "x": "€ 0.75–1.00",
+        "y": 1
+       }
+      ]
+     }
+    ],
+    "showLegend": false,
+    "showValues": false,
+    "valueLabelPosition": "outside",
+    "radius": 0,
+    "barWidth": 1,
+    "categoryTicks": [
+     {
+      "at": 0,
+      "label": "€ 0.00"
+     },
+     {
+      "at": 1,
+      "label": "€ 0.25"
+     },
+     {
+      "at": 2,
+      "label": "€ 0.50"
+     },
+     {
+      "at": 3,
+      "label": "€ 0.75"
+     },
+     {
+      "at": 4,
+      "label": "€ 1.00"
+     }
+    ],
+    "yFormat": {
+     "base": {},
+     "mode": "round2"
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false
+    },
+    "animate": true,
+    "ariaLabel": "Histogram"
+   }
+  },
+  {
+   "id": "histogram.single-value",
+   "kind": "chart.histogram",
+   "settings": {
+    "showMean": true
+   },
+   "data": {
+    "values": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "value": 7
+      },
+      {
+       "value": 7
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "valueColumn": "value",
+     "binEdges": "nice",
+     "barColor": "var(--primary)",
+     "barWidth": 92,
+     "barRadius": 3,
+     "valueLabels": "none",
+     "valueLabelPosition": "outside",
+     "showMean": true,
+     "showMedian": false,
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "showTooltip": true,
+     "tooltipTime": true,
+     "animate": true
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "bins": [
+     {
+      "from": 7,
+      "to": 7,
+      "count": 2
+     }
+    ],
+    "empty": false,
+    "series": [
+     {
+      "id": "histogram",
+      "name": "Count",
+      "color": "var(--primary)",
+      "format": {
+       "base": {},
+       "mode": "round"
+      },
+      "data": [
+       {
+        "x": "7",
+        "y": 2
+       }
+      ]
+     }
+    ],
+    "showLegend": false,
+    "showValues": false,
+    "valueLabelPosition": "outside",
+    "radius": 3,
+    "barWidth": 0.92,
+    "categoryTicks": [
+     {
+      "at": 0.5,
+      "label": "7"
+     }
+    ],
+    "markers": [
+     {
+      "at": 0,
+      "label": "Mean 7",
+      "color": "var(--text-primary)",
+      "style": "dashed"
+     }
+    ],
+    "yFormat": {
+     "base": {},
+     "mode": "round2"
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false
+    },
+    "animate": true,
+    "ariaLabel": "Histogram"
+   }
+  },
+  {
+   "id": "histogram.empty",
+   "kind": "chart.histogram",
+   "settings": {},
+   "data": {},
+   "input": {
+    "settings": {
+     "valueColumn": "value",
+     "binEdges": "nice",
+     "barColor": "var(--primary)",
+     "barWidth": 92,
+     "barRadius": 3,
+     "valueLabels": "none",
+     "valueLabelPosition": "outside",
+     "showMean": false,
+     "showMedian": false,
+     "showGrid": true,
+     "showXAxis": true,
+     "showYAxis": true,
+     "gridStyle": "dashed",
+     "showTooltip": true,
+     "tooltipTime": true,
+     "animate": true
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "bins": [],
+    "empty": true,
+    "series": [],
+    "showLegend": false,
+    "showValues": false,
+    "valueLabelPosition": "outside",
+    "radius": 3,
+    "barWidth": 0.92,
+    "yFormat": {
+     "base": {},
+     "mode": "round2"
+    },
+    "axis": {
+     "showGrid": true,
+     "gridColor": "var(--border)",
+     "gridStyle": "dashed",
+     "showXAxis": true,
+     "showYAxis": true,
+     "tickStyle": {
+      "fontSize": 11,
+      "color": "var(--text-secondary)"
+     }
+    },
+    "tooltip": {
+     "tooltipMode": "axis",
+     "showTooltip": true,
+     "tooltipHeader": true,
+     "tooltipTotal": false
+    },
+    "animate": true,
+    "ariaLabel": "Histogram"
+   }
+  },
+  {
+   "id": "heatmap.gradient",
+   "kind": "heatmap",
+   "settings": {
+    "colorLow": "#dbeafe",
+    "color": "#1d4ed8",
+    "valueLabels": "value",
+    "cellGap": 1,
+    "cellRadius": 0,
+    "valueName": "Load"
+   },
+   "format": {
+    "unit": "%",
+    "decimals": 0
+   },
+   "data": {
+    "cells": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "x": "Mon",
+       "y": "08",
+       "value": 12
+      },
+      {
+       "x": "Tue",
+       "y": "08",
+       "value": 45
+      },
+      {
+       "x": "Mon",
+       "y": "12",
+       "value": 78
+      },
+      {
+       "x": "Tue",
+       "y": "12",
+       "value": "n/a"
+      },
+      {
+       "x": "",
+       "y": "12",
+       "value": 5
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "xColumn": "x",
+     "yColumn": "y",
+     "valueColumn": "value",
+     "scale": "sequential",
+     "color": "#1d4ed8",
+     "rangeEdges": "from",
+     "valueLabels": "value",
+     "cellGap": 1,
+     "cellRadius": 0,
+     "legend": "bottom",
+     "showTooltip": true,
+     "animate": true,
+     "colorLow": "#dbeafe",
+     "valueName": "Load"
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "unit": "%",
+     "decimals": 0
+    }
+   },
+   "model": {
+    "empty": false,
+    "cells": [
+     {
+      "x": "Mon",
+      "y": "08",
+      "value": 12
+     },
+     {
+      "x": "Tue",
+      "y": "08",
+      "value": 45
+     },
+     {
+      "x": "Mon",
+      "y": "12",
+      "value": 78
+     },
+     {
+      "x": "Tue",
+      "y": "12",
+      "value": null
+     }
+    ],
+    "color": "#1d4ed8",
+    "colorLow": "#dbeafe",
+    "bands": null,
+    "bandEdges": "from",
+    "valueFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "unit": "%",
+      "decimals": 0
+     }
+    },
+    "legendFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "unit": "%",
+      "decimals": 0
+     },
+     "mode": "compact"
+    },
+    "valueLabel": "Load",
+    "showValues": true,
+    "cellGap": 1,
+    "cellRadius": 0,
+    "showLegend": true,
+    "legendPosition": "bottom",
+    "showTooltip": true,
+    "tickStyle": {
+     "fontSize": 11,
+     "color": "var(--text-secondary)"
+    },
+    "animate": true,
+    "ariaLabel": "Heatmap"
+   }
+  },
+  {
+   "id": "heatmap.bands-legend",
+   "kind": "heatmap",
+   "settings": {
+    "scale": "bands",
+    "rangeEdges": "to",
+    "legend": "right",
+    "ranges": [
+     {
+      "to": 30,
+      "color": "#16a34a",
+      "label": "Low"
+     },
+     {
+      "from": 30,
+      "to": 70,
+      "color": "#f59e0b"
+     },
+     {
+      "from": 70,
+      "color": "#dc2626"
+     }
+    ]
+   },
+   "format": {
+    "notation": "compact"
+   },
+   "data": {
+    "cells": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "x": 1,
+       "y": 1,
+       "value": 10
+      },
+      {
+       "x": 2,
+       "y": 1,
+       "value": 50
+      },
+      {
+       "x": 3,
+       "y": 1,
+       "value": 1500
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "xColumn": "x",
+     "yColumn": "y",
+     "valueColumn": "value",
+     "scale": "bands",
+     "color": "var(--primary)",
+     "rangeEdges": "to",
+     "valueLabels": "none",
+     "cellGap": 2,
+     "cellRadius": 3,
+     "legend": "right",
+     "showTooltip": true,
+     "animate": true,
+     "ranges": [
+      {
+       "to": 30,
+       "color": "#16a34a",
+       "label": "Low"
+      },
+      {
+       "from": 30,
+       "to": 70,
+       "color": "#f59e0b"
+      },
+      {
+       "from": 70,
+       "color": "#dc2626"
+      }
+     ]
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "compact"
+    }
+   },
+   "model": {
+    "empty": false,
+    "cells": [
+     {
+      "x": 1,
+      "y": 1,
+      "value": 10
+     },
+     {
+      "x": 2,
+      "y": 1,
+      "value": 50
+     },
+     {
+      "x": 3,
+      "y": 1,
+      "value": 1500
+     }
+    ],
+    "color": "var(--primary)",
+    "bands": [
+     {
+      "to": 30,
+      "color": "#16a34a",
+      "label": "Low"
+     },
+     {
+      "from": 30,
+      "to": 70,
+      "color": "#f59e0b"
+     },
+     {
+      "from": 70,
+      "color": "#dc2626"
+     }
+    ],
+    "bandEdges": "to",
+    "valueFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "compact"
+     }
+    },
+    "legendFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "compact"
+     },
+     "mode": "compact"
+    },
+    "valueLabel": "Value",
+    "showValues": false,
+    "cellGap": 2,
+    "cellRadius": 3,
+    "showLegend": true,
+    "legendPosition": "right",
+    "legendItems": [
+     {
+      "color": "#16a34a",
+      "label": "Low"
+     },
+     {
+      "color": "#f59e0b",
+      "label": "30 – 70"
+     },
+     {
+      "color": "#dc2626",
+      "label": "≥ 70"
+     }
+    ],
+    "showTooltip": true,
+    "tickStyle": {
+     "fontSize": 11,
+     "color": "var(--text-secondary)"
+    },
+    "animate": true,
+    "ariaLabel": "Heatmap"
+   }
+  },
+  {
+   "id": "heatmap.empty",
+   "kind": "heatmap",
+   "settings": {},
+   "data": {},
+   "input": {
+    "settings": {
+     "xColumn": "x",
+     "yColumn": "y",
+     "valueColumn": "value",
+     "scale": "sequential",
+     "color": "var(--primary)",
+     "rangeEdges": "from",
+     "valueLabels": "none",
+     "cellGap": 2,
+     "cellRadius": 3,
+     "legend": "bottom",
+     "showTooltip": true,
+     "animate": true
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard"
+    }
+   },
+   "model": {
+    "empty": true,
+    "cells": [],
+    "color": "var(--primary)",
+    "bands": null,
+    "bandEdges": "from",
+    "valueFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     }
+    },
+    "legendFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard"
+     },
+     "mode": "compact"
+    },
+    "valueLabel": "Value",
+    "showValues": false,
+    "cellGap": 2,
+    "cellRadius": 3,
+    "showLegend": true,
+    "legendPosition": "bottom",
+    "showTooltip": true,
+    "tickStyle": {
+     "fontSize": 11,
+     "color": "var(--text-secondary)"
+    },
+    "animate": true,
+    "ariaLabel": "Heatmap"
+   }
+  },
+  {
+   "id": "map.status-colours-legend",
+   "kind": "map",
+   "settings": {
+    "latColumn": "lat",
+    "lngColumn": "lng",
+    "labelColumn": "name",
+    "idColumn": "id",
+    "colorColumn": "status",
+    "colorBy": "column",
+    "tooltipColumns": [
+     "status",
+     "level"
+    ],
+    "markerStyle": "pin",
+    "markerSize": 28,
+    "showLabels": true,
+    "cluster": true,
+    "linkTemplate": "/devices/{id}",
+    "linkLabel": "Details",
+    "legend": true,
+    "legendPosition": "bottomright"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "a",
+       "name": "Pump A",
+       "lat": 41.0082,
+       "lng": 28.9784,
+       "status": "Online",
+       "level": 4.2,
+       "seen": "2026-10-20T10:02:00.000Z"
+      },
+      {
+       "id": "b",
+       "name": "Pump B",
+       "lat": 39.9334,
+       "lng": 32.8597,
+       "status": "Offline",
+       "level": 0.4,
+       "seen": "2026-10-20T00:05:00.000Z"
+      },
+      {
+       "id": "c",
+       "name": "Pump C",
+       "lat": 38.4237,
+       "lng": 27.1428,
+       "status": "Online",
+       "level": 2.75,
+       "seen": "2026-10-20T09:45:00.000Z"
+      },
+      {
+       "id": "d",
+       "name": "Off the map",
+       "lat": 123,
+       "lng": 28,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      },
+      {
+       "id": "e",
+       "name": "No position",
+       "lat": null,
+       "lng": null,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      }
+     ],
+     "columns": [
+      {
+       "key": "name",
+       "label": "Device",
+       "type": "text"
+      },
+      {
+       "key": "lat",
+       "label": "Lat",
+       "type": "number"
+      },
+      {
+       "key": "lng",
+       "label": "Lng",
+       "type": "number"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "type": "text",
+       "kind": "enum",
+       "valueMap": {
+        "Online": {
+         "label": "Online",
+         "color": "var(--success)"
+        },
+        "Offline": {
+         "label": "Offline",
+         "color": "#dc2626"
+        }
+       }
+      },
+      {
+       "key": "level",
+       "label": "Level",
+       "type": "number",
+       "unit": "m"
+      },
+      {
+       "key": "seen",
+       "label": "Last seen",
+       "type": "date"
+      }
+     ]
+    }
+   },
+   "host": {
+    "hasNavigate": true,
+    "tiles": {
+     "light": {
+      "url": "https://tiles.example.com/l/{z}/{x}/{y}.png",
+      "attribution": "Example"
+     },
+     "dark": {
+      "url": "https://tiles.example.com/d/{z}/{x}/{y}.png",
+      "attribution": "Example"
+     }
+    }
+   },
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "name",
+     "markerStyle": "pin",
+     "markerSize": 28,
+     "cluster": true,
+     "clusterRadius": 40,
+     "colorBy": "column",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomright",
+     "showLabels": true,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [
+      "status",
+      "level"
+     ],
+     "tileStyle": "auto",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false,
+     "idColumn": "id",
+     "linkTemplate": "/devices/{id}",
+     "linkLabel": "Details"
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [
+     {
+      "id": "a",
+      "position": [
+       41.0082,
+       28.9784
+      ],
+      "label": "Pump A",
+      "color": "var(--success)",
+      "shape": "pin",
+      "size": 28,
+      "tooltip": {
+       "title": "Pump A",
+       "fields": [
+        {
+         "label": "Status",
+         "value": "Online"
+        },
+        {
+         "label": "Level",
+         "value": "4.2"
+        }
+       ],
+       "color": "var(--success)",
+       "href": "/devices/a",
+       "linkLabel": "Details"
+      }
+     },
+     {
+      "id": "b",
+      "position": [
+       39.9334,
+       32.8597
+      ],
+      "label": "Pump B",
+      "color": "#dc2626",
+      "shape": "pin",
+      "size": 28,
+      "tooltip": {
+       "title": "Pump B",
+       "fields": [
+        {
+         "label": "Status",
+         "value": "Offline"
+        },
+        {
+         "label": "Level",
+         "value": "0.4"
+        }
+       ],
+       "color": "#dc2626",
+       "href": "/devices/b",
+       "linkLabel": "Details"
+      }
+     },
+     {
+      "id": "c",
+      "position": [
+       38.4237,
+       27.1428
+      ],
+      "label": "Pump C",
+      "color": "var(--success)",
+      "shape": "pin",
+      "size": 28,
+      "tooltip": {
+       "title": "Pump C",
+       "fields": [
+        {
+         "label": "Status",
+         "value": "Online"
+        },
+        {
+         "label": "Level",
+         "value": "2.75"
+        }
+       ],
+       "color": "var(--success)",
+       "href": "/devices/c",
+       "linkLabel": "Details"
+      }
+     }
+    ],
+    "rows": {
+     "a": {
+      "id": "a",
+      "name": "Pump A",
+      "lat": 41.0082,
+      "lng": 28.9784,
+      "status": "Online",
+      "level": 4.2,
+      "seen": "2026-10-20T10:02:00.000Z"
+     },
+     "b": {
+      "id": "b",
+      "name": "Pump B",
+      "lat": 39.9334,
+      "lng": 32.8597,
+      "status": "Offline",
+      "level": 0.4,
+      "seen": "2026-10-20T00:05:00.000Z"
+     },
+     "c": {
+      "id": "c",
+      "name": "Pump C",
+      "lat": 38.4237,
+      "lng": 27.1428,
+      "status": "Online",
+      "level": 2.75,
+      "seen": "2026-10-20T09:45:00.000Z"
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [
+     {
+      "label": "Online",
+      "color": "var(--success)",
+      "count": 4
+     },
+     {
+      "label": "Offline",
+      "color": "#dc2626",
+      "count": 1
+     }
+    ],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": true,
+    "switchCorner": "topright",
+    "legendCorner": "bottomright",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-6 right-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "light": {
+       "url": "https://tiles.example.com/l/{z}/{x}/{y}.png",
+       "attribution": "Example"
+      },
+      "dark": {
+       "url": "https://tiles.example.com/d/{z}/{x}/{y}.png",
+       "attribution": "Example"
+      }
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": true,
+     "clusterRadius": 40,
+     "showLabels": true,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.value-colors-configured",
+   "kind": "map",
+   "settings": {
+    "colorColumn": "status",
+    "valueColors": [
+     {
+      "value": "Offline",
+      "label": "Down",
+      "color": "#7c3aed"
+     },
+     {
+      "value": "Online",
+      "color": "#16a34a"
+     }
+    ],
+    "markerStyle": "icon",
+    "markerIcon": "fas fa-water",
+    "tileStyle": "dark",
+    "zoom": 6,
+    "minZoom": 3,
+    "maxZoom": 12,
+    "centerLat": 39,
+    "centerLng": 35,
+    "tooltipTrigger": "click"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "a",
+       "name": "Pump A",
+       "lat": 41.0082,
+       "lng": 28.9784,
+       "status": "Online",
+       "level": 4.2,
+       "seen": "2026-10-20T10:02:00.000Z"
+      },
+      {
+       "id": "b",
+       "name": "Pump B",
+       "lat": 39.9334,
+       "lng": 32.8597,
+       "status": "Offline",
+       "level": 0.4,
+       "seen": "2026-10-20T00:05:00.000Z"
+      },
+      {
+       "id": "c",
+       "name": "Pump C",
+       "lat": 38.4237,
+       "lng": 27.1428,
+       "status": "Online",
+       "level": 2.75,
+       "seen": "2026-10-20T09:45:00.000Z"
+      },
+      {
+       "id": "d",
+       "name": "Off the map",
+       "lat": 123,
+       "lng": 28,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      },
+      {
+       "id": "e",
+       "name": "No position",
+       "lat": null,
+       "lng": null,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      }
+     ],
+     "columns": [
+      {
+       "key": "name",
+       "label": "Device",
+       "type": "text"
+      },
+      {
+       "key": "lat",
+       "label": "Lat",
+       "type": "number"
+      },
+      {
+       "key": "lng",
+       "label": "Lng",
+       "type": "number"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "type": "text",
+       "kind": "enum",
+       "valueMap": {
+        "Online": {
+         "label": "Online",
+         "color": "var(--success)"
+        },
+        "Offline": {
+         "label": "Offline",
+         "color": "#dc2626"
+        }
+       }
+      },
+      {
+       "key": "level",
+       "label": "Level",
+       "type": "number",
+       "unit": "m"
+      },
+      {
+       "key": "seen",
+       "label": "Last seen",
+       "type": "date"
+      }
+     ]
+    }
+   },
+   "host": {
+    "hasMarkerClick": true
+   },
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "icon",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "column",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [
+      {
+       "value": "Offline",
+       "label": "Down",
+       "color": "#7c3aed"
+      },
+      {
+       "value": "Online",
+       "color": "#16a34a"
+      }
+     ],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "click",
+     "tooltipColumns": [],
+     "tileStyle": "dark",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 6,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false,
+     "markerIcon": "fas fa-water",
+     "minZoom": 3,
+     "maxZoom": 12,
+     "centerLat": 39,
+     "centerLng": 35
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [
+     {
+      "id": "0",
+      "position": [
+       41.0082,
+       28.9784
+      ],
+      "color": "#16a34a",
+      "shape": "icon",
+      "icon": "fas fa-water",
+      "size": 24,
+      "tooltip": {
+       "title": "#1",
+       "fields": [],
+       "color": "#16a34a",
+       "description": "Online"
+      }
+     },
+     {
+      "id": "1",
+      "position": [
+       39.9334,
+       32.8597
+      ],
+      "color": "#7c3aed",
+      "shape": "icon",
+      "icon": "fas fa-water",
+      "size": 24,
+      "tooltip": {
+       "title": "#2",
+       "fields": [],
+       "color": "#7c3aed",
+       "description": "Down"
+      }
+     },
+     {
+      "id": "2",
+      "position": [
+       38.4237,
+       27.1428
+      ],
+      "color": "#16a34a",
+      "shape": "icon",
+      "icon": "fas fa-water",
+      "size": 24,
+      "tooltip": {
+       "title": "#3",
+       "fields": [],
+       "color": "#16a34a",
+       "description": "Online"
+      }
+     }
+    ],
+    "rows": {
+     "0": {
+      "id": "a",
+      "name": "Pump A",
+      "lat": 41.0082,
+      "lng": 28.9784,
+      "status": "Online",
+      "level": 4.2,
+      "seen": "2026-10-20T10:02:00.000Z"
+     },
+     "1": {
+      "id": "b",
+      "name": "Pump B",
+      "lat": 39.9334,
+      "lng": 32.8597,
+      "status": "Offline",
+      "level": 0.4,
+      "seen": "2026-10-20T00:05:00.000Z"
+     },
+     "2": {
+      "id": "c",
+      "name": "Pump C",
+      "lat": 38.4237,
+      "lng": 27.1428,
+      "status": "Online",
+      "level": 2.75,
+      "seen": "2026-10-20T09:45:00.000Z"
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [
+     {
+      "label": "Down",
+      "color": "#7c3aed",
+      "count": 1
+     },
+     {
+      "label": "Online",
+      "color": "#16a34a",
+      "count": 4
+     }
+    ],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": true,
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+      "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+      "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "center": [
+      39,
+      35
+     ],
+     "zoom": 6,
+     "minZoom": 3,
+     "maxZoom": 12,
+     "fitMaxZoom": 12,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "click",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.ranges-colour",
+   "kind": "map",
+   "settings": {
+    "colorBy": "ranges",
+    "valueColumn": "level",
+    "rangeEdges": "to",
+    "fitBounds": false,
+    "fitPadding": 10,
+    "zoomButtons": false,
+    "scrollZoom": true,
+    "markerStyle": "dot",
+    "ranges": [
+     {
+      "to": 1,
+      "color": "#dc2626",
+      "label": "Empty"
+     },
+     {
+      "from": 1,
+      "to": 3,
+      "color": "#f59e0b"
+     },
+     {
+      "from": 3,
+      "color": "#16a34a"
+     }
+    ]
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "a",
+       "name": "Pump A",
+       "lat": 41.0082,
+       "lng": 28.9784,
+       "status": "Online",
+       "level": 4.2,
+       "seen": "2026-10-20T10:02:00.000Z"
+      },
+      {
+       "id": "b",
+       "name": "Pump B",
+       "lat": 39.9334,
+       "lng": 32.8597,
+       "status": "Offline",
+       "level": 0.4,
+       "seen": "2026-10-20T00:05:00.000Z"
+      },
+      {
+       "id": "c",
+       "name": "Pump C",
+       "lat": 38.4237,
+       "lng": 27.1428,
+       "status": "Online",
+       "level": 2.75,
+       "seen": "2026-10-20T09:45:00.000Z"
+      },
+      {
+       "id": "d",
+       "name": "Off the map",
+       "lat": 123,
+       "lng": 28,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      },
+      {
+       "id": "e",
+       "name": "No position",
+       "lat": null,
+       "lng": null,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      }
+     ],
+     "columns": [
+      {
+       "key": "name",
+       "label": "Device",
+       "type": "text"
+      },
+      {
+       "key": "lat",
+       "label": "Lat",
+       "type": "number"
+      },
+      {
+       "key": "lng",
+       "label": "Lng",
+       "type": "number"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "type": "text",
+       "kind": "enum",
+       "valueMap": {
+        "Online": {
+         "label": "Online",
+         "color": "var(--success)"
+        },
+        "Offline": {
+         "label": "Offline",
+         "color": "#dc2626"
+        }
+       }
+      },
+      {
+       "key": "level",
+       "label": "Level",
+       "type": "number",
+       "unit": "m"
+      },
+      {
+       "key": "seen",
+       "label": "Last seen",
+       "type": "date"
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "dot",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "ranges",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "to",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "auto",
+     "fitBounds": false,
+     "fitPadding": 10,
+     "zoom": 4,
+     "zoomButtons": false,
+     "controlsPosition": "topleft",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": true,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false,
+     "valueColumn": "level",
+     "ranges": [
+      {
+       "to": 1,
+       "color": "#dc2626",
+       "label": "Empty"
+      },
+      {
+       "from": 1,
+       "to": 3,
+       "color": "#f59e0b"
+      },
+      {
+       "from": 3,
+       "color": "#16a34a"
+      }
+     ]
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [
+     {
+      "id": "0",
+      "position": [
+       41.0082,
+       28.9784
+      ],
+      "color": "#16a34a",
+      "shape": "dot",
+      "size": 24
+     },
+     {
+      "id": "1",
+      "position": [
+       39.9334,
+       32.8597
+      ],
+      "color": "#dc2626",
+      "shape": "dot",
+      "size": 24
+     },
+     {
+      "id": "2",
+      "position": [
+       38.4237,
+       27.1428
+      ],
+      "color": "#f59e0b",
+      "shape": "dot",
+      "size": 24
+     }
+    ],
+    "rows": {
+     "0": {
+      "id": "a",
+      "name": "Pump A",
+      "lat": 41.0082,
+      "lng": 28.9784,
+      "status": "Online",
+      "level": 4.2,
+      "seen": "2026-10-20T10:02:00.000Z"
+     },
+     "1": {
+      "id": "b",
+      "name": "Pump B",
+      "lat": 39.9334,
+      "lng": 32.8597,
+      "status": "Offline",
+      "level": 0.4,
+      "seen": "2026-10-20T00:05:00.000Z"
+     },
+     "2": {
+      "id": "c",
+      "name": "Pump C",
+      "lat": 38.4237,
+      "lng": 27.1428,
+      "status": "Online",
+      "level": 2.75,
+      "seen": "2026-10-20T09:45:00.000Z"
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [
+     {
+      "label": "Empty",
+      "color": "#dc2626"
+     },
+     {
+      "label": "1 – 3",
+      "color": "#f59e0b"
+     },
+     {
+      "label": "≥ 3",
+      "color": "#16a34a"
+     }
+    ],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "light": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      },
+      "dark": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      }
+     },
+     "fitBounds": false,
+     "fitBoundsPadding": 10,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": true,
+     "zoomControl": false,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.fixed-colour-no-legend",
+   "kind": "map",
+   "settings": {
+    "colorBy": "fixed",
+    "markerColor": "#2563eb",
+    "legend": false,
+    "markerStyle": "circle",
+    "tileStyle": "streets",
+    "controlsPosition": "topright"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "a",
+       "name": "Pump A",
+       "lat": 41.0082,
+       "lng": 28.9784,
+       "status": "Online",
+       "level": 4.2,
+       "seen": "2026-10-20T10:02:00.000Z"
+      },
+      {
+       "id": "b",
+       "name": "Pump B",
+       "lat": 39.9334,
+       "lng": 32.8597,
+       "status": "Offline",
+       "level": 0.4,
+       "seen": "2026-10-20T00:05:00.000Z"
+      },
+      {
+       "id": "c",
+       "name": "Pump C",
+       "lat": 38.4237,
+       "lng": 27.1428,
+       "status": "Online",
+       "level": 2.75,
+       "seen": "2026-10-20T09:45:00.000Z"
+      },
+      {
+       "id": "d",
+       "name": "Off the map",
+       "lat": 123,
+       "lng": 28,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      },
+      {
+       "id": "e",
+       "name": "No position",
+       "lat": null,
+       "lng": null,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      }
+     ],
+     "columns": [
+      {
+       "key": "name",
+       "label": "Device",
+       "type": "text"
+      },
+      {
+       "key": "lat",
+       "label": "Lat",
+       "type": "number"
+      },
+      {
+       "key": "lng",
+       "label": "Lng",
+       "type": "number"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "type": "text",
+       "kind": "enum",
+       "valueMap": {
+        "Online": {
+         "label": "Online",
+         "color": "var(--success)"
+        },
+        "Offline": {
+         "label": "Offline",
+         "color": "#dc2626"
+        }
+       }
+      },
+      {
+       "key": "level",
+       "label": "Level",
+       "type": "number",
+       "unit": "m"
+      },
+      {
+       "key": "seen",
+       "label": "Last seen",
+       "type": "date"
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "circle",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "fixed",
+     "markerColor": "#2563eb",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": false,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "streets",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topright",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [
+     {
+      "id": "0",
+      "position": [
+       41.0082,
+       28.9784
+      ],
+      "color": "#2563eb",
+      "shape": "circle",
+      "size": 24
+     },
+     {
+      "id": "1",
+      "position": [
+       39.9334,
+       32.8597
+      ],
+      "color": "#2563eb",
+      "shape": "circle",
+      "size": 24
+     },
+     {
+      "id": "2",
+      "position": [
+       38.4237,
+       27.1428
+      ],
+      "color": "#2563eb",
+      "shape": "circle",
+      "size": 24
+     }
+    ],
+    "rows": {
+     "0": {
+      "id": "a",
+      "name": "Pump A",
+      "lat": 41.0082,
+      "lng": 28.9784,
+      "status": "Online",
+      "level": 4.2,
+      "seen": "2026-10-20T10:02:00.000Z"
+     },
+     "1": {
+      "id": "b",
+      "name": "Pump B",
+      "lat": 39.9334,
+      "lng": 32.8597,
+      "status": "Offline",
+      "level": 0.4,
+      "seen": "2026-10-20T00:05:00.000Z"
+     },
+     "2": {
+      "id": "c",
+      "name": "Pump C",
+      "lat": 38.4237,
+      "lng": 27.1428,
+      "status": "Online",
+      "level": 2.75,
+      "seen": "2026-10-20T09:45:00.000Z"
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "switchCorner": "bottomright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-6 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors"
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topright",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.zones-routes-layers",
+   "kind": "map",
+   "settings": {
+    "colorBy": "fixed",
+    "zoneVariant": "warning",
+    "zoneOpacity": 0.3,
+    "routeColor": "#7c3aed",
+    "routeWeight": 5,
+    "routeDashed": true,
+    "layerTogglesPosition": "topleft",
+    "controlsPosition": "topleft"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "a",
+       "name": "Pump A",
+       "lat": 41.0082,
+       "lng": 28.9784,
+       "status": "Online",
+       "level": 4.2,
+       "seen": "2026-10-20T10:02:00.000Z"
+      },
+      {
+       "id": "b",
+       "name": "Pump B",
+       "lat": 39.9334,
+       "lng": 32.8597,
+       "status": "Offline",
+       "level": 0.4,
+       "seen": "2026-10-20T00:05:00.000Z"
+      },
+      {
+       "id": "c",
+       "name": "Pump C",
+       "lat": 38.4237,
+       "lng": 27.1428,
+       "status": "Online",
+       "level": 2.75,
+       "seen": "2026-10-20T09:45:00.000Z"
+      },
+      {
+       "id": "d",
+       "name": "Off the map",
+       "lat": 123,
+       "lng": 28,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      },
+      {
+       "id": "e",
+       "name": "No position",
+       "lat": null,
+       "lng": null,
+       "status": "Online",
+       "level": 1,
+       "seen": "2026-10-20T10:00:00.000Z"
+      }
+     ],
+     "columns": [
+      {
+       "key": "name",
+       "label": "Device",
+       "type": "text"
+      },
+      {
+       "key": "lat",
+       "label": "Lat",
+       "type": "number"
+      },
+      {
+       "key": "lng",
+       "label": "Lng",
+       "type": "number"
+      },
+      {
+       "key": "status",
+       "label": "Status",
+       "type": "text",
+       "kind": "enum",
+       "valueMap": {
+        "Online": {
+         "label": "Online",
+         "color": "var(--success)"
+        },
+        "Offline": {
+         "label": "Offline",
+         "color": "#dc2626"
+        }
+       }
+      },
+      {
+       "key": "level",
+       "label": "Level",
+       "type": "number",
+       "unit": "m"
+      },
+      {
+       "key": "seen",
+       "label": "Last seen",
+       "type": "date"
+      }
+     ]
+    },
+    "zones": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "z1",
+       "name": "Depot",
+       "positions": [
+        [
+         41,
+         29
+        ],
+        [
+         41.1,
+         29.1
+        ],
+        [
+         41,
+         29.2
+        ]
+       ]
+      },
+      {
+       "id": "z2",
+       "name": "Too short",
+       "positions": [
+        [
+         41,
+         29
+        ],
+        [
+         41.1,
+         29.1
+        ]
+       ]
+      },
+      {
+       "id": "z3",
+       "name": "Alarm area",
+       "variant": "error",
+       "positions": "[[40,30],[40.5,30.5],[40,31]]"
+      }
+     ]
+    },
+    "routes": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "r1",
+       "name": "Morning run",
+       "positions": [
+        [
+         41,
+         29
+        ],
+        [
+         40.5,
+         30
+        ],
+        [
+         39.9,
+         32.8
+        ]
+       ]
+      },
+      {
+       "id": "r2",
+       "name": "Broken",
+       "positions": [
+        [
+         200,
+         29
+        ],
+        [
+         41,
+         29
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   "host": {
+    "layerLabels": {
+     "layers": "Layers",
+     "zones": "Areas"
+    }
+   },
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "pin",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "fixed",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "auto",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "layerToggles": true,
+     "layerTogglesPosition": "topleft",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "warning",
+     "zoneOpacity": 0.3,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "#7c3aed",
+     "routeWeight": 5,
+     "routeDashed": true
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [
+     {
+      "id": "0",
+      "position": [
+       41.0082,
+       28.9784
+      ],
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24
+     },
+     {
+      "id": "1",
+      "position": [
+       39.9334,
+       32.8597
+      ],
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24
+     },
+     {
+      "id": "2",
+      "position": [
+       38.4237,
+       27.1428
+      ],
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24
+     }
+    ],
+    "rows": {
+     "0": {
+      "id": "a",
+      "name": "Pump A",
+      "lat": 41.0082,
+      "lng": 28.9784,
+      "status": "Online",
+      "level": 4.2,
+      "seen": "2026-10-20T10:02:00.000Z"
+     },
+     "1": {
+      "id": "b",
+      "name": "Pump B",
+      "lat": 39.9334,
+      "lng": 32.8597,
+      "status": "Offline",
+      "level": 0.4,
+      "seen": "2026-10-20T00:05:00.000Z"
+     },
+     "2": {
+      "id": "c",
+      "name": "Pump C",
+      "lat": 38.4237,
+      "lng": 27.1428,
+      "status": "Online",
+      "level": 2.75,
+      "seen": "2026-10-20T09:45:00.000Z"
+     }
+    },
+    "zones": [
+     {
+      "id": "z1",
+      "positions": [
+       [
+        41,
+        29
+       ],
+       [
+        41.1,
+        29.1
+       ],
+       [
+        41,
+        29.2
+       ]
+      ],
+      "fillOpacity": 0.3,
+      "variant": "warning",
+      "label": "Depot"
+     },
+     {
+      "id": "z3",
+      "positions": [
+       [
+        40,
+        30
+       ],
+       [
+        40.5,
+        30.5
+       ],
+       [
+        40,
+        31
+       ]
+      ],
+      "fillOpacity": 0.3,
+      "variant": "warning",
+      "label": "Alarm area"
+     }
+    ],
+    "routes": [
+     {
+      "id": "r1",
+      "positions": [
+       [
+        41,
+        29
+       ],
+       [
+        40.5,
+        30
+       ],
+       [
+        39.9,
+        32.8
+       ]
+      ],
+      "color": "#7c3aed",
+      "weight": 5,
+      "dashed": true,
+      "label": "Morning run"
+     }
+    ],
+    "legend": [],
+    "layers": [
+     "markers",
+     "zones",
+     "routes"
+    ],
+    "showSwitch": true,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Areas",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "switchCorner": "bottomleft",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "light": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      },
+      "dark": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      }
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.image-plan",
+   "kind": "map",
+   "settings": {
+    "mapKind": "image",
+    "imageSrc": "/plans/floor1.png",
+    "imageWidth": 800,
+    "imageHeight": 600,
+    "latColumn": "y",
+    "lngColumn": "x",
+    "labelColumn": "name",
+    "colorBy": "fixed",
+    "markerStyle": "pin"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "name": "Sensor 1",
+       "y": 100,
+       "x": 200
+      },
+      {
+       "name": "Sensor 2",
+       "y": 580,
+       "x": 790
+      },
+      {
+       "name": "Outside",
+       "y": 700,
+       "x": 10
+      }
+     ]
+    }
+   },
+   "host": {
+    "resolveUrlPrefix": "/tenant-7"
+   },
+   "input": {
+    "settings": {
+     "mapKind": "image",
+     "latColumn": "y",
+     "lngColumn": "x",
+     "labelColumn": "name",
+     "markerStyle": "pin",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "fixed",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "auto",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false,
+     "imageSrc": "/plans/floor1.png",
+     "imageWidth": 800,
+     "imageHeight": 600
+    },
+    "format": {}
+   },
+   "model": {
+    "image": {
+     "url": "/tenant-7/plans/floor1.png",
+     "width": 800,
+     "height": 600
+    },
+    "markers": [
+     {
+      "id": "0",
+      "position": [
+       100,
+       200
+      ],
+      "label": "Sensor 1",
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24,
+      "tooltip": {
+       "title": "Sensor 1",
+       "fields": []
+      }
+     },
+     {
+      "id": "1",
+      "position": [
+       580,
+       790
+      ],
+      "label": "Sensor 2",
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24,
+      "tooltip": {
+       "title": "Sensor 2",
+       "fields": []
+      }
+     }
+    ],
+    "rows": {
+     "0": {
+      "name": "Sensor 1",
+      "y": 100,
+      "x": 200
+     },
+     "1": {
+      "name": "Sensor 2",
+      "y": 580,
+      "x": 790
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "image": {
+      "url": "/tenant-7/plans/floor1.png",
+      "width": 800,
+      "height": 600
+     },
+     "tiles": {
+      "light": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      },
+      "dark": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      }
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.empty",
+   "kind": "map",
+   "settings": {},
+   "data": {},
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "pin",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "column",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "auto",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [],
+    "rows": {},
+    "zones": [],
+    "routes": [],
+    "legend": [],
+    "layers": [],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "light": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      },
+      "dark": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      }
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "button.filled-confirm-typed",
+   "kind": "control.button",
+   "settings": {
+    "label": "Restart",
+    "icon": "fas fa-power-off",
+    "iconPosition": "end",
+    "appearance": "filled",
+    "mainColor": "#dc2626",
+    "textColor": "#ffffff",
+    "size": "lg",
+    "description": "Restarts the gateway.",
+    "confirmLabel": "Yes, restart",
+    "failureText": "Could not restart."
+   },
+   "host": {
+    "connected": true,
+    "confirm": {
+     "mode": "typed",
+     "text": "RESTART"
+    }
+   },
+   "input": {
+    "settings": {
+     "layout": "button",
+     "iconSize": 16,
+     "iconPosition": "end",
+     "descriptionColor": "var(--text-secondary)",
+     "appearance": "filled",
+     "mainColor": "#dc2626",
+     "size": "lg",
+     "fullWidth": true,
+     "align": "center",
+     "label": "Restart",
+     "icon": "fas fa-power-off",
+     "textColor": "#ffffff",
+     "description": "Restarts the gateway.",
+     "confirmLabel": "Yes, restart",
+     "failureText": "Could not restart."
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "run"
+    },
+    "description": {
+     "text": "Restarts the gateway.",
+     "color": "var(--text-secondary)"
+    },
+    "button": {
+     "layout": "button",
+     "label": "Restart",
+     "icon": {
+      "name": "fas fa-power-off",
+      "size": 16
+     },
+     "iconPosition": "end",
+     "variant": "primary",
+     "size": "lg",
+     "fullWidth": true,
+     "bodyAlign": "end",
+     "align": "center",
+     "style": {
+      "--kb-bg": "#dc2626",
+      "--kb-fg": "#ffffff",
+      "--kb-hover-bg": "color-mix(in srgb, #dc2626 85%, var(--text-primary))"
+     },
+     "className": "bg-[color:var(--kb-bg)] border-[color:var(--kb-bg)] text-[color:var(--kb-fg)] hover:bg-[color:var(--kb-hover-bg)]",
+     "confirm": {
+      "confirm": "typed",
+      "confirmText": "RESTART"
+     },
+     "messages": {
+      "failed": "Could not restart.",
+      "confirm": "Yes, restart"
+     }
+    }
+   }
+  },
+  {
+   "id": "button.tile-outlined-colours",
+   "kind": "control.button",
+   "settings": {
+    "layout": "tile",
+    "label": "Open valve",
+    "icon": "fas fa-faucet",
+    "appearance": "outlined",
+    "mainColor": "#2563eb",
+    "hoverColor": "#dbeafe",
+    "hoverTextColor": "#1e3a8a",
+    "disabledColor": "#e5e7eb",
+    "disabledTextColor": "#9ca3af",
+    "borderRadius": 16,
+    "description": "Valve 2",
+    "descriptionColor": "#6b7280",
+    "align": "start"
+   },
+   "host": {
+    "connected": true,
+    "confirm": {
+     "mode": "confirm",
+     "text": "Open valve 2 now?"
+    }
+   },
+   "input": {
+    "settings": {
+     "layout": "tile",
+     "iconSize": 16,
+     "iconPosition": "start",
+     "descriptionColor": "#6b7280",
+     "appearance": "outlined",
+     "mainColor": "#2563eb",
+     "size": "md",
+     "fullWidth": true,
+     "align": "start",
+     "label": "Open valve",
+     "icon": "fas fa-faucet",
+     "hoverColor": "#dbeafe",
+     "hoverTextColor": "#1e3a8a",
+     "disabledColor": "#e5e7eb",
+     "disabledTextColor": "#9ca3af",
+     "borderRadius": 16,
+     "description": "Valve 2"
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "run"
+    },
+    "description": {
+     "text": "Valve 2",
+     "color": "#6b7280"
+    },
+    "button": {
+     "layout": "tile",
+     "label": "Open valve",
+     "icon": {
+      "name": "fas fa-faucet",
+      "size": 28
+     },
+     "iconPosition": "start",
+     "variant": "outline",
+     "size": "md",
+     "fullWidth": false,
+     "bodyAlign": "center",
+     "align": "start",
+     "style": {
+      "--kb-fg": "#2563eb",
+      "--kb-border": "#2563eb",
+      "--kb-hover-bg": "#dbeafe",
+      "--kb-hover-fg": "#1e3a8a",
+      "--kb-dis-bg": "#e5e7eb",
+      "--kb-dis-fg": "#9ca3af",
+      "borderRadius": 16
+     },
+     "className": "text-[color:var(--kb-fg)] border-[color:var(--kb-border)] hover:bg-[color:var(--kb-hover-bg)] hover:text-[color:var(--kb-hover-fg)] disabled:bg-[color:var(--kb-dis-bg)] disabled:border-[color:var(--kb-dis-bg)] disabled:text-[color:var(--kb-dis-fg)] disabled:opacity-100",
+     "confirm": {
+      "confirm": "confirm"
+     },
+     "messages": {
+      "confirmPrompt": "Open valve 2 now?"
+     }
+    }
+   }
+  },
+  {
+   "id": "button.icon-ghost-toggle",
+   "kind": "control.button",
+   "settings": {
+    "layout": "icon",
+    "icon": "fas fa-lightbulb",
+    "iconSize": 18,
+    "size": "sm",
+    "appearance": "ghost"
+   },
+   "host": {
+    "connected": true,
+    "pressed": true
+   },
+   "input": {
+    "settings": {
+     "layout": "icon",
+     "iconSize": 18,
+     "iconPosition": "start",
+     "descriptionColor": "var(--text-secondary)",
+     "appearance": "ghost",
+     "mainColor": "var(--primary)",
+     "size": "sm",
+     "fullWidth": true,
+     "align": "center",
+     "icon": "fas fa-lightbulb"
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "run"
+    },
+    "description": null,
+    "button": {
+     "layout": "icon",
+     "icon": {
+      "name": "fas fa-lightbulb",
+      "size": 18
+     },
+     "iconPosition": "start",
+     "variant": "ghost",
+     "size": "sm",
+     "fullWidth": false,
+     "bodyAlign": "center",
+     "align": "center",
+     "style": {
+      "--kb-fg": "var(--primary)",
+      "--kb-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)"
+     },
+     "className": "text-[color:var(--kb-fg)] hover:bg-[color:var(--kb-hover-bg)]",
+     "pressed": true,
+     "confirm": {
+      "confirm": "none"
+     }
+    }
+   }
+  },
+  {
+   "id": "button.fab-underlined-not-connected",
+   "kind": "control.button",
+   "settings": {
+    "layout": "fab",
+    "label": "Go",
+    "appearance": "underlined",
+    "fullWidth": false,
+    "pendingText": "Working…",
+    "successText": "Gone"
+   },
+   "host": {
+    "connected": false
+   },
+   "input": {
+    "settings": {
+     "layout": "fab",
+     "iconSize": 16,
+     "iconPosition": "start",
+     "descriptionColor": "var(--text-secondary)",
+     "appearance": "underlined",
+     "mainColor": "var(--primary)",
+     "size": "md",
+     "fullWidth": false,
+     "align": "center",
+     "label": "Go",
+     "pendingText": "Working…",
+     "successText": "Gone"
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "run"
+    },
+    "description": null,
+    "button": {
+     "layout": "fab",
+     "label": "Go",
+     "icon": null,
+     "iconPosition": "start",
+     "variant": "ghost",
+     "size": "md",
+     "fullWidth": false,
+     "bodyAlign": "center",
+     "align": "center",
+     "style": {
+      "--kb-fg": "var(--primary)",
+      "--kb-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)"
+     },
+     "className": "text-[color:var(--kb-fg)] hover:bg-[color:var(--kb-hover-bg)] underline underline-offset-4",
+     "disabledReason": "Not connected: no command is set for this control.",
+     "confirm": {
+      "confirm": "none"
+     },
+     "messages": {
+      "pending": "Working…",
+      "confirmed": "Gone"
+     }
+    }
+   }
+  },
+  {
+   "id": "button.host-reason",
+   "kind": "control.button",
+   "settings": {
+    "label": "Run"
+   },
+   "host": {
+    "connected": true,
+    "disabledReason": "You may not run this."
+   },
+   "input": {
+    "settings": {
+     "layout": "button",
+     "iconSize": 16,
+     "iconPosition": "start",
+     "descriptionColor": "var(--text-secondary)",
+     "appearance": "filled",
+     "mainColor": "var(--primary)",
+     "size": "md",
+     "fullWidth": true,
+     "align": "center",
+     "label": "Run"
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "run"
+    },
+    "description": null,
+    "button": {
+     "layout": "button",
+     "label": "Run",
+     "icon": null,
+     "iconPosition": "start",
+     "variant": "primary",
+     "size": "md",
+     "fullWidth": true,
+     "bodyAlign": "center",
+     "align": "center",
+     "style": {
+      "--kb-bg": "var(--primary)",
+      "--kb-hover-bg": "color-mix(in srgb, var(--primary) 85%, var(--text-primary))"
+     },
+     "className": "bg-[color:var(--kb-bg)] border-[color:var(--kb-bg)] hover:bg-[color:var(--kb-hover-bg)]",
+     "disabledReason": "You may not run this.",
+     "confirm": {
+      "confirm": "none"
+     }
+    }
+   }
+  },
+  {
+   "id": "switch.on-pill-icons",
+   "kind": "control.switch",
+   "settings": {
+    "label": "Heater",
+    "stateDisplay": "pill",
+    "onLabel": "Heating",
+    "offLabel": "Idle",
+    "onIcon": "fas fa-fire",
+    "offIcon": "fas fa-snowflake",
+    "onColor": "#f97316",
+    "offColor": "#9ca3af",
+    "thumbColor": "#ffffff",
+    "onTextColor": "#c2410c"
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": true,
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true
+   },
+   "input": {
+    "settings": {
+     "layout": "right",
+     "size": "auto",
+     "labelColor": "var(--text-secondary)",
+     "iconColor": "var(--primary)",
+     "iconSize": 20,
+     "stateDisplay": "pill",
+     "offTextColor": "var(--text-secondary)",
+     "unknownTextColor": "var(--warning)",
+     "onColor": "#f97316",
+     "offColor": "#9ca3af",
+     "disabledColor": "var(--surface-sunken)",
+     "thumbColor": "#ffffff",
+     "disableWhen": [
+      "stale"
+     ],
+     "label": "Heater",
+     "onLabel": "Heating",
+     "offLabel": "Idle",
+     "onIcon": "fas fa-fire",
+     "offIcon": "fas fa-snowflake",
+     "onTextColor": "#c2410c"
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "boolean"
+    },
+    "state": "on",
+    "layout": "right",
+    "display": "pill",
+    "size": "md",
+    "label": {
+     "text": "Heater",
+     "color": "var(--text-secondary)"
+    },
+    "states": {
+     "on": {
+      "color": "#c2410c",
+      "stateIcon": "fas fa-fire",
+      "tile": {
+       "name": "fas fa-fire",
+       "size": 36,
+       "color": "var(--primary)"
+      },
+      "showState": true,
+      "stateSize": "lg"
+     },
+     "off": {
+      "color": "var(--text-secondary)",
+      "stateIcon": "fas fa-snowflake",
+      "tile": {
+       "name": "fas fa-snowflake",
+       "size": 36,
+       "color": "var(--primary)"
+      },
+      "showState": true,
+      "stateSize": "lg"
+     },
+     "unknown": {
+      "color": "var(--warning)",
+      "tile": null,
+      "showState": true,
+      "stateSize": "md"
+     }
+    },
+    "ariaLabel": "Heater",
+    "labels": {
+     "on": "Heating",
+     "off": "Idle",
+     "unknown": "Unknown"
+    },
+    "colors": {
+     "on": "#f97316",
+     "off": "#9ca3af",
+     "disabled": "var(--surface-sunken)",
+     "thumb": "#ffffff"
+    },
+    "confirm": {
+     "confirm": "none"
+    }
+   }
+  },
+  {
+   "id": "switch.on-match-centered",
+   "kind": "control.switch",
+   "settings": {
+    "layout": "centered",
+    "label": "Mode",
+    "icon": "fas fa-gear",
+    "iconColor": "#2563eb",
+    "onMatch": "AUTO",
+    "onLabel": "Auto",
+    "offLabel": "Manual",
+    "stateFont": {
+     "size": 18,
+     "weight": 600
+    },
+    "disableWhen": [
+     "stale"
+    ]
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": "MANUAL",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true,
+    "stale": true
+   },
+   "input": {
+    "settings": {
+     "layout": "centered",
+     "size": "auto",
+     "labelColor": "var(--text-secondary)",
+     "iconColor": "#2563eb",
+     "iconSize": 20,
+     "stateDisplay": "text",
+     "offTextColor": "var(--text-secondary)",
+     "unknownTextColor": "var(--warning)",
+     "onColor": "var(--success)",
+     "offColor": "var(--border-strong)",
+     "disabledColor": "var(--surface-sunken)",
+     "thumbColor": "var(--primary-fg)",
+     "disableWhen": [
+      "stale"
+     ],
+     "label": "Mode",
+     "icon": "fas fa-gear",
+     "onMatch": "AUTO",
+     "onLabel": "Auto",
+     "offLabel": "Manual",
+     "stateFont": {
+      "size": 18,
+      "weight": 600
+     }
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "boolean"
+    },
+    "state": "off",
+    "layout": "centered",
+    "display": "text",
+    "size": "lg",
+    "label": {
+     "text": "Mode",
+     "color": "var(--text-secondary)"
+    },
+    "stateFont": {
+     "size": 18,
+     "weight": 600
+    },
+    "states": {
+     "on": {
+      "color": "var(--success)",
+      "tile": {
+       "name": "fas fa-gear",
+       "size": 28,
+       "color": "#2563eb"
+      },
+      "showState": true,
+      "stateSize": "md"
+     },
+     "off": {
+      "color": "var(--text-secondary)",
+      "tile": {
+       "name": "fas fa-gear",
+       "size": 28,
+       "color": "#2563eb"
+      },
+      "showState": true,
+      "stateSize": "md"
+     },
+     "unknown": {
+      "color": "var(--warning)",
+      "tile": {
+       "name": "fas fa-gear",
+       "size": 28,
+       "color": "#2563eb"
+      },
+      "showState": true,
+      "stateSize": "md"
+     }
+    },
+    "ariaLabel": "Mode",
+    "labels": {
+     "on": "Auto",
+     "off": "Manual",
+     "unknown": "Unknown"
+    },
+    "colors": {
+     "on": "var(--success)",
+     "off": "var(--border-strong)",
+     "disabled": "var(--surface-sunken)",
+     "thumb": "var(--primary-fg)"
+    },
+    "confirm": {
+     "confirm": "none"
+    },
+    "disabledReason": "The reading is old, so the control is disabled."
+   }
+  },
+  {
+   "id": "switch.unknown-left-confirm",
+   "kind": "control.switch",
+   "settings": {
+    "layout": "left",
+    "size": "sm",
+    "label": "Pump",
+    "unknownLabel": "No signal",
+    "stateDisplay": "none",
+    "disableWhen": [
+     "unknown"
+    ],
+    "confirmQuestion": "Switch the pump?"
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": "maybe",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true,
+    "confirm": {
+     "mode": "confirm"
+    },
+    "title": "Pump card"
+   },
+   "input": {
+    "settings": {
+     "layout": "left",
+     "size": "sm",
+     "labelColor": "var(--text-secondary)",
+     "iconColor": "var(--primary)",
+     "iconSize": 20,
+     "stateDisplay": "none",
+     "offTextColor": "var(--text-secondary)",
+     "unknownTextColor": "var(--warning)",
+     "onColor": "var(--success)",
+     "offColor": "var(--border-strong)",
+     "disabledColor": "var(--surface-sunken)",
+     "thumbColor": "var(--primary-fg)",
+     "disableWhen": [
+      "unknown"
+     ],
+     "label": "Pump",
+     "unknownLabel": "No signal",
+     "confirmQuestion": "Switch the pump?"
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "boolean"
+    },
+    "state": "unknown",
+    "layout": "left",
+    "display": "none",
+    "size": "sm",
+    "label": {
+     "text": "Pump",
+     "color": "var(--text-secondary)"
+    },
+    "states": {
+     "on": {
+      "color": "var(--success)",
+      "tile": null,
+      "showState": false,
+      "stateSize": "lg"
+     },
+     "off": {
+      "color": "var(--text-secondary)",
+      "tile": null,
+      "showState": false,
+      "stateSize": "lg"
+     },
+     "unknown": {
+      "color": "var(--warning)",
+      "tile": null,
+      "showState": true,
+      "stateSize": "md"
+     }
+    },
+    "ariaLabel": "Pump",
+    "labels": {
+     "on": "On",
+     "off": "Off",
+     "unknown": "No signal"
+    },
+    "colors": {
+     "on": "var(--success)",
+     "off": "var(--border-strong)",
+     "disabled": "var(--surface-sunken)",
+     "thumb": "var(--primary-fg)"
+    },
+    "confirm": {
+     "confirm": "confirm"
+    },
+    "messages": {
+     "confirmPrompt": "Switch the pump?"
+    },
+    "disabledReason": "The current state is unknown, so the control is disabled."
+   }
+  },
+  {
+   "id": "slider.default-end-value",
+   "kind": "control.slider",
+   "settings": {
+    "label": "Dimmer",
+    "min": 0,
+    "max": 100,
+    "step": 5,
+    "valuePosition": "end",
+    "tickMarks": 5,
+    "tickLabels": true,
+    "mainColor": "#f59e0b",
+    "startIcon": "fas fa-moon",
+    "endIcon": "fas fa-sun",
+    "commit": "debounced",
+    "debounceMs": 300
+   },
+   "format": {
+    "unit": "%",
+    "decimals": 0
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 35,
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true
+   },
+   "input": {
+    "settings": {
+     "layout": "default",
+     "orientation": "horizontal",
+     "labelColor": "var(--text-secondary)",
+     "min": 0,
+     "max": 100,
+     "step": 5,
+     "showValue": true,
+     "valuePosition": "end",
+     "valueColor": "var(--text-primary)",
+     "showMinMax": true,
+     "tickLabels": true,
+     "mainColor": "#f59e0b",
+     "trackColor": "var(--surface-sunken)",
+     "disabledMainColor": "var(--text-disabled)",
+     "disabledTrackColor": "var(--surface-sunken)",
+     "thickness": 6,
+     "thumbSize": 18,
+     "iconColor": "var(--text-secondary)",
+     "iconSize": 16,
+     "commit": "debounced",
+     "debounceMs": 300,
+     "disableWhen": [
+      "stale"
+     ],
+     "label": "Dimmer",
+     "tickMarks": 5,
+     "startIcon": "fas fa-moon",
+     "endIcon": "fas fa-sun"
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "decimals": 0,
+     "unit": "%"
+    }
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "number"
+    },
+    "variant": "default",
+    "vertical": false,
+    "label": {
+     "text": "Dimmer",
+     "color": "var(--text-secondary)"
+    },
+    "showValue": true,
+    "valueAt": "track-end",
+    "valueSize": "sm",
+    "valueColor": "var(--text-primary)",
+    "showMinMax": true,
+    "minMaxAs": "ends",
+    "startIcon": {
+     "name": "fas fa-moon",
+     "style": {
+      "color": "var(--text-secondary)",
+      "fontSize": 16,
+      "width": 16,
+      "height": 16
+     }
+    },
+    "endIcon": {
+     "name": "fas fa-sun",
+     "style": {
+      "color": "var(--text-secondary)",
+      "fontSize": 16,
+      "width": 16,
+      "height": 16
+     }
+    },
+    "valueFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 0,
+      "unit": "%"
+     }
+    },
+    "control": {
+     "value": 35,
+     "min": 0,
+     "max": 100,
+     "step": 5,
+     "orientation": "horizontal",
+     "thickness": 6,
+     "thumbSize": 18,
+     "tickMarks": 5,
+     "tickLabels": true,
+     "colors": {
+      "main": "#f59e0b",
+      "track": "var(--surface-sunken)",
+      "disabledMain": "var(--text-disabled)",
+      "disabledTrack": "var(--surface-sunken)"
+     },
+     "commitMode": "debounced",
+     "debounceMs": 300,
+     "ariaLabel": "Dimmer",
+     "confirm": {
+      "confirm": "none"
+     }
+    }
+   }
+  },
+  {
+   "id": "slider.vertical-confirm",
+   "kind": "control.slider",
+   "settings": {
+    "orientation": "vertical",
+    "label": "Level",
+    "min": 0,
+    "max": 10,
+    "thickness": 8,
+    "thumbSize": 24,
+    "showMinMax": true,
+    "valueColor": "#2563eb"
+   },
+   "format": {
+    "unit": "m",
+    "decimals": 1
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 4.5,
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true,
+    "confirm": {
+     "mode": "confirm",
+     "text": "Move it?"
+    }
+   },
+   "input": {
+    "settings": {
+     "layout": "default",
+     "orientation": "vertical",
+     "labelColor": "var(--text-secondary)",
+     "min": 0,
+     "max": 10,
+     "step": 1,
+     "showValue": true,
+     "valuePosition": "top",
+     "valueColor": "#2563eb",
+     "showMinMax": true,
+     "tickLabels": false,
+     "mainColor": "var(--primary)",
+     "trackColor": "var(--surface-sunken)",
+     "disabledMainColor": "var(--text-disabled)",
+     "disabledTrackColor": "var(--surface-sunken)",
+     "thickness": 8,
+     "thumbSize": 24,
+     "iconColor": "var(--text-secondary)",
+     "iconSize": 16,
+     "commit": "release",
+     "debounceMs": 500,
+     "disableWhen": [
+      "stale"
+     ],
+     "label": "Level"
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "decimals": 1,
+     "unit": "m"
+    }
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "number"
+    },
+    "variant": "vertical",
+    "vertical": true,
+    "label": {
+     "text": "Level",
+     "color": "var(--text-secondary)"
+    },
+    "showValue": true,
+    "valueAt": "column",
+    "valueSize": "lg",
+    "valueColor": "#2563eb",
+    "showMinMax": true,
+    "minMaxAs": "pair",
+    "startIcon": null,
+    "endIcon": null,
+    "valueFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 1,
+      "unit": "m"
+     }
+    },
+    "control": {
+     "value": 4.5,
+     "min": 0,
+     "max": 10,
+     "step": 1,
+     "orientation": "vertical",
+     "thickness": 8,
+     "thumbSize": 24,
+     "tickLabels": false,
+     "colors": {
+      "main": "var(--primary)",
+      "track": "var(--surface-sunken)",
+      "disabledMain": "var(--text-disabled)",
+      "disabledTrack": "var(--surface-sunken)"
+     },
+     "commitMode": "release",
+     "debounceMs": 500,
+     "ariaLabel": "Level",
+     "confirm": {
+      "confirm": "confirm"
+     },
+     "messages": {
+      "confirmPrompt": "Move it?"
+     }
+    }
+   }
+  },
+  {
+   "id": "slider.compact-unknown-disabled",
+   "kind": "control.slider",
+   "settings": {
+    "layout": "compact",
+    "label": "Speed",
+    "disableWhen": [
+     "unknown"
+    ],
+    "showMinMax": false
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": "fast",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true
+   },
+   "input": {
+    "settings": {
+     "layout": "compact",
+     "orientation": "horizontal",
+     "labelColor": "var(--text-secondary)",
+     "min": 0,
+     "max": 100,
+     "step": 1,
+     "showValue": true,
+     "valuePosition": "top",
+     "valueColor": "var(--text-primary)",
+     "showMinMax": false,
+     "tickLabels": false,
+     "mainColor": "var(--primary)",
+     "trackColor": "var(--surface-sunken)",
+     "disabledMainColor": "var(--text-disabled)",
+     "disabledTrackColor": "var(--surface-sunken)",
+     "thickness": 6,
+     "thumbSize": 18,
+     "iconColor": "var(--text-secondary)",
+     "iconSize": 16,
+     "commit": "release",
+     "debounceMs": 500,
+     "disableWhen": [
+      "unknown"
+     ],
+     "label": "Speed"
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "decimals": 0
+    }
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "number"
+    },
+    "variant": "compact",
+    "vertical": false,
+    "label": {
+     "text": "Speed",
+     "color": "var(--text-secondary)"
+    },
+    "showValue": true,
+    "valueAt": "track-end",
+    "valueSize": "sm",
+    "valueColor": "var(--text-primary)",
+    "showMinMax": false,
+    "minMaxAs": "ends",
+    "startIcon": null,
+    "endIcon": null,
+    "valueFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 0
+     }
+    },
+    "control": {
+     "value": "fast",
+     "min": 0,
+     "max": 100,
+     "step": 1,
+     "orientation": "horizontal",
+     "thickness": 6,
+     "thumbSize": 18,
+     "tickLabels": false,
+     "colors": {
+      "main": "var(--primary)",
+      "track": "var(--surface-sunken)",
+      "disabledMain": "var(--text-disabled)",
+      "disabledTrack": "var(--surface-sunken)"
+     },
+     "commitMode": "release",
+     "debounceMs": 500,
+     "ariaLabel": "Speed",
+     "confirm": {
+      "confirm": "none"
+     },
+     "disabledReason": "The current state is unknown, so the control is disabled."
+    }
+   }
+  },
+  {
+   "id": "slider.extended-bottom",
+   "kind": "control.slider",
+   "settings": {
+    "layout": "extended",
+    "label": "Volume",
+    "valuePosition": "bottom",
+    "showValue": true,
+    "trackColor": "#e5e7eb",
+    "disabledMainColor": "#d1d5db"
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 7,
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true
+   },
+   "input": {
+    "settings": {
+     "layout": "extended",
+     "orientation": "horizontal",
+     "labelColor": "var(--text-secondary)",
+     "min": 0,
+     "max": 100,
+     "step": 1,
+     "showValue": true,
+     "valuePosition": "bottom",
+     "valueColor": "var(--text-primary)",
+     "showMinMax": true,
+     "tickLabels": false,
+     "mainColor": "var(--primary)",
+     "trackColor": "#e5e7eb",
+     "disabledMainColor": "#d1d5db",
+     "disabledTrackColor": "var(--surface-sunken)",
+     "thickness": 6,
+     "thumbSize": 18,
+     "iconColor": "var(--text-secondary)",
+     "iconSize": 16,
+     "commit": "release",
+     "debounceMs": 500,
+     "disableWhen": [
+      "stale"
+     ],
+     "label": "Volume"
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "decimals": 0
+    }
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "number"
+    },
+    "variant": "extended",
+    "vertical": false,
+    "label": {
+     "text": "Volume",
+     "color": "var(--text-secondary)"
+    },
+    "showValue": true,
+    "valueAt": "heading",
+    "valueSize": "xl",
+    "valueColor": "var(--text-primary)",
+    "showMinMax": true,
+    "minMaxAs": "ends",
+    "startIcon": null,
+    "endIcon": null,
+    "valueFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 0
+     }
+    },
+    "control": {
+     "value": 7,
+     "min": 0,
+     "max": 100,
+     "step": 1,
+     "orientation": "horizontal",
+     "thickness": 6,
+     "thumbSize": 18,
+     "tickLabels": false,
+     "colors": {
+      "main": "var(--primary)",
+      "track": "#e5e7eb",
+      "disabledMain": "#d1d5db",
+      "disabledTrack": "var(--surface-sunken)"
+     },
+     "commitMode": "release",
+     "debounceMs": 500,
+     "ariaLabel": "Volume",
+     "confirm": {
+      "confirm": "none"
+     }
+    }
+   }
+  },
+  {
+   "id": "setpoint.input-range-unit",
+   "kind": "control.setpoint",
+   "settings": {
+    "label": "Target",
+    "min": 10,
+    "max": 30,
+    "step": 0.5,
+    "showRange": true,
+    "applyLabel": "Set",
+    "currentLabel": "Reads",
+    "borderColor": "#2563eb"
+   },
+   "format": {
+    "unit": "°C",
+    "decimals": 1
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 22.5,
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true,
+    "confirm": {
+     "mode": "typed",
+     "text": "OK"
+    }
+   },
+   "input": {
+    "settings": {
+     "layout": "input",
+     "labelColor": "var(--text-secondary)",
+     "min": 10,
+     "max": 30,
+     "step": 0.5,
+     "showRange": true,
+     "showValue": true,
+     "currentColor": "var(--text-primary)",
+     "valueColor": "var(--text-primary)",
+     "unitDisplay": "show",
+     "buttonColor": "var(--primary)",
+     "borderColor": "#2563eb",
+     "dialTrackColor": "var(--surface-sunken)",
+     "disableWhen": [
+      "stale"
+     ],
+     "label": "Target",
+     "applyLabel": "Set",
+     "currentLabel": "Reads"
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "decimals": 1,
+     "unit": "°C"
+    }
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "number"
+    },
+    "layout": "input",
+    "label": {
+     "text": "Target",
+     "color": "var(--text-secondary)"
+    },
+    "range": "10.0 °C – 30.0 °C",
+    "current": {
+     "label": "Reads",
+     "text": "22.5",
+     "unit": "°C",
+     "unitPosition": "after",
+     "color": "var(--text-primary)"
+    },
+    "bareFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 1,
+      "unit": ""
+     }
+    },
+    "control": {
+     "value": 22.5,
+     "ariaLabel": "Target",
+     "min": 10,
+     "max": 30,
+     "step": 0.5,
+     "unit": "°C",
+     "layout": "input",
+     "valueStyle": {
+      "color": "var(--text-primary)"
+     },
+     "valueMetric": null,
+     "buttonColor": "var(--primary)",
+     "borderColor": "#2563eb",
+     "dialColor": "var(--primary)",
+     "dialTrackColor": "var(--surface-sunken)",
+     "confirm": {
+      "confirm": "typed",
+      "confirmText": "OK"
+     },
+     "messages": {
+      "apply": "Set"
+     }
+    }
+   }
+  },
+  {
+   "id": "setpoint.stepper-hidden-unit",
+   "kind": "control.setpoint",
+   "settings": {
+    "layout": "stepper",
+    "label": "Fan",
+    "unitDisplay": "hide",
+    "showValue": false,
+    "buttonColor": "#16a34a",
+    "buttonTextColor": "#ffffff",
+    "valueFont": {
+     "size": 22
+    }
+   },
+   "format": {
+    "unit": "rpm",
+    "unitPosition": "after"
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 1200,
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "connected": true
+   },
+   "input": {
+    "settings": {
+     "layout": "stepper",
+     "labelColor": "var(--text-secondary)",
+     "min": 0,
+     "max": 100,
+     "step": 1,
+     "showRange": false,
+     "showValue": false,
+     "currentColor": "var(--text-primary)",
+     "valueColor": "var(--text-primary)",
+     "unitDisplay": "hide",
+     "buttonColor": "#16a34a",
+     "borderColor": "var(--border)",
+     "dialTrackColor": "var(--surface-sunken)",
+     "disableWhen": [
+      "stale"
+     ],
+     "label": "Fan",
+     "buttonTextColor": "#ffffff",
+     "valueFont": {
+      "size": 22
+     }
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "decimals": 0,
+     "unit": "rpm"
+    }
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "number"
+    },
+    "layout": "stepper",
+    "label": {
+     "text": "Fan",
+     "color": "var(--text-secondary)"
+    },
+    "range": null,
+    "current": null,
+    "bareFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 0,
+      "unit": ""
+     }
+    },
+    "control": {
+     "value": 1200,
+     "ariaLabel": "Fan",
+     "min": 0,
+     "max": 100,
+     "step": 1,
+     "layout": "stepper",
+     "valueStyle": {
+      "fontSize": "22px",
+      "color": "var(--text-primary)"
+     },
+     "valueMetric": {
+      "unitPosition": "after",
+      "size": "md",
+      "font": {
+       "size": 22
+      },
+      "color": "var(--text-primary)"
+     },
+     "buttonColor": "#16a34a",
+     "buttonTextColor": "#ffffff",
+     "borderColor": "var(--border)",
+     "dialColor": "#16a34a",
+     "dialTrackColor": "var(--surface-sunken)",
+     "confirm": {
+      "confirm": "none"
+     }
+    }
+   }
+  },
+  {
+   "id": "setpoint.dial-no-value",
+   "kind": "control.setpoint",
+   "settings": {
+    "layout": "dial",
+    "min": 0,
+    "max": 50,
+    "buttonColor": "#7c3aed",
+    "dialTrackColor": "#e5e7eb",
+    "disableWhen": [
+     "unknown"
+    ],
+    "showRange": true
+   },
+   "format": {
+    "unit": "°C"
+   },
+   "data": {},
+   "host": {
+    "connected": true,
+    "title": "Boiler"
+   },
+   "input": {
+    "settings": {
+     "layout": "dial",
+     "labelColor": "var(--text-secondary)",
+     "min": 0,
+     "max": 50,
+     "step": 1,
+     "showRange": true,
+     "showValue": true,
+     "currentColor": "var(--text-primary)",
+     "valueColor": "var(--text-primary)",
+     "unitDisplay": "show",
+     "buttonColor": "#7c3aed",
+     "borderColor": "var(--border)",
+     "dialTrackColor": "#e5e7eb",
+     "disableWhen": [
+      "unknown"
+     ]
+    },
+    "format": {
+     "unitPosition": "after",
+     "notation": "standard",
+     "decimals": 0,
+     "unit": "°C"
+    }
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "number"
+    },
+    "layout": "dial",
+    "label": {
+     "color": "var(--text-secondary)"
+    },
+    "range": null,
+    "current": {
+     "label": "Now",
+     "text": "—",
+     "unit": "°C",
+     "unitPosition": "after",
+     "color": "var(--text-primary)"
+    },
+    "bareFormat": {
+     "base": {
+      "unitPosition": "after",
+      "notation": "standard",
+      "decimals": 0,
+      "unit": ""
+     }
+    },
+    "control": {
+     "ariaLabel": "Boiler",
+     "min": 0,
+     "max": 50,
+     "step": 1,
+     "layout": "dial",
+     "valueStyle": {
+      "color": "var(--text-primary)"
+     },
+     "valueMetric": {
+      "unit": "°C",
+      "unitPosition": "after",
+      "size": "md",
+      "color": "var(--text-primary)",
+      "style": {
+       "fontSize": "clamp(0.625rem, 22cqi, 1.75rem)"
+      }
+     },
+     "buttonColor": "#7c3aed",
+     "borderColor": "var(--border)",
+     "dialColor": "#7c3aed",
+     "dialTrackColor": "#e5e7eb",
+     "confirm": {
+      "confirm": "none"
+     },
+     "disabledReason": "The current state is unknown, so the control is disabled."
+    }
+   }
+  },
+  {
+   "id": "video.mp4-subtitles",
+   "kind": "content.video",
+   "settings": {
+    "src": "/media/intro.mp4",
+    "poster": "/media/intro.jpg",
+    "showTitle": true,
+    "fit": "cover",
+    "theme": "cinema",
+    "loop": true,
+    "autoHideControls": false,
+    "subtitles": [
+     {
+      "label": "English",
+      "srclang": "en",
+      "src": "/media/intro.en.vtt"
+     },
+     {
+      "label": "No language",
+      "src": "/media/x.vtt"
+     },
+     {
+      "label": "Bad",
+      "srclang": "xx",
+      "src": "javascript:alert(1)"
+     }
+    ]
+   },
+   "host": {
+    "resolveUrlPrefix": "/tenant-7",
+    "title": "Intro"
+   },
+   "input": {
+    "settings": {
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": true,
+     "autoHideControls": false,
+     "fit": "cover",
+     "theme": "cinema",
+     "showTitle": true,
+     "subtitles": [
+      {
+       "label": "English",
+       "srclang": "en",
+       "src": "/media/intro.en.vtt"
+      },
+      {
+       "label": "No language",
+       "src": "/media/x.vtt"
+      },
+      {
+       "label": "Bad",
+       "srclang": "xx",
+       "src": "javascript:alert(1)"
+      }
+     ],
+     "src": "/media/intro.mp4",
+     "poster": "/media/intro.jpg"
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": {
+     "src": "/tenant-7/media/intro.mp4",
+     "hls": false,
+     "poster": "/tenant-7/media/intro.jpg",
+     "title": "Intro",
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": true,
+     "autoHideControls": false,
+     "fit": "cover",
+     "theme": "cinema",
+     "subtitles": [
+      {
+       "label": "English",
+       "srclang": "en",
+       "src": "/tenant-7/media/intro.en.vtt"
+      }
+     ],
+     "locale": "en",
+     "loadingText": "Loading the player…"
+    }
+   }
+  },
+  {
+   "id": "video.hls-autoplay-turkish",
+   "kind": "content.video",
+   "settings": {
+    "src": "https://cdn.example.com/live/stream.m3u8?token=1",
+    "autoPlay": true,
+    "theme": "broadcast",
+    "showTitle": true
+   },
+   "locale": "tr-TR",
+   "host": {
+    "title": "Gate camera"
+   },
+   "input": {
+    "settings": {
+     "autoPlay": true,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "broadcast",
+     "showTitle": true,
+     "subtitles": [],
+     "src": "https://cdn.example.com/live/stream.m3u8?token=1"
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": {
+     "src": "https://cdn.example.com/live/stream.m3u8?token=1",
+     "hls": true,
+     "title": "Gate camera",
+     "autoPlay": true,
+     "startMuted": true,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "broadcast",
+     "subtitles": [],
+     "locale": "tr-TR",
+     "loadingText": "Loading the player…",
+     "language": "tr"
+    }
+   }
+  },
+  {
+   "id": "video.bound-source-wins",
+   "kind": "content.video",
+   "settings": {
+    "src": "https://cdn.example.com/default.mp4",
+    "startMuted": true
+   },
+   "data": {
+    "source": {
+     "shape": "scalar",
+     "value": "https://cdn.example.com/cam/7.m3u8",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "input": {
+    "settings": {
+     "autoPlay": false,
+     "startMuted": true,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "showTitle": false,
+     "subtitles": [],
+     "src": "https://cdn.example.com/default.mp4"
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": {
+     "src": "https://cdn.example.com/cam/7.m3u8",
+     "hls": true,
+     "autoPlay": false,
+     "startMuted": true,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "subtitles": [],
+     "locale": "en",
+     "loadingText": "Loading the player…"
+    }
+   }
+  },
+  {
+   "id": "video.bound-refused-falls-back",
+   "kind": "content.video",
+   "settings": {
+    "src": "https://cdn.example.com/default.mp4"
+   },
+   "data": {
+    "source": {
+     "shape": "scalar",
+     "value": "javascript:alert(1)",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "input": {
+    "settings": {
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "showTitle": false,
+     "subtitles": [],
+     "src": "https://cdn.example.com/default.mp4"
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": {
+     "src": "https://cdn.example.com/default.mp4",
+     "hls": false,
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "subtitles": [],
+     "locale": "en",
+     "loadingText": "Loading the player…"
+    }
+   }
+  },
+  {
+   "id": "video.empty",
+   "kind": "content.video",
+   "settings": {},
+   "data": {},
+   "input": {
+    "settings": {
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "showTitle": false,
+     "subtitles": []
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": true,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": null
+   }
+  }
+ ]
+}

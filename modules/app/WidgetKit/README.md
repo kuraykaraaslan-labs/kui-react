@@ -23,10 +23,24 @@ views/*.tsx           one view per widget type; index.ts = BUILTIN_VIEWS
 views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` functions that decide everything the view
                       draws as plain data. `*-model.ts` is the same for the content widgets. The .tsx files only
                       map a model to JSX; kui-ejs and KUInative vendor these files (pure)
+                      Charts: series-chart-logic (seriesChartModel: line / area / bar incl. category bars),
+                      pie-chart-logic (pieChartModel), scatter-chart-logic (scatterChartModel),
+                      histogram-chart-logic (histogramChartModel), heatmap-logic (heatmapModel), and
+                      chart-props-logic (legend / axis / tooltip / threshold props from settings). A formatter is
+                      data (`NumberFormatSpec` in chart-data.ts; `numberFormatter(spec, locale)` rebuilds it).
+                      Map: map-logic (mapModel, buildMarkers, mapLegend, zones, routes, tile presets).
+                      Controls: control-common (ControlHost, block reason, confirm policy, messages),
+                      control-button-logic, control-switch-logic, control-slider-logic, control-setpoint-logic
+                      (`control*Model(settings, value?, format?, host)`: the static look and the request a
+                      control would send; the host answers `onControl`).
+                      Video: `videoModel` in content-model.ts (player props, subtitles, autoplay rules).
 card-logic.ts         cardModel (the frame's classes, styles, body state), formatUpdated, styleAttribute (pure)
 placement-logic.ts    placementStatus: bound slots, stale, the card state (pure)
 tests/parity/         the reference rendering: cases.ts (49+ widget cases as JSON), golden.json (the HTML kui-react
                       draws for them, normalised by normalize.ts), golden.test.tsx (fails when a view's markup changes)
+                      The model-level reference for the kinds that draw in the browser (charts, map, controls, video):
+                      model-cases.ts (JSON cases), model-golden.json (effective input + the model's JSON), and
+                      model-golden.test.ts (fails when a model's decisions change)
 kind.ts               SlotData, SlotSpec, WidgetViewProps, WidgetKindView, BuiltinKindSpec
 WidgetCard.tsx        the frame: title row, buttons, body states, stale, footer
 PlacementCard.tsx     one placement: resolved settings + WidgetCard + view, full screen, CSV
@@ -55,7 +69,10 @@ A widget must look and behave the same in kui-react, kui-ejs and KUInative. The 
    `cases.ts`. kui-ejs draws the same cases with its partials and compares the normalised HTML. After a change that
    alters a view's markup, `UPDATE_PARITY_GOLDEN=1 npx vitest run modules/app/WidgetKit/tests/parity` rewrites the golden
    file: that diff is the list of what the siblings must follow. KUInative has no DOM to compare; it compares the
-   visible text of every case.
+   visible text of every case. The kinds whose ui components draw in the browser (charts, map, controls, video)
+   cannot be compared as static HTML: `tests/parity/model-golden.json` holds, per case in `model-cases.ts`, the
+   effective settings / format (`input`) and the JSON the pure model decides (`model`); a sibling builds the same
+   input from the case and must get the same model (`UPDATE_PARITY_GOLDEN=1` rewrites both golden files).
 4. **Pure means pure.** A `*-logic.ts` / `*-model.ts` file imports no React and no kui-react component module (a
    type-only import of one is re-pointed at a host shim by the vendor scripts). Its only runtime dependencies are
    `clsx` and `tailwind-merge`, through `@/libs/utils/cn`, so class merging is the same everywhere.
