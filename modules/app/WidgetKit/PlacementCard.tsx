@@ -2,10 +2,11 @@
 import { useMemo, useState } from 'react';
 import { Modal } from '@/modules/ui/Modal';
 import type { ReactNode } from 'react';
-import { WidgetCard, type WidgetCardState } from './WidgetCard';
+import { WidgetCard } from './WidgetCard';
 import { resolvePlacement, toCsvText } from './settings/resolve';
 import { primaryMeta } from './settings/source-meta';
 import { toXlsxBytes } from './settings/xlsx';
+import { placementStatus } from './placement-logic';
 import type { SettingsTemplate, Sparse } from './settings/types';
 import type { ControlRequest, SlotData, SlotSpec, WidgetKindView, WidgetViewProps } from './kind';
 import { useKitMessages, useWidgetKit } from './WidgetKitContext';
@@ -54,16 +55,6 @@ export interface PlacementCardProps {
 /** What a view's empty shape is drawn from: no slot at all. */
 const NO_DATA: Record<string, SlotData | undefined> = Object.freeze({}) as Record<string, SlotData | undefined>;
 
-/** The newest `fetchedAt` across bound slots. */
-function newestFetch(data: Record<string, SlotData | undefined>): number | null {
-  let best: number | null = null;
-  for (const d of Object.values(data)) {
-    const t = d?.fetchedAt ? Date.parse(d.fetchedAt) : NaN;
-    if (Number.isFinite(t) && (best === null || t > best)) best = t;
-  }
-  return best;
-}
-
 function download(name: string, text: string | Uint8Array, type = 'text/csv;charset=utf-8') {
   const blob = new Blob([typeof text === 'string' ? `﻿${text}` : text as BlobPart], { type });
   const url = URL.createObjectURL(blob);
@@ -90,19 +81,9 @@ export function PlacementCard({
     () => resolvePlacement({ template, slotCount: slots.length, settings, board, definitionDefaults, sourceMeta }),
     [template, slots.length, settings, board, definitionDefaults, sourceMeta],
   );
-  const bound = boundSlots ?? Object.keys(data).filter((k) => data[k] !== undefined);
-  const isBound = (s: SlotSpec) => bound.some((b) => b === s.key || b.startsWith(`${s.key}#`));
-  const groups = [...new Set(slots.flatMap((s) => (s.anyOf ? [s.anyOf] : [])))];
-  const requiredUnbound = slots.some((s) => s.required && !isBound(s))
-    || groups.some((g) => !slots.some((s) => s.anyOf === g && isBound(s)));
-  const fetchedAt = newestFetch(data);
-  const stale = !!r.card.staleAfterSeconds && fetchedAt !== null && now - fetchedAt > r.card.staleAfterSeconds * 1000;
-
-  let state: WidgetCardState = 'ready';
-  if (error) state = 'error';
-  else if (loading && fetchedAt === null) state = 'loading';
-  else if (slots.length > 0 && requiredUnbound) state = isEditor ? 'unconfigured' : 'empty';
-  else if (view.isEmpty?.(data, r.settings)) state = 'empty';
+  const { fetchedAt, stale, state } = placementStatus({
+    slots, data, card: r.card, boundSlots, loading, error, isEditor, empty: !!view.isEmpty?.(data, r.settings), now,
+  });
 
   const body = (
     <view.View {...viewProps} settings={r.settings} format={r.format} data={data} locale={locale} stale={stale} title={title}
