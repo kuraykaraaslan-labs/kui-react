@@ -1,5 +1,6 @@
 'use client';
 import type { FontValue } from '../../SchemaForm/types';
+import { metaLabel } from '../settings/source-meta';
 import { cssColor, formatValue, rangeFor, type RangeEdges } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { Delta, IconTile, Metric, MetricHead, MetricLabel, tint } from './ui';
@@ -67,7 +68,7 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
       color={(rc && target === 'value' ? rc : undefined) ?? s.valueColor}
     />
   );
-  const label = <MetricLabel font={s.labelFont} color={s.labelColor}>{s.label}</MetricLabel>;
+  const label = <MetricLabel font={s.labelFont} color={s.labelColor}>{s.label || metaLabel(data.value?.meta?.label, locale)}</MetricLabel>;
   const icon = s.icon ? (
     <IconTile name={s.icon} size={Math.round((s.iconSize ?? 20) * 1.8)}
       color={(rc && target === 'icon' ? rc : undefined) ?? s.iconColor}

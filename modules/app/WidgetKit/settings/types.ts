@@ -99,6 +99,8 @@ export interface SettingsTemplate {
   cardDefaults?: Sparse;
   /** Value-format defaults for this widget type. Type templates only. */
   formatDefaults?: Sparse;
+  /** The setting a source's `direction` (higher / lower is better) defaults, e.g. `increaseIs`. Type templates only. */
+  directionField?: string;
   /** Terminal: the type was retired; its steps stay so old data still migrates. */
   retired?: boolean;
 }

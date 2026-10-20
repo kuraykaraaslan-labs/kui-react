@@ -63,19 +63,19 @@ export function sampleSources(now = Date.now()): SampleSource[] {
 
   return [
     // ── scalars
-    { key: 'sample.temperature', label: 'Sample · Temperature now (°C)', data: { shape: 'scalar', value: lastT, fetchedAt: at(0) } },
+    { key: 'sample.temperature', label: 'Sample · Temperature now (°C)', data: { shape: 'scalar', value: lastT, meta: { label: 'Temperature', unit: '°C', decimals: 1, kind: 'number' }, fetchedAt: at(0) } },
     { key: 'sample.temperature.yesterday', label: 'Sample · Temperature yesterday (°C)', data: { shape: 'scalar', value: round(lastT - 1.4), fetchedAt: at(0) } },
-    { key: 'sample.orders', label: 'Sample · Orders today', data: { shape: 'scalar', value: 1284, fetchedAt: at(1) } },
+    { key: 'sample.orders', label: 'Sample · Orders today', data: { shape: 'scalar', value: 1284, meta: { label: 'Orders today', decimals: 0, kind: 'number', direction: 'higherIsBetter' }, fetchedAt: at(1) } },
     { key: 'sample.orders.yesterday', label: 'Sample · Orders yesterday', data: { shape: 'scalar', value: 1147, fetchedAt: at(1) } },
-    { key: 'sample.cpu', label: 'Sample · CPU load (%)', data: { shape: 'scalar', value: 67, fetchedAt: at(0) } },
+    { key: 'sample.cpu', label: 'Sample · CPU load (%)', data: { shape: 'scalar', value: 67, meta: { label: 'CPU load', unit: '%', decimals: 0, kind: 'number', direction: 'lowerIsBetter' }, fetchedAt: at(0) } },
     { key: 'sample.goal.done', label: 'Sample · Sales this month', data: { shape: 'scalar', value: 74250, fetchedAt: at(2) } },
     { key: 'sample.goal.target', label: 'Sample · Sales target', data: { shape: 'scalar', value: 100000, fetchedAt: at(2) } },
-    { key: 'sample.state', label: 'Sample · Line status', data: { shape: 'scalar', value: 'RUNNING', fetchedAt: at(0) } },
+    { key: 'sample.state', label: 'Sample · Line status', data: { shape: 'scalar', value: 'RUNNING', meta: { label: 'Line status', kind: 'enum', valueMap: { RUNNING: { label: 'Running', color: 'var(--success)' }, STOPPED: { label: 'Stopped', color: 'var(--error)' }, IDLE: { label: 'Idle', color: 'var(--warning)' } } }, fetchedAt: at(0) } },
     { key: 'sample.pump', label: 'Sample · Pump on', data: { shape: 'scalar', value: true, fetchedAt: at(0) } },
     { key: 'sample.setpoint', label: 'Sample · Thermostat set point (°C)', data: { shape: 'scalar', value: 22, fetchedAt: at(0) } },
     // ── series
     { key: 'sample.climate', label: 'Sample · Temperature and humidity (12 h)', data: { shape: 'series', series: [{ name: 'Temperature', points: temperature }, { name: 'Humidity', points: humidity }], fetchedAt: at(0) } },
-    { key: 'sample.temperature.series', label: 'Sample · Temperature (12 h)', data: { shape: 'series', series: [{ name: 'Temperature', points: temperature }], fetchedAt: at(0) } },
+    { key: 'sample.temperature.series', label: 'Sample · Temperature (12 h)', data: { shape: 'series', series: [{ name: 'Temperature', points: temperature, meta: { unit: '°C', decimals: 1, kind: 'number' } }], fetchedAt: at(0) } },
     { key: 'sample.power', label: 'Sample · Power draw (kW, 12 h)', data: { shape: 'series', series: [{ name: 'Line 1', points: power }, { name: 'Line 2', points: walk(5, now, 48, 15, 260, 35, 0) }], fetchedAt: at(0) } },
     { key: 'sample.revenue', label: 'Sample · Daily revenue (30 d)', data: { shape: 'series', series: [{ name: 'Revenue', points: revenue }], fetchedAt: at(5) } },
     // ── tables
@@ -85,8 +85,13 @@ export function sampleSources(now = Date.now()): SampleSource[] {
         shape: 'table', fetchedAt: at(1),
         columns: [
           { key: 'name', label: 'Device', type: 'text' }, { key: 'site', label: 'Site', type: 'text' },
-          { key: 'status', label: 'Status', type: 'text' }, { key: 'temperature', label: 'Temp (°C)', type: 'number' },
-          { key: 'battery', label: 'Battery (%)', type: 'number' }, { key: 'lastSeen', label: 'Last seen', type: 'date' },
+          {
+            key: 'status', label: 'Status', type: 'text', kind: 'enum',
+            valueMap: { Online: { label: 'Online', color: 'var(--success)' }, Warning: { label: 'Warning', color: 'var(--warning)' }, Offline: { label: 'Offline', color: 'var(--error)' } },
+          },
+          { key: 'temperature', label: 'Temp', type: 'number', unit: '°C', decimals: 1, kind: 'number' },
+          { key: 'battery', label: 'Battery', type: 'number', unit: '%', decimals: 0, kind: 'number', direction: 'higherIsBetter' },
+          { key: 'lastSeen', label: 'Last seen', type: 'date' },
         ],
         rows: SITES.map((s, i) => ({
           id: `dev-${i + 1}`, name: `Sensor ${String.fromCharCode(65 + i)}${i + 1}`, site: s.name, status: statuses[i],

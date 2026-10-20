@@ -8,6 +8,7 @@ import type { Sparse } from '../settings/types';
 import type { SlotData, WidgetKindView, WidgetViewProps } from '../kind';
 import { useKitMessages } from '../WidgetKitContext';
 import type { CommonMessages } from '../messages';
+import { valueMapList } from '../settings/source-meta';
 import { cellText, declaredColumns, expandLinkTemplate, matchValue, num, rawText, statusColor, type ValueColor } from './DataTableView';
 
 type S = {
@@ -87,12 +88,20 @@ export interface BuiltMarkers {
   rows: Map<string, Row>;
 }
 
+/** The colour map in force: the placement's own, else what the source says about the colour column. */
+export function effectiveValueColors(slot: SlotData | undefined, s: S): ValueColor[] | undefined {
+  if (Array.isArray(s.valueColors) && s.valueColors.length > 0) return s.valueColors;
+  if (!s.colorColumn) return undefined;
+  const list = valueMapList(declaredColumns(slot).find((c) => c.key === s.colorColumn));
+  return list.length ? list : undefined;
+}
+
 /** A row's marker colour under the colour settings, or undefined (the fixed colour applies). */
-function rowColor(row: Row, s: S): string | undefined {
+function rowColor(row: Row, s: S, valueColors: ValueColor[] | undefined): string | undefined {
   if ((s.colorBy ?? 'column') === 'column') {
     if (!s.colorColumn) return undefined;
     const raw = row[s.colorColumn];
-    return cssColor(matchValue(raw, s.valueColors)?.color) ?? statusColor(raw);
+    return cssColor(matchValue(raw, valueColors)?.color) ?? statusColor(raw);
   }
   if (s.colorBy === 'ranges' && s.valueColumn) return cssColor(rangeFor(row[s.valueColumn], s.ranges, s.rangeEdges ?? 'from')?.color);
   return undefined;
@@ -116,6 +125,7 @@ export function buildMarkers(
   const lng = s.lngColumn || 'lng';
   const fieldsOf = tooltipKeys(s);
   const fixed = cssColor(s.markerColor) ?? 'var(--primary)';
+  const valueColors = effectiveValueColors(slot, s);
   const byColumn = (s.colorBy ?? 'column') === 'column' && !!s.colorColumn;
   const markers: MapMarker[] = [];
   const rows = new Map<string, Row>();
@@ -128,20 +138,20 @@ export function buildMarkers(
     const id = rows.has(rawId) ? `${rawId}#${i}` : rawId;
     rows.set(id, row);
     const label = s.labelColumn && row[s.labelColumn] != null && row[s.labelColumn] !== '' ? String(row[s.labelColumn]) : undefined;
-    const own = rowColor(row, s);
+    const own = rowColor(row, s, valueColors);
     const color = own ?? fixed;
     // An empty value is left out of the tooltip, never shown as a dash row.
     const fields = fieldsOf.flatMap((key) => {
       const v = row[key];
       if (v === null || v === undefined || v === '') return [];
       const def = declared.find((c) => c.key === key);
-      const mapped = key === s.colorColumn ? matchValue(v, s.valueColors)?.label : undefined;
+      const mapped = key === s.colorColumn ? matchValue(v, valueColors)?.label : undefined;
       return [{ label: def?.label || key, value: mapped || cellText(v, def?.type, {}, {}, locale, undefined, yesNo) }];
     });
     // Coloured by a status column: the status names itself under the title (unless it is already a field).
     const statusRaw = byColumn && !fieldsOf.includes(s.colorColumn!) ? row[s.colorColumn!] : undefined;
     const status = statusRaw !== undefined && statusRaw !== null && statusRaw !== '' && !cssColor(statusRaw)
-      ? matchValue(statusRaw, s.valueColors)?.label || String(statusRaw)
+      ? matchValue(statusRaw, valueColors)?.label || String(statusRaw)
       : undefined;
     const href = expandLinkTemplate(s.linkTemplate, row) ?? undefined;
     const title = label ?? (s.idColumn ? rawId : `#${i + 1}`);
@@ -189,11 +199,12 @@ export function mapLegend(slot: SlotData | undefined, settings: Sparse): LegendE
     }).slice(0, MAX_LEGEND);
   }
   if (by !== 'column' || !s.colorColumn) return [];
+  const valueColors = effectiveValueColors(slot, s);
   const counts = new Map<string, LegendEntry>();
   for (const row of slot?.rows ?? []) {
     const raw = row[s.colorColumn];
     if (raw === null || raw === undefined || raw === '' || cssColor(raw)) continue;
-    const mapped = matchValue(raw, s.valueColors);
+    const mapped = matchValue(raw, valueColors);
     const color = cssColor(mapped?.color) ?? statusColor(raw);
     if (!color) continue;
     const label = mapped?.label || String(raw);
@@ -203,7 +214,7 @@ export function mapLegend(slot: SlotData | undefined, settings: Sparse): LegendE
     else counts.set(key, { label, color, count: 1 });
   }
   // Configured values come first, in their order (and show even with no rows yet).
-  const configured = (Array.isArray(s.valueColors) ? s.valueColors : []).flatMap((v) => {
+  const configured = (valueColors ?? []).flatMap((v) => {
     const color = cssColor(v?.color);
     if (!color || typeof v.value !== 'string' || !v.value.trim()) return [];
     const label = v.label?.trim() || v.value.trim();

@@ -8,7 +8,8 @@ import type { Sparse } from '../settings/types';
 import { useNow } from '../useNow';
 import { useKitMessages } from '../WidgetKitContext';
 import { DEFAULT_WIDGET_KIT_MESSAGES, type StatViewMessages } from '../messages';
-import type { WidgetKindView, WidgetViewProps } from '../kind';
+import type { ColumnMeta, WidgetKindView, WidgetViewProps } from '../kind';
+import { metaValue } from '../settings/source-meta';
 import { IconTile, Meta, MetricHead, MetricLabel, Pill, tint } from './ui';
 
 type Rule = { match?: string; gte?: number | null; lte?: number | null; label?: string; color?: string; background?: string; icon?: string; pulse?: boolean };
@@ -72,7 +73,7 @@ export interface StateOutcome {
  * is "unknown" in a neutral colour, never the fallback's. Its label is the `unknownLabel` setting, unless
  * that is empty or still the template's English default: then `unknownText` (the host's word for it).
  */
-export function evaluateState(value: unknown, settings: Sparse, stale = false, unknownText = 'Unknown'): StateOutcome {
+export function evaluateState(value: unknown, settings: Sparse, stale = false, unknownText = 'Unknown', meta?: ColumnMeta): StateOutcome {
   const s = settings as S;
   const neutral = 'var(--text-secondary)';
   if (isBlank(value) || (stale && s.staleAsUnknown !== false)) {
@@ -90,6 +91,11 @@ export function evaluateState(value: unknown, settings: Sparse, stale = false, u
       matched: true,
       unknown: false,
     };
+  }
+  // No rule matched: the source's own word for this value, before the fallback.
+  const said = metaValue(meta, value);
+  if (said) {
+    return { label: said.label, color: cssColor(said.color) ?? neutral, icon: said.icon || undefined, matched: true, unknown: false };
   }
   return {
     label: s.fallbackLabel || String(value),
@@ -123,7 +129,7 @@ export function StateView({ settings, data, stale }: WidgetViewProps) {
   const s = settings as S;
   const raw = data.value?.value;
   const m = useKitMessages().stat;
-  const out = evaluateState(raw, settings, stale, m.unknown);
+  const out = evaluateState(raw, settings, stale, m.unknown, data.value?.meta);
   const layout = s.layout ?? 'big';
   const center = (s.alignment ?? 'start') === 'center' || layout === 'icon';
   const iconSize = s.iconSize ?? 18;

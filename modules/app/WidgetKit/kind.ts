@@ -3,16 +3,24 @@
 import type { ComponentType, ReactNode } from 'react';
 import type { ValueFormat } from './settings/style';
 import type { SettingsTemplate, Sparse } from './settings/types';
+import type { ColumnMeta } from './settings/source-meta';
+
+export type { ColumnMeta, ValueMapEntry, MetaLabel } from './settings/source-meta';
 
 /** One data slot's result: the same shape next-boilerplate's data sources answer with. */
 export interface SlotData {
   shape: 'scalar' | 'series' | 'table' | 'record';
   value?: number | string | boolean | null;
-  series?: Array<{ name: string; points: Array<{ t: string; v: number }> }>;
-  columns?: Array<{ key: string; label: string; type: 'text' | 'number' | 'date' | 'badge' }>;
+  /** What the source says about the value of a scalar (unit, decimals, value map, direction). */
+  meta?: ColumnMeta;
+  series?: Array<{ name: string; points: Array<{ t: string; v: number }>; meta?: ColumnMeta }>;
+  /** A table's columns; a column may carry its own meta (the fields of `ColumnMeta`). */
+  columns?: Array<{ key: string; label: string; type: 'text' | 'number' | 'date' | 'badge' } & Omit<ColumnMeta, 'label'>>;
   rows?: Array<Record<string, unknown>>;
   total?: number;
   record?: Record<string, unknown>;
+  /** What the source says about each field of a record, by key. */
+  recordMeta?: Record<string, ColumnMeta>;
   fetchedAt?: string;
   /** The time window the query ran with (a pinned one may name its own time zone). */
   window?: { explicitTimezone?: string; [key: string]: unknown };

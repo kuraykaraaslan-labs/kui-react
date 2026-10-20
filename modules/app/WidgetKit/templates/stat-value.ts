@@ -11,6 +11,7 @@ export const STAT_VALUE: SettingsTemplate = {
   format: true,
   exportable: false,
   formatDefaults: { decimals: 0 },
+  directionField: 'increaseIs',
   groups: [
     { id: 'layout', label: 'Layout', tab: 'Display', since: 1 },
     { id: 'value', label: 'Value', tab: 'Display', since: 1 },

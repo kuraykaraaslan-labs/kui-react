@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
+import { metaFormat, valueMapList } from '../settings/source-meta';
 import { cssColor, fontStyle, formatValue, rangeFor, type RangeEdges, type ValueFormat } from '../settings/style';
 import type { Sparse } from '../settings/types';
 import type { PagedEcho, SlotData, WidgetKindView, WidgetViewProps } from '../kind';
@@ -301,8 +302,8 @@ export interface TableColumn {
 }
 
 /** The cell a column gets when set to Auto: badge columns and value maps → badge, numbers, dates, else text. */
-function autoCell(decl: DeclaredColumn, cfg: ColumnSetting): TableColumn['cell'] {
-  if (decl.type === 'badge' || (Array.isArray(cfg.valueMap) && cfg.valueMap.length > 0)) return 'badge';
+function autoCell(decl: DeclaredColumn, valueMap: ValueColor[] | undefined): TableColumn['cell'] {
+  if (decl.type === 'badge' || (valueMap && valueMap.length > 0)) return 'badge';
   if (decl.type === 'number') return 'number';
   if (decl.type === 'date') return 'date';
   return 'text';
@@ -330,7 +331,10 @@ export function tableColumns(slot: SlotData | undefined, settings: Sparse): Tabl
   for (const { decl, cfg } of source) {
     if (seen.has(decl.key) || cfg.visible === 'hidden') continue;
     seen.add(decl.key);
-    const cell = cfg.cell && cfg.cell !== 'auto' ? cfg.cell : autoCell(decl, cfg);
+    // What the source says about the column (unit, decimals, value map) is the default; the placement's own setting wins.
+    const ownMap = Array.isArray(cfg.valueMap) && cfg.valueMap.length ? cfg.valueMap : undefined;
+    const valueMap = ownMap ?? (valueMapList(decl).length ? valueMapList(decl) : undefined);
+    const cell = cfg.cell && cfg.cell !== 'auto' ? cfg.cell : autoCell(decl, valueMap);
     const numeric = cell === 'number' || cell === 'bar' || cell === 'progress';
     out.push({
       key: decl.key,
@@ -344,6 +348,7 @@ export function tableColumns(slot: SlotData | undefined, settings: Sparse): Tabl
       width: cfg.width ?? 'auto',
       widthPx: cfg.widthPx,
       override: {
+        ...metaFormat(decl),
         ...(cfg.unit ? { unit: cfg.unit } : {}),
         ...(typeof cfg.decimals === 'number' ? { decimals: cfg.decimals } : {}),
       },
@@ -353,7 +358,7 @@ export function tableColumns(slot: SlotData | undefined, settings: Sparse): Tabl
       ranges: Array.isArray(cfg.ranges) && cfg.ranges.length ? cfg.ranges : undefined,
       dateFormat: cfg.dateFormat && cfg.dateFormat !== 'inherit' ? cfg.dateFormat : undefined,
       datePattern: cfg.datePattern || undefined,
-      valueMap: Array.isArray(cfg.valueMap) && cfg.valueMap.length ? cfg.valueMap : undefined,
+      valueMap,
       badgeStyle: cfg.badgeStyle ?? 'soft',
       icon: cfg.icon || undefined,
       font: cfg.font && Object.keys(cfg.font).length ? cfg.font : undefined,
@@ -967,13 +972,27 @@ export function DataTableView({
   );
 }
 
+/** "Label (unit)" when the column has a unit. */
+export function csvHeader(c: TableColumn): string {
+  return c.override.unit ? `${c.label} (${c.override.unit})` : c.label;
+}
+
+/** The export's cell: the mapped word instead of a raw code, a number at the column's decimals, else the raw text. */
+export function csvCell(c: TableColumn, raw: unknown): string {
+  const mapped = matchValue(raw, c.valueMap)?.label;
+  if (mapped) return mapped;
+  const n = num(raw);
+  if (n !== null && typeof c.override.decimals === 'number' && c.type === 'number') return n.toFixed(c.override.decimals);
+  return rawText(raw);
+}
+
 export const DATA_TABLE_VIEW: WidgetKindView = {
   View: DataTableView,
   isEmpty: (data, settings) => !data.rows?.rows?.length || tableColumns(data.rows, settings).length === 0,
   toCsv: (data, settings) => {
     const cols = tableColumns(data.rows, settings);
     if (!cols.length || !data.rows) return [];
-    return [cols.map((c) => c.label), ...(data.rows?.rows ?? []).map((row) => cols.map((c) => rawText(row[c.key])))];
+    return [cols.map(csvHeader), ...(data.rows?.rows ?? []).map((row) => cols.map((c) => csvCell(c, row[c.key])))];
   },
   emptyShape: true,
 };

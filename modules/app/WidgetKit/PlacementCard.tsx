@@ -4,6 +4,7 @@ import { Modal } from '@/modules/ui/Modal';
 import type { ReactNode } from 'react';
 import { WidgetCard, type WidgetCardState } from './WidgetCard';
 import { resolvePlacement, toCsvText } from './settings/resolve';
+import { primaryMeta } from './settings/source-meta';
 import type { SettingsTemplate, Sparse } from './settings/types';
 import type { ControlRequest, SlotData, SlotSpec, WidgetKindView, WidgetViewProps } from './kind';
 import { useKitMessages, useWidgetKit } from './WidgetKitContext';
@@ -83,9 +84,10 @@ export function PlacementCard({
   const ticking = useNow();
   const now = nowProp ?? ticking;
   const [full, setFull] = useState(false);
+  const sourceMeta = useMemo(() => primaryMeta(slots, data), [slots, data]);
   const r = useMemo(
-    () => resolvePlacement({ template, slotCount: slots.length, settings, board, definitionDefaults }),
-    [template, slots.length, settings, board, definitionDefaults],
+    () => resolvePlacement({ template, slotCount: slots.length, settings, board, definitionDefaults, sourceMeta }),
+    [template, slots.length, settings, board, definitionDefaults, sourceMeta],
   );
   const bound = boundSlots ?? Object.keys(data).filter((k) => data[k] !== undefined);
   const requiredUnbound = slots.some((s) => s.required && !bound.some((b) => b === s.key || b.startsWith(`${s.key}#`)));
