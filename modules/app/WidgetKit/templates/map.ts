@@ -138,7 +138,7 @@ export const MAP: SettingsTemplate = {
     },
     draggable: {
       label: 'Markers can be dragged', type: 'boolean', value: false, group: 'click', showIf: { mapKind: 'image' },
-      description: 'On a floor plan: the viewer drops a marker where it belongs and the placement\'s command receives { id, x, y } (whole pixels). Needs a command in the placement\'s actions; without one the markers stay put.',
+      description: 'On a floor plan: the viewer drops a marker where it belongs and the placement\'s command receives { id, x, y } (whole pixels). Save, then choose the command under Actions; without one the markers stay put.',
     },
     replay: {
       label: 'Replay controls', type: 'boolean', value: false, group: 'routes',
