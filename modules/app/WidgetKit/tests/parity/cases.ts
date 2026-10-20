@@ -50,6 +50,25 @@ const TABLE: SlotData = {
   ],
 };
 
+const EVENTS: SlotData = {
+  shape: 'table', fetchedAt: at(1),
+  columns: [
+    { key: 'time', label: 'Time', type: 'date' }, { key: 'title', label: 'Event', type: 'text' },
+    { key: 'description', label: 'Detail', type: 'text' }, { key: 'severity', label: 'Severity', type: 'text' }, { key: 'icon', label: 'Icon', type: 'text' },
+  ],
+  rows: [
+    { time: at(4), title: 'Pump A started', description: 'Started by the schedule.', severity: 'success', icon: 'fas fa-play' },
+    { time: at(95), title: 'High level on Tank 2', description: 'Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.', severity: 'warning' },
+    { time: at(1500), title: 'Gateway offline', description: '', severity: 'error' },
+    { time: 'not a date', title: 'Firmware updated', description: 'v2.4.1', severity: 'info' },
+  ],
+};
+
+const RECORD: SlotData = {
+  shape: 'record', fetchedAt: at(2),
+  record: { serial: 'GW-2041', model: 'Edge 4', uptimeHours: 412.5, signal: -71, online: true, firmware: '2.4.1', notes: { a: 1 }, lastSeenAt: '' },
+};
+
 export const PARITY_CASES: ParityCase[] = [
   // ── card chrome
   { id: 'card.title-buttons', kind: 'stat.value', title: 'Power', settings: { label: 'Load', $card: { showTitle: true, subtitle: 'Last hour', buttons: ['refresh', 'fullscreen'], showUpdated: 'relative' } }, data: { value: scalar(21.4) } },
@@ -105,4 +124,17 @@ export const PARITY_CASES: ParityCase[] = [
   { id: 'table.history-layout', kind: 'data.table', settings: { search: false, historyLayout: true, onlyChanges: true }, data: { rows: TABLE } },
   { id: 'table.striped-compact', kind: 'data.table', settings: { search: false, striped: true, density: 'compact', gridLines: 'all', showRowNumbers: true }, data: { rows: TABLE } },
   { id: 'table.empty', kind: 'data.table', settings: {}, data: { rows: { shape: 'table', rows: [] } } },
+  // ── stat.attributes
+  { id: 'attributes.list', kind: 'stat.attributes', title: 'Gateway', settings: withTitle, data: { record: RECORD } },
+  { id: 'attributes.list-configured', kind: 'stat.attributes', settings: { fields: [{ key: 'uptimeHours', label: 'Uptime', unit: 'h', decimals: 0, icon: 'fas fa-clock' }, { key: 'signal', unit: 'dBm', ranges: [{ from: -200, to: -80, color: '#dc2626' }, { from: -80, to: 0, color: '#16a34a' }] }, { key: 'online' }, { key: 'missing' }], emptyValue: 'n/a', striped: true, dividerColor: '#cccccc' }, data: { record: RECORD } },
+  { id: 'attributes.grid-2', kind: 'stat.attributes', settings: { layout: 'grid-2', fields: [{ key: 'uptimeHours', unit: 'h' }, { key: 'signal', unit: 'dBm' }, { key: 'model' }, { key: 'firmware' }] }, data: { record: RECORD } },
+  { id: 'attributes.columns-centered', kind: 'stat.attributes', settings: { layout: 'columns', alignment: 'center', dividers: false, fields: [{ key: 'uptimeHours', unit: 'h' }, { key: 'signal', unit: 'dBm', color: '#7c3aed' }] }, data: { record: RECORD } },
+  { id: 'attributes.empty-shape', kind: 'stat.attributes', title: 'Gateway', settings: { ...withTitle, fields: [{ key: 'serial' }, { key: 'model' }] }, data: {}, boundSlots: ['record'] },
+  // ── data.feed
+  { id: 'feed.timeline', kind: 'data.feed', title: 'Events', settings: { ...withTitle, colorColumn: 'severity', descriptionColumn: 'description', iconColumn: 'icon', indicator: 'icon' }, data: { events: EVENTS } },
+  { id: 'feed.timeline-dots', kind: 'data.feed', settings: { colorColumn: 'severity', descriptionColumn: 'description', order: 'oldest', timeDisplay: 'datetime' }, data: { events: EVENTS } },
+  { id: 'feed.list-grouped', kind: 'data.feed', settings: { layout: 'list', groupByDay: true, colorColumn: 'severity', descriptionColumn: 'description', timePosition: 'below', descriptionLines: 0 }, data: { events: EVENTS } },
+  { id: 'feed.compact-bar', kind: 'data.feed', settings: { layout: 'compact', indicator: 'bar', colorColumn: 'severity', divider: false }, data: { events: EVENTS } },
+  { id: 'feed.cards', kind: 'data.feed', settings: { layout: 'cards', colorColumn: 'severity', descriptionColumn: 'description', indicator: 'icon', iconColumn: 'icon' }, data: { events: EVENTS } },
+  { id: 'feed.empty', kind: 'data.feed', title: 'Events', settings: withTitle, data: { events: { shape: 'table', rows: [] } } },
 ];

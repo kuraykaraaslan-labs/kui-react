@@ -1457,6 +1457,577 @@
     }
    },
    "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Download data (CSV)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (CSV)\" type=\"button\"><i data-icon=\"download\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Download data (Excel)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (Excel)\" type=\"button\"><i data-icon=\"file-excel\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:4px 4px 16px\"><div class=\"flex flex-col h-full min-h-16 relative\"><div aria-hidden=\"true\" class=\"flex flex-1 flex-col h-full min-h-0 opacity-40 pointer-events-none select-none\" inert=\"\"><div class=\"flex flex-col gap-1.5 h-full min-h-0\"><div class=\"flex gap-2 items-center pt-1 px-2\"><label class=\"flex flex-1 items-center max-w-72 min-w-0 relative\"><svg aria-hidden=\"true\" class=\"absolute h-3.5 left-2.5 pointer-events-none shrink-0 text-text-secondary w-3.5\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.6\" viewbox=\"0 0 16 16\"><path d=\"M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11ZM14.5 14.5 11 11\"></path></svg><input aria-label=\"Search\" class=\"bg-transparent border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-8 min-w-0 pl-8 placeholder:text-text-secondary/70 pr-2 rounded-md text-[13px] text-text-primary w-full\" maxlength=\"200\" placeholder=\"Search\" type=\"search\" value=\"\"></label></div><div class=\"flex-1 min-h-0 overflow-auto\"><p class=\"py-6 text-[13px] text-center text-text-secondary\">No matching rows.</p></div></div></div><div class=\"absolute flex inset-0 items-center justify-center p-2\"><p class=\"bg-surface-raised border border-border px-3 py-1 rounded-full shadow-sm text-center text-text-secondary text-xs\">No data</p></div></div></div></section>"
+  },
+  {
+   "id": "attributes.list",
+   "kind": "stat.attributes",
+   "title": "Gateway",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    }
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "fetchedAt": "2026-10-20T10:03:00.000Z",
+     "record": {
+      "serial": "GW-2041",
+      "model": "Edge 4",
+      "uptimeHours": 412.5,
+      "signal": -71,
+      "online": true,
+      "firmware": "2.4.1",
+      "notes": {
+       "a": 1
+      },
+      "lastSeenAt": ""
+     }
+    }
+   },
+   "html": "<section aria-label=\"Gateway\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Gateway</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Download data (CSV)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (CSV)\" type=\"button\"><i data-icon=\"download\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Download data (Excel)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (Excel)\" type=\"button\"><i data-icon=\"file-excel\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col\" data-layout=\"list\"><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Serial</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">GW-2041</span></div><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Model</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">Edge 4</span></div><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Uptime hours</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">412.5</span></div><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Signal</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">-71</span></div><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Online</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">Yes</span></div><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Firmware</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">2.4.1</span></div><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Notes</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">{\"a\":1}</span></div><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Last seen at</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">—</span></div></div></div></section>"
+  },
+  {
+   "id": "attributes.list-configured",
+   "kind": "stat.attributes",
+   "settings": {
+    "fields": [
+     {
+      "key": "uptimeHours",
+      "label": "Uptime",
+      "unit": "h",
+      "decimals": 0,
+      "icon": "fas fa-clock"
+     },
+     {
+      "key": "signal",
+      "unit": "dBm",
+      "ranges": [
+       {
+        "from": -200,
+        "to": -80,
+        "color": "#dc2626"
+       },
+       {
+        "from": -80,
+        "to": 0,
+        "color": "#16a34a"
+       }
+      ]
+     },
+     {
+      "key": "online"
+     },
+     {
+      "key": "missing"
+     }
+    ],
+    "emptyValue": "n/a",
+    "striped": true,
+    "dividerColor": "#cccccc"
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "fetchedAt": "2026-10-20T10:03:00.000Z",
+     "record": {
+      "serial": "GW-2041",
+      "model": "Edge 4",
+      "uptimeHours": 412.5,
+      "signal": -71,
+      "online": true,
+      "firmware": "2.4.1",
+      "notes": {
+       "a": 1
+      },
+      "lastSeenAt": ""
+     }
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Download data (CSV)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (CSV)\" type=\"button\"><i data-icon=\"download\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Download data (Excel)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (Excel)\" type=\"button\"><i data-icon=\"file-excel\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col\" data-layout=\"list\" style=\"--wk-divider:#cccccc\"><div class=\"border-[color:var(--wk-divider)] border-b even:bg-surface-overlay/60 flex gap-3 items-center justify-between last:border-b-0 min-h-9 px-2 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\"><span class=\"gap-2 inline-flex items-center min-w-0\"><i data-icon=\"clock\" class=\"shrink-0 text-text-secondary\"></i><span class=\"truncate\">Uptime</span></span></span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">413 h</span></div><div class=\"border-[color:var(--wk-divider)] border-b even:bg-surface-overlay/60 flex gap-3 items-center justify-between last:border-b-0 min-h-9 px-2 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Signal</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:#16a34a\">-71 dBm</span></div><div class=\"border-[color:var(--wk-divider)] border-b even:bg-surface-overlay/60 flex gap-3 items-center justify-between last:border-b-0 min-h-9 px-2 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Online</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">Yes</span></div><div class=\"border-[color:var(--wk-divider)] border-b even:bg-surface-overlay/60 flex gap-3 items-center justify-between last:border-b-0 min-h-9 px-2 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Missing</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">n/a</span></div></div></div></section>"
+  },
+  {
+   "id": "attributes.grid-2",
+   "kind": "stat.attributes",
+   "settings": {
+    "layout": "grid-2",
+    "fields": [
+     {
+      "key": "uptimeHours",
+      "unit": "h"
+     },
+     {
+      "key": "signal",
+      "unit": "dBm"
+     },
+     {
+      "key": "model"
+     },
+     {
+      "key": "firmware"
+     }
+    ]
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "fetchedAt": "2026-10-20T10:03:00.000Z",
+     "record": {
+      "serial": "GW-2041",
+      "model": "Edge 4",
+      "uptimeHours": 412.5,
+      "signal": -71,
+      "online": true,
+      "firmware": "2.4.1",
+      "notes": {
+       "a": 1
+      },
+      "lastSeenAt": ""
+     }
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Download data (CSV)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (CSV)\" type=\"button\"><i data-icon=\"download\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Download data (Excel)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (Excel)\" type=\"button\"><i data-icon=\"file-excel\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"gap-x-4 gap-y-0 grid grid-cols-2\" data-layout=\"grid-2\"><div class=\"border-b border-border flex flex-col gap-1 min-w-0 py-2\" data-part=\"row\"><span class=\"block font-medium text-text-secondary text-xs truncate\" style=\"color:var(--text-secondary)\">Uptime hours</span><span><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1.125rem\"><span>412.5</span><span class=\"font-medium text-[max(0.5em,11px)] text-text-secondary\">h</span></span></span></div><div class=\"border-b border-border flex flex-col gap-1 min-w-0 py-2\" data-part=\"row\"><span class=\"block font-medium text-text-secondary text-xs truncate\" style=\"color:var(--text-secondary)\">Signal</span><span><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1.125rem\"><span>-71</span><span class=\"font-medium text-[max(0.5em,11px)] text-text-secondary\">dBm</span></span></span></div><div class=\"border-b border-border flex flex-col gap-1 min-w-0 py-2\" data-part=\"row\"><span class=\"block font-medium text-text-secondary text-xs truncate\" style=\"color:var(--text-secondary)\">Model</span><span><span class=\"block font-semibold leading-tight text-[15px] text-text-primary truncate\" style=\"color:var(--text-primary)\">Edge 4</span></span></div><div class=\"border-b border-border flex flex-col gap-1 min-w-0 py-2\" data-part=\"row\"><span class=\"block font-medium text-text-secondary text-xs truncate\" style=\"color:var(--text-secondary)\">Firmware</span><span><span class=\"block font-semibold leading-tight text-[15px] text-text-primary truncate\" style=\"color:var(--text-primary)\">2.4.1</span></span></div></div></div></section>"
+  },
+  {
+   "id": "attributes.columns-centered",
+   "kind": "stat.attributes",
+   "settings": {
+    "layout": "columns",
+    "alignment": "center",
+    "dividers": false,
+    "fields": [
+     {
+      "key": "uptimeHours",
+      "unit": "h"
+     },
+     {
+      "key": "signal",
+      "unit": "dBm",
+      "color": "#7c3aed"
+     }
+    ]
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "fetchedAt": "2026-10-20T10:03:00.000Z",
+     "record": {
+      "serial": "GW-2041",
+      "model": "Edge 4",
+      "uptimeHours": 412.5,
+      "signal": -71,
+      "online": true,
+      "firmware": "2.4.1",
+      "notes": {
+       "a": 1
+      },
+      "lastSeenAt": ""
+     }
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Download data (CSV)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (CSV)\" type=\"button\"><i data-icon=\"download\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Download data (Excel)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (Excel)\" type=\"button\"><i data-icon=\"file-excel\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"auto-cols-fr gap-x-4 gap-y-0 grid grid-flow-col\" data-layout=\"columns\"><div class=\"flex flex-col gap-1 items-center min-w-0 py-2 text-center\" data-part=\"row\"><span class=\"block font-medium text-text-secondary text-xs truncate\" style=\"color:var(--text-secondary)\">Uptime hours</span><span><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1.125rem\"><span>412.5</span><span class=\"font-medium text-[max(0.5em,11px)] text-text-secondary\">h</span></span></span></div><div class=\"flex flex-col gap-1 items-center min-w-0 py-2 text-center\" data-part=\"row\"><span class=\"block font-medium text-text-secondary text-xs truncate\" style=\"color:var(--text-secondary)\">Signal</span><span style=\"color:#7c3aed\"><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:#7c3aed;font-size:1.125rem\"><span>-71</span><span class=\"font-medium text-[max(0.5em,11px)] text-text-secondary\">dBm</span></span></span></div></div></div></section>"
+  },
+  {
+   "id": "attributes.empty-shape",
+   "kind": "stat.attributes",
+   "title": "Gateway",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    },
+    "fields": [
+     {
+      "key": "serial"
+     },
+     {
+      "key": "model"
+     }
+    ]
+   },
+   "data": {},
+   "boundSlots": [
+    "record"
+   ],
+   "html": "<section aria-label=\"Gateway\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Gateway</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Download data (CSV)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (CSV)\" type=\"button\"><i data-icon=\"download\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Download data (Excel)\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Download data (Excel)\" type=\"button\"><i data-icon=\"file-excel\" class=\"h-3.5 w-3.5\"></i></button><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col h-full min-h-16 relative\"><div aria-hidden=\"true\" class=\"flex flex-1 flex-col h-full min-h-0 opacity-40 pointer-events-none select-none\" inert=\"\"><div class=\"flex flex-col\" data-layout=\"list\"><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Serial</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">—</span></div><div class=\"border-b border-border flex gap-3 items-center justify-between last:border-b-0 min-h-9 py-1.5\"><span class=\"min-w-0 text-[13px] text-text-secondary truncate\" style=\"color:var(--text-secondary)\">Model</span><span class=\"font-medium m-0 shrink-0 tabular-nums text-[13px] text-right text-text-primary\" style=\"color:var(--text-primary)\">—</span></div></div></div><div class=\"absolute flex inset-0 items-center justify-center p-2\"><p class=\"bg-surface-raised border border-border px-3 py-1 rounded-full shadow-sm text-center text-text-secondary text-xs\">No data</p></div></div></div></section>"
+  },
+  {
+   "id": "feed.timeline",
+   "kind": "data.feed",
+   "title": "Events",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    },
+    "colorColumn": "severity",
+    "descriptionColumn": "description",
+    "iconColumn": "icon",
+    "indicator": "icon"
+   },
+   "data": {
+    "events": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "columns": [
+      {
+       "key": "time",
+       "label": "Time",
+       "type": "date"
+      },
+      {
+       "key": "title",
+       "label": "Event",
+       "type": "text"
+      },
+      {
+       "key": "description",
+       "label": "Detail",
+       "type": "text"
+      },
+      {
+       "key": "severity",
+       "label": "Severity",
+       "type": "text"
+      },
+      {
+       "key": "icon",
+       "label": "Icon",
+       "type": "text"
+      }
+     ],
+     "rows": [
+      {
+       "time": "2026-10-20T10:01:00.000Z",
+       "title": "Pump A started",
+       "description": "Started by the schedule.",
+       "severity": "success",
+       "icon": "fas fa-play"
+      },
+      {
+       "time": "2026-10-20T08:30:00.000Z",
+       "title": "High level on Tank 2",
+       "description": "Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.",
+       "severity": "warning"
+      },
+      {
+       "time": "2026-10-19T09:05:00.000Z",
+       "title": "Gateway offline",
+       "description": "",
+       "severity": "error"
+      },
+      {
+       "time": "not a date",
+       "title": "Firmware updated",
+       "description": "v2.4.1",
+       "severity": "info"
+      }
+     ]
+    }
+   },
+   "html": "<section aria-label=\"Events\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Events</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><ol class=\"flex flex-col\"><li class=\"flex gap-3 last:pb-0 pb-3 relative\" data-feed-item=\"true\"><span aria-hidden=\"true\" class=\"absolute bg-border bottom-0 w-px\" style=\"background:var(--border);left:13.5px;top:32px\"></span><span aria-hidden=\"true\" data-part=\"marker\"><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--success) 14%, transparent);height:28px;width:28px\"><i data-icon=\"play\"></i></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Pump A started</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T10:01:00.000Z\" title=\"Oct 20, 2026, 1:01 PM\">4 minutes ago</time></span></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">Started by the schedule.</p></div></li><li class=\"flex gap-3 last:pb-0 pb-3 relative\" data-feed-item=\"true\"><span aria-hidden=\"true\" class=\"absolute bg-border bottom-0 w-px\" style=\"background:var(--border);left:13.5px;top:32px\"></span><span aria-hidden=\"true\" data-part=\"marker\"><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--warning) 14%, transparent);height:28px;width:28px\"><i data-icon=\"triangle-exclamation\"></i></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">High level on Tank 2</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T08:30:00.000Z\" title=\"Oct 20, 2026, 11:30 AM\">2 hours ago</time></span></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.</p></div></li><li class=\"flex gap-3 last:pb-0 pb-3 relative\" data-feed-item=\"true\"><span aria-hidden=\"true\" class=\"absolute bg-border bottom-0 w-px\" style=\"background:var(--border);left:13.5px;top:32px\"></span><span aria-hidden=\"true\" data-part=\"marker\"><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--error) 14%, transparent);height:28px;width:28px\"><i data-icon=\"circle-exclamation\"></i></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Gateway offline</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-19T09:05:00.000Z\" title=\"Oct 19, 2026, 12:05 PM\">yesterday</time></span></div></div></li><li class=\"flex gap-3 last:pb-0 pb-3 relative\" data-feed-item=\"true\"><span aria-hidden=\"true\" data-part=\"marker\"><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--info) 14%, transparent);height:28px;width:28px\"><i data-icon=\"circle-info\"></i></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Firmware updated</p></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">v2.4.1</p></div></li></ol></div></section>"
+  },
+  {
+   "id": "feed.timeline-dots",
+   "kind": "data.feed",
+   "settings": {
+    "colorColumn": "severity",
+    "descriptionColumn": "description",
+    "order": "oldest",
+    "timeDisplay": "datetime"
+   },
+   "data": {
+    "events": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "columns": [
+      {
+       "key": "time",
+       "label": "Time",
+       "type": "date"
+      },
+      {
+       "key": "title",
+       "label": "Event",
+       "type": "text"
+      },
+      {
+       "key": "description",
+       "label": "Detail",
+       "type": "text"
+      },
+      {
+       "key": "severity",
+       "label": "Severity",
+       "type": "text"
+      },
+      {
+       "key": "icon",
+       "label": "Icon",
+       "type": "text"
+      }
+     ],
+     "rows": [
+      {
+       "time": "2026-10-20T10:01:00.000Z",
+       "title": "Pump A started",
+       "description": "Started by the schedule.",
+       "severity": "success",
+       "icon": "fas fa-play"
+      },
+      {
+       "time": "2026-10-20T08:30:00.000Z",
+       "title": "High level on Tank 2",
+       "description": "Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.",
+       "severity": "warning"
+      },
+      {
+       "time": "2026-10-19T09:05:00.000Z",
+       "title": "Gateway offline",
+       "description": "",
+       "severity": "error"
+      },
+      {
+       "time": "not a date",
+       "title": "Firmware updated",
+       "description": "v2.4.1",
+       "severity": "info"
+      }
+     ]
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><ol class=\"flex flex-col\"><li class=\"flex gap-3 last:pb-0 pb-3 relative\" data-feed-item=\"true\"><span aria-hidden=\"true\" class=\"absolute bg-border bottom-0 w-px\" style=\"background:var(--border);left:9.5px;top:22px\"></span><span aria-hidden=\"true\" class=\"flex h-5 items-center justify-center shrink-0 w-5\" data-part=\"marker\"><span class=\"h-2 rounded-full w-2\" style=\"background:var(--error);box-shadow:0 0 0 3px color-mix(in srgb, var(--error) 18%, transparent)\"></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Gateway offline</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-19T09:05:00.000Z\" title=\"Oct 19, 2026, 12:05 PM\">Oct 19 12:05 PM</time></span></div></div></li><li class=\"flex gap-3 last:pb-0 pb-3 relative\" data-feed-item=\"true\"><span aria-hidden=\"true\" class=\"absolute bg-border bottom-0 w-px\" style=\"background:var(--border);left:9.5px;top:22px\"></span><span aria-hidden=\"true\" class=\"flex h-5 items-center justify-center shrink-0 w-5\" data-part=\"marker\"><span class=\"h-2 rounded-full w-2\" style=\"background:var(--warning);box-shadow:0 0 0 3px color-mix(in srgb, var(--warning) 18%, transparent)\"></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">High level on Tank 2</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T08:30:00.000Z\" title=\"Oct 20, 2026, 11:30 AM\">Oct 20 11:30 AM</time></span></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.</p></div></li><li class=\"flex gap-3 last:pb-0 pb-3 relative\" data-feed-item=\"true\"><span aria-hidden=\"true\" class=\"absolute bg-border bottom-0 w-px\" style=\"background:var(--border);left:9.5px;top:22px\"></span><span aria-hidden=\"true\" class=\"flex h-5 items-center justify-center shrink-0 w-5\" data-part=\"marker\"><span class=\"h-2 rounded-full w-2\" style=\"background:var(--success);box-shadow:0 0 0 3px color-mix(in srgb, var(--success) 18%, transparent)\"></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Pump A started</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T10:01:00.000Z\" title=\"Oct 20, 2026, 1:01 PM\">Oct 20 01:01 PM</time></span></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">Started by the schedule.</p></div></li><li class=\"flex gap-3 last:pb-0 pb-3 relative\" data-feed-item=\"true\"><span aria-hidden=\"true\" class=\"flex h-5 items-center justify-center shrink-0 w-5\" data-part=\"marker\"><span class=\"h-2 rounded-full w-2\" style=\"background:var(--info);box-shadow:0 0 0 3px color-mix(in srgb, var(--info) 18%, transparent)\"></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Firmware updated</p></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">v2.4.1</p></div></li></ol></div></section>"
+  },
+  {
+   "id": "feed.list-grouped",
+   "kind": "data.feed",
+   "settings": {
+    "layout": "list",
+    "groupByDay": true,
+    "colorColumn": "severity",
+    "descriptionColumn": "description",
+    "timePosition": "below",
+    "descriptionLines": 0
+   },
+   "data": {
+    "events": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "columns": [
+      {
+       "key": "time",
+       "label": "Time",
+       "type": "date"
+      },
+      {
+       "key": "title",
+       "label": "Event",
+       "type": "text"
+      },
+      {
+       "key": "description",
+       "label": "Detail",
+       "type": "text"
+      },
+      {
+       "key": "severity",
+       "label": "Severity",
+       "type": "text"
+      },
+      {
+       "key": "icon",
+       "label": "Icon",
+       "type": "text"
+      }
+     ],
+     "rows": [
+      {
+       "time": "2026-10-20T10:01:00.000Z",
+       "title": "Pump A started",
+       "description": "Started by the schedule.",
+       "severity": "success",
+       "icon": "fas fa-play"
+      },
+      {
+       "time": "2026-10-20T08:30:00.000Z",
+       "title": "High level on Tank 2",
+       "description": "Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.",
+       "severity": "warning"
+      },
+      {
+       "time": "2026-10-19T09:05:00.000Z",
+       "title": "Gateway offline",
+       "description": "",
+       "severity": "error"
+      },
+      {
+       "time": "not a date",
+       "title": "Firmware updated",
+       "description": "v2.4.1",
+       "severity": "info"
+      }
+     ]
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col gap-3\"><section class=\"flex flex-col gap-1.5\"><h4 class=\"font-semibold text-[11px] text-text-secondary tracking-wide uppercase\">Today</h4><ol class=\"flex flex-col\"><li class=\"border-b border-border flex gap-3 items-start last:border-b-0 min-h-9 py-2\" data-feed-item=\"true\" style=\"border-color:var(--border)\"><span aria-hidden=\"true\" class=\"flex h-5 items-center justify-center shrink-0 w-5\" data-part=\"marker\"><span class=\"h-2 rounded-full w-2\" style=\"background:var(--success);box-shadow:0 0 0 3px color-mix(in srgb, var(--success) 18%, transparent)\"></span></span><div class=\"flex-1 min-w-0\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Pump A started</p><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"color:var(--text-secondary)\">Started by the schedule.</p><span class=\"block leading-snug mt-0.5 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T10:01:00.000Z\" title=\"Oct 20, 2026, 1:01 PM\">4 minutes ago</time></span></div></li><li class=\"border-b border-border flex gap-3 items-start last:border-b-0 min-h-9 py-2\" data-feed-item=\"true\" style=\"border-color:var(--border)\"><span aria-hidden=\"true\" class=\"flex h-5 items-center justify-center shrink-0 w-5\" data-part=\"marker\"><span class=\"h-2 rounded-full w-2\" style=\"background:var(--warning);box-shadow:0 0 0 3px color-mix(in srgb, var(--warning) 18%, transparent)\"></span></span><div class=\"flex-1 min-w-0\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">High level on Tank 2</p><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"color:var(--text-secondary)\">Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.</p><span class=\"block leading-snug mt-0.5 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T08:30:00.000Z\" title=\"Oct 20, 2026, 11:30 AM\">2 hours ago</time></span></div></li></ol></section><section class=\"flex flex-col gap-1.5\"><h4 class=\"font-semibold text-[11px] text-text-secondary tracking-wide uppercase\">Yesterday</h4><ol class=\"flex flex-col\"><li class=\"border-b border-border flex gap-3 items-start last:border-b-0 min-h-9 py-2\" data-feed-item=\"true\" style=\"border-color:var(--border)\"><span aria-hidden=\"true\" class=\"flex h-5 items-center justify-center shrink-0 w-5\" data-part=\"marker\"><span class=\"h-2 rounded-full w-2\" style=\"background:var(--error);box-shadow:0 0 0 3px color-mix(in srgb, var(--error) 18%, transparent)\"></span></span><div class=\"flex-1 min-w-0\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Gateway offline</p><span class=\"block leading-snug mt-0.5 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-19T09:05:00.000Z\" title=\"Oct 19, 2026, 12:05 PM\">yesterday</time></span></div></li></ol></section><section class=\"flex flex-col gap-1.5\"><h4 class=\"font-semibold text-[11px] text-text-secondary tracking-wide uppercase\">Time unknown</h4><ol class=\"flex flex-col\"><li class=\"border-b border-border flex gap-3 items-start last:border-b-0 min-h-9 py-2\" data-feed-item=\"true\" style=\"border-color:var(--border)\"><span aria-hidden=\"true\" class=\"flex h-5 items-center justify-center shrink-0 w-5\" data-part=\"marker\"><span class=\"h-2 rounded-full w-2\" style=\"background:var(--info);box-shadow:0 0 0 3px color-mix(in srgb, var(--info) 18%, transparent)\"></span></span><div class=\"flex-1 min-w-0\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Firmware updated</p><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"color:var(--text-secondary)\">v2.4.1</p></div></li></ol></section></div></div></section>"
+  },
+  {
+   "id": "feed.compact-bar",
+   "kind": "data.feed",
+   "settings": {
+    "layout": "compact",
+    "indicator": "bar",
+    "colorColumn": "severity",
+    "divider": false
+   },
+   "data": {
+    "events": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "columns": [
+      {
+       "key": "time",
+       "label": "Time",
+       "type": "date"
+      },
+      {
+       "key": "title",
+       "label": "Event",
+       "type": "text"
+      },
+      {
+       "key": "description",
+       "label": "Detail",
+       "type": "text"
+      },
+      {
+       "key": "severity",
+       "label": "Severity",
+       "type": "text"
+      },
+      {
+       "key": "icon",
+       "label": "Icon",
+       "type": "text"
+      }
+     ],
+     "rows": [
+      {
+       "time": "2026-10-20T10:01:00.000Z",
+       "title": "Pump A started",
+       "description": "Started by the schedule.",
+       "severity": "success",
+       "icon": "fas fa-play"
+      },
+      {
+       "time": "2026-10-20T08:30:00.000Z",
+       "title": "High level on Tank 2",
+       "description": "Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.",
+       "severity": "warning"
+      },
+      {
+       "time": "2026-10-19T09:05:00.000Z",
+       "title": "Gateway offline",
+       "description": "",
+       "severity": "error"
+      },
+      {
+       "time": "not a date",
+       "title": "Firmware updated",
+       "description": "v2.4.1",
+       "severity": "info"
+      }
+     ]
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><ol class=\"flex flex-col\"><li class=\"flex gap-2.5 items-center min-h-8 min-w-0 py-1\" data-feed-item=\"true\" style=\"box-shadow:inset 3px 0 0 var(--success);padding-left:12px\"><span class=\"flex-1 min-w-0 text-[13px] text-text-primary truncate\" data-part=\"title\" style=\"color:var(--text-primary)\">Pump A started</span><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T10:01:00.000Z\" title=\"Oct 20, 2026, 1:01 PM\">4 minutes ago</time></span></li><li class=\"flex gap-2.5 items-center min-h-8 min-w-0 py-1\" data-feed-item=\"true\" style=\"box-shadow:inset 3px 0 0 var(--warning);padding-left:12px\"><span class=\"flex-1 min-w-0 text-[13px] text-text-primary truncate\" data-part=\"title\" style=\"color:var(--text-primary)\">High level on Tank 2</span><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T08:30:00.000Z\" title=\"Oct 20, 2026, 11:30 AM\">2 hours ago</time></span></li><li class=\"flex gap-2.5 items-center min-h-8 min-w-0 py-1\" data-feed-item=\"true\" style=\"box-shadow:inset 3px 0 0 var(--error);padding-left:12px\"><span class=\"flex-1 min-w-0 text-[13px] text-text-primary truncate\" data-part=\"title\" style=\"color:var(--text-primary)\">Gateway offline</span><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-19T09:05:00.000Z\" title=\"Oct 19, 2026, 12:05 PM\">yesterday</time></span></li><li class=\"flex gap-2.5 items-center min-h-8 min-w-0 py-1\" data-feed-item=\"true\" style=\"box-shadow:inset 3px 0 0 var(--info);padding-left:12px\"><span class=\"flex-1 min-w-0 text-[13px] text-text-primary truncate\" data-part=\"title\" style=\"color:var(--text-primary)\">Firmware updated</span></li></ol></div></section>"
+  },
+  {
+   "id": "feed.cards",
+   "kind": "data.feed",
+   "settings": {
+    "layout": "cards",
+    "colorColumn": "severity",
+    "descriptionColumn": "description",
+    "indicator": "icon",
+    "iconColumn": "icon"
+   },
+   "data": {
+    "events": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "columns": [
+      {
+       "key": "time",
+       "label": "Time",
+       "type": "date"
+      },
+      {
+       "key": "title",
+       "label": "Event",
+       "type": "text"
+      },
+      {
+       "key": "description",
+       "label": "Detail",
+       "type": "text"
+      },
+      {
+       "key": "severity",
+       "label": "Severity",
+       "type": "text"
+      },
+      {
+       "key": "icon",
+       "label": "Icon",
+       "type": "text"
+      }
+     ],
+     "rows": [
+      {
+       "time": "2026-10-20T10:01:00.000Z",
+       "title": "Pump A started",
+       "description": "Started by the schedule.",
+       "severity": "success",
+       "icon": "fas fa-play"
+      },
+      {
+       "time": "2026-10-20T08:30:00.000Z",
+       "title": "High level on Tank 2",
+       "description": "Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.",
+       "severity": "warning"
+      },
+      {
+       "time": "2026-10-19T09:05:00.000Z",
+       "title": "Gateway offline",
+       "description": "",
+       "severity": "error"
+      },
+      {
+       "time": "not a date",
+       "title": "Firmware updated",
+       "description": "v2.4.1",
+       "severity": "info"
+      }
+     ]
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><ol class=\"flex flex-col gap-2\"><li class=\"border border-border flex gap-3 p-2.5 rounded-lg\" data-feed-item=\"true\" style=\"background:color-mix(in srgb, var(--text-primary) 2%, transparent)\"><span aria-hidden=\"true\" data-part=\"marker\"><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--success) 14%, transparent);height:28px;width:28px\"><i data-icon=\"play\"></i></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Pump A started</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T10:01:00.000Z\" title=\"Oct 20, 2026, 1:01 PM\">4 minutes ago</time></span></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">Started by the schedule.</p></div></li><li class=\"border border-border flex gap-3 p-2.5 rounded-lg\" data-feed-item=\"true\" style=\"background:color-mix(in srgb, var(--text-primary) 2%, transparent)\"><span aria-hidden=\"true\" data-part=\"marker\"><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--warning) 14%, transparent);height:28px;width:28px\"><i data-icon=\"triangle-exclamation\"></i></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">High level on Tank 2</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-20T08:30:00.000Z\" title=\"Oct 20, 2026, 11:30 AM\">2 hours ago</time></span></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">Level 4.2 m is above the 4 m limit. Check the inlet valve before the next shift starts.</p></div></li><li class=\"border border-border flex gap-3 p-2.5 rounded-lg\" data-feed-item=\"true\" style=\"background:color-mix(in srgb, var(--text-primary) 2%, transparent)\"><span aria-hidden=\"true\" data-part=\"marker\"><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--error) 14%, transparent);height:28px;width:28px\"><i data-icon=\"circle-exclamation\"></i></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Gateway offline</p><span class=\"leading-snug shrink-0 tabular-nums text-[11px] text-text-secondary/80 whitespace-nowrap\" style=\"color:var(--text-secondary)\"><time datetime=\"2026-10-19T09:05:00.000Z\" title=\"Oct 19, 2026, 12:05 PM\">yesterday</time></span></div></div></li><li class=\"border border-border flex gap-3 p-2.5 rounded-lg\" data-feed-item=\"true\" style=\"background:color-mix(in srgb, var(--text-primary) 2%, transparent)\"><span aria-hidden=\"true\" data-part=\"marker\"><span class=\"inline-flex items-center justify-center rounded-lg shrink-0\" style=\"background:color-mix(in srgb, var(--info) 14%, transparent);height:28px;width:28px\"><i data-icon=\"circle-info\"></i></span></span><div class=\"flex-1 min-w-0\"><div class=\"flex gap-3 items-baseline justify-between\"><p class=\"break-words font-medium leading-snug min-w-0 text-[13px] text-text-primary\" data-part=\"title\" style=\"color:var(--text-primary)\">Firmware updated</p></div><p class=\"break-words leading-snug mt-0.5 text-text-secondary text-xs\" data-part=\"description\" style=\"-webkit-box-orient:vertical;-webkit-line-clamp:2;color:var(--text-secondary);display:-webkit-box;overflow:hidden\">v2.4.1</p></div></li></ol></div></section>"
+  },
+  {
+   "id": "feed.empty",
+   "kind": "data.feed",
+   "title": "Events",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    }
+   },
+   "data": {
+    "events": {
+     "shape": "table",
+     "rows": []
+    }
+   },
+   "html": "<section aria-label=\"Events\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0px\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Events</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex h-full items-center justify-center min-h-16 text-center text-sm text-text-secondary\">No data</div></div></section>"
   }
  ]
 }
