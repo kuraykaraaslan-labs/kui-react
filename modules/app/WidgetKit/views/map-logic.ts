@@ -4,7 +4,6 @@
 
 import { cn } from '@/libs/utils/cn';
 import type { MapImage, MapMarker, MapRoute, MapTilesConfig, MapZone } from '@/modules/ui/MapView';
-import { safeMarkerImage } from '@/modules/ui/MapView';
 import type { SlotData } from '../kind';
 import type { CommonMessages, MapViewMessages } from '../messages';
 import { valueMapList } from '../settings/source-meta';
@@ -62,6 +61,10 @@ type S = MapSettings;
 type Row = Record<string, unknown>;
 
 const r2 = (n: number): number => Math.round(n * 100) / 100;
+
+/** A marker picture address that is safe to write into marker HTML (the map draws the same check again). */
+const SAFE_PICTURE = /^(?:\/(?![\/\\])|https:\/\/)[^\s"'<>\\\u0000-\u001f\u007f]{1,480}$/;
+const safePicture = (src: string | null): string | undefined => (src && SAFE_PICTURE.test(src) ? src : undefined);
 
 /** At most this many markers: a runaway table must not create thousands of DOM markers. */
 export const MAX_MARKERS = 500;
@@ -161,7 +164,7 @@ export function buildMarkers(
     const color = own ?? fixed;
     // A status can bring its own picture or glyph: the value's entry (the placement's, else the source's).
     const entry = byColumn ? matchValue(row[s.colorColumn!], valueColors) : undefined;
-    const picture = entry?.image ? safeMarkerImage(hostImageSrc(entry.image, host.resolveUrl) ?? undefined) : undefined;
+    const picture = entry?.image ? safePicture(hostImageSrc(entry.image, host.resolveUrl)) : undefined;
     const glyph = !picture && entry?.icon ? entry.icon : undefined;
     // An empty value is left out of the tooltip, never shown as a dash row.
     const fields = fieldsOf.flatMap((key) => {
