@@ -134,6 +134,14 @@ export const DATA_TABLE: SettingsTemplate = {
       options: [opt('desc', 'Descending'), opt('asc', 'Ascending')],
     },
     showRowNumbers: { label: 'Row numbers', type: 'boolean', value: false, group: 'rows' },
+    onlyChanges: {
+      label: 'Only rows that changed', type: 'boolean', value: false, group: 'rows', advanced: true,
+      description: 'History-shaped rows: a row equal to the one before it (ignoring date columns) is left out. Not for a table the server pages.',
+    },
+    historyLayout: {
+      label: 'Timestamp first, kept in view', type: 'boolean', value: false, group: 'columns', advanced: true,
+      description: 'For history-shaped rows: the first date column leads and stays put while the table scrolls sideways.',
+    },
     emptyText: { label: 'Text when no row matches', type: 'text', maxLength: 120, placeholder: 'No matching rows.', group: 'rows', advanced: true },
     search: {
       label: 'Search box', type: 'boolean', value: true, group: 'viewer',
@@ -172,7 +180,21 @@ export const DATA_TABLE: SettingsTemplate = {
             opt('lt', 'Less than'), opt('lte', 'At most'), opt('contains', 'Contains'), opt('empty', 'Empty'),
           ],
         },
-        value: { label: 'Value', type: 'text', maxLength: 80, showIf: { op: ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'contains'] } },
+        valueFrom: {
+          label: 'Compared with', type: 'select', display: 'segmented', value: 'value',
+          options: [opt('value', 'A value'), opt('column', 'Another column of the row')],
+          showIf: { op: ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'contains'] },
+        },
+        value: { label: 'Value', type: 'text', maxLength: 80, showIf: { op: ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'contains'], valueFrom: 'value' } },
+        valueColumn: {
+          label: 'Other column', type: 'data-key', slot: 'rows',
+          description: 'For example the level against the row\'s own low threshold.',
+          showIf: { op: ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'contains'], valueFrom: 'column' },
+        },
+        gateColumn: {
+          label: 'Only when this column is true', type: 'data-key', slot: 'rows', advanced: true,
+          description: 'A flag column: the rule is skipped for rows where it is false or empty.',
+        },
         color: { label: 'Colour', type: 'color', value: 'var(--warning)' },
         target: {
           label: 'Colours', type: 'select', display: 'segmented', value: 'background',

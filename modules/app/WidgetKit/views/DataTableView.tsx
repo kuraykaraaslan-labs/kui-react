@@ -239,6 +239,11 @@ interface RowRule {
   column?: string;
   op?: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'contains' | 'empty';
   value?: string;
+  /** `column`: compare against the row's own `valueColumn` instead of `value` (a threshold held in a sibling column). */
+  valueFrom?: 'value' | 'column';
+  valueColumn?: string;
+  /** The rule applies only to rows whose gate column is true (a flag that says the threshold is armed). */
+  gateColumn?: string;
   color?: string;
   target?: 'background' | 'text' | 'bar';
 }
@@ -253,6 +258,8 @@ type S = {
   search?: boolean;
   columnPicker?: boolean;
   showRowNumbers?: boolean;
+  onlyChanges?: boolean;
+  historyLayout?: boolean;
   emptyText?: string;
   dateFormat?: DateDisplay;
   datePattern?: string;
@@ -365,7 +372,20 @@ export function tableColumns(slot: SlotData | undefined, settings: Sparse): Tabl
       wrap: cfg.wrap ?? 'nowrap',
     });
   }
+  // The history preset: the first date column leads, unless the placement ordered its columns itself.
+  if (s.historyLayout && !configured.length) {
+    const at = out.findIndex((c) => c.type === 'date');
+    if (at > 0) out.unshift(...out.splice(at, 1));
+  }
   return out;
+}
+
+/** A row equal to the one before it on every column but the dates is dropped (history-shaped rows). */
+export function dropRepeats(rows: Row[], columns: TableColumn[]): Row[] {
+  const keys = columns.filter((c) => c.type !== 'date').map((c) => c.key);
+  if (!keys.length) return rows;
+  const same = (a: Row, b: Row) => keys.every((k) => JSON.stringify(a[k] ?? null) === JSON.stringify(b[k] ?? null));
+  return rows.filter((row, i) => i === 0 || !same(row, rows[i - 1]));
 }
 
 const compareValues = (a: unknown, b: unknown, type: DeclaredColumn['type']): number => {
@@ -397,18 +417,28 @@ export function sortRows(rows: Row[], key: string, dir: 'asc' | 'desc', type?: D
     .map((x) => x.row);
 }
 
+/** A flag cell that says yes: true, 1, or the words true / yes / on / 1. */
+function truthy(v: unknown): boolean {
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'number') return v !== 0;
+  return typeof v === 'string' && ['true', 'yes', 'on', '1'].includes(v.trim().toLowerCase());
+}
+
 /** Whether a row matches a colour rule. Numbers compare numerically; text case-insensitively. */
 export function ruleMatches(rule: RowRule, row: Row): boolean {
   if (!rule || typeof rule.column !== 'string' || !rule.column) return false;
+  if (rule.gateColumn && !truthy(row[rule.gateColumn])) return false;
   const raw = row[rule.column];
   const op = rule.op ?? 'eq';
   const empty = raw === null || raw === undefined || raw === '';
   if (op === 'empty') return empty;
   if (empty) return op === 'ne';
   const text = (typeof raw === 'object' ? JSON.stringify(raw) : String(raw)).trim().toLowerCase();
-  const want = (rule.value ?? '').trim().toLowerCase();
+  const operand = rule.valueFrom === 'column' && rule.valueColumn ? row[rule.valueColumn] : rule.value;
+  if (rule.valueFrom === 'column' && (operand === null || operand === undefined || operand === '')) return false;
+  const want = (operand === null || operand === undefined ? '' : typeof operand === 'object' ? JSON.stringify(operand) : String(operand)).trim().toLowerCase();
   const a = num(raw);
-  const b = num(rule.value);
+  const b = num(operand);
   switch (op) {
     case 'ne': return a !== null && b !== null ? a !== b : text !== want;
     case 'gt': return a !== null && b !== null && a > b;
@@ -574,7 +604,10 @@ export function DataTableView({
   });
   const textOf = (c: TableColumn, raw: unknown) => cellText(raw, c.type, format, c.override, locale, dateOf(c), kit.common);
 
-  const allRows = useMemo(() => result?.rows ?? [], [result]);
+  const allRows = useMemo(
+    () => (s.onlyChanges && !paged ? dropRepeats(result?.rows ?? [], allColumns) : result?.rows ?? []),
+    [result, s.onlyChanges, paged, allColumns],
+  );
   const pageSize = Math.max(1, Math.min(100, Number(s.maxRows) || 10));
   const viewerSort = s.sortable !== false;
   const clientSearch = !paged && s.search !== false;
@@ -825,6 +858,7 @@ export function DataTableView({
                         'h-8 whitespace-nowrap px-2 text-xs font-medium text-text-secondary first:rounded-l-md last:rounded-r-md',
                         ALIGN[c.align], WIDTH[c.width], VISIBLE[c.visible],
                         sticky && 'sticky top-0 z-10',
+                        s.historyLayout && c.key === columns[0]?.key && 'sticky left-0 z-20',
                       )}
                       style={{
                         ...headerStyle,
@@ -895,8 +929,10 @@ export function DataTableView({
                             ALIGN[c.align], WIDTH[c.width], VISIBLE[c.visible], WRAP[c.wrap],
                             (c.cell === 'number' || c.cell === 'bar' || c.cell === 'progress') && 'tabular-nums',
                             ci === 0 && c.cell === 'text' && 'font-medium',
+                            s.historyLayout && ci === 0 && 'sticky left-0 z-[1]',
                           )}
                           style={{
+                            ...(s.historyLayout && ci === 0 ? { backgroundColor: 'var(--surface-raised)' } : {}),
                             ...borderStyle,
                             ...fontStyle(c.font),
                             ...(color ? { color } : {}),

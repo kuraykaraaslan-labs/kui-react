@@ -24,6 +24,8 @@ export interface WidgetCardMessages {
   oldData: string;
   refresh: string;
   download: string;
+  /** The Excel (.xlsx) download button. */
+  downloadXlsx: string;
   fullscreen: string;
   loading: string;
   noData: string;
@@ -306,6 +308,7 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     oldData: 'Old data',
     refresh: 'Refresh',
     download: 'Download data (CSV)',
+    downloadXlsx: 'Download data (Excel)',
     fullscreen: 'Full screen',
     loading: 'Loading',
     noData: 'No data',

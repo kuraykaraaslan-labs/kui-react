@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { WidgetCard, type WidgetCardState } from './WidgetCard';
 import { resolvePlacement, toCsvText } from './settings/resolve';
 import { primaryMeta } from './settings/source-meta';
+import { toXlsxBytes } from './settings/xlsx';
 import type { SettingsTemplate, Sparse } from './settings/types';
 import type { ControlRequest, SlotData, SlotSpec, WidgetKindView, WidgetViewProps } from './kind';
 import { useKitMessages, useWidgetKit } from './WidgetKitContext';
@@ -63,8 +64,8 @@ function newestFetch(data: Record<string, SlotData | undefined>): number | null 
   return best;
 }
 
-function download(name: string, text: string) {
-  const blob = new Blob([`﻿${text}`], { type: 'text/csv;charset=utf-8' });
+function download(name: string, text: string | Uint8Array, type = 'text/csv;charset=utf-8') {
+  const blob = new Blob([typeof text === 'string' ? `﻿${text}` : text as BlobPart], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -109,12 +110,20 @@ export function PlacementCard({
     ? <view.View {...viewProps} settings={r.settings} format={r.format} data={NO_DATA} locale={locale} stale={false} title={title}
       onControl={undefined} renderLink={renderLink ?? viewProps?.renderLink} />
     : undefined;
+  const exportName = (ext: string) => `${(title || template.label).replace(/[^\w.-]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  const exportRows = async (): Promise<string[][] | null> => {
+    try { return view.toCsv!(exportData ? await exportData() : data, r.settings, r.format); } catch { return null; }
+  };
   const onExport = r.caps.exportable && view.toCsv
     ? async () => {
-      let rows: Record<string, SlotData | undefined>;
-      try { rows = exportData ? await exportData() : data; } catch { return; }
-      download(`${(title || template.label).replace(/[^\w.-]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.csv`,
-        toCsvText(view.toCsv!(rows, r.settings, r.format)));
+      const rows = await exportRows();
+      if (rows) download(exportName('csv'), toCsvText(rows));
+    }
+    : undefined;
+  const onExportXlsx = onExport
+    ? async () => {
+      const rows = await exportRows();
+      if (rows) download(exportName('xlsx'), toXlsxBytes(rows, title || template.label), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
     : undefined;
 
@@ -133,6 +142,7 @@ export function PlacementCard({
         onRefresh={onRefresh}
         refreshing={refreshing}
         onExport={onExport}
+        onExportXlsx={onExportXlsx}
         onFullscreen={() => setFull(true)}
         headerRight={headerRight}
         badges={badges}

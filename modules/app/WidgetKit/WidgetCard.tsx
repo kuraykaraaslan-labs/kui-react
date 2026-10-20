@@ -1,7 +1,7 @@
 'use client';
 import type { CSSProperties, ReactNode } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faExpand, faDownload, faRotateRight, faCircleInfo } from '@fortawesome/free-solid-svg-icons';
+import { faExpand, faDownload, faFileExcel, faRotateRight, faCircleInfo } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Tooltip } from '@/modules/ui/Tooltip';
 import { UnavailableContribution, type UnavailableContributionContent } from '@/modules/ui/UnavailableContribution';
@@ -40,6 +40,8 @@ export type WidgetCardProps = {
   onFullscreen?: () => void;
   /** Present only when the widget can export; the button shows when `card.buttons` asks for it. */
   onExport?: () => void;
+  /** The same data as an Excel file; shown next to the CSV button when `onExport` is. */
+  onExportXlsx?: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
   /** Extra header controls (e.g. action buttons), left of the card buttons. */
@@ -117,7 +119,7 @@ const iconBtn = cn(
  * tokens by default, any colour the author picks otherwise.
  */
 export function WidgetCard({
-  title, card, state = 'ready', stale = false, updatedAt, unconfiguredText, emptyBody, errorText, onRetry, unavailable, onFullscreen, onExport, onRefresh, refreshing = false,
+  title, card, state = 'ready', stale = false, updatedAt, unconfiguredText, emptyBody, errorText, onRetry, unavailable, onFullscreen, onExport, onExportXlsx, onRefresh, refreshing = false,
   headerRight, badges, footer, children, className, style, locale, fixedHeight = false, ...rest
 }: WidgetCardProps) {
   const m = useKitMessages().card;
@@ -223,6 +225,11 @@ export function WidgetCard({
             {buttons.includes('export') && onExport && (
               <button type="button" onClick={onExport} aria-label={m.download} title={m.download} className={iconBtn}>
                 <FontAwesomeIcon icon={faDownload} className="h-3.5 w-3.5" aria-hidden="true" />
+              </button>
+            )}
+            {buttons.includes('export') && onExport && onExportXlsx && (
+              <button type="button" onClick={onExportXlsx} aria-label={m.downloadXlsx} title={m.downloadXlsx} className={iconBtn}>
+                <FontAwesomeIcon icon={faFileExcel} className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             )}
             {buttons.includes('fullscreen') && onFullscreen && (
