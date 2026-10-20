@@ -468,6 +468,17 @@ const join = (...p: Array<string | false | undefined>) => [...new Set(p.filter(B
 export const LINK_CLASS = 'font-medium text-primary underline-offset-2 hover:underline rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
 export const FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
 
+/** The table's tool, row and pager buttons, and the line icons of its toolbar and headers (16 × 16 drawings). */
+export const TOOL_BUTTON = `inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-text-secondary hover:bg-surface-overlay hover:text-text-primary ${FOCUS}`;
+export const ROW_BUTTON = `inline-flex h-6 cursor-pointer items-center rounded-md border border-border px-2 text-xs font-medium text-text-primary hover:bg-surface-overlay disabled:cursor-not-allowed disabled:opacity-50 ${FOCUS}`;
+export const PAGE_BUTTON = `inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-text-secondary hover:bg-surface-overlay hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent ${FOCUS}`;
+export const ICON_SEARCH = 'M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11ZM14.5 14.5 11 11';
+export const ICON_COLUMNS = 'M2.5 2.5h11v11h-11zM6.2 2.5v11M9.8 2.5v11';
+export const ICON_PREV = 'M10 3.5 5.5 8l4.5 4.5';
+export const ICON_NEXT = 'M6 3.5 10.5 8 6 12.5';
+export const ICON_SORT_UP = 'M4.5 9.5 8 6l3.5 3.5';
+export const ICON_SORT_DOWN = 'M4.5 6.5 8 10l3.5-3.5';
+
 export type CellContent =
   | { kind: 'dash' }
   | { kind: 'text'; text: string }

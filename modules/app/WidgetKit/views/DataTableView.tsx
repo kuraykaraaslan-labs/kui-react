@@ -7,7 +7,8 @@ import type { TableMessages } from '../messages';
 import { useNow } from '../useNow';
 import { Meta, Pill } from './ui';
 import {
-  FOCUS, LINK_CLASS, csvCell, csvHeader, tableColumns, tableModel,
+  FOCUS, ICON_COLUMNS, ICON_NEXT, ICON_PREV, ICON_SEARCH, ICON_SORT_DOWN, ICON_SORT_UP, LINK_CLASS, PAGE_BUTTON, ROW_BUTTON, TOOL_BUTTON,
+  csvCell, csvHeader, tableColumns, tableModel,
   type CellContent, type Row, type TableSettings as S,
 } from './table-logic';
 
@@ -55,22 +56,11 @@ export type DataTableViewProps = WidgetViewProps & {
   now?: number;
 };
 
-const TOOL_BUTTON = cn('inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium text-text-secondary hover:bg-surface-overlay hover:text-text-primary', FOCUS);
-const ROW_BUTTON = cn('inline-flex h-6 cursor-pointer items-center rounded-md border border-border px-2 text-xs font-medium text-text-primary hover:bg-surface-overlay disabled:cursor-not-allowed disabled:opacity-50', FOCUS);
-const PAGE_BUTTON = cn('inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-text-secondary hover:bg-surface-overlay hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent', FOCUS);
-
 const Svg = ({ d, className }: { d: string; className?: string }) => (
   <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={cn('h-3.5 w-3.5 shrink-0', className)}>
     <path d={d} />
   </svg>
 );
-const ICON_SEARCH = 'M7 12.5a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11ZM14.5 14.5 11 11';
-const ICON_COLUMNS = 'M2.5 2.5h11v11h-11zM6.2 2.5v11M9.8 2.5v11';
-const ICON_PREV = 'M10 3.5 5.5 8l4.5 4.5';
-const ICON_NEXT = 'M6 3.5 10.5 8 6 12.5';
-const ICON_SORT_UP = 'M4.5 9.5 8 6l3.5 3.5';
-const ICON_SORT_DOWN = 'M4.5 6.5 8 10l3.5-3.5';
-
 /** The footer pager: "1–10 of 42" on the left, previous / page / next on the right. */
 function Pager({ info, page, pages, onPage, canNext, m }: {
   info: ReactNode; page: number; pages: number | null; onPage: (p: number) => void; canNext: boolean; m: TableMessages;
