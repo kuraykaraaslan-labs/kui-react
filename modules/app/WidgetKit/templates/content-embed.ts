@@ -78,6 +78,6 @@ export const CONTENT_EMBED_KIND: BuiltinKindSpec = {
   icon: 'fas fa-window-maximize',
   defaultW: 6,
   defaultH: 5,
-  slots: [],
+  slots: [{ key: 'record', label: 'Attributes for {{attr_key}} in the address', shape: 'record', required: false }],
   template: CONTENT_EMBED,
 };

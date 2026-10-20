@@ -4,7 +4,7 @@ import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
 import { cssColor, fontStyle } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
-import { hostImageSrc, hostLink, resolveLink } from './content-logic';
+import { expandAttrTemplate, hostImageSrc, hostLink, resolveLink } from './content-logic';
 import { tint } from './ui';
 
 type S = {
@@ -45,11 +45,20 @@ export function imageFilter(s: Pick<S, 'grayscale' | 'brightness'>): string | un
   return parts.length ? parts.join(' ') : undefined;
 }
 
+/**
+ * The image address: a bound value (the `source` slot, e.g. an attribute holding a plan's URL) when it passes the
+ * allow-list, else the setting's address. Internal paths go through the host's `resolveUrl` and are checked again.
+ */
+export function imageSource(settings: Pick<S, 'src'>, data: WidgetViewProps['data'], resolveUrl?: (url: string) => string): string | null {
+  const bound = data.source?.value;
+  return (typeof bound === 'string' ? hostImageSrc(bound.trim(), resolveUrl) : null) ?? hostImageSrc(settings.src, resolveUrl);
+}
+
 /** `content.image`: an image from an allow-listed address (internal path, https, http; never data:). */
-export function ContentImageView({ settings, renderLink, resolveUrl }: WidgetViewProps) {
+export function ContentImageView({ settings, data, renderLink, resolveUrl }: WidgetViewProps) {
   const s = settings as S;
-  const src = hostImageSrc(s.src, resolveUrl);
-  const raw = resolveLink(s.href);
+  const src = imageSource(s, data, resolveUrl);
+  const raw = resolveLink(expandAttrTemplate(s.href, data.record?.record));
   // Internal navigation goes through the host's renderLink as is; a plain anchor gets the host-rewritten path.
   const link = raw && !raw.external && renderLink ? raw : hostLink(raw, resolveUrl);
   if (!src) {
@@ -148,5 +157,5 @@ export function ContentImageView({ settings, renderLink, resolveUrl }: WidgetVie
 
 export const CONTENT_IMAGE_VIEW: WidgetKindView = {
   View: ContentImageView,
-  isEmpty: (_data, settings) => typeof settings.src !== 'string' || settings.src.trim() === '',
+  isEmpty: (data, settings) => imageSource(settings as S, data) === null,
 };

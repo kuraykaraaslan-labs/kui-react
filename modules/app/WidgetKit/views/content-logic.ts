@@ -57,6 +57,50 @@ export function hostImageSrc(raw: unknown, resolveUrl?: (url: string) => string)
   return resolveImageSrc(resolveUrl(src));
 }
 
+// ── Attribute tokens ───────────────────────────────────────────────────────
+
+const ATTR_TOKEN = /\{\{attr_([A-Za-z][A-Za-z0-9_]{0,59})\}\}/g;
+
+/** Whether an address template carries `{{attr_<key>}}` tokens. */
+export function hasAttrTokens(raw: unknown): boolean {
+  return typeof raw === 'string' && new RegExp(ATTR_TOKEN.source).test(raw);
+}
+
+/**
+ * A record field's text for a token: a number, a string or a boolean; nothing else (an object or a
+ * missing field is no value).
+ */
+function attrText(record: Record<string, unknown> | undefined, key: string): string | null {
+  const v = record?.[key];
+  if (typeof v === 'string') return v.trim() === '' ? null : v;
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  if (typeof v === 'boolean') return String(v);
+  return null;
+}
+
+/**
+ * The address with `{{attr_<key>}}` filled from the placement's record slot (the entity's attributes).
+ * The scheme and host stay what the setting says: a token before the end of the authority (`https://{{attr_h}}/`,
+ * `https://x@{{attr_h}}`) makes the whole address unusable, and each value is URL-encoded, so a value can
+ * add neither a host, a scheme nor a path escape. An address without tokens comes back unchanged; one with a
+ * token that has no value is `null` (the link or frame is dropped, never half-built). The result still goes through
+ * `resolveLink` / `resolveEmbedUrl` like any other address.
+ */
+export function expandAttrTemplate(raw: unknown, record: Record<string, unknown> | undefined): unknown {
+  if (!hasAttrTokens(raw)) return raw;
+  const template = raw as string;
+  const authorityEnd = /^[a-z][a-z0-9+.-]*:\/\//i.test(template) ? template.indexOf('/', template.indexOf('//') + 2) : 0;
+  const head = authorityEnd === -1 ? template : template.slice(0, authorityEnd);
+  if (authorityEnd !== 0 && hasAttrTokens(head)) return null;
+  let missing = false;
+  const out = template.replace(ATTR_TOKEN, (_, key: string) => {
+    const t = attrText(record, key);
+    if (t === null) { missing = true; return ''; }
+    return encodeURIComponent(t);
+  });
+  return missing ? null : out;
+}
+
 // ── Embed ──────────────────────────────────────────────────────────────────
 
 export type EmbedResult =
@@ -186,14 +230,14 @@ export interface QuickLink {
 }
 
 /** Repeater rows → links. A row with no label or an unsafe target is dropped; capped. */
-export function toQuickLinks(raw: unknown, max = 24): QuickLink[] {
+export function toQuickLinks(raw: unknown, max = 24, record?: Record<string, unknown>): QuickLink[] {
   const out: QuickLink[] = [];
   for (const r of Array.isArray(raw) ? raw : []) {
     if (out.length >= max) break;
     if (typeof r !== 'object' || r === null) continue;
     const o = r as Record<string, unknown>;
     const label = typeof o.label === 'string' ? o.label.trim() : '';
-    const link = resolveLink(o.href);
+    const link = resolveLink(expandAttrTemplate(o.href, record));
     if (!label || !link) continue;
     out.push({
       label: label.slice(0, 80),

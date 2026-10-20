@@ -81,6 +81,6 @@ export const CONTENT_LINKS_KIND: BuiltinKindSpec = {
   icon: 'fas fa-link',
   defaultW: 6,
   defaultH: 3,
-  slots: [],
+  slots: [{ key: 'record', label: 'Attributes for {{attr_key}} in an address', shape: 'record', required: false }],
   template: CONTENT_LINKS,
 };

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { cssColor } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
-import { EMBED_REFERRER_POLICY, embedSandbox, resolveEmbedUrl } from './content-logic';
+import { EMBED_REFERRER_POLICY, embedSandbox, expandAttrTemplate, resolveEmbedUrl } from './content-logic';
 import { Meta } from './ui';
 import { useKitMessages, useWidgetKit } from '../WidgetKitContext';
 
@@ -47,11 +47,12 @@ function useReloadTick(seconds: unknown): number {
  * allows framing cannot be read from a sandboxed cross-origin frame, so the address bar says what a
  * blank frame means and offers the page in a new tab.
  */
-export function ContentEmbedView({ settings, title }: WidgetViewProps) {
+export function ContentEmbedView({ settings, data, title }: WidgetViewProps) {
   const s = settings as S;
   const { embedHosts } = useWidgetKit();
   const m = useKitMessages().content;
-  const result = useMemo(() => resolveEmbedUrl(s.url, embedHosts), [s.url, embedHosts]);
+  const record = data.record?.record;
+  const result = useMemo(() => resolveEmbedUrl(expandAttrTemplate(s.url, record), embedHosts), [s.url, record, embedHosts]);
   const tick = useReloadTick(s.refreshSeconds);
   if (!result.ok) {
     return (

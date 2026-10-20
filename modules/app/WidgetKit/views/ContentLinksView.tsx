@@ -40,10 +40,11 @@ const FOCUS = 'transition-colors focus-visible:outline-none focus-visible:ring-2
 const LAYOUTS = new Set<Layout>(['list', 'grid', 'tiles', 'buttons']);
 
 /** `content.links`: quick links. Unsafe targets are dropped; internal paths go through the host's `renderLink`. */
-export function ContentLinksView({ settings, renderLink, resolveUrl }: WidgetViewProps) {
+export function ContentLinksView({ settings, data, renderLink, resolveUrl }: WidgetViewProps) {
   const s = settings as S;
   const m = useKitMessages().content;
-  const links = useMemo(() => toQuickLinks(s.links), [s.links]);
+  const record = data.record?.record;
+  const links = useMemo(() => toQuickLinks(s.links, undefined, record), [s.links, record]);
   const layout: Layout = s.layout && LAYOUTS.has(s.layout) ? s.layout : 'list';
   if (links.length === 0) {
     return <p className="flex h-full items-center justify-center p-4 text-center text-sm text-text-secondary">{m.linksEmpty}</p>;

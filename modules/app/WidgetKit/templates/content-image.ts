@@ -83,6 +83,9 @@ export const CONTENT_IMAGE_KIND: BuiltinKindSpec = {
   icon: 'fas fa-image',
   defaultW: 4,
   defaultH: 3,
-  slots: [],
+  slots: [
+    { key: 'source', label: 'Image address', shape: 'scalar', required: false },
+    { key: 'record', label: 'Attributes for {{attr_key}} in the link', shape: 'record', required: false },
+  ],
   template: CONTENT_IMAGE,
 };
