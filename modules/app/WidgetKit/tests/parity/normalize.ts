@@ -28,7 +28,9 @@ function normStyle(v: string): string {
   return v.split(';').map((d) => d.trim()).filter(Boolean)
     .map((d) => {
       const i = d.indexOf(':');
-      return `${d.slice(0, i).trim().toLowerCase()}:${d.slice(i + 1).trim().replace(/\s+/g, ' ')}`;
+      // Whitespace is one space, none around a comma; a zero length is `0` whether it was written 0 or 0px.
+      const value = d.slice(i + 1).trim().replace(/\s+/g, ' ').replace(/\s*,\s*/g, ',').replace(/(^|[\s:(,])0px(?![\w.])/g, '$10');
+      return `${d.slice(0, i).trim().toLowerCase()}:${value}`;
     })
     .sort().join(';');
 }
