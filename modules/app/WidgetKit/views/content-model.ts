@@ -282,3 +282,92 @@ export function embedModel(
       : null,
   };
 }
+
+// ── content.video ───────────────────────────────────────────────────────────
+
+export type VideoSettings = {
+  src?: string;
+  poster?: string;
+  autoPlay?: boolean;
+  startMuted?: boolean;
+  loop?: boolean;
+  autoHideControls?: boolean;
+  fit?: 'contain' | 'cover';
+  theme?: 'minimal' | 'broadcast' | 'cinema';
+  showTitle?: boolean;
+  subtitles?: Array<{ label?: string; srclang?: string; src?: string }>;
+};
+
+/**
+ * The address to play: a bound value (the `source` slot, e.g. a camera's stream address) when it
+ * passes the media allow-list, else the settings' address. Internal paths go through the host's
+ * `resolveUrl` and are checked again. `null` = nothing playable.
+ */
+export function videoSource(settings: VideoSettings, data: Data, resolveUrl?: (url: string) => string): string | null {
+  const bound = data.source?.value;
+  return (typeof bound === 'string' ? hostImageSrc(bound.trim(), resolveUrl) : null) ?? hostImageSrc(settings.src, resolveUrl);
+}
+
+/** HLS by its extension (`.m3u8`, query and fragment allowed). */
+export const isHls = (src: string) => /\.m3u8(?:[?#]|$)/i.test(src);
+
+/** The languages kui-player ships its own translations for (English needs none). */
+export const PLAYER_LANGUAGES = ['tr', 'de', 'es', 'fr', 'ar'] as const;
+
+/** kui-player's translation to use for a locale (its base language), or undefined for English and unknown languages. */
+export function playerLanguage(locale: string | undefined): (typeof PLAYER_LANGUAGES)[number] | undefined {
+  const lang = (locale ?? '').toLowerCase().split(/[-_]/)[0];
+  return (PLAYER_LANGUAGES as readonly string[]).includes(lang) ? (lang as (typeof PLAYER_LANGUAGES)[number]) : undefined;
+}
+
+/** The props of the player (`player`), or null when there is nothing playable (`emptyText` is then drawn instead). */
+export interface VideoPlayerProps {
+  src: string;
+  /** The source is an HLS stream (a platform without native HLS loads a library for it). */
+  hls: boolean;
+  poster?: string;
+  title?: string;
+  autoPlay: boolean;
+  startMuted: boolean;
+  loop: boolean;
+  autoHideControls: boolean;
+  fit: 'contain' | 'cover';
+  theme: 'minimal' | 'broadcast' | 'cinema';
+  subtitles: Array<{ label: string; srclang: string; src: string }>;
+  locale?: string;
+  loadingText: string;
+  /** kui-player's own translation for the locale. */
+  language?: (typeof PLAYER_LANGUAGES)[number];
+}
+
+/**
+ * Everything content.video draws: the player's props, or the empty text. A bound `source` wins over the typed address
+ * when it passes the media allow-list; a subtitle track needs a label, a language and an allowed address. Autoplay
+ * implies muted (browsers refuse to start a video with sound on their own). A new `src` is a new player.
+ */
+export function videoModel(
+  s: VideoSettings, data: Data, resolveUrl: ((url: string) => string) | undefined, title: string | undefined,
+  locale: string | undefined, m: Pick<ContentViewMessages, 'videoEmpty' | 'videoLoading'>,
+) {
+  const src = videoSource(s, data, resolveUrl);
+  const player: VideoPlayerProps | null = src === null ? null : {
+    src,
+    hls: isHls(src),
+    poster: hostImageSrc(s.poster, resolveUrl) ?? undefined,
+    title: s.showTitle && title ? title : undefined,
+    autoPlay: s.autoPlay === true,
+    startMuted: s.autoPlay === true || s.startMuted === true,
+    loop: s.loop === true,
+    autoHideControls: s.autoHideControls !== false,
+    fit: s.fit === 'cover' ? 'cover' : 'contain',
+    theme: s.theme ?? 'minimal',
+    subtitles: (Array.isArray(s.subtitles) ? s.subtitles : []).flatMap((t) => {
+      const file = hostImageSrc(t?.src, resolveUrl);
+      return file && t.label && t.srclang ? [{ label: t.label, srclang: t.srclang, src: file }] : [];
+    }),
+    locale,
+    loadingText: m.videoLoading,
+    language: playerLanguage(locale),
+  };
+  return { empty: player === null, emptyText: m.videoEmpty, loadingText: m.videoLoading, player };
+}

@@ -6,17 +6,18 @@ import { VideoPlayer } from '@kuraykaraaslan/kui-player/react';
 import { createHlsAdapter } from '@kuraykaraaslan/kui-player';
 import type { PartialDictionary } from '@kuraykaraaslan/kui-player/locales';
 import { cn } from '@/libs/utils/cn';
+import { playerLanguage } from './content-model';
 
 type Adapter = ReturnType<typeof createHlsAdapter>;
 
 const FIT = { contain: '[&_video]:object-contain', cover: '[&_video]:object-cover' } as const;
 
-/** kui-player's own translations by the kit's locale (the base language); English needs none. */
+/** kui-player's own translations by the kit's locale (`playerLanguage`, the base language); English needs none. */
 async function playerLocale(locale: string | undefined): Promise<PartialDictionary | undefined> {
-  const lang = (locale ?? '').toLowerCase().split(/[-_]/)[0];
-  if (!['tr', 'de', 'es', 'fr', 'ar'].includes(lang)) return undefined;
+  const lang = playerLanguage(locale);
+  if (!lang) return undefined;
   const all = await import('@kuraykaraaslan/kui-player/locales');
-  return all[lang as 'tr' | 'de' | 'es' | 'fr' | 'ar'];
+  return all[lang];
 }
 
 export function ContentVideoPlayer({
