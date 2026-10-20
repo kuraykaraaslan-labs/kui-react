@@ -1,41 +1,32 @@
 'use client';
 import { UpdatedAgo } from './UpdatedAgo';
-import { metaLabel } from '../settings/source-meta';
-import { cssColor, formatValue, rangeFor } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
-import { Delta, IconTile, Metric, MetricHead, MetricLabel, tint } from './ui';
-import { comparison, num, type StatValueSettings as S } from './stat-logic';
+import { Delta, IconTile, Metric, MetricHead, MetricLabel } from './ui';
+import { statValueModel, type StatValueSettings as S } from './stat-logic';
 
 export * from './stat-logic';
 
 /** `stat.value`: label and icon on top, the number, then its change. Every layout uses the same parts. */
 export function StatValueView({ settings, format, data, locale }: WidgetViewProps) {
   const s = settings as S;
-  const value = num(data.value?.value);
-  const rc = cssColor(rangeFor(value, s.ranges, s.rangeEdges ?? 'from')?.color);
-  const target = s.rangeTarget ?? 'value';
-  const layout = s.layout ?? 'stacked';
-  const cmp = comparison(value, num(data.compare?.value), s, format, locale);
+  const { layout, cmp, metricText, metricUnit, metricColor, labelText, iconSize, iconColor, surface } = statValueModel(s, format, data, locale);
 
   const metric = (
     <Metric
-      text={formatValue(value, { ...format, unit: '' }, {}, locale)}
-      unit={value === null ? undefined : format.unit}
+      text={metricText}
+      unit={metricUnit}
       unitPosition={format.unitPosition}
       size={layout === 'compact' ? 'lg' : 'xl'}
       font={s.autoScale === false ? s.valueFont : undefined}
-      color={(rc && target === 'value' ? rc : undefined) ?? s.valueColor}
+      color={metricColor}
     />
   );
-  const label = <MetricLabel font={s.labelFont} color={s.labelColor}>{s.label || metaLabel(data.value?.meta?.label, locale)}</MetricLabel>;
+  const label = <MetricLabel font={s.labelFont} color={s.labelColor}>{labelText}</MetricLabel>;
   const icon = s.icon ? (
-    <IconTile name={s.icon} size={Math.round((s.iconSize ?? 20) * 1.8)}
-      color={(rc && target === 'icon' ? rc : undefined) ?? s.iconColor}
-      background={s.iconBackground} />
+    <IconTile name={s.icon} size={iconSize} color={iconColor} background={s.iconBackground} />
   ) : null;
   const delta = cmp ? <Delta text={cmp.text} direction={cmp.direction} meaning={cmp.meaning} color={cmp.color} label={s.compareLabel} /> : null;
   const tail = <>{delta}{s.showUpdated ? <UpdatedAgo at={data.value?.fetchedAt} locale={locale} /> : null}</>;
-  const surface = rc && target === 'background' ? { background: tint(rc, 14), borderRadius: 8, padding: 8 } : undefined;
 
   if (layout === 'compact') {
     return (

@@ -4,12 +4,10 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
-import { cssColor, fontStyle } from '../settings/style';
+import { cssColor, fontStyle, tint } from '../settings/style';
 import { SettingIcon } from '../WidgetKitContext';
 
-/** A colour at `pct`% over transparent, for tinted backgrounds (works for tokens and free colours). */
-export const tint = (color: string | undefined, pct = 14): string | undefined =>
-  color ? `color-mix(in srgb, ${color} ${pct}%, transparent)` : undefined;
+export { tint };
 
 const METRIC_SIZE: Record<'xl' | 'lg' | 'md' | 'sm', string> = {
   xl: 'clamp(1.5rem, min(14cqi, 36cqb), 3rem)',

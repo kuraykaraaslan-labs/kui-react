@@ -7,7 +7,7 @@ import { useNow } from '../useNow';
 import { useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { IconTile, Meta, MetricHead, MetricLabel, Pill, tint } from './ui';
-import { evaluateState, forText, isBlank, type StateSettings as S } from './state-logic';
+import { forText, stateModel, type StateSettings as S } from './state-logic';
 
 export * from './state-logic';
 
@@ -18,24 +18,17 @@ export * from './state-logic';
  */
 export function StateView({ settings, data, stale }: WidgetViewProps) {
   const s = settings as S;
-  const raw = data.value?.value;
   const m = useKitMessages().stat;
-  const out = evaluateState(raw, settings, stale, m.unknown, data.value?.meta);
-  const layout = s.layout ?? 'big';
-  const center = (s.alignment ?? 'start') === 'center' || layout === 'icon' || layout === 'lamp';
-  const iconSize = s.iconSize ?? 18;
-  const bg = out.background ?? tint(out.color, 14);
-  const pulse = !!out.pulse && !out.unknown;
+  const { raw, out, layout, center, iconSize, bg, pulse, fetched, showSince, showValue } = stateModel(s, data, !!stale, m.unknown);
   const now = useNow(30_000);
-  const fetched = data.value?.fetchedAt ? Date.parse(data.value.fetchedAt) : NaN;
   const [seen, setSeen] = useState(() => ({ key: out.label, at: Number.isFinite(fetched) ? fetched : now }));
   if (seen.key !== out.label) setSeen({ key: out.label, at: now });
 
   const staleNote = stale ? <span className="sr-only"> {m.stale}</span> : null;
   const stateStyle = { ...fontStyle(s.stateFont), color: out.color };
   const metaParts: ReactNode[] = [];
-  if (s.showSince && !out.unknown) metaParts.push(<span key="since" data-part="since">{forText(now - seen.at, m)}</span>);
-  if (s.showValue && !isBlank(raw) && !out.unknown) {
+  if (showSince) metaParts.push(<span key="since" data-part="since">{forText(now - seen.at, m)}</span>);
+  if (showValue) {
     metaParts.push(<span key="value" className="tabular-nums" style={fontStyle(s.valueFont, s.valueColor)} data-part="value">{String(raw)}</span>);
   }
   const meta = metaParts.length ? (

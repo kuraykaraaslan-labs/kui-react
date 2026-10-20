@@ -48,6 +48,10 @@ export function fontStyle(font: FontValue | undefined, color?: unknown): CSSProp
   return out;
 }
 
+/** A colour at `pct`% over transparent, for tinted backgrounds (works for tokens and free colours). */
+export const tint = (color: string | undefined, pct = 14): string | undefined =>
+  color ? `color-mix(in srgb, ${color} ${pct}%, transparent)` : undefined;
+
 /** `settings.$format` (`core:format`). */
 export interface ValueFormat {
   unit?: string;

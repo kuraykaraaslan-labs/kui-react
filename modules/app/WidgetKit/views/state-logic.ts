@@ -2,9 +2,9 @@
 // "for 12 min" text. `StateView.tsx` draws it; kui-ejs and KUInative vendor this file.
 
 import type { FontValue } from '../../SchemaForm/types';
-import { cssColor } from '../settings/style';
+import { cssColor, tint } from '../settings/style';
 import type { Sparse } from '../settings/types';
-import type { ColumnMeta } from '../kind';
+import type { ColumnMeta, SlotData } from '../kind';
 import { metaValue } from '../settings/source-meta';
 import { DEFAULT_WIDGET_KIT_MESSAGES, type StatViewMessages } from '../messages';
 
@@ -122,3 +122,29 @@ export function forText(
   return texts.forDays(Math.round(h / 24));
 }
 
+
+/**
+ * What the state widget draws, decided once. "Since" needs memory (the time a view first saw the state), so the
+ * caller keeps it: `showSince` says whether to show it, `fetched` seeds it, and `forText(now - since)` words it.
+ */
+export function stateModel(
+  s: StateSettings,
+  data: Record<string, SlotData | undefined>,
+  stale: boolean,
+  unknownText: string,
+) {
+  const raw = data.value?.value;
+  const out = evaluateState(raw, s as Sparse, stale, unknownText, data.value?.meta);
+  const layout = s.layout ?? 'big';
+  const fetched = data.value?.fetchedAt ? Date.parse(data.value.fetchedAt) : NaN;
+  return {
+    raw, out, layout,
+    center: (s.alignment ?? 'start') === 'center' || layout === 'icon' || layout === 'lamp',
+    iconSize: s.iconSize ?? 18,
+    bg: out.background ?? tint(out.color, 14),
+    pulse: !!out.pulse && !out.unknown,
+    fetched,
+    showSince: !!s.showSince && !out.unknown,
+    showValue: !!s.showValue && !isBlank(raw) && !out.unknown,
+  };
+}

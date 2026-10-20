@@ -2,7 +2,9 @@
 // and what that change means. `StatValueView.tsx` draws it; kui-ejs and KUInative vendor this file.
 
 import type { FontValue } from '../../SchemaForm/types';
-import { formatValue, type RangeEdges } from '../settings/style';
+import { cssColor, formatValue, rangeFor, tint, type RangeEdges } from '../settings/style';
+import { metaLabel } from '../settings/source-meta';
+import type { SlotData } from '../kind';
 import type { ValueFormat } from '../settings/style';
 
 export const num = (v: unknown): number | null => {
@@ -50,3 +52,22 @@ export function comparison(value: number | null, compare: number | null, s: Stat
   return { text, direction: s.showArrow === false ? 'flat' as const : direction, meaning, color };
 }
 
+
+/** What the single-number widget draws, decided once: the number and its unit, the range colour and where it goes, the change, the label. */
+export function statValueModel(s: StatValueSettings, format: ValueFormat, data: Record<string, SlotData | undefined>, locale: string | undefined) {
+  const value = num(data.value?.value);
+  const rc = cssColor(rangeFor(value, s.ranges, s.rangeEdges ?? 'from')?.color);
+  const target = s.rangeTarget ?? 'value';
+  const layout = s.layout ?? 'stacked';
+  const cmp = comparison(value, num(data.compare?.value), s, format, locale);
+  return {
+    value, layout, cmp,
+    metricText: formatValue(value, { ...format, unit: '' }, {}, locale),
+    metricUnit: value === null ? undefined : format.unit,
+    metricColor: (rc && target === 'value' ? rc : undefined) ?? s.valueColor,
+    labelText: s.label || metaLabel(data.value?.meta?.label, locale),
+    iconSize: Math.round((s.iconSize ?? 20) * 1.8),
+    iconColor: (rc && target === 'icon' ? rc : undefined) ?? s.iconColor,
+    surface: rc && target === 'background' ? { background: tint(rc, 14), borderRadius: 8, padding: 8 } : undefined,
+  };
+}
