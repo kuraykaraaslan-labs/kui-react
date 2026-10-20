@@ -89,6 +89,8 @@ export const MAP: SettingsTemplate = {
         value: { label: 'Value', type: 'text', maxLength: 80, required: true, placeholder: 'Online' },
         color: { label: 'Colour', type: 'color', value: 'var(--success)' },
         label: { label: 'Shown as', type: 'text', maxLength: 40, placeholder: 'The value' },
+        icon: { label: 'Glyph', type: 'icon', placeholder: 'fas fa-truck', description: 'Marks this status with a glyph instead of the marker style.' },
+        image: { label: 'Picture', type: 'text', maxLength: 500, placeholder: '/files/pump-alarm.svg', description: 'An internal path or an https address. Wins over the glyph.' },
       },
     },
     valueColumn: { label: 'Value column', type: 'data-key', slot: 'points', group: 'colour', showIf: { colorBy: 'ranges' } },
@@ -115,7 +117,7 @@ export const MAP: SettingsTemplate = {
       label: 'Map style', type: 'select', value: 'auto', group: 'view', required: true, showIf: { mapKind: 'geo' },
       options: [
         opt('auto', 'Follow the theme'), opt('light', 'Light'), opt('grey', 'Light, no labels'),
-        opt('dark', 'Dark'), opt('streets', 'Streets (colour)'),
+        opt('dark', 'Dark'), opt('streets', 'Streets (colour)'), opt('satellite', 'Satellite'),
       ],
       description: 'Follow the theme: light or dark with the app, or the platform\'s tile server when one is configured.',
     },
@@ -133,6 +135,18 @@ export const MAP: SettingsTemplate = {
     controlsPosition: {
       label: 'Zoom buttons corner', type: 'select', value: 'topleft', group: 'controls', required: true, showIf: { zoomButtons: true },
       options: [opt('topleft', 'Top left'), opt('topright', 'Top right'), opt('bottomleft', 'Bottom left'), opt('bottomright', 'Bottom right')],
+    },
+    draggable: {
+      label: 'Markers can be dragged', type: 'boolean', value: false, group: 'click', showIf: { mapKind: 'image' },
+      description: 'On a floor plan: the viewer drops a marker where it belongs and the placement\'s command receives { id, x, y } (whole pixels). Needs a command in the placement\'s actions; without one the markers stay put.',
+    },
+    replay: {
+      label: 'Replay controls', type: 'boolean', value: false, group: 'routes',
+      description: 'Play, pause and scrub the routes: a moving point follows each, with its start and end marked. A third value per point (a time) makes the replay follow the clock.',
+    },
+    replaySpeed: {
+      label: 'Replay speed', type: 'select', display: 'segmented', value: '1', group: 'routes', required: true, showIf: { replay: true },
+      options: [opt('1', '1×'), opt('2', '2×'), opt('5', '5×'), opt('10', '10×')],
     },
     layerToggles: {
       label: 'Layer switch', type: 'boolean', value: true, group: 'controls',
@@ -195,6 +209,7 @@ export const MAP_KIND: BuiltinKindSpec = {
     { key: 'points', label: 'Points', shape: 'table', required: true },
     { key: 'zones', label: 'Zones', shape: 'table', required: false },
     { key: 'routes', label: 'Routes', shape: 'table', required: false },
+    { key: 'image', label: 'Floor plan address', shape: 'scalar', required: false },
   ],
   template: MAP,
 };

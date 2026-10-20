@@ -4,7 +4,7 @@ import type * as LeafletLib from 'leaflet';
 import type * as ReactLeaflet from 'react-leaflet';
 import { Popup } from './Popup';
 import { LABEL_CLASS, POPUP_CLASS, TIP_CLASS } from './styles';
-import { VARIANT_HEX, markerSvg, safeMarkerColor, safeMarkerIcon, type MapMarker } from '../types';
+import { VARIANT_HEX, markerSvg, safeMarkerColor, safeMarkerIcon, safeMarkerImage, type MapMarker } from '../types';
 
 type MarkerProps = {
   marker: MapMarker;
@@ -13,6 +13,8 @@ type MarkerProps = {
   RLTooltip: typeof ReactLeaflet.Tooltip;
   RLPopup?: typeof ReactLeaflet.Popup;
   onMarkerClick?: (id: string) => void;
+  /** A draggable marker was dropped (Leaflet coordinates). */
+  onMarkerMove?: (id: string, position: [number, number]) => void;
   showLabel?: boolean;
   tooltipTrigger?: 'hover' | 'click' | 'none';
   renderLink?: (href: string, children: ReactNode, className?: string) => ReactNode;
@@ -33,7 +35,14 @@ export function markerIcon(marker: MapMarker): MarkerIconSpec {
   const color = safeMarkerColor(marker.color) ?? VARIANT_HEX[marker.variant ?? 'primary'];
   const size = Math.min(64, Math.max(8, Number.isFinite(marker.size) ? (marker.size as number) : 24));
   const icon = marker.shape === 'icon' ? safeMarkerIcon(marker.icon) : undefined;
-  const shape = marker.shape === 'icon' && !icon ? 'dot' : marker.shape ?? 'pin';
+  const image = marker.shape === 'image' ? safeMarkerImage(marker.image) : undefined;
+  const shape = (marker.shape === 'icon' && !icon) || (marker.shape === 'image' && !image) ? 'dot' : marker.shape ?? 'pin';
+  if (shape === 'image' && image) {
+    return {
+      html: `<img src="${image}" alt="" draggable="false" style="display:block;width:${size}px;height:${size}px;object-fit:contain;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4))" />`,
+      iconSize: [size, size], iconAnchor: [size / 2, size / 2], tooltipAnchor: [0, -size / 2 - 2],
+    };
+  }
   if (shape === 'pin') {
     const h = Math.round(size * 1.5);
     return { html: markerSvg(color, size), iconSize: [size, h], iconAnchor: [size / 2, h], tooltipAnchor: [0, -h - 2] };
@@ -61,7 +70,7 @@ export function markerIcon(marker: MapMarker): MarkerIconSpec {
  * and a click-opened popup. Variant colours come from VARIANT_HEX; `marker.color` overrides them.
  */
 export function MarkerPart({
-  marker, L, RLMarker, RLTooltip, RLPopup, onMarkerClick, showLabel = false, tooltipTrigger = 'hover', renderLink,
+  marker, L, RLMarker, RLTooltip, RLPopup, onMarkerClick, onMarkerMove, showLabel = false, tooltipTrigger = 'hover', renderLink,
 }: MarkerProps) {
   const icon = L.divIcon({ className: '', ...markerIcon(marker) });
 
@@ -83,7 +92,11 @@ export function MarkerPart({
       position={marker.position}
       icon={icon}
       alt={accessibleName}
-      eventHandlers={{ click: () => onMarkerClick?.(marker.id) }}
+      draggable={marker.draggable === true}
+      eventHandlers={{
+        click: () => onMarkerClick?.(marker.id),
+        ...(marker.draggable ? { dragend: (e: { target: { getLatLng: () => { lat: number; lng: number } } }) => { const p = e.target.getLatLng(); onMarkerMove?.(marker.id, [p.lat, p.lng]); } } : {}),
+      }}
     >
       {label && (
         <RLTooltip permanent direction="right" offset={[6, 0]} className={LABEL_CLASS}>

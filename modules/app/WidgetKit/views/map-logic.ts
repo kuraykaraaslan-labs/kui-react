@@ -4,6 +4,7 @@
 
 import { cn } from '@/libs/utils/cn';
 import type { MapImage, MapMarker, MapRoute, MapTilesConfig, MapZone } from '@/modules/ui/MapView';
+import { safeMarkerImage } from '@/modules/ui/MapView';
 import type { SlotData } from '../kind';
 import type { CommonMessages, MapViewMessages } from '../messages';
 import { valueMapList } from '../settings/source-meta';
@@ -44,7 +45,12 @@ export type MapSettings = {
   layerToggles?: boolean;
   layerTogglesPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
   controlsPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
-  tileStyle?: 'auto' | 'light' | 'grey' | 'dark' | 'streets';
+  tileStyle?: 'auto' | 'light' | 'grey' | 'dark' | 'streets' | 'satellite';
+  /** Image maps: the viewer may drag a marker to a new place; a drop is sent as a `set` request `{ id, x, y }`. */
+  draggable?: boolean;
+  /** Show replay controls for the routes. */
+  replay?: boolean;
+  replaySpeed?: number | string;
   legend?: boolean;
   legendPosition?: 'bottomleft' | 'bottomright' | 'topleft' | 'topright';
   linkTemplate?: string;
@@ -54,6 +60,8 @@ export type MapSettings = {
 type S = MapSettings;
 
 type Row = Record<string, unknown>;
+
+const r2 = (n: number): number => Math.round(n * 100) / 100;
 
 /** At most this many markers: a runaway table must not create thousands of DOM markers. */
 export const MAX_MARKERS = 500;
@@ -73,7 +81,14 @@ const esri = (service: string, labels?: string): { url: string; attribution: str
 });
 const LIGHT = esri('Canvas/World_Light_Gray_Base', 'Canvas/World_Light_Gray_Reference');
 const DARK = esri('Canvas/World_Dark_Gray_Base', 'Canvas/World_Dark_Gray_Reference');
-export const TILE_PRESETS: Record<'auto' | 'light' | 'grey' | 'dark' | 'streets', MapTilesConfig> = {
+// Imagery from Esri's keyless World Imagery with place names over it; a host with its own imagery provider passes it in.
+const SATELLITE = {
+  url: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`,
+  attribution: 'Imagery &copy; <a href="https://www.esri.com">Esri</a>, Maxar, Earthstar Geographics &mdash; &copy; OpenStreetMap contributors',
+  labels: `${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`,
+};
+export const TILE_PRESETS: Record<'auto' | 'light' | 'grey' | 'dark' | 'streets' | 'satellite', MapTilesConfig> = {
+  satellite: SATELLITE,
   // Quiet basemaps, so status-coloured markers carry the colour; light or dark with the theme.
   auto: { light: LIGHT, dark: DARK },
   light: LIGHT,
@@ -119,6 +134,7 @@ function rowColor(row: Row, s: S, valueColors: ValueColor[] | undefined): string
 export function buildMarkers(
   slot: SlotData | undefined, settings: Sparse, locale?: string, image: MapImage | null = null,
   texts: { open?: string } & Partial<CommonMessages> = {},
+  host: { resolveUrl?: (url: string) => string; movable?: boolean } = {},
 ): BuiltMarkers {
   const yesNo = texts.yes || texts.no ? { yes: texts.yes ?? 'Yes', no: texts.no ?? 'No' } : undefined;
   const s = settings as S;
@@ -143,6 +159,10 @@ export function buildMarkers(
     const label = s.labelColumn && row[s.labelColumn] != null && row[s.labelColumn] !== '' ? String(row[s.labelColumn]) : undefined;
     const own = rowColor(row, s, valueColors);
     const color = own ?? fixed;
+    // A status can bring its own picture or glyph: the value's entry (the placement's, else the source's).
+    const entry = byColumn ? matchValue(row[s.colorColumn!], valueColors) : undefined;
+    const picture = entry?.image ? safeMarkerImage(hostImageSrc(entry.image, host.resolveUrl) ?? undefined) : undefined;
+    const glyph = !picture && entry?.icon ? entry.icon : undefined;
     // An empty value is left out of the tooltip, never shown as a dash row.
     const fields = fieldsOf.flatMap((key) => {
       const v = row[key];
@@ -163,9 +183,10 @@ export function buildMarkers(
       position: [la, ln],
       label,
       color,
-      shape: s.markerStyle ?? 'pin',
-      ...(s.markerStyle === 'icon' && s.markerIcon ? { icon: s.markerIcon } : {}),
+      shape: picture ? 'image' : glyph ? 'icon' : s.markerStyle ?? 'pin',
+      ...(picture ? { image: picture } : glyph ? { icon: glyph } : s.markerStyle === 'icon' && s.markerIcon ? { icon: s.markerIcon } : {}),
       size: s.markerSize ?? 24,
+      ...(s.draggable === true && image && host.movable ? { draggable: true } : {}),
       ...(fields.length > 0 || href || status || label
         ? {
           tooltip: {
@@ -238,12 +259,14 @@ export const LEGEND_POS: Record<NonNullable<S['legendPosition']>, string> = {
 
 
 /** The picture of an image map (internal path or https, rewritten by the host), or null for a geographic map. */
-export function mapImage(settings: Sparse, resolveUrl?: (url: string) => string): MapImage | null {
+export function mapImage(settings: Sparse, resolveUrl?: (url: string) => string, fromSource?: unknown): MapImage | null {
   const s = settings as Record<string, unknown>;
   if (s.mapKind !== 'image') return null;
   const w = s.imageWidth; const h = s.imageHeight;
   if (typeof w !== 'number' || typeof h !== 'number' || !(w > 0) || !(h > 0)) return null;
-  const url = hostImageSrc(s.imageSrc, resolveUrl);
+  // A bound address (an attribute that holds the picture) wins over the typed one.
+  const bound = typeof fromSource === 'string' && fromSource.trim() ? fromSource : undefined;
+  const url = hostImageSrc(bound ?? s.imageSrc, resolveUrl);
   return url ? { url, width: w, height: h } : null;
 }
 
@@ -333,6 +356,10 @@ export interface MapModelInput {
   /** The host handles marker clicks (`onMarkerClick`) / navigates a marker's link (`onNavigate`). */
   hasMarkerClick?: boolean;
   hasNavigate?: boolean;
+  /** The platform's own imagery provider, used by the "Satellite" style. */
+  imagery?: MapTilesConfig;
+  /** The host can write a dropped marker back (a command is bound and allowed). */
+  movable?: boolean;
 }
 
 /**
@@ -343,8 +370,8 @@ export interface MapModelInput {
 export function mapModel(settings: Sparse, data: Record<string, SlotData | undefined>, locale: string | undefined, i: MapModelInput) {
   const s = settings as S;
   const m = i.messages.map;
-  const image = mapImage(settings, i.resolveUrl);
-  const { markers, rows } = buildMarkers(data.points, settings, locale, image, { open: m.open, ...i.messages.common });
+  const image = mapImage(settings, i.resolveUrl, data.image?.value);
+  const { markers, rows } = buildMarkers(data.points, settings, locale, image, { open: m.open, ...i.messages.common }, { resolveUrl: i.resolveUrl, movable: i.movable });
   const legend = s.legend === false ? [] : mapLegend(data.points, settings);
   const zones = buildZones(data.zones, settings, image);
   const routes = buildRoutes(data.routes, settings, image);
@@ -353,7 +380,7 @@ export function mapModel(settings: Sparse, data: Record<string, SlotData | undef
   const layerText = { layers: m.layers, markers: m.markers, zones: m.zones, routes: m.routes, ...i.layerLabels };
   const center: [number, number] | undefined = typeof s.centerLat === 'number' && typeof s.centerLng === 'number' ? [s.centerLat, s.centerLng] : undefined;
   const style = s.tileStyle ?? 'auto';
-  const tiles = style === 'auto' ? i.tiles ?? TILE_PRESETS.auto : TILE_PRESETS[style] ?? TILE_PRESETS.auto;
+  const tiles = style === 'auto' ? i.tiles ?? TILE_PRESETS.auto : style === 'satellite' ? i.imagery ?? TILE_PRESETS.satellite : TILE_PRESETS[style] ?? TILE_PRESETS.auto;
   const controls = s.controlsPosition ?? 'topleft';
   const zoomButtons = s.zoomButtons !== false;
   // The legend never sits under the zoom buttons.
@@ -375,6 +402,9 @@ export function mapModel(settings: Sparse, data: Record<string, SlotData | undef
     showSwitch,
     layerText,
     clickable: !!i.hasMarkerClick || (!!i.hasNavigate && !!s.linkTemplate),
+    /** A drop on an image map is written back (draggable markers and a host that can write). */
+    movable: s.draggable === true && !!image && !!i.movable,
+    replay: replayModel(data.routes, settings, image),
     switchCorner,
     legendCorner,
     switchClass: cn(MAP_SWITCH_CLASS, LEGEND_POS[switchCorner] ?? LEGEND_POS.topright),
@@ -402,9 +432,124 @@ export function mapModel(settings: Sparse, data: Record<string, SlotData | undef
   };
 }
 
+
+// ─── Route replay ────────────────────────────────────────────────────────────
+
+/** A route that can be replayed: its points, optional times, and the distance walked up to each point. */
+export interface ReplayRoute {
+  id: string;
+  label?: string;
+  color: string;
+  positions: [number, number][];
+  /** One time (epoch ms) per point, or null when the route has none (it then replays at an even pace). */
+  times: number[] | null;
+  /** The distance from the start to each point, and the whole length. */
+  cumulative: number[];
+  total: number;
+}
+
+export const REPLAY_SPEEDS: readonly number[] = [1, 2, 5, 10];
+/** A replay at 1x takes this long, whatever the route's length. */
+export const REPLAY_SECONDS = 30;
+
+const toMs = (v: unknown): number | null => {
+  if (typeof v === 'number' && Number.isFinite(v)) return v < 1e11 ? v * 1000 : v;
+  if (typeof v === 'string' && v.trim() !== '') { const t = Date.parse(v); return Number.isFinite(t) ? t : null; }
+  return null;
+};
+
+/** The third element of every point as a time, or null unless every point has one and they never go back. */
+export function readTimes(cell: unknown): number[] | null {
+  let v = cell;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { return null; } }
+  if (!Array.isArray(v) || v.length < 2) return null;
+  const out: number[] = [];
+  for (const p of v) {
+    const t = Array.isArray(p) ? toMs(p[2]) : null;
+    if (t === null || (out.length && t < out[out.length - 1])) return null;
+    out.push(t);
+  }
+  return out;
+}
+
+/** The distance between two positions: degrees with the longitude scaled by latitude, or pixels on an image map. */
+const gap = (a: [number, number], b: [number, number], flat: boolean) => {
+  const k = flat ? 1 : Math.cos((((a[0] + b[0]) / 2) * Math.PI) / 180);
+  return Math.hypot(b[0] - a[0], (b[1] - a[1]) * k);
+};
+
+/** The routes the settings and rows describe, ready to replay (rows without two valid points are skipped). */
+export function replayRoutes(slot: SlotData | undefined, settings: Sparse, image: MapImage | null = null): ReplayRoute[] {
+  const s = settings as Record<string, unknown>;
+  const col = (k: string, d: string) => (typeof s[k] === 'string' && s[k] ? (s[k] as string) : d);
+  const color = cssColor(s.routeColor) ?? 'var(--primary)';
+  const out: ReplayRoute[] = [];
+  (slot?.rows ?? []).forEach((row, n) => {
+    const raw = row[col('routePositionsColumn', 'positions')];
+    const positions = readPositions(raw, onMap(image));
+    if (!positions || positions.length < 2) return;
+    const cumulative = [0];
+    for (let i = 1; i < positions.length; i += 1) cumulative.push(cumulative[i - 1] + gap(positions[i - 1], positions[i], !!image));
+    const label = row[col('routeLabelColumn', 'name')];
+    out.push({
+      id: String(row.id ?? n), color, positions, times: readTimes(raw), cumulative, total: cumulative[cumulative.length - 1],
+      ...(label !== undefined && label !== null && label !== '' ? { label: String(label) } : {}),
+    });
+  });
+  return out;
+}
+
+/** Where a route is at `progress` (0 to 1): by time when the points carry times, else by distance walked. */
+export function replayAt(route: ReplayRoute, progress: number): { position: [number, number]; time: number | null; index: number } {
+  const p = Math.min(1, Math.max(0, Number.isFinite(progress) ? progress : 0));
+  const last = route.positions.length - 1;
+  const t = route.times;
+  const along = t ? t[0] + p * (t[last] - t[0]) : p * route.total;
+  const marks = t ?? route.cumulative;
+  let i = 0;
+  while (i < last - 1 && marks[i + 1] < along) i += 1;
+  const span = marks[i + 1] - marks[i];
+  const f = span > 0 ? Math.min(1, Math.max(0, (along - marks[i]) / span)) : 0;
+  const a = route.positions[i]; const b = route.positions[i + 1];
+  return {
+    position: [r2(a[0] + (b[0] - a[0]) * f), r2(a[1] + (b[1] - a[1]) * f)],
+    time: t ? Math.round(along) : null,
+    index: i,
+  };
+}
+
+/** The markers a replay adds: the start, the end and the moving point (not clickable rows). */
+export function replayMarkers(routes: ReplayRoute[], progress: number, texts: { start: string; end: string }, time?: (ms: number) => string): MapMarker[] {
+  return routes.flatMap((r) => {
+    const at = replayAt(r, progress);
+    const name = r.label ?? '';
+    return [
+      { id: `replay:${r.id}:start`, position: r.positions[0], shape: 'dot' as const, color: 'var(--success)', size: 12, tooltip: { title: name ? `${name} · ${texts.start}` : texts.start } },
+      { id: `replay:${r.id}:end`, position: r.positions[r.positions.length - 1], shape: 'dot' as const, color: 'var(--error)', size: 12, tooltip: { title: name ? `${name} · ${texts.end}` : texts.end } },
+      { id: `replay:${r.id}:now`, position: at.position, shape: 'circle' as const, color: r.color, size: 22, ...(at.time !== null && time ? { tooltip: { title: time(at.time) } } : {}) },
+    ];
+  });
+}
+
+/** What the replay controls need: the routes, whether they are on, the speed and its choices. */
+export function replayModel(slot: SlotData | undefined, settings: Sparse, image: MapImage | null) {
+  const s = settings as S;
+  const routes = s.replay === true ? replayRoutes(slot, settings, image) : [];
+  const speed = Number(s.replaySpeed);
+  return {
+    enabled: routes.length > 0,
+    routes,
+    speeds: REPLAY_SPEEDS,
+    speed: REPLAY_SPEEDS.includes(speed) ? speed : 1,
+    seconds: REPLAY_SECONDS,
+    /** The earliest and latest time of the routes, or null when any route has none. */
+    timeSpan: routes.length > 0 && routes.every((r) => r.times) ? { from: Math.min(...routes.map((r) => (r.times as number[])[0])), to: Math.max(...routes.map((r) => (r.times as number[])[r.times!.length - 1])) } : null,
+  };
+}
+
 /** Has the map nothing to show? An image map shows its picture with nothing on it; a geographic one with nothing to plot is empty. */
 export function mapIsEmpty(data: Record<string, SlotData | undefined>, settings: Sparse): boolean {
-  const image = mapImage(settings);
+  const image = mapImage(settings, undefined, data.image?.value);
   return !image && buildMarkers(data.points, settings).markers.length === 0
     && buildZones(data.zones, settings).length === 0 && buildRoutes(data.routes, settings).length === 0;
 }

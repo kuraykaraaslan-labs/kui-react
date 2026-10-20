@@ -44,7 +44,7 @@ describe('map zones and routes (next-boilerplate 20.3d)', () => {
   });
 
   it('the kind offers the two optional slots, and the settings validate', () => {
-    expect(MAP_KIND.slots.map((s) => [s.key, s.required])).toEqual([['points', true], ['zones', false], ['routes', false]]);
+    expect(MAP_KIND.slots.map((s) => [s.key, s.required])).toEqual([['points', true], ['zones', false], ['routes', false], ['image', false]]);
     const ok = prepareForSave({ zoneVariant: 'error', zoneOpacity: 0.5, routeWeight: 4, routeDashed: true }, { type: MAP });
     expect(ok.issues).toEqual([]);
     expect(prepareForSave({ zoneVariant: 'purple' }, { type: MAP }).issues.length).toBeGreaterThan(0);

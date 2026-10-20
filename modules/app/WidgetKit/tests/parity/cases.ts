@@ -32,6 +32,7 @@ const series = (vals: number[], meta?: SlotData['meta'], stepMin = 60): SlotData
 const scalar = (value: number | string | boolean | null, extra: Partial<SlotData> = {}): SlotData => ({ shape: 'scalar', value, fetchedAt: at(5), ...extra });
 
 const withTitle = { $card: { showTitle: true } };
+const pointRows = (rows: Array<Record<string, unknown>>): SlotData => ({ shape: 'table', fetchedAt: at(1), rows });
 
 const TABLE: SlotData = {
   shape: 'table', fetchedAt: at(2),
@@ -150,6 +151,37 @@ export const PARITY_CASES: ParityCase[] = [
   { id: 'gauge.bar-horizontal', kind: 'gauge', settings: { layout: 'bar-horizontal', min: 10, max: 90, ticks: 4, tickLabels: true, valueText: 'value' }, data: { value: scalar(55), min: scalar(0), max: scalar(100) } },
   { id: 'gauge.level', kind: 'gauge', settings: { layout: 'level', label: 'Tank', unitTitle: 'm', max: 5, ranges: [{ from: 0, to: 1, color: '#dc2626' }, { from: 1, to: 5, color: '#2563eb' }], rangeDisplay: 'track' }, data: { value: scalar(3.2, { meta: { unit: 'm', decimals: 1 } }) } },
   { id: 'gauge.empty-shape', kind: 'gauge', title: 'Pressure', settings: withTitle, data: {}, boundSlots: ['value'] },
+  // ── scada.symbol and scada.scene (SVG node trees: kui-ejs writes the same markup with `svgToString`)
+  { id: 'scada.tank-level', kind: 'scada.symbol', title: 'Tank A', settings: { ...withTitle, symbol: 'tank.vertical', max: 100, label: 'Tank A' }, data: { value: scalar(62, { meta: { unit: '%', decimals: 0 } }) } },
+  { id: 'scada.pump-running', kind: 'scada.symbol', settings: { symbol: 'pump.volute', label: 'Pump 2', medium: 'cold' }, data: { running: scalar(true) } },
+  { id: 'scada.pipe-hot-arrows', kind: 'scada.symbol', settings: { symbol: 'pipe.straight', length: 2, medium: 'hot', arrows: true }, data: { running: scalar(true) } },
+  { id: 'scada.valve-warning', kind: 'scada.symbol', settings: { symbol: 'valve.ball' }, data: { running: scalar(true), status: scalar('warning') } },
+  { id: 'scada.hose-elbow-turned', kind: 'scada.symbol', settings: { symbol: 'hose.elbow', orientation: '90', mirror: true, medium: 'water' }, data: { running: scalar(true) } },
+  { id: 'scada.cable-tee', kind: 'scada.symbol', settings: { symbol: 'cable.tee' }, data: { running: scalar(true), critical: scalar(true) } },
+  { id: 'scada.inverter-reading', kind: 'scada.symbol', settings: { symbol: 'inverter' }, data: { value: scalar(20, { meta: { unit: 'kWh', decimals: 1 } }), running: scalar(true) } },
+  { id: 'scada.meter-two-rows', kind: 'scada.symbol', settings: { symbol: 'meter.energy', rowLabel1: 'T1', rowLabel2: 'T2' }, data: { value: scalar(1284.5), value2: scalar(912.3) } },
+  { id: 'scada.dial-bands', kind: 'scada.symbol', settings: { symbol: 'meter.pressure', min: 0, max: 10, ranges: [{ from: 0, to: 6, color: '#16a34a' }, { from: 6, to: 8, color: '#f59e0b' }, { from: 8, to: 10, color: '#dc2626' }] }, data: { value: scalar(7.2) } },
+  { id: 'scada.derrick-block', kind: 'scada.symbol', settings: { symbol: 'rig.derrick', max: 100 }, data: { value: scalar(30), running: scalar(true) } },
+  { id: 'scada.empty-shape', kind: 'scada.symbol', title: 'Pump', settings: withTitle, data: {}, boundSlots: ['value'] },
+  {
+    id: 'scada.scene-small', kind: 'scada.scene', title: 'Plant',
+    settings: {
+      width: 600, height: 300, scale: 0.7, background: 'dots',
+      elements: [
+        { id: 'tank', symbol: 'tank.vertical', x: 80, y: 120, label: 'Tank', max: 100 },
+        { id: 'pump', symbol: 'pump.volute', x: 260, y: 120, label: 'Pump' },
+        { id: 'valve', symbol: 'valve.ball', x: 420, y: 120, labelPos: 'n' },
+        { id: 'drain', symbol: 'drain', x: 520, y: 220 },
+      ],
+      links: [
+        { from: 'tank.r', to: 'pump.l', kind: 'pipe', medium: 'cold', id: 'pump' },
+        { from: 'pump.r', to: 'valve.l', kind: 'hose', medium: 'cold', id: 'pump' },
+        { from: 'valve.r', to: 'drain.l', kind: 'wire', id: 'valve' },
+      ],
+    },
+    data: { points: pointRows([{ id: 'tank', value: 62 }, { id: 'pump', running: true }, { id: 'valve', running: true }, { id: 'drain', running: false }]) },
+  },
+  { id: 'scada.scene-empty', kind: 'scada.scene', title: 'Plant', settings: withTitle, data: {}, boundSlots: ['points'] },
   // ── content.markdown
   { id: 'markdown.plain', kind: 'content.markdown', title: 'Notes', settings: { ...withTitle, content: '# Shift notes\n\nPump **A** is *running*; see [the manual](https://docs.example.com/pumps) or [devices](/devices).\n\n- Level {{level}} m\n- Owner {{owner}}\n\n1. Check the valve\n2. Log it\n\n> Keep clear of the pit.\n\n```\nrun --safe\n```\n\n---\n\nUse `reset` after {{missing}}.' }, data: { record: { shape: 'record', record: { level: 4.2, owner: 'Ayşe' } } } },
   { id: 'markdown.callout', kind: 'content.markdown', settings: { layout: 'callout', calloutStyle: 'warning', calloutIcon: 'fas fa-triangle-exclamation', content: 'Maintenance tonight at 22:00.', textSize: 'lg', align: 'center', padding: 8 } },

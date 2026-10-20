@@ -24,7 +24,7 @@ export type {
   MapMarkerShape,
   MapDisplayOptions,
 } from './types';
-export { safeMarkerColor, safeMarkerIcon } from './types';
+export { safeMarkerColor, safeMarkerIcon, safeMarkerImage } from './types';
 export { MapCanvas } from './MapCanvas';
 export type { MapCanvasProps } from './MapCanvas';
 
@@ -60,8 +60,9 @@ export function MapView({
   zoomControl,
   controlsPosition,
   fitMaxZoom,
+  onMarkerMove,
 }: MapViewProps) {
-  const display = { minZoom, maxZoom, cluster, showLabels, tooltipTrigger, renderLink, clusterRadius, scrollWheelZoom, zoomControl, controlsPosition, fitMaxZoom };
+  const display = { minZoom, maxZoom, cluster, showLabels, tooltipTrigger, renderLink, clusterRadius, scrollWheelZoom, zoomControl, controlsPosition, fitMaxZoom, onMarkerMove };
   const { ref, visible } = useInViewport<HTMLDivElement>();
   const [addMode, setAddMode] = useState(false);
   const [showZones, setShowZones] = useState(true);

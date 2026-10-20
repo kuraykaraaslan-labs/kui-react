@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { markerIcon } from './parts/Marker';
 import { clusterColor, clusterMarkers } from './parts/Cluster';
 import { Popup, isInternalHref } from './parts/Popup';
-import { safeMarkerColor, safeMarkerIcon } from './types';
+import { safeMarkerColor, safeMarkerIcon, safeMarkerImage } from './types';
 import { LEAFLET_TILES } from './providers/leaflet';
 
 describe('marker drawing', () => {
@@ -78,5 +78,24 @@ describe('marker drawing', () => {
       expect(t.url).not.toMatch(/cartocdn/);
       expect(t.labels).toMatch(/Reference/);
     }
+  });
+});
+
+describe('picture markers', () => {
+  it('accepts an internal path or an https address and refuses anything that could leave the attribute', () => {
+    expect(safeMarkerImage('/files/pump.svg')).toBe('/files/pump.svg');
+    expect(safeMarkerImage('https://example.com/a.png')).toBe('https://example.com/a.png');
+    for (const bad of ['//evil.test/a.png', 'http://example.com/a.png', 'javascript:alert(1)', '/a.png"onerror="x', '/a b.png', '/a<b.png', '/a\\b.png', 'data:image/png;base64,AA==', '']) {
+      expect(safeMarkerImage(bad), bad).toBeUndefined();
+    }
+  });
+
+  it('draws the picture at the requested size, and a dot when the address is not safe', () => {
+    const ok = markerIcon({ id: '1', position: [0, 0], shape: 'image', image: '/files/pump.svg', size: 30 });
+    expect(ok.html).toContain('<img src="/files/pump.svg"');
+    expect(ok.iconSize).toEqual([30, 30]);
+    const bad = markerIcon({ id: '1', position: [0, 0], shape: 'image', image: 'javascript:alert(1)', color: '#ff0000' });
+    expect(bad.html).not.toContain('<img');
+    expect(bad.html).toContain('background:#ff0000');
   });
 });

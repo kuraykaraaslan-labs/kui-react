@@ -17,6 +17,7 @@ import { controlButtonModel } from '../../views/control-button-logic';
 import { controlSwitchModel } from '../../views/control-switch-logic';
 import { controlSliderModel } from '../../views/control-slider-logic';
 import { controlSetpointModel } from '../../views/control-setpoint-logic';
+import { controlFormModel } from '../../views/control-form-logic';
 import { videoModel } from '../../views/content-model';
 import { MODEL_CASES, MODEL_LOCALE, MODEL_NOW, type ModelCase } from './model-cases';
 
@@ -74,12 +75,13 @@ export function modelOf(c: ModelCase, r: Resolved = resolveCase(c)): unknown {
     case 'map':
       return mapModel(s, data, locale, {
         messages: { map: M.map, common: M.common }, resolveUrl, tiles: h.tiles as never, layerLabels: h.layerLabels,
-        hasMarkerClick: h.hasMarkerClick, hasNavigate: h.hasNavigate,
+        hasMarkerClick: h.hasMarkerClick, hasNavigate: h.hasNavigate, imagery: h.imagery as never, movable: h.movable,
       });
     case 'control.button': return controlButtonModel(s, control);
     case 'control.switch': return controlSwitchModel(s, data.value?.value, control);
     case 'control.slider': return controlSliderModel(s, data.value?.value, format, control);
     case 'control.setpoint': return controlSetpointModel(s, data.value?.value, format, locale, control);
+    case 'control.form': return controlFormModel(s, data, locale, control);
     case 'content.video': return videoModel(s, data, resolveUrl, h.title, locale, M.content);
     default: throw new Error(`no model for ${c.kind}`);
   }

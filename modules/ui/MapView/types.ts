@@ -19,8 +19,8 @@ export type MapTooltipData = {
   color?: string;
 };
 
-/** How a marker is drawn: the pin (default), a solid dot, a tinted ring (circle), or a Font Awesome icon. */
-export type MapMarkerShape = 'pin' | 'dot' | 'circle' | 'icon';
+/** How a marker is drawn: the pin (default), a solid dot, a tinted ring (circle), a Font Awesome icon, or a picture. */
+export type MapMarkerShape = 'pin' | 'dot' | 'circle' | 'icon' | 'image';
 
 export type MapMarker = {
   id: string;
@@ -39,6 +39,10 @@ export type MapMarker = {
   icon?: string;
   /** Width of the marker in px (a pin is 1.5× as tall). Default = 24; clamped to 8..64. */
   size?: number;
+  /** An internal path or https address for `shape: 'image'` (checked by `safeMarkerImage`); anything else falls back to a dot. */
+  image?: string;
+  /** The viewer may drag the marker; `onMarkerMove` is told where it was dropped. */
+  draggable?: boolean;
 };
 
 export type MapZone = {
@@ -127,6 +131,11 @@ export type MapDisplayOptions = {
   zoomControl?: boolean;
   /** Corner of the zoom buttons. Default = 'topleft'. */
   controlsPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
+  /**
+   * A draggable marker was dropped: its id and new position in the map's own coordinates (an image map: `[y, x]` pixels
+   * from the picture's top-left corner, whole numbers kept inside the picture).
+   */
+  onMarkerMove?: (id: string, position: [number, number]) => void;
   /** The closest zoom a fit to the markers may reach (one marker would otherwise zoom all the way in). Default = 15. */
   fitMaxZoom?: number;
   /** Build a link for a tooltip `href` (host routing); default = a plain anchor. */
@@ -176,6 +185,15 @@ export function safeMarkerColor(value: unknown): string | undefined {
 const SAFE_ICON_RE = /^(?:fa[srbldt]?|fa-(?:solid|regular|brands|light|duotone|thin))(?: fa-[a-z0-9-]+){1,3}$/;
 export function safeMarkerIcon(value: unknown): string | undefined {
   return typeof value === 'string' && value.length <= 80 && SAFE_ICON_RE.test(value.trim()) ? value.trim() : undefined;
+}
+
+/**
+ * A marker picture that is safe to write into marker HTML: an internal path (`/…`, not `//`) or an https address,
+ * without quotes, angle brackets, backslashes, spaces or control characters. Anything else returns `undefined`.
+ */
+const SAFE_IMAGE_RE = /^(?:\/(?![\/\\])|https:\/\/)[^\s"'<>\\\u0000-\u001f\u007f]{1,480}$/;
+export function safeMarkerImage(value: unknown): string | undefined {
+  return typeof value === 'string' && SAFE_IMAGE_RE.test(value.trim()) ? value.trim() : undefined;
 }
 
 /** The pin drawing. `color` must already be safe (a VARIANT_HEX value or `safeMarkerColor`'s result). */

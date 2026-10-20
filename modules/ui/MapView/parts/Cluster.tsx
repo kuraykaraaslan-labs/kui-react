@@ -54,6 +54,7 @@ type ClusteredMarkersProps = {
   bundle: LeafletBundle;
   markers: MapMarker[];
   onMarkerClick?: (id: string) => void;
+  onMarkerMove?: (id: string, position: [number, number]) => void;
   showLabels?: boolean;
   tooltipTrigger?: 'hover' | 'click' | 'none';
   renderLink?: (href: string, children: ReactNode, className?: string) => ReactNode;
@@ -62,7 +63,7 @@ type ClusteredMarkersProps = {
 };
 
 /** Markers grouped by overlap at the current zoom; a group is a count bubble that zooms in on click. */
-export function ClusteredMarkers({ bundle, markers, onMarkerClick, showLabels, tooltipTrigger, renderLink, radius = 40 }: ClusteredMarkersProps) {
+export function ClusteredMarkers({ bundle, markers, onMarkerClick, onMarkerMove, showLabels, tooltipTrigger, renderLink, radius = 40 }: ClusteredMarkersProps) {
   const { useMap, useMapEvents, Marker, Tooltip, Popup, L } = bundle;
   const map = useMap() as LeafletMap;
   const [zoom, setZoom] = useState(() => map.getZoom());
@@ -80,6 +81,7 @@ export function ClusteredMarkers({ bundle, markers, onMarkerClick, showLabels, t
           RLTooltip={Tooltip}
           RLPopup={Popup}
           onMarkerClick={onMarkerClick}
+          onMarkerMove={onMarkerMove}
           showLabel={showLabels}
           tooltipTrigger={tooltipTrigger}
           renderLink={renderLink}

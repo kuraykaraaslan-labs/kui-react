@@ -3765,6 +3765,9 @@
      "zoom": 4,
      "zoomButtons": true,
      "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
      "layerToggles": true,
      "layerTogglesPosition": "topright",
      "scrollZoom": false,
@@ -3922,6 +3925,20 @@
      "routes": "Routes"
     },
     "clickable": true,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
     "switchCorner": "topright",
     "legendCorner": "bottomright",
     "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
@@ -4115,6 +4132,9 @@
      "zoom": 6,
      "zoomButtons": true,
      "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
      "layerToggles": true,
      "layerTogglesPosition": "topright",
      "scrollZoom": false,
@@ -4244,6 +4264,20 @@
      "routes": "Routes"
     },
     "clickable": true,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
     "switchCorner": "topright",
     "legendCorner": "bottomleft",
     "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
@@ -4429,6 +4463,9 @@
      "zoom": 4,
      "zoomButtons": false,
      "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
      "layerToggles": true,
      "layerTogglesPosition": "topright",
      "scrollZoom": true,
@@ -4551,6 +4588,20 @@
      "routes": "Routes"
     },
     "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
     "switchCorner": "topright",
     "legendCorner": "bottomleft",
     "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
@@ -4718,6 +4769,9 @@
      "zoom": 4,
      "zoomButtons": true,
      "controlsPosition": "topright",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
      "layerToggles": true,
      "layerTogglesPosition": "topright",
      "scrollZoom": false,
@@ -4810,6 +4864,20 @@
      "routes": "Routes"
     },
     "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
     "switchCorner": "bottomright",
     "legendCorner": "bottomleft",
     "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-6 right-2",
@@ -5059,6 +5127,9 @@
      "zoom": 4,
      "zoomButtons": true,
      "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
      "layerToggles": true,
      "layerTogglesPosition": "topleft",
      "scrollZoom": false,
@@ -5216,6 +5287,20 @@
      "routes": "Routes"
     },
     "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
     "switchCorner": "bottomleft",
     "legendCorner": "bottomleft",
     "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
@@ -5315,6 +5400,9 @@
      "zoom": 4,
      "zoomButtons": true,
      "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
      "layerToggles": true,
      "layerTogglesPosition": "topright",
      "scrollZoom": false,
@@ -5397,6 +5485,20 @@
      "routes": "Routes"
     },
     "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
     "switchCorner": "topright",
     "legendCorner": "bottomleft",
     "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
@@ -5466,6 +5568,9 @@
      "zoom": 4,
      "zoomButtons": true,
      "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
      "layerToggles": true,
      "layerTogglesPosition": "topright",
      "scrollZoom": false,
@@ -5497,6 +5602,20 @@
      "routes": "Routes"
     },
     "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
     "switchCorner": "topright",
     "legendCorner": "bottomleft",
     "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
@@ -7000,6 +7119,1852 @@
      },
      "disabledReason": "The current state is unknown, so the control is disabled."
     }
+   }
+  },
+  {
+   "id": "map.status-pictures",
+   "kind": "map",
+   "settings": {
+    "colorBy": "column",
+    "colorColumn": "status",
+    "markerStyle": "dot",
+    "valueColors": [
+     {
+      "value": "Alarm",
+      "color": "#dc2626",
+      "label": "Alarm",
+      "image": "/files/alarm.svg"
+     },
+     {
+      "value": "Ok",
+      "color": "#16a34a",
+      "label": "Ok",
+      "icon": "fas fa-check"
+     },
+     {
+      "value": "Idle",
+      "color": "#f59e0b",
+      "image": "javascript:alert(1)"
+     }
+    ]
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "lat": 41,
+       "lng": 29,
+       "label": "A",
+       "status": "Alarm"
+      },
+      {
+       "lat": 41.1,
+       "lng": 29.1,
+       "label": "B",
+       "status": "Ok"
+      },
+      {
+       "lat": 41.2,
+       "lng": 29.2,
+       "label": "C",
+       "status": "Idle"
+      }
+     ]
+    }
+   },
+   "host": {
+    "resolveUrlPrefix": "/tenant-7"
+   },
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "dot",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "column",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [
+      {
+       "value": "Alarm",
+       "color": "#dc2626",
+       "label": "Alarm",
+       "image": "/files/alarm.svg"
+      },
+      {
+       "value": "Ok",
+       "color": "#16a34a",
+       "label": "Ok",
+       "icon": "fas fa-check"
+      },
+      {
+       "value": "Idle",
+       "color": "#f59e0b",
+       "image": "javascript:alert(1)"
+      }
+     ],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "auto",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [
+     {
+      "id": "0",
+      "position": [
+       41,
+       29
+      ],
+      "label": "A",
+      "color": "#dc2626",
+      "shape": "image",
+      "image": "/tenant-7/files/alarm.svg",
+      "size": 24,
+      "tooltip": {
+       "title": "A",
+       "fields": [],
+       "color": "#dc2626",
+       "description": "Alarm"
+      }
+     },
+     {
+      "id": "1",
+      "position": [
+       41.1,
+       29.1
+      ],
+      "label": "B",
+      "color": "#16a34a",
+      "shape": "icon",
+      "icon": "fas fa-check",
+      "size": 24,
+      "tooltip": {
+       "title": "B",
+       "fields": [],
+       "color": "#16a34a",
+       "description": "Ok"
+      }
+     },
+     {
+      "id": "2",
+      "position": [
+       41.2,
+       29.2
+      ],
+      "label": "C",
+      "color": "#f59e0b",
+      "shape": "dot",
+      "size": 24,
+      "tooltip": {
+       "title": "C",
+       "fields": [],
+       "color": "#f59e0b",
+       "description": "Idle"
+      }
+     }
+    ],
+    "rows": {
+     "0": {
+      "lat": 41,
+      "lng": 29,
+      "label": "A",
+      "status": "Alarm"
+     },
+     "1": {
+      "lat": 41.1,
+      "lng": 29.1,
+      "label": "B",
+      "status": "Ok"
+     },
+     "2": {
+      "lat": 41.2,
+      "lng": 29.2,
+      "label": "C",
+      "status": "Idle"
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [
+     {
+      "label": "Alarm",
+      "color": "#dc2626",
+      "count": 1
+     },
+     {
+      "label": "Ok",
+      "color": "#16a34a",
+      "count": 1
+     },
+     {
+      "label": "Idle",
+      "color": "#f59e0b",
+      "count": 1
+     }
+    ],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "light": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      },
+      "dark": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      }
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.satellite-own-provider",
+   "kind": "map",
+   "settings": {
+    "tileStyle": "satellite"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "lat": 41,
+       "lng": 29,
+       "label": "A"
+      }
+     ]
+    }
+   },
+   "host": {
+    "imagery": {
+     "url": "https://tiles.example.com/{z}/{x}/{y}.jpg",
+     "attribution": "Example"
+    }
+   },
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "pin",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "column",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "satellite",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": false,
+     "replaySpeed": "1",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [
+     {
+      "id": "0",
+      "position": [
+       41,
+       29
+      ],
+      "label": "A",
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24,
+      "tooltip": {
+       "title": "A",
+       "fields": []
+      }
+     }
+    ],
+    "rows": {
+     "0": {
+      "lat": 41,
+      "lng": 29,
+      "label": "A"
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "url": "https://tiles.example.com/{z}/{x}/{y}.jpg",
+      "attribution": "Example"
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.floor-plan-draggable",
+   "kind": "map",
+   "settings": {
+    "mapKind": "image",
+    "imageWidth": 1200,
+    "imageHeight": 800,
+    "draggable": true,
+    "idColumn": "id"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "p1",
+       "lat": 120,
+       "lng": 300,
+       "label": "Pump"
+      },
+      {
+       "id": "p2",
+       "lat": 500,
+       "lng": 900,
+       "label": "Tank"
+      }
+     ]
+    },
+    "image": {
+     "shape": "scalar",
+     "value": "/files/floor-2.png",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "host": {
+    "movable": true,
+    "resolveUrlPrefix": "/tenant-7"
+   },
+   "input": {
+    "settings": {
+     "mapKind": "image",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "pin",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "column",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "auto",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "draggable": true,
+     "replay": false,
+     "replaySpeed": "1",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false,
+     "imageWidth": 1200,
+     "imageHeight": 800,
+     "idColumn": "id"
+    },
+    "format": {}
+   },
+   "model": {
+    "image": {
+     "url": "/tenant-7/files/floor-2.png",
+     "width": 1200,
+     "height": 800
+    },
+    "markers": [
+     {
+      "id": "p1",
+      "position": [
+       120,
+       300
+      ],
+      "label": "Pump",
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24,
+      "draggable": true,
+      "tooltip": {
+       "title": "Pump",
+       "fields": []
+      }
+     },
+     {
+      "id": "p2",
+      "position": [
+       500,
+       900
+      ],
+      "label": "Tank",
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24,
+      "draggable": true,
+      "tooltip": {
+       "title": "Tank",
+       "fields": []
+      }
+     }
+    ],
+    "rows": {
+     "p1": {
+      "id": "p1",
+      "lat": 120,
+      "lng": 300,
+      "label": "Pump"
+     },
+     "p2": {
+      "id": "p2",
+      "lat": 500,
+      "lng": 900,
+      "label": "Tank"
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "movable": true,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "image": {
+      "url": "/tenant-7/files/floor-2.png",
+      "width": 1200,
+      "height": 800
+     },
+     "tiles": {
+      "light": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      },
+      "dark": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      }
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.floor-plan-read-only",
+   "kind": "map",
+   "settings": {
+    "mapKind": "image",
+    "imageSrc": "/files/floor-1.png",
+    "imageWidth": 1200,
+    "imageHeight": 800,
+    "draggable": true
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "lat": 120,
+       "lng": 300,
+       "label": "Pump"
+      }
+     ]
+    }
+   },
+   "host": {
+    "movable": false
+   },
+   "input": {
+    "settings": {
+     "mapKind": "image",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "pin",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "column",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "auto",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "draggable": true,
+     "replay": false,
+     "replaySpeed": "1",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "var(--primary)",
+     "routeWeight": 3,
+     "routeDashed": false,
+     "imageSrc": "/files/floor-1.png",
+     "imageWidth": 1200,
+     "imageHeight": 800
+    },
+    "format": {}
+   },
+   "model": {
+    "image": {
+     "url": "/files/floor-1.png",
+     "width": 1200,
+     "height": 800
+    },
+    "markers": [
+     {
+      "id": "0",
+      "position": [
+       120,
+       300
+      ],
+      "label": "Pump",
+      "color": "var(--primary)",
+      "shape": "pin",
+      "size": 24,
+      "tooltip": {
+       "title": "Pump",
+       "fields": []
+      }
+     }
+    ],
+    "rows": {
+     "0": {
+      "lat": 120,
+      "lng": 300,
+      "label": "Pump"
+     }
+    },
+    "zones": [],
+    "routes": [],
+    "legend": [],
+    "layers": [
+     "markers"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": false,
+     "routes": [],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 1,
+     "seconds": 30,
+     "timeSpan": null
+    },
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "image": {
+      "url": "/files/floor-1.png",
+      "width": 1200,
+      "height": 800
+     },
+     "tiles": {
+      "light": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      },
+      "dark": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      }
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "map.route-replay",
+   "kind": "map",
+   "settings": {
+    "replay": true,
+    "replaySpeed": "5",
+    "routeColor": "#7c3aed"
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": []
+    },
+    "routes": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "r1",
+       "name": "Truck 7",
+       "positions": [
+        [
+         41,
+         29,
+         "2026-10-20T10:00:00Z"
+        ],
+        [
+         41,
+         29.1,
+         "2026-10-20T10:10:00Z"
+        ],
+        [
+         41.1,
+         29.1,
+         "2026-10-20T10:30:00Z"
+        ]
+       ]
+      },
+      {
+       "id": "r2",
+       "name": "Van 2",
+       "positions": [
+        [
+         40.9,
+         29
+        ],
+        [
+         41.05,
+         29.2
+        ]
+       ]
+      }
+     ]
+    }
+   },
+   "input": {
+    "settings": {
+     "mapKind": "geo",
+     "latColumn": "lat",
+     "lngColumn": "lng",
+     "labelColumn": "label",
+     "markerStyle": "pin",
+     "markerSize": 24,
+     "cluster": false,
+     "clusterRadius": 40,
+     "colorBy": "column",
+     "markerColor": "var(--primary)",
+     "colorColumn": "status",
+     "valueColors": [],
+     "rangeEdges": "from",
+     "legend": true,
+     "legendPosition": "bottomleft",
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "tooltipColumns": [],
+     "tileStyle": "auto",
+     "fitBounds": true,
+     "fitPadding": 32,
+     "zoom": 4,
+     "zoomButtons": true,
+     "controlsPosition": "topleft",
+     "draggable": false,
+     "replay": true,
+     "replaySpeed": "5",
+     "layerToggles": true,
+     "layerTogglesPosition": "topright",
+     "scrollZoom": false,
+     "zonePositionsColumn": "positions",
+     "zoneLabelColumn": "name",
+     "zoneVariant": "info",
+     "zoneOpacity": 0.2,
+     "routePositionsColumn": "positions",
+     "routeLabelColumn": "name",
+     "routeColor": "#7c3aed",
+     "routeWeight": 3,
+     "routeDashed": false
+    },
+    "format": {}
+   },
+   "model": {
+    "image": null,
+    "markers": [],
+    "rows": {},
+    "zones": [],
+    "routes": [
+     {
+      "id": "r1",
+      "positions": [
+       [
+        41,
+        29
+       ],
+       [
+        41,
+        29.1
+       ],
+       [
+        41.1,
+        29.1
+       ]
+      ],
+      "color": "#7c3aed",
+      "weight": 3,
+      "dashed": false,
+      "label": "Truck 7"
+     },
+     {
+      "id": "r2",
+      "positions": [
+       [
+        40.9,
+        29
+       ],
+       [
+        41.05,
+        29.2
+       ]
+      ],
+      "color": "#7c3aed",
+      "weight": 3,
+      "dashed": false,
+      "label": "Van 2"
+     }
+    ],
+    "legend": [],
+    "layers": [
+     "routes"
+    ],
+    "showSwitch": false,
+    "layerText": {
+     "layers": "Layers",
+     "markers": "Markers",
+     "zones": "Zones",
+     "routes": "Routes"
+    },
+    "clickable": false,
+    "movable": false,
+    "replay": {
+     "enabled": true,
+     "routes": [
+      {
+       "id": "r1",
+       "color": "#7c3aed",
+       "positions": [
+        [
+         41,
+         29
+        ],
+        [
+         41,
+         29.1
+        ],
+        [
+         41.1,
+         29.1
+        ]
+       ],
+       "times": [
+        1792490400000,
+        1792491000000,
+        1792492200000
+       ],
+       "cumulative": [
+        0,
+        0.07547095802227827,
+        0.1754709580222797
+       ],
+       "total": 0.1754709580222797,
+       "label": "Truck 7"
+      },
+      {
+       "id": "r2",
+       "color": "#7c3aed",
+       "positions": [
+        [
+         40.9,
+         29
+        ],
+        [
+         41.05,
+         29.2
+        ]
+       ],
+       "times": null,
+       "cumulative": [
+        0,
+        0.21283971526813375
+       ],
+       "total": 0.21283971526813375,
+       "label": "Van 2"
+      }
+     ],
+     "speeds": [
+      1,
+      2,
+      5,
+      10
+     ],
+     "speed": 5,
+     "seconds": 30,
+     "timeSpan": null
+    },
+    "switchCorner": "topright",
+    "legendCorner": "bottomleft",
+    "switchClass": "absolute z-10 flex flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm top-2 right-2",
+    "legendClass": "pointer-events-none absolute z-10 flex max-w-[60%] flex-col gap-1 rounded-lg border border-border bg-surface-raised/90 px-2.5 py-2 shadow-sm backdrop-blur-sm bottom-2 left-2",
+    "legendLabel": "Legend",
+    "canvas": {
+     "tiles": {
+      "light": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      },
+      "dark": {
+       "url": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+       "attribution": "Tiles &copy; <a href=\"https://www.esri.com\">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors",
+       "labels": "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+      }
+     },
+     "fitBounds": true,
+     "fitBoundsPadding": 32,
+     "zoom": 4,
+     "cluster": false,
+     "clusterRadius": 40,
+     "showLabels": false,
+     "tooltipTrigger": "hover",
+     "scrollWheelZoom": false,
+     "zoomControl": true,
+     "controlsPosition": "topleft",
+     "loadingLabel": "Loading map…",
+     "ariaLabel": "Map"
+    }
+   }
+  },
+  {
+   "id": "form.declared",
+   "kind": "control.form",
+   "settings": {
+    "label": "Pump settings",
+    "fields": [
+     {
+      "key": "name",
+      "label": "Name",
+      "type": "text",
+      "required": true,
+      "group": "General"
+     },
+     {
+      "key": "lowFlag",
+      "label": "Low limit on",
+      "type": "boolean",
+      "group": "Limits"
+     },
+     {
+      "key": "low",
+      "label": "Low limit",
+      "type": "number",
+      "min": 0,
+      "max": 10,
+      "step": 0.5,
+      "unit": "m",
+      "gate": "lowFlag",
+      "group": "Limits"
+     },
+     {
+      "key": "mode",
+      "type": "enum",
+      "options": "auto=Automatic, manual=Manual, off",
+      "group": "General"
+     },
+     {
+      "key": "serial",
+      "label": "Serial",
+      "type": "text",
+      "readOnly": true
+     }
+    ]
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "record": {
+      "name": "Pump A",
+      "lowFlag": true,
+      "low": 2.5,
+      "mode": "auto",
+      "serial": "SN-001"
+     }
+    }
+   },
+   "host": {
+    "connected": true
+   },
+   "input": {
+    "settings": {
+     "labelColor": "var(--text-secondary)",
+     "fromSource": true,
+     "showReset": true,
+     "disableWhen": [
+      "stale"
+     ],
+     "label": "Pump settings",
+     "fields": [
+      {
+       "key": "name",
+       "label": "Name",
+       "type": "text",
+       "required": true,
+       "group": "General"
+      },
+      {
+       "key": "lowFlag",
+       "label": "Low limit on",
+       "type": "boolean",
+       "group": "Limits"
+      },
+      {
+       "key": "low",
+       "label": "Low limit",
+       "type": "number",
+       "min": 0,
+       "max": 10,
+       "step": 0.5,
+       "unit": "m",
+       "gate": "lowFlag",
+       "group": "Limits"
+      },
+      {
+       "key": "mode",
+       "type": "enum",
+       "options": "auto=Automatic, manual=Manual, off",
+       "group": "General"
+      },
+      {
+       "key": "serial",
+       "label": "Serial",
+       "type": "text",
+       "readOnly": true
+      }
+     ]
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "object"
+    },
+    "label": {
+     "text": "Pump settings",
+     "color": "var(--text-secondary)"
+    },
+    "fields": [
+     {
+      "key": "name",
+      "label": "Name",
+      "type": "text",
+      "required": true,
+      "readOnly": false,
+      "group": "General"
+     },
+     {
+      "key": "lowFlag",
+      "label": "Low limit on",
+      "type": "boolean",
+      "required": false,
+      "readOnly": false,
+      "group": "Limits"
+     },
+     {
+      "key": "low",
+      "label": "Low limit",
+      "type": "number",
+      "min": 0,
+      "max": 10,
+      "step": 0.5,
+      "unit": "m",
+      "gate": "lowFlag",
+      "required": false,
+      "readOnly": false,
+      "group": "Limits"
+     },
+     {
+      "key": "mode",
+      "label": "mode",
+      "type": "enum",
+      "options": [
+       {
+        "value": "auto",
+        "label": "Automatic"
+       },
+       {
+        "value": "manual",
+        "label": "Manual"
+       },
+       {
+        "value": "off",
+        "label": "off"
+       }
+      ],
+      "required": false,
+      "readOnly": false,
+      "group": "General"
+     },
+     {
+      "key": "serial",
+      "label": "Serial",
+      "type": "text",
+      "required": false,
+      "readOnly": true
+     }
+    ],
+    "groups": [
+     {
+      "name": null,
+      "fields": [
+       {
+        "key": "serial",
+        "label": "Serial",
+        "type": "text",
+        "required": false,
+        "readOnly": true
+       }
+      ]
+     },
+     {
+      "name": "General",
+      "fields": [
+       {
+        "key": "name",
+        "label": "Name",
+        "type": "text",
+        "required": true,
+        "readOnly": false,
+        "group": "General"
+       },
+       {
+        "key": "mode",
+        "label": "mode",
+        "type": "enum",
+        "options": [
+         {
+          "value": "auto",
+          "label": "Automatic"
+         },
+         {
+          "value": "manual",
+          "label": "Manual"
+         },
+         {
+          "value": "off",
+          "label": "off"
+         }
+        ],
+        "required": false,
+        "readOnly": false,
+        "group": "General"
+       }
+      ]
+     },
+     {
+      "name": "Limits",
+      "fields": [
+       {
+        "key": "lowFlag",
+        "label": "Low limit on",
+        "type": "boolean",
+        "required": false,
+        "readOnly": false,
+        "group": "Limits"
+       },
+       {
+        "key": "low",
+        "label": "Low limit",
+        "type": "number",
+        "min": 0,
+        "max": 10,
+        "step": 0.5,
+        "unit": "m",
+        "gate": "lowFlag",
+        "required": false,
+        "readOnly": false,
+        "group": "Limits"
+       }
+      ]
+     }
+    ],
+    "initial": {
+     "name": "Pump A",
+     "lowFlag": true,
+     "low": 2.5,
+     "mode": "auto",
+     "serial": "SN-001"
+    },
+    "saveLabel": "Save",
+    "resetLabel": "Reset",
+    "showReset": true,
+    "confirm": {
+     "confirm": "none"
+    },
+    "ariaLabel": "Pump settings"
+   }
+  },
+  {
+   "id": "form.from-source-meta",
+   "kind": "control.form",
+   "settings": {
+    "saveLabel": "Apply",
+    "resetLabel": "Undo"
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "record": {
+      "depth": 5000,
+      "speed": 25.5,
+      "mode": "manual",
+      "recirculate": false,
+      "extra": {
+       "nested": true
+      }
+     },
+     "recordMeta": {
+      "depth": {
+       "label": {
+        "en": "Well depth",
+        "tr": "Kuyu derinliği"
+       },
+       "unit": "m",
+       "decimals": 0,
+       "kind": "number"
+      },
+      "speed": {
+       "label": "Drill speed",
+       "unit": "m/h",
+       "decimals": 1,
+       "kind": "number"
+      },
+      "mode": {
+       "label": "Mode",
+       "kind": "enum",
+       "valueMap": {
+        "auto": {
+         "label": "Automatic"
+        },
+        "manual": {
+         "label": "Manual"
+        }
+       }
+      },
+      "recirculate": {
+       "label": "Recirculate mud",
+       "kind": "boolean"
+      }
+     }
+    }
+   },
+   "host": {
+    "connected": true
+   },
+   "input": {
+    "settings": {
+     "labelColor": "var(--text-secondary)",
+     "fromSource": true,
+     "showReset": true,
+     "disableWhen": [
+      "stale"
+     ],
+     "saveLabel": "Apply",
+     "resetLabel": "Undo"
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "object"
+    },
+    "label": {
+     "color": "var(--text-secondary)"
+    },
+    "fields": [
+     {
+      "key": "depth",
+      "label": "Well depth",
+      "type": "number",
+      "unit": "m",
+      "required": false,
+      "readOnly": false
+     },
+     {
+      "key": "speed",
+      "label": "Drill speed",
+      "type": "number",
+      "step": 0.1,
+      "unit": "m/h",
+      "required": false,
+      "readOnly": false
+     },
+     {
+      "key": "mode",
+      "label": "Mode",
+      "type": "enum",
+      "options": [
+       {
+        "value": "auto",
+        "label": "Automatic"
+       },
+       {
+        "value": "manual",
+        "label": "Manual"
+       }
+      ],
+      "required": false,
+      "readOnly": false
+     },
+     {
+      "key": "recirculate",
+      "label": "Recirculate mud",
+      "type": "boolean",
+      "required": false,
+      "readOnly": false
+     }
+    ],
+    "groups": [
+     {
+      "name": null,
+      "fields": [
+       {
+        "key": "depth",
+        "label": "Well depth",
+        "type": "number",
+        "unit": "m",
+        "required": false,
+        "readOnly": false
+       },
+       {
+        "key": "speed",
+        "label": "Drill speed",
+        "type": "number",
+        "step": 0.1,
+        "unit": "m/h",
+        "required": false,
+        "readOnly": false
+       },
+       {
+        "key": "mode",
+        "label": "Mode",
+        "type": "enum",
+        "options": [
+         {
+          "value": "auto",
+          "label": "Automatic"
+         },
+         {
+          "value": "manual",
+          "label": "Manual"
+         }
+        ],
+        "required": false,
+        "readOnly": false
+       },
+       {
+        "key": "recirculate",
+        "label": "Recirculate mud",
+        "type": "boolean",
+        "required": false,
+        "readOnly": false
+       }
+      ]
+     }
+    ],
+    "initial": {
+     "depth": 5000,
+     "speed": 25.5,
+     "mode": "manual",
+     "recirculate": false
+    },
+    "saveLabel": "Apply",
+    "resetLabel": "Undo",
+    "showReset": true,
+    "confirm": {
+     "confirm": "none"
+    },
+    "ariaLabel": "Settings form"
+   }
+  },
+  {
+   "id": "form.from-source-off-and-no-record",
+   "kind": "control.form",
+   "settings": {
+    "fromSource": false
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "record": {
+      "a": 1
+     }
+    }
+   },
+   "host": {
+    "connected": true
+   },
+   "input": {
+    "settings": {
+     "labelColor": "var(--text-secondary)",
+     "fromSource": false,
+     "showReset": true,
+     "disableWhen": [
+      "stale"
+     ]
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "object"
+    },
+    "label": {
+     "color": "var(--text-secondary)"
+    },
+    "fields": [],
+    "groups": [],
+    "initial": {},
+    "saveLabel": "Save",
+    "resetLabel": "Reset",
+    "showReset": true,
+    "confirm": {
+     "confirm": "none"
+    },
+    "ariaLabel": "Settings form"
+   }
+  },
+  {
+   "id": "form.confirm-typed",
+   "kind": "control.form",
+   "settings": {
+    "fields": [
+     {
+      "key": "level",
+      "type": "number",
+      "min": 0,
+      "max": 100
+     }
+    ],
+    "confirmQuestion": "Write the level?"
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "record": {
+      "level": 40
+     }
+    }
+   },
+   "host": {
+    "connected": true,
+    "confirm": {
+     "mode": "typed",
+     "text": "LEVEL"
+    }
+   },
+   "input": {
+    "settings": {
+     "labelColor": "var(--text-secondary)",
+     "fromSource": true,
+     "showReset": true,
+     "disableWhen": [
+      "stale"
+     ],
+     "fields": [
+      {
+       "key": "level",
+       "type": "number",
+       "min": 0,
+       "max": 100
+      }
+     ],
+     "confirmQuestion": "Write the level?"
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "object"
+    },
+    "label": {
+     "color": "var(--text-secondary)"
+    },
+    "fields": [
+     {
+      "key": "level",
+      "label": "level",
+      "type": "number",
+      "min": 0,
+      "max": 100,
+      "required": false,
+      "readOnly": false
+     }
+    ],
+    "groups": [
+     {
+      "name": null,
+      "fields": [
+       {
+        "key": "level",
+        "label": "level",
+        "type": "number",
+        "min": 0,
+        "max": 100,
+        "required": false,
+        "readOnly": false
+       }
+      ]
+     }
+    ],
+    "initial": {
+     "level": 40
+    },
+    "saveLabel": "Save",
+    "resetLabel": "Reset",
+    "showReset": true,
+    "confirm": {
+     "confirm": "typed",
+     "confirmText": "LEVEL"
+    },
+    "messages": {
+     "confirmPrompt": "Write the level?"
+    },
+    "ariaLabel": "Settings form"
+   }
+  },
+  {
+   "id": "form.not-connected",
+   "kind": "control.form",
+   "settings": {
+    "fields": [
+     {
+      "key": "a",
+      "type": "text"
+     },
+     {
+      "key": "__proto__",
+      "type": "text"
+     },
+     {
+      "key": "a",
+      "type": "number"
+     },
+     {
+      "key": "bad key",
+      "type": "text"
+     }
+    ]
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "record": {
+      "a": "x"
+     }
+    }
+   },
+   "host": {
+    "connected": false
+   },
+   "input": {
+    "settings": {
+     "labelColor": "var(--text-secondary)",
+     "fromSource": true,
+     "showReset": true,
+     "disableWhen": [
+      "stale"
+     ],
+     "fields": [
+      {
+       "key": "a",
+       "type": "text"
+      },
+      {
+       "key": "__proto__",
+       "type": "text"
+      },
+      {
+       "key": "a",
+       "type": "number"
+      },
+      {
+       "key": "bad key",
+       "type": "text"
+      }
+     ]
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "object"
+    },
+    "label": {
+     "color": "var(--text-secondary)"
+    },
+    "fields": [
+     {
+      "key": "a",
+      "label": "a",
+      "type": "text",
+      "required": false,
+      "readOnly": false
+     }
+    ],
+    "groups": [
+     {
+      "name": null,
+      "fields": [
+       {
+        "key": "a",
+        "label": "a",
+        "type": "text",
+        "required": false,
+        "readOnly": false
+       }
+      ]
+     }
+    ],
+    "initial": {
+     "a": "x"
+    },
+    "saveLabel": "Save",
+    "resetLabel": "Reset",
+    "showReset": true,
+    "confirm": {
+     "confirm": "none"
+    },
+    "ariaLabel": "Settings form",
+    "disabledReason": "Not connected: no command is set for this control."
+   }
+  },
+  {
+   "id": "form.stale-disabled",
+   "kind": "control.form",
+   "settings": {
+    "fields": [
+     {
+      "key": "a",
+      "type": "text"
+     }
+    ],
+    "disableWhen": [
+     "stale"
+    ]
+   },
+   "data": {
+    "record": {
+     "shape": "record",
+     "record": {
+      "a": "x"
+     }
+    }
+   },
+   "host": {
+    "connected": true,
+    "stale": true
+   },
+   "input": {
+    "settings": {
+     "labelColor": "var(--text-secondary)",
+     "fromSource": true,
+     "showReset": true,
+     "disableWhen": [
+      "stale"
+     ],
+     "fields": [
+      {
+       "key": "a",
+       "type": "text"
+      }
+     ]
+    },
+    "format": {}
+   },
+   "model": {
+    "request": {
+     "kind": "set",
+     "valueType": "object"
+    },
+    "label": {
+     "color": "var(--text-secondary)"
+    },
+    "fields": [
+     {
+      "key": "a",
+      "label": "a",
+      "type": "text",
+      "required": false,
+      "readOnly": false
+     }
+    ],
+    "groups": [
+     {
+      "name": null,
+      "fields": [
+       {
+        "key": "a",
+        "label": "a",
+        "type": "text",
+        "required": false,
+        "readOnly": false
+       }
+      ]
+     }
+    ],
+    "initial": {
+     "a": "x"
+    },
+    "saveLabel": "Save",
+    "resetLabel": "Reset",
+    "showReset": true,
+    "confirm": {
+     "confirm": "none"
+    },
+    "ariaLabel": "Settings form",
+    "disabledReason": "The reading is old, so the control is disabled."
    }
   },
   {

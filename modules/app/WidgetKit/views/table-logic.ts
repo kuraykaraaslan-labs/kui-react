@@ -58,7 +58,7 @@ export function statusColor(v: unknown): string | undefined {
 }
 
 /** One value → colour mapping row (`valueMap` / `valueColors` settings). */
-export interface ValueColor { value?: string; label?: string; color?: string; icon?: string }
+export interface ValueColor { value?: string; label?: string; color?: string; icon?: string; image?: string }
 
 /** The mapping entry whose value equals the raw value (trimmed, case-insensitive). */
 export function matchValue(raw: unknown, map: unknown): ValueColor | undefined {

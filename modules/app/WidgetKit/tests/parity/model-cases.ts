@@ -24,6 +24,9 @@ export interface ModelCase {
     box?: { width: number; height: number };
     /** Map: the host handles marker clicks / navigates a marker's link; a custom tile server; layer switch texts. */
     hasMarkerClick?: boolean;
+    /** Map: the platform's imagery provider, and whether a dropped marker can be written back. */
+    imagery?: unknown;
+    movable?: boolean;
     hasNavigate?: boolean;
     tiles?: unknown;
     layerLabels?: Record<string, string>;
@@ -360,6 +363,93 @@ export const MODEL_CASES: ModelCase[] = [
     format: { unit: '°C' },
     data: {},
     host: { ...CONTROL_HOST, title: 'Boiler' },
+  },
+  // ── map, phase 25: a picture per status, satellite imagery, a draggable floor plan, route replay
+  {
+    id: 'map.status-pictures', kind: 'map',
+    settings: {
+      colorBy: 'column', colorColumn: 'status', markerStyle: 'dot',
+      valueColors: [{ value: 'Alarm', color: '#dc2626', label: 'Alarm', image: '/files/alarm.svg' }, { value: 'Ok', color: '#16a34a', label: 'Ok', icon: 'fas fa-check' }, { value: 'Idle', color: '#f59e0b', image: 'javascript:alert(1)' }],
+    },
+    data: { points: table([{ lat: 41, lng: 29, label: 'A', status: 'Alarm' }, { lat: 41.1, lng: 29.1, label: 'B', status: 'Ok' }, { lat: 41.2, lng: 29.2, label: 'C', status: 'Idle' }]) },
+    host: { resolveUrlPrefix: '/tenant-7' },
+  },
+  {
+    id: 'map.satellite-own-provider', kind: 'map', settings: { tileStyle: 'satellite' },
+    data: { points: table([{ lat: 41, lng: 29, label: 'A' }]) },
+    host: { imagery: { url: 'https://tiles.example.com/{z}/{x}/{y}.jpg', attribution: 'Example' } },
+  },
+  {
+    id: 'map.floor-plan-draggable', kind: 'map',
+    settings: { mapKind: 'image', imageWidth: 1200, imageHeight: 800, draggable: true, idColumn: 'id' },
+    data: { points: table([{ id: 'p1', lat: 120, lng: 300, label: 'Pump' }, { id: 'p2', lat: 500, lng: 900, label: 'Tank' }]), image: scalar('/files/floor-2.png') },
+    host: { movable: true, resolveUrlPrefix: '/tenant-7' },
+  },
+  {
+    id: 'map.floor-plan-read-only', kind: 'map',
+    settings: { mapKind: 'image', imageSrc: '/files/floor-1.png', imageWidth: 1200, imageHeight: 800, draggable: true },
+    data: { points: table([{ lat: 120, lng: 300, label: 'Pump' }]) },
+    host: { movable: false },
+  },
+  {
+    id: 'map.route-replay', kind: 'map', settings: { replay: true, replaySpeed: '5', routeColor: '#7c3aed' },
+    data: {
+      points: table([]),
+      routes: table([{ id: 'r1', name: 'Truck 7', positions: [[41, 29, '2026-10-20T10:00:00Z'], [41, 29.1, '2026-10-20T10:10:00Z'], [41.1, 29.1, '2026-10-20T10:30:00Z']] }, { id: 'r2', name: 'Van 2', positions: [[40.9, 29], [41.05, 29.2]] }]),
+    },
+  },
+  // ── control.form
+  {
+    id: 'form.declared', kind: 'control.form',
+    settings: {
+      label: 'Pump settings',
+      fields: [
+        { key: 'name', label: 'Name', type: 'text', required: true, group: 'General' },
+        { key: 'lowFlag', label: 'Low limit on', type: 'boolean', group: 'Limits' },
+        { key: 'low', label: 'Low limit', type: 'number', min: 0, max: 10, step: 0.5, unit: 'm', gate: 'lowFlag', group: 'Limits' },
+        { key: 'mode', type: 'enum', options: 'auto=Automatic, manual=Manual, off', group: 'General' },
+        { key: 'serial', label: 'Serial', type: 'text', readOnly: true },
+      ],
+    },
+    data: { record: { shape: 'record', record: { name: 'Pump A', lowFlag: true, low: 2.5, mode: 'auto', serial: 'SN-001' } } },
+    host: CONTROL_HOST,
+  },
+  {
+    id: 'form.from-source-meta', kind: 'control.form', settings: { saveLabel: 'Apply', resetLabel: 'Undo' },
+    data: {
+      record: {
+        shape: 'record', record: { depth: 5000, speed: 25.5, mode: 'manual', recirculate: false, extra: { nested: true } },
+        recordMeta: {
+          depth: { label: { en: 'Well depth', tr: 'Kuyu derinliği' }, unit: 'm', decimals: 0, kind: 'number' },
+          speed: { label: 'Drill speed', unit: 'm/h', decimals: 1, kind: 'number' },
+          mode: { label: 'Mode', kind: 'enum', valueMap: { auto: { label: 'Automatic' }, manual: { label: 'Manual' } } },
+          recirculate: { label: 'Recirculate mud', kind: 'boolean' },
+        },
+      },
+    },
+    host: CONTROL_HOST,
+  },
+  {
+    id: 'form.from-source-off-and-no-record', kind: 'control.form', settings: { fromSource: false },
+    data: { record: { shape: 'record', record: { a: 1 } } },
+    host: CONTROL_HOST,
+  },
+  {
+    id: 'form.confirm-typed', kind: 'control.form',
+    settings: { fields: [{ key: 'level', type: 'number', min: 0, max: 100 }], confirmQuestion: 'Write the level?' },
+    data: { record: { shape: 'record', record: { level: 40 } } },
+    host: { ...CONTROL_HOST, confirm: { mode: 'typed', text: 'LEVEL' } },
+  },
+  {
+    id: 'form.not-connected', kind: 'control.form',
+    settings: { fields: [{ key: 'a', type: 'text' }, { key: '__proto__', type: 'text' }, { key: 'a', type: 'number' }, { key: 'bad key', type: 'text' }] },
+    data: { record: { shape: 'record', record: { a: 'x' } } },
+    host: { ...CONTROL_HOST, connected: false },
+  },
+  {
+    id: 'form.stale-disabled', kind: 'control.form', settings: { fields: [{ key: 'a', type: 'text' }], disableWhen: ['stale'] },
+    data: { record: { shape: 'record', record: { a: 'x' } } },
+    host: { ...CONTROL_HOST, stale: true },
   },
   // ── content.video
   {

@@ -12,6 +12,8 @@ export interface ValueMapEntry {
   label: string;
   color?: string;
   icon?: string;
+  /** A picture (an internal path or an https address) a map marker draws for this value. */
+  image?: string;
 }
 
 /** Text, or one text per language (`{ en: 'Door', tr: 'Kapı' }`). */
@@ -55,10 +57,10 @@ export function directionOption(direction: ColumnMeta['direction']): 'good' | 'b
 }
 
 /** A value map as the table's list form (`valueMap` setting rows), empty when the source gave none. */
-export function valueMapList(meta: ColumnMeta | undefined): Array<{ value: string; label: string; color?: string; icon?: string }> {
+export function valueMapList(meta: ColumnMeta | undefined): Array<{ value: string; label: string; color?: string; icon?: string; image?: string }> {
   if (!meta?.valueMap || typeof meta.valueMap !== 'object') return [];
   return Object.entries(meta.valueMap).flatMap(([value, e]) => (e && typeof e.label === 'string'
-    ? [{ value, label: e.label, ...(e.color ? { color: e.color } : {}), ...(e.icon ? { icon: e.icon } : {}) }]
+    ? [{ value, label: e.label, ...(e.color ? { color: e.color } : {}), ...(e.icon ? { icon: e.icon } : {}), ...(e.image ? { image: e.image } : {}) }]
     : []));
 }
 

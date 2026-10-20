@@ -191,6 +191,15 @@ export interface MapViewMessages {
   routes: string;
   /** A marker tooltip's link (a placement's `linkLabel` wins). */
   open: string;
+  /** Route replay: the controls' group name, the buttons, the speed group and the start / end markers. */
+  replay: string;
+  play: string;
+  pause: string;
+  speed: string;
+  start: string;
+  end: string;
+  /** The scrub bar's accessible name. */
+  position: string;
 }
 
 /** The process symbol and scene: the state words a screen reader hears and the diagram's accessible name. */
@@ -458,6 +467,13 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     zones: 'Zones',
     routes: 'Routes',
     open: 'Open',
+    replay: 'Route replay',
+    play: 'Play',
+    pause: 'Pause',
+    speed: 'Speed',
+    start: 'Start',
+    end: 'End',
+    position: 'Position on the route',
   },
   scada: { idle: 'Idle', running: 'Running', warning: 'Warning', critical: 'Critical', scene: 'Process diagram' },
   viewer: {

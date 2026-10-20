@@ -151,6 +151,7 @@ function InnerMap({
   showLabels = false,
   tooltipTrigger = 'hover',
   renderLink,
+  onMarkerMove,
   clusterRadius,
   scrollWheelZoom = true,
   zoomControl = true,
@@ -164,6 +165,13 @@ function InnerMap({
   const markers = flip ? rawMarkers.map((m) => ({ ...m, position: flip(m.position) })) : rawMarkers;
   const zones = flip ? rawZones.map((z) => ({ ...z, positions: z.positions.map(flip) })) : rawZones;
   const routes = flip ? rawRoutes.map((r) => ({ ...r, positions: r.positions.map(flip) })) : rawRoutes;
+  // A drop on an image map is told in pixels from the top-left, whole numbers inside the picture.
+  const moved = onMarkerMove ? (id: string, p: [number, number]) => {
+    if (!image) { onMarkerMove(id, p); return; }
+    const y = Math.min(image.height, Math.max(0, Math.round(image.height - p[0])));
+    const x = Math.min(image.width, Math.max(0, Math.round(p[1])));
+    onMarkerMove(id, [y, x]);
+  } : undefined;
   const imageBounds: [[number, number], [number, number]] | null = image ? [[0, 0], [image.height, image.width]] : null;
   const isDark = useDarkMode();
   const set = tilesProp ? ('url' in tilesProp ? { light: tilesProp, dark: tilesProp } : tilesProp) : LEAFLET_TILES;
@@ -229,6 +237,7 @@ function InnerMap({
           bundle={bundle}
           markers={markers}
           onMarkerClick={onMarkerClick}
+          onMarkerMove={moved}
           showLabels={showLabels}
           tooltipTrigger={tooltipTrigger}
           renderLink={renderLink}
@@ -243,6 +252,7 @@ function InnerMap({
           RLTooltip={Tooltip}
           RLPopup={Popup}
           onMarkerClick={onMarkerClick}
+          onMarkerMove={moved}
           showLabel={showLabels}
           tooltipTrigger={tooltipTrigger}
           renderLink={renderLink}
