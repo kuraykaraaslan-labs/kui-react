@@ -31,7 +31,7 @@
     },
     {
       "id": "widget-kit-heavy-kinds",
-      "name": "WidgetKit: chart, map, control, video and 3D model kinds",
+      "name": "WidgetKit: 3D model kind",
       "layer": "app",
       "path": "modules/app/WidgetKit/views",
       "presentIn": [
@@ -40,21 +40,8 @@
       "absentIn": [
         "kui-ejs"
       ],
-      "reason": "kui-ejs draws the WidgetKit kinds whose view is a pure function of its model (stat.value, stat.sparkline, stat.attributes, state, progress, gauge, data.table, data.feed, content.markdown, content.image, content.links, content.embed): the golden HTML comparison covers them. The rest are drawn by client scripts or need host wiring that has no server-rendered equivalent to compare: chart.line / area / bar / pie / scatter / histogram and heatmap (kui-ejs Chart.ejs draws in the browser from a JSON config), map (Leaflet), control.button / switch / slider / setpoint (a host command behind onControl and renderLayout slots), content.video (kui-player) and viewer.model (three.js). Their models are not vendored yet; the mapping onto the existing ui partials is the next step and gets a case in tests/parity/cases.ts when it is done.",
+      "reason": "kui-ejs draws every WidgetKit kind except viewer.model (three.js, drawn client-side with no server-rendered equivalent). The kinds whose view is a pure function of its model are compared as normalised HTML (tests/parity/golden.json); the client-drawn ones (chart.line / area / bar / pie / scatter / histogram, heatmap, map, control.button / switch / slider / setpoint, content.video) are compared as models (tests/parity/model-golden.json) and by mapping tests on what the ui partials are handed.",
       "kinds": [
-        "chart.line",
-        "chart.area",
-        "chart.bar",
-        "chart.pie",
-        "chart.scatter",
-        "chart.histogram",
-        "heatmap",
-        "map",
-        "control.button",
-        "control.switch",
-        "control.slider",
-        "control.setpoint",
-        "content.video",
         "viewer.model"
       ]
     },
@@ -223,12 +210,11 @@
       "absentIn": [
         "KUInative"
       ],
-      "reason": "Not created in KUInative until a native screen needs them (the rule of docs/phases/09 and 10: a component absent from a sibling is not created there, and gets a record here). The table family (DataTable, AdvancedDataTable, ServerDataTable), CodeEditor, TimeWindowPicker / TimeWindowSelect, DateRangePicker and ControlTile are web interaction surfaces; the observability and AI pieces (LogViewer, TraceWaterfall, ServiceMap, ConversationTimeline, DayBarChart, Evidence, AiHumanDraftEditor, InlineEditList, LocaleSwitcher) were added to kui-react on 2026-10-18 for the next-boilerplate observability platform. Virtual, lazy and Toast.store are React modules, not components.",
+      "reason": "Not created in KUInative until a native screen needs them (the rule of docs/phases/09 and 10: a component absent from a sibling is not created there, and gets a record here). The table family (DataTable, AdvancedDataTable, ServerDataTable), CodeEditor, TimeWindowPicker / TimeWindowSelect, DateRangePicker are web interaction surfaces; the observability and AI pieces (LogViewer, TraceWaterfall, ServiceMap, ConversationTimeline, DayBarChart, Evidence, AiHumanDraftEditor, InlineEditList, LocaleSwitcher) were added to kui-react on 2026-10-18 for the next-boilerplate observability platform. Virtual, lazy and Toast.store are React modules, not components.",
       "components": [
         "AdvancedDataTable",
         "AiHumanDraftEditor",
         "CodeEditor",
-        "ControlTile",
         "ConversationTimeline",
         "DataTable",
         "DateRangePicker",
@@ -249,7 +235,7 @@
     },
     {
       "id": "widget-kit-native-kinds",
-      "name": "WidgetKit kinds not drawn natively yet",
+      "name": "WidgetKit: 3D model kind not drawn natively",
       "layer": "app",
       "path": "modules/app/WidgetKit/views",
       "presentIn": [
@@ -258,26 +244,8 @@
       "absentIn": [
         "KUInative"
       ],
-      "reason": "KUInative draws the wave 1 kinds (stat.value, stat.sparkline, state, data.table, content.image, content.links, content.embed as a link, not a frame: react-native-webview is not a dependency). Not yet: stat.attributes, progress, gauge, data.feed, content.markdown (their models are vendorable and the parity cases exist), and the chart, map, control, video and 3D kinds.",
+      "reason": "KUInative draws every WidgetKit kind except viewer.model (three.js). Kinds drawn from the pure models: stat.value, stat.sparkline, stat.attributes, state, progress, gauge, data.table, data.feed, content.markdown, content.image, content.links, the charts, heatmap, map, the four control kinds and content.video; content.embed is an Open button, not a frame (react-native-webview is not a dependency). Compared as visible text (tests/parity) and as models (model-golden.json).",
       "kinds": [
-        "stat.attributes",
-        "progress",
-        "gauge",
-        "data.feed",
-        "content.markdown",
-        "chart.line",
-        "chart.area",
-        "chart.bar",
-        "chart.pie",
-        "chart.scatter",
-        "chart.histogram",
-        "heatmap",
-        "map",
-        "control.button",
-        "control.switch",
-        "control.slider",
-        "control.setpoint",
-        "content.video",
         "viewer.model"
       ]
     }

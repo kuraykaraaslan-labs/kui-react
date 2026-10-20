@@ -73,6 +73,7 @@ A widget must look and behave the same in kui-react, kui-ejs and KUInative. The 
    cannot be compared as static HTML: `tests/parity/model-golden.json` holds, per case in `model-cases.ts`, the
    effective settings / format (`input`) and the JSON the pure model decides (`model`); a sibling builds the same
    input from the case and must get the same model (`UPDATE_PARITY_GOLDEN=1` rewrites both golden files).
+   Status: kui-ejs and KUInative draw every kind but `viewer.model` (3D, see `parity.exceptions.json`).
 4. **Pure means pure.** A `*-logic.ts` / `*-model.ts` file imports no React and no kui-react component module (a
    type-only import of one is re-pointed at a host shim by the vendor scripts). Its only runtime dependencies are
    `clsx` and `tailwind-merge`, through `@/libs/utils/cn`, so class merging is the same everywhere.
