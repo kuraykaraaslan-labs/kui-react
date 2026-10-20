@@ -1,5 +1,5 @@
 'use client';
-import { formatUpdated } from '../WidgetCard';
+import { formatUpdated } from '../card-logic';
 import { useKitMessages } from '../WidgetKitContext';
 import { useNow } from '../useNow';
 import { Meta } from './ui';

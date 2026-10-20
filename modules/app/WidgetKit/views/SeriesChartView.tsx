@@ -54,7 +54,7 @@ export function SeriesChartView({ preset, settings, format, data, locale }: Widg
         fillGradient: preset === 'area' ? s.fillStyle !== 'opacity' : undefined,
       })
       : null;
-  }, [byCategory, data.rows, s.categoryColumn, s.valueColumn, s.categorySort, s.maxBars, timeSeries, result, locale, s.series, s.lineWidth, s.showPoints, s.defaultColor, s.pointSize, s.fillStyle, pointShape, preset, format]);
+  }, [s, byCategory, data.rows, timeSeries, result, locale, pointShape, preset, format]);
   // No data draws the empty shape: axes and grid without series. A null `timeSeries` keeps the x axis a band, never 1970.
   const shown = useMemo(() => series ?? [], [series]);
   const yFormat = useMemo(() => axisFormat(shown, s.series, format, locale, 'left'), [shown, s.series, format, locale]);
