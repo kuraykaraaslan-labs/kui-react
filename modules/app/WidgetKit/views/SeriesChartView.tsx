@@ -1,24 +1,13 @@
 'use client';
 import { useMemo } from 'react';
-import { AreaChart, BarChart, LineChart, type CurveType, type PointShape, type Series } from '@/modules/ui/Chart';
+import { AreaChart, BarChart, LineChart, type Series } from '@/modules/ui/Chart';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { useKitMessages } from '../WidgetKitContext';
-import { formatValue } from '../settings/style';
 import type { SeriesPreset } from '../templates/series';
-import { applySeriesRules, axisFormat, mergeSeriesSlots, rowsToCategorySeries, ruleFor, seriesCsv, tableCsv, toBandSeries, toTimeSeries } from './chart-data';
-import { animateOf, axisProps, legendProps, num, thresholdLines, tooltipProps, valueLabelStyleOf } from './chart-props';
+import { mergeSeriesSlots, numberFormatter, seriesCsv, tableCsv, withFormatters } from './chart-data';
+import { categoryMode, seriesChartIsEmpty, seriesChartModel, tooltipValueText } from './series-chart-logic';
 
-/** Category mode of chart.bar: one bar per row of the `rows` slot. */
-const categoryMode = (preset: SeriesPreset, s: Record<string, unknown>) => preset === 'bar' && s.xAxis === 'category';
-const categoryOptions = (s: Record<string, unknown>) => ({
-  label: typeof s.categoryColumn === 'string' ? s.categoryColumn : undefined,
-  value: typeof s.valueColumn === 'string' ? s.valueColumn : undefined,
-  sort: (s.categorySort === 'desc' || s.categorySort === 'asc' ? s.categorySort : 'none') as 'none' | 'desc' | 'asc',
-  max: typeof s.maxBars === 'number' ? s.maxBars : undefined,
-});
-
-const FILL: Record<string, number> = { none: 0, soft: 0.2, medium: 0.35, solid: 0.6 };
-const SHAPES = new Set(['circle', 'square', 'diamond', 'triangle']);
+export * from './series-chart-logic';
 
 /**
  * The view behind chart.line / chart.bar / chart.area: every source bound to the `series` slot,
@@ -29,116 +18,69 @@ const SHAPES = new Set(['circle', 'square', 'diamond', 'triangle']);
  */
 export function SeriesChartView({ preset, settings, format, data, locale }: WidgetViewProps & { preset: SeriesPreset }) {
   const m = useKitMessages().charts;
-  const s = settings;
-  const anyStack = Array.isArray(s.series) && (s.series as Array<{ stack?: string }>).some((r) => r && typeof r.stack === 'string' && r.stack);
-  const stacked = preset !== 'line' && s.stacked === true;
-  const result = useMemo(() => mergeSeriesSlots(data), [data]);
-  const byCategory = categoryMode(preset, s);
-  const timeSeries = useMemo(
-    () => (preset === 'bar' || (preset === 'area' && (stacked || anyStack)) ? null : toTimeSeries(result)),
-    [result, preset, stacked, anyStack],
-  );
-  const pointShape = SHAPES.has(String(s.pointShape)) ? (s.pointShape as PointShape) : undefined;
-  const series: Series[] | null = useMemo(() => {
-    const base = byCategory
-      ? rowsToCategorySeries(data.rows?.rows, { ...categoryOptions(s), name: data.rows?.columns?.find((c) => c.key === s.valueColumn)?.label })
-      : timeSeries ?? toBandSeries(result, locale);
-    return base
-      ? applySeriesRules(base, s.series, {
-        format, locale,
-        lineWidth: num(s.lineWidth),
-        showPoints: s.showPoints === true ? true : undefined,
-        defaultColor: s.defaultColor as string | undefined,
-        pointShape,
-        pointSize: num(s.pointSize),
-        fillGradient: preset === 'area' ? s.fillStyle !== 'opacity' : undefined,
-      })
-      : null;
-  }, [s, byCategory, data.rows, timeSeries, result, locale, pointShape, preset, format]);
-  // No data draws the empty shape: axes and grid without series. A null `timeSeries` keeps the x axis a band, never 1970.
-  const shown = useMemo(() => series ?? [], [series]);
-  const yFormat = useMemo(() => axisFormat(shown, s.series, format, locale, 'left'), [shown, s.series, format, locale]);
-  const y2Format = useMemo(() => axisFormat(shown, s.series, format, locale, 'right'), [shown, s.series, format, locale]);
-
-  const tooltipDecimals = num(s.tooltipDecimals);
+  const model = useMemo(() => seriesChartModel(preset, settings, format, data, locale, m), [preset, settings, format, data, locale, m]);
+  const series: Series[] = useMemo(() => withFormatters(model.series, locale), [model.series, locale]);
   const common = {
-    series: shown,
+    series,
     fill: true,
-    yFormat,
-    y2Format,
-    ...legendProps(s, shown.length),
-    ...axisProps(s),
-    yIncludeZero: preset === 'bar' || s.yFromZero !== false,
-    ...tooltipProps(s),
-    tooltipTotalLabel: m.total,
-    tooltipValueFormat: tooltipDecimals === undefined ? undefined : (v: number, ser: Series) => {
-      const r = ruleFor(ser.id, s.series);
-      return formatValue(v, format, { unit: r?.unit || undefined, decimals: tooltipDecimals }, locale);
-    },
-    thresholds: thresholdLines(s.thresholds),
-    animate: animateOf(s),
-    showValues: s.valueLabels === 'value',
-    valueLabelStyle: valueLabelStyleOf(s),
-    ariaLabel: preset === 'bar' ? m.barChart : preset === 'area' ? m.areaChart : m.lineChart,
+    yFormat: numberFormatter(model.yFormat, locale),
+    y2Format: numberFormatter(model.y2Format, locale),
+    ...model.legend,
+    ...model.axis,
+    yIncludeZero: model.yIncludeZero,
+    ...model.tooltip,
+    tooltipValueFormat: model.tooltipValueFormat ? (() => {
+      const text = tooltipValueText(model.tooltipValueFormat, locale);
+      return (v: number, ser: Series) => text(v, ser.id);
+    })() : undefined,
+    thresholds: model.thresholds,
+    animate: model.animate,
+    showValues: model.showValues,
+    valueLabelStyle: model.valueLabelStyle,
+    ariaLabel: model.ariaLabel,
   };
-  const curve = (s.curve === 'linear' || s.curve === 'step' ? s.curve : 'smooth') as CurveType;
-  const lineWidth = num(s.lineWidth) ?? 2;
-  // A host may pass the board window's explicit zone along with the result (next-boilerplate does).
-  const timeZone = result?.window?.explicitTimezone;
-  const linePos = s.valueLabelPosition === 'bottom' ? 'bottom' : 'top';
+  const { line, bar } = model;
 
   return (
     <div className="h-full min-h-0 w-full">
-      {preset === 'bar' ? (
-        <BarChart
-          {...common}
-          stacked={stacked}
-          orientation={s.orientation === 'horizontal' ? 'horizontal' : 'vertical'}
-          valueLabelPosition={s.valueLabelPosition === 'inside' || s.valueLabelPosition === 'center' ? s.valueLabelPosition : 'outside'}
-          radius={num(s.barRadius) ?? 4}
-          barWidth={(num(s.barWidth) ?? 70) / 100}
-          barGap={num(s.barGap) ?? 2}
-        />
+      {bar ? (
+        <BarChart {...common} stacked={model.stacked} {...bar} />
       ) : preset === 'area' ? (
         <AreaChart
           {...common}
-          stacked={stacked}
-          curve={curve}
-          strokeWidth={lineWidth}
-          fillOpacity={FILL[String(s.fill)] ?? 0.2}
-          xAxis={timeSeries ? 'time' : 'band'}
-          zoom={s.zoom !== false}
-          resetZoomLabel={m.resetZoom}
-          timeZone={timeZone}
+          stacked={model.stacked}
+          curve={line!.curve}
+          strokeWidth={line!.strokeWidth}
+          fillOpacity={line!.fillOpacity}
+          xAxis={model.xAxis}
+          zoom={line!.zoom}
+          resetZoomLabel={line!.resetZoomLabel}
+          timeZone={line!.timeZone}
           locale={locale}
-          pointShape={pointShape}
-          pointSize={num(s.pointSize)}
-          valueLabelPosition={linePos}
+          pointShape={line!.pointShape}
+          pointSize={line!.pointSize}
+          valueLabelPosition={line!.valueLabelPosition}
         />
       ) : (
         <LineChart
           {...common}
-          curve={curve}
-          strokeWidth={lineWidth}
-          xAxis={timeSeries ? 'time' : 'band'}
-          zoom={s.zoom !== false}
-          resetZoomLabel={m.resetZoom}
-          timeZone={timeZone}
+          curve={line!.curve}
+          strokeWidth={line!.strokeWidth}
+          xAxis={model.xAxis}
+          zoom={line!.zoom}
+          resetZoomLabel={line!.resetZoomLabel}
+          timeZone={line!.timeZone}
           locale={locale}
-          pointShape={pointShape}
-          pointSize={num(s.pointSize)}
-          valueLabelPosition={linePos}
+          pointShape={line!.pointShape}
+          pointSize={line!.pointSize}
+          valueLabelPosition={line!.valueLabelPosition}
         />
       )}
     </div>
   );
 }
 
-const isEmpty: WidgetKindView['isEmpty'] = (data, settings) => {
-  if (settings && categoryMode('bar', settings)) return !rowsToCategorySeries(data.rows?.rows, categoryOptions(settings));
-  const r = mergeSeriesSlots(data);
-  return !r?.series?.some((s) => s.points.length > 0);
-};
+const isEmpty: WidgetKindView['isEmpty'] = (data, settings) => seriesChartIsEmpty(data, settings);
 
 const toCsv: WidgetKindView['toCsv'] = (data, settings) =>
   (settings && categoryMode('bar', settings) ? tableCsv(data.rows) : seriesCsv(mergeSeriesSlots(data)));

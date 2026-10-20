@@ -7,10 +7,41 @@ import type { PointShape, Series } from '@/modules/ui/Chart';
 import { niceStep } from '@/modules/ui/Chart/charts/_helpers';
 import { clockText, dayMonthText } from '@/modules/ui/Chart/charts/_time';
 import type { SlotData } from '../kind';
-import { cssColor, formatValue, type ValueFormat } from '../settings/style';
+import { cssColor, formatValue, type ValueFormat, type ValueFormatOverride } from '../settings/style';
 
 type Row = Record<string, unknown>;
 type Data = Record<string, SlotData | undefined>;
+
+/**
+ * A number formatter as plain data, so a model stays JSON and a sibling can rebuild the function:
+ * `plain` = `formatValue(v, base, override)`; `tick` = a value axis tick (a whole value prints without decimals,
+ * unless the notation is compact); `compact` = a legend / scale end (compact, no forced decimals on whole numbers);
+ * `round` = the rounded integer as plain text (`String(Math.round(v))`, a count); `round2` = rounded to two decimals as
+ * plain text (`String(Math.round(v * 100) / 100)`). `base` is ignored by the last two.
+ */
+export interface NumberFormatSpec {
+  base: ValueFormat;
+  override?: ValueFormatOverride;
+  mode?: 'plain' | 'tick' | 'compact' | 'round' | 'round2';
+}
+
+/** The function a `NumberFormatSpec` describes. */
+export function numberFormatter(spec: NumberFormatSpec, locale?: string): (v: number) => string {
+  const { base, override = {}, mode = 'plain' } = spec;
+  if (mode === 'round') return (v) => String(Math.round(v));
+  if (mode === 'round2') return (v) => String(Math.round(v * 100) / 100);
+  if (mode === 'tick') return (v) => formatValue(v, base, Number.isInteger(v) && base.notation !== 'compact' ? { ...override, decimals: 0 } : override, locale);
+  if (mode === 'compact') return (v) => formatValue(v, { ...base, notation: 'compact', decimals: Number.isInteger(v) ? undefined : base.decimals }, {}, locale);
+  return (v) => formatValue(v, base, override, locale);
+}
+
+/** A chart series as data: the per-series formatter is a `NumberFormatSpec` instead of a function. */
+export type SeriesSpec = Omit<Series, 'format'> & { format?: NumberFormatSpec };
+
+/** Series data → the series the ui Chart draws (formatter specs become functions). */
+export function withFormatters(series: SeriesSpec[], locale?: string): Series[] {
+  return series.map((s) => ({ ...s, format: s.format ? numberFormatter(s.format, locale) : undefined }) as Series);
+}
 
 /** A result value as a finite number, or null. */
 export function asNumber(value: unknown): number | null {
@@ -155,7 +186,12 @@ export interface SeriesStyleOptions {
 
 /** Apply the `series` repeater (label, colour, format, stroke) to chart series. Ids stay the source names. */
 export function applySeriesRules(series: Series[], rules: unknown, o: SeriesStyleOptions): Series[] {
-  return series.map((s) => {
+  return withFormatters(styleSeries(series, rules, o), o.locale);
+}
+
+/** `applySeriesRules` as data: the same series with each formatter described by a `NumberFormatSpec`. */
+export function styleSeries(series: Series[], rules: unknown, o: SeriesStyleOptions): SeriesSpec[] {
+  return series.map((s): SeriesSpec => {
     const r = ruleFor(s.id, rules) ?? {};
     const override = defined({ unit: r.unit, decimals: typeof r.decimals === 'number' ? r.decimals : undefined });
     const color = cssColor(r.color) ?? cssColor(o.defaultColor);
@@ -182,7 +218,7 @@ export function applySeriesRules(series: Series[], rules: unknown, o: SeriesStyl
       ...(r.axis === 'right' ? { yAxis: 'right' as const } : {}),
       ...(r.stack ? { stack: r.stack } : {}),
       ...(r.startHidden ? { hidden: true } : {}),
-      format: (v: number) => formatValue(v, o.format, override, o.locale),
+      format: { base: o.format, ...(Object.keys(override).length ? { override } : {}) },
     };
   });
 }
@@ -192,7 +228,12 @@ export function applySeriesRules(series: Series[], rules: unknown, o: SeriesStyl
  * when every series on that axis agrees; when they disagree, plain numbers (no unit is better than a
  * wrong one). Tick decimals follow the widget's unless set.
  */
-export function axisFormat(series: Series[], rules: unknown, format: ValueFormat, locale?: string, side?: 'left' | 'right'): (v: number) => string {
+export function axisFormat(series: Array<Pick<Series, 'id' | 'yAxis'>>, rules: unknown, format: ValueFormat, locale?: string, side?: 'left' | 'right'): (v: number) => string {
+  return numberFormatter(axisFormatSpec(series, rules, format, side), locale);
+}
+
+/** `axisFormat` as data (a `tick` spec). */
+export function axisFormatSpec(series: Array<Pick<Series, 'id' | 'yAxis'>>, rules: unknown, format: ValueFormat, side?: 'left' | 'right'): NumberFormatSpec {
   const overrides = new Set<string>();
   let sample: { unit?: string; decimals?: number } | undefined;
   for (const s of series) {
@@ -204,7 +245,7 @@ export function axisFormat(series: Series[], rules: unknown, format: ValueFormat
   }
   const one = overrides.size === 1 && sample ? sample : overrides.size > 1 ? { unit: '' } : {};
   // Ticks sit on round steps: a whole tick prints whole (20 °C, not 20.0 °C).
-  return (v) => formatValue(v, format, Number.isInteger(v) && format.notation !== 'compact' ? { ...one, decimals: 0 } : one, locale);
+  return { base: format, override: one, mode: 'tick' };
 }
 
 // ── chart.pie ──────────────────────────────────────────────────────────────

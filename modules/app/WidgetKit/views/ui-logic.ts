@@ -72,3 +72,7 @@ export const ROW_CLASS = {
 export function rowClass(divider = true, extra?: string): string {
   return cn('flex min-h-9 items-center justify-between gap-3 py-1.5', divider && 'border-b border-border last:border-b-0', extra);
 }
+
+/** Chart text and grid defaults every chart view uses (DESIGN.md: axis 11px secondary, dashed grid). */
+export const CHART_AXIS_STYLE = { fontSize: 11, fill: 'var(--text-secondary)' } as const;
+export const CHART_GRID_COLOR = 'var(--border)';

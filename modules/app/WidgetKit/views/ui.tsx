@@ -144,6 +144,4 @@ export function MetricHead({ label, icon }: { label?: ReactNode; icon?: ReactNod
   );
 }
 
-/** Chart text and grid defaults every chart view uses (DESIGN.md: axis 11px secondary, dashed grid). */
-export const CHART_AXIS_STYLE: CSSProperties = { fontSize: 11, fill: 'var(--text-secondary)' };
-export const CHART_GRID_COLOR = 'var(--border)';
+export { CHART_AXIS_STYLE, CHART_GRID_COLOR } from './ui-logic';
