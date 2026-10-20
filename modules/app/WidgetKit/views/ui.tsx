@@ -5,7 +5,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
 import { fontStyle, tint } from '../settings/style';
-import { METRIC_CLASS, METRIC_LABEL_CLASS, METRIC_UNIT_CLASS, deltaModel, iconTileModel, metaClass, metricStyle, pillModel } from './ui-logic';
+import { METRIC_CLASS, METRIC_LABEL_CLASS, METRIC_UNIT_CLASS, deltaModel, iconTileModel, metaClass, metricStyle, pillModel, ROW_CLASS, rowClass } from './ui-logic';
 import { SettingIcon } from '../WidgetKitContext';
 
 export { tint };
@@ -126,9 +126,9 @@ export function Row({
   valueAs?: 'span' | 'dd';
 } & Omit<React.HTMLAttributes<HTMLElement>, 'children'>) {
   return (
-    <Tag className={cn('flex min-h-9 items-center justify-between gap-3 py-1.5', divider && 'border-b border-border last:border-b-0', className)} {...rest}>
-      <L className="min-w-0 truncate text-[13px] text-text-secondary" style={labelStyle}>{label}</L>
-      <V className="m-0 shrink-0 text-right text-[13px] font-medium tabular-nums text-text-primary" style={valueStyle}>{value}</V>
+    <Tag className={rowClass(divider, className)} {...rest}>
+      <L className={ROW_CLASS.label} style={labelStyle}>{label}</L>
+      <V className={ROW_CLASS.value} style={valueStyle}>{value}</V>
     </Tag>
   );
 }

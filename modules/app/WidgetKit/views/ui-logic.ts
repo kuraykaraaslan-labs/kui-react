@@ -1,6 +1,7 @@
 // The look decisions behind the kit's building blocks (metric, change chip, icon tile, status pill) as plain data
 // (no React). `ui.tsx` draws them; kui-ejs and KUInative vendor this file, so the blocks look the same in all three.
 
+import { cn } from '@/libs/utils/cn';
 import type { FontValue } from '../../SchemaForm/types';
 import type { StyleRecord } from '../card-logic';
 import { cssColor, fontStyle, tint } from '../settings/style';
@@ -60,4 +61,14 @@ export function pillModel(o: { color?: string; background?: string; size?: 'sm' 
     style: { color: solid ? 'var(--primary-fg)' : c, background: cssColor(o.background) ?? (solid ? c : tint(c)) } as StyleRecord,
     dotColor: solid ? 'currentColor' : c,
   };
+}
+
+export const ROW_CLASS = {
+  label: 'min-w-0 truncate text-[13px] text-text-secondary',
+  value: 'm-0 shrink-0 text-right text-[13px] font-medium tabular-nums text-text-primary',
+};
+
+/** A label/value line in a list (`Row`): dividers between lines, extra classes merged the way tailwind-merge does. */
+export function rowClass(divider = true, extra?: string): string {
+  return cn('flex min-h-9 items-center justify-between gap-3 py-1.5', divider && 'border-b border-border last:border-b-0', extra);
 }
