@@ -121,16 +121,18 @@ export const DEMO_CHOICES: ParamChoices = {
   brokers: [{ value: 'broker-lan', label: 'LAN broker' }, { value: 'broker-cloud', label: 'Cloud broker' }],
   channels: [{ value: 'email', label: 'E-mail' }, { value: 'sms', label: 'SMS' }, { value: 'webhook', label: 'Webhook' }],
   adc_channels: [{ value: 'adc1', label: 'Analog input 1' }, { value: 'adc2', label: 'Analog input 2' }],
-  // the callable flows of the workspace (those with a Flow input block), the open one left out
+  // the callable flows of the workspace (every flow has a Flow input block), the open one left out
   [FLOWS_SOURCE]: [{ value: 'escalation', label: 'Escalation' }, { value: 'night-shift', label: 'Night shift' }],
 };
 
 /**
- * A flow with a group (the first two nodes), a Run flow block at the end of a chain, a connection from an error
+ * A flow with its fixed Flow input, a group (n1 and n2), a Run flow block at the end of a chain, a connection from an error
  * port, and a notify block without a channel: the editor marks it and lists the problem.
  */
 export const DEMO_FLOW: Pick<RuleChain, 'nodes' | 'edges' | 'groups'> = {
   nodes: [
+    // the fixed Flow input every flow has (not wired: it does not have to be)
+    { nodeId: 'flow_input', type: 'trigger.flow_input', label: 'Flow input', x: -192, y: 80, config: {} },
     { nodeId: 'n1', type: 'trigger.mqtt_in', label: 'Boiler temperature', x: 40, y: 80, config: { broker: 'broker-lan', topic: 'site/boiler/temp' } },
     { nodeId: 'n2', type: 'cond.compare', label: 'Too hot?', x: 260, y: 80, config: { path: 'msg.payload.temp', op: 'gt', value: { kind: 'num', v: 90 } } },
     { nodeId: 'n3', type: 'logic.delay', label: 'Hold 2 min', x: 480, y: 40, config: { hold: 120000 } },

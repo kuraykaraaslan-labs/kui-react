@@ -36,11 +36,11 @@ added after it.
 
 ## Flows that run each other
 
-`flows` lists the flows of the host (`{ id, name, callable? }`). A `trigger.flow_input` makes a flow callable; a Run flow
-block (`action.flow_run`) picks the flow to run from the `flows` choice list, which the workspace builds from this list: the
-callable flows, the open one left out. Say `callable` yourself when the host knows it; otherwise the workspace loads the
-other flows once through `loadFlows` and looks for a Flow input block (without `loadFlows` a flow of unknown state is
-offered). It loads only when a block of the catalog has a `source: 'flows'` param. A `choices.flows` of the host wins.
+`flows` lists the flows of the host (`{ id, name, callable? }`). Every flow has its one fixed `trigger.flow_input` (the
+editor adds it to a flow that lacks it, as part of the baseline: the flow does not start dirty), so every flow is callable;
+a Run flow block (`action.flow_run`) picks the flow to run from the `flows` choice list, which the workspace builds from this
+list: all flows but the open one. An unset `callable` means callable; only an explicit `callable: false` hides a flow.
+Nothing is loaded for this. A `choices.flows` of the host wins.
 The menu of a Run flow block goes to the Flow input of its flow (`onOpen`); the menu of a Flow input lists the Run flow
 blocks that run its flow.
 

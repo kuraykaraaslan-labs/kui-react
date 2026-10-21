@@ -104,7 +104,7 @@ keep working. For hosts that add to the editor:
 | `arrange()` | Auto layout, one undo step, then the view fits. Returns false when nothing moved (or read only). |
 | `select(ids)` / `getSelection()` | Set and read the selected blocks (ids that are not on the canvas are ignored). |
 | `reveal(ids)` | Pan, and zoom out only if they do not fit, until the blocks are in view; no-op when they already are. |
-| `replaceGraph(graph, { key?, fit? })` | Replace the whole graph (nodes, edges, groups) as ONE undo step, e.g. a merge or a restored draft. |
+| `replaceGraph(graph, { key?, fit? })` | Replace the whole graph (nodes, edges, groups) as ONE undo step, e.g. a merge or a restored draft. The fixed Flow input is added when the graph lacks it (catalog with the block). |
 
 Dragging a connection's end (UI-31): select a connection and two handles appear on its ends. Drag the target end onto
 another input (or a block: its first input), or the source end onto another output (or a block: the same port when it has
@@ -189,7 +189,7 @@ second join (typing in the panel); a drag is one step on release. Selection, vie
 
 Shift, Ctrl or ⌘ click toggles a node; Ctrl+A selects all; the name tab of a group selects its members. Dragging,
 Delete, copy, cut and duplicate work on the whole selection. Paste remaps ids and keeps relative positions; groups are
-not copied. The clip is kept in `localStorage` (`kui-ruleset-clipboard`) and offered to the system clipboard.
+not copied. The Flow input block of a flow is left out of every one of these (see “Flows that call each other”). The clip is kept in `localStorage` (`kui-ruleset-clipboard`) and offered to the system clipboard.
 
 ## Canvas: arrange, mini map, box select, snap
 
@@ -223,8 +223,15 @@ Like ThingsBoard rule chains, flows run each other; there are no subflows (they 
 `flow_run`). Two blocks, declared in `catalog/flow.ts` (`FLOW_BLOCKS`; the router serves the same ones from its own
 `blocks.d` JSON), group `flow`, palette label “Flows”:
 
-- `trigger.flow_input` (“Flow input”): the fixed entry of a flow. No input, one output `out`, no params. At most one per
-  flow (a second is the error `one_flow_input`, and the palette greys it out). A flow that has one is callable.
+- `trigger.flow_input` (“Flow input”): the fixed entry of every flow. No input, one output `out`, no params. A flow always
+  has exactly one, wired or not, so every flow is callable (only an explicit `callable: false` of the host hides a flow
+  from the Run flow lists). The editor adds it when the catalog has the block and the graph has none (initial graph,
+  `replaceGraph`, a restored draft, a merge, an import; `ensureFlowInput` in `graph/flowInput.ts`) and the addition is part
+  of the baseline: no history step, not dirty. It is not in the palette or any add menu. It cannot be deleted (Delete,
+  context menu, toolbar, cut, panel), copied, cut, duplicated or pasted (a pasted one is dropped); undo and redo never remove
+  it. Moving it, renaming its label and wiring it stay allowed. A second one in an imported graph is still the error
+  `one_flow_input` (the first is the fixed one; the others can be deleted). A host whose catalog lacks the block is
+  unaffected.
 - `action.flow_run` (“Run flow”): a terminal block. One input, no output port (`error` stays the implicit engine port), one
   required param `flow`: the id of the flow to run. It forwards the message to that flow's `flow_input` and never returns,
   so put it at the end of a chain. Running its own flow is the error `run_self` (give the editor `flowId`).
@@ -232,7 +239,7 @@ Like ThingsBoard rule chains, flows run each other; there are no subflows (they 
 Data travels in the message only: no output node, no params passing, no return value, no nesting rule.
 
 The `flow` param is a `source` field named `flows` (`FLOWS_SOURCE`): a host that uses the bare editor passes
-`choices.flows`; `FlowWorkspace` fills it from its `flows` prop with the callable flows, the open one left out (see
+`choices.flows`; `FlowWorkspace` fills it from its `flows` prop with the flows that are not marked `callable: false`, the open one left out (see
 [docs/workspace.md](docs/workspace.md)). In `FlowWorkspace` the menu of a Run flow block has “Go to the Flow input of that
 flow”, and the menu of a Flow input “Show the blocks that run this flow”.
 

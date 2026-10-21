@@ -32,7 +32,7 @@ const TRY: { title: string; text: string }[] = [
   { title: 'Snap and guides', text: 'Drag a block near another: it snaps to the grid and to the edges of its neighbours, with a guide line. Hold Alt to move freely.' },
   { title: 'Mini map', text: 'The binoculars button in the zoom bar shows an overview of 180 x 120. It also appears when blocks leave the view.' },
   { title: 'Groups', text: 'Select two nodes, right-click, “Group…”. Drag the name tab to move the members, double-click it to rename or recolour.' },
-  { title: 'Flows that run each other', text: 'Click “Escalate” (a Run flow block at the end of a chain): its Flow param picks the flow to run. A Flow input block makes a flow callable; a flow has one at most.' },
+  { title: 'Flows that run each other', text: 'Click “Escalate” (a Run flow block at the end of a chain): its Flow param picks the flow to run. Every flow has one fixed Flow input block, so any flow can be run; it cannot be added, copied or deleted.' },
   { title: 'Error paths', text: 'The dashed line from the bottom of “Too hot?” is its error port; drag from that small ring to wire one.' },
   { title: 'The file', text: 'Open “Show file” to see roltek-automation-1 as you edit. Secrets are left out of downloads.' },
 ];

@@ -27,14 +27,14 @@ const SEED: Stored[] = [
   {
     id: 'morning', name: 'Morning routine', rev: 1,
     graph: {
-      nodes: [node('a1', 'logic.step', 'Open the blinds', 40, 60), node('a2', 'action.link_out', 'To the alarm check', 300, 60, { targets: ['alarm-check'] }), node('a3', 'trigger.link_in', 'Back from the alarm', 40, 220, { name: 'morning-again' }), node('a4', 'action.flow_run', 'Run the helper', 300, 160, { flow: 'helper' })],
+      nodes: [node('a0', 'trigger.flow_input', 'Flow input', -192, 60), node('a1', 'logic.step', 'Open the blinds', 40, 60), node('a2', 'action.link_out', 'To the alarm check', 300, 60, { targets: ['alarm-check'] }), node('a3', 'trigger.link_in', 'Back from the alarm', 40, 220, { name: 'morning-again' }), node('a4', 'action.flow_run', 'Run the helper', 300, 160, { flow: 'helper' })],
       edges: [wire('e1', 'a1', 'a2'), wire('e2', 'a1', 'a4')], groups: [],
     },
   },
   {
     id: 'alarm', name: 'Alarm', rev: 1,
     graph: {
-      nodes: [node('b1', 'trigger.link_in', 'Alarm check', 40, 60, { name: 'alarm-check' }), node('b2', 'logic.step', 'Is anyone home?', 300, 60), node('b3', 'logic.link_call', 'Ask the morning flow', 560, 60, { target: 'morning-again' })],
+      nodes: [node('b0', 'trigger.flow_input', 'Flow input', -192, 60), node('b1', 'trigger.link_in', 'Alarm check', 40, 60, { name: 'alarm-check' }), node('b2', 'logic.step', 'Is anyone home?', 300, 60), node('b3', 'logic.link_call', 'Ask the morning flow', 560, 60, { target: 'morning-again' })],
       edges: [wire('e1', 'b1', 'b2'), wire('e2', 'b2', 'b3')], groups: [],
     },
   },
@@ -47,7 +47,7 @@ const SEED: Stored[] = [
 const TRY: string[] = [
   'Change something, then open another flow from the list above: the change comes back as a draft banner when you return.',
   'Right-click “To the alarm check” and choose “Go to the link in”: the “Alarm” flow opens with that block selected. On “Alarm check”, “Show the blocks that call it” lists both callers.',
-  'Right-click “Run the helper” and choose “Go to the Flow input of that flow”: the “Helper” flow opens. Open the block panel of a Run flow block: its flow list holds the flows that have a Flow input block (here only “Helper”).',
+  'Right-click “Run the helper” and choose “Go to the Flow input of that flow”: the “Helper” flow opens. Open the block panel of a Run flow block: its flow list holds every other flow (every flow has its own fixed Flow input block, which cannot be deleted or copied).',
   'Edit “Morning routine”, press “Someone else saves”, then “Save”: the conflict dialog opens. “Merge” keeps both sides and is one undo step.',
 ];
 
