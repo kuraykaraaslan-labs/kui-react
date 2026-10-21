@@ -94,6 +94,9 @@ describe('validateGraph', () => {
       expect(result.errors.map((e) => [e.code, e.nodeId])).toEqual([['one_flow_input', 'in2']]);
       expect(result.errors[0].message).toBe('A flow can have only one Flow input block.');
     });
+    it('does not mind a graph without a flow_input (a host without the block, or before the editor adds it)', () => {
+      expect(validateGraph({ nodes: [node('log', 'action.log', { text: 'x' })], edges: [] }, catalog).errors).toEqual([]);
+    });
     it('does not warn about a flow_input nothing is wired to yet', () => {
       expect(validateGraph({ nodes: [node('in', 'trigger.flow_input')], edges: [] }, catalog).warnings).toEqual([]);
     });

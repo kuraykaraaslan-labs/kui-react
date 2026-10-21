@@ -16,6 +16,8 @@ type Options = {
   /** the host's version is the new baseline */
   rebase: (graph: RulesetGraph) => void;
   onMerged?: (theirs: LoadedFlow, result: MergeResult) => void;
+  /** the normal form of a graph (the editor's `ensureFlowInput`), applied to the host's version before the merge */
+  normalize?: (graph: RulesetGraph) => RulesetGraph;
 };
 
 export type MergeOutcome = { result: MergeResult; theirs: LoadedFlow; info: ConflictInfo };
@@ -25,7 +27,7 @@ export type MergeOutcome = { result: MergeResult; theirs: LoadedFlow; info: Conf
  * (`loadFlow`), merged with the changes made here, and put in the editor as one undo step. Nothing is sent: the
  * merged flow is saved with the host's own save, on the new revision.
  */
-export function useMerge({ id, loadFlow, getGraph, baseline, replaceGraph, rebase, onMerged }: Options) {
+export function useMerge({ id, loadFlow, getGraph, baseline, replaceGraph, rebase, onMerged, normalize }: Options) {
   const m = useMessages();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +42,7 @@ export function useMerge({ id, loadFlow, getGraph, baseline, replaceGraph, rebas
       const theirs = await loadFlow(id);
       const mine = getGraph();
       if (!theirs || !mine) { setError(m.wsMergeReadFail); return; }
-      const result = mergeGraphs(baseline(), mine, theirs.graph);
+      const result = mergeGraphs(baseline(), mine, normalize ? normalize(theirs.graph) : theirs.graph);
       replaceGraph(result.graph, { key: 'merge' });
       // the host's version is the new "saved" state; the merged flow is a change on top of it
       rebase(theirs.graph);
@@ -51,7 +53,7 @@ export function useMerge({ id, loadFlow, getGraph, baseline, replaceGraph, rebas
     } finally {
       setBusy(false);
     }
-  }, [loadFlow, id, getGraph, baseline, replaceGraph, rebase, onMerged, m]);
+  }, [loadFlow, id, getGraph, baseline, replaceGraph, rebase, onMerged, normalize, m]);
 
   return { canMerge, busy, error, outcome, merge, closeOutcome: () => setOutcome(null), clearError: () => setError(null) };
 }

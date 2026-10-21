@@ -1,6 +1,7 @@
 import { defaultParams } from '../catalog/params';
 import { nodePortsOf } from '../catalog/ports';
 import type { Catalog } from '../catalog/types';
+import { deletableIds } from './flowInput';
 import { newEdgeId, newNodeId } from './ids';
 import { pruneGroups } from './groups';
 import type { Graph, GraphEdge, GraphNode, RuleGroup } from './types';
@@ -34,9 +35,12 @@ export function newNode(catalog: Catalog, type: string, at: Point, existing: Pic
   };
 }
 
-/** Remove nodes with every connection that touches them; groups lose the members and the empty ones go. */
+/**
+ * Remove nodes with every connection that touches them; groups lose the members and the empty ones go. The fixed flow
+ * input (the first `trigger.flow_input` node) is never removed: it is skipped, the other ids are removed.
+ */
 export function removeNodes<N extends GraphNode, E extends GraphEdge>(graph: Graph<N, E>, ids: Iterable<string>): Graph<N, E> {
-  const gone = new Set(ids);
+  const gone = new Set(deletableIds(graph.nodes, ids));
   const nodes = graph.nodes.filter((n) => !gone.has(n.nodeId));
   return {
     nodes,

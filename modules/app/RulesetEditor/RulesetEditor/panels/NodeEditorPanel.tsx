@@ -81,7 +81,7 @@ function PlaceholderDetails({ node }: { node: RuleNode }) {
 
 export function NodeEditorPanel({
   node, decl, layout, readOnly, draftLabel, draftDescription, draftValues, choices, issues = [], showRequired = false,
-  onLabelChange, onDescriptionChange, onValueChange, onValuesChange, paramEditor: ParamEditor, onClose, onDelete, onResetScript, onDebug,
+  onLabelChange, onDescriptionChange, onValueChange, onValuesChange, paramEditor: ParamEditor, onClose, onDelete, canDelete = true, onResetScript, onDebug,
   nodeMessages, messageBodies = false, activity, activityWindow, onTestMessage, onTestScript, tabs: onlyTabs, bare = false, tab: tabProp, onTabChange,
 }: {
   node: RuleNode;
@@ -105,6 +105,8 @@ export function NodeEditorPanel({
   /** the host's own editor for this block type, shown in place of the generated form */
   paramEditor?: ComponentType<ParamEditorProps>;
   onClose: () => void; onDelete: () => void;
+  /** false hides the delete button (the fixed Flow input of a flow cannot be deleted) */
+  canDelete?: boolean;
   /** put the default script back; null when the block has no script param with a default */
   onResetScript: (() => void) | null;
   /** the "Debug node" button is shown only when this is given */
@@ -166,7 +168,7 @@ export function NodeEditorPanel({
             <FontAwesomeIcon icon={faBug} className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         )}
-        {!readOnly && (
+        {!readOnly && canDelete && (
           <button onClick={onDelete} title={m.panelDeleteNode} aria-label={m.panelDeleteNode}
             className="shrink-0 rounded p-1 text-text-secondary transition-colors hover:bg-error-subtle hover:text-error">
             <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" aria-hidden="true" />

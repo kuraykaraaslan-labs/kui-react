@@ -30,9 +30,11 @@ export type GraphEditor = {
 
 /**
  * The state of the editor with undo and redo. Selection, view and open panels are not in it: only what
- * `snapshotOf` covers is stepped over. `onChange` runs after every committed change, undo and redo.
+ * `snapshotOf` covers is stepped over. `onChange` runs after every committed change, undo and redo. `normalize` is a safety
+ * net on every state the editor puts on the canvas (a change, an undo, a redo): it keeps what must always be there, the
+ * fixed Flow input, so no path can take it away.
  */
-export function useGraphEditor(initial: EditorState, onChange?: (graph: RulesetGraph) => void): GraphEditor {
+export function useGraphEditor(initial: EditorState, onChange?: (graph: RulesetGraph) => void, normalize?: (state: EditorState) => EditorState): GraphEditor {
   const [state, setStateValue] = useState(initial);
   const [history] = useState(() => {
     const h = createHistory();
@@ -42,9 +44,11 @@ export function useGraphEditor(initial: EditorState, onChange?: (graph: RulesetG
   const [, bump] = useReducer((n: number) => n + 1, 0);
   const stateRef = useRef(state);
   const onChangeRef = useRef(onChange);
-  useEffect(() => { onChangeRef.current = onChange; });
+  const normalizeRef = useRef(normalize);
+  useEffect(() => { onChangeRef.current = onChange; normalizeRef.current = normalize; });
 
-  const put = useCallback((next: EditorState) => {
+  const put = useCallback((raw: EditorState) => {
+    const next = normalizeRef.current ? normalizeRef.current(raw) : raw;
     stateRef.current = next;
     setStateValue(next);
   }, []);

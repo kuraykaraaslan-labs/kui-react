@@ -1,19 +1,22 @@
+import { copyableIds } from './flowInput';
 import { clone, newEdgeId, newNodeId } from './ids';
 import type { Graph, GraphEdge, GraphNode } from './types';
 import type { Point } from './edit';
 import { snapPos } from './edit';
 import { scrubNode, secretByName, type SecretTest } from './scrub';
+import { FLOW_INPUT } from './types';
 
 export const CLIPBOARD_FORMAT = 'kui-ruleset-clip';
 
 export type ClipPayload = { format: typeof CLIPBOARD_FORMAT; nodes: GraphNode[]; edges: GraphEdge[] };
 
 /**
- * Copy the selected nodes and the connections between them. Null when nothing is selected. Secret values are left
+ * Copy the selected nodes and the connections between them. Null when nothing is selected. A flow input is never
+ * copied (every flow has its own fixed one). Secret values are left
  * out (`secretTest` tells which keys are secrets; the default goes by key name), so a clip never carries them.
  */
 export function copySelection(graph: Pick<Graph, 'nodes' | 'edges'>, ids: Iterable<string>, secretTest: SecretTest = secretByName): ClipPayload | null {
-  const set = new Set(ids);
+  const set = new Set(copyableIds(graph.nodes, ids));
   const nodes = graph.nodes.filter((n) => set.has(n.nodeId));
   if (!nodes.length) return null;
   const edges = graph.edges.filter((e) => set.has(e.sourceNodeId) && set.has(e.targetNodeId));
@@ -41,6 +44,7 @@ function place<N extends GraphNode, E extends GraphEdge>(graph: Graph<N, E>, cli
   const nodes: N[] = [...graph.nodes];
   const idMap = new Map<string, string>();
   for (const source of clip.nodes) {
+    if (source.type === FLOW_INPUT) continue; // a flow has one fixed flow input: a pasted one is dropped
     const nodeId = newNodeId(nodes);
     idMap.set(source.nodeId, nodeId);
     nodes.push({ ...clone(source), nodeId, x: snapPos(source.x + dx), y: snapPos(source.y + dy) } as N);

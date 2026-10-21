@@ -397,6 +397,127 @@ describe('RulesetEditor: flows that run each other', () => {
   });
 });
 
+describe('RulesetEditor: the fixed Flow input', () => {
+  const catalog = catalogFromBlocks([[{ type: 'action.log', title: 'Log', params: { text: { type: 'string', default: 'x' } } }], FLOW_BLOCKS]);
+  const flowNodes = [node('fi', 'trigger.flow_input', 'Entry', 0, 0), node('s1', 'action.log', 'Step one', 300, 0, { config: { text: 'a' } }), node('s2', 'action.log', 'Step two', 300, 150, { config: { text: 'b' } })];
+  const flowEdges = [edge('e1', 'fi', 'out', 's1')];
+  const inputs = (g: RulesetGraph | undefined) => g?.nodes.filter((n) => n.type === 'trigger.flow_input') ?? [];
+
+  it('adds the Flow input to a graph that lacks it, left of the leftmost node, without a history step', () => {
+    const { ref, onChange } = setup({ catalog, initialNodes: [node('s1', 'action.log', 'Step one', 300, 40, { config: { text: 'a' } })], initialEdges: [] });
+    const g = ref.current!.getGraph();
+    expect(g.nodes.map((n) => [n.nodeId, n.type, n.label])).toEqual([['flow_input', 'trigger.flow_input', 'Flow input'], ['s1', 'action.log', 'Step one']]);
+    expect(g.nodes[0].x).toBeLessThan(300);
+    expect(g.nodes[0].y).toBe(40);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled();
+    expect(nodeEl('Flow input')).toBeInTheDocument();
+  });
+  it('adds one to an empty graph, and leaves a graph that has one alone', () => {
+    const empty = setup({ catalog, initialNodes: [], initialEdges: [] });
+    expect(inputs(empty.ref.current!.getGraph())).toHaveLength(1);
+    cleanup();
+    const has = setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    expect(has.ref.current!.getGraph().nodes.map((n) => n.nodeId)).toEqual(['fi', 's1', 's2']);
+  });
+  it('leaves a host whose catalog has no Flow input block alone', () => {
+    const { ref } = setup();
+    expect(ref.current!.getGraph().nodes.map((n) => n.nodeId)).toEqual(['n1', 'n2', 'n3']);
+  });
+  it('adds it when a graph is replaced, as the same one undo step', () => {
+    const { ref, last } = setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    act(() => ref.current!.replaceGraph({ nodes: [node('s1', 'action.log', 'Step one', 0, 0, { config: { text: 'a' } })], edges: [], groups: [] }, { key: 'merge' }));
+    expect(last()?.nodes.map((n) => n.type)).toEqual(['trigger.flow_input', 'action.log']);
+    act(() => ref.current!.undo());
+    expect(last()?.nodes.map((n) => n.nodeId)).toEqual(['fi', 's1', 's2']);
+  });
+
+  it('is not in the palette', () => {
+    setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    expect(screen.queryByRole('button', { name: 'Add Flow input node' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Run flow node' })).toBeInTheDocument();
+  });
+
+  it('is kept by Delete, which still removes the other selected blocks', async () => {
+    const { canvas, last, onChange } = setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    clickNode('Entry');
+    await key(canvas, '{Delete}');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(nodeEl('Entry')).toBeInTheDocument();
+    await key(canvas, '{Control>}a{/Control}');
+    await key(canvas, '{Delete}');
+    expect(last()?.nodes.map((n) => n.nodeId)).toEqual(['fi']);
+    expect(last()?.edges).toEqual([]);
+    await key(canvas, '{Control>}z{/Control}');
+    expect(last()?.nodes.map((n) => n.nodeId)).toEqual(['fi', 's1', 's2']);
+    await key(canvas, '{Control>}{Shift>}z{/Shift}{/Control}');
+    expect(inputs(last())).toHaveLength(1);
+  });
+  it('is not copied, cut, duplicated or pasted a second time', async () => {
+    window.localStorage.removeItem('kui-ruleset-clipboard');
+    const { canvas, last, onChange } = setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    clickNode('Entry');
+    await key(canvas, '{Control>}c{/Control}');
+    await key(canvas, '{Control>}v{/Control}');
+    await key(canvas, '{Control>}x{/Control}');
+    await key(canvas, '{Control>}d{/Control}');
+    expect(onChange).not.toHaveBeenCalled();
+    // select all: the other blocks are copied and pasted, the Flow input is left out
+    await key(canvas, '{Control>}a{/Control}');
+    await key(canvas, '{Control>}c{/Control}');
+    await key(canvas, '{Control>}v{/Control}');
+    expect(last()?.nodes).toHaveLength(5);
+    expect(inputs(last())).toHaveLength(1);
+    await key(canvas, '{Control>}a{/Control}');
+    await key(canvas, '{Control>}d{/Control}');
+    expect(inputs(last())).toHaveLength(1);
+    expect(last()?.nodes).toHaveLength(9);
+  });
+  it('is dropped, with its connections, from a clipboard that carries one', async () => {
+    const { canvas, last } = setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    const clip = { format: 'kui-ruleset-clip', nodes: [node('x1', 'trigger.flow_input', 'Other entry', 0, 0), node('x2', 'action.log', 'Pasted step', 300, 0, { config: { text: 'c' } })], edges: [edge('xe', 'x1', 'out', 'x2')] };
+    window.localStorage.setItem('kui-ruleset-clipboard', JSON.stringify(clip));
+    await key(canvas, '{Control>}v{/Control}');
+    expect(inputs(last())).toHaveLength(1);
+    expect(last()?.nodes.map((n) => n.label)).toEqual(['Entry', 'Step one', 'Step two', 'Pasted step']);
+    expect(last()?.edges).toHaveLength(1);
+  });
+  it('has Copy, Cut, Duplicate and Delete greyed out in its menu, and Delete works on the rest of a selection', async () => {
+    setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    fireEvent.contextMenu(nodeEl('Entry'));
+    const menu = within(await screen.findByRole('menu'));
+    for (const name of ['Copy', 'Cut', 'Duplicate', 'Delete']) expect(menu.getByRole('menuitem', { name })).toBeDisabled();
+    expect(menu.getByRole('menuitem', { name: 'Skip' })).toBeEnabled();
+    cleanup();
+    const again = setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    await key(again.canvas, '{Control>}a{/Control}');
+    fireEvent.contextMenu(nodeEl('Step one'));
+    const all = within(await screen.findByRole('menu'));
+    await userEvent.setup().click(all.getByRole('menuitem', { name: 'Delete 2 nodes' }));
+    expect(again.last()?.nodes.map((n) => n.nodeId)).toEqual(['fi']);
+  });
+  it('has no delete button in its panel, and can still be moved, renamed and wired', async () => {
+    const { ref, last } = setup({ catalog, initialNodes: flowNodes, initialEdges: [] });
+    clickNode('Entry');
+    const panel = await screen.findByRole('complementary', { name: 'Entry settings' });
+    expect(within(panel).queryByRole('button', { name: 'Delete node' })).not.toBeInTheDocument();
+    const name = within(panel).getByLabelText('Label');
+    fireEvent.change(name, { target: { value: 'Start' } });
+    expect(last()?.nodes.find((n) => n.nodeId === 'fi')?.label).toBe('Start');
+    act(() => { ref.current!.replaceGraph({ ...ref.current!.getGraph(), edges: [edge('e9', 'fi', 'out', 's2')] }); });
+    expect(last()?.edges).toHaveLength(1);
+  });
+  it('is kept by undo and redo', async () => {
+    const { canvas, last } = setup({ catalog, initialNodes: flowNodes, initialEdges: flowEdges });
+    clickNode('Step one');
+    await key(canvas, '{Delete}');
+    await key(canvas, '{Control>}z{/Control}');
+    await key(canvas, '{Control>}z{/Control}');
+    await key(canvas, '{Control>}{Shift>}z{/Shift}{/Control}');
+    expect(inputs(last())).toHaveLength(1);
+  });
+});
+
 describe('RulesetEditor: compatibility', () => {
   it('still gives nodes and edges on the ref, now with groups', () => {
     const { ref } = setup();

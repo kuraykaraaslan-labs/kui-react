@@ -5,6 +5,8 @@ import { secretByName, type SecretTest } from '../../graph/scrub';
 import { snapshotOf, stateOf } from '../../graph/state';
 import type { RulesetGraph } from '../hooks/useGraphEditor';
 
+const keep0 = (graph: RulesetGraph) => graph;
+
 export type DraftOffer = { draft: Draft; stale: boolean };
 
 export type UseDraft = {
@@ -38,6 +40,12 @@ type Options = {
   /** which settings are secrets, for the default store (the draft keeps none of them); by key name when absent */
   secretTest?: SecretTest;
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * Put a graph in its normal form before it is compared or kept: the baseline, a restored draft, a saved or rebased
+   * graph (`ensureFlowInput` for a catalog with the Flow input block). It must be what the editor applies to the graphs
+   * it loads, so the editor never starts dirty. Identity by default.
+   */
+  normalize?: (graph: RulesetGraph) => RulesetGraph;
 };
 
 /**
@@ -45,9 +53,10 @@ type Options = {
  * of its own per flow. Every change starts a timer (about 0.8 s); when it runs the draft is written. Nothing is
  * kept while the graph equals the baseline, and the draft goes when a change is undone back to it.
  */
-export function useDraft({ id, initial, readOnly = false, getGraph, replaceGraph, store: storeProp, secretTest = secretByName, onDirtyChange }: Options): UseDraft {
+export function useDraft({ id, initial: initialRaw, readOnly = false, getGraph, replaceGraph, store: storeProp, secretTest = secretByName, onDirtyChange, normalize = keep0 }: Options): UseDraft {
   const store = useMemo(() => storeProp ?? createDraftStore(undefined, secretTest), [storeProp, secretTest]);
   const key = draftKey(id);
+  const [initial] = useState(() => normalize(initialRaw));
   const [initSnap] = useState(() => snapshotOf(initial));
   const baseGraph = useRef(initial);
   const baseSnap = useRef<string>(initSnap);
@@ -136,15 +145,17 @@ export function useDraft({ id, initial, readOnly = false, getGraph, replaceGraph
     const o = offerRef.current;
     hideOffer();
     if (!o) return;
+    let restored: RulesetGraph;
     try {
       // one undo step: undo goes back to what was open before
-      replaceGraph(stateOf(o.draft.snap), { key: 'draft-restore', fit: true });
+      restored = normalize(stateOf(o.draft.snap));
+      replaceGraph(restored, { key: 'draft-restore', fit: true });
     } catch {
       return;
     }
-    current.current = o.draft.snap;
-    setDirty(o.draft.snap !== baseSnap.current);
-  }, [hideOffer, replaceGraph, setDirty]);
+    current.current = snapshotOf(restored);
+    setDirty(current.current !== baseSnap.current);
+  }, [hideOffer, replaceGraph, setDirty, normalize]);
 
   const discard = useCallback(() => {
     store.clear(key);
@@ -152,7 +163,7 @@ export function useDraft({ id, initial, readOnly = false, getGraph, replaceGraph
   }, [store, key, hideOffer]);
 
   const markSaved = useCallback((graph?: RulesetGraph) => {
-    const g = graph ?? getGraph() ?? baseGraph.current;
+    const g = normalize(graph ?? getGraph() ?? baseGraph.current);
     baseGraph.current = g;
     baseSnap.current = snapshotOf(g);
     current.current = baseSnap.current;
@@ -160,15 +171,16 @@ export function useDraft({ id, initial, readOnly = false, getGraph, replaceGraph
     store.clear(key);
     hideOffer();
     setDirty(false);
-  }, [getGraph, stopTimer, store, key, hideOffer, setDirty]);
+  }, [getGraph, stopTimer, store, key, hideOffer, setDirty, normalize]);
 
-  const rebase = useCallback((graph: RulesetGraph) => {
+  const rebase = useCallback((graphRaw: RulesetGraph) => {
+    const graph = normalize(graphRaw);
     baseGraph.current = graph;
     baseSnap.current = snapshotOf(graph);
     const live = getGraph();
     if (live) current.current = snapshotOf(live);
     setDirty(current.current !== baseSnap.current);
-  }, [getGraph, setDirty]);
+  }, [getGraph, setDirty, normalize]);
 
   const baseline = useCallback(() => baseGraph.current, []);
 

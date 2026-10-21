@@ -14,12 +14,13 @@ import { addGroup, groupOf, ungroup, updateGroup } from '../graph/groups';
 import { changeEdgePort, edgeSourcePorts, insertOnEdge, newNode, placeNodes, pruneEdges, removeEdge, removeNodes, toggleDisabled, updateNode, type Point } from '../graph/edit';
 import { autoLayout } from '../graph/layout';
 import { mergeSelection } from '../graph/boxselect';
+import { copyableIds, deletableIds, ensureFlowInput, fixedFlowInputId } from '../graph/flowInput';
+import { FLOW_INPUT } from '../graph/types';
 import { copySelection, duplicateNodes, parseClip, pasteClip, serializeClip, type ClipPayload } from '../graph/clipboard';
 import { stable } from '../graph/history';
 import { nodeName } from '../graph/names';
 import { MessagesProvider, useMergedMessages, type EditorMessages } from './messages';
 import { secretTestOf } from '../graph/scrub';
-import { FLOW_INPUT } from '../graph/types';
 import { issuesByNode, validateGraph, type ValidationResult } from '../graph/validate';
 import { defaultScriptOf, formValues, setField, splitFormValues } from '../forms/field-utils';
 import { Palette } from './canvas/Palette';
@@ -106,7 +107,7 @@ export type RulesetEditorRef = {
   select: (ids: string[]) => void;
   /** pan (and zoom out if needed) until these blocks are in view; nothing happens when they already are */
   reveal: (ids: string | string[]) => void;
-  /** replace the whole graph as ONE undo step (a merge, a restored draft) */
+  /** replace the whole graph as ONE undo step (a merge, a restored draft); the fixed Flow input is added when the catalog has the block and the graph lacks it */
   replaceGraph: (graph: RulesetGraph, options?: { key?: string; fit?: boolean }) => void;
   /** ids of the selected blocks, the last one picked last */
   getSelection: () => string[];
@@ -222,12 +223,16 @@ export function RulesetEditor({
   readOnly = false, browserDebug = true, className, chainName = 'Rule Chain', nodeStatus, activity, nodeMessages, messageBodies = false, onTestMessage, onScriptTest, scriptTestSample, sideBar, diffTint, onSelectionChange, nodeMenuItems, toolbarExtra, bannerSlot, ref,
 }: RulesetEditorProps) {
   const m = useMergedMessages(messages);
-  const ed = useGraphEditor({ nodes: initialNodes, edges: initialEdges, groups: initialGroups ?? [] }, onChange);
-  const { nodes, edges, groups } = ed.graph;
-  const canDebug = browserDebug && !readOnly;
 
   /* the catalog: the given one (the built-in one by default) and the comment block */
   const catalog = useMemo(() => withNoteBlock(catalogProp ?? BUILTIN_CATALOG), [catalogProp]);
+  /* a catalog with the Flow input block: every flow has its one fixed Flow input, added to the start graph when missing
+     (part of the baseline, no history step) and to every graph put on the canvas. A read-only view shows the graph as it is. */
+  const withFlowInput = (g: RulesetGraph): RulesetGraph => (readOnly ? g : ensureFlowInput(g, catalog));
+  const [startGraph] = useState(() => withFlowInput({ nodes: initialNodes, edges: initialEdges, groups: initialGroups ?? [] }));
+  const ed = useGraphEditor(startGraph, onChange, withFlowInput);
+  const { nodes, edges, groups } = ed.graph;
+  const canDebug = browserDebug && !readOnly;
   const layouts = useMemo(() => new Map<string, NodeLayout>(nodes.map((n) => [n.nodeId, layoutOf(n, catalog)])), [nodes, catalog]);
 
   /* what is wrong with the graph on the canvas (keyed on its lists: `ed.graph` is a new object on every render) */
@@ -361,7 +366,7 @@ export function RulesetEditor({
   }
 
   function replaceGraph(graph: RulesetGraph, options?: { key?: string; fit?: boolean }) {
-    ed.applyState(() => graph, options?.key);
+    ed.applyState(() => withFlowInput(graph), options?.key);
     if (options?.fit) setFitTick((t) => t + 1);
   }
 
@@ -587,7 +592,6 @@ export function RulesetEditor({
 
   function addProblem(type: string): string | null {
     if (unavailable?.[type]) return unavailable[type];
-    if (type === FLOW_INPUT && nodes.some((n) => n.type === FLOW_INPUT)) return m.problemFlowOneInput;
     return null;
   }
 
@@ -599,7 +603,9 @@ export function RulesetEditor({
     selectOnly(paletteDrop.addAt(type, toWorld(r.left + r.width / 2 + off, r.top + r.height / 2 + off)));
   }
 
-  function deleteNodes(ids: string[]) {
+  /* the fixed Flow input is skipped silently: the other blocks of the selection are deleted */
+  function deleteNodes(all: string[]) {
+    const ids = deletableIds(ed.getGraph().nodes, all);
     if (readOnly || !ids.length) return;
     ed.apply((g) => removeNodes(g, ids), 'delete');
     selectOnly(null);
@@ -619,7 +625,10 @@ export function RulesetEditor({
     storeClip(clip);
   }
 
-  function cutNodes(ids: string[]) {
+  /* a Flow input is neither copied nor cut: only the other blocks are */
+  function cutNodes(all: string[]) {
+    const ids = copyableIds(ed.getGraph().nodes, all);
+    if (!ids.length) return;
     copyNodes(ids);
     deleteNodes(ids);
   }
@@ -662,6 +671,7 @@ export function RulesetEditor({
     setPicker({
       title: 'Add a block in between',
       onPick: (type) => {
+        if (type === FLOW_INPUT) return; // a flow has its fixed Flow input: it is never added
         const node = newNode(catalog, type, mid, ed.getGraph().nodes, { width: NODE_W, headerHeight: NODE_HEADER_H });
         ed.apply((g) => insertOnEdge(g, catalog, edgeId, node) ?? g, 'insert');
         selectOnly(node.nodeId);
@@ -707,21 +717,24 @@ export function RulesetEditor({
       else setSelectedEdgeId(null);
       const member = groupOf(groups, nodeId);
       const extra = nodeMenuItems?.({ nodeIds: ids, readOnly }) ?? [];
+      /* the fixed Flow input cannot be copied, cut, duplicated or deleted: those entries go grey when nothing else is selected */
+      const copyCount = copyableIds(nodes, ids).length;
+      const deleteCount = deletableIds(nodes, ids).length;
       items = [
         { kind: 'item', label: readOnly ? m.menuView : m.menuEdit, hint: hint('edit'), icon: faPenToSquare, onSelect: () => openEditor(nodeId) },
         ...(canDebug ? [{ kind: 'item', label: m.menuDebugNode, icon: faBug, onSelect: () => setDebugNodeId(nodeId) } as ContextMenuItem] : []),
         { kind: 'separator' },
-        { kind: 'item', label: m.menuCopy(ids.length), hint: hint('copy'), icon: faCopy, onSelect: () => copyNodes(ids) },
+        { kind: 'item', label: m.menuCopy(copyCount || ids.length), hint: hint('copy'), icon: faCopy, disabled: !copyCount, onSelect: () => copyNodes(ids) },
         ...(readOnly ? [] : [
-          { kind: 'item', label: m.menuCut(ids.length), hint: hint('cut'), icon: faScissors, onSelect: () => cutNodes(ids) },
-          { kind: 'item', label: m.menuDuplicate(ids.length), hint: hint('duplicate'), icon: faClone, onSelect: () => duplicate(ids) },
+          { kind: 'item', label: m.menuCut(copyCount || ids.length), hint: hint('cut'), icon: faScissors, disabled: !copyCount, onSelect: () => cutNodes(ids) },
+          { kind: 'item', label: m.menuDuplicate(copyCount || ids.length), hint: hint('duplicate'), icon: faClone, disabled: !copyCount, onSelect: () => duplicate(ids) },
           { kind: 'item', label: ids.every((id) => nodes.find((x) => x.nodeId === id)?.disabled) ? m.menuWakeUp : m.menuSkip, icon: faEyeSlash, onSelect: () => ed.apply((g) => toggleDisabled(g, ids), 'skip') },
           { kind: 'separator' },
           { kind: 'item', label: m.menuGroup, icon: faObjectGroup, onSelect: () => setGroupEdit({ kind: 'new', ids }) },
           ...(member ? [{ kind: 'item', label: m.menuUngroup, icon: faObjectUngroup, onSelect: () => ed.apply((g) => ({ ...g, groups: ungroup(g.groups, member.groupId) }), 'ungroup') } as ContextMenuItem] : []),
           ...(extra.length ? [{ kind: 'separator' } as ContextMenuItem, ...extra] : []),
           { kind: 'separator' },
-          { kind: 'item', label: m.menuDelete(ids.length), hint: hint('delete'), icon: faTrash, danger: true, onSelect: () => deleteNodes(ids) },
+          { kind: 'item', label: m.menuDelete(deleteCount || ids.length), hint: hint('delete'), icon: faTrash, danger: true, disabled: !deleteCount, onSelect: () => deleteNodes(ids) },
         ] as ContextMenuItem[]),
         ...(readOnly && extra.length ? [{ kind: 'separator' } as ContextMenuItem, ...extra] : []),
       ];
@@ -854,6 +867,7 @@ export function RulesetEditor({
     paramEditor: paramEditors?.[editingNode.type],
     onClose: () => setEditingNodeId(null),
     onDelete: () => deleteNodes([editingNode.nodeId]),
+    canDelete: editingNode.nodeId !== fixedFlowInputId(nodes),
     onResetScript: defaultScriptOf(editingDecl?.params) !== undefined
       ? () => writePanel({ values: formValues(editingDecl?.params, { ...splitFormValues(editingDecl?.params, panelDraft.current.values).config }, undefined) })
       : null,

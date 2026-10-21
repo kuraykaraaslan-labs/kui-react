@@ -3,6 +3,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState 
 import { cn } from '@/libs/utils/cn';
 import type { DraftStore } from '../../graph/draft';
 import { FLOWS_SOURCE } from '../../catalog/flow';
+import { ensureFlowInput } from '../../graph/flowInput';
 import type { LinkFlow } from '../../graph/links';
 import { secretTestOf } from '../../graph/scrub';
 import type { MergeResult } from '../../graph/merge';
@@ -32,17 +33,12 @@ export type FlowWorkspaceRef = {
   keepDraft: () => boolean;
 };
 
-/** does a block of the catalog pick a flow (a Run flow block)? */
-function usesFlowList(catalog: FlowWorkspaceProps['catalog']): boolean {
-  return !!catalog && Object.values(catalog.blocks).some((b) => Object.values(b.params ?? {}).some((p) => p.source === FLOWS_SOURCE));
-}
-
 type EditorProps = Omit<RulesetEditorProps, 'initialNodes' | 'initialEdges' | 'initialGroups' | 'flowId' | 'chainName' | 'bannerSlot' | 'ref'>;
 
 export type FlowWorkspaceProps = EditorProps & {
   /**
    * every flow of the host (the open one may be left out until it is saved). The workspace searches them for link and flow jumps,
-   * and offers the callable ones (those with a Flow input block) to the Run flow blocks, as the `flows` choice list
+   * and offers the callable ones (every flow has a Flow input block: all but those marked `callable: false`) to the Run flow blocks, as the `flows` choice list
    * (a `choices.flows` of your own wins)
    */
   flows: WorkspaceFlow[];
@@ -108,7 +104,11 @@ function WorkspaceBody({
   const [notice, setNotice] = useState<Notice | null>(null);
   const say = useCallback((text: string, tone: Notice['tone'] = 'info') => setNotice({ text, tone }), []);
 
-  const draft = useDraft({ id: flow.id, initial: flow.graph, readOnly, getGraph, replaceGraph, store: draftStore, secretTest, onDirtyChange });
+  /* every flow has its one fixed Flow input (a catalog with the block): the baseline and the graphs that replace the open
+     one carry it, as the editor adds it itself, so the flow does not start dirty */
+  const catalogProp = editorProps.catalog;
+  const normalize = useCallback((g: RulesetGraph) => ensureFlowInput(g, catalogProp), [catalogProp]);
+  const draft = useDraft({ id: flow.id, initial: flow.graph, readOnly, getGraph, replaceGraph, store: draftStore, secretTest, onDirtyChange, normalize });
   const guard = useLeaveGuard(typeof leaveGuard === 'function' ? leaveGuard(draft.dirty) : !!leaveGuard && draft.dirty, m.wsLeaveConfirm);
 
   /** leaving this flow: the draft keeps what is unsaved; if the browser cannot keep it, stay and say so */
@@ -126,7 +126,7 @@ function WorkspaceBody({
   }, []);
   const here = useMemo(() => ({ id: flow.id, name: flow.name }), [flow.id, flow.name]);
   const otherIds = useMemo(() => flows.filter((t) => t.id !== flow.id).map((t) => t.id), [flows, flow.id]);
-  const callable = useCallableFlows({ flows, hereId: flow.id, loadFlows, enabled: usesFlowList(editorProps.catalog) });
+  const callable = useCallableFlows({ flows, hereId: flow.id });
   const choices = useMemo(() => ({ ...editorProps.choices, [FLOWS_SOURCE]: editorProps.choices?.[FLOWS_SOURCE] ?? callable }), [editorProps.choices, callable]);
   const links = useFlowLinks({
     here, getGraph, otherIds, loadFlows, reveal: revealNode, notify: say,
@@ -141,7 +141,7 @@ function WorkspaceBody({
 
   /* ── merge ── */
   const merge = useMerge({
-    id: flow.id, loadFlow, getGraph, baseline: draft.baseline, replaceGraph, rebase: draft.rebase, onMerged,
+    id: flow.id, loadFlow, getGraph, baseline: draft.baseline, replaceGraph, rebase: draft.rebase, onMerged, normalize,
   });
 
   useImperativeHandle(ref, () => ({

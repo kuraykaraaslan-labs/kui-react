@@ -310,6 +310,38 @@ describe('FlowWorkspace: flows that run each other', () => {
   });
 });
 
+describe('FlowWorkspace: the fixed Flow input', () => {
+  const FLOW_CATALOG = catalogFromBlocks([[{ type: 'logic.step', title: 'Step' }], FLOW_BLOCKS]);
+  const LEGACY = () => graph([node('n1', 'logic.step', 'First', 300)]);
+  const open = () => setup({ catalog: FLOW_CATALOG, flow: { id: 'main', name: 'Main flow', graph: LEGACY() } });
+
+  it('adds it to a flow that lacks it without making the flow dirty or writing a draft', () => {
+    vi.useFakeTimers();
+    const { ref, mem } = open();
+    expect(ref.current!.getGraph()!.nodes.map((n) => n.type)).toEqual(['trigger.flow_input', 'logic.step']);
+    expect(ref.current!.isDirty()).toBe(false);
+    act(() => { vi.advanceTimersByTime(2000); });
+    expect(mem.data.size).toBe(0);
+  });
+
+  it('is dirty after a change and clean again once the change is undone', () => {
+    const { ref } = open();
+    const g = ref.current!.getGraph()!;
+    edit(ref, { ...g, nodes: g.nodes.map((n) => (n.nodeId === 'n1' ? { ...n, x: 340 } : n)) });
+    expect(ref.current!.isDirty()).toBe(true);
+    act(() => ref.current!.editor!.undo());
+    expect(ref.current!.isDirty()).toBe(false);
+  });
+
+  it('treats a graph the host saves without it as the same baseline', () => {
+    const { ref } = open();
+    act(() => ref.current!.markSaved(LEGACY()));
+    expect(ref.current!.isDirty()).toBe(false);
+    edit(ref, ref.current!.getGraph()!);
+    expect(ref.current!.isDirty()).toBe(false);
+  });
+});
+
 describe('FlowWorkspace: merge', () => {
   const BASE = graph([node('n1', 'logic.step', 'First', 0), node('n2', 'logic.step', 'Second', 300)]);
   /** mine: First moved; theirs: Second renamed, a node added */

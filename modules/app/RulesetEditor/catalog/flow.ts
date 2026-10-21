@@ -1,22 +1,23 @@
 import type { RawBlock } from './fromBlocks';
 
 /**
- * Flows that call each other, as ThingsBoard rule chains do. A flow with a `flow_input` block is callable; a
+ * Flows that call each other, as ThingsBoard rule chains do. Every flow has one fixed `flow_input` block (the editor adds
+ * it, it cannot be deleted or copied), so every flow is callable; a
  * `flow_run` block at the end of another flow's chain forwards the message to it. Data travels in the message only:
  * there is no output node, no params passing and no return.
  *
  * The router serves these blocks from its own `blocks.d` JSON; this is the same declaration for catalogs built here
  * (the demo, tests). The `flow` param of `flow_run` is a `source` field: the host (or `FlowWorkspace`) injects the list
- * under `FLOWS_SOURCE`, the callable flows other than the open one.
+ * under `FLOWS_SOURCE`, the flows other than the open one.
  */
 
 /** name of the choice list that holds the flows a `flow_run` block can run (`ParamChoices`) */
 export const FLOWS_SOURCE = 'flows';
 
-/** the fixed entry of a callable flow; at most one per flow */
+/** the fixed entry of every flow: exactly one per flow, added by the editor, never offered in the palette */
 export const FLOW_INPUT_BLOCK: RawBlock = {
   type: 'trigger.flow_input', category: 'flow', group: 'flow', icon: 'right-to-bracket', title: 'Flow input',
-  description: 'The entry of this flow. Other flows can run it with a Run flow block. One per flow.',
+  description: 'The entry of this flow. Other flows can run it with a Run flow block. Every flow has this block; it cannot be deleted.',
   inputs: 0, outputs: ['out'], params: {},
 };
 

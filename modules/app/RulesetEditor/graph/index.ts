@@ -4,6 +4,7 @@ export * from './history';
 export * from './groups';
 export * from './validate';
 export * from './edit';
+export * from './flowInput';
 export * from './clipboard';
 export * from './scrub';
 export * from './state';

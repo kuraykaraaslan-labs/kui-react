@@ -28,8 +28,6 @@ export type EditorMessages = {
   menuDuplicate: (count: number) => string;
   menuDelete: (count: number) => string;
   menuAdd: (blockTitle: string) => string;
-  /* why a block cannot be added */
-  problemFlowOneInput: string;
   /* dialogs opened by the editor */
   pickerTitle: string; groupNewTitle: string; groupEditTitle: string; groupConfirm: string; groupSave: string;
   /* canvas */
@@ -165,7 +163,6 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   menuDuplicate: (n) => (n > 1 ? `Duplicate ${n} nodes` : 'Duplicate'),
   menuDelete: (n) => (n > 1 ? `Delete ${n} nodes` : 'Delete'),
   menuAdd: (title) => `Add ${title}`,
-  problemFlowOneInput: 'A flow has one Flow input block only.',
   pickerTitle: 'Add a block', groupNewTitle: 'Group the selected nodes', groupEditTitle: 'Edit the group', groupConfirm: 'Group', groupSave: 'Save',
   addNodeSheet: 'Add a node', nodesButton: 'Nodes',
   paletteLabel: 'Node palette', paletteTitle: 'Node Types', paletteClose: 'Close palette', paletteSearchLabel: 'Search node types',

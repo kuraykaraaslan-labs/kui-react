@@ -5,8 +5,8 @@ export type WorkspaceFlow = {
   id: string;
   name: string;
   /**
-   * The flow has a Flow input block, so a Run flow block can run it. When the host does not say, the workspace looks for the
-   * block in the flow (it loads the flow through `loadFlows`); without `loadFlows` the flow is offered.
+   * A Run flow block can run this flow. Every flow has its fixed Flow input block, so a flow is callable unless the host
+   * says `false`.
    */
   callable?: boolean;
 };

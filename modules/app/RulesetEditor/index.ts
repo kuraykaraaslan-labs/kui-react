@@ -29,5 +29,7 @@ export { diffFlows, edgeKey } from './graph/diff';
 export type { FlowDiff, DiffItem, DiffNode, DiffEdge, DiffFieldChange, DiffNodeRef, DiffNodeChange, DiffEdgeRef } from './graph/diff';
 export { diffGraphs, diffTints, diffView, edgeTintOf, graphDiffItem } from './graph/diff-view';
 export type { DiffTint, CanvasDiffTint, DiffView } from './graph/diff-view';
+export { ensureFlowInput, fixedFlowInputId, isFlowInput, FLOW_INPUT_ID } from './graph/flowInput';
+export { FLOW_INPUT, FLOW_RUN } from './graph/types';
 export { roltekConfigs } from './format/roltek';
 export type { RoltekConfig, RoltekConfigImport } from './format/roltek';

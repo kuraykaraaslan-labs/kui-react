@@ -89,29 +89,24 @@ describe('RulesetEditor with a large catalog', () => {
     expect(last()?.edges).toEqual([]);
   });
 
-  it('offers the Flow input block once: a second one is greyed out, with the reason', async () => {
+  it('does not offer the Flow input block: every flow has its fixed one, added at load without a history step', async () => {
     const user = userEvent.setup();
     const flowCatalog = catalogFromBlocks([BLOCKS, FLOW_BLOCKS]);
     const onChange = vi.fn<(g: RulesetGraph) => void>();
     render(<RulesetEditor catalog={flowCatalog} initialNodes={[]} initialEdges={[]} onChange={onChange} />);
-    const add = () => screen.getByRole('button', { name: 'Add Flow input node' });
-    expect(add()).not.toHaveAttribute('aria-disabled');
-    await user.click(add());
-    expect(onChange.mock.calls.at(-1)?.[0].nodes.map((n) => n.type)).toEqual(['trigger.flow_input']);
-    expect(add()).toHaveAttribute('aria-disabled', 'true');
-    expect(add()).toHaveAttribute('title', 'A flow has one Flow input block only.');
-    await user.click(add());
-    expect(onChange.mock.calls.at(-1)?.[0].nodes).toHaveLength(1);
+    expect(screen.queryByRole('button', { name: 'Add Flow input node' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Flow input \(/ })).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
     // Run flow can be added any number of times
     await user.click(screen.getByRole('button', { name: 'Add Run flow node' }));
     await user.click(screen.getByRole('button', { name: 'Add Run flow node' }));
-    expect(onChange.mock.calls.at(-1)?.[0].nodes).toHaveLength(3);
+    expect(onChange.mock.calls.at(-1)?.[0].nodes.map((n) => n.type)).toEqual(['trigger.flow_input', 'action.flow_run', 'action.flow_run']);
   });
 
   it('groups the flow blocks under Flows in the palette', () => {
     render(<RulesetEditor catalog={catalogFromBlocks([BLOCKS, FLOW_BLOCKS])} />);
     const group = screen.getByRole('group', { name: 'Flows' });
-    expect(within(group).getByRole('button', { name: 'Add Flow input node' })).toBeInTheDocument();
+    expect(within(group).queryByRole('button', { name: 'Add Flow input node' })).not.toBeInTheDocument();
     expect(within(group).getByRole('button', { name: 'Add Run flow node' })).toBeInTheDocument();
   });
 });

@@ -1,13 +1,17 @@
+import { FLOW_INPUT } from '../graph/types';
 import type { BlockDecl, Catalog, CatalogGroup } from './types';
 
 export type PaletteGroup = CatalogGroup & { blocks: BlockDecl[] };
 
-/** Blocks a user can add, as palette groups in catalog order. Optionally filtered by a search text. */
+/**
+ * Blocks a user can add, as palette groups in catalog order. Optionally filtered by a search text. The `trigger.flow_input`
+ * block is never offered: every flow has its one fixed Flow input already.
+ */
 export function paletteGroups(catalog: Catalog, search = ''): PaletteGroup[] {
   const needle = search.trim().toLowerCase();
   const matches = (block: BlockDecl) =>
     !needle || [block.title, block.description ?? '', block.type].some((text) => text.toLowerCase().includes(needle));
-  const visible = Object.values(catalog.blocks).filter((block) => !block.internal && matches(block));
+  const visible = Object.values(catalog.blocks).filter((block) => !block.internal && block.type !== FLOW_INPUT && matches(block));
   const known = new Set(catalog.groups.map((group) => group.id));
   const groups: PaletteGroup[] = catalog.groups.map((group) => ({
     ...group,

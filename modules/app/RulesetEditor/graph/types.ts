@@ -21,7 +21,7 @@ export type Graph<N extends GraphNode = GraphNode, E extends GraphEdge = GraphEd
 /** ids of flows: lower case letters, digits, `_` and `-` */
 export const ID_RE = /^[a-z0-9_-]{1,32}$/;
 
-/** the entry block of a callable flow: at most one per flow */
+/** the fixed entry block of every flow: exactly one per flow (the editor adds it and never deletes it) */
 export const FLOW_INPUT = 'trigger.flow_input';
 /** the terminal block that forwards the message to the `flow_input` of another flow */
 export const FLOW_RUN = 'action.flow_run';
