@@ -1,6 +1,7 @@
 'use client';
+import { useEffect, useRef } from 'react';
 import { formatValue } from '../settings/style';
-import type { WidgetKindView, WidgetViewProps } from '../kind';
+import type { ElementGesture, WidgetKindView, WidgetViewProps } from '../kind';
 import { useKitMessages } from '../WidgetKitContext';
 import { sceneModel, type SceneSettings as S } from './scada-scene-logic';
 import { SvgTree } from './SvgTree';
@@ -8,18 +9,55 @@ import { useReducedMotion } from './useReducedMotion';
 
 export * from './scada-scene-logic';
 
+/** A click waits this long for a second click when the symbol also answers a double click. */
+export const DOUBLE_CLICK_MS = 250;
+
 /**
  * `scada.scene`: a process diagram on a canvas. Symbols are placed by coordinates and joined by pipes, hoses, cables,
  * wires and strip lines that route themselves between ports; one bound table (a row per id) feeds every symbol and link.
- * The diagram scales to the card and keeps its proportions.
+ * The diagram scales to the card and keeps its proportions. A symbol the host gives an action to answers a click, a
+ * double click, a right click and the keyboard (Enter or Space, the context-menu key); the others stay plain pictures.
  */
-export function ScadaSceneView({ settings, format, data, locale, title }: WidgetViewProps) {
+export function ScadaSceneView({ settings, format, data, locale, title, elementActions }: WidgetViewProps) {
   const m = useKitMessages().scada;
   const reduced = useReducedMotion();
   const g = sceneModel(settings as S, data, { animate: !reduced, format: (n) => formatValue(n, format, {}, locale) });
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (pending.current) clearTimeout(pending.current); }, []);
+
+  const act = (gesture: ElementGesture, id: string) => elementActions?.run(gesture, id);
+  // A symbol with both a click and a double click runs the click only after the second click did not come.
+  const click = (id: string) => {
+    if (pending.current) clearTimeout(pending.current);
+    if (elementActions?.has('doubleClick', id)) pending.current = setTimeout(() => { pending.current = null; act('click', id); }, DOUBLE_CLICK_MS);
+    else act('click', id);
+  };
+  const doubleClick = (id: string) => {
+    if (pending.current) { clearTimeout(pending.current); pending.current = null; }
+    act('doubleClick', id);
+  };
+  const live = elementActions ? g.hits.filter((h) => (['click', 'doubleClick', 'contextMenu'] as const).some((k) => elementActions.has(k, h.id))) : [];
+
   return (
     <svg viewBox={g.viewBox} preserveAspectRatio="xMidYMid meet" className="h-full min-h-0 w-full" role="img" aria-label={title || m.scene} data-problems={g.problems || undefined}>
       <SvgTree nodes={g.nodes} />
+      {live.map((h) => (
+        <rect
+          key={h.id}
+          x={h.x} y={h.y} width={h.w} height={h.h}
+          role="button" tabIndex={0} aria-label={h.name} data-element={h.id}
+          fill="transparent"
+          className="cursor-pointer outline-none hover:fill-primary/10 focus-visible:stroke-border-focus"
+          strokeWidth={2}
+          onClick={elementActions!.has('click', h.id) || elementActions!.has('doubleClick', h.id) ? () => click(h.id) : undefined}
+          onDoubleClick={elementActions!.has('doubleClick', h.id) ? () => doubleClick(h.id) : undefined}
+          onContextMenu={elementActions!.has('contextMenu', h.id) ? (e) => { e.preventDefault(); act('contextMenu', h.id); } : undefined}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && elementActions!.has('click', h.id)) { e.preventDefault(); act('click', h.id); }
+            else if ((e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) && elementActions!.has('contextMenu', h.id)) { e.preventDefault(); act('contextMenu', h.id); }
+          }}
+        />
+      ))}
     </svg>
   );
 }

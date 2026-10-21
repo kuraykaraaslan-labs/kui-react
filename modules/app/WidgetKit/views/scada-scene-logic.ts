@@ -345,8 +345,16 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     background.push(el('rect', { x: box.x0, y: box.y0, width: vw, height: vh, rx: 8, fill: 'var(--surface-raised)', stroke: 'var(--border)', 'stroke-width': 2 }));
   }
 
+  // Each symbol's box and name, for a host that makes symbols clickable (the view draws a hit area where a symbol has an action).
+  const hits = [...boxes.values()].map((b) => {
+    const e = settingsOf.get(b.id);
+    const row = rows.get(b.id);
+    const name = typeof row?.label === 'string' && row.label ? row.label : e?.label || b.id;
+    return { id: b.id, name, x: b.x, y: b.y, w: b.w, h: b.h };
+  });
+
   return {
-    width: vw, height: vh, scale, problems,
+    width: vw, height: vh, scale, problems, hits,
     viewBox: `${box.x0} ${box.y0} ${vw} ${vh}`,
     empty: boxes.size === 0,
     nodes: [...background, ...linkNodeList, ...elementNodes, ...labelNodes],

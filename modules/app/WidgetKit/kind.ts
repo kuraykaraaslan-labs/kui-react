@@ -65,6 +65,16 @@ export interface ControlRequest {
   confirmation?: { confirmed: true; typed?: string };
 }
 
+/** What a viewer can do to a symbol of a diagram. `contextMenu` is the right click (or the context-menu key). */
+export type ElementGesture = 'click' | 'doubleClick' | 'contextMenu';
+
+export interface ElementActions {
+  /** Does this symbol have an action for this gesture? */
+  has(gesture: ElementGesture, id: string): boolean;
+  /** Run the symbol's actions for this gesture. */
+  run(gesture: ElementGesture, id: string): void;
+}
+
 export interface WidgetViewProps {
   /** Effective type settings: the template defaults layered under the stored values. */
   settings: Sparse;
@@ -94,6 +104,11 @@ export interface WidgetViewProps {
   params?: Record<string, unknown>;
   /** A clicked element target (markdown `[label](action:<id>)`): the host runs that action. */
   onElementClick?: (id: string) => void;
+  /**
+   * A diagram's symbols and their actions (`scada.scene`): which gestures a symbol answers (the host knows what the
+   * placement stored for it) and a way to run them. A symbol with no gesture is not interactive at all.
+   */
+  elementActions?: ElementActions;
   /** Controls only: the bound command's confirmation policy. */
   confirm?: ControlConfirm;
   /** The card's title (e.g. an iframe's accessible name). */
