@@ -54,3 +54,17 @@ describe('panelMessages', () => {
     expect(screen.getByRole('tab', { name: 'Rules' })).toBeInTheDocument();
   });
 });
+
+describe('host.dirty', () => {
+  it('enables Apply when only the host has edits, and Close asks before discarding them', () => {
+    const m = mount({ host: { dirty: true } });
+    expect(screen.getByTestId('editor-apply')).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: /^Close/ }));
+    expect(screen.getByTestId('dirty-keep')).toBeInTheDocument();
+    expect(m.onClose).not.toHaveBeenCalled();
+  });
+  it('leaves Apply disabled when neither the diagram nor the host has edits', () => {
+    mount({ host: { dirty: false } });
+    expect(screen.getByTestId('editor-apply')).toBeDisabled();
+  });
+});

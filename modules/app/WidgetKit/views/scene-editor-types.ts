@@ -27,6 +27,8 @@ export interface EditorHost {
   columns?: Array<{ key: string; label?: string }>;
   /** Called after a successful Apply, so the host can close its surface. */
   onApplied?: () => void;
+  /** True while the host holds edits of its own that Apply would save (for example symbol actions): enables Apply and guards Close. */
+  dirty?: boolean;
   /** Called when the author renames a symbol (in the inspector or in place), so the host can carry what hangs off the id (its actions). */
   onRename?: (from: string, to: string) => void;
   /** The host's own checks, added to the problems list and its count (for example symbol actions that would be dropped). */

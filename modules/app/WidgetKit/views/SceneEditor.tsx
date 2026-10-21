@@ -58,7 +58,8 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const historyRef = useRef(history);
   const [baseline, setBaseline] = useState(props.settings);
   const settings = history.present;
-  const dirty = settings !== baseline;
+  // The host's own edits (the actions it keeps beside the diagram) count as unapplied changes too.
+  const dirty = settings !== baseline || host.dirty === true;
 
   const commit = useCallback((next: typeof history) => { historyRef.current = next; setHistory(next); }, []);
   const apply = useCallback<EditorCtx['apply']>((op, group) => {
