@@ -50,6 +50,13 @@ function normalise(key: string, v: unknown): { value: unknown } | string {
     if (f.maxLength !== undefined && text.length > f.maxLength) return `${f.label} is at most ${f.maxLength} characters`;
     return { value: text };
   }
+  if (f.type === 'number') {
+    if (empty) return { value: undefined };
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v.trim()) : NaN;
+    if (!Number.isFinite(n)) return `${f.label} must be a number`;
+    if ((typeof f.min === 'number' && n < f.min) || (typeof f.max === 'number' && n > f.max)) return `${f.label} is between ${f.min ?? '-'} and ${f.max ?? '-'}`;
+    return { value: n };
+  }
   if (f.type === 'color') {
     if (empty) return { value: undefined };
     if (typeof v !== 'string' || !cssColor(v)) return `${f.label} is not a colour`;
@@ -244,6 +251,14 @@ function effects(r: SceneRule, words: RuleWords): string[] {
   if (str(r.label)) out.push(fill(words.label, { label: str(r.label) }));
   if (str(r.medium)) out.push(fill(words.medium, { medium: str(r.medium) }));
   const animate = yes(r.animate); if (animate !== undefined) out.push(animate ? words.animateOn : words.animateOff);
+  const mode = str(r.mode); if (mode) out.push(fill(words.mode, { mode: (words.modes as Record<string, string>)[mode] ?? mode }));
+  const quality = str(r.quality); if (quality) out.push(fill(words.quality, { quality: (words.qualities as Record<string, string>)[quality] ?? quality }));
+  if (str(r.speed)) out.push(fill(words.speed, { speed: str(r.speed) }));
+  const reverse = yes(r.reverse); if (reverse !== undefined) out.push(reverse ? words.reverseOn : words.reverseOff);
+  const ack = yes(r.ack); if (ack !== undefined) out.push(ack ? words.ackOn : words.ackOff);
+  if (str(r.position)) out.push(fill(words.position, { position: str(r.position) }));
+  const pending = yes(r.pending); if (pending !== undefined) out.push(pending ? words.pendingOn : words.pendingOff);
+  const failed = yes(r.failed); if (failed !== undefined) out.push(failed ? words.failedOn : words.failedOff);
   return out;
 }
 

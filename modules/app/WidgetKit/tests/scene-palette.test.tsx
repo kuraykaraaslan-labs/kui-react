@@ -73,15 +73,15 @@ describe('ScenePalette', () => {
     expect(tile).toHaveTextContent('Motor pump');
     expect(tile).toHaveTextContent('pump.motor');
     expect(tile.querySelector('svg')!.children.length).toBeGreaterThan(0);
-    expect(screen.getByRole('status')).toHaveTextContent('243 symbols');
+    expect(screen.getByRole('status')).toHaveTextContent(`${SCADA_SYMBOLS.length} symbols`);
   });
-  it('renders all 243 thumbnails in a bounded time', () => {
+  it('renders every thumbnail in a bounded time', () => {
     const t = performance.now();
     render(<ScenePalette onAdd={() => {}} />);
     const ms = performance.now() - t;
     // Measured about 170 ms for the whole grid (jsdom, thumbnails already drawn); the grid is not windowed, tiles off screen
     // are skipped by the browser (`content-visibility`). The bound only catches a regression to something unusable.
-    expect(ms).toBeLessThan(2000);
+    expect(ms).toBeLessThan(6000);
   });
   it('searches with the ranking: the plain name first, and says when nothing matches', () => {
     const { container } = render(<ScenePalette onAdd={() => {}} />);

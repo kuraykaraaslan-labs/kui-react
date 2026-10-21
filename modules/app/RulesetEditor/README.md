@@ -37,6 +37,7 @@ catalog/            the block vocabulary as data
   builtin.ts          BUILTIN_CATALOG: the ten original node types
   palette.ts          paletteGroups
   summary.ts          the line under a node title
+  fields.ts           fromBlocksField / toParamSpec: a param ⇄ a SchemaForm FieldSchema, `when` → `showIf`
 forms/              ParamForm (schema → form) and its pure helpers (field-utils.ts)
 graph/              pure operations on a graph
   history.ts          undo / redo stack
@@ -47,6 +48,8 @@ graph/              pure operations on a graph
   groups.ts, subflows.ts, state.ts   groups; subflows (convert, nesting, settings); the state history steps over
   clipboard.ts        copy, paste, duplicate
   validate.ts         graph validation
+  diff.ts             diffFlows: what a deploy changes (the router's flowlib diff; imports nothing)
+  diff-view.ts        diffGraphs, diffTints, diffView: a diff drawn on the canvas
 format/roltek.ts    roltek-automation-1 ⇄ chains
 transfer.ts         kui-ruleset-1, roltek-automation-1 and Node-RED import / export, versions, templates
 demo.ts             sample catalog and flow for the showcase and the demo page
@@ -85,6 +88,10 @@ demo.ts             sample catalog and flow for the showcase and the demo page
 | `nodeMenuItems` | `({ nodeIds, readOnly }) => ContextMenuItem[]`: more entries in the menu of a block, between the built-in ones and Delete. Labels must be unique in the menu. |
 | `toolbarExtra` | A node at the start of the zoom bar (bottom right of the canvas). |
 | `bannerSlot` | A node above the canvas, full width of the canvas column (a “draft kept” bar, a conflict notice). |
+| `activity` | `{ edges?, nodes?, window? }` (`CanvasActivity`): live counters from the host. A connection whose count (or `at`) goes up lights up for 400 ms, at most twice a second (`pulseStep`); its count shows on hover (`edgeCount`), a block's in / out / errors in its hover card and the node panel's Messages tab. A connection the host does not list takes its source port's count (`edgeActivityOf`). |
+| `nodeMessages`, `messageBodies`, `onTestMessage` | `{ [nodeId]: NodeMessage[] }`: the recent messages through each block (UI-33). The node panel gets a Messages tab (newest first, with a count). Bodies (`msg`) show only with `messageBodies` (the host's permission); `onTestMessage(nodeId, message)` adds "Test with this input" to a received message with a body. |
+| `onScriptTest`, `scriptTestSample` | `(request) => Promise<ScriptTestResult>`: a block whose code param has `api: 'automation-script'` gets "Test the script" in the node panel: a pane with the code (completion, hover, checks), the message (type, originator, payload, metadata) and an optional context. Run calls the host; the outputs (one per port), log, status, context writes and CPU time show, and an error with a line and column is marked in the code. Save writes the edited code back into the block (one undo step); nothing is deployed. `scriptTestSample(nodeId)` prefills it. |
+| `sideBar` | `RulesetSideBar`: one side bar as on the router (debug comparison item 6): the InsightPanel with the node panel as its Block tab (Settings, Messages) and Help tab, the host's `traceTab` and `runsTab`, and Debug, Errors, Data, Busiest fed by the same props as `InsightPanel`. Picking a block opens it on Block; the Errors tab lists the editor's validation errors, then the host's `deployProblems`. Without it the node panel stands alone. |
 
 The ref has `getGraph()` (nodes, edges, groups and subflows; always the latest), `undo()`, `redo()`, `validate()`,
 `fit()` and `openRulesetDebug()`. `getGraph()` used to return only `{ nodes, edges }`; callers that read those two
@@ -96,6 +103,20 @@ keep working. For hosts that add to the editor:
 | `select(ids)` / `getSelection()` | Set and read the selected blocks (ids that are not on the canvas are ignored). |
 | `reveal(ids)` | Pan, and zoom out only if they do not fit, until the blocks are in view; no-op when they already are. |
 | `replaceGraph(graph, { key?, fit? })` | Replace the whole graph (nodes, edges, groups, subflows) as ONE undo step, e.g. a merge or a restored draft. Leaves a subflow that is gone. |
+
+Dragging a connection's end (UI-31): select a connection and two handles appear on its ends. Drag the target end onto
+another input (or a block: its first input), or the source end onto another output (or a block: the same port when it has
+one, else its first output). The rules of a new connection apply (`rewireEdge` in `graph/edit.ts`); a refused drop or one
+on the empty canvas leaves it as it was. One undo step; the connection keeps its id. "Change port…" in its menu stays.
+
+## Code fields
+
+A `code` param is the kui `CodeEditor` with its toolbar (find / replace, copy, full screen). One with `api:
+'automation-script'` also gets completion and hover from `SCRIPT_API_ITEMS` (the same list as the Help tab), the
+format button (`tidyScript`: indent by brackets, never inside a template string) and markers from `lintScript`, which
+only reads the text (brackets, open strings, templates, comments and regular expressions, names the sandbox lacks, a
+script over 8 KiB); the sidecar's compile at test and deploy is the real check. `messages.codeEditor` translates the
+CodeEditor's own words.
 
 ## The catalog
 
@@ -123,7 +144,29 @@ unit, stored in ms), `time`, `weekdays`, `secret` (password; empty keeps a store
 value no longer offered shows as “not available now”), `list` (checkboxes for an enum or source, else comma text),
 `value` (`{ kind, v }` with a kind menu), `rules` (rows of a sub-schema, up to `max`, default 16).
 
-Adding a field type: add it to `ParamType`, a case to `Field` in `forms/ParamForm.tsx`, and a test.
+A text field that suggests gets its own `<datalist>`, in a row of a `rules` field too. A host that knows more than the
+schema (a member list for the row whose kind is `user`, the roles for a `role` row) passes `ParamForm` a `suggest`
+function: it gets `{ key, spec, values, row? }` (`row` is `{ param, index, values }` for a field of a rules row) and
+returns the suggestions (`string` or `{ value, label? }`) for that field; an empty list turns the field's own `suggest`
+off and `undefined` keeps it. The host never needs the form's element ids.
+
+Adding a field type: add it to `ParamType`, a case to `Field` in `forms/ParamForm.tsx`, a row in `catalog/fields.ts`,
+and a test.
+
+### Params as SchemaForm fields
+
+`fromBlocksField(key, spec, params?)` maps a param onto the `FieldSchema` vocabulary of `SchemaForm` (OD-16; the table
+is in `catalog/fields.ts`), `fromBlocksFields(params)` a whole block. The result is assignable to `FieldSchema` and
+adds what FieldSchema has no word for yet: `secret`, `unit`, `pattern`, and `override` (the `blocks.d` type a host
+renders itself through `fieldOverrides`: `time`, `cron`, `template`, `expr`, `code`, `path`, `value`, `rules`,
+`source`, `ref`). `param` keeps the declaration keys a field cannot carry, so `toParamSpec(fromBlocksField(k, spec))`
+gives `spec` back; the keys a field carries exactly (`description`, `value`, `required`, `min`, `max`, `maxLength`,
+`multiple`, a rules row's `fields`) are read from the field.
+
+`when` becomes `showIf`: `{ param, value }` lists the values the loose match of `isVisible` accepts (`1` and `"1"`, and
+`undefined` / `null` when the other param's default matches), so `shouldShow` and `isVisible` agree. `{ param, not }`
+has no `showIf` form; such a field keeps its `when`, and `isBlocksFieldVisible(field, values, params)` answers for
+both. A secret never gets a `value`.
 
 ## Nodes, ports and ids
 
@@ -151,6 +194,9 @@ not copied. The clip is kept in `localStorage` (`kui-ruleset-clipboard`) and off
 
 Ported from the OpenWrt editor; the pure parts are `graph/layout.ts`, `graph/snap.ts`, `graph/boxselect.ts` and
 `useMiniMap.ts` (`miniVisible`, `miniMapping`).
+
+The canvas background takes two optional theme tokens: `--canvas-bg` (default `--surface-base`) and `--canvas-dot` for
+the grid dots (default `--border`), the same `--canvas-bg` the WidgetKit board reads.
 
 - **Arrange** (the diagram button in the zoom bar, “Arrange the blocks” in the canvas menu, `ref.arrange()`): layered
   and deterministic. A block's column is the longest path from the entries; back wires of a loop are ignored. Inside a
@@ -211,8 +257,31 @@ fit (`^[A-Za-z0-9_]{1,16}$` for nodes) are renumbered `n1`, `n2` …
 - A block the catalog lacks becomes a placeholder, and a placeholder leaves as an `unsupported` block, so a round trip
   through this editor loses nothing.
 - The file has no edge ids; they are numbered again. A flow carries only the subflows it uses (and those they use).
-- Config nodes of a file (`configs`) are not imported, and none are written.
+- Config nodes (`configs`, `{ id, type, name?, params }`) are not part of a chain. `chainsToRoltek(chains, { configs })`
+  (and `buildRoltekExport`) writes the ones the host passes, each secret param (declared `secret` by its block, or a
+  key that reads like one) as `{ "$secret": true }` and listed in `omitted`. `roltekConfigs(file, catalog?)` reads them
+  back with every secret `null` (`secretsToEnter`), and skips a bad id, a second one with the same id, or (with a
+  catalog) a type the catalog lacks. `parseImport` puts them in the preview's `configs`; the host stores them.
 - Imported chains are inactive. A connection to a missing block or port is dropped and counted in the preview.
+
+## Diff and version compare
+
+`diffFlows(a, b)` is the router's `flowlib.js` `diff`: two flows or subflows in the roltek shape (`a` null for a new
+one) give `{ isNew, meta, nodes: { added, removed, changed, moved }, edges: { added, removed }, groups, total }`. A
+changed node lists its fields by path (`type`, `name`, `disabled`, `v`, `params.<key>`) with short `from` / `to`
+texts; a moved node is listed apart, as layout is not a change. Lists are sorted by id. `graph/diff.ts` imports nothing,
+so a server can copy it alone.
+
+On the canvas: `diffGraphs(a, b)` diffs editor graphs, `diffTints(diff)` gives `{ nodes, edges }` tints (`added`,
+`changed`, `removed`; edges keyed by `edgeKey(from, port, to)`), and `diffView(a, b)` returns one graph with the blocks
+and connections only `a` had added back at their old places, plus the tints. `RulesetEditor` (and `FlowWorkspace`)
+`diffTint` outlines a tinted block (green, amber, dashed red) with a badge (`diffAdded`, `diffChanged`,
+`diffRemoved` in `messages`) and colours a tinted connection (a removed one dashed). Show a compare read-only:
+
+```tsx
+const view = diffView(deployedGraph, draftGraph);
+<RulesetEditor readOnly catalog={catalog} initialNodes={view.nodes} initialEdges={view.edges} diffTint={view.tint} />
+```
 
 ## Not ported from the OpenWrt editor
 
@@ -225,6 +294,10 @@ catalog data: a risky block has a red header.
 
 `RulesetEditor/insight/` is a standalone side panel (Debug with pause, kind filter and download; Busiest; Errors with the
 caught link; Data with the context fill bar), driven by host-supplied props. See [docs/insight.md](docs/insight.md).
+`deployProblems` puts "Problems that stop a deploy" first in Errors (counted on its tab, each with a link to its block);
+`slots` adds the Block, Help, Trace and Runs tabs in the router's order (Block, Debug, Help, Trace, Errors, Runs, Data,
+Busiest), `extraTabs` tabs of the host's own after Busiest, `header` a bar above every tab but Block and Help, and
+`tab` / `onTabChange` keep the open tab in the host.
 
 ## Flow workspace
 

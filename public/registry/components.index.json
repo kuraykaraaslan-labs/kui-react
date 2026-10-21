@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-18T07:02:28.328Z",
+  "generatedAt": "2026-10-21T06:48:32.736Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -315,14 +315,14 @@
       "category": "Atom",
       "filePath": "modules/ui/BrandLogo.tsx",
       "abbr": "BL",
-      "description": "Square brand mark with rounded corners. Renders a single letter or short token on a primary-coloured tile. 5 sizes (sm → 2xl).",
+      "description": "Brand mark: a logo image (light / dark variants) when given, otherwise a single letter or short token on a primary-coloured tile. 5 sizes (sm → 2xl).",
       "status": "stable",
       "since": "2026-05",
       "designTokens": [
         "--primary",
         "--primary-fg"
       ],
-      "variantCount": 2
+      "variantCount": 3
     },
     {
       "id": "star-rating",
@@ -2200,7 +2200,7 @@
       "category": "App",
       "filePath": "modules/ui/CodeEditor/index.tsx",
       "abbr": "CE",
-      "description": "Engine-agnostic code editor primitive. M1 ships a lightweight CodeMirror-style fallback engine (textarea + line-number gutter + active-line + theme + readonly + placeholder) so the public API is stable today. Future milestones: Monaco (VSCode) lazy engine, find/replace, multi-cursor, diagnostics (markers), custom autocomplete + hover, minimap, code folding, vim/emacs keymap. Pixel-identical EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs. Used by RulesetEditor M3 + RichTextEditor code-block insert (planned).",
+      "description": "Engine-agnostic code editor primitive on a textarea engine (line-number gutter, active line, theme, readonly, placeholder). M2: Tab / Shift+Tab indent (Esc then Tab leaves), Ctrl/Cmd+/ comment toggle, auto-indent, bracket and quote pairs, a toolbar (find / replace, format, copy, full screen), format-on-save. M3: diagnostics (markers in the gutter, tinted lines, a list that jumps to the spot), completion (getSuggestions, a listbox) and hover (getHover). Later: Monaco lazy engine, multi-cursor, minimap, folding, vim/emacs keymap. EJS sibling at modules/ui/CodeEditor/CodeEditor.ejs (kui-ejs) at parity: the M2 editing aids and the M3 diagnostics, completion and hover; on the server the `format` / `getSuggestions` / `getHover` options name global functions, in the browser `KuiCodeEditor.attach(root, opts)` takes functions. Used by the RulesetEditor code fields (the automation script with completion, hover and checks).",
       "status": "stable",
       "since": "2026-05",
       "composes": [],
@@ -2220,7 +2220,27 @@
           },
           {
             "keys": "Ctrl/Cmd + Z",
-            "action": "Browser-native undo (M1 textarea fallback)"
+            "action": "Browser-native undo (edits go through insertText)"
+          },
+          {
+            "keys": "Tab / Shift + Tab",
+            "action": "Indent / outdent; Esc then Tab moves focus out"
+          },
+          {
+            "keys": "Ctrl/Cmd + /",
+            "action": "Toggle a line comment"
+          },
+          {
+            "keys": "Ctrl + Space",
+            "action": "Open suggestions; Arrow keys pick, Enter or Tab inserts, Esc closes"
+          },
+          {
+            "keys": "Ctrl/Cmd + F",
+            "action": "Find and replace"
+          },
+          {
+            "keys": "Shift + Alt + F",
+            "action": "Format (when the editor has a format function)"
           }
         ]
       },
@@ -2237,7 +2257,7 @@
         "--border-focus",
         "--error"
       ],
-      "variantCount": 2
+      "variantCount": 3
     },
     {
       "id": "rich-text-editor",
@@ -2639,7 +2659,7 @@
       "category": "App",
       "filePath": "modules/app/WidgetKit/index.ts",
       "abbr": "WK",
-      "description": "Dashboard widget kit (next-boilerplate dashboard phase 21). WidgetCard frames every widget (title row with icon, subtitle and help, card buttons for full screen, CSV and refresh, loading/empty/unconfigured/error/stale/unavailable states, \"Updated\" footer; `unavailable` keeps the title and shows an UnavailableContribution). Versioned settings templates (core:card, core:format, core:board and one per widget type) give ThingsBoard-depth editing with free colours (any CSS colour or a theme token); stored settings carry $v and migrate with append-only steps. WidgetSettingsEditor edits a placement in tabs with Basic/Advanced; WidgetBoard lays out a whole board with edit mode and JSON export/import that carries every card.",
+      "description": "Dashboard widget kit (next-boilerplate dashboard phase 21). WidgetCard frames every widget (title row with icon, subtitle and help, card buttons for full screen, CSV and refresh, loading/empty/unconfigured/error/stale/unavailable states, \"Updated\" footer; `unavailable` keeps the title and shows an UnavailableContribution). Versioned settings templates (core:card, core:format, core:board and one per widget type) give ThingsBoard-depth editing with free colours (any CSS colour or a theme token); stored settings carry $v and migrate with append-only steps. WidgetSettingsEditor edits a placement in tabs with Basic/Advanced, layout variants picked from thumbnail cards (renderWidgetPreview, or a host renderPreview); WidgetBoard lays out a whole board with edit mode and JSON export/import that carries every card.",
       "status": "beta",
       "since": "2026-10",
       "composes": [
@@ -2729,7 +2749,7 @@
         ]
       },
       "designTokens": [],
-      "variantCount": 3
+      "variantCount": 4
     },
     {
       "id": "common-login-form",

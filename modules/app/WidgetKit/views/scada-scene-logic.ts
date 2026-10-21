@@ -12,6 +12,7 @@ import { cablePath, hosePath, strip } from './scada-line';
 import {
   drawScada, isScadaSymbol, SCADA_SYMBOL_DEFS, scadaPaint, type ScadaSettings, type SymbolDef,
 } from './scada-logic';
+import { applyStates, isLocked, mergeStates, STATE_COLUMNS, type SymbolStates } from './scada-states';
 import { evaluateRules, type SceneEffects, type RuleState } from './scene-rules-logic';
 import { cssColor } from '../settings/style';
 import { el, r2, text, type SvgNode } from './svg-node';
@@ -107,7 +108,7 @@ const MARGIN = 20;
 
 export const MAX_SCENE_ELEMENTS = 200;
 export const MAX_SCENE_LINKS = 300;
-export const SCENE_COLUMNS = ['value', 'value2', 'running', 'status', 'warning', 'critical', 'label', 'capacity'] as const;
+export const SCENE_COLUMNS = ['value', 'value2', 'running', 'status', 'warning', 'critical', 'label', 'capacity', ...STATE_COLUMNS] as const;
 
 type Row = Record<string, unknown>;
 type Pt = { x: number; y: number };
@@ -264,7 +265,7 @@ export function linkNodes(kind: SceneLinkKind, points: Pt[], paint: Paint, k: nu
   else inner = [el('path', { d, fill: 'none', stroke: INK, 'stroke-width': 2.2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' })];
   const spot = arrowSpot(unit);
   if (spot && (kind === 'line' || paint.arrows)) inner.push(arrow(spot.x, spot.y, spot.deg, kind === 'line' ? 13 : 11, kind === 'pipe' || kind === 'hose' ? flowColor(paint) ?? INK : INK));
-  return [el('g', { transform: `scale(${r2(k * 1000) / 1000})` }, inner)];
+  return [el('g', { transform: `scale(${r2(k * 1000) / 1000})` }, applyStates(inner, 0, 0, paint, false))];
 }
 
 /** The settings a symbol draws with, from the scene's colours, one element's own choices and what the rules decided. */
@@ -308,12 +309,27 @@ function withState(slots: Record<string, SlotData>, state: RuleState): Record<st
  * an idle part in the muted ink, so an accent, or an idle colour that is not the default, makes it a coloured part that
  * does not move (state `running`, `running` flag unchanged).
  */
-function withColors(paint: Paint, fx: SceneEffects): Paint {
+function withColors(base: Paint, fx: SceneEffects): Paint {
+  const paint = withStates(base, fx);
   const idle = paint.state === 'idle';
   const accent = fx.color ?? (idle && paint.idle !== MUTED ? paint.idle : undefined);
   if (!accent && !fx.fillColor) return paint;
   const alarm = paint.state === 'warning' || paint.state === 'critical';
   return { ...paint, state: accent && idle ? 'running' : paint.state, color: accent ?? paint.color, fill: fx.fillColor ?? (fx.color && alarm ? fx.color : paint.fill) };
+}
+
+/** The states the rules forced, over what the row reported. */
+function withStates(paint: Paint, fx: SceneEffects): Paint {
+  const forced: Partial<SymbolStates> = {};
+  if (fx.mode !== undefined) forced.mode = fx.mode;
+  if (fx.quality !== undefined) forced.quality = fx.quality;
+  if (fx.speed !== undefined) forced.speed = fx.speed;
+  if (fx.reverse !== undefined) forced.reverse = fx.reverse;
+  if (fx.ack !== undefined) forced.ack = fx.ack;
+  if (fx.position !== undefined) forced.position = fx.position;
+  if (fx.pending !== undefined) forced.pending = fx.pending;
+  if (fx.failed !== undefined) forced.failed = fx.failed;
+  return Object.keys(forced).length ? { ...paint, states: mergeStates(paint.states, forced) } : paint;
 }
 
 /** A passive look and a blink around a drawing. The blink only runs where motion is allowed (`paint.animate`). */
@@ -385,6 +401,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
   const elementNodes: SvgNode[] = [];
   const labelNodes: SvgNode[] = [];
   const hidden = new Set<string>();
+  const locked = new Set<string>();
   let problems = 0;
 
   for (const e of list) {
@@ -396,6 +413,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const fx = effects.get(e.id) ?? {};
     const fmtE = fmtOf(e);
     const paint = withColors(scadaPaint(symbolSettings(s, own, undefined, fx), fx.state ? withState(rowSlots(row), fx.state) : rowSlots(row), { animate: o.animate, format: fmtE }), fx);
+    if (isLocked(paint.states)) locked.add(e.id);
     const turn = Number(e.turn);
     const drawn = drawScada(e.symbol, paint, turn === 90 || turn === 180 || turn === 270 ? turn : 0, e.mirror === true);
     const w = r2(drawn.w * k); const h = r2(drawn.h * k);
@@ -463,7 +481,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const own = typeof l.id === 'string' && l.id ? effects.get(l.id) : undefined;
     const fromFx = effects.get(a.id);
     const fx: SceneEffects = own ?? (!(typeof l.id === 'string' && l.id) && fromFx
-      ? { state: fromFx.state, color: fromFx.color, fillColor: fromFx.fillColor, animate: fromFx.animate }
+      ? { state: fromFx.state, color: fromFx.color, fillColor: fromFx.fillColor, animate: fromFx.animate, speed: fromFx.speed, reverse: fromFx.reverse }
       : {});
     if (fx.hidden === true) continue;
     const slots = rowSlots(rows.get(stateId));
@@ -492,7 +510,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const e = settingsOf.get(b.id);
     const row = rows.get(b.id);
     const name = effects.get(b.id)?.label ?? (typeof row?.label === 'string' && row.label ? row.label : e?.label || b.id);
-    return { id: b.id, name, x: b.x, y: b.y, w: b.w, h: b.h };
+    return { id: b.id, name, x: b.x, y: b.y, w: b.w, h: b.h, locked: locked.has(b.id) };
   });
 
   return {

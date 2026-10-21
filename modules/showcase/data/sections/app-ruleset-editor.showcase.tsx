@@ -1,6 +1,6 @@
 'use client';
 import { RulesetEditor } from '@/modules/app/RulesetEditor/RulesetEditor';
-import { NEUTRAL_CATALOG, NEUTRAL_CHOICES, NEUTRAL_FLOW } from '@/modules/app/RulesetEditor/demo-neutral';
+import { NEUTRAL_CATALOG, NEUTRAL_CHOICES, NEUTRAL_DIFF, NEUTRAL_FLOW } from '@/modules/app/RulesetEditor/demo-neutral';
 import type { ShowcaseComponent } from '../showcase.types';
 
 export function buildAppRulesetEditorData(): ShowcaseComponent[] {
@@ -105,6 +105,29 @@ const catalog = catalogFromBlocks([[
   messages={{ paletteTitle: 'Blocktypen', toolUndo: 'Rückgängig', menuPaste: 'Einfügen' /* … */ }}
 />
 // Any part of the bundle can be given; the rest stays English. See EditorMessages.`,
+        },
+        {
+          title: 'Version compare',
+          layout: 'stack' as const,
+          preview: (
+            <div className="h-80 w-full overflow-hidden rounded-xl border border-border">
+              <RulesetEditor
+                readOnly
+                catalog={NEUTRAL_CATALOG}
+                choices={NEUTRAL_CHOICES}
+                initialNodes={NEUTRAL_DIFF.nodes}
+                initialEdges={NEUTRAL_DIFF.edges}
+                diffTint={NEUTRAL_DIFF.tint}
+                chainName="Overdue invoices"
+              />
+            </div>
+          ),
+          code: `import { diffView } from '@/modules/app/RulesetEditor';
+
+// both versions in one graph: what was removed comes back at its old place
+const view = diffView(deployedGraph, draftGraph);
+<RulesetEditor readOnly catalog={catalog} initialNodes={view.nodes} initialEdges={view.edges} diffTint={view.tint} />
+// view.diff is the change list per block and field (diffFlows, the router's flowlib diff)`,
         },
       ],
     },

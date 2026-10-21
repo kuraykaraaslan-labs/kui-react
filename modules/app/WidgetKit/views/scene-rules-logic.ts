@@ -18,6 +18,8 @@ export const MAX_SCENE_RULES = 200;
 /** The longest label an effect can produce, in characters. */
 export const MAX_RULE_LABEL = 80;
 
+import { parseMode, parseQuality, type SymbolMode, type SymbolQuality } from './scada-states';
+
 export const RULE_STATES = ['idle', 'running', 'warning', 'critical', 'off'] as const;
 export type RuleState = (typeof RULE_STATES)[number];
 export const RULE_OPS = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'between', 'in', 'set', 'unset', 'true', 'false'] as const;
@@ -54,6 +56,15 @@ export interface SceneRule {
   label?: string;
   medium?: string;
   animate?: boolean | string;
+  /** States layer (`scada-states.ts`): mode, data quality, speed in percent, direction, alarm acknowledgement, opening, command in flight. */
+  mode?: string;
+  quality?: string;
+  speed?: number | string;
+  reverse?: boolean | string;
+  ack?: boolean | string;
+  position?: number | string;
+  pending?: boolean | string;
+  failed?: boolean | string;
 }
 
 /** What the rules that matched decided for one target. A missing key means "no rule said anything". */
@@ -70,6 +81,15 @@ export interface SceneEffects {
   medium?: string;
   /** `false` stops the motion of the target. */
   animate?: boolean;
+  mode?: SymbolMode;
+  quality?: SymbolQuality;
+  /** Percent of nominal speed (0 = stalled). */
+  speed?: number;
+  reverse?: boolean;
+  ack?: boolean;
+  position?: number;
+  pending?: boolean;
+  failed?: boolean;
 }
 
 export interface RuleContext {
@@ -190,6 +210,14 @@ function effectsOf(rule: SceneRule): SceneEffects & { labelTemplate?: string } {
     const b = flag(rule[k]);
     if (b !== undefined) out[k] = b;
   }
+  for (const k of ['reverse', 'ack', 'pending', 'failed'] as const) {
+    const b = flag(rule[k]);
+    if (b !== undefined) out[k] = b;
+  }
+  const mode = parseMode(rule.mode); if (mode) out.mode = mode;
+  const quality = parseQuality(rule.quality); if (quality) out.quality = quality;
+  const speed = asNumber(rule.speed); if (speed !== null && rule.speed !== '') out.speed = Math.min(400, Math.max(0, speed));
+  const position = asNumber(rule.position); if (position !== null && rule.position !== '') out.position = Math.min(100, Math.max(0, position));
   if (typeof rule.label === 'string' && rule.label.trim()) out.labelTemplate = rule.label;
   if (typeof rule.medium === 'string' && rule.medium.trim() && rule.medium !== 'none') out.medium = rule.medium.trim();
   else if (rule.medium === 'none') out.medium = 'none';
@@ -275,6 +303,12 @@ export function validateRules(rules: unknown, ids: { elementIds: Iterable<string
       if (r.join !== undefined && r.join !== '' && r.join !== 'all' && r.join !== 'any') issues.push({ path: at('join'), message: 'Join with all or any' });
     }
     if (r.state !== undefined && r.state !== '' && !isState(r.state)) issues.push({ path: at('state'), message: 'Choose a state' });
+    if (r.mode !== undefined && r.mode !== '' && !parseMode(r.mode)) issues.push({ path: at('mode'), message: 'Choose a mode' });
+    if (r.quality !== undefined && r.quality !== '' && !parseQuality(r.quality)) issues.push({ path: at('quality'), message: 'Choose a data quality' });
+    for (const f of ['speed', 'position'] as const) {
+      const v = r[f];
+      if (v !== undefined && v !== '' && asNumber(v) === null) issues.push({ path: at(f), message: 'Use a number' });
+    }
     if (typeof r.label === 'string' && r.label.length > MAX_RULE_LABEL) issues.push({ path: at('label'), message: `At most ${MAX_RULE_LABEL} characters` });
   });
   return issues;

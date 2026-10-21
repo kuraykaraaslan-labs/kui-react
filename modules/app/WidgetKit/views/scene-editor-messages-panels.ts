@@ -61,10 +61,11 @@ export const DEFAULT_PALETTE_MESSAGES: PaletteMessages = {
     process: 'Process', water: 'Water', network: 'Water network', wastewater: 'Wastewater', oil: 'Drilling and oil', energy: 'Energy',
     sld: 'Single-line', hvac: 'HVAC', isa: 'Instruments (ISA)', instrument: 'Gauges', telecom: 'Telecom', food: 'Food and drink',
     factory: 'Factory', mining: 'Mining', agri: 'Agriculture', city: 'City', line: 'Strip line', connection: 'Connections',
+    fluid: 'Pumps and valves', mech: 'Mechanical', safety: 'Safety and control', home: 'Home electronics', appliance: 'Home appliances', kitchen: 'Kitchen', gadget: 'Gadgets',
   },
   sectors: {
     process: 'Process', water: 'Water', wastewater: 'Wastewater', oilgas: 'Oil and gas', power: 'Electrical', energy: 'Energy', hvac: 'HVAC',
-    instrumentation: 'Instrumentation', telecom: 'Telecom', food: 'Food and drink', factory: 'Factory', mining: 'Mining', agriculture: 'Agriculture', city: 'City',
+    instrumentation: 'Instrumentation', telecom: 'Telecom', food: 'Food and drink', factory: 'Factory', mining: 'Mining', agriculture: 'Agriculture', city: 'City', home: 'Home', safety: 'Safety',
   },
 };
 
@@ -101,6 +102,24 @@ export interface RuleWords {
   medium: string;
   animateOff: string;
   animateOn: string;
+  /** "set the mode to {mode}" */
+  mode: string;
+  modes: { auto: string; manual: string; local: string; maintenance: string; lockout: string; simulation: string };
+  /** "mark its data {quality}" */
+  quality: string;
+  qualities: { good: string; stale: string; bad: string; offline: string };
+  /** "run it at {speed} % of its speed" */
+  speed: string;
+  reverseOn: string;
+  reverseOff: string;
+  ackOn: string;
+  ackOff: string;
+  /** "show it {position} % open" */
+  position: string;
+  pendingOn: string;
+  pendingOff: string;
+  failedOn: string;
+  failedOff: string;
   stop: string;
   nothing: string;
 }
@@ -115,7 +134,13 @@ export const DEFAULT_RULE_WORDS: RuleWords = {
   states: { idle: 'idle', running: 'running', warning: 'warning', critical: 'critical', off: 'off' },
   state: 'set the state to {state}', color: 'colour it {color}', fillColor: 'fill it {color}', dimOn: 'dim it', dimOff: 'show it at full strength',
   blinkOn: 'blink', blinkOff: 'not blink', hide: 'hide it', show: 'show it', label: "show '{label}'", medium: 'set the medium to {medium}',
-  animateOff: 'stop its motion', animateOn: 'keep its motion on', stop: 'then stop', nothing: 'change nothing',
+  animateOff: 'stop its motion', animateOn: 'keep its motion on',
+  mode: 'set the mode to {mode}', modes: { auto: 'automatic', manual: 'manual', local: 'local', maintenance: 'maintenance', lockout: 'locked out', simulation: 'simulated' },
+  quality: 'mark its data {quality}', qualities: { good: 'good', stale: 'stale', bad: 'bad', offline: 'lost' },
+  speed: 'run it at {speed} % of its speed', reverseOn: 'run it in reverse', reverseOff: 'run it forward',
+  ackOn: 'mark its alarm acknowledged', ackOff: 'mark its alarm unacknowledged', position: 'show it {position} % open',
+  pendingOn: 'show a command pending', pendingOff: 'clear the pending command', failedOn: 'show a failed command', failedOff: 'clear the failed command',
+  stop: 'then stop', nothing: 'change nothing',
 };
 
 export interface RulesMessages {
@@ -186,6 +211,22 @@ export interface RulesMessages {
   motion: string;
   motionStop: string;
   motionOn: string;
+  statesLegend: string;
+  mode: string;
+  modes: Record<'auto' | 'manual' | 'local' | 'maintenance' | 'lockout' | 'simulation', string>;
+  quality: string;
+  qualities: Record<'good' | 'stale' | 'bad' | 'offline', string>;
+  speed: string;
+  speedHelp: string;
+  direction: string;
+  forward: string;
+  reverse: string;
+  ack: string;
+  ackNo: string;
+  ackYes: string;
+  position: string;
+  pending: string;
+  failedCommand: string;
   stop: string;
   stopHelp: string;
   problems: string;
@@ -259,6 +300,22 @@ export const DEFAULT_RULES_MESSAGES: RulesMessages = {
   motion: 'Motion',
   motionStop: 'Stop it',
   motionOn: 'Leave it on',
+  statesLegend: 'Mode, data and motion',
+  mode: 'Mode',
+  modes: { auto: 'Automatic', manual: 'Manual (M badge)', local: 'Local (L badge)', maintenance: 'In maintenance (wrench)', lockout: 'Locked out (padlock)', simulation: 'Simulated (S badge)' },
+  quality: 'Data quality',
+  qualities: { good: 'Good', stale: 'Stale (clock, dimmed)', bad: 'Bad or uncertain (?, dimmed)', offline: 'Lost (cross, faded)' },
+  speed: 'Speed (% of nominal)',
+  speedHelp: '0 stands still and keeps its colour; a negative number runs in reverse.',
+  direction: 'Direction',
+  forward: 'Forward',
+  reverse: 'Reverse',
+  ack: 'Alarm acknowledged',
+  ackNo: 'No (pulses until someone acknowledges)',
+  ackYes: 'Yes (steady)',
+  position: 'Opening (%)',
+  pending: 'Command pending',
+  failedCommand: 'Command failed',
   stop: 'Stop here',
   stopHelp: 'No later rule applies to this target once this one matched.',
   problems: 'Problems with this rule',

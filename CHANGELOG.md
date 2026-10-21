@@ -68,6 +68,62 @@ All notable changes to this project will be documented here. Format follows [Kee
   - `applyOp` is exhaustive: an unknown stored op leaves the values unchanged instead of crashing `migrate`.
   - `WidgetSettingsEditor` shows a deprecated field that still holds a value read-only, under "No longer
     used", with the version that removes it and its replacement.
+- RulesetEditor live activity (next-boilerplate automation 09 §9.5): `activity` (`CanvasActivity`: counters per connection
+  and per block, a `window` label). A connection whose count goes up lights up for 400 ms, at most twice a second
+  (`graph/activity.ts` `pulseStep`, `useEdgePulse`); hovering a connection shows its count, hovering a block its in / out /
+  errors (hover card), and the node panel's Messages tab repeats them. A connection the host does not list takes the count
+  of its source port (`edgeActivityOf`). Messages `edgeCount`, `edgeActivityTitle`, `nodeCounters`.
+- RulesetEditor node panel Messages tab (UI-33): `nodeMessages` (`{ [nodeId]: NodeMessage[] }`), `messageBodies` (bodies
+  only when the host says the viewer may see them) and `onTestMessage` ("Test with this input"). The panel takes `tabs`,
+  `bare`, `tab` / `onTabChange` for a host bar.
+- RulesetEditor UI-31: drag an end of the selected connection onto another port or block (handles on both ends); the same
+  rules as a new connection (`rewireEdge` in `graph/edit.ts`), one undo step, the id kept. `useEdgeRewire`; output ports
+  carry `data-out-node` / `data-out-port`.
+- RulesetEditor single-script test (next-boilerplate 06 §6.7): `onScriptTest(request) => Promise<ScriptTestResult>` and
+  `scriptTestSample(nodeId)`. A block with an `automation-script` code param gets "Test the script": code, message type,
+  originator, payload, metadata, optional context; outputs per port, log, status, context writes, CPU time; an error with
+  line and column is marked in the code. Save writes the code back into the block (one undo step).
+- RulesetEditor code fields: completion and hover from `SCRIPT_API_ITEMS` (`scriptSuggestions`, `scriptHover`), markers
+  from `lintScript` (reads the text, never runs it: brackets, open strings / templates / comments / regular expressions,
+  names the sandbox lacks, over 8 KiB), Format through `tidyScript`, and the CodeEditor toolbar. `messages.codeEditor`.
+- InsightPanel (debug comparison items 4 and 6): `deployProblems` ("Problems that stop a deploy" first in Errors, counted,
+  with block links); `slots` for Block, Help, Trace and Runs in the router's order; `extraTabs`; `header`; controlled
+  `tab` / `onTabChange`. RulesetEditor `sideBar` (`RulesetSideBar`) renders it as the editor's one side bar with the node
+  panel as Block and Help and the editor's validation errors in Errors.
+- CodeEditor M2 (textarea engine): Tab / Shift+Tab indent (Esc then Tab leaves), Ctrl/Cmd+/ comment toggle, auto-indent
+  on Enter, bracket and quote pairs, the toolbar (`showToolbar`: language, find, format, copy, full screen), find / replace
+  (Ctrl/Cmd+F), `format` and `formatOnSave`, `tabSize`. Edits go through `insertText` so Ctrl+Z undoes them. Multi-cursor
+  and bracket-match highlight are not in the textarea engine.
+- CodeEditor M3: `markers` (gutter dot, tinted line, a list under the field that jumps to the spot, `aria-invalid`),
+  `getSuggestions` (a listbox on typing or Ctrl+Space, filtered by the typed name, `prefix` in the context),
+  `getHover` (the name under the pointer). `messages` for every word; `editing.ts` holds the pure text operations.
+
+- RulesetEditor version compare: `graph/diff.ts` `diffFlows(a, b)`, the router's `flowlib.js` `diff` ported (per node
+  added, removed, changed with field paths and short from/to texts, moved apart; connections and groups by key; flow
+  meta), with `edgeKey`, `stableJson`, `shortText`; it imports nothing, so a server can copy it. `graph/diff-view.ts`:
+  `diffGraphs`, `diffTints`, `edgeTintOf`, `graphDiffItem` and `diffView` (one graph with the removed blocks and
+  connections added back, plus the tints). `RulesetEditor` / `FlowWorkspace` `diffTint` outlines added (green),
+  changed (amber) and removed (dashed red) blocks with a badge and colours added and removed connections; messages
+  `diffAdded`, `diffChanged`, `diffRemoved`. Showcase variant "Version compare". Asked by next-boilerplate (automation
+  07 §7.8, 09 §9.4), which drew the change list only.
+- RulesetEditor `catalog/fields.ts`: `fromBlocksField(key, spec, params?)`, `fromBlocksFields(params)` and
+  `toParamSpec(field)` map a `blocks.d` param onto SchemaForm's `FieldSchema` and back (docs/phases/09 §9.10, OD-16),
+  lossless round trip; `when` → `showIf` with `isVisible`'s loose matches and default fallback spelled out
+  (`whenToShowIf`), and `isBlocksFieldVisible` for a `{ not }` condition, which FieldSchema cannot express. The field
+  adds `secret`, `unit`, `pattern` and `override` (the types a host renders through `fieldOverrides`).
+- RulesetEditor `format/roltek.ts` config nodes: `chainsToRoltek(chains, { configs })` and `buildRoltekExport` write the
+  configs a host passes with every secret as a `{ "$secret": true }` marker (listed in `omitted`); `roltekConfigs(file,
+  catalog?)` reads them back with secrets `null` (`secretsToEnter`) and skips bad ids, duplicates and unknown types;
+  `parseImport` returns them as the roltek preview's `configs`. `roltekToChains` takes `{ noteConfigs: false }` to
+  leave out its "config node(s) in the file not imported" note. `RoltekFile.configs` is typed `RoltekConfig[]`.
+
+- RulesetEditor canvas: optional theme tokens `--canvas-bg` (background, default `--surface-base`) and `--canvas-dot`
+  (grid dots, default `--border`), as next-boilerplate's vendored copy had by hand.
+- `ParamForm` (RulesetEditor): `suggest({ key, spec, values, row? })` gives a text field its suggestions per field and per
+  row of a `rules` field (`row` is `{ param, index, values }`), as strings or `{ value, label }`; a list replaces the
+  spec's `suggest`, an empty list turns it off. A field's datalist now sits with the field, so a rules row field with its
+  own `suggest` gets one too (it pointed at a list that was never rendered). Types `ParamSuggest`, `ParamSuggestField`,
+  `ParamSuggestion` are exported.
 - Extension surfaces (next-boilerplate phase 37, UI contributions and new extension surfaces):
   - `ContributionBoundary`: an exported error boundary for one contribution, with `fallback` (a node or
     `({ error, reset }) => node`, nothing by default), `onError(error, info)` and `resetKeys`. It replaces
@@ -120,6 +176,10 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- `TabGroup`: a row of tabs wider than its box (many tabs, a phone) scrolls sideways inside the tab list
+  (`overflow-x-auto`, tabs `shrink-0 whitespace-nowrap`) instead of widening the page; the focus ring is drawn inset
+  so the scroll box does not clip it. Keyboard and ARIA are unchanged. kui-ejs's `TabGroup` partial has the same
+  change; KUInative's already scrolls (a horizontal `ScrollView`).
 - `CommandPalette` no longer lists sample commands by default: pass `demo` (or your own `items`). Keyboard
   navigation now follows the on-screen group order. `CommandItem.category` is optional (alias of `group`).
 - `AppSidebarNavItem.badge` widened from `number` to `number | ReactNode`; code that reads it as a number
@@ -139,6 +199,14 @@ All notable changes to this project will be documented here. Format follows [Kee
 - WidgetKit settings migrations: `mapValue`, `rename` and `materializeDefault` look keys up as own keys only. A
   stored value such as `toString` or `__proto__` matched an inherited `Object.prototype` member through `in`, so
   `mapValue` replaced it with a function (or `Object.prototype`) instead of leaving it or applying `else`.
+- RulesetEditor `tidyScript` (Format) no longer changes a string's value: a line that starts inside a template string is
+  left exactly as it is and a line that ends inside one keeps its trailing spaces; `${}` nesting (a template inside an
+  expression, an expression spanning lines) and regular expression literals (a backtick or quote inside `/.../`) are
+  tracked, so they no longer flip the template state.
+- RulesetEditor live flashes no longer re-render the whole canvas: `useEdgePulse` lights the connections that went up
+  together as one batch (one state change and one timer per batch, one shared timer for the rises that wait their gap),
+  `RuleEdge` and `RuleNode` are memoised (the canvas hands them stable callbacks; a connection's counter is compared by
+  its numbers), and validation is keyed on the graph's lists, so it is not redone (with new issue arrays) on every render.
 - `SchemaForm` repeater items: the Up / Down / Remove buttons sat inside the item's `<summary>`, an interactive
   element, which axe reports as a serious `nested-interactive` violation (the widget-kit showcase failed its a11y
   check). They now sit over the summary's right end instead of inside it; the header looks and works the same.

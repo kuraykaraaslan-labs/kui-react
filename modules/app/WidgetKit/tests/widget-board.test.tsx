@@ -16,6 +16,17 @@ const cellOf = (id: string) => document.querySelector(`[data-placement="${id}"]`
 
 afterEach(() => { vi.restoreAllMocks(); });
 
+describe('WidgetBoard backdrop', () => {
+  it('neither the board nor its backdrop may shrink below the grid: in a flex column the colour would stop at the viewport while the cards run on', () => {
+    const { container } = render(<WidgetBoard doc={doc([{ id: 'a', type: 'stat.value', title: 'A', x: 0, y: 0, w: 3, h: 2, settings: {} }])} kinds={kinds} views={views} />);
+    const grid = container.querySelector('[data-grid-cols]') as HTMLElement;
+    const backdrop = grid.parentElement as HTMLElement;
+    const root = backdrop.parentElement as HTMLElement;
+    expect(backdrop.className).not.toContain('min-h-0');
+    expect(root.className).not.toContain('min-h-0');
+  });
+});
+
 describe('WidgetBoard cells', () => {
   it('places a cell from lg up only: no inline grid-column / grid-row, the place in variables', () => {
     render(<WidgetBoard doc={doc([{ id: 'a', type: 'stat.value', title: 'A', x: 4, y: 2, w: 3, h: 2, settings: {} }])} kinds={kinds} views={views} />);

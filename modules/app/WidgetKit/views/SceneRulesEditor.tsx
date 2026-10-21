@@ -29,6 +29,8 @@ const NEEDS_VALUE = new Set(['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'between', 'i
 const NUMERIC = new Set(['gt', 'gte', 'lt', 'lte', 'between']);
 const OPS = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'between', 'in', 'set', 'unset', 'true', 'false'] as const;
 const STATES = ['idle', 'running', 'warning', 'critical', 'off'] as const;
+const MODES = ['auto', 'manual', 'local', 'maintenance', 'lockout', 'simulation'] as const;
+const QUALITIES = ['good', 'stale', 'bad', 'offline'] as const;
 const TOKENS = ['{value}', '{value2}', '{label}', '{id}'] as const;
 
 const MEDIUMS = MEDIUM_OPTIONS.map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
@@ -229,7 +231,7 @@ function RuleForm({ env, index, rule }: { env: Env; index: number; rule: Rec }) 
   };
   const rowOptions = env.names.map((x) => ({ value: x.id, label: x.text }));
 
-  const tri = (key: 'dim' | 'blink' | 'hidden' | 'animate', title: string, yes: string, no: string) => (
+  const tri = (key: 'dim' | 'blink' | 'hidden' | 'animate' | 'reverse' | 'ack' | 'pending' | 'failed', title: string, yes: string, no: string) => (
     <PanelField id={id(key)} label={title} error={env.issue(index, key)}>
       <select id={id(key)} className={CONTROL} value={str(rule[key])} onChange={(e) => set({ [key]: e.target.value })}>
         <option value="">{m.noChange}</option>
@@ -296,6 +298,34 @@ function RuleForm({ env, index, rule }: { env: Env; index: number; rule: Rec }) 
           {tri('hidden', m.hidden, m.yes, m.no)}
           {tri('animate', m.motion, m.motionOn, m.motionStop)}
         </div>
+        <fieldset className="space-y-3 rounded-md border border-border p-2.5">
+          <legend className="px-1 text-xs font-medium text-text-secondary">{m.statesLegend}</legend>
+          <div className="grid grid-cols-2 gap-2">
+            <PanelField id={id('mode')} label={m.mode} error={env.issue(index, 'mode')}>
+              <select id={id('mode')} className={CONTROL} value={str(rule.mode)} onChange={(e) => set({ mode: e.target.value })}>
+                <option value="">{m.noChange}</option>
+                {MODES.map((x) => <option key={x} value={x}>{m.modes[x]}</option>)}
+              </select>
+            </PanelField>
+            <PanelField id={id('quality')} label={m.quality} error={env.issue(index, 'quality')}>
+              <select id={id('quality')} className={CONTROL} value={str(rule.quality)} onChange={(e) => set({ quality: e.target.value })}>
+                <option value="">{m.noChange}</option>
+                {QUALITIES.map((x) => <option key={x} value={x}>{m.qualities[x]}</option>)}
+              </select>
+            </PanelField>
+            <PanelField id={id('speed')} label={m.speed} error={env.issue(index, 'speed')}>
+              <input id={id('speed')} type="number" className={CONTROL} value={str(rule.speed)} min={0} max={400} placeholder="100" aria-describedby={`${id('speed')}-help`} onChange={(e) => set({ speed: e.target.value === '' ? '' : Number(e.target.value) }, `rule:${index}:speed`)} />
+              <p id={`${id('speed')}-help`} className="mt-1 text-xs text-text-secondary">{m.speedHelp}</p>
+            </PanelField>
+            <PanelField id={id('position')} label={m.position} error={env.issue(index, 'position')}>
+              <input id={id('position')} type="number" className={CONTROL} value={str(rule.position)} min={0} max={100} onChange={(e) => set({ position: e.target.value === '' ? '' : Number(e.target.value) }, `rule:${index}:position`)} />
+            </PanelField>
+            {tri('reverse', m.direction, m.reverse, m.forward)}
+            {tri('ack', m.ack, m.ackYes, m.ackNo)}
+            {tri('pending', m.pending, m.yes, m.no)}
+            {tri('failed', m.failedCommand, m.yes, m.no)}
+          </div>
+        </fieldset>
         <PanelField id={id('label')} label={m.label} error={env.issue(index, 'label')}>
           <input
             ref={label} id={id('label')} type="text" className={CONTROL} value={str(rule.label)} maxLength={80} placeholder="High: {value}"
