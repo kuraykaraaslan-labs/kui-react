@@ -179,7 +179,7 @@ describe('describeRule', () => {
   });
   it('reads another symbol\'s row, a parameter, two conditions, every operator and every effect', () => {
     expect(describeRule({ key: 'value', of: 'tank1', op: 'lt', value: 10, state: 'critical', color: 'var(--error)', blink: 'true', stop: true })).toBe(
-      'When value of tank1 is below 10, set the state to critical, colour it var(--error) and blink, then stop');
+      'When value of tank1 is below 10, set the state to critical, colour it red and blink, then stop');
     expect(describeRule({ source: 'param', key: 'mode', op: 'eq', value: 'night', hidden: 'true' })).toBe('When parameter mode is night, hide it');
     expect(describeRule({ key: 'a', op: 'between', value: '1', to: '5', dim: 'true', animate: 'false', medium: 'hot' })).toBe(
       'When a of this symbol is between 1 and 5, dim it, set the medium to hot and stop its motion');

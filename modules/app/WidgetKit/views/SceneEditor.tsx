@@ -44,7 +44,15 @@ const BURST_MS = 800;
 
 type TabId = 'properties' | 'rules' | 'actions' | 'problems' | 'whatif';
 
-const bucket = (kind: string) => `${kind}:${Math.floor(Date.now() / BURST_MS)}`;
+/** A burst is a run of presses less than `BURST_MS` apart: they share one key, so they are one undo step (a fixed clock bucket would split a burst that straddles its edge). */
+const lastPress = new Map<string, { at: number; n: number }>();
+const bucket = (kind: string) => {
+  const now = Date.now();
+  const last = lastPress.get(kind);
+  const n = last && now - last.at < BURST_MS ? last.n : (last?.n ?? 0) + 1;
+  lastPress.set(kind, { at: now, n });
+  return `${kind}:${n}`;
+};
 const round2 = (v: number) => Math.round(v * 100) / 100;
 const TOOL_LABEL = { select: 'toolSelect', connect: 'toolConnect', pan: 'toolPan', text: 'toolText', zone: 'toolZone', divider: 'toolDivider' } as const;
 
@@ -58,7 +66,8 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const historyRef = useRef(history);
   const [baseline, setBaseline] = useState(props.settings);
   const settings = history.present;
-  const dirty = settings !== baseline;
+  // The host's own edits (the actions it keeps beside the diagram) count as unapplied changes too.
+  const dirty = settings !== baseline || host.dirty === true;
 
   const commit = useCallback((next: typeof history) => { historyRef.current = next; setHistory(next); }, []);
   const apply = useCallback<EditorCtx['apply']>((op, group) => {
@@ -134,7 +143,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const names = (id: string) => geo.hits.find((h) => h.id === id)?.name ?? id;
   const selectedElements = selection.elements ?? [];
   const skipped = useMemo(() => new Set([...locked, ...hidden]), [locked, hidden]);
-  const problemList = useMemo(() => findProblems(settings, props.data), [settings, props.data]);
+  const problemList = useMemo(() => findProblems(settings, props.data, { extra: props.host?.problems }), [settings, props.data, props.host?.problems]);
 
   const refusal = (r: EditResult): boolean => { if (r.refused) say(fill(m.refused, { reason: r.refused })); return !!r.refused; };
 
@@ -319,7 +328,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
       const r = apply((s) => renameElement(s, from, next));
       if (r.refused) return r.refused;
       setSelection(only({ kind: 'element', id: next }));
-      if (next !== from) say(fill(m.renamed, { from, to: next }));
+      if (next !== from) { say(fill(m.renamed, { from, to: next })); host.onRename?.(from, next); }
     } else {
       const index = renaming.index;
       const r = apply((s) => setShapeProps(s, index, { text: to }));
@@ -492,6 +501,8 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
             onDragStart={(symbol) => setPaletteDrag({ symbol })}
             recent={recent}
             locale={locale}
+            messages={props.panelMessages?.palette}
+            className="flex-1 p-3"
           />
         </Panel>
 
@@ -517,7 +528,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
         </div>
 
         <Panel title={m.panelInspector} side="right" open={open.inspector} onToggle={() => setOpen((o) => ({ ...o, inspector: !o.inspector }))} m={m} className="order-3" testId="panel-inspector" wide>
-          <div role="tablist" aria-label={m.tabs} className="flex overflow-x-auto border-b border-border" onKeyDown={onTabKey}>
+          <div role="tablist" aria-label={m.tabs} className="flex overflow-x-auto border-b border-border px-3" onKeyDown={onTabKey}>
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -535,11 +546,11 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
               </button>
             ))}
           </div>
-          <div id={`scene-tabpanel-${activeTab}`} role="tabpanel" aria-labelledby={`scene-tab-${activeTab}`} className="min-h-0 flex-1 overflow-auto">
-            {(activeTab === 'properties' || activeTab === 'rules') && <SceneInspector ctx={ctx} tab={activeTab} showTabs={false} />}
-            {activeTab === 'actions' && (selectedElements.length === 1 && selectionCount(selection) === 1 ? host.renderActions?.(selectedElements[0]) : <p className="p-3 text-sm text-text-secondary">{m.actionsHint}</p>)}
-            {activeTab === 'problems' && <SceneProblems ctx={ctx} onSelect={focusProblem} onOpenRule={() => setTab('rules')} />}
-            {activeTab === 'whatif' && <SceneWhatIf ctx={ctx} value={whatIf} onChange={setWhatIf} />}
+          <div id={`scene-tabpanel-${activeTab}`} role="tabpanel" aria-labelledby={`scene-tab-${activeTab}`} className="min-h-0 flex-1 overflow-auto p-3">
+            {(activeTab === 'properties' || activeTab === 'rules') && <SceneInspector ctx={ctx} tab={activeTab} showTabs={false} messages={props.panelMessages?.inspector} rulesMessages={props.panelMessages?.rules} />}
+            {activeTab === 'actions' && (selectedElements.length === 1 && selectionCount(selection) === 1 ? host.renderActions?.(selectedElements[0]) : <p className="text-sm text-text-secondary">{m.actionsHint}</p>)}
+            {activeTab === 'problems' && <SceneProblems ctx={ctx} onSelect={focusProblem} onOpenRule={() => setTab('rules')} messages={props.panelMessages?.problems} />}
+            {activeTab === 'whatif' && <SceneWhatIf ctx={ctx} value={whatIf} onChange={setWhatIf} messages={props.panelMessages?.whatIf} />}
           </div>
         </Panel>
       </div>
@@ -589,7 +600,7 @@ function Panel({ title, side, open, onToggle, m, className, children, testId, wi
     <aside
       data-testid={testId}
       data-open={open}
-      className={cn('flex min-h-0 flex-col border-t border-border bg-surface-raised transition-[width] motion-reduce:transition-none lg:border-t-0', side === 'left' ? 'lg:border-r' : 'lg:border-l', open ? cn('max-h-80 lg:max-h-none', wide ? 'lg:w-80' : 'lg:w-64') : 'lg:w-10', className)}
+      className={cn('flex min-h-0 flex-col border-t border-border bg-surface-raised transition-[width] motion-reduce:transition-none lg:border-t-0', side === 'left' ? 'lg:border-r' : 'lg:border-l', open ? cn('max-h-80 lg:max-h-none', wide ? 'lg:w-[26rem]' : 'lg:w-72') : 'lg:w-10', className)}
     >
       <div className={cn('flex items-center justify-between gap-2 border-b border-border px-2 py-1.5', !open && 'lg:flex-col lg:border-b-0')}>
         <h3 className={cn('text-xs font-semibold uppercase tracking-wide text-text-secondary', !open && 'lg:[writing-mode:vertical-rl]')}>{title}</h3>

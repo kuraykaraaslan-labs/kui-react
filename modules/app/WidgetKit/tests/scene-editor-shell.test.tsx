@@ -415,7 +415,7 @@ describe('the toolbar', () => {
     mount({}, s);
     const count = problems(s, {}).length;
     expect(count).toBeGreaterThan(0);
-    expect(screen.getByTestId('problems-count')).toHaveTextContent(`${count} problems`);
+    expect(screen.getByTestId('problems-count')).toHaveTextContent(count === 1 ? "1 problem" : `${count} problems`);
     fireEvent.click(screen.getByTestId('problems-count'));
     expect(screen.getByRole('tab', { name: /Problems/ })).toHaveAttribute('aria-selected', 'true');
     expect(document.querySelector('[data-panel="problems"]')).not.toBeNull();

@@ -20,7 +20,7 @@ export interface SceneEditorMessages {
   duplicate: string; delete: string; copy: string; paste: string; connectSelected: string;
   saveAssembly: string; insertAssembly: string; assemblyName: string; assemblyDefault: string; libraryEmpty: string; libraryRemove: string;
   linkKind: string; layers: string; layersFilter: string; lock: string; unlock: string; hide: string; show: string; unlockAll: string; showAll: string;
-  problemsCount: string; noProblems: string;
+  problemsCount: string; problemsOne: string; noProblems: string;
   // Shell
   panelPalette: string; panelInspector: string; collapse: string; expand: string;
   actionsHint: string; tabProperties: string; tabRules: string; tabActions: string; tabProblems: string; tabWhatIf: string; tabs: string;
@@ -57,7 +57,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   assemblyDefault: 'Piece {n}', libraryEmpty: 'No saved pieces yet.', libraryRemove: 'Remove {name} from the library',
   linkKind: 'Connection kind', layers: 'Layers', layersFilter: 'Find an item', lock: 'Lock', unlock: 'Unlock', hide: 'Hide', show: 'Show',
   unlockAll: 'Unlock all', showAll: 'Show all',
-  problemsCount: '{count} problems', noProblems: 'No problems',
+  problemsCount: '{count} problems', problemsOne: '1 problem', noProblems: 'No problems',
   panelPalette: 'Symbols', panelInspector: 'Inspector', collapse: 'Collapse {panel}', expand: 'Expand {panel}',
   actionsHint: 'Select one symbol to edit its actions.', tabProperties: 'Properties', tabRules: 'Rules', tabActions: 'Actions', tabProblems: 'Problems', tabWhatIf: 'What-if', tabs: 'Inspector sections',
   apply: 'Apply', applying: 'Applying', close: 'Close',

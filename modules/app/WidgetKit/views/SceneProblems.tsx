@@ -30,8 +30,8 @@ export function SceneProblems({ ctx, onSelect, onOpenRule, messages, className }
   const m = useMemo(() => mergeMessages<ProblemsMessages>(DEFAULT_PROBLEMS_MESSAGES, messages), [messages]);
   const { settings, data, host } = ctx;
   const list = useMemo(
-    () => problems(settings, data, { extra: ruleProblems({ params: host.params, columns: host.columns }) }),
-    [settings, data, host.params, host.columns],
+    () => problems(settings, data, { extra: [ruleProblems({ params: host.params, columns: host.columns }), ...(host.problems ? [host.problems] : [])] }),
+    [settings, data, host.params, host.columns, host.problems],
   );
   const by = (s: ProblemSeverity) => list.filter((p) => p.severity === s);
   const text = (p: Problem) => m.text?.(p) ?? p.message;

@@ -231,12 +231,19 @@ function condition(r: SceneRule, n: '' | '2', words: RuleWords, o: DescribeOptio
   return `${name}${where} ${says}`;
 }
 
+/** A theme colour token in the word a person would use (a custom colour is shown as it is). */
+const COLOUR_WORDS: Record<string, string> = {
+  'var(--primary)': 'blue', 'var(--secondary)': 'purple', 'var(--success)': 'green', 'var(--info)': 'cyan', 'var(--warning)': 'amber',
+  'var(--error)': 'red', 'var(--text-primary)': 'dark', 'var(--text-secondary)': 'grey', 'var(--border-strong)': 'light grey',
+};
+const colourWord = (v: string): string => COLOUR_WORDS[v.trim()] ?? v;
+
 function effects(r: SceneRule, words: RuleWords): string[] {
   const out: string[] = [];
   const state = str(r.state);
   if (state) out.push(fill(words.state, { state: (words.states as Record<string, string>)[state] ?? state }));
-  if (str(r.color)) out.push(fill(words.color, { color: str(r.color) }));
-  if (str(r.fillColor)) out.push(fill(words.fillColor, { color: str(r.fillColor) }));
+  if (str(r.color)) out.push(fill(words.color, { color: colourWord(str(r.color)) }));
+  if (str(r.fillColor)) out.push(fill(words.fillColor, { color: colourWord(str(r.fillColor)) }));
   const yes = (v: unknown) => (v === true || v === 'true' ? true : v === false || v === 'false' ? false : undefined);
   const dim = yes(r.dim); if (dim !== undefined) out.push(dim ? words.dimOn : words.dimOff);
   const blink = yes(r.blink); if (blink !== undefined) out.push(blink ? words.blinkOn : words.blinkOff);
