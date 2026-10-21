@@ -51,7 +51,8 @@ describe('SceneProblems', () => {
       shapes: [...(smallScene().shapes as Rec[]), { kind: 'text', x: 10, y: 10, text: '' }],
       rules: [],
     } as SceneSettings;
-    const onSelect = mount(s);
+    const onSelect = vi.fn();
+    mount(s, { onSelect });
     fireEvent.click(screen.getByRole('button', { name: /far is outside/ }));
     fireEvent.click(screen.getByRole('button', { name: /Connection 3 ends on a symbol/ }));
     fireEvent.click(screen.getByRole('button', { name: /A title has no words/ }));
