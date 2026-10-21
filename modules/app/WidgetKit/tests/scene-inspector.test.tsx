@@ -66,6 +66,22 @@ describe('SceneInspector: tabs', () => {
     expect(screen.queryByTestId('actions')).toBeNull();
     expect(screen.getByText('Select a symbol to see its actions.')).toBeInTheDocument();
   });
+  it('can draw no tab strip when the shell has its own tabs, and offer only some tabs', () => {
+    const probe = newProbe();
+    const a = render(
+      <Harness initial={smallScene()} selection={{ elements: ['pump1'] }} probe={probe}>
+        {(ctx) => <SceneInspector ctx={ctx} showTabs={false} tab="rules" />}
+      </Harness>,
+    );
+    expect(screen.queryAllByRole('tab')).toHaveLength(0);
+    expect(screen.queryAllByRole('tablist')).toHaveLength(0);
+    expect(document.querySelector('[data-panel="rules"]')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Rules' })).toBeInTheDocument();
+    a.unmount();
+    render(<Harness initial={smallScene()}>{(ctx) => <SceneInspector ctx={ctx} tabs={['properties']} tab="rules" />}</Harness>);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Properties']);
+    expect(document.querySelector('[data-panel="rules"]')).toBeNull();
+  });
   it('can be driven by the shell, and falls back to Properties when Actions is not there', () => {
     const picked: string[] = [];
     const probe = newProbe();

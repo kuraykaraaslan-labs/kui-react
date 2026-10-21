@@ -33,6 +33,10 @@ export interface SceneInspectorProps {
   /** Controlled tab (a shell that opens Rules from the problems list); without it the inspector keeps its own. */
   tab?: InspectorTab;
   onTabChange?: (tab: InspectorTab) => void;
+  /** The tabs offered, in order (default: Properties, Rules and, when the host has an actions editor, Actions). */
+  tabs?: readonly InspectorTab[];
+  /** Draw no tab strip: the shell has its own tabs and sets `tab` (default true). */
+  showTabs?: boolean;
   className?: string;
 }
 
@@ -47,15 +51,16 @@ const nameOfSymbol = (row: Rec | undefined): string => {
   return isScadaSymbol(row.symbol) ? (SCADA_SYMBOL_DEFS[row.symbol] as SymbolDef).label : String(row.symbol ?? '');
 };
 
-export function SceneInspector({ ctx, messages, rulesMessages, tab, onTabChange, className }: SceneInspectorProps) {
+export function SceneInspector({ ctx, messages, rulesMessages, tab, onTabChange, tabs: offered, showTabs = true, className }: SceneInspectorProps) {
   const m = useMemo(() => mergeMessages<InspectorMessages>(DEFAULT_INSPECTOR_MESSAGES, messages), [messages]);
   const base = useId();
   const [own, setOwn] = useState<InspectorTab>('properties');
   const [status, setStatus] = useState('');
   const hasActions = !!ctx.host.renderActions;
+  const tabs: InspectorTab[] = (offered ?? ['properties', 'rules', 'actions']).filter((t, i, all) => (t !== 'actions' || hasActions) && all.indexOf(t) === i);
+  if (!tabs.length) tabs.push('properties');
   const wanted = tab ?? own;
-  const current: InspectorTab = wanted === 'actions' && !hasActions ? 'properties' : wanted;
-  const tabs: InspectorTab[] = hasActions ? ['properties', 'rules', 'actions'] : ['properties', 'rules'];
+  const current: InspectorTab = tabs.includes(wanted) ? wanted : tabs[0];
   const choose = (t: InspectorTab) => { setOwn(t); onTabChange?.(t); };
 
   const onKey = (e: KeyboardEvent<HTMLButtonElement>, i: number) => {
@@ -69,7 +74,7 @@ export function SceneInspector({ ctx, messages, rulesMessages, tab, onTabChange,
   const target = inspectorTarget(ctx.selection, ctx.settings);
   return (
     <section aria-label={m.title} className={cn('flex min-h-0 flex-col gap-3', className)} data-panel="inspector">
-      <div role="tablist" aria-label={m.tabsLabel} className="flex gap-1 border-b border-border">
+      {showTabs && <div role="tablist" aria-label={m.tabsLabel} className="flex gap-1 border-b border-border">
         {tabs.map((t, i) => (
           <button
             key={t} id={`${base}-tab-${t}`} type="button" role="tab" aria-selected={current === t} aria-controls={`${base}-panel-${t}`} tabIndex={current === t ? 0 : -1}
@@ -82,9 +87,12 @@ export function SceneInspector({ ctx, messages, rulesMessages, tab, onTabChange,
             {m.tabs[t]}
           </button>
         ))}
-      </div>
+      </div>}
       <p role="status" className="sr-only">{status}</p>
-      <div id={`${base}-panel-${current}`} role="tabpanel" aria-labelledby={`${base}-tab-${current}`} tabIndex={0} className="min-h-0 flex-1 overflow-y-auto pr-1 focus-visible:outline-none">
+      <div
+        id={`${base}-panel-${current}`} role={showTabs ? 'tabpanel' : 'region'} aria-labelledby={showTabs ? `${base}-tab-${current}` : undefined} aria-label={showTabs ? undefined : m.tabs[current]}
+        tabIndex={showTabs ? 0 : undefined} className="min-h-0 flex-1 overflow-y-auto pr-1 focus-visible:outline-none"
+      >
         {current === 'properties' && <Properties key={JSON.stringify(target)} ctx={ctx} m={m} announce={setStatus} />}
         {current === 'rules' && <SceneRulesEditor ctx={ctx} messages={rulesMessages} />}
         {current === 'actions' && (
