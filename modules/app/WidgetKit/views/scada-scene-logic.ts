@@ -14,7 +14,7 @@ import {
 } from './scada-logic';
 import { el, r2, text, type SvgNode } from './svg-node';
 
-export type SceneLinkKind = 'pipe' | 'hose' | 'cable' | 'wire' | 'strip' | 'line';
+export type SceneLinkKind = 'pipe' | 'hose' | 'cable' | 'wire' | 'strip' | 'line' | 'sld';
 export type SceneSide = 'l' | 'r' | 't' | 'b';
 
 export type SceneElementSetting = {
@@ -36,6 +36,23 @@ export type SceneElementSetting = {
   labelPos?: 'b' | 't' | 'n';
   /** Where the number of a level or dial sits: under the symbol (default) or beside it. */
   valuePos?: 'b' | 'r';
+};
+
+/** A drawing on the canvas that is not a process symbol: a title, a zone outline, a divider. Never takes a reading. */
+export type SceneShapeSetting = {
+  kind?: 'text' | 'zone' | 'divider' | string;
+  /** text: the anchor point; zone and divider: the top-left corner. Scene units. */
+  x?: number;
+  y?: number;
+  /** zone and divider: the size (a divider with a height of 0 or less is horizontal, with a width of 0 or less vertical). */
+  w?: number;
+  h?: number;
+  /** text: the words; zone: its title. */
+  text?: string;
+  size?: 's' | 'm' | 'l';
+  align?: 'start' | 'middle' | 'end';
+  tone?: 'neutral' | 'info' | 'success' | 'warning' | 'error';
+  dashed?: boolean;
 };
 
 export type SceneLinkSetting = {
@@ -62,6 +79,9 @@ export type SceneSettings = {
   idColumn?: string;
   elements?: unknown;
   links?: unknown;
+  shapes?: unknown;
+  /** ISA-101 style: running parts are not green, only a warning or an alarm draws in colour. */
+  calm?: boolean;
   animation?: boolean;
   idleColor?: string;
   runningColor?: string;
@@ -203,7 +223,11 @@ export function arrowSpot(points: Pt[]): { x: number; y: number; deg: number } |
   return spot;
 }
 
-const LINK_KINDS: ReadonlySet<string> = new Set(['pipe', 'hose', 'cable', 'wire', 'strip', 'line']);
+const LINK_KINDS: ReadonlySet<string> = new Set(['pipe', 'hose', 'cable', 'wire', 'strip', 'line', 'sld']);
+export const MAX_SCENE_SHAPES = 100;
+
+const TONE: Record<string, string> = { neutral: 'var(--border-strong)', info: 'var(--info)', success: 'var(--success)', warning: 'var(--warning)', error: 'var(--error)' };
+const TEXT_SIZE: Record<string, number> = { s: 12, m: 15, l: 22 };
 
 /** The nodes of one connection along `points` (scene units), drawn at scale `k`. */
 export function linkNodes(kind: SceneLinkKind, points: Pt[], paint: Paint, k: number, radius = 14): SvgNode[] {
@@ -224,6 +248,7 @@ export function linkNodes(kind: SceneLinkKind, points: Pt[], paint: Paint, k: nu
   else if (kind === 'cable') inner = cablePath(d, paint, ends.map(([x, y, v]) => [x, y, v]));
   else if (kind === 'wire') inner = wire(d, paint, [[first.x, first.y], [last.x, last.y]]);
   else if (kind === 'strip') inner = strip(d, paint);
+  else if (kind === 'sld') inner = [el('path', { d, fill: 'none', stroke: paint.state === 'idle' ? INK : paint.color, 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'butt' })];
   else inner = [el('path', { d, fill: 'none', stroke: INK, 'stroke-width': 2.2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' })];
   const spot = arrowSpot(unit);
   if (spot && (kind === 'line' || paint.arrows)) inner.push(arrow(spot.x, spot.y, spot.deg, kind === 'line' ? 13 : 11, kind === 'pipe' || kind === 'hose' ? flowColor(paint) ?? INK : INK));
@@ -242,7 +267,7 @@ function symbolSettings(scene: SceneSettings, e: SceneElementSetting, link?: Sce
     arrows: link?.arrows === true,
     animation: scene.animation,
     idleColor: scene.idleColor,
-    runningColor: scene.runningColor,
+    runningColor: scene.calm === true ? 'var(--text-primary)' : scene.runningColor,
     warningColor: scene.warningColor,
     criticalColor: scene.criticalColor,
   };
@@ -318,6 +343,32 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     }
   }
 
+  // Shapes: zones and dividers sit under everything, titles on top. They widen the content box like a symbol does.
+  const shapes = (Array.isArray(s.shapes) ? (s.shapes as SceneShapeSetting[]) : []).filter((h) => h && typeof h === 'object').slice(0, MAX_SCENE_SHAPES);
+  const shapeUnder: SvgNode[] = [];
+  const shapeOver: SvgNode[] = [];
+  for (const h of shapes) {
+    const x = finite(h.x, 0); const y = finite(h.y, 0);
+    const color = TONE[h.tone ?? 'neutral'] ?? TONE.neutral;
+    if (h.kind === 'zone') {
+      const w = Math.max(20, finite(h.w, 200)); const hh = Math.max(20, finite(h.h, 120));
+      grow(x - 2, y - 2, x + w + 2, y + hh + 2);
+      shapeUnder.push(el('rect', { x, y, width: w, height: hh, rx: 10, fill: color, 'fill-opacity': h.tone && h.tone !== 'neutral' ? 0.08 : 0.04, stroke: color, 'stroke-width': 1.5, ...(h.dashed === false ? {} : { 'stroke-dasharray': '6 5' }) }));
+      if (typeof h.text === 'string' && h.text) shapeOver.push(text(r2(x + 12), r2(y + 20), h.text, { 'font-size': 13, 'font-weight': 600, fill: MUTED, 'font-family': 'inherit' }));
+    } else if (h.kind === 'divider') {
+      const vertical = finite(h.w, 0) <= 0 && finite(h.h, 0) > 0;
+      const len = Math.max(20, vertical ? finite(h.h, 100) : finite(h.w, 200));
+      grow(x - 2, y - 2, vertical ? x + 2 : x + len + 2, vertical ? y + len + 2 : y + 2);
+      shapeUnder.push(el('line', { x1: x, y1: y, x2: vertical ? x : x + len, y2: vertical ? y + len : y, stroke: color, 'stroke-width': 1.5, ...(h.dashed === true ? { 'stroke-dasharray': '6 5' } : {}) }));
+    } else if (h.kind === 'text' && typeof h.text === 'string' && h.text) {
+      const size = TEXT_SIZE[h.size ?? 'm'] ?? TEXT_SIZE.m;
+      const anchor = h.align === 'start' || h.align === 'end' ? h.align : 'middle';
+      const approx = h.text.length * size * 0.56;
+      grow(anchor === 'start' ? x : anchor === 'end' ? x - approx : x - approx / 2, y - size, anchor === 'start' ? x + approx : anchor === 'end' ? x : x + approx / 2, y + 4);
+      shapeOver.push(text(x, y, h.text, { 'text-anchor': anchor, 'font-size': size, 'font-weight': size >= 22 ? 700 : 600, fill: h.tone && h.tone !== 'neutral' ? color : size >= 15 ? INK : MUTED, 'font-family': 'inherit' }));
+    } else problems += 1;
+  }
+
   const linkNodeList: SvgNode[] = [];
   for (const l of links) {
     const a = parsePort(l.from); const b = parsePort(l.to);
@@ -357,7 +408,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     width: vw, height: vh, scale, problems, hits,
     viewBox: `${box.x0} ${box.y0} ${vw} ${vh}`,
     empty: boxes.size === 0,
-    nodes: [...background, ...linkNodeList, ...elementNodes, ...labelNodes],
+    nodes: [...background, ...shapeUnder, ...linkNodeList, ...elementNodes, ...labelNodes, ...shapeOver],
   };
 }
 
