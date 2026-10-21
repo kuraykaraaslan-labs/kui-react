@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { THEME_TITLES } from '@/libs/config/showcase.config';
 import { SceneEditorDemo } from '../_components/SceneEditorDemo';
 
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 
 /** The process diagram editor on a sample diagram. */
 export default function IoTSceneEditorPage() {
-  return <SceneEditorDemo />;
+  return <Suspense><SceneEditorDemo /></Suspense>;
 }
