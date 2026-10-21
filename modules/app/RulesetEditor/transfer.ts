@@ -12,7 +12,7 @@
 import { RuleNodeTypeEnum, RuleGroupSchema, RuleSubflowSchema } from './types';
 import type { RuleChain, RuleEdge, RuleGroup, RuleNode, RuleNodeOriginal, RuleNodeType, RuleSubflow } from './types';
 import type { Catalog } from './catalog/types';
-import { chainsToRoltek, roltekToChains, ROLTEK_FORMAT, type RoltekFile } from './format/roltek';
+import { chainsToRoltek, roltekConfigs, roltekToChains, ROLTEK_FORMAT, type RoltekConfig, type RoltekConfigImport, type RoltekFile } from './format/roltek';
 import { isSecretKey, looksLikeSecret } from './secrets';
 
 /* ─── Shared helpers ─────────────────────────────────────────────────────── */
@@ -196,10 +196,10 @@ export type RoltekExportResult = {
  * scripts of its blocks go back into the params they belong to. Secrets are left out like in `buildExport`.
  */
 export function buildRoltekExport(
-  chains: RuleChain[], opts: { all?: boolean; now?: Date; suffix?: string; catalog?: Catalog } = {},
+  chains: RuleChain[], opts: { all?: boolean; now?: Date; suffix?: string; catalog?: Catalog; configs?: RoltekConfig[] } = {},
 ): RoltekExportResult {
   const now = opts.now ?? new Date();
-  const { file, omitted, suspicious, omittedDescriptions } = chainsToRoltek(chains, { catalog: opts.catalog, now });
+  const { file, omitted, suspicious, omittedDescriptions } = chainsToRoltek(chains, { catalog: opts.catalog, now, configs: opts.configs });
   const base = opts.all || !chains.length ? 'all' : chains[0].name;
   const label = opts.suffix ? `${base}-${opts.suffix}` : base;
   return { file, json: JSON.stringify(file, null, 2), fileName: `automation-${slugify(label) || 'all'}-${isoDay(now)}.json`, omitted, suspicious, omittedDescriptions };
@@ -226,7 +226,11 @@ export type ImportItem = {
 /** Node-RED conversion tally, per node */
 export type NodeRedReport = { exact: number; changed: number; placeholders: number; skipped: number };
 
-export type ImportPreview = { ok: true; source: 'kui' | 'node-red' | 'roltek'; items: ImportItem[]; report?: NodeRedReport };
+export type ImportPreview = {
+  ok: true; source: 'kui' | 'node-red' | 'roltek'; items: ImportItem[]; report?: NodeRedReport;
+  /** `roltek`: the file's config nodes, secrets empty; the host stores them (`applyImport` handles chains only) */
+  configs?: RoltekConfigImport;
+};
 
 export type ConflictChoice = 'copy' | 'replace' | 'skip';
 
@@ -379,7 +383,7 @@ export function parseImport(text: string, existing: RuleChain[], opts: { now?: D
 function parseRoltek(data: Record<string, unknown>, existing: RuleChain[], now: Date, catalog?: Catalog): ImportPreview | ImportError {
   if (!Array.isArray(data.flows) || !data.flows.length) return fail('empty');
   if (data.flows.length > IMPORT_MAX_RULESETS) return fail('too-big', `Too many flows (over ${IMPORT_MAX_RULESETS}).`);
-  const items: ImportItem[] = roltekToChains(data, catalog, now).map(({ chain, placeholders, notes }, i) => {
+  const items: ImportItem[] = roltekToChains(data, catalog, now, { noteConfigs: false }).map(({ chain, placeholders, notes }, i) => {
     const clash = existing.find((c) => c.chainId === chain.chainId);
     return {
       key: `${i}:${chain.chainId}`, chain, nodes: chain.nodes.length, placeholders, notes,
@@ -387,7 +391,8 @@ function parseRoltek(data: Record<string, unknown>, existing: RuleChain[], now: 
     };
   });
   if (!items.length) return fail('wrong-format', 'None of the flows in this file could be read.');
-  return { ok: true, source: 'roltek', items };
+  const configs = roltekConfigs(data, catalog);
+  return { ok: true, source: 'roltek', items, ...(configs.configs.length || configs.skipped.length ? { configs } : {}) };
 }
 
 export type ApplyImportResult = {

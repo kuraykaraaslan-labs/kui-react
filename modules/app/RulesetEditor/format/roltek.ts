@@ -9,6 +9,11 @@
  * to `from` / `from_port` / `to`. Nodes whose block the catalog does not have become placeholders and
  * leave again as `unsupported` blocks, so a round trip through this editor loses nothing. A flow carries
  * the subflows it uses; a subflow definition that no node uses is not written.
+ *
+ * Config nodes (`configs`: `{ id, type, name?, params }`, a broker or an account several flows name) are not part of
+ * a chain: the host passes the ones to write (`chainsToRoltek(chains, { configs })`) and reads them back with
+ * `roltekConfigs(file)`. Their secrets never travel: a secret param leaves as `{ "$secret": true }` (listed in
+ * `omitted`) and comes back empty (`null`, listed in `secretsToEnter`).
  */
 import { BUILTIN_CATALOG } from '../catalog/builtin';
 import { withNoteBlock } from '../catalog/note';
@@ -42,6 +47,8 @@ export type RoltekSubflow = {
   params: Record<string, ParamSpec>; nodes: RoltekNode[]; edges: RoltekEdge[]; groups?: RoltekGroup[];
 };
 export type RoltekOmitted = { path: string; reason: 'secret' };
+/** a config node of the file: its type is a `config.*` block of the catalog, its params that block's params */
+export type RoltekConfig = { id: string; type: string; name?: string; params: Record<string, unknown> };
 export type RoltekFile = {
   format: typeof ROLTEK_FORMAT;
   rev?: number;
@@ -49,7 +56,7 @@ export type RoltekFile = {
   source?: string;
   flows: RoltekFlow[];
   subflows: RoltekSubflow[];
-  configs: unknown[];
+  configs: RoltekConfig[];
   omitted?: RoltekOmitted[];
 };
 
@@ -152,7 +159,38 @@ function graphToRoltek(
   return { nodes, edges, ...(groups.length ? { groups } : {}) };
 }
 
-export type RoltekExportOptions = { catalog?: Catalog; now?: Date; source?: string };
+export type RoltekExportOptions = {
+  catalog?: Catalog; now?: Date; source?: string;
+  /** the config nodes to write with the flows (usually the ones they name); secrets are left out */
+  configs?: RoltekConfig[];
+};
+
+/** is a param of a config type secret: its block declares it `secret`, or its key reads like one (`password`, `token` …) */
+function isSecretParam(catalog: Catalog, type: string, key: string): boolean {
+  return catalog.blocks[type]?.params?.[key]?.type === 'secret' || isSecretKey(key);
+}
+
+function configsToRoltek(configs: RoltekConfig[], catalog: Catalog, state: ExportState): RoltekConfig[] {
+  const seen = new Set<string>();
+  const out: RoltekConfig[] = [];
+  for (const c of configs) {
+    if (!c || typeof c.id !== 'string' || seen.has(c.id)) continue;
+    seen.add(c.id);
+    const at = `configs.${c.id}`;
+    const params: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(c.params ?? {})) {
+      if (isSecretParam(catalog, c.type, key)) {
+        if (value !== null && value !== undefined && value !== '' && !isSecretMarker(value)) state.omitted.push({ path: `${at}.params.${key}`, reason: 'secret' });
+        params[key] = { $secret: true };
+      } else {
+        params[key] = omitSecrets(clone(value), `${at}.params.${key}`, state);
+      }
+    }
+    if (c.name && looksLikeSecret(c.name)) state.suspicious.push(`${at}.name`);
+    out.push({ id: c.id, type: c.type, ...(c.name ? { name: c.name } : {}), params });
+  }
+  return out;
+}
 
 /**
  * Convert chains (and the subflows they carry) to a roltek-automation-1 file. Secret settings are left
@@ -197,7 +235,7 @@ export function chainsToRoltek(
     source: options.source ?? 'kui-react',
     flows,
     subflows: exportedSubflows,
-    configs: [],
+    configs: configsToRoltek(options.configs ?? [], base, state),
     ...(state.omitted.length ? { omitted: state.omitted } : {}),
   };
   return { file, omitted: state.omitted.map((o) => o.path), suspicious: state.suspicious, omittedDescriptions: state.descriptions };
@@ -306,12 +344,54 @@ function neededSubflows(nodes: RuleNode[], all: RuleSubflow[]): RuleSubflow[] {
   return out;
 }
 
+export type RoltekConfigImport = {
+  /** the config nodes to store, every secret param empty (`null`) */
+  configs: RoltekConfig[];
+  /** `<config id>.<param>` of each secret the user enters again */
+  secretsToEnter: string[];
+  /** config nodes left out: an id that is not a flow id, a second one with the same id, a type the catalog lacks */
+  skipped: { id: string; reason: 'bad_id' | 'duplicate' | 'unknown_type' }[];
+};
+
+/**
+ * The config nodes of a roltek-automation-1 file (already parsed). Their secrets come back empty. With a `catalog`,
+ * a config whose type it does not have is skipped (`unknown_type`); without one every type is kept.
+ */
+export function roltekConfigs(file: Record<string, unknown>, catalog?: Catalog): RoltekConfigImport {
+  const out: RoltekConfigImport = { configs: [], secretsToEnter: [], skipped: [] };
+  const known = catalog ?? BUILTIN_CATALOG;
+  const seen = new Set<string>();
+  for (const raw of (Array.isArray(file.configs) ? file.configs : []).filter(isObject)) {
+    const id = str(raw.id);
+    const type = str(raw.type);
+    if (!FLOW_ID_RE.test(id)) { out.skipped.push({ id, reason: 'bad_id' }); continue; }
+    if (seen.has(id)) { out.skipped.push({ id, reason: 'duplicate' }); continue; }
+    seen.add(id);
+    if (!type || (catalog && !catalog.blocks[type])) { out.skipped.push({ id, reason: 'unknown_type' }); continue; }
+    const params: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(isObject(raw.params) ? raw.params : {})) {
+      if (isSecretParam(known, type, key) || isSecretMarker(value)) {
+        params[key] = null;
+        out.secretsToEnter.push(`${id}.${key}`);
+      } else {
+        params[key] = clone(value);
+      }
+    }
+    out.configs.push({ id, type, ...(str(raw.name) ? { name: str(raw.name) } : {}), params });
+  }
+  return out;
+}
+
 /**
  * Convert the flows of a roltek-automation-1 file (already parsed, with `format` checked) to chains.
  * Imported chains are inactive. A block the catalog does not know becomes a placeholder; connections
- * that point to a missing block or port are dropped; config nodes are not imported.
+ * that point to a missing block or port are dropped; config nodes are not part of a chain (`roltekConfigs`
+ * reads them), so each flow notes how many the file has.
  */
-export function roltekToChains(file: Record<string, unknown>, givenCatalog: Catalog = BUILTIN_CATALOG, now: Date = new Date()): RoltekConversion[] {
+export function roltekToChains(
+  file: Record<string, unknown>, givenCatalog: Catalog = BUILTIN_CATALOG, now: Date = new Date(),
+  options: { /** note the config nodes the chains leave out (default true); false when the host imports them with `roltekConfigs` */ noteConfigs?: boolean } = {},
+): RoltekConversion[] {
   const catalog = withNoteBlock(givenCatalog);
   const rawSubflows = (Array.isArray(file.subflows) ? file.subflows : []).filter(isObject);
   // the blocks of all subflows must exist before any graph is read: they may use each other
@@ -320,7 +400,7 @@ export function roltekToChains(file: Record<string, unknown>, givenCatalog: Cata
     .map((raw) => ({ subflowId: str(raw.id), name: str(raw.name), inputs: raw.inputs === 0 ? 0 : 1, outputs: (Array.isArray(raw.outputs) ? raw.outputs : []).map(String), params: isObject(raw.params) ? (raw.params as Record<string, ParamSpec>) : {}, nodes: [], edges: [], groups: [] } as RuleSubflow));
   const subflows = rawSubflows.map((raw) => subflowFromRoltek(raw, catalog, declared)).filter((sf): sf is RuleSubflow => sf !== null);
   const outer = catalogWithSubflows(catalog, declared);
-  const configs = Array.isArray(file.configs) ? file.configs.length : 0;
+  const configs = options.noteConfigs !== false && Array.isArray(file.configs) ? file.configs.length : 0;
 
   return (Array.isArray(file.flows) ? file.flows : []).filter(isObject).map((raw, i) => {
     const chainId = str(raw.id) || `import-${i + 1}`;

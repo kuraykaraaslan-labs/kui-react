@@ -11,3 +11,5 @@ export * from './state';
 export * from './layout';
 export * from './snap';
 export * from './boxselect';
+export * from './diff';
+export * from './diff-view';

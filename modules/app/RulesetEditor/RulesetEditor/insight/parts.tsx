@@ -18,8 +18,8 @@ export const NodeLink = ({ title, testid, onClick, children, className }: { titl
   </button>
 );
 
-const BADGE = { warning: 'bg-warning-subtle text-warning-fg', success: 'bg-success-subtle text-success-fg' } as const;
-const DOT = { warning: 'bg-warning', success: 'bg-success' } as const;
+const BADGE = { warning: 'bg-warning-subtle text-warning-fg', success: 'bg-success-subtle text-success-fg', error: 'bg-error-subtle text-error-fg' } as const;
+const DOT = { warning: 'bg-warning', success: 'bg-success', error: 'bg-error' } as const;
 
 export const Badge = ({ tone, dot, children }: { tone: keyof typeof BADGE; dot?: boolean; children: ReactNode }) => (
   <span className={cn('inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium leading-normal', BADGE[tone])}>

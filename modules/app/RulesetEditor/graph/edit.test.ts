@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { catalogFromBlocks } from '../catalog';
 import {
   changeEdgePort, connect, connectProblem, edgeSourcePorts, insertOnEdge, MOVE_STEP, moveNodes, newNode, nodesBounds, pruneEdges, removeEdge, removeNodes,
-  placeNodes, snapPos, toggleDisabled, updateNode,
+  placeNodes, rewireEdge, snapPos, toggleDisabled, updateNode,
 } from './edit';
 import type { Graph, GraphEdge, GraphNode } from './types';
 
@@ -189,5 +189,31 @@ describe('changing the port of a connection', () => {
     expect(changeEdgePort(g, cat, 'e1', 'no')).toBeNull();
     expect(changeEdgePort(g, cat, 'e1', 'nope')).toBeNull();
     expect(changeEdgePort(g, cat, 'zz', 'yes')).toBeNull();
+  });
+});
+
+describe('dragging an end of a connection (UI-31)', () => {
+  const cat = catalogFromBlocks([[{ type: 'cond.test', outputs: ['yes', 'no'] }, { type: 'action.log' }, { type: 'trigger.boot' }]]);
+  const n = (id: string, type: string) => ({ nodeId: id, type, label: id, x: 0, y: 0 });
+  const e = (id: string, from: string, port: string, to: string) => ({ edgeId: id, sourceNodeId: from, sourcePort: port, targetNodeId: to, targetPort: 'in' });
+  const g = { nodes: [n('t', 'trigger.boot'), n('c', 'cond.test'), n('a', 'action.log'), n('b', 'action.log')], edges: [e('e1', 'c', 'yes', 'a'), e('e2', 'c', 'no', 'b')], groups: [] };
+
+  it('moves the target end to another block, keeping the id and the source', () => {
+    const next = rewireEdge(g, cat, 'e1', 'target', 'b')!;
+    expect(next.edges[0]).toEqual(e('e1', 'c', 'yes', 'b'));
+    expect(next.edges).toHaveLength(2);
+  });
+  it('moves the source end to another block or port; a block without the port gives its first output', () => {
+    expect(rewireEdge(g, cat, 'e1', 'source', 'c', 'no')!.edges[0]).toEqual(e('e1', 'c', 'no', 'a'));
+    expect(rewireEdge(g, cat, 'e1', 'source', 't')!.edges[0]).toEqual(e('e1', 't', 'out', 'a'));
+  });
+  it('refuses what a new connection would refuse, and a drop on the same place', () => {
+    expect(rewireEdge(g, cat, 'e1', 'target', 'c')).toBeNull(); // to itself
+    expect(rewireEdge(g, cat, 'e1', 'target', 't')).toBeNull(); // a trigger has no input
+    expect(rewireEdge(g, cat, 'e1', 'target', 'a')).toBeNull(); // nothing changes
+    expect(rewireEdge({ ...g, edges: [...g.edges, e('e3', 'c', 'yes', 'b')] }, cat, 'e1', 'target', 'b')).toBeNull(); // duplicate
+    expect(rewireEdge(g, cat, 'e1', 'source', 'a', 'nope')).toBeNull();
+    expect(rewireEdge(g, cat, 'zz', 'target', 'b')).toBeNull();
+    expect(rewireEdge(g, cat, 'e1', 'target', 'ghost')).toBeNull();
   });
 });
