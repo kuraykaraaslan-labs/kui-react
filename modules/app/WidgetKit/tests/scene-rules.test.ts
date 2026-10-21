@@ -194,15 +194,15 @@ describe('the template', () => {
   const base = { elements: [{ id: 'p', symbol: 'pump.volute' }, { id: 'q', symbol: 'tank.vertical' }], links: [{ from: 'p.r', to: 'q.l', id: 'pipe1' }] };
   const issues = (extra: Record<string, unknown>) => validate(SCADA_SCENE, { ...base, ...extra }).issues.map((i) => i.path);
 
-  it('is version 4 and the steps from 2 and 3 only note what is new', () => {
-    expect(SCADA_SCENE.version).toBe(4);
+  it('is version 5 and the steps from 2, 3 and 4 only note what is new', () => {
+    expect(SCADA_SCENE.version).toBe(5);
     const stored = { ...base, calm: true };
     const res = migrate(SCADA_SCENE, stored, 2);
     expect(res.values).toEqual(stored);
-    expect(res.applied.map((a) => [a.from, a.to])).toEqual([[2, 3], [3, 4]]);
+    expect(res.applied.map((a) => [a.from, a.to])).toEqual([[2, 3], [3, 4], [4, 5]]);
     expect(res.applied[0].note).toBe('Rules and per-symbol colours, unit and decimals (all new).');
     expect(migrate(SCADA_SCENE, stored, 3).values).toEqual(stored);
-    expect(migrate(SCADA_SCENE, stored, 1).applied.map((a) => a.to)).toEqual([2, 3, 4]);
+    expect(migrate(SCADA_SCENE, stored, 1).applied.map((a) => a.to)).toEqual([2, 3, 4, 5]);
   });
   it('accepts a rule row with the state effects and refuses a bad one', () => {
     expect(issues({ rules: [{ target: 'pipe1', mode: 'manual', quality: 'stale', speed: 50, reverse: 'true', ack: 'false', position: 40, pending: 'true', failed: 'false' }] })).toEqual([]);

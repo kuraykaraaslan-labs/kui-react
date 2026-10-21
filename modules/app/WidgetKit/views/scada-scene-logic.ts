@@ -10,7 +10,7 @@ import type { SlotData } from '../kind';
 import { arrow, flowColor, INK, MUTED, pipes, wire, type Paint } from './scada-draw';
 import { cablePath, hosePath, strip } from './scada-line';
 import {
-  drawScada, isScadaSymbol, SCADA_SYMBOL_DEFS, scadaPaint, type ScadaSettings, type SymbolDef,
+  canonicalSymbol, drawScada, isScadaSymbol, SCADA_SYMBOL_DEFS, scadaPaint, type ScadaSettings, type ScadaSymbol, type SymbolDef,
 } from './scada-logic';
 import { applyStates, isLocked, mergeStates, STATE_COLUMNS, type SymbolStates } from './scada-states';
 import { evaluateRules, type SceneEffects, type RuleState } from './scene-rules-logic';
@@ -406,7 +406,9 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
 
   for (const e of list) {
     if (typeof e.id !== 'string' || !e.id || boxes.has(e.id) || !isScadaSymbol(e.symbol)) { problems += 1; continue; }
-    const def = SCADA_SYMBOL_DEFS[e.symbol] as SymbolDef;
+    // A symbol that was merged into another one draws as the kept one.
+    const symbolKey = canonicalSymbol(e.symbol as string) as ScadaSymbol;
+    const def = SCADA_SYMBOL_DEFS[symbolKey] as SymbolDef;
     const k = scale * (typeof e.scale === 'number' && e.scale > 0 ? e.scale : 1);
     const row = rows.get(e.id);
     const own = e.medium && e.medium !== 'none' ? e : { ...e, medium: touching.get(e.id) ?? 'none' };
@@ -415,7 +417,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const paint = withColors(scadaPaint(symbolSettings(s, own, undefined, fx), fx.state ? withState(rowSlots(row), fx.state) : rowSlots(row), { animate: o.animate, format: fmtE }), fx);
     if (isLocked(paint.states)) locked.add(e.id);
     const turn = Number(e.turn);
-    const drawn = drawScada(e.symbol, paint, turn === 90 || turn === 180 || turn === 270 ? turn : 0, e.mirror === true);
+    const drawn = drawScada(symbolKey, paint, turn === 90 || turn === 180 || turn === 270 ? turn : 0, e.mirror === true);
     const w = r2(drawn.w * k); const h = r2(drawn.h * k);
     const x = r2(finite(e.x, 0) - (centred ? w / 2 : 0)); const y = r2(finite(e.y, 0) - (centred ? h / 2 : 0));
     const box: PlacedElement = { id: e.id, symbol: e.symbol, x, y, w, h, k };
