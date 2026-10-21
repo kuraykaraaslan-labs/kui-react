@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { aggregateErrors, barPct, busiestRows, caughtRows, fillOf, formatBytes, rootNode } from './stats';
 
 describe('rootNode', () => {
-  it('takes the canvas block of a subflow inner id', () => {
+  it('takes the canvas block of an id with a path', () => {
     expect(rootNode('s1/x')).toBe('s1');
     expect(rootNode('a/b/x')).toBe('a');
     expect(rootNode('n1')).toBe('n1');

@@ -302,7 +302,7 @@ describe('extension API', () => {
   it('replaceGraph swaps the whole graph as one undo step', async () => {
     const user = userEvent.setup();
     const { ref, last } = setup();
-    const next: RulesetGraph = { nodes: [node('z1', 'TRIGGER', 'Fresh', 10, 10)], edges: [], groups: [], subflows: [] };
+    const next: RulesetGraph = { nodes: [node('z1', 'TRIGGER', 'Fresh', 10, 10)], edges: [], groups: [] };
     act(() => ref.current!.replaceGraph(next, { key: 'merge' }));
     expect(last()?.nodes.map((n) => n.nodeId)).toEqual(['z1']);
     expect(nodeEl('Fresh')).toBeInTheDocument();

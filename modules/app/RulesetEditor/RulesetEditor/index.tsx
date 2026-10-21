@@ -3,10 +3,10 @@ import { lazy, Suspense, useEffect, useImperativeHandle, useMemo, useRef, useSta
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPenToSquare, faBug, faClone, faCopy, faPaste, faTrash, faExpand, faPlus, faScissors, faObjectGroup, faObjectUngroup,
-  faKeyboard, faNoteSticky, faRightLeft, faLayerGroup, faRotateLeft, faRotateRight, faSquareCheck, faEyeSlash, faDiagramProject, faMagnifyingGlassPlus,
+  faKeyboard, faNoteSticky, faRightLeft, faRotateLeft, faRotateRight, faSquareCheck, faEyeSlash, faDiagramProject, faMagnifyingGlassPlus,
 } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
-import type { RuleNode, RuleEdge, RuleGroup, RuleSubflow } from '../types';
+import type { RuleNode, RuleEdge, RuleGroup } from '../types';
 import { BUILTIN_CATALOG } from '../catalog/builtin';
 import { paletteGroups } from '../catalog/palette';
 import type { Catalog, ParamChoices } from '../catalog/types';
@@ -19,15 +19,12 @@ import { stable } from '../graph/history';
 import { nodeName } from '../graph/names';
 import { MessagesProvider, useMergedMessages, type EditorMessages } from './messages';
 import { secretTestOf } from '../graph/scrub';
-import { newId } from '../graph/ids';
-import { applySubflowSettings, deleteSubflow, newSubflow, scopeExists, subflowUsers, withCurrentGraph } from '../graph/state';
-import { catalogWithSubflows, DEFAULT_SUBFLOW_DEPTH, fromSelection, nestProblem, placementProblem, subflowMap } from '../graph/subflows';
-import { subflowIdOf } from '../graph/types';
+import { FLOW_INPUT } from '../graph/types';
 import { issuesByNode, validateGraph, type ValidationResult } from '../graph/validate';
 import { defaultScriptOf, formValues, setField, splitFormValues } from '../forms/field-utils';
 import { Palette } from './canvas/Palette';
 import { Canvas } from './canvas/Canvas';
-import { IssuesPanel, ScopeBar } from './canvas/Overlays';
+import { IssuesPanel } from './canvas/Overlays';
 import type { RuleNodeStatus } from './canvas/RuleNode';
 import type { CanvasDiffTint } from '../graph/diff-view';
 import { ContextMenu, type ContextMenuItem } from './canvas/ContextMenu';
@@ -46,8 +43,6 @@ const NodeDebugModal = lazy(() => import('./modals/NodeDebugModal').then((m) => 
 const RulesetDebugModal = lazy(() => import('./modals/RulesetDebugModal').then((m) => ({ default: m.RulesetDebugModal })));
 import { BlockPickerDialog } from './dialogs/BlockPickerDialog';
 import { GroupDialog } from './dialogs/GroupDialog';
-import { NameDialog } from './dialogs/NameDialog';
-import { SubflowSettingsDialog } from './dialogs/SubflowSettingsDialog';
 import { useGraphEditor, type RulesetGraph } from './hooks/useGraphEditor';
 import { useNodeDrag } from './hooks/useNodeDrag';
 import { useEdgeConnect } from './hooks/useEdgeConnect';
@@ -99,11 +94,11 @@ const nodeSnap = (n: RuleNode) => stable([n.label, n.description ?? null, n.conf
 export type RulesetEditorRef = {
   openRulesetDebug: () => void;
   fit: () => void;
-  /** the current graph, e.g. to save it: nodes and edges of the chain, its groups and the subflows */
+  /** the current graph, e.g. to save it: nodes and edges of the flow and its groups */
   getGraph: () => RulesetGraph;
   undo: () => void;
   redo: () => void;
-  /** the problems found in the graph on the canvas (the chain, or the subflow being edited) */
+  /** the problems found in the graph on the canvas */
   validate: () => ValidationResult;
   /** auto layout of the blocks on the canvas, one undo step; false when nothing moved (or read only) */
   arrange: () => boolean;
@@ -111,7 +106,7 @@ export type RulesetEditorRef = {
   select: (ids: string[]) => void;
   /** pan (and zoom out if needed) until these blocks are in view; nothing happens when they already are */
   reveal: (ids: string | string[]) => void;
-  /** replace the whole graph as ONE undo step (a merge, a restored draft); leaves a subflow that is gone */
+  /** replace the whole graph as ONE undo step (a merge, a restored draft) */
   replaceGraph: (graph: RulesetGraph, options?: { key?: string; fit?: boolean }) => void;
   /** ids of the selected blocks, the last one picked last */
   getSelection: () => string[];
@@ -124,7 +119,6 @@ export type RulesetEditorProps = {
   initialNodes?: RuleNode[];
   initialEdges?: RuleEdge[];
   initialGroups?: RuleGroup[];
-  initialSubflows?: RuleSubflow[];
   /** the blocks the editor offers; the ten built-in node types by default */
   catalog?: Catalog;
   /** the lists a `source` or `list` field offers (devices, brokers …) */
@@ -150,8 +144,8 @@ export type RulesetEditorProps = {
   onSave?: (state: { valid: boolean }) => void;
   /** the chain is switched on: a missing required param is then an error, otherwise a warning */
   active?: boolean;
-  /** how deep subflows may be nested (default `DEFAULT_SUBFLOW_DEPTH`, 4) */
-  subflowDepthLimit?: number;
+  /** the id of the flow in the editor (null while it is not saved): a Run flow block that runs this flow is then a problem */
+  flowId?: string | null;
   /** called after every change that is a step of the undo history, and after undo and redo */
   onChange?: (graph: RulesetGraph) => void;
   readOnly?: boolean;
@@ -223,34 +217,24 @@ type Picker = { title: string; onPick: (type: string) => void };
 type GroupEdit = { kind: 'new'; ids: string[] } | { kind: 'edit'; groupId: string };
 
 export function RulesetEditor({
-  initialNodes = [], initialEdges = [], initialGroups, initialSubflows,
-  catalog: catalogProp, choices, paramEditors, unavailable, messages, onSave, active = false, subflowDepthLimit = DEFAULT_SUBFLOW_DEPTH, onChange,
+  initialNodes = [], initialEdges = [], initialGroups,
+  catalog: catalogProp, choices, paramEditors, unavailable, messages, onSave, active = false, flowId, onChange,
   readOnly = false, browserDebug = true, className, chainName = 'Rule Chain', nodeStatus, activity, nodeMessages, messageBodies = false, onTestMessage, onScriptTest, scriptTestSample, sideBar, diffTint, onSelectionChange, nodeMenuItems, toolbarExtra, bannerSlot, ref,
 }: RulesetEditorProps) {
   const m = useMergedMessages(messages);
-  const ed = useGraphEditor({ nodes: initialNodes, edges: initialEdges, groups: initialGroups ?? [], subflows: initialSubflows ?? [] }, onChange);
+  const ed = useGraphEditor({ nodes: initialNodes, edges: initialEdges, groups: initialGroups ?? [] }, onChange);
   const { nodes, edges, groups } = ed.graph;
   const canDebug = browserDebug && !readOnly;
 
-  /* the catalog: the base one, the subflows as blocks, and inside a subflow its own ports */
-  const baseCatalog = useMemo(() => withNoteBlock(catalogProp ?? BUILTIN_CATALOG), [catalogProp]);
-  const scopeSubflow = ed.scope ? ed.state.subflows.find((s) => s.subflowId === ed.scope) : undefined;
-  const catalog = useMemo(
-    () => catalogWithSubflows(baseCatalog, ed.state.subflows, scopeSubflow ? { subflowId: scopeSubflow.subflowId, outputs: scopeSubflow.outputs } : undefined),
-    [baseCatalog, ed.state.subflows, scopeSubflow],
-  );
+  /* the catalog: the given one (the built-in one by default) and the comment block */
+  const catalog = useMemo(() => withNoteBlock(catalogProp ?? BUILTIN_CATALOG), [catalogProp]);
   const layouts = useMemo(() => new Map<string, NodeLayout>(nodes.map((n) => [n.nodeId, layoutOf(n, catalog)])), [nodes, catalog]);
 
   /* what is wrong with the graph on the canvas (keyed on its lists: `ed.graph` is a new object on every render) */
-  const validation = useMemo(() => {
-    const subs = subflowMap(ed.state.subflows);
-    return validateGraph({ nodes, edges }, catalog, {
-      active,
-      message: m.issueText,
-      subflow: scopeSubflow ? { inputs: scopeSubflow.inputs, outputs: scopeSubflow.outputs } : undefined,
-      nest: (id) => (scopeSubflow ? nestProblem(subs, scopeSubflow.subflowId, id, subflowDepthLimit) : placementProblem(subs, id, subflowDepthLimit)),
-    });
-  }, [nodes, edges, ed.state.subflows, catalog, active, scopeSubflow, subflowDepthLimit, m.issueText]);
+  const validation = useMemo(
+    () => validateGraph({ nodes, edges }, catalog, { active, flowId, message: m.issueText }),
+    [nodes, edges, catalog, active, flowId, m.issueText],
+  );
   const issues = useMemo(() => issuesByNode(validation), [validation]);
 
   const [find, setFind] = useState<{ query: string; index: number } | null>(null);
@@ -296,15 +280,12 @@ export function RulesetEditor({
   const [dbgMsgType, setDbgMsgType] = useState('POST_TELEMETRY_REQUEST');
   const [picker, setPicker]         = useState<Picker | null>(null);
   const [groupEdit, setGroupEdit]   = useState<GroupEdit | null>(null);
-  const [convertIds, setConvertIds] = useState<string[] | null>(null);
-  const [newSubflowOpen, setNewSubflowOpen] = useState(false);
   const [scriptTest, setScriptTest] = useState<{ nodeId: string; key: string; code: string } | null>(null);
   const [sideShownOwn, setSideShown] = useState(true);
   const sideShown = sideBar?.open ?? sideShownOwn;
   const [sideTabOwn, setSideTabOwn] = useState<string>(sideBar?.defaultTab ?? 'block');
   const sideTab = sideBar?.tab ?? sideTabOwn;
   const setSideTab = (t: string) => { setSideTabOwn(t); sideBar?.onTabChange?.(t); };
-  const [settingsOpen, setSettingsOpen]     = useState(false);
 
   const containerRef  = useRef<HTMLDivElement>(null);
   const rootRef        = useRef<HTMLDivElement>(null);
@@ -348,18 +329,11 @@ export function RulesetEditor({
     setView({ k, x: (r.width - (x1 - x0) * k) / 2 - x0 * k, y: (r.height - (y1 - y0) * k) / 2 - y0 * k });
   }
 
-  /* entering or leaving a subflow shows another graph: bring it into view */
   const fitRef = useRef(fit);
   useEffect(() => { fitRef.current = fit; });
   /* after an auto layout or a replaced graph the new positions are rendered first, then the view fits them */
   const [fitTick, setFitTick] = useState(0);
   useEffect(() => { if (fitTick) fitRef.current(); }, [fitTick]);
-  const lastScope = useRef(ed.scope);
-  useEffect(() => {
-    if (lastScope.current === ed.scope) return;
-    lastScope.current = ed.scope;
-    fitRef.current();
-  }, [ed.scope]);
 
   /* auto layout (one undo step); the view then fits the result */
   function arrange(): boolean {
@@ -388,7 +362,6 @@ export function RulesetEditor({
 
   function replaceGraph(graph: RulesetGraph, options?: { key?: string; fit?: boolean }) {
     ed.applyState(() => graph, options?.key);
-    if (!scopeExists(graph, ed.scope)) ed.enter(null);
     if (options?.fit) setFitTick((t) => t + 1);
   }
 
@@ -614,16 +587,7 @@ export function RulesetEditor({
 
   function addProblem(type: string): string | null {
     if (unavailable?.[type]) return unavailable[type];
-    if (type === 'port.in') {
-      if (scopeSubflow?.inputs === 0) return m.problemSubflowNoInput;
-      if (nodes.some((n) => n.type === 'port.in')) return m.problemSubflowOneInput;
-    }
-    const id = subflowIdOf(type);
-    if (!id) return null;
-    const subs = subflowMap(ed.state.subflows);
-    const problem = scopeSubflow ? nestProblem(subs, scopeSubflow.subflowId, id, subflowDepthLimit) : placementProblem(subs, id, subflowDepthLimit);
-    if (problem === 'cycle') return m.problemSubflowCycle;
-    if (problem === 'depth') return m.problemSubflowTooDeep(subflowDepthLimit);
+    if (type === FLOW_INPUT && nodes.some((n) => n.type === FLOW_INPUT)) return m.problemFlowOneInput;
     return null;
   }
 
@@ -684,35 +648,6 @@ export function RulesetEditor({
     else ed.apply((g) => ({ ...g, groups: updateGroup(g.groups, edit.groupId, { name, color }) }), 'group');
   }
 
-  function convertToSubflow(name: string) {
-    const ids = convertIds;
-    setConvertIds(null);
-    if (!ids) return;
-    const subflowId = newId(ed.state.subflows.map((s) => s.subflowId), name, 'subflow');
-    const result = fromSelection(ed.getGraph(), ids, { subflowId, name, nodeWidth: NODE_W });
-    if (!result) return;
-    ed.applyState((s) => withCurrentGraph(
-      { ...s, subflows: [...s.subflows, result.subflow] }, ed.scope, { nodes: result.nodes, edges: result.edges, groups: result.groups },
-    ), 'to-subflow');
-    selectOnly(result.instance);
-    setEditingNodeId(null);
-  }
-
-  function createSubflow(name: string) {
-    setNewSubflowOpen(false);
-    const sf = newSubflow(ed.getState(), [], name);
-    ed.applyState((s) => ({ ...s, subflows: [...s.subflows, sf] }), 'new-subflow');
-    enterSubflow(sf.subflowId);
-  }
-
-  function enterSubflow(id: string | null) {
-    ed.enter(id);
-    selectOnly(null);
-    setEditingNodeId(null);
-    setDebugNodeId(null);
-    setMenu(null);
-  }
-
   /** put a node of a picked block in the middle of a connection */
   function insertOnConnection(edgeId: string) {
     const edge = edges.find((e) => e.edgeId === edgeId);
@@ -770,14 +705,10 @@ export function RulesetEditor({
       const ids = selectionSet.has(nodeId) ? selection : [nodeId];
       if (!selectionSet.has(nodeId)) selectOnly(nodeId);
       else setSelectedEdgeId(null);
-      const subId = subflowIdOf(n.type);
-      const hasPorts = ids.some((id) => nodes.find((x) => x.nodeId === id)?.type.startsWith('port.'));
       const member = groupOf(groups, nodeId);
       const extra = nodeMenuItems?.({ nodeIds: ids, readOnly }) ?? [];
       items = [
         { kind: 'item', label: readOnly ? m.menuView : m.menuEdit, hint: hint('edit'), icon: faPenToSquare, onSelect: () => openEditor(nodeId) },
-        ...(subId && ed.state.subflows.some((s) => s.subflowId === subId)
-          ? [{ kind: 'item', label: m.menuEditSubflow, icon: faDiagramProject, onSelect: () => enterSubflow(subId) } as ContextMenuItem] : []),
         ...(canDebug ? [{ kind: 'item', label: m.menuDebugNode, icon: faBug, onSelect: () => setDebugNodeId(nodeId) } as ContextMenuItem] : []),
         { kind: 'separator' },
         { kind: 'item', label: m.menuCopy(ids.length), hint: hint('copy'), icon: faCopy, onSelect: () => copyNodes(ids) },
@@ -788,7 +719,6 @@ export function RulesetEditor({
           { kind: 'separator' },
           { kind: 'item', label: m.menuGroup, icon: faObjectGroup, onSelect: () => setGroupEdit({ kind: 'new', ids }) },
           ...(member ? [{ kind: 'item', label: m.menuUngroup, icon: faObjectUngroup, onSelect: () => ed.apply((g) => ({ ...g, groups: ungroup(g.groups, member.groupId) }), 'ungroup') } as ContextMenuItem] : []),
-          ...(hasPorts ? [] : [{ kind: 'item', label: m.menuConvertToSubflow, icon: faLayerGroup, onSelect: () => setConvertIds(ids) } as ContextMenuItem]),
           ...(extra.length ? [{ kind: 'separator' } as ContextMenuItem, ...extra] : []),
           { kind: 'separator' },
           { kind: 'item', label: m.menuDelete(ids.length), hint: hint('delete'), icon: faTrash, danger: true, onSelect: () => deleteNodes(ids) },
@@ -942,7 +872,6 @@ export function RulesetEditor({
   ], [validation, sideBar?.deployProblems]);
   const sideNames = useMemo(() => sideBar?.nodeNames ?? Object.fromEntries(nodes.map((n) => [n.nodeId, nodeName(n, catalog.blocks[n.type])])), [sideBar?.nodeNames, nodes, catalog]);
   const sideVisible = !!sideBar && (sideShown || !!editingNode);
-  const settingsUsers = scopeSubflow ? subflowUsers(ed.state, scopeSubflow.subflowId).map((id) => id || chainName) : [];
 
   return (
     <MessagesProvider value={m}>
@@ -959,7 +888,6 @@ export function RulesetEditor({
           onDragEnd={paletteDrop.onPaletteDragEnd}
           onAdd={(t) => { addAtCenter(t); setSheetOpen(false); }}
           onDebugChain={canDebug ? () => setRulesetDebugOpen(true) : undefined}
-          onNewSubflow={() => setNewSubflowOpen(true)}
           addProblem={addProblem}
           sheetOpen={sheetOpen}
           onCloseSheet={() => setSheetOpen(false)}
@@ -1038,7 +966,6 @@ export function RulesetEditor({
         search={searchState}
         toolbarExtra={toolbarExtra}
       >
-        {scopeSubflow && <ScopeBar chainName={chainName} subflowName={scopeSubflow.name} readOnly={readOnly} onBack={() => enterSubflow(null)} onSettings={() => setSettingsOpen(true)} />}
         <IssuesPanel
           result={validation}
           nodeLabel={(id) => { const n = nodes.find((x) => x.nodeId === id); return n ? nodeName(n, catalog.blocks[n.type]) : id; }}
@@ -1146,23 +1073,6 @@ export function RulesetEditor({
             ? (() => { const g = groups.find((x) => x.groupId === groupEdit.groupId); return { name: g?.name ?? '', color: g?.color ?? 0 }; })()
             : { name: '', color: groups.length % 8 }}
           onSubmit={submitGroup} onClose={() => setGroupEdit(null)} />
-      )}
-
-      {convertIds && (
-        <NameDialog title={m.convertTitle} description={m.convertDescription}
-          label={m.subflowNameLabel} confirmLabel={m.convertConfirm} onSubmit={convertToSubflow} onClose={() => setConvertIds(null)} />
-      )}
-
-      {newSubflowOpen && (
-        <NameDialog title={m.newSubflowTitle} label={m.subflowNameLabel} confirmLabel={m.newSubflowCreate} onSubmit={createSubflow} onClose={() => setNewSubflowOpen(false)} />
-      )}
-
-      {settingsOpen && scopeSubflow && (
-        <SubflowSettingsDialog
-          subflow={scopeSubflow} usedBy={settingsUsers}
-          onSave={(settings) => { setSettingsOpen(false); ed.applyState((s) => applySubflowSettings(s, scopeSubflow.subflowId, settings), 'subflow-settings'); }}
-          onDelete={() => { setSettingsOpen(false); const id = scopeSubflow.subflowId; enterSubflow(null); ed.applyState((s) => deleteSubflow(s, id), 'delete-subflow'); }}
-          onClose={() => setSettingsOpen(false)} />
       )}
     </div>
     </MessagesProvider>

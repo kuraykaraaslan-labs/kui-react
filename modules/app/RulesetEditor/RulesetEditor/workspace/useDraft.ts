@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createDraftStore, draftKey, DRAFT_DELAY_MS, type Draft, type DraftKind, type DraftStore } from '../../graph/draft';
+import { createDraftStore, draftKey, DRAFT_DELAY_MS, type Draft, type DraftStore } from '../../graph/draft';
 import { secretByName, type SecretTest } from '../../graph/scrub';
 import { snapshotOf, stateOf } from '../../graph/state';
 import type { RulesetGraph } from '../hooks/useGraphEditor';
@@ -28,7 +28,6 @@ export type UseDraft = {
 };
 
 type Options = {
-  kind: DraftKind;
   id: string | null;
   /** the graph the editor starts from (and the baseline) */
   initial: RulesetGraph;
@@ -46,9 +45,9 @@ type Options = {
  * of its own per flow. Every change starts a timer (about 0.8 s); when it runs the draft is written. Nothing is
  * kept while the graph equals the baseline, and the draft goes when a change is undone back to it.
  */
-export function useDraft({ kind, id, initial, readOnly = false, getGraph, replaceGraph, store: storeProp, secretTest = secretByName, onDirtyChange }: Options): UseDraft {
+export function useDraft({ id, initial, readOnly = false, getGraph, replaceGraph, store: storeProp, secretTest = secretByName, onDirtyChange }: Options): UseDraft {
   const store = useMemo(() => storeProp ?? createDraftStore(undefined, secretTest), [storeProp, secretTest]);
-  const key = draftKey(kind, id);
+  const key = draftKey(id);
   const [initSnap] = useState(() => snapshotOf(initial));
   const baseGraph = useRef(initial);
   const baseSnap = useRef<string>(initSnap);

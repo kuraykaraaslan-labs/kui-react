@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RulesetEditor, type ParamEditorProps, type RulesetEditorRef, type RulesetGraph } from './index';
-import { catalogFromBlocks } from '../catalog';
+import { catalogFromBlocks, FLOW_BLOCKS } from '../catalog';
 import type { RuleEdge, RuleNode } from '../types';
 
 afterEach(() => cleanup());
@@ -272,7 +272,7 @@ describe('RulesetEditor: connections', () => {
   });
 });
 
-describe('RulesetEditor: context menu, groups and subflows', () => {
+describe('RulesetEditor: context menu and groups', () => {
   async function menu(label: string) {
     fireEvent.contextMenu(nodeEl(label));
     return screen.findByRole('menu');
@@ -333,88 +333,6 @@ describe('RulesetEditor: context menu, groups and subflows', () => {
     expect(last()?.nodes).toHaveLength(4);
     expect(last()?.nodes.at(-1)).toMatchObject({ type: 'FILTER', x: 332, y: 32 });
   });
-
-  it('converts the selection to a subflow, enters it, and goes back', async () => {
-    const user = userEvent.setup();
-    const { last } = setup();
-    clickNode('Gate');
-    await user.click(within(await menu('Gate')).getByRole('menuitem', { name: 'Convert to a subflow…' }));
-    await user.type(await screen.findByLabelText('Name of the subflow'), 'My gate');
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    const graph = last()!;
-    expect(graph.subflows).toHaveLength(1);
-    expect(graph.subflows[0]).toMatchObject({ subflowId: 'my-gate', name: 'My gate', inputs: 1 });
-    expect(graph.nodes.map((n) => n.type)).toEqual(['TRIGGER', 'ACTION', 'subflow.my-gate']);
-    expect(graph.edges.map((e) => [e.sourceNodeId, e.sourcePort, e.targetNodeId])).toEqual([['n1', 'out', 'n4'], ['n4', 'out', 'n3']]);
-    expect(nodeEl('My gate')).toBeInTheDocument();
-
-    fireEvent.contextMenu(nodeEl('My gate'));
-    await user.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Edit the subflow' }));
-    expect(screen.getByText('Subflow: My gate')).toBeInTheDocument();
-    expect(nodeEl('Subflow input')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Add Subflow output node' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Back to Chain' }));
-    expect(screen.queryByText('Subflow: My gate')).not.toBeInTheDocument();
-    expect(nodeEl('Source')).toBeInTheDocument();
-  });
-
-  it('undoes the conversion in one step', async () => {
-    const user = userEvent.setup();
-    const { last } = setup();
-    clickNode('Gate');
-    await user.click(within(await menu('Gate')).getByRole('menuitem', { name: 'Convert to a subflow…' }));
-    await user.type(await screen.findByLabelText('Name of the subflow'), 'X');
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    await user.click(screen.getByRole('button', { name: 'Undo' }));
-    expect(last()?.subflows).toEqual([]);
-    expect(last()?.nodes.map((n) => n.type)).toEqual(['TRIGGER', 'FILTER', 'ACTION']);
-  });
-
-  it('makes a new subflow from the palette and lands inside it', async () => {
-    const user = userEvent.setup();
-    const { last } = setup();
-    await user.click(screen.getByRole('button', { name: /New subflow/ }));
-    await user.type(await screen.findByLabelText('Name of the subflow'), 'Fresh');
-    await user.click(screen.getByRole('button', { name: 'Create' }));
-    expect(last()?.subflows[0]).toMatchObject({ subflowId: 'fresh', outputs: ['out'] });
-    expect(screen.getByText('Subflow: Fresh')).toBeInTheDocument();
-    // a subflow has one input only: the block is greyed out
-    expect(screen.getByRole('button', { name: 'Add Subflow input node' })).toHaveAttribute('aria-disabled', 'true');
-  });
-
-  it('renames an output in the settings and keeps what is wired to it', async () => {
-    const user = userEvent.setup();
-    const { last } = setup();
-    await user.click(screen.getByRole('button', { name: /New subflow/ }));
-    await user.type(await screen.findByLabelText('Name of the subflow'), 'Fresh');
-    await user.click(screen.getByRole('button', { name: 'Create' }));
-    await user.click(screen.getByRole('button', { name: 'Subflow settings' }));
-    const out = await screen.findByLabelText('Output 1');
-    await user.clear(out);
-    await user.type(out, 'done');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
-    const sf = last()!.subflows[0];
-    expect(sf.outputs).toEqual(['done']);
-    expect(sf.nodes.find((n) => n.type === 'port.out')?.config).toEqual({ port: 'done' });
-  });
-
-  it('cannot delete a subflow that is in use, and can delete one that is not', async () => {
-    const user = userEvent.setup();
-    const { last } = setup({
-      initialNodes: [node('i', 'subflow.a', 'A inst', 0, 0)], initialEdges: [],
-      initialSubflows: [
-        { subflowId: 'a', name: 'A', inputs: 1, outputs: ['out'], params: {}, nodes: [], edges: [], groups: [] },
-        { subflowId: 'b', name: 'B', inputs: 1, outputs: ['out'], params: {}, nodes: [], edges: [], groups: [] },
-      ],
-    });
-    fireEvent.contextMenu(nodeEl('A inst'));
-    await user.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Edit the subflow' }));
-    await user.click(screen.getByRole('button', { name: 'Subflow settings' }));
-    expect(screen.getByRole('button', { name: 'Delete subflow' })).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    await user.click(screen.getByRole('button', { name: 'Back to Chain' }));
-    expect(last()).toBeUndefined();
-  });
 });
 
 describe('RulesetEditor: problems', () => {
@@ -455,10 +373,34 @@ describe('RulesetEditor: problems', () => {
   });
 });
 
+describe('RulesetEditor: flows that run each other', () => {
+  const catalog = catalogFromBlocks([[{ type: 'action.log', params: { text: { type: 'string' } } }], FLOW_BLOCKS]);
+  const nodes = [
+    node('in1', 'trigger.flow_input', 'Entry', 0, 0),
+    node('in2', 'trigger.flow_input', 'Second entry', 0, 150),
+    node('run', 'action.flow_run', 'Run it', 300, 0, { config: { flow: 'self' } }),
+  ];
+  const edges = [edge('e1', 'in1', 'out', 'run'), edge('e2', 'in2', 'out', 'run')];
+
+  it('marks a second Flow input and a Run flow that runs its own flow', () => {
+    const { ref } = setup({ catalog, initialNodes: nodes, initialEdges: edges, flowId: 'self' });
+    expect(ref.current?.validate().errors.map((e) => [e.code, e.nodeId])).toEqual([['run_self', 'run'], ['one_flow_input', 'in2']]);
+    expect(screen.getByRole('button', { name: /Problems: 2 errors/ })).toBeInTheDocument();
+  });
+  it('lets a Run flow run another flow', () => {
+    const { ref } = setup({ catalog, initialNodes: nodes.slice(0, 1).concat(nodes[2]), initialEdges: [edge('e1', 'in1', 'out', 'run')], flowId: 'other' });
+    expect(ref.current?.validate()).toEqual({ errors: [], warnings: [] });
+  });
+  it('asks for the flow of a Run flow block', () => {
+    const { ref } = setup({ catalog, initialNodes: [nodes[0], node('run', 'action.flow_run', 'Run it', 300, 0, { config: {} })], initialEdges: [edge('e1', 'in1', 'out', 'run')] });
+    expect(ref.current?.validate().warnings.map((w) => [w.code, w.param])).toEqual([['required', 'flow']]);
+  });
+});
+
 describe('RulesetEditor: compatibility', () => {
-  it('still gives nodes and edges on the ref, now with groups and subflows', () => {
+  it('still gives nodes and edges on the ref, now with groups', () => {
     const { ref } = setup();
-    expect(ref.current?.getGraph()).toEqual({ nodes: NODES, edges: EDGES, groups: [], subflows: [] });
+    expect(ref.current?.getGraph()).toEqual({ nodes: NODES, edges: EDGES, groups: [] });
   });
   it('does not call onChange before the first change', () => {
     const { onChange } = setup();
@@ -662,7 +604,6 @@ describe('RulesetEditor: messages of the canvas and the dialogs', () => {
     canvasLabel: 'Regelkette', toolUndo: 'Rückgängig', toolZoomIn: 'Vergrößern', canvasEmpty: 'Knoten aus der Palette ziehen',
     dialogCancel: 'Abbrechen', groupNameLabel: 'Bezeichnung', groupColourLabel: 'Gruppenfarbe', menuGroup: 'Gruppe…',
     issuesSummary: (e: number, w: number) => `Probleme: ${e} Fehler, ${w} Warnungen`,
-    scopeBack: (c: string) => `Zurück zu ${c}`, scopeSubflow: (n: string) => `Unterablauf: ${n}`,
   };
 
   it('translates the tool bar and the empty canvas', () => {
@@ -686,36 +627,6 @@ describe('RulesetEditor: messages of the canvas and the dialogs', () => {
     expect(within(dialog).getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument();
     expect(within(dialog).getByLabelText('Bezeichnung')).toBeInTheDocument();
     expect(within(dialog).getByRole('radiogroup', { name: 'Gruppenfarbe' })).toBeInTheDocument();
-  });
-});
-
-describe('RulesetEditor: messages of the subflow dialogs', () => {
-  const de = {
-    paletteNewSubflow: 'Neuer Unterablauf…', subflowNameLabel: 'Name des Unterablaufs', newSubflowCreate: 'Anlegen',
-    scopeSettings: 'Unterablauf-Einstellungen', sfTitle: 'Unterablauf-Einstellungen', sfSave: 'Speichern', dialogCancel: 'Abbrechen',
-    sfOutputs: 'Ausgänge', sfOutputN: (n: number) => `Ausgang ${n}`, sfRemoveOutput: (n: number) => `Ausgang ${n} entfernen`,
-    sfAddParam: 'Parameter hinzufügen', sfParamType: 'Typ', sfTypeBool: 'Ja / nein', sfDelete: 'Unterablauf löschen',
-  };
-
-  it('translates the name dialog and the settings dialog, a message left out stays English', async () => {
-    const user = userEvent.setup();
-    setup({ messages: de });
-    await user.click(screen.getByRole('button', { name: /Neuer Unterablauf/ }));
-    await user.type(await screen.findByLabelText('Name des Unterablaufs'), 'Frisch');
-    await user.click(screen.getByRole('button', { name: 'Anlegen' }));
-    await user.click(screen.getByRole('button', { name: 'Unterablauf-Einstellungen' }));
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByRole('button', { name: 'Speichern' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Unterablauf löschen' })).toBeInTheDocument();
-    expect(within(dialog).getByText('Ausgänge')).toBeInTheDocument();
-    expect(within(dialog).getByLabelText('Ausgang 1')).toBeInTheDocument();
-    expect(within(dialog).getByRole('button', { name: 'Ausgang 1 entfernen' })).toBeInTheDocument();
-    expect(within(dialog).getByLabelText('Description')).toBeInTheDocument(); // not given
-    await user.click(within(dialog).getByRole('button', { name: 'Parameter hinzufügen' }));
-    const type = within(dialog).getByLabelText('Typ') as HTMLSelectElement;
-    expect(within(type).getByRole('option', { name: 'Ja / nein' })).toBeInTheDocument();
-    expect(within(type).getByRole('option', { name: 'Text' })).toBeInTheDocument(); // not given
   });
 });
 

@@ -43,7 +43,7 @@ describe('Debug tab: the message card', () => {
     expect(cards()[0]).toHaveTextContent('msg : text (cut, 70000 bytes)');
     expect(cards()[0]).toHaveTextContent('abcdef…');
   });
-  it('names a block of another flow with its flow, and a subflow inner block after its instance', () => {
+  it('names a block of another flow with its flow, and a block id with a path after its first segment', () => {
     render(<InsightPanel nodeNames={names} flowId="f1" messages={[msg(1, { flow: 'f2' }), msg(2, { node: 's1/x' })]} />);
     fireEvent.change(screen.getByTestId('insight-dbg-source'), { target: { value: 'all' } });
     const links = Array.from(cards()).map((c) => within(c as HTMLElement).getByTitle('Show this block').textContent);

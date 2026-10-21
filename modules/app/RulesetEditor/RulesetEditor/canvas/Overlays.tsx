@@ -2,30 +2,9 @@
 import { useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faCircleExclamation, faGear, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
+import { faCircleExclamation, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import type { GraphIssue, ValidationResult } from '../../graph/validate';
 import { useMessages } from '../messages';
-
-/** Shown inside a subflow: where you are, a way back and the settings. */
-export function ScopeBar({ chainName, subflowName, readOnly, onBack, onSettings }: {
-  chainName: string; subflowName: string; readOnly: boolean; onBack: () => void; onSettings: () => void;
-}) {
-  const m = useMessages();
-  return (
-    <div className="absolute left-3 top-3 z-30 flex items-center gap-2 rounded-lg border border-border bg-surface-base px-2 py-1 shadow-sm" onPointerDown={(e) => e.stopPropagation()}>
-      <button type="button" onClick={onBack} aria-label={m.scopeBack(chainName)}
-        className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
-        <FontAwesomeIcon icon={faArrowLeft} className="h-3 w-3" aria-hidden="true" /> {chainName}
-      </button>
-      <span aria-hidden="true" className="text-text-disabled">/</span>
-      <span className="text-xs font-semibold text-text-primary">{m.scopeSubflow(subflowName)}</span>
-      <button type="button" onClick={onSettings} aria-label={m.scopeSettings} title={readOnly ? m.scopeSettings : m.scopeSettingsEdit}
-        className="rounded-md p-1.5 text-text-secondary transition-colors hover:bg-surface-raised hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
-        <FontAwesomeIcon icon={faGear} className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
-    </div>
-  );
-}
 
 /** Counts of the problems in the graph; opens the list. Clicking a problem selects its node. */
 export function IssuesPanel({ result, nodeLabel, onSelect }: {

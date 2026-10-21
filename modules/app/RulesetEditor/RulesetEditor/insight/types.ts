@@ -1,8 +1,8 @@
 /** Types of the runtime insight panel (busiest blocks, debug messages, caught errors, context fill). The host
  *  supplies all numbers; nothing here talks to an engine. */
 
-/** Counters of one block. `out` is one number or a count per output port. A block inside a subflow instance has an
- *  id such as `s1/x`: the first segment is the block on the canvas. */
+/** Counters of one block. `out` is one number or a count per output port. A counter id with a path
+ *  such as `s1/x` belongs to the block on the canvas named by its first segment. */
 export type NodeStats = {
   in?: number;
   out?: number | Record<string, number>;
@@ -26,7 +26,7 @@ export type DebugMessage = {
   /** seconds since the epoch */
   ts: number;
   flow?: string;
-  /** id of the block (a subflow inner block is `instance/inner`) */
+  /** id of the block (an id with a path, `s1/x`, belongs to the block `s1`) */
   node: string;
   name?: string;
   kind: DebugKind;

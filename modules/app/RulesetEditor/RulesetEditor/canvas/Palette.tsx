@@ -2,14 +2,14 @@
 import { useMemo, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBug, faLayerGroup, faMagnifyingGlass, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faBug, faMagnifyingGlass, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { paletteGroups } from '../../catalog/palette';
 import type { Catalog } from '../../catalog/types';
 import { lookOf } from '../block-visual';
 import { firstParagraph } from '../help/markdown';
 import { fillTemplate, useMessages } from '../messages';
 
-export function Palette({ catalog, onDragStart, onDragEnd, onAdd, onDebugChain, onNewSubflow, addProblem, sheetOpen = false, onCloseSheet }: {
+export function Palette({ catalog, onDragStart, onDragEnd, onAdd, onDebugChain, addProblem, sheetOpen = false, onCloseSheet }: {
   catalog: Catalog;
   onDragStart: (type: string) => void;
   onDragEnd: () => void;
@@ -17,9 +17,7 @@ export function Palette({ catalog, onDragStart, onDragEnd, onAdd, onDebugChain, 
   onAdd: (type: string) => void;
   /** the "Debug Chain" button is shown only when this is given */
   onDebugChain?: () => void;
-  /** offer to make a new subflow */
-  onNewSubflow?: () => void;
-  /** why a block cannot be added right now (a second subflow input, a subflow that would hold itself), or null */
+  /** why a block cannot be added right now (a second flow input block), or null */
   addProblem?: (type: string) => string | null;
   /** phones: the palette is a bottom sheet over the canvas */
   sheetOpen?: boolean;
@@ -80,12 +78,6 @@ export function Palette({ catalog, onDragStart, onDragEnd, onAdd, onDebugChain, 
         {!groups.length && <p className="mt-3 px-1 text-xs text-text-secondary">{m.paletteNoMatch}</p>}
       </div>
       <div className="space-y-2 border-t border-border p-3 max-md:hidden">
-        {onNewSubflow && (
-          <button type="button" onClick={onNewSubflow}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
-            <FontAwesomeIcon icon={faLayerGroup} className="h-3 w-3" aria-hidden="true" /> {m.paletteNewSubflow}
-          </button>
-        )}
         {onDebugChain && (
           <button type="button" onClick={onDebugChain}
             className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">

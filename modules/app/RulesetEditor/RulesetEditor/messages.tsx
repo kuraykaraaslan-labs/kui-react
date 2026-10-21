@@ -1,7 +1,6 @@
 'use client';
 import { createContext, Fragment, useContext, useMemo, type ReactNode } from 'react';
 import { paramIssueMessage } from '../catalog/params';
-import { ENGLISH_SUBFLOW_PROBLEMS, type SubflowProblemTexts } from '../graph/state';
 import { issueMessage, type IssueCode } from '../graph/validate';
 import type { ShortcutGroup, ShortcutId } from './shortcuts';
 import type { CodeEditorMessages } from '@/modules/ui/CodeEditor';
@@ -20,8 +19,8 @@ export type EditorMessages = {
   menuAddComment: string; noteEmpty: string;
   noteAria: (text: string) => string;
   menuView: string; menuEdit: string; menuSelectNodes: string; menuEditGroup: string; menuUngroup: string;
-  menuEditSubflow: string; menuDebugNode: string; menuSkip: string; menuWakeUp: string; menuGroup: string;
-  menuConvertToSubflow: string; menuAddBlockBetween: string; menuDeleteConnection: string; menuAddBlockHere: string;
+  menuDebugNode: string; menuSkip: string; menuWakeUp: string; menuGroup: string;
+  menuAddBlockBetween: string; menuDeleteConnection: string; menuAddBlockHere: string;
   menuPaste: string; menuUndo: string; menuRedo: string; menuSelectAll: string; menuArrange: string; menuFit: string;
   menuDebugChain: string;
   menuCopy: (count: number) => string;
@@ -30,17 +29,14 @@ export type EditorMessages = {
   menuDelete: (count: number) => string;
   menuAdd: (blockTitle: string) => string;
   /* why a block cannot be added */
-  problemSubflowNoInput: string; problemSubflowOneInput: string; problemSubflowCycle: string;
-  problemSubflowTooDeep: (limit: number) => string;
+  problemFlowOneInput: string;
   /* dialogs opened by the editor */
   pickerTitle: string; groupNewTitle: string; groupEditTitle: string; groupConfirm: string; groupSave: string;
-  convertTitle: string; convertDescription: string; subflowNameLabel: string; convertConfirm: string;
-  newSubflowTitle: string; newSubflowCreate: string;
   /* canvas */
   addNodeSheet: string; nodesButton: string;
   /* palette */
   paletteLabel: string; paletteTitle: string; paletteClose: string; paletteSearchLabel: string; paletteSearchPlaceholder: string;
-  paletteNoMatch: string; paletteNewSubflow: string; paletteDebugChain: string;
+  paletteNoMatch: string; paletteDebugChain: string;
   paletteAdd: (blockTitle: string) => string;
   /* the find box (Ctrl+F) */
   findLabel: string; findPlaceholder: string; findNone: string; findPrev: string; findNext: string; findClose: string;
@@ -53,35 +49,23 @@ export type EditorMessages = {
   canvasLabel: string; canvasErrorPath: string; canvasEmpty: string; toolDeleteConnection: string;
   toolUndo: string; toolUndoTitle: string; toolRedo: string; toolRedoTitle: string; toolArrange: string;
   toolBox: string; toolBoxTitle: string; toolZoomOut: string; toolZoomIn: string; toolFit: string; toolMiniMap: string; toolFullscreen: string; toolExitFullscreen: string;
-  scopeSettings: string; scopeSettingsEdit: string; issuesList: string;
-  scopeBack: (chainName: string) => string;
-  scopeSubflow: (subflowName: string) => string;
+  issuesList: string;
   issuesSummary: (errors: number, warnings: number) => string;
   /* dialogs */
   dialogCancel: string; pickerSearchLabel: string; pickerSearchPlaceholder: string; pickerNoMatch: string;
   groupNameLabel: string; groupColourLegend: string; groupColourLabel: string;
-  /* subflow settings dialog */
-  sfTitle: string; sfIntro: string; sfSave: string; sfDelete: string; sfNameLabel: string; sfDescriptionLabel: string;
-  sfInputLabel: string; sfOneInput: string; sfNoInput: string; sfInputRemoved: string; sfOutputs: string; sfAddOutput: string;
-  sfParams: string; sfParamName: string; sfParamLabel: string; sfParamType: string; sfParamDefault: string; sfParamChoices: string;
-  sfCommaSeparated: string; sfAddParam: string;
-  sfTypeText: string; sfTypeNumber: string; sfTypeBool: string; sfTypeDuration: string; sfTypeChoice: string; sfTypeLongText: string;
-  sfUsedBy: (places: string[]) => string;
-  sfOutputN: (n: number) => string;
-  sfRemoveOutput: (n: number) => string;
-  sfRemoveParam: (nameOrNumber: string | number) => string;
   /* flow workspace: tabs, draft banner, merge and link dialogs, notices */
   wsLocale: string;
   wsDraftStale: string; wsRestore: string; wsDiscard: string; wsDismiss: string;
   wsConflictTitle: string; wsMerge: string; wsMerging: string; wsMergeExplain: string; wsMergeReadFail: string;
   wsMergedTitle: string; wsOk: string; wsBothSides: string; wsYouDeleted: string; wsNoBothSides: string; wsMergedHint: string;
   wsClose: string; wsLinkInTitle: string; wsLinkOutTitle: string; wsLinkShowCallers: string; wsLinkGoTo: string; wsNoCaller: string;
+  wsFlowRunnersTitle: string; wsFlowTargetTitle: string; wsFlowShowRunners: string; wsFlowGoTo: string; wsNoRunner: string; wsNoFlowInput: string;
   wsLeaveConfirm: string; wsKeepDraftFail: string;
   wsDraftFound: (time: string) => string;
   wsConflictNewer: (whoWhen: string) => string;
   wsMergedSummary: (whoWhen: string, taken: number) => string;
   wsGroupName: (name: string) => string;
-  wsSubflowName: (name: string) => string;
   wsNoLinkIn: (names: string) => string;
   /* param form (the fields of a block) */
   formUnit: string; formChoose: string; formUnchanged: string; formSecretStored: string; formOther: string; formOtherValue: string;
@@ -112,11 +96,10 @@ export type EditorMessages = {
   insNothingStored: string; insLoading: string; insSaveFirst: string; insAdminOnly: string;
   insErrorsN: (n: number) => string;
   /* the words of the problems the pure layers find: the graph checks (the issues on the canvas, in the panel and the problems list),
-     the value checks of a field, and the subflow settings. Each is one function the host can replace (a switch over the code); the
+     and the value checks of a field. Each is one function the host can replace (a switch over the code); the
      default is the English text the layer itself produces. */
   issueText: (code: IssueCode, arg?: string, param?: string) => string;
   paramIssueText: (code: 'required' | 'number' | 'min' | 'max' | 'int' | 'enum' | 'max_len' | 'pattern', label: string, limit?: number) => string;
-  sfProblems: SubflowProblemTexts;
   /* a block on the canvas */
   nodeNotAvailable: string; nodeSkipped: string;
   /** the badge of a block in a version compare (`diffTint`) */
@@ -173,8 +156,8 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   menuAddComment: 'Add a comment here', noteEmpty: 'Empty comment',
   noteAria: (text) => `Comment: ${text.length > 60 ? `${text.slice(0, 60)}…` : text}`,
   menuView: 'View', menuEdit: 'Edit', menuSelectNodes: 'Select the nodes', menuEditGroup: 'Edit the group…', menuUngroup: 'Ungroup',
-  menuEditSubflow: 'Edit the subflow', menuDebugNode: 'Debug node', menuSkip: 'Skip', menuWakeUp: 'Wake up', menuGroup: 'Group…',
-  menuConvertToSubflow: 'Convert to a subflow…', menuAddBlockBetween: 'Add a block in between…', menuDeleteConnection: 'Delete connection',
+  menuDebugNode: 'Debug node', menuSkip: 'Skip', menuWakeUp: 'Wake up', menuGroup: 'Group…',
+  menuAddBlockBetween: 'Add a block in between…', menuDeleteConnection: 'Delete connection',
   menuAddBlockHere: 'Add a block here…', menuPaste: 'Paste', menuUndo: 'Undo', menuRedo: 'Redo', menuSelectAll: 'Select all',
   menuArrange: 'Arrange the blocks', menuFit: 'Fit to screen', menuDebugChain: 'Debug chain',
   menuCopy: (n) => (n > 1 ? `Copy ${n} nodes` : 'Copy'),
@@ -182,17 +165,11 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   menuDuplicate: (n) => (n > 1 ? `Duplicate ${n} nodes` : 'Duplicate'),
   menuDelete: (n) => (n > 1 ? `Delete ${n} nodes` : 'Delete'),
   menuAdd: (title) => `Add ${title}`,
-  problemSubflowNoInput: 'This subflow has no input.',
-  problemSubflowOneInput: 'A subflow has one input only.',
-  problemSubflowCycle: 'A subflow cannot hold itself, not even through another subflow.',
-  problemSubflowTooDeep: (limit) => `Subflows are nested too deep (${limit} levels at most).`,
+  problemFlowOneInput: 'A flow has one Flow input block only.',
   pickerTitle: 'Add a block', groupNewTitle: 'Group the selected nodes', groupEditTitle: 'Edit the group', groupConfirm: 'Group', groupSave: 'Save',
-  convertTitle: 'Convert to a subflow',
-  convertDescription: 'The selected nodes become one block. Connections that cross the selection become its input and outputs.',
-  subflowNameLabel: 'Name of the subflow', convertConfirm: 'Convert', newSubflowTitle: 'New subflow', newSubflowCreate: 'Create',
   addNodeSheet: 'Add a node', nodesButton: 'Nodes',
   paletteLabel: 'Node palette', paletteTitle: 'Node Types', paletteClose: 'Close palette', paletteSearchLabel: 'Search node types',
-  paletteSearchPlaceholder: 'Search…', paletteNoMatch: 'No node type matches.', paletteNewSubflow: 'New subflow…', paletteDebugChain: 'Debug Chain',
+  paletteSearchPlaceholder: 'Search…', paletteNoMatch: 'No node type matches.', paletteDebugChain: 'Debug Chain',
   paletteAdd: (title) => `Add ${title} node`,
   findLabel: 'Find a block', findPlaceholder: 'Name, type, description or id', findNone: 'No match', findPrev: 'Previous match', findNext: 'Next match', findClose: 'Close the find box',
   findCount: (current, total) => `${current} of ${total}`,
@@ -207,22 +184,10 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   toolDeleteConnection: 'Delete connection', toolUndo: 'Undo', toolUndoTitle: 'Undo (Ctrl+Z)', toolRedo: 'Redo', toolRedoTitle: 'Redo (Ctrl+Y)',
   toolArrange: 'Arrange the blocks', toolBox: 'Select blocks with a frame', toolBoxTitle: 'Select blocks with a frame (or hold Shift and drag)',
   toolZoomOut: 'Zoom out', toolZoomIn: 'Zoom in', toolFit: 'Fit to screen', toolMiniMap: 'Mini map', toolFullscreen: 'Fullscreen', toolExitFullscreen: 'Exit fullscreen',
-  scopeSettings: 'Subflow settings', scopeSettingsEdit: 'Edit the subflow settings', issuesList: 'Problems',
-  scopeBack: (chain) => `Back to ${chain}`,
-  scopeSubflow: (name) => `Subflow: ${name}`,
+  issuesList: 'Problems',
   issuesSummary: (errors, warnings) => `Problems: ${errors} errors, ${warnings} warnings`,
   dialogCancel: 'Cancel', pickerSearchLabel: 'Search blocks', pickerSearchPlaceholder: 'Name, description or type', pickerNoMatch: 'No block matches.',
   groupNameLabel: 'Name', groupColourLegend: 'Colour', groupColourLabel: 'Group colour',
-  sfTitle: 'Subflow settings', sfIntro: 'Name, input, outputs and the params an instance takes.', sfSave: 'Save', sfDelete: 'Delete subflow',
-  sfNameLabel: 'Name', sfDescriptionLabel: 'Description', sfInputLabel: 'Input', sfOneInput: 'One input', sfNoInput: 'No input',
-  sfInputRemoved: 'The input block inside the subflow is removed when you save.', sfOutputs: 'Outputs', sfAddOutput: 'Add output',
-  sfParams: 'Params', sfParamName: 'Name', sfParamLabel: 'Label', sfParamType: 'Type', sfParamDefault: 'Default', sfParamChoices: 'Choices',
-  sfCommaSeparated: 'Comma separated', sfAddParam: 'Add param',
-  sfTypeText: 'Text', sfTypeNumber: 'Number', sfTypeBool: 'Yes / no', sfTypeDuration: 'Duration (ms)', sfTypeChoice: 'Choice', sfTypeLongText: 'Long text',
-  sfUsedBy: (places) => `Used by ${places.join(', ')}`,
-  sfOutputN: (n) => `Output ${n}`,
-  sfRemoveOutput: (n) => `Remove output ${n}`,
-  sfRemoveParam: (name) => `Remove param ${name}`,
   wsLocale: 'en-GB',
   wsDraftStale: 'The flow changed on the server since: restoring replaces what is open now.', wsRestore: 'Restore', wsDiscard: 'Discard', wsDismiss: 'Dismiss',
   wsConflictTitle: 'This flow was saved by someone else', wsMerge: 'Merge', wsMerging: 'Merging…',
@@ -232,19 +197,20 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   wsNoBothSides: 'Nothing was changed on both sides.', wsMergedHint: 'Look through the flow, then save. Undo goes back to your version before the merge.',
   wsClose: 'Close', wsLinkInTitle: 'Blocks that call this link in', wsLinkOutTitle: 'Where this link goes', wsLinkShowCallers: 'Show the blocks that call it',
   wsLinkGoTo: 'Go to the link in', wsNoCaller: 'No block calls this link in.',
+  wsFlowRunnersTitle: 'Blocks that run this flow', wsFlowTargetTitle: 'The flow this block runs', wsFlowShowRunners: 'Show the blocks that run this flow',
+  wsFlowGoTo: 'Go to the Flow input of that flow', wsNoRunner: 'No Run flow block runs this flow.', wsNoFlowInput: 'The flow this block runs has no Flow input block.',
   wsLeaveConfirm: 'You have changes that are not saved. Leave without saving them?',
   wsKeepDraftFail: 'Save or undo your changes first: this browser cannot keep a draft.',
   wsDraftFound: (time) => `Unsaved changes from ${time} were kept in this browser.`,
   wsConflictNewer: (who) => `The version of ${who} is newer than the one you started from.`,
   wsMergedSummary: (who, taken) => `The version of ${who} was merged into your changes: ${taken} ${taken === 1 ? 'change' : 'changes'} taken from it.`,
   wsGroupName: (name) => `group ${name}`,
-  wsSubflowName: (name) => `subflow ${name}`,
   wsNoLinkIn: (names) => `No link in is called ${names}.`,
   formUnit: 'Unit', formChoose: 'Choose…', formUnchanged: '(unchanged)', formSecretStored: 'A value is stored. Leave empty to keep it.',
   formOther: 'Other…', formOtherValue: 'Other value', formCommaNumbers: 'Comma separated numbers', formComma: 'Comma separated',
   formValueType: 'Type', formValue: 'Value', formValueNow: 'The time the message arrives.', formAddRule: 'Add rule',
   formKindNum: 'Number', formKindStr: 'Text', formKindBool: 'Yes / no', formKindJson: 'JSON', formKindPath: 'Variable', formKindExpr: 'Expression',
-  formKindEnv: 'Subflow param', formKindNow: 'Current time',
+  formKindEnv: 'Environment variable', formKindNow: 'Current time',
   formWeekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   formRule: (n) => `Rule ${n}`,
   formRemoveRule: (n) => `Remove rule ${n}`,
@@ -272,7 +238,6 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   insErrorsN: (n) => `${n} errors`,
   issueText: issueMessage,
   paramIssueText: paramIssueMessage,
-  sfProblems: ENGLISH_SUBFLOW_PROBLEMS,
   nodeNotAvailable: 'Not available', nodeSkipped: 'Skipped',
   diffAdded: 'Added', diffChanged: 'Changed', diffRemoved: 'Removed',
   nodeAriaLabel: (label, kind, skipped, problems) => `${label} (${kind})${skipped ? ', skipped' : ''}${problems ? `, ${problems} ${problems === 1 ? 'problem' : 'problems'}` : ''}`,

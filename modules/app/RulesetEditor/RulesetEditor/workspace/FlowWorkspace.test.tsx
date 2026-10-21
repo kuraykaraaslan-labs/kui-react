@@ -2,7 +2,7 @@ import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { FlowWorkspace, type FlowWorkspaceProps, type FlowWorkspaceRef } from './FlowWorkspace';
-import { catalogFromBlocks } from '../../catalog';
+import { catalogFromBlocks, FLOW_BLOCKS } from '../../catalog';
 import { createDraftStore, draftKey, type DraftStorage, type DraftStore } from '../../graph/draft';
 import { snapshotOf } from '../../graph/state';
 import type { RulesetGraph } from '../hooks/useGraphEditor';
@@ -19,18 +19,18 @@ const CATALOG = catalogFromBlocks([[
 ]]);
 
 const node = (nodeId: string, type: string, label: string, x: number, config: Record<string, unknown> = {}): RuleNode => ({ nodeId, type, label, x, y: 0, config });
-const graph = (nodes: RuleNode[] = [node('n1', 'logic.step', 'First', 0), node('n2', 'logic.step', 'Second', 300)]): RulesetGraph => ({ nodes, edges: [], groups: [], subflows: [] });
+const graph = (nodes: RuleNode[] = [node('n1', 'logic.step', 'First', 0), node('n2', 'logic.step', 'Second', 300)]): RulesetGraph => ({ nodes, edges: [], groups: [] });
 
 const FLOWS = [
-  { id: 'main', kind: 'flow' as const, name: 'Main flow' },
-  { id: 'night', kind: 'flow' as const, name: 'Night' },
-  { id: 'calc', kind: 'subflow' as const, name: 'Calc' },
+  { id: 'main', name: 'Main flow' },
+  { id: 'night', name: 'Night' },
+  { id: 'calc', name: 'Calc' },
 ];
 
 /** the open flow can leave only through a link jump: a link out whose link in is in the flow "night" */
 const LEAVER = (x = 300) => graph([node('out1', 'action.link_out', 'Send alarm', 0, { targets: ['alarm'] }), node('n2', 'logic.step', 'Second', x)]);
-const NIGHT = [{ id: 'night', kind: 'flow' as const, name: 'Night', nodes: [node('a1', 'trigger.link_in', 'Alarm in', 0, { name: 'alarm' })] }];
-const leaverProps = (): Partial<FlowWorkspaceProps> => ({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: LEAVER() }, loadFlows: vi.fn(async () => NIGHT) });
+const NIGHT = [{ id: 'night', name: 'Night', nodes: [node('a1', 'trigger.link_in', 'Alarm in', 0, { name: 'alarm' })] }];
+const leaverProps = (): Partial<FlowWorkspaceProps> => ({ flow: { id: 'main', name: 'Main flow', graph: LEAVER() }, loadFlows: vi.fn(async () => NIGHT) });
 
 function memory(): DraftStorage & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -43,7 +43,7 @@ function setup(props: Partial<FlowWorkspaceProps> = {}, store?: DraftStore) {
   const draftStore = store ?? createDraftStore(() => mem);
   const handlers = { onOpen: vi.fn() };
   const full: FlowWorkspaceProps = {
-    ref, flows: FLOWS, flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: graph() }, catalog: CATALOG, draftStore, ...handlers, ...props,
+    ref, flows: FLOWS, flow: { id: 'main', name: 'Main flow', graph: graph() }, catalog: CATALOG, draftStore, ...handlers, ...props,
   };
   const utils = render(<FlowWorkspace {...full} />);
   return { ref, mem, draftStore, ...handlers, ...utils, rerender: (p: Partial<FlowWorkspaceProps> = {}) => utils.rerender(<FlowWorkspace {...full} {...p} />) };
@@ -72,7 +72,7 @@ describe('FlowWorkspace: browser draft', () => {
     act(() => { vi.advanceTimersByTime(700); });
     expect(mem.data.size).toBe(0);
     act(() => { vi.advanceTimersByTime(200); });
-    expect(mem.data.has(draftKey('flow', 'main'))).toBe(true);
+    expect(mem.data.has(draftKey('main'))).toBe(true);
   });
 
   it('removes the draft when the change is undone back to the saved state', () => {
@@ -101,8 +101,8 @@ describe('FlowWorkspace: browser draft', () => {
     const mem = memory();
     const store = createDraftStore(() => mem);
     const base = graph();
-    store.write(draftKey('flow', 'main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(base));
-    const { ref } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: base } }, store);
+    store.write(draftKey('main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(base));
+    const { ref } = setup({ flow: { id: 'main', name: 'Main flow', graph: base } }, store);
     expect(screen.getByTestId('flow-draft')).toHaveTextContent('Unsaved changes from');
     expect(screen.queryByText(/changed on the server since/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('flow-draft-restore'));
@@ -117,7 +117,7 @@ describe('FlowWorkspace: browser draft', () => {
   it('Discard throws the draft away', () => {
     const mem = memory();
     const store = createDraftStore(() => mem);
-    store.write(draftKey('flow', 'main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(graph()));
+    store.write(draftKey('main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(graph()));
     setup({}, store);
     fireEvent.click(screen.getByTestId('flow-draft-discard'));
     expect(screen.queryByTestId('flow-draft')).not.toBeInTheDocument();
@@ -127,19 +127,19 @@ describe('FlowWorkspace: browser draft', () => {
   it('warns that the flow changed since the draft was made', () => {
     const mem = memory();
     const store = createDraftStore(() => mem);
-    store.write(draftKey('flow', 'main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), 'an older saved state');
+    store.write(draftKey('main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), 'an older saved state');
     setup({}, store);
     expect(screen.getByTestId('flow-draft')).toHaveTextContent('The flow changed on the server since');
   });
 
-  it('does not offer a draft for a read-only flow, and a draft belongs to its own flow and kind', () => {
+  it('does not offer a draft for a read-only flow, and a draft belongs to its own flow', () => {
     const mem = memory();
     const store = createDraftStore(() => mem);
-    store.write(draftKey('subflow', 'main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(graph()));
+    store.write(draftKey('other'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(graph()));
     setup({}, store);
     expect(screen.queryByTestId('flow-draft')).not.toBeInTheDocument();
     cleanup();
-    store.write(draftKey('flow', 'main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(graph()));
+    store.write(draftKey('main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(graph()));
     setup({ readOnly: true }, store);
     expect(screen.queryByTestId('flow-draft')).not.toBeInTheDocument();
   });
@@ -149,7 +149,7 @@ describe('FlowWorkspace: browser draft', () => {
     edit(ref, LEAVER(340));
     await jumpAway();
     await waitFor(() => expect(onOpen).toHaveBeenCalledTimes(1));
-    expect(mem.data.has(draftKey('flow', 'main'))).toBe(true);
+    expect(mem.data.has(draftKey('main'))).toBe(true);
   });
 
   it('refuses to leave with a message when the draft cannot be kept', async () => {
@@ -175,7 +175,7 @@ describe('FlowWorkspace: link jumps', () => {
     node('in1', 'trigger.link_in', 'Local in', 300, { name: 'local' }),
     node('lonely', 'action.link_out', 'Send nowhere', 600, { targets: ['nowhere'] }),
   ]);
-  const other = (id: string, nodes: RuleNode[], kind: 'flow' | 'subflow' = 'flow') => ({ id, kind, name: `Name of ${id}`, nodes });
+  const other = (id: string, nodes: RuleNode[]) => ({ id, name: `Name of ${id}`, nodes });
   async function goFrom(label: string) {
     fireEvent.contextMenu(nodeEl(label));
     return within(await screen.findByRole('menu'));
@@ -183,15 +183,15 @@ describe('FlowWorkspace: link jumps', () => {
 
   it('jumps to the link in of another flow through the host, with the block to show', async () => {
     const loadFlows = vi.fn(async () => [other('night', [node('a1', 'trigger.link_in', 'Alarm in', 0, { name: 'alarm' })])]);
-    const { onOpen } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: OWN }, loadFlows });
+    const { onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: OWN }, loadFlows });
     fireEvent.click(await (await goFrom('Send alarm')).findByRole('menuitem', { name: 'Go to the link in' }));
-    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ kind: 'flow', id: 'night' }, { nodeId: 'a1' }));
+    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ id: 'night' }, { nodeId: 'a1' }));
     expect(loadFlows).toHaveBeenCalledWith(['night', 'calc']);
   });
 
   it('keeps the other flows for 30 s', async () => {
     const loadFlows = vi.fn(async () => [other('night', [node('a1', 'trigger.link_in', 'Alarm in', 0, { name: 'alarm' })])]);
-    setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: OWN }, loadFlows });
+    setup({ flow: { id: 'main', name: 'Main flow', graph: OWN }, loadFlows });
     for (let i = 0; i < 2; i++) {
       fireEvent.click(await (await goFrom('Send alarm')).findByRole('menuitem', { name: 'Go to the link in' }));
       await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
@@ -201,14 +201,14 @@ describe('FlowWorkspace: link jumps', () => {
 
   it('shows the block when the link in is in the open flow', async () => {
     const own = graph([node('out1', 'action.link_out', 'Send local', 0, { targets: ['local'] }), node('in1', 'trigger.link_in', 'Local in', 300, { name: 'local' })]);
-    const { ref, onOpen } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: own } });
+    const { ref, onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: own } });
     fireEvent.click(await (await goFrom('Send local')).findByRole('menuitem', { name: 'Go to the link in' }));
     await waitFor(() => expect(ref.current!.editor!.getSelection()).toEqual(['in1']));
     expect(onOpen).not.toHaveBeenCalled();
   });
 
   it('reads the open flow live from the editor, not from the first graph', async () => {
-    const { ref, onOpen } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: graph([node('out1', 'action.link_out', 'Send local', 0, { targets: ['local'] })]) } });
+    const { ref, onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: graph([node('out1', 'action.link_out', 'Send local', 0, { targets: ['local'] })]) } });
     edit(ref, graph([node('out1', 'action.link_out', 'Send local', 0, { targets: ['local'] }), node('in9', 'trigger.link_in', 'Added in', 300, { name: 'local' })]));
     fireEvent.click(await (await goFrom('Send local')).findByRole('menuitem', { name: 'Go to the link in' }));
     await waitFor(() => expect(ref.current!.editor!.getSelection()).toEqual(['in9']));
@@ -218,32 +218,32 @@ describe('FlowWorkspace: link jumps', () => {
   it('lists several hits and goes to the one picked', async () => {
     const loadFlows = async () => [
       other('night', [node('a1', 'trigger.link_in', 'Alarm in', 0, { name: 'alarm' })]),
-      other('calc', [node('a2', 'trigger.link_in', 'Alarm in too', 0, { name: 'alarm' })], 'subflow'),
+      other('calc', [node('a2', 'trigger.link_in', 'Alarm in too', 0, { name: 'alarm' })]),
     ];
-    const { onOpen } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: OWN }, loadFlows });
+    const { onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: OWN }, loadFlows });
     fireEvent.click(await (await goFrom('Send alarm')).findByRole('menuitem', { name: 'Go to the link in' }));
     const hits = await screen.findAllByTestId('flow-link-hit');
     expect(hits.map((h) => h.textContent)).toEqual(['Name of night › Alarm in', 'Name of calc › Alarm in too']);
     fireEvent.click(hits[1]);
-    expect(onOpen).toHaveBeenCalledWith({ kind: 'subflow', id: 'calc' }, { nodeId: 'a2' });
+    expect(onOpen).toHaveBeenCalledWith({ id: 'calc' }, { nodeId: 'a2' });
     expect(screen.queryByTestId('flow-link-hits')).not.toBeInTheDocument();
   });
 
   it('a link in lists the blocks that call it', async () => {
     const loadFlows = async () => [other('night', [node('c1', 'logic.link_call', 'Call it', 0, { target: 'local' })])];
-    const { onOpen } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: OWN }, loadFlows });
+    const { onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: OWN }, loadFlows });
     fireEvent.click(await (await goFrom('Local in')).findByRole('menuitem', { name: 'Show the blocks that call it' }));
-    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ kind: 'flow', id: 'night' }, { nodeId: 'c1' }));
+    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ id: 'night' }, { nodeId: 'c1' }));
   });
 
   it('says so when there is no hit', async () => {
-    setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: OWN }, loadFlows: async () => [] });
+    setup({ flow: { id: 'main', name: 'Main flow', graph: OWN }, loadFlows: async () => [] });
     fireEvent.click(await (await goFrom('Send nowhere')).findByRole('menuitem', { name: 'Go to the link in' }));
     expect(await screen.findByTestId('flow-notice')).toHaveTextContent('No link in is called nowhere.');
   });
 
   it('only searches the open flow without loadFlows', async () => {
-    const { onOpen } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: OWN } });
+    const { onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: OWN } });
     fireEvent.click(await (await goFrom('Send alarm')).findByRole('menuitem', { name: 'Go to the link in' }));
     expect(await screen.findByTestId('flow-notice')).toHaveTextContent('No link in is called alarm.');
     expect(onOpen).not.toHaveBeenCalled();
@@ -252,7 +252,7 @@ describe('FlowWorkspace: link jumps', () => {
   it('keeps the draft before it jumps to another flow, and stays when it cannot', async () => {
     const loadFlows = async () => [other('night', [node('a1', 'trigger.link_in', 'Alarm in', 0, { name: 'alarm' })])];
     const blocked = createDraftStore(() => null);
-    const { ref, onOpen } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: OWN }, loadFlows }, blocked);
+    const { ref, onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: OWN }, loadFlows }, blocked);
     edit(ref, graph([...OWN.nodes, node('x', 'logic.step', 'Extra', 900)]));
     fireEvent.click(await (await goFrom('Send alarm')).findByRole('menuitem', { name: 'Go to the link in' }));
     expect(await screen.findByTestId('flow-notice')).toHaveTextContent('cannot keep a draft');
@@ -269,6 +269,44 @@ describe('FlowWorkspace: link jumps', () => {
   it('selects the block a jump from another flow named', () => {
     const { ref } = setup({ focusNodeId: 'n2' });
     expect(ref.current!.editor!.getSelection()).toEqual(['n2']);
+  });
+});
+
+describe('FlowWorkspace: flows that run each other', () => {
+  const FLOW_CATALOG = catalogFromBlocks([[{ type: 'logic.step', title: 'Step' }], FLOW_BLOCKS]);
+  const other = (id: string, nodes: RuleNode[]) => ({ id, name: `Name of ${id}`, nodes });
+  const RUN = graph([node('run1', 'action.flow_run', 'Escalate', 0, { flow: 'night' })]);
+  const ENTRY = graph([node('fi1', 'trigger.flow_input', 'Entry', 0)]);
+  async function goFrom(label: string) {
+    fireEvent.contextMenu(nodeEl(label));
+    return within(await screen.findByRole('menu'));
+  }
+
+  it('a Run flow block goes to the Flow input of the flow it runs', async () => {
+    const loadFlows = vi.fn(async () => [other('night', [node('fi', 'trigger.flow_input', 'Entry', 0)]), other('calc', [])]);
+    const { onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: RUN }, catalog: FLOW_CATALOG, loadFlows });
+    fireEvent.click(await (await goFrom('Escalate')).findByRole('menuitem', { name: 'Go to the Flow input of that flow' }));
+    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ id: 'night' }, { nodeId: 'fi' }));
+  });
+
+  it('says so when the flow it runs has no Flow input block', async () => {
+    const loadFlows = async () => [other('night', [node('n1', 'logic.step', 'Step', 0)])];
+    setup({ flow: { id: 'main', name: 'Main flow', graph: RUN }, catalog: FLOW_CATALOG, loadFlows });
+    fireEvent.click(await (await goFrom('Escalate')).findByRole('menuitem', { name: 'Go to the Flow input of that flow' }));
+    expect(await screen.findByTestId('flow-notice')).toHaveTextContent('The flow this block runs has no Flow input block.');
+  });
+
+  it('a Flow input lists the Run flow blocks that run its flow', async () => {
+    const loadFlows = async () => [other('night', [node('r1', 'action.flow_run', 'Run main', 0, { flow: 'main' })]), other('calc', [])];
+    const { onOpen } = setup({ flow: { id: 'main', name: 'Main flow', graph: ENTRY }, catalog: FLOW_CATALOG, loadFlows });
+    fireEvent.click(await (await goFrom('Entry')).findByRole('menuitem', { name: 'Show the blocks that run this flow' }));
+    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ id: 'night' }, { nodeId: 'r1' }));
+  });
+
+  it('has no flow entry for a Run flow block that names no flow', async () => {
+    setup({ flow: { id: 'main', name: 'Main flow', graph: graph([node('run1', 'action.flow_run', 'Escalate', 0, {})]) }, catalog: FLOW_CATALOG });
+    const menu = await goFrom('Escalate');
+    expect(menu.queryByRole('menuitem', { name: 'Go to the Flow input of that flow' })).not.toBeInTheDocument();
   });
 });
 
@@ -291,11 +329,11 @@ describe('FlowWorkspace: merge', () => {
     const loadFlow = vi.fn(async () => ({ graph: THEIRS }));
     const onMerged = vi.fn();
     const onConflictClose = vi.fn();
-    const { ref } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: BASE }, conflict: { at: 1_700_000_000, by: 'Ada' }, loadFlow, onMerged, onConflictClose });
+    const { ref } = setup({ flow: { id: 'main', name: 'Main flow', graph: BASE }, conflict: { at: 1_700_000_000, by: 'Ada' }, loadFlow, onMerged, onConflictClose });
     edit(ref, MINE);
     fireEvent.click(screen.getByTestId('flow-merge'));
     expect(await screen.findByTestId('flow-merge-summary')).toHaveTextContent('(Ada)');
-    expect(loadFlow).toHaveBeenCalledWith('flow', 'main');
+    expect(loadFlow).toHaveBeenCalledWith('main');
     const merged = ref.current!.getGraph()!;
     expect(merged.nodes.map((n) => [n.nodeId, n.label, n.x])).toEqual([['n1', 'First', 40], ['n2', 'Second renamed', 300], ['n3', 'Theirs new', 600]]);
     expect(screen.getByTestId('flow-merge-summary')).toHaveTextContent('2 changes taken');
@@ -313,7 +351,7 @@ describe('FlowWorkspace: merge', () => {
 
   it('keeps mine for a block both sides changed and lists it', async () => {
     const theirs = graph([node('n1', 'logic.step', 'First', 80), node('n2', 'logic.step', 'Second', 300)]);
-    const { ref } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: BASE }, conflict: {}, loadFlow: async () => ({ graph: theirs }) });
+    const { ref } = setup({ flow: { id: 'main', name: 'Main flow', graph: BASE }, conflict: {}, loadFlow: async () => ({ graph: theirs }) });
     edit(ref, MINE);
     fireEvent.click(screen.getByTestId('flow-merge'));
     const list = await screen.findByTestId('flow-merge-conflicts');
@@ -324,14 +362,14 @@ describe('FlowWorkspace: merge', () => {
   it('names a block you deleted that the other side changed', async () => {
     const mine = graph([node('n2', 'logic.step', 'Second', 300)]);
     const theirs = graph([node('n1', 'logic.step', 'First', 80), node('n2', 'logic.step', 'Second', 300)]);
-    const { ref } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: BASE }, conflict: {}, loadFlow: async () => ({ graph: theirs }) });
+    const { ref } = setup({ flow: { id: 'main', name: 'Main flow', graph: BASE }, conflict: {}, loadFlow: async () => ({ graph: theirs }) });
     edit(ref, mine);
     fireEvent.click(screen.getByTestId('flow-merge'));
     expect(await screen.findByTestId('flow-merge-conflicts')).toHaveTextContent('First (n1) (you deleted it)');
   });
 
   it('says so when the host version cannot be read, and changes nothing', async () => {
-    const { ref } = setup({ flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: BASE }, conflict: {}, loadFlow: async () => null });
+    const { ref } = setup({ flow: { id: 'main', name: 'Main flow', graph: BASE }, conflict: {}, loadFlow: async () => null });
     edit(ref, MINE);
     fireEvent.click(screen.getByTestId('flow-merge'));
     expect(await screen.findByText('Could not read the version on the server.')).toBeInTheDocument();
@@ -363,8 +401,8 @@ describe('FlowWorkspace: messages', () => {
     const mem = memory();
     const store = createDraftStore(() => mem);
     const base = graph();
-    store.write(draftKey('flow', 'main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(base));
-    setup({ messages: de, flow: { id: 'main', kind: 'flow', name: 'Main flow', graph: base } }, store);
+    store.write(draftKey('main'), snapshotOf(graph([node('n9', 'logic.step', 'Draft node', 0)])), snapshotOf(base));
+    setup({ messages: de, flow: { id: 'main', name: 'Main flow', graph: base } }, store);
     expect(screen.getByTestId('flow-draft')).toHaveTextContent('Ungespeicherte Änderungen von');
     expect(screen.getByTestId('flow-draft-restore')).toHaveTextContent('Wiederherstellen');
     expect(screen.getByTestId('flow-draft-discard')).toHaveTextContent('Verwerfen');
@@ -403,7 +441,7 @@ describe('FlowWorkspace: leave guard', () => {
     expect(onOpen).not.toHaveBeenCalled();
     confirm.mockReturnValue(true);
     await jumpAway();
-    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ kind: 'flow', id: 'night' }, { nodeId: 'a1' }));
+    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ id: 'night' }, { nodeId: 'a1' }));
     confirm.mockRestore();
   });
   it('lets the host decide with a function of dirty (a change already in the server draft is not guarded)', async () => {

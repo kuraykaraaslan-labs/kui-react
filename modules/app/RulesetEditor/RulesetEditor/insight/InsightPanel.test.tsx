@@ -23,7 +23,7 @@ describe('InsightPanel', () => {
     expect(screen.getByTestId('insight-ctx-scope')).toBeTruthy();
   });
 
-  it('Busiest: names subflow rows after the instance, sorts and reveals the root block', () => {
+  it('Busiest: names rows with a path after their first segment, sorts and reveals the root block', () => {
     const onReveal = vi.fn();
     render(<InsightPanel defaultTab="busiest" onReveal={onReveal} nodeNames={names}
       nodeStats={{ n2: { in: 3, out: 3, avgMs: 9 }, 's1/x': { in: 8, out: 8, avgMs: 1 } }} />);

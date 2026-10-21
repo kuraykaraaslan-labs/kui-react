@@ -3,13 +3,12 @@ import { useCallback, useState } from 'react';
 import { mergeGraphs, type MergeResult } from '../../graph/merge';
 import type { RulesetGraph } from '../hooks/useGraphEditor';
 import { useMessages } from '../messages';
-import type { ConflictInfo, FlowKind, LoadedFlow } from './types';
+import type { ConflictInfo, LoadedFlow } from './types';
 
 type Options = {
-  kind: FlowKind;
   id: string | null;
   /** the host's current version of this flow (what `theirs` is) */
-  loadFlow?: (kind: FlowKind, id: string) => Promise<LoadedFlow | null | undefined>;
+  loadFlow?: (id: string) => Promise<LoadedFlow | null | undefined>;
   getGraph: () => RulesetGraph | undefined;
   /** what the flow was when it was opened or last saved */
   baseline: () => RulesetGraph;
@@ -26,7 +25,7 @@ export type MergeOutcome = { result: MergeResult; theirs: LoadedFlow; info: Conf
  * (`loadFlow`), merged with the changes made here, and put in the editor as one undo step. Nothing is sent: the
  * merged flow is saved with the host's own save, on the new revision.
  */
-export function useMerge({ kind, id, loadFlow, getGraph, baseline, replaceGraph, rebase, onMerged }: Options) {
+export function useMerge({ id, loadFlow, getGraph, baseline, replaceGraph, rebase, onMerged }: Options) {
   const m = useMessages();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +37,7 @@ export function useMerge({ kind, id, loadFlow, getGraph, baseline, replaceGraph,
     setBusy(true);
     setError(null);
     try {
-      const theirs = await loadFlow(kind, id);
+      const theirs = await loadFlow(id);
       const mine = getGraph();
       if (!theirs || !mine) { setError(m.wsMergeReadFail); return; }
       const result = mergeGraphs(baseline(), mine, theirs.graph);
@@ -52,7 +51,7 @@ export function useMerge({ kind, id, loadFlow, getGraph, baseline, replaceGraph,
     } finally {
       setBusy(false);
     }
-  }, [loadFlow, id, kind, getGraph, baseline, replaceGraph, rebase, onMerged, m]);
+  }, [loadFlow, id, getGraph, baseline, replaceGraph, rebase, onMerged, m]);
 
   return { canMerge, busy, error, outcome, merge, closeOutcome: () => setOutcome(null), clearError: () => setError(null) };
 }

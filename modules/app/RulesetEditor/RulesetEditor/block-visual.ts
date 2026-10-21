@@ -28,7 +28,7 @@ export const ICONS_BY_NAME: Record<string, IconDefinition> = {
 };
 
 const CATEGORY_ICONS: Record<string, IconDefinition> = {
-  trigger: faBolt, cond: faFilter, logic: faGears, action: faBullseye, ui: faGaugeHigh, subflow: faLayerGroup, port: faRightToBracket,
+  trigger: faBolt, cond: faFilter, logic: faGears, action: faBullseye, ui: faGaugeHigh, flow: faRightLeft,
 };
 
 export type BlockLook = { icon: IconDefinition; iconColor: string; headerBg: string };

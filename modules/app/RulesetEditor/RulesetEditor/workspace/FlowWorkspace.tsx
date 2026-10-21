@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import type { DraftStore } from '../../graph/draft';
+import { FLOWS_SOURCE } from '../../catalog/flow';
 import type { LinkFlow } from '../../graph/links';
 import { secretTestOf } from '../../graph/scrub';
 import type { MergeResult } from '../../graph/merge';
@@ -11,9 +12,10 @@ import type { RulesetGraph } from '../hooks/useGraphEditor';
 import { DraftBanner, NoticeBanner, type Notice } from './DraftBanner';
 import { LinkHitsDialog } from './LinkHitsDialog';
 import { ConflictDialog, MergedDialog } from './MergeDialog';
-import type { ActiveFlow, ConflictInfo, FlowKind, FlowRef, LoadedFlow, WorkspaceFlow } from './types';
+import type { ActiveFlow, ConflictInfo, FlowRef, LoadedFlow, WorkspaceFlow } from './types';
 import { FULLSCREEN_CLASSES } from '../hooks/useFullscreen';
 import { useLeaveGuard } from '../hooks/useLeaveGuard';
+import { useCallableFlows } from './useCallableFlows';
 import { useDraft } from './useDraft';
 import { useFlowLinks } from './useFlowLinks';
 import { useMerge } from './useMerge';
@@ -30,19 +32,28 @@ export type FlowWorkspaceRef = {
   keepDraft: () => boolean;
 };
 
-type EditorProps = Omit<RulesetEditorProps, 'initialNodes' | 'initialEdges' | 'initialGroups' | 'initialSubflows' | 'chainName' | 'bannerSlot' | 'ref'>;
+/** does a block of the catalog pick a flow (a Run flow block)? */
+function usesFlowList(catalog: FlowWorkspaceProps['catalog']): boolean {
+  return !!catalog && Object.values(catalog.blocks).some((b) => Object.values(b.params ?? {}).some((p) => p.source === FLOWS_SOURCE));
+}
+
+type EditorProps = Omit<RulesetEditorProps, 'initialNodes' | 'initialEdges' | 'initialGroups' | 'flowId' | 'chainName' | 'bannerSlot' | 'ref'>;
 
 export type FlowWorkspaceProps = EditorProps & {
-  /** every flow and subflow of the host (the open one may be left out until it is saved); the workspace searches them for link jumps */
+  /**
+   * every flow of the host (the open one may be left out until it is saved). The workspace searches them for link and flow jumps,
+   * and offers the callable ones (those with a Flow input block) to the Run flow blocks, as the `flows` choice list
+   * (a `choices.flows` of your own wins)
+   */
   flows: WorkspaceFlow[];
   /** the flow in the editor. The workspace loads its graph once: give another flow to open another one */
   flow: ActiveFlow;
   /** a link jump to another flow: show that flow. `nodeId` is a block to select and bring into view */
   onOpen: (flow: FlowRef, options?: { nodeId?: string }) => void;
-  /** other flows with their blocks, for link jumps across flows (kept 30 s). Without it only the open flow is searched */
+  /** other flows with their blocks, for link and flow jumps across flows (kept 30 s) and to find the callable flows. Without it only the open flow is searched */
   loadFlows?: (ids: string[]) => Promise<LinkFlow[] | null | undefined>;
   /** one flow as the host has it: the other side of a merge */
-  loadFlow?: (kind: FlowKind, id: string) => Promise<LoadedFlow | null | undefined>;
+  loadFlow?: (id: string) => Promise<LoadedFlow | null | undefined>;
   /** set when saving found a newer version: shows the conflict dialog with Merge */
   conflict?: ConflictInfo | null;
   /** more buttons in the conflict dialog (overwrite, reload …) */
@@ -81,7 +92,7 @@ export function FlowWorkspace(props: FlowWorkspaceProps) {
   // the words of the banners and dialogs, and (through the editor props) of the editor
   const m = useMergedMessages(props.messages);
   // one editor, one draft and one set of dialogs per flow
-  return <MessagesProvider value={m}><WorkspaceBody key={`${props.flow.kind}:${props.flow.id ?? 'new'}`} {...props} /></MessagesProvider>;
+  return <MessagesProvider value={m}><WorkspaceBody key={props.flow.id ?? 'new'} {...props} /></MessagesProvider>;
 }
 
 function WorkspaceBody({
@@ -97,7 +108,7 @@ function WorkspaceBody({
   const [notice, setNotice] = useState<Notice | null>(null);
   const say = useCallback((text: string, tone: Notice['tone'] = 'info') => setNotice({ text, tone }), []);
 
-  const draft = useDraft({ kind: flow.kind, id: flow.id, initial: flow.graph, readOnly, getGraph, replaceGraph, store: draftStore, secretTest, onDirtyChange });
+  const draft = useDraft({ id: flow.id, initial: flow.graph, readOnly, getGraph, replaceGraph, store: draftStore, secretTest, onDirtyChange });
   const guard = useLeaveGuard(typeof leaveGuard === 'function' ? leaveGuard(draft.dirty) : !!leaveGuard && draft.dirty, m.wsLeaveConfirm);
 
   /** leaving this flow: the draft keeps what is unsaved; if the browser cannot keep it, stay and say so */
@@ -113,11 +124,13 @@ function WorkspaceBody({
     editorRef.current?.select([nodeId]);
     editorRef.current?.reveal(nodeId);
   }, []);
-  const here = useMemo(() => ({ id: flow.id, kind: flow.kind, name: flow.name }), [flow.id, flow.kind, flow.name]);
-  const otherIds = useMemo(() => flows.filter((t) => !(t.id === flow.id && t.kind === flow.kind)).map((t) => t.id), [flows, flow.id, flow.kind]);
+  const here = useMemo(() => ({ id: flow.id, name: flow.name }), [flow.id, flow.name]);
+  const otherIds = useMemo(() => flows.filter((t) => t.id !== flow.id).map((t) => t.id), [flows, flow.id]);
+  const callable = useCallableFlows({ flows, hereId: flow.id, loadFlows, enabled: usesFlowList(editorProps.catalog) });
+  const choices = useMemo(() => ({ ...editorProps.choices, [FLOWS_SOURCE]: editorProps.choices?.[FLOWS_SOURCE] ?? callable }), [editorProps.choices, callable]);
   const links = useFlowLinks({
     here, getGraph, otherIds, loadFlows, reveal: revealNode, notify: say,
-    jump: (hit) => { if (leave()) onOpen({ kind: hit.kind, id: hit.flow }, { nodeId: hit.node }); },
+    jump: (hit) => { if (leave()) onOpen({ id: hit.flow }, { nodeId: hit.node }); },
   });
   const menuItems = useCallback((ctx: NodeMenuContext): ContextMenuItem[] => [...links.menuItems(ctx), ...(nodeMenuItems?.(ctx) ?? [])], [links, nodeMenuItems]);
 
@@ -128,7 +141,7 @@ function WorkspaceBody({
 
   /* ── merge ── */
   const merge = useMerge({
-    kind: flow.kind, id: flow.id, loadFlow, getGraph, baseline: draft.baseline, replaceGraph, rebase: draft.rebase, onMerged,
+    id: flow.id, loadFlow, getGraph, baseline: draft.baseline, replaceGraph, rebase: draft.rebase, onMerged,
   });
 
   useImperativeHandle(ref, () => ({
@@ -151,11 +164,12 @@ function WorkspaceBody({
       <div className="min-h-0 flex-1">
         <RulesetEditor
           {...editorProps}
+          choices={choices}
+          flowId={flow.id}
           ref={editorRef}
           initialNodes={flow.graph.nodes}
           initialEdges={flow.graph.edges}
           initialGroups={flow.graph.groups}
-          initialSubflows={flow.graph.subflows}
           chainName={flow.name}
           nodeMenuItems={menuItems}
           bannerSlot={banner}

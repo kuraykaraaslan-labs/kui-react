@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RulesetEditor, type RulesetGraph } from './index';
-import { catalogFromBlocks, type RawBlock } from '../catalog';
+import { catalogFromBlocks, FLOW_BLOCKS, type RawBlock } from '../catalog';
 import type { RuleEdge, RuleNode } from '../types';
 
 afterEach(() => cleanup());
@@ -89,47 +89,29 @@ describe('RulesetEditor with a large catalog', () => {
     expect(last()?.edges).toEqual([]);
   });
 
-  it('offers the subflow ports only inside a subflow, and only one input', async () => {
+  it('offers the Flow input block once: a second one is greyed out, with the reason', async () => {
     const user = userEvent.setup();
-    setup([node('a', 'trigger.boot', 'Boot', 0, 0)]);
-    expect(screen.queryByRole('button', { name: 'Add Subflow input node' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /New subflow/ }));
-    await user.type(await screen.findByLabelText('Name of the subflow'), 'S');
-    await waitFor(() => expect(screen.getByLabelText('Name of the subflow')).toHaveFocus());
-    await user.click(screen.getByRole('button', { name: 'Create' }));
-    expect(screen.getByRole('button', { name: 'Add Subflow output node' })).not.toHaveAttribute('aria-disabled');
-    expect(screen.getByRole('button', { name: 'Add Subflow input node' })).toHaveAttribute('aria-disabled', 'true');
-    // the blocks of the chain stay available inside, but not the subflow itself
-    expect(screen.getByRole('button', { name: 'Add Boot node' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Add S node' })).not.toBeInTheDocument();
+    const flowCatalog = catalogFromBlocks([BLOCKS, FLOW_BLOCKS]);
+    const onChange = vi.fn<(g: RulesetGraph) => void>();
+    render(<RulesetEditor catalog={flowCatalog} initialNodes={[]} initialEdges={[]} onChange={onChange} />);
+    const add = () => screen.getByRole('button', { name: 'Add Flow input node' });
+    expect(add()).not.toHaveAttribute('aria-disabled');
+    await user.click(add());
+    expect(onChange.mock.calls.at(-1)?.[0].nodes.map((n) => n.type)).toEqual(['trigger.flow_input']);
+    expect(add()).toHaveAttribute('aria-disabled', 'true');
+    expect(add()).toHaveAttribute('title', 'A flow has one Flow input block only.');
+    await user.click(add());
+    expect(onChange.mock.calls.at(-1)?.[0].nodes).toHaveLength(1);
+    // Run flow can be added any number of times
+    await user.click(screen.getByRole('button', { name: 'Add Run flow node' }));
+    await user.click(screen.getByRole('button', { name: 'Add Run flow node' }));
+    expect(onChange.mock.calls.at(-1)?.[0].nodes).toHaveLength(3);
   });
 
-  it('greys out a subflow that would hold itself, with the reason', async () => {
-    const user = userEvent.setup();
-    setup([node('a', 'trigger.boot', 'Boot', 0, 0)]);
-    const make = async (name: string) => {
-      await user.click(screen.getByRole('button', { name: /New subflow/ }));
-      await user.type(await screen.findByLabelText('Name of the subflow'), name);
-      await user.click(screen.getByRole('button', { name: 'Create' }));
-    };
-    const enter = async (name: string) => {
-      await user.click(screen.getByRole('button', { name: `Add ${name} node` }));
-      fireEvent.contextMenu(screen.getByRole('button', { name: new RegExp(`^${name} \\(`) }));
-      await user.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'Edit the subflow' }));
-    };
-    await make('S');
-    await user.click(screen.getByRole('button', { name: /Back to/ }));
-    await make('T');
-    // inside T: S may go in, T itself is not offered
-    expect(screen.queryByRole('button', { name: 'Add T node' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Add S node' }));
-    await user.click(screen.getByRole('button', { name: /Back to/ }));
-    // inside S: T would make a loop, so it is greyed out and says why
-    await enter('S');
-    const t = screen.getByRole('button', { name: 'Add T node' });
-    expect(t).toHaveAttribute('aria-disabled', 'true');
-    expect(t).toHaveAttribute('title', expect.stringMatching(/cannot hold itself/));
-    await user.click(t);
-    expect(screen.queryByRole('button', { name: /^T \(/ })).not.toBeInTheDocument();
+  it('groups the flow blocks under Flows in the palette', () => {
+    render(<RulesetEditor catalog={catalogFromBlocks([BLOCKS, FLOW_BLOCKS])} />);
+    const group = screen.getByRole('group', { name: 'Flows' });
+    expect(within(group).getByRole('button', { name: 'Add Flow input node' })).toBeInTheDocument();
+    expect(within(group).getByRole('button', { name: 'Add Run flow node' })).toBeInTheDocument();
   });
 });

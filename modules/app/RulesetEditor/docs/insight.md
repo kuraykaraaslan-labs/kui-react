@@ -20,8 +20,8 @@ runtime-insight tools of the OpenWrt automation flow editor. It is driven by pro
   filters show as `debug-<chain>.txt`. Where the browser blocks the download the text is copied instead (`onNotice` gets
   `'saved'`, `'copied'` or `'empty'`). Keeps the last 300 messages and follows the newest while scrolled to the bottom.
 - **Busiest**: blocks by messages in, mean time and errors from `nodeStats`, a bar for the sort key, the top 30, a sort
-  toggle. A click selects and reveals the block (`onReveal`). A block inside a subflow (`s1/x`) is one row named after
-  the instance `s1`.
+  toggle. A click selects and reveals the block (`onReveal`). An id with a path (`s1/x`) is one row named after
+  its first segment `s1`.
 - **Errors**: errors while running (not caught), the errors caught in recent runs (one row per block, text and catcher, with
   counts), and the error counters. "Caught by" reveals the catch block; "its error port" marks an error the block's own
   error port took.

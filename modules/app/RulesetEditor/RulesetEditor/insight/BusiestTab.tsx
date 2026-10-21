@@ -10,7 +10,7 @@ const TOP = 30;
 
 export type BusiestTabProps = {
   nodeStats?: Record<string, NodeStats>;
-  /** names of the blocks on the canvas by id; a subflow inner block `s1/x` is named after the instance `s1` */
+  /** names of the blocks on the canvas by id; an id with a path (`s1/x`) is named after its first segment `s1` */
   nodeNames?: Record<string, string>;
   onReveal?: (nodeId: string) => void;
   selectedNodeId?: string | null;

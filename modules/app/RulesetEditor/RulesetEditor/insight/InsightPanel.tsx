@@ -24,7 +24,7 @@ export type InsightSlot = { content: ReactNode; label?: string; count?: number }
 export type InsightExtraTab = { id: string; label: string; icon?: IconDefinition; content: ReactNode; count?: number };
 
 export type InsightPanelProps = DataTabProps & Pick<DebugTabProps, 'messages' | 'chainId' | 'nodeNames' | 'selectedNodeId' | 'flowId' | 'onReveal' | 'onNotice'> & {
-  /** counters per block id, supplied by the host (a subflow inner block is `instance/inner`) */
+  /** counters per block id, supplied by the host (an id with a path, `s1/x`, belongs to the block `s1`) */
   nodeStats?: Record<string, NodeStats>;
   /** the run history, for the errors something caught */
   runs?: RunRecord[];

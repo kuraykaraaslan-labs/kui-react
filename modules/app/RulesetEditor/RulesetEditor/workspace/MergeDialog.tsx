@@ -44,10 +44,9 @@ export function ConflictDialog({ info, canMerge, busy, error, actions, onMerge, 
   );
 }
 
-/** what a node, group or subflow of a conflict is called */
-export function conflictName(c: MergeConflict, graph: RulesetGraph, m: Pick<EditorMessages, 'wsGroupName' | 'wsSubflowName'> = DEFAULT_MESSAGES): string {
+/** what a node or group of a conflict is called */
+export function conflictName(c: MergeConflict, graph: RulesetGraph, m: Pick<EditorMessages, 'wsGroupName'> = DEFAULT_MESSAGES): string {
   if (c.kind === 'group') return m.wsGroupName(graph.groups.find((g) => g.groupId === c.id)?.name || c.id);
-  if (c.kind === 'subflow') return m.wsSubflowName(graph.subflows.find((s) => s.subflowId === c.id)?.name || c.id);
   const n = graph.nodes.find((x) => x.nodeId === c.id);
   return n ? `${n.label || n.type} (${c.id})` : c.id;
 }
