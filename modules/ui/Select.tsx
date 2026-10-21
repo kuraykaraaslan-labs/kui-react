@@ -30,7 +30,7 @@ function CustomSelect({
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const hintId  = hint  ? `${id}-hint`  : undefined;
+  const hintId  = hint && !error ? `${id}-hint` : undefined; // the hint is not rendered once an error replaces it
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
 
@@ -189,7 +189,7 @@ export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select
     );
   }
 
-  const hintId  = hint  ? `${id}-hint`  : undefined;
+  const hintId  = hint && !error ? `${id}-hint` : undefined; // the hint is not rendered once an error replaces it
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
 

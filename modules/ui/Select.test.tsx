@@ -34,6 +34,11 @@ describe('Select (native <select> path)', () => {
     expect(select).toHaveAttribute('aria-describedby', message.id);
   });
 
+  it('does not reference the unrendered hint once an error replaces it', () => {
+    render(<Select id="country" label="Country" options={PLAIN_OPTIONS} hint="Where you live" error="Required" onChange={() => {}} />);
+    expect(screen.getByLabelText('Country')).toHaveAttribute('aria-describedby', 'country-error');
+  });
+
   it('fires onChange when a different option is picked', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
@@ -78,6 +83,11 @@ describe('Select (custom combobox path — has icons or searchable)', () => {
     await user.click(screen.getByRole('option', { name: /Turkey/ }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ target: { value: 'tr' } }));
     expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('does not reference the unrendered hint once an error replaces it', () => {
+    render(<Select id="country2" label="Country" options={ICON_OPTIONS} hint="Where you live" error="Required" onChange={() => {}} />);
+    expect(screen.getByRole('combobox')).toHaveAttribute('aria-describedby', 'country2-error');
   });
 
   it('Escape closes the open listbox', async () => {
