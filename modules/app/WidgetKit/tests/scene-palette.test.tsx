@@ -4,9 +4,6 @@ import { ScenePalette, SYMBOL_DRAG_TYPE } from '../views/ScenePalette';
 import { moveInGrid, paletteSections, RECENT_MAX, symbolThumb } from '../views/scene-palette-logic';
 import { SCADA_SYMBOLS } from '../views/scada-logic';
 
-// The palette draws a thumbnail for every symbol of the library (about 540): a mount takes seconds in jsdom.
-vi.setConfig({ testTimeout: 30_000 });
-
 const tiles = (c: HTMLElement) => [...c.querySelectorAll<HTMLElement>('[role="option"]')];
 const keys = (c: HTMLElement) => tiles(c).map((t) => t.getAttribute('data-symbol'));
 
