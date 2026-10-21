@@ -42,7 +42,7 @@ const DEFAULT_KEY = 'kui.scada.editor';
 /** Key presses within this window join one undo step (nudges, resizes). */
 const BURST_MS = 800;
 
-type TabId = 'properties' | 'actions' | 'problems' | 'whatif';
+type TabId = 'properties' | 'rules' | 'actions' | 'problems' | 'whatif';
 
 const bucket = (kind: string) => `${kind}:${Math.floor(Date.now() / BURST_MS)}`;
 const round2 = (v: number) => Math.round(v * 100) / 100;
@@ -421,6 +421,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const ctx: EditorCtx = { settings, model, data: props.data, params: hostParams, selection, setSelection, apply, host, locale };
   const tabs: Array<{ id: TabId; label: string; badge?: number }> = [
     { id: 'properties', label: m.tabProperties },
+    { id: 'rules', label: m.tabRules },
     ...(host.renderActions ? [{ id: 'actions' as const, label: m.tabActions }] : []),
     { id: 'problems', label: m.tabProblems, badge: problemList.length },
     { id: 'whatif', label: m.tabWhatIf },
@@ -430,7 +431,8 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   /** A problem names a symbol, `link:<n>` or `shape:<n>`: select it and bring it into view. */
   const focusProblem = (id: string) => {
     const link = /^link:(\d+)$/.exec(id); const shape = /^shape:(\d+)$/.exec(id);
-    if (link) setSelection(only({ kind: 'link', index: Number(link[1]) }));
+    if (id === 'scene') setSelection({ elements: [], shapes: [], links: [] });
+    else if (link) setSelection(only({ kind: 'link', index: Number(link[1]) }));
     else if (shape) {
       setSelection(only({ kind: 'shape', index: Number(shape[1]) }));
       const b = shapeBounds(shapesOf(settings)[Number(shape[1])] as never);
@@ -534,9 +536,9 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
             ))}
           </div>
           <div id={`scene-tabpanel-${activeTab}`} role="tabpanel" aria-labelledby={`scene-tab-${activeTab}`} className="min-h-0 flex-1 overflow-auto">
-            {activeTab === 'properties' && <SceneInspector ctx={ctx} />}
+            {(activeTab === 'properties' || activeTab === 'rules') && <SceneInspector ctx={ctx} tab={activeTab} showTabs={false} />}
             {activeTab === 'actions' && (selectedElements.length === 1 && selectionCount(selection) === 1 ? host.renderActions?.(selectedElements[0]) : <p className="p-3 text-sm text-text-secondary">{m.actionsHint}</p>)}
-            {activeTab === 'problems' && <SceneProblems ctx={ctx} onSelect={focusProblem} />}
+            {activeTab === 'problems' && <SceneProblems ctx={ctx} onSelect={focusProblem} onOpenRule={() => setTab('rules')} />}
             {activeTab === 'whatif' && <SceneWhatIf ctx={ctx} value={whatIf} onChange={setWhatIf} />}
           </div>
         </Panel>

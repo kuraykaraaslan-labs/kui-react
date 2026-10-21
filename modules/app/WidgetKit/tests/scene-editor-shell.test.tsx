@@ -415,7 +415,7 @@ describe('the toolbar', () => {
     expect(screen.getByTestId('problems-count')).toHaveTextContent(`${count} problems`);
     fireEvent.click(screen.getByTestId('problems-count'));
     expect(screen.getByRole('tab', { name: /Problems/ })).toHaveAttribute('aria-selected', 'true');
-    expect(document.querySelector('[data-stub="problems"]')).not.toBeNull();
+    expect(document.querySelector('[data-panel="problems"]')).not.toBeNull();
   });
 
   it('says there are no problems when there are none', () => {
@@ -607,11 +607,11 @@ describe('Apply and Close', () => {
 });
 
 describe('the layout and the panels', () => {
-  it('has the toolbar, the palette, the canvas and the inspector, with the stubs rendering', () => {
+  it('has the toolbar, the palette, the canvas and the inspector, with the real panels', () => {
     mount();
     expect(screen.getByRole('toolbar', { name: 'Diagram tools' })).toBeInTheDocument();
-    expect(document.querySelector('[data-stub="palette"]')).not.toBeNull();
-    expect(document.querySelector('[data-stub="inspector"]')).not.toBeNull();
+    expect(document.querySelector('[data-panel="palette"]')).not.toBeNull();
+    expect(document.querySelector('[data-panel="inspector"]')).not.toBeNull();
     expect(screen.getByTestId('scene-canvas')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Diagram editor' })).toBeInTheDocument();
   });
@@ -645,13 +645,13 @@ describe('the layout and the panels', () => {
     expect(screen.getByTestId('scene-canvas').parentElement?.className).toContain('order-1');
   });
 
-  it('shows Properties, Problems and What-if, and the Actions tab only when the host has an action editor', () => {
+  it('shows Properties, Rules, Problems and What-if, and the Actions tab only when the host has an action editor', () => {
     const { unmount } = (() => { mount(); return { unmount: cleanup }; })();
-    expect(screen.getAllByRole('tab').map((t) => t.textContent?.replace(/\d+$/, ''))).toEqual(['Properties', 'Problems', 'What-if']);
+    expect(screen.getAllByRole('tab').map((t) => t.textContent?.replace(/\d+$/, ''))).toEqual(['Properties', 'Rules', 'Problems', 'What-if']);
     unmount();
     mount({ host: { renderActions: (id) => <p data-testid="actions-editor">actions of {id}</p> } });
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent?.replace(/\d+$/, ''))).toEqual(['Properties', 'Actions', 'Problems', 'What-if']);
+    expect(tabs.map((t) => t.textContent?.replace(/\d+$/, ''))).toEqual(['Properties', 'Rules', 'Actions', 'Problems', 'What-if']);
     fireEvent.click(screen.getByRole('tab', { name: 'Actions' }));
     expect(screen.getByText('Select one symbol to edit its actions.')).toBeInTheDocument();
     click(screen.getByTestId('scene-svg') as unknown as SVGSVGElement, { x: B.pump1.cx, y: B.pump1.cy });
@@ -663,13 +663,15 @@ describe('the layout and the panels', () => {
     const first = screen.getByRole('tab', { name: 'Properties' });
     expect(first).toHaveAttribute('tabindex', '0');
     key(first, 'ArrowRight');
+    expect(screen.getByRole('tab', { name: 'Rules' })).toHaveAttribute('aria-selected', 'true');
+    key(screen.getByRole('tab', { name: 'Rules' }), 'ArrowRight');
     expect(screen.getByRole('tab', { name: /Problems/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'scene-tab-problems');
-    expect(document.querySelector('[data-stub="problems"]')).not.toBeNull();
+    expect(document.querySelector('[data-panel="problems"]')).not.toBeNull();
     key(screen.getByRole('tab', { name: /Problems/ }), 'End');
-    expect(document.querySelector('[data-stub="whatif"]')).not.toBeNull();
+    expect(document.querySelector('[data-panel="whatif"]')).not.toBeNull();
     key(screen.getByRole('tab', { name: 'What-if' }), 'ArrowRight');
-    expect(document.querySelector('[data-stub="inspector"]')).not.toBeNull();
+    expect(document.querySelector('[data-panel="inspector"]')).not.toBeNull();
   });
 });
 
