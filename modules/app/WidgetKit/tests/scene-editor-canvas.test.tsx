@@ -7,6 +7,9 @@ import {
 import { linkLegs } from '../views/scene-edit-geometry';
 import { sceneModel } from '../views/scada-scene-logic';
 
+// The palette draws a thumbnail for every symbol of the library (about 540): a mount takes seconds in jsdom.
+vi.setConfig({ testTimeout: 30_000 });
+
 beforeEach(() => { mockLayout(); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 

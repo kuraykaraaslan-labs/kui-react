@@ -6,6 +6,9 @@ import {
 } from './scene-editor-harness';
 import { parseClipboard, problems } from '../views/scene-edit-logic';
 
+// The palette draws a thumbnail for every symbol of the library (about 540): a mount takes seconds in jsdom.
+vi.setConfig({ testTimeout: 30_000 });
+
 const B = boxes();
 const gap = (B.pump1.x + B.pump1.w + B.valve1.x) / 2;
 
