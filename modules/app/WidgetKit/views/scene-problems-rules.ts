@@ -101,3 +101,18 @@ export function ruleProblems(host: Pick<EditorHost, 'params' | 'columns'> = {}):
     return out;
   };
 }
+
+/** What a problem is about in the editor's terms: the id to select, and for a rule problem the rule's index. */
+export function problemTarget(p: Pick<Problem, 'id'>, s: SceneSettings): { select: string; rule?: number } {
+  const hit = /^rule:(\d+)$/.exec(p.id);
+  if (!hit) return { select: p.id };
+  const rule = Number(hit[1]);
+  const r = rulesOf(s)[rule];
+  const target = isRec(r) ? text(r.target) : '';
+  if (target && Array.isArray(s.elements) && (s.elements as unknown[]).some((e) => isRec(e) && e.id === target)) return { select: target, rule };
+  if (target && Array.isArray(s.links)) {
+    const at = (s.links as unknown[]).findIndex((l) => isRec(l) && l.id === target);
+    if (at >= 0) return { select: `link:${at}`, rule };
+  }
+  return { select: 'scene', rule };
+}
