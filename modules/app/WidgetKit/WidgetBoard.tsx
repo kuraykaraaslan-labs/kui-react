@@ -143,7 +143,7 @@ export function WidgetBoard({
   };
 
   return (
-    <div className={cn('flex min-h-0 flex-col gap-3', className)}>
+    <div className={cn('flex flex-col gap-3', className)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         {board.showTitle !== false ? (
           <h2 className="text-lg font-semibold text-text-primary" style={{ color: cssColor(board.titleColor) }}>{doc.board.title}</h2>
@@ -179,7 +179,7 @@ export function WidgetBoard({
       </div>
       {importError && <p role="alert" className="text-sm text-error">{importError}</p>}
 
-      <div className="min-h-0 flex-1 rounded-xl" style={surface}>
+      <div className="flex-1 rounded-xl" style={surface}>
         <div className={cn('grid grid-cols-1 lg:[grid-auto-rows:var(--wk-row)]', GRID_CLASS[cols])} data-grid-cols={cols} style={gridStyle}>
           {ordered.map((p) => {
             const kind = kindOf(p.type);
