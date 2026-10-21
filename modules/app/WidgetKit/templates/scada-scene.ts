@@ -2,7 +2,7 @@ import { colorField, opt, since } from '../settings/packs';
 import type { SettingsTemplate, Sparse } from '../settings/types';
 import type { BuiltinKindSpec } from '../kind';
 import { isFormKey } from '../views/control-form-logic';
-import { MAX_SCENE_ELEMENTS, MAX_SCENE_LINKS, parsePort, type SceneElementSetting, type SceneLinkSetting } from '../views/scada-scene-logic';
+import { MAX_SCENE_ELEMENTS, MAX_SCENE_LINKS, MAX_SCENE_SHAPES, parsePort, type SceneElementSetting, type SceneLinkSetting, type SceneShapeSetting } from '../views/scada-scene-logic';
 import { isScadaSymbol, SCADA_SYMBOLS, SCADA_SYMBOL_DEFS, type SymbolDef } from '../views/scada-logic';
 import { MEDIUM_OPTIONS, SYMBOL_OPTIONS } from './scada';
 
@@ -16,7 +16,7 @@ const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter((r) 
  */
 export const SCADA_SCENE: SettingsTemplate = {
   id: 'builtin:scada.scene',
-  version: 1,
+  version: 2,
   namespace: '',
   label: 'Process diagram',
   format: true,
@@ -30,6 +30,7 @@ export const SCADA_SCENE: SettingsTemplate = {
     { id: 'colour', label: 'Colours', tab: 'Display', since: 1 },
     { id: 'data', label: 'Data', tab: 'Data', since: 1 },
     { id: 'motion', label: 'Animation', tab: 'Display', since: 1 },
+    { id: 'shapes', label: 'Titles and zones', tab: 'Display', since: 2 },
   ],
   fields: since(1, {
     width: { label: 'Canvas width', type: 'number', display: 'input', min: 200, max: 4000, value: 1200, group: 'canvas', description: 'Scene units. The diagram scales to the card and keeps its proportions.' },
@@ -80,7 +81,7 @@ export const SCADA_SCENE: SettingsTemplate = {
         to: { label: 'To', type: 'text', maxLength: 80, required: true, placeholder: 'tank.b' },
         kind: {
           label: 'Kind', type: 'select', value: 'pipe', required: true,
-          options: [opt('pipe', 'Pipe'), opt('hose', 'Hose'), opt('cable', 'Cable'), opt('wire', 'Signal wire'), opt('strip', 'Strip'), opt('line', 'Thin line with arrow')],
+          options: [opt('pipe', 'Pipe'), opt('hose', 'Hose'), opt('cable', 'Cable'), opt('wire', 'Signal wire'), opt('strip', 'Strip'), opt('line', 'Thin line with arrow'), opt('sld', 'Single-line (electrical)')],
         },
         id: { label: 'State from row', type: 'text', maxLength: 64, placeholder: 'The "from" symbol\'s row' },
         medium: { label: 'Medium', type: 'select', value: 'none', options: MEDIUM_OPTIONS },
@@ -95,6 +96,26 @@ export const SCADA_SCENE: SettingsTemplate = {
     criticalColor: colorField('Critical', 'colour', 'var(--error)'),
     idColumn: { label: 'Row id column', type: 'data-key', slot: 'points', value: 'id', group: 'data', advanced: true, description: 'Which column of the table names a symbol or connection.' },
     animation: { label: 'Animate running parts', type: 'boolean', value: true, group: 'motion', advanced: true },
+  }),
+  // Version 2: titles, zones and dividers, and the calm look.
+  ...since(2, {
+    shapes: {
+      label: 'Titles and zones', type: 'repeater', group: 'shapes', max: MAX_SCENE_SHAPES,
+      description: 'A title, a zone outline or a divider line on the canvas. They carry no reading. x and y are the anchor of a title and the top-left corner of a zone or divider.',
+      fields: {
+        kind: { label: 'Kind', type: 'select', value: 'text', required: true, options: [opt('text', 'Title or note'), opt('zone', 'Zone outline'), opt('divider', 'Divider line')] },
+        text: { label: 'Words', type: 'text', maxLength: 80, description: 'A title or note; a zone\'s name.' },
+        x: { label: 'x', type: 'number', display: 'input', value: 0 },
+        y: { label: 'y', type: 'number', display: 'input', value: 0 },
+        w: { label: 'Width', type: 'number', display: 'input', min: 0, max: 4000, description: 'Zone and divider. A vertical divider has width 0.' },
+        h: { label: 'Height', type: 'number', display: 'input', min: 0, max: 4000, description: 'Zone and divider. A horizontal divider has height 0.' },
+        size: { label: 'Text size', type: 'select', value: 'm', options: [opt('s', 'Small'), opt('m', 'Medium'), opt('l', 'Large')] },
+        align: { label: 'Align', type: 'select', value: 'middle', options: [opt('start', 'Start'), opt('middle', 'Middle'), opt('end', 'End')] },
+        tone: { label: 'Tone', type: 'select', value: 'neutral', options: [opt('neutral', 'Neutral'), opt('info', 'Info'), opt('success', 'Success'), opt('warning', 'Warning'), opt('error', 'Error')] },
+        dashed: { label: 'Dashed', type: 'boolean', value: true },
+      },
+    },
+    calm: { label: 'Calm look', type: 'boolean', value: false, group: 'colour', description: 'Running parts are drawn in plain ink, not green; only a warning or an alarm shows colour (ISA-101 style).' },
   }),
   rules: [
     (v: Sparse) => {
@@ -116,7 +137,7 @@ export const SCADA_SCENE: SettingsTemplate = {
       return issues;
     },
   ],
-  migrations: [],
+  migrations: [{ from: 1, to: 2, note: 'Titles and zones on the canvas, single-line connections and a calm look (all new, nothing changes for a saved diagram).' }],
 };
 
 export const SCADA_SCENE_KIND: BuiltinKindSpec = {

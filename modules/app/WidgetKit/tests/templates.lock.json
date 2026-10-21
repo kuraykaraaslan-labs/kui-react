@@ -3144,6 +3144,12 @@
         },
         "label": {
           "type": "text"
+        },
+        "icon": {
+          "type": "icon"
+        },
+        "image": {
+          "type": "text"
         }
       }
     },
@@ -3215,7 +3221,8 @@
         "light",
         "grey",
         "dark",
-        "streets"
+        "streets",
+        "satellite"
       ]
     },
     "fitBounds": {
@@ -3254,6 +3261,24 @@
         "topright",
         "bottomleft",
         "bottomright"
+      ]
+    },
+    "draggable": {
+      "type": "boolean",
+      "value": false
+    },
+    "replay": {
+      "type": "boolean",
+      "value": false
+    },
+    "replaySpeed": {
+      "type": "select",
+      "value": "1",
+      "options": [
+        "1",
+        "2",
+        "5",
+        "10"
       ]
     },
     "layerToggles": {
@@ -4884,6 +4909,214 @@
             "wire",
             "strip",
             "line"
+          ]
+        },
+        "id": {
+          "type": "text"
+        },
+        "medium": {
+          "type": "select",
+          "value": "none",
+          "options": [
+            "none",
+            "cold",
+            "hot",
+            "water",
+            "custom"
+          ]
+        },
+        "mediumColor": {
+          "type": "color",
+          "value": "var(--info)"
+        },
+        "mid": {
+          "type": "number"
+        },
+        "arrows": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    },
+    "idleColor": {
+      "type": "color",
+      "value": "var(--text-secondary)"
+    },
+    "runningColor": {
+      "type": "color",
+      "value": "var(--success)"
+    },
+    "warningColor": {
+      "type": "color",
+      "value": "var(--warning)"
+    },
+    "criticalColor": {
+      "type": "color",
+      "value": "var(--error)"
+    },
+    "idColumn": {
+      "type": "data-key",
+      "value": "id"
+    },
+    "animation": {
+      "type": "boolean",
+      "value": true
+    }
+  },
+  "builtin:scada.scene@2": {
+    "width": {
+      "type": "number",
+      "value": 1200
+    },
+    "height": {
+      "type": "number",
+      "value": 700
+    },
+    "scale": {
+      "type": "number",
+      "value": 0.6
+    },
+    "background": {
+      "type": "select",
+      "value": "none",
+      "options": [
+        "none",
+        "dots",
+        "panel"
+      ]
+    },
+    "fit": {
+      "type": "select",
+      "value": "content",
+      "options": [
+        "content",
+        "canvas"
+      ]
+    },
+    "anchor": {
+      "type": "select",
+      "value": "center",
+      "options": [
+        "center",
+        "corner"
+      ]
+    },
+    "showLabels": {
+      "type": "boolean",
+      "value": true
+    },
+    "elements": {
+      "type": "repeater",
+      "fields": {
+        "id": {
+          "type": "text"
+        },
+        "symbol": {
+          "type": "select",
+          "value": "tank.vertical",
+          "options": []
+        },
+        "x": {
+          "type": "number",
+          "value": 0
+        },
+        "y": {
+          "type": "number",
+          "value": 0
+        },
+        "turn": {
+          "type": "select",
+          "value": "0",
+          "options": [
+            "0",
+            "90",
+            "180",
+            "270"
+          ]
+        },
+        "mirror": {
+          "type": "boolean",
+          "value": false
+        },
+        "length": {
+          "type": "select",
+          "value": "1",
+          "options": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "scale": {
+          "type": "number"
+        },
+        "label": {
+          "type": "text"
+        },
+        "labelPos": {
+          "type": "select",
+          "value": "b",
+          "options": [
+            "b",
+            "t",
+            "n"
+          ]
+        },
+        "valuePos": {
+          "type": "select",
+          "value": "b",
+          "options": [
+            "b",
+            "r"
+          ]
+        },
+        "medium": {
+          "type": "select",
+          "value": "none",
+          "options": [
+            "none",
+            "cold",
+            "hot",
+            "water",
+            "custom"
+          ]
+        },
+        "mediumColor": {
+          "type": "color",
+          "value": "var(--info)"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "showValue": {
+          "type": "boolean",
+          "value": true
+        }
+      }
+    },
+    "links": {
+      "type": "repeater",
+      "fields": {
+        "from": {
+          "type": "text"
+        },
+        "to": {
+          "type": "text"
+        },
+        "kind": {
+          "type": "select",
+          "value": "pipe",
+          "options": [
+            "pipe",
+            "hose",
+            "cable",
+            "wire",
+            "strip",
+            "line",
+            "sld"
           ]
         },
         "id": {

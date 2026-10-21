@@ -7,7 +7,7 @@ import type { ElementActions, ElementGesture } from '../kind';
 afterEach(() => { vi.useRealTimers(); });
 
 const settings = {
-  width: 400, height: 200, scale: 0.7, fit: 'canvas',
+  width: 400, height: 200, scale: 0.7, fit: 'canvas' as const,
   elements: [
     { id: 'tank', symbol: 'tank.vertical', x: 80, y: 100, label: 'Storage tank' },
     { id: 'pump', symbol: 'pump.volute', x: 220, y: 100 },

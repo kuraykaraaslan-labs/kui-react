@@ -29,3 +29,16 @@ set, a turbine from the energy set and a reel from the strip line still looks li
 
 Adding a symbol: draw it in a `scada-*.ts` file with `scada-draw` helpers, register it in `SCADA_SYMBOL_DEFS`, and look
 at it on the contact sheet next to the others before you commit.
+
+## Sector packs
+
+Symbols outside the first five families live in one file per pack, `views/scada-pack-<name>.ts`, each exporting a
+`const X_DEFS = { 'family.name': { family, label, draw, … } } as const satisfies Record<string, SymbolDef>` that
+`scada-logic.ts` spreads into the registry. A pack file imports only from `scada-draw.ts`, `svg-node.ts` and its
+sibling helpers, never from another pack. Rules on top of the pen above:
+
+- Keys are `kind` or `kind.variant` (`exchanger.plate`), lower case, unique across the whole registry; labels are English, sentence case.
+- Every symbol has ports on the centre lines of its 100-unit-high box (left and right at y = 50, top and bottom at x = 50) so it joins a pipe, hose, cable, wire or single line of the same size without a gap. A symbol with no port to the outside (a lamp, a cabinet) needs none.
+- State goes on the active part only (`accent(p)`); housings stay neutral; a reading is printed by the host (`valueUnder`) unless it belongs inside the drawing (a dial).
+- Motion only through `turning` and the `animate` helpers of `scada-draw.ts`, only while `p.running && p.animate`.
+- A pack's sample is one scene and one board in `sample/scada-sector-<name>.ts`.
