@@ -62,10 +62,12 @@ export const DEFAULT_PALETTE_MESSAGES: PaletteMessages = {
     sld: 'Single-line', hvac: 'HVAC', isa: 'Instruments (ISA)', instrument: 'Gauges', telecom: 'Telecom', food: 'Food and drink',
     factory: 'Factory', mining: 'Mining', agri: 'Agriculture', city: 'City', line: 'Strip line', connection: 'Connections',
     fluid: 'Pumps and valves', mech: 'Mechanical', safety: 'Safety and control', home: 'Home electronics', appliance: 'Home appliances', kitchen: 'Kitchen', gadget: 'Gadgets',
+    pharma: 'Pharma and cleanroom', paper: 'Pulp and paper', steel: 'Steel and metals', storage: 'Energy storage', gasnet: 'Gas and heating networks', hydro: 'Hydro, dam and marine', building: 'Building services', logistics: 'Logistics',
   },
   sectors: {
     process: 'Process', water: 'Water', wastewater: 'Wastewater', oilgas: 'Oil and gas', power: 'Electrical', energy: 'Energy', hvac: 'HVAC',
     instrumentation: 'Instrumentation', telecom: 'Telecom', food: 'Food and drink', factory: 'Factory', mining: 'Mining', agriculture: 'Agriculture', city: 'City', home: 'Home', safety: 'Safety',
+    pharma: 'Pharma', paper: 'Pulp and paper', steel: 'Steel', hydro: 'Hydro and marine', storage: 'Storage', gas: 'Gas and heating', building: 'Buildings', logistics: 'Logistics',
   },
 };
 

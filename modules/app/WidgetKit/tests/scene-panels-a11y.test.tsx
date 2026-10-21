@@ -122,7 +122,7 @@ describe('panel messages', () => {
     for (const group of [m.palette.families, m.palette.sectors, m.rules.states, m.rules.opLabels, m.rules.words.ops, m.rules.words.states, m.problems.groups, m.whatIf.statuses]) {
       for (const [k, v] of Object.entries(group)) expect(typeof v === 'string' && v.length > 0, k).toBe(true);
     }
-    expect(Object.keys(m.palette.families)).toHaveLength(25);
-    expect(Object.keys(m.palette.sectors)).toHaveLength(16);
+    expect(Object.keys(m.palette.families)).toHaveLength(33);
+    expect(Object.keys(m.palette.sectors)).toHaveLength(24);
   });
 });
