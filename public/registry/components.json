@@ -4405,7 +4405,7 @@
       "category": "App",
       "filePath": "modules/app/RulesetEditor/RulesetEditor/index.tsx",
       "abbr": "RE",
-      "description": "A visual flow editor for the blocks of any catalog: typed blocks with params (each block gets a form from its schema), connections, groups, subflows, undo, search, a shortcuts sheet, comments and a help tab per block. It is not tied to a domain: this entry uses a business catalog (a schedule, a webhook in, a comparison, a notification, a webhook out); the IoT demos use device blocks.",
+      "description": "A visual flow editor for the blocks of any catalog: typed blocks with params (each block gets a form from its schema), connections, groups, flows that run each other, undo, search, a shortcuts sheet, comments and a help tab per block. It is not tied to a domain: this entry uses a business catalog (a schedule, a webhook in, a comparison, a notification, a webhook out); the IoT demos use device blocks.",
       "source": "'use client';\n// The blocks come from a catalog (data); a block's form is built from its params. Right-click for the menu,\n// Ctrl+F finds a block, ? lists the shortcuts, Alt+N adds a comment.\nimport { RulesetEditor, catalogFromBlocks } from '@/modules/app/RulesetEditor';\n\nconst catalog = catalogFromBlocks([[\n  { type: 'trigger.schedule', title: 'Schedule', params: { time: { type: 'time', default: '08:00' } } },\n  { type: 'action.notify', title: 'Send a notification', outputs: [], params: { to: { type: 'source', source: 'teams', required: true } } },\n]]);\n\n<RulesetEditor\n  catalog={catalog}\n  choices={{ teams: [{ value: 'finance', label: 'Finance team' }] }}\n  initialNodes={nodes}\n  initialEdges={edges}\n  onChange={(graph) => save(graph)}\n  messages={{ /* the words of the editor, to translate it */ }}\n/>",
       "variants": [
         {
@@ -8929,16 +8929,16 @@
       "category": "Domain",
       "filePath": "modules/app/RulesetEditor/RulesetEditor/index.tsx",
       "abbr": "RE",
-      "description": "Drag-and-drop visual rule chain editor. The blocks come from a catalog (typed blocks with params), each block has a form built from its schema, and the editor has undo, multi-select, groups, subflows and validation.",
-      "source": "'use client';\n// Drag blocks from the palette onto the canvas, or right-click for \"Add a block here…\".\n// Click an output port (filled) and then an input port (hollow) to wire them.\n// Click a connection to select it; Delete removes it. Shift or Ctrl click selects several nodes.\n// Ctrl+Z undoes, Ctrl+Y redoes. Right-click a node to group, skip, copy or make a subflow of the selection.\n\nexport function RulesetEditor({\n  initialNodes, initialEdges, initialGroups, initialSubflows,\n  catalog, choices, active, onChange, readOnly, className,\n}) {\n  // ...\n}",
+      "description": "Drag-and-drop visual rule chain editor. The blocks come from a catalog (typed blocks with params), each block has a form built from its schema, and the editor has undo, multi-select, groups, flows that run each other and validation.",
+      "source": "'use client';\n// Drag blocks from the palette onto the canvas, or right-click for \"Add a block here…\".\n// Click an output port (filled) and then an input port (hollow) to wire them.\n// Click a connection to select it; Delete removes it. Shift or Ctrl click selects several nodes.\n// Ctrl+Z undoes, Ctrl+Y redoes. Right-click a node to group, skip, copy or duplicate it.\n\nexport function RulesetEditor({\n  initialNodes, initialEdges, initialGroups,\n  catalog, choices, active, onChange, readOnly, className,\n}) {\n  // ...\n}",
       "variants": [
         {
           "title": "With pre-loaded chain",
           "code": "<RulesetEditor\n  initialNodes={nodes}\n  initialEdges={edges}\n/>"
         },
         {
-          "title": "Block catalog, param forms, a group and a subflow",
-          "code": "<RulesetEditor\n  catalog={catalog}            // blocks with typed params, from data\n  choices={{ brokers: [...] }} // lists for source fields\n  initialNodes={nodes}\n  initialEdges={edges}\n  initialGroups={groups}\n  initialSubflows={subflows}\n  active={chain.active}        // a missing required param is then an error\n  onChange={(graph) => save(graph)}\n/>"
+          "title": "Block catalog, param forms, a group and a Run flow block",
+          "code": "<RulesetEditor\n  catalog={catalog}            // blocks with typed params, from data\n  choices={{ brokers: [...] }} // lists for source fields\n  initialNodes={nodes}\n  initialEdges={edges}\n  initialGroups={groups}\n  active={chain.active}        // a missing required param is then an error\n  onChange={(graph) => save(graph)}\n/>"
         },
         {
           "title": "Arrange, mini map, box select and snap",

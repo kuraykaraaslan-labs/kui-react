@@ -11,7 +11,7 @@ export function buildAppRulesetEditorData(): ShowcaseComponent[] {
       category: 'App',
       abbr: 'RE',
       description:
-        'A visual flow editor for the blocks of any catalog: typed blocks with params (each block gets a form from its schema), connections, groups, subflows, undo, search, a shortcuts sheet, comments and a help tab per block. It is not tied to a domain: this entry uses a business catalog (a schedule, a webhook in, a comparison, a notification, a webhook out); the IoT demos use device blocks.',
+        'A visual flow editor for the blocks of any catalog: typed blocks with params (each block gets a form from its schema), connections, groups, flows that run each other, undo, search, a shortcuts sheet, comments and a help tab per block. It is not tied to a domain: this entry uses a business catalog (a schedule, a webhook in, a comparison, a notification, a webhook out); the IoT demos use device blocks.',
       filePath: 'modules/app/RulesetEditor/RulesetEditor/index.tsx',
       sourceCode: `'use client';
 // The blocks come from a catalog (data); a block's form is built from its params. Right-click for the menu,

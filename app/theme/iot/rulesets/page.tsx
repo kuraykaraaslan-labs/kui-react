@@ -337,7 +337,7 @@ export default function RulesetsPage() {
             <Link href="/theme/iot/rulesets/catalog-demo" className="font-semibold text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
               try the block catalog demo
             </Link>{' '}
-            (typed blocks, param forms, groups, subflows, undo).
+            (typed blocks, param forms, groups, flows that run each other, undo).
           </p>
         </div>
 

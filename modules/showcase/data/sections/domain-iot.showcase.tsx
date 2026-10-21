@@ -330,16 +330,16 @@ export function CloudWorkspaceCard({ workspace, className, onClick }) {
       title: 'RulesetEditor',
       category: 'Domain',
       abbr: 'RE',
-      description: 'Drag-and-drop visual rule chain editor. The blocks come from a catalog (typed blocks with params), each block has a form built from its schema, and the editor has undo, multi-select, groups, subflows and validation.',
+      description: 'Drag-and-drop visual rule chain editor. The blocks come from a catalog (typed blocks with params), each block has a form built from its schema, and the editor has undo, multi-select, groups, flows that run each other and validation.',
       filePath: 'modules/app/RulesetEditor/RulesetEditor/index.tsx',
       sourceCode: `'use client';
 // Drag blocks from the palette onto the canvas, or right-click for "Add a block here…".
 // Click an output port (filled) and then an input port (hollow) to wire them.
 // Click a connection to select it; Delete removes it. Shift or Ctrl click selects several nodes.
-// Ctrl+Z undoes, Ctrl+Y redoes. Right-click a node to group, skip, copy or make a subflow of the selection.
+// Ctrl+Z undoes, Ctrl+Y redoes. Right-click a node to group, skip, copy or duplicate it.
 
 export function RulesetEditor({
-  initialNodes, initialEdges, initialGroups, initialSubflows,
+  initialNodes, initialEdges, initialGroups,
   catalog, choices, active, onChange, readOnly, className,
 }) {
   // ...
@@ -362,7 +362,7 @@ export function RulesetEditor({
 />`,
         },
         {
-          title: 'Block catalog, param forms, a group and a subflow',
+          title: 'Block catalog, param forms, a group and a Run flow block',
           layout: 'stack',
           preview: (
             <div className="h-[28rem] w-full rounded-xl overflow-hidden border border-border">
@@ -372,7 +372,6 @@ export function RulesetEditor({
                 initialNodes={DEMO_FLOW.nodes}
                 initialEdges={DEMO_FLOW.edges}
                 initialGroups={DEMO_FLOW.groups}
-                initialSubflows={DEMO_FLOW.subflows}
                 chainName="Boiler demo"
               />
             </div>
@@ -383,7 +382,6 @@ export function RulesetEditor({
   initialNodes={nodes}
   initialEdges={edges}
   initialGroups={groups}
-  initialSubflows={subflows}
   active={chain.active}        // a missing required param is then an error
   onChange={(graph) => save(graph)}
 />`,
@@ -398,7 +396,6 @@ export function RulesetEditor({
                 choices={DEMO_CHOICES}
                 initialNodes={SCRAMBLED_NODES}
                 initialEdges={DEMO_FLOW.edges}
-                initialSubflows={DEMO_FLOW.subflows}
                 chainName="Scrambled demo"
               />
             </div>
@@ -426,7 +423,6 @@ ref.current?.arrange(); ref.current?.select(['n1']); ref.current?.reveal('n4');`
                 initialNodes={DEMO_FLOW.nodes}
                 initialEdges={DEMO_FLOW.edges}
                 initialGroups={DEMO_FLOW.groups}
-                initialSubflows={DEMO_FLOW.subflows}
               />
             </div>
           ),

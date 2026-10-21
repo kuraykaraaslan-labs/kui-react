@@ -11,7 +11,7 @@ export function slug(text: string | undefined, fallback: string): string {
   return s || fallback;
 }
 
-/** A unique id for a chain, subflow or similar: the slug of the name, then `-2`, `-3` … when taken. */
+/** A unique id for a chain or similar: the slug of the name, then `-2`, `-3` … when taken. */
 export function newId(used: Iterable<string>, name: string | undefined, fallback = 'item'): string {
   const has = used instanceof Set ? used : new Set(used);
   const base = slug(name, fallback);

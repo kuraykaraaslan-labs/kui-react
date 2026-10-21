@@ -1,7 +1,7 @@
 # modules/app/RulesetEditor
 
 The rule chain editor and everything around it: a visual editor for pipelines of blocks, the blocks it offers (a
-catalog, given as data), forms for their params, undo, groups, subflows, validation, and import / export.
+catalog, given as data), forms for their params, undo, groups, flows that run each other, validation, and import / export.
 
 Everything outside `RulesetEditor/` and `forms/ParamForm.tsx` is plain TypeScript: no React, no DOM, unit tested.
 
@@ -10,7 +10,7 @@ Everything outside `RulesetEditor/` and `forms/ParamForm.tsx` is plain TypeScrip
 - Showcase entry `ruleset-editor` (App): a business flow with a catalog that has no device in it (`demo-neutral.ts`: schedule, webhook in, compare, notification, webhook out), read only, and the messages in another language.
 - `/theme/iot/rulesets` — the list: import, export, versions, templates.
 - `/theme/iot/rulesets/<slug>` — the editor on a saved chain.
-- `/theme/iot/rulesets/catalog-demo` — the editor with a roltek-style catalog, a group, a subflow and one problem
+- `/theme/iot/rulesets/catalog-demo` — the editor with a roltek-style catalog, a group, a Run flow block and one problem
   to find. A checklist at the top says what to try. “Show file” prints `roltek-automation-1` as you edit.
 - Showcase → Domain → RulesetEditor.
 
@@ -23,7 +23,7 @@ RulesetEditor/      the React editor
                       MiniMap, GuideLines, SelectionFrame
   panels/             NodeEditorPanel (a ParamForm), result and trace panels
   insight/            InsightPanel (Debug, Errors, Data, Busiest) and RunsPanel (the run history and a step-by-step player; `runs.ts` is its pure part)
-  dialogs/            group, name, block picker, subflow settings
+  dialogs/            group, block picker, port, shortcuts, script test
   hooks/              useGraphEditor (state + history), useNodeDrag, useEdgeConnect, usePaletteDrop,
                       useSnapDrag, useBoxSelect, useMiniMap
   geometry.ts         node layout, port anchors, curves
@@ -34,6 +34,7 @@ catalog/            the block vocabulary as data
   params.ts           isVisible, defaultParams, validateParams, missingRequired
   ports.ts            resolvePorts, nodePortsOf
   fromBlocks.ts       catalogFromBlocks: load blocks.d files of roltek-automation-1
+  flow.ts             FLOW_BLOCKS: `trigger.flow_input` and `action.flow_run`, and the `flows` choice list name
   builtin.ts          BUILTIN_CATALOG: the ten original node types
   palette.ts          paletteGroups
   summary.ts          the line under a node title
@@ -45,7 +46,8 @@ graph/              pure operations on a graph
   layout.ts           autoLayout (layered, deterministic)
   snap.ts             12 px grid and alignment guide lines while dragging
   boxselect.ts        selection frame against blocks
-  groups.ts, subflows.ts, state.ts   groups; subflows (convert, nesting, settings); the state history steps over
+  groups.ts, state.ts   groups; the state history steps over
+  links.ts            link blocks and flow blocks: where a block leads, who calls it
   clipboard.ts        copy, paste, duplicate
   validate.ts         graph validation
   diff.ts             diffFlows: what a deploy changes (the router's flowlib diff; imports nothing)
@@ -63,7 +65,7 @@ demo.ts             sample catalog and flow for the showcase and the demo page
   initialNodes={chain.nodes}
   initialEdges={chain.edges}
   initialGroups={chain.groups}
-  initialSubflows={chain.subflows}
+  flowId={chain.chainId}       // a Run flow block that runs this flow is a problem
   catalog={myCatalog}          // default: BUILTIN_CATALOG
   choices={{ brokers: [...] }} // lists for `source` fields
   active={chain.active}        // a missing required param is an error when active, else a warning
@@ -73,7 +75,7 @@ demo.ts             sample catalog and flow for the showcase and the demo page
 
 | Prop | |
 | --- | --- |
-| `initialNodes`, `initialEdges`, `initialGroups`, `initialSubflows` | Read once. Give the editor a new `key` to load another chain. |
+| `initialNodes`, `initialEdges`, `initialGroups` | Read once. Give the editor a new `key` to load another chain. |
 | `catalog` | The blocks on offer. |
 | `choices` | `{ [sourceName]: { value, label }[] }` for `source` and `list` fields. Without a list the field is plain text. |
 | `paramEditors` | `{ [blockType]: ComponentType<ParamEditorProps> }`: the host's own param editor for a block type, shown in the node panel in place of the generated form. It gets `{ params, onChange(params), disabled, node, decl, choices }` and replaces the params as a whole; validation, the issues list and saving work as for the form. A type without an editor keeps the form. |
@@ -81,7 +83,7 @@ demo.ts             sample catalog and flow for the showcase and the demo page
 | `messages` | `Partial<EditorMessages>`: the words of the editor chrome (context menu, palette, node panel, the dialogs the editor opens, why a block cannot be added), so a host can translate them. What is not given stays English; a message that needs a number or a name is a function. Block titles and param labels come from the catalog. The remaining parts (canvas toolbar, issues panel, dialogs' inner texts, merge dialog, insight panel, debug modals, param form) are still English and move over one by one. |
 | `onSave` | `({ valid }) => void`: Ctrl+S (⌘+S) in the editor, its panel included and not a dialog, calls it and keeps the browser from saving the page; `valid` is false while the graph has errors. Without it the keys are left to the browser. `FlowWorkspace` passes `{ valid, dirty }`. |
 | `active` | Severity of “required param is empty”. |
-| `subflowDepthLimit` | How deep subflows may be nested. Default 4 (a host with a smaller engine passes its own limit). |
+| `flowId` | The id of the flow in the editor (`null` while it is not saved). A Run flow block whose `flow` is this id is an error (`run_self`). `FlowWorkspace` passes it. |
 | `onChange` | Called after every step of the undo history (a whole drag is one step) and after undo and redo. Not on mount. |
 | `readOnly`, `chainName`, `nodeStatus`, `className` | As before. |
 | `onSelectionChange` | `(ids: string[]) => void`, called when the selection of blocks changes (not on mount). |
@@ -93,7 +95,7 @@ demo.ts             sample catalog and flow for the showcase and the demo page
 | `onScriptTest`, `scriptTestSample` | `(request) => Promise<ScriptTestResult>`: a block whose code param has `api: 'automation-script'` gets "Test the script" in the node panel: a pane with the code (completion, hover, checks), the message (type, originator, payload, metadata) and an optional context. Run calls the host; the outputs (one per port), log, status, context writes and CPU time show, and an error with a line and column is marked in the code. Save writes the edited code back into the block (one undo step); nothing is deployed. `scriptTestSample(nodeId)` prefills it. |
 | `sideBar` | `RulesetSideBar`: one side bar as on the router (debug comparison item 6): the InsightPanel with the node panel as its Block tab (Settings, Messages) and Help tab, the host's `traceTab` and `runsTab`, and Debug, Errors, Data, Busiest fed by the same props as `InsightPanel`. Picking a block opens it on Block; the Errors tab lists the editor's validation errors, then the host's `deployProblems`. Without it the node panel stands alone. |
 
-The ref has `getGraph()` (nodes, edges, groups and subflows; always the latest), `undo()`, `redo()`, `validate()`,
+The ref has `getGraph()` (nodes, edges and groups; always the latest), `undo()`, `redo()`, `validate()`,
 `fit()` and `openRulesetDebug()`. `getGraph()` used to return only `{ nodes, edges }`; callers that read those two
 keep working. For hosts that add to the editor:
 
@@ -102,7 +104,7 @@ keep working. For hosts that add to the editor:
 | `arrange()` | Auto layout, one undo step, then the view fits. Returns false when nothing moved (or read only). |
 | `select(ids)` / `getSelection()` | Set and read the selected blocks (ids that are not on the canvas are ignored). |
 | `reveal(ids)` | Pan, and zoom out only if they do not fit, until the blocks are in view; no-op when they already are. |
-| `replaceGraph(graph, { key?, fit? })` | Replace the whole graph (nodes, edges, groups, subflows) as ONE undo step, e.g. a merge or a restored draft. Leaves a subflow that is gone. |
+| `replaceGraph(graph, { key?, fit? })` | Replace the whole graph (nodes, edges, groups) as ONE undo step, e.g. a merge or a restored draft. |
 
 Dragging a connection's end (UI-31): select a connection and two handles appear on its ends. Drag the target end onto
 another input (or a block: its first input), or the source end onto another output (or a block: the same port when it has
@@ -171,7 +173,7 @@ both. A secret never gets a `value`.
 ## Nodes, ports and ids
 
 A node is `{ nodeId, type, label, x, y, config?, script?, disabled?, original? }`. `type` is any string: a block of
-the catalog, `subflow.<id>` for an instance of a subflow, or `PLACEHOLDER` for something the catalog does not have
+the catalog, or `PLACEHOLDER` for something the catalog does not have
 (it keeps its wires and does nothing). Positions are rounded to 4 px when a block is added or moved by code; while
 dragging, blocks snap to a 12 px grid (see Canvas below).
 
@@ -179,10 +181,9 @@ Ids of new nodes, edges and groups are the next free `n1`, `e1`, `g1`, also arou
 
 ## History
 
-`useGraphEditor` keeps the nodes, edges, groups and subflows. Each change is a step; steps with the same key within a
+`useGraphEditor` keeps the nodes, edges and groups. Each change is a step; steps with the same key within a
 second join (typing in the panel); a drag is one step on release. Selection, view and open panels are not part of it.
-100 steps, 16 MB. Ctrl/⌘+Z undoes; Ctrl/⌘+Y or Ctrl+Shift+Z redoes. A subflow made after a step is left when you undo
-past it.
+100 steps, 16 MB. Ctrl/⌘+Z undoes; Ctrl/⌘+Y or Ctrl+Shift+Z redoes.
 
 ## Selection and clipboard
 
@@ -216,25 +217,32 @@ the grid dots (default `--border`), the same `--canvas-bg` the WidgetKit board r
 `{ groupId, name, color (0–7), nodeIds }`. A node is in one group. The frame is drawn from the members; dragging the
 name tab moves them; double click edits. Groups do nothing at run time.
 
-## Subflows
+## Flows that call each other
 
-`{ subflowId, name, description?, inputs (0 | 1), outputs[], params{}, nodes, edges, groups }`, used as the block
-`subflow.<id>`. Instance ports are the outputs plus `error`. Inside, the blocks `port.in`, `port.out` (names one of the
-outputs) and `port.status` are offered, and params are read as `env.<name>`.
+Like ThingsBoard rule chains, flows run each other; there are no subflows (they were replaced by `flow_input` and
+`flow_run`). Two blocks, declared in `catalog/flow.ts` (`FLOW_BLOCKS`; the router serves the same ones from its own
+`blocks.d` JSON), group `flow`, palette label “Flows”:
 
-- Select nodes, “Convert to a subflow…”: connections into the selection become the input, each distinct (node, port)
-  leaving it becomes an output, one instance takes its place, groups inside go with it. It is one undo step.
-- “Edit the subflow” (menu on an instance) shows the inside; the bar on top goes back and opens the settings.
-- Settings: name, input or not, outputs, params. Renaming an output keeps what is wired to it; removing one removes its
-  `port.out` blocks and the connections that left it, everywhere. A subflow in use cannot be deleted.
-- Nesting is limited (`subflowDepthLimit`) and a subflow cannot hold itself, not even through others. The palette
-  greys out what would break this, with the reason.
+- `trigger.flow_input` (“Flow input”): the fixed entry of a flow. No input, one output `out`, no params. At most one per
+  flow (a second is the error `one_flow_input`, and the palette greys it out). A flow that has one is callable.
+- `action.flow_run` (“Run flow”): a terminal block. One input, no output port (`error` stays the implicit engine port), one
+  required param `flow`: the id of the flow to run. It forwards the message to that flow's `flow_input` and never returns,
+  so put it at the end of a chain. Running its own flow is the error `run_self` (give the editor `flowId`).
+
+Data travels in the message only: no output node, no params passing, no return value, no nesting rule.
+
+The `flow` param is a `source` field named `flows` (`FLOWS_SOURCE`): a host that uses the bare editor passes
+`choices.flows`; `FlowWorkspace` fills it from its `flows` prop with the callable flows, the open one left out (see
+[docs/workspace.md](docs/workspace.md)). In `FlowWorkspace` the menu of a Run flow block has “Go to the Flow input of that
+flow”, and the menu of a Flow input “Show the blocks that run this flow”.
+
+An older `roltek-automation-1` or `kui-ruleset-1` file that still has a `subflows` list is read without it: each flow notes
+how many subflows were not imported, and nodes of type `subflow.*` become placeholders like any block the catalog lacks.
 
 ## Validation
 
-`validateGraph(graph, catalog, ctx)` returns `{ errors, warnings }`: `unsupported`, `unknown`, `required`, `port`,
-`cycle`, `depth`, `edge`, `edge_port`, `no_input`, `one_input`, `missing_in`, `port_in`, `out_name`, `unconnected`,
-`no_feed`. `required` is an error when the chain is active and a warning otherwise. The editor marks nodes, lists the
+`validateGraph(graph, catalog, ctx)` returns `{ errors, warnings }`: `unsupported`, `unknown`, `required`, `cycle_sync`,
+`edge`, `edge_port`, `no_input`, `one_flow_input`, `run_self` (needs `ctx.flowId`), `unconnected`, `no_feed`. `required` is an error when the chain is active and a warning otherwise. The editor marks nodes, lists the
 problems (top right) and repeats them in the node panel. It does not block anything: the host decides what to do
 (`ref.validate()`). Range, pattern and enum checks (`validateParams`) show next to the field.
 
@@ -244,19 +252,19 @@ problems (top right) and repeats them in the node panel. It does not block anyth
 
 | Format | Write | Read |
 | --- | --- | --- |
-| `kui-ruleset-1` | `buildExport` | `parseImport` (now with groups and subflows) |
+| `kui-ruleset-1` | `buildExport` | `parseImport` (with groups) |
 | `roltek-automation-1` | `buildRoltekExport` | `parseImport` (detects it; pass `{ catalog }`) |
 | Node-RED flow | — | `parseImport` |
 
 How a chain maps to a roltek flow: `nodeId` → `id`, `label` → `name` (written only when it differs from the block
 title), `config` → `params`, a param stored in `script` goes back under its own key, `sourceNodeId` / `sourcePort` /
-`targetNodeId` → `from` / `from_port` / `to`, `active` → `enabled`, groups and subflows as in the file. Ids that do not
+`targetNodeId` → `from` / `from_port` / `to`, `active` → `enabled`, groups as in the file. Ids that do not
 fit (`^[A-Za-z0-9_]{1,16}$` for nodes) are renumbered `n1`, `n2` …
 
 - Secret keys are left out and listed (`omitted`); `{ "$secret": true }` markers stay.
 - A block the catalog lacks becomes a placeholder, and a placeholder leaves as an `unsupported` block, so a round trip
   through this editor loses nothing.
-- The file has no edge ids; they are numbered again. A flow carries only the subflows it uses (and those they use).
+- The file has no edge ids; they are numbered again.
 - Config nodes (`configs`, `{ id, type, name?, params }`) are not part of a chain. `chainsToRoltek(chains, { configs })`
   (and `buildRoltekExport`) writes the ones the host passes, each secret param (declared `secret` by its block, or a
   key that reads like one) as `{ "$secret": true }` and listed in `omitted`. `roltekConfigs(file, catalog?)` reads them
@@ -266,7 +274,7 @@ fit (`^[A-Za-z0-9_]{1,16}$` for nodes) are renumbered `n1`, `n2` …
 
 ## Diff and version compare
 
-`diffFlows(a, b)` is the router's `flowlib.js` `diff`: two flows or subflows in the roltek shape (`a` null for a new
+`diffFlows(a, b)` is the router's `flowlib.js` `diff`: two flows in the roltek shape (`a` null for a new
 one) give `{ isNew, meta, nodes: { added, removed, changed, moved }, edges: { added, removed }, groups, total }`. A
 changed node lists its fields by path (`type`, `name`, `disabled`, `v`, `params.<key>`) with short `from` / `to`
 texts; a moved node is listed apart, as layout is not a change. Lists are sorted by id. `graph/diff.ts` imports nothing,
@@ -313,6 +321,6 @@ npx tsc --noEmit
 
 `catalog/*.test.ts`, `graph/*.test.ts`, `format/roltek.test.ts`, `transfer*.test.ts`, `forms/*.test.ts(x)`,
 `demo.test.ts` cover the pure functions (`graph/layout`, `snap` and `boxselect` included); `RulesetEditor/*.test.tsx` drive the editor (undo, selection, clipboard,
-panel, groups, subflows, menus, problems); `RulesetEditor/canvas/canvas-interaction.test.tsx` drives arrange, box
+panel, groups, menus, problems, flow blocks); `RulesetEditor/canvas/canvas-interaction.test.tsx` drives arrange, box
 select, snap and guides, the mini map and the extension API; `RulesetEditor/layout.test.ts` covers geometry, visuals
 and the runner.

@@ -8,14 +8,12 @@ export {
   RuleNodeSchema,
   RuleEdgeSchema,
   RuleGroupSchema,
-  RuleSubflowSchema,
   RuleChainSchema,
   type RuleNodeType,
   type RuleNode,
   type RuleNodeOriginal,
   type RuleEdge,
   type RuleGroup,
-  type RuleSubflow,
   type RuleChain,
 } from '@/modules/app/RulesetEditor/types';
 

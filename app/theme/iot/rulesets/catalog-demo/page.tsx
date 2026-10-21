@@ -14,7 +14,7 @@ import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 import { downloadText } from '../_components/download';
 
 const INITIAL: RulesetGraph = {
-  nodes: DEMO_FLOW.nodes, edges: DEMO_FLOW.edges, groups: DEMO_FLOW.groups ?? [], subflows: DEMO_FLOW.subflows ?? [],
+  nodes: DEMO_FLOW.nodes, edges: DEMO_FLOW.edges, groups: DEMO_FLOW.groups ?? [],
 };
 
 /** a fixed date, so the file shown while you edit does not change by itself */
@@ -32,7 +32,7 @@ const TRY: { title: string; text: string }[] = [
   { title: 'Snap and guides', text: 'Drag a block near another: it snaps to the grid and to the edges of its neighbours, with a guide line. Hold Alt to move freely.' },
   { title: 'Mini map', text: 'The binoculars button in the zoom bar shows an overview of 180 x 120. It also appears when blocks leave the view.' },
   { title: 'Groups', text: 'Select two nodes, right-click, “Group…”. Drag the name tab to move the members, double-click it to rename or recolour.' },
-  { title: 'Subflows', text: 'Right-click “Hold 2 min” and choose “Edit the subflow”. Or select nodes and “Convert to a subflow…”. The gear edits outputs and params.' },
+  { title: 'Flows that run each other', text: 'Click “Escalate” (a Run flow block at the end of a chain): its Flow param picks the flow to run. A Flow input block makes a flow callable; a flow has one at most.' },
   { title: 'Error paths', text: 'The dashed line from the bottom of “Too hot?” is its error port; drag from that small ring to wire one.' },
   { title: 'The file', text: 'Open “Show file” to see roltek-automation-1 as you edit. Secrets are left out of downloads.' },
 ];
@@ -69,7 +69,7 @@ export default function CatalogDemoPage() {
           <span className="text-border-strong" aria-hidden="true">·</span>
           <h1 className="min-w-0 truncate text-sm font-semibold text-text-primary">Block catalog demo</h1>
           <span className="hidden text-xs text-text-secondary md:block" role="status">
-            {graph.nodes.length} nodes · {graph.edges.length} edges · {graph.groups.length} {graph.groups.length === 1 ? 'group' : 'groups'} · {graph.subflows.length} {graph.subflows.length === 1 ? 'subflow' : 'subflows'}
+            {graph.nodes.length} nodes · {graph.edges.length} edges · {graph.groups.length} {graph.groups.length === 1 ? 'group' : 'groups'}
           </span>
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <Toggle id="demo-active" label="Chain is active" size="sm" checked={active} onChange={setActive} />
@@ -112,7 +112,7 @@ export default function CatalogDemoPage() {
               initialNodes={INITIAL.nodes}
               initialEdges={INITIAL.edges}
               initialGroups={INITIAL.groups}
-              initialSubflows={INITIAL.subflows}
+              flowId="boiler-demo"
               catalog={DEMO_CATALOG}
               choices={DEMO_CHOICES}
               active={active}

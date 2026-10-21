@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2026-05
 
-Drag-and-drop visual rule chain editor. The blocks come from a catalog (typed blocks with params), each block has a form built from its schema, and the editor has undo, multi-select, groups, subflows and validation.
+Drag-and-drop visual rule chain editor. The blocks come from a catalog (typed blocks with params), each block has a form built from its schema, and the editor has undo, multi-select, groups, flows that run each other and validation.
 
 ## Variants
 
@@ -20,7 +20,7 @@ Drag-and-drop visual rule chain editor. The blocks come from a catalog (typed bl
 />
 ```
 
-### Block catalog, param forms, a group and a subflow
+### Block catalog, param forms, a group and a Run flow block
 
 ```tsx
 <RulesetEditor
@@ -29,7 +29,6 @@ Drag-and-drop visual rule chain editor. The blocks come from a catalog (typed bl
   initialNodes={nodes}
   initialEdges={edges}
   initialGroups={groups}
-  initialSubflows={subflows}
   active={chain.active}        // a missing required param is then an error
   onChange={(graph) => save(graph)}
 />
@@ -69,10 +68,10 @@ ref.current?.arrange(); ref.current?.select(['n1']); ref.current?.reveal('n4');
 // Drag blocks from the palette onto the canvas, or right-click for "Add a block here…".
 // Click an output port (filled) and then an input port (hollow) to wire them.
 // Click a connection to select it; Delete removes it. Shift or Ctrl click selects several nodes.
-// Ctrl+Z undoes, Ctrl+Y redoes. Right-click a node to group, skip, copy or make a subflow of the selection.
+// Ctrl+Z undoes, Ctrl+Y redoes. Right-click a node to group, skip, copy or duplicate it.
 
 export function RulesetEditor({
-  initialNodes, initialEdges, initialGroups, initialSubflows,
+  initialNodes, initialEdges, initialGroups,
   catalog, choices, active, onChange, readOnly, className,
 }) {
   // ...

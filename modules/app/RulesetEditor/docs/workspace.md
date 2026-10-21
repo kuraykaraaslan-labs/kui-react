@@ -9,9 +9,9 @@ and opened from the host's list page. Hosts use the workspace instead of the bar
 
 ```tsx
 <FlowWorkspace
-  ref={wsRef} catalog={catalog} flows={flows} flow={{ id, kind: 'flow', name, graph }}
+  ref={wsRef} catalog={catalog} flows={flows} flow={{ id, name, graph }}
   onOpen={(flow, o) => router.push(...)}
-  loadFlows={(ids) => api.blocks(ids)} loadFlow={(kind, id) => api.flow(kind, id)}
+  loadFlows={(ids) => api.blocks(ids)} loadFlow={(id) => api.flow(id)}
   conflict={conflict} onMerged={(theirs) => setRevision(theirs.rev)} onConflictClose={() => setConflict(null)}
 />
 ```
@@ -21,7 +21,7 @@ the dialogs per flow. After the host saved, call `ref.markSaved(graph)`: that gr
 
 ## Browser draft
 
-One entry per flow or subflow (`kui-ruleset-draft:f:<id>` / `:s:<id>`), written about 0.8 s after the last change. Opening a
+One entry per flow (`kui-ruleset-draft:f:<id>`), written about 0.8 s after the last change. Opening a
 flow that has a draft shows a banner with Restore and Discard; Restore is one undo step (`ref.replaceGraph`). The draft is not
 written above 2 MB, goes when the host saves, and goes when you undo back to the saved state. Before leaving the flow (a link jump, or the host calling `ref.keepDraft()` before it navigates) the draft is written; if the browser cannot keep it the leave is refused with a message. Every storage
 access is in try/catch, so a blocked or full storage only means no draft.
@@ -34,10 +34,20 @@ the block (same flow) or calls `onOpen(flow, { nodeId })` (another flow; give `n
 open a list, none says so. The menu entry arrives through the editor's `nodeMenuItems`; the host's own `nodeMenuItems` are
 added after it.
 
+## Flows that run each other
+
+`flows` lists the flows of the host (`{ id, name, callable? }`). A `trigger.flow_input` makes a flow callable; a Run flow
+block (`action.flow_run`) picks the flow to run from the `flows` choice list, which the workspace builds from this list: the
+callable flows, the open one left out. Say `callable` yourself when the host knows it; otherwise the workspace loads the
+other flows once through `loadFlows` and looks for a Flow input block (without `loadFlows` a flow of unknown state is
+offered). It loads only when a block of the catalog has a `source: 'flows'` param. A `choices.flows` of the host wins.
+The menu of a Run flow block goes to the Flow input of its flow (`onOpen`); the menu of a Flow input lists the Run flow
+blocks that run its flow.
+
 ## Merge
 
 Set `conflict` when saving found a newer version. The dialog has a Merge button (and `conflictActions` for the host's own,
-such as overwrite). Merge loads their version with `loadFlow`, then three-way merges by node / group / subflow id and edge key
+such as overwrite). Merge loads their version with `loadFlow`, then three-way merges by node / group id and edge key
 against the baseline the draft keeps: a change on one side wins, a change on both sides keeps mine and is listed, edges to
 missing blocks are dropped. The result goes into the editor as one undo step and `onMerged(theirs, result)` tells the host to
 take their revision. The merge itself is pure (`graph/merge.ts`).
@@ -46,7 +56,7 @@ take their revision. The merge itself is pure (`graph/merge.ts`).
 
 `graph/merge.ts`, `graph/draft.ts` (key, size cap, safe storage adapter), `graph/links.ts` (name resolution, hit search, cache)
 - all pure, with tests. `workspace/`: `FlowWorkspace.tsx`, `DraftBanner.tsx`,
-`MergeDialog.tsx`, `LinkHitsDialog.tsx`, `useDraft.ts`, `useFlowLinks.ts`, `useMerge.ts`.
+`MergeDialog.tsx`, `LinkHitsDialog.tsx`, `useDraft.ts`, `useFlowLinks.ts`, `useCallableFlows.ts`, `useMerge.ts`.
 
 ## Not ported
 

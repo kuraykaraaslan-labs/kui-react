@@ -34,7 +34,7 @@ export default function RulesetEditorPage({ params }: { params: Promise<{ slug: 
   function save() {
     const graph = editorRef.current?.getGraph();
     if (!graph || !chain) return;
-    rulesetStore.save({ ...chain, nodes: graph.nodes, edges: graph.edges, groups: graph.groups, subflows: graph.subflows });
+    rulesetStore.save({ ...chain, nodes: graph.nodes, edges: graph.edges, groups: graph.groups });
     setSaved(`Saved as version ${lastVersion + 1}.`);
     setUnsaved(null);
   }
@@ -111,7 +111,7 @@ export default function RulesetEditorPage({ params }: { params: Promise<{ slug: 
       <div className="shrink-0 hidden md:flex items-center gap-2 border-b border-border bg-surface-raised px-4 py-1.5">
         <FontAwesomeIcon icon={faCircleInfo} className="w-3 h-3 text-text-secondary shrink-0" aria-hidden="true" />
         <p className="text-[11px] text-text-secondary">
-          Drag nodes from the palette · Click <span className="font-semibold text-primary">●</span> output → <span className="font-semibold">○</span> input to connect · Click a node to edit it · Shift or Ctrl click to select several · Ctrl+Z undoes · Right-click to group, skip or make a subflow · Click <span className="font-semibold">Debug</span> to trace execution
+          Drag nodes from the palette · Click <span className="font-semibold text-primary">●</span> output → <span className="font-semibold">○</span> input to connect · Click a node to edit it · Shift or Ctrl click to select several · Ctrl+Z undoes · Right-click to group or skip · Click <span className="font-semibold">Debug</span> to trace execution
         </p>
       </div>
 
@@ -123,7 +123,7 @@ export default function RulesetEditorPage({ params }: { params: Promise<{ slug: 
           initialNodes={chain.nodes}
           initialEdges={chain.edges}
           initialGroups={chain.groups}
-          initialSubflows={chain.subflows}
+          flowId={chain.chainId}
           active={chain.active}
           onChange={setUnsaved}
           chainName={chain.name}
