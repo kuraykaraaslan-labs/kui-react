@@ -209,6 +209,7 @@ export const SCADA_SCENE_KIND: BuiltinKindSpec = {
   type: 'scada.scene',
   label: 'Process diagram',
   category: 'Process & SCADA',
+  group: 'scada',
   description: 'A whole process diagram on one canvas: symbols placed by coordinates and joined by pipes, hoses, cables and wires that route themselves.',
   icon: 'fas fa-diagram-project',
   defaultW: 12,

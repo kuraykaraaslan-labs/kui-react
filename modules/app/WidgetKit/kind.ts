@@ -143,4 +143,9 @@ export interface BuiltinKindSpec {
   defaultH: number;
   slots: SlotSpec[];
   template: SettingsTemplate;
+  /**
+   * An optional product group (lower-case id, e.g. `scada`). A host that sells or switches a group on and off (next-boilerplate's
+   * `dashboard:widget_kinds`) lists a grouped kind only while something contributes that group; a kind without a group is always offered.
+   */
+  group?: string;
 }
