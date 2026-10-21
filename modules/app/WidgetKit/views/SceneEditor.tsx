@@ -591,7 +591,7 @@ function Panel({ title, side, open, onToggle, m, className, children, testId, wi
     <aside
       data-testid={testId}
       data-open={open}
-      className={cn('flex min-h-0 flex-col border-t border-border bg-surface-raised transition-[width] motion-reduce:transition-none lg:border-t-0', side === 'left' ? 'lg:border-r' : 'lg:border-l', open ? cn('max-h-80 lg:max-h-none', wide ? 'lg:w-96' : 'lg:w-72') : 'lg:w-10', className)}
+      className={cn('flex min-h-0 flex-col border-t border-border bg-surface-raised transition-[width] motion-reduce:transition-none lg:border-t-0', side === 'left' ? 'lg:border-r' : 'lg:border-l', open ? cn('max-h-80 lg:max-h-none', wide ? 'lg:w-[26rem]' : 'lg:w-72') : 'lg:w-10', className)}
     >
       <div className={cn('flex items-center justify-between gap-2 border-b border-border px-2 py-1.5', !open && 'lg:flex-col lg:border-b-0')}>
         <h3 className={cn('text-xs font-semibold uppercase tracking-wide text-text-secondary', !open && 'lg:[writing-mode:vertical-rl]')}>{title}</h3>

@@ -232,7 +232,7 @@ export function SceneEditorToolbar(p: SceneEditorToolbarProps) {
         className={cn('ml-auto flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus', p.problems ? 'text-warning' : 'text-text-secondary')}
       >
         <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />
-        {p.problems ? fill(m.problemsCount, { count: p.problems }) : m.noProblems}
+        {p.problems === 1 ? m.problemsOne : p.problems ? fill(m.problemsCount, { count: p.problems }) : m.noProblems}
       </button>
     </div>
   );

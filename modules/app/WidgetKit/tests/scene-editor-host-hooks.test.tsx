@@ -41,7 +41,7 @@ describe('host.problems', () => {
   it('adds the host\'s own problems to the count and to the problems tab', () => {
     const problems = vi.fn(() => [{ severity: 'warning' as const, code: 'actions-dropped', id: 'pump1', message: 'The click action of pump1 would be dropped' }]);
     mount({ host: { problems } });
-    expect(screen.getByTestId('problems-count')).toHaveTextContent('1 problems');
+    expect(screen.getByTestId('problems-count')).toHaveTextContent('1 problem');
     fireEvent.click(screen.getByTestId('problems-count'));
     expect(screen.getByText(/click action of pump1 would be dropped/)).toBeInTheDocument();
   });
