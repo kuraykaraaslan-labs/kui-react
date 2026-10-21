@@ -286,11 +286,12 @@ describe('the problems panel', () => {
     expect(document.body.querySelector('[data-selected-shape="2"]')).not.toBeNull();
   });
 
-  it('does nothing for a problem about the scene as a whole or an id that is not there', () => {
+  it('shows the scene (an empty selection) for a problem about the scene as a whole, and ignores an id that is not there', () => {
     mount();
     go('go valve');
-    fireEvent.click(screen.getByText('go scene'));
     fireEvent.click(screen.getByText('go nobody'));
     expect(selected(document.body)).toEqual(['valve1']);
+    fireEvent.click(screen.getByText('go scene'));
+    expect(selected(document.body)).toEqual([]);
   });
 });

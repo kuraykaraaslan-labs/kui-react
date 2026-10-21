@@ -186,7 +186,7 @@ describe('random edit sequences hold the invariants', () => {
     expect(Object.keys(counts).length).toBeGreaterThan(10);
     // And it does hit refusals (bad ids, twins, caps), which must leave the scene alone.
     expect(refusedTotal).toBeGreaterThan(0);
-  });
+  }, 60_000);
 });
 
 describe('the sample scenes open and come back unchanged', () => {

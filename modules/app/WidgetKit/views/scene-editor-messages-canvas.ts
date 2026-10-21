@@ -23,7 +23,7 @@ export interface SceneEditorMessages {
   problemsCount: string; noProblems: string;
   // Shell
   panelPalette: string; panelInspector: string; collapse: string; expand: string;
-  actionsHint: string; tabProperties: string; tabActions: string; tabProblems: string; tabWhatIf: string; tabs: string;
+  actionsHint: string; tabProperties: string; tabRules: string; tabActions: string; tabProblems: string; tabWhatIf: string; tabs: string;
   apply: string; applying: string; close: string;
   dirtyTitle: string; dirtyBody: string; dirtyDiscard: string; dirtyKeep: string; applyFailed: string; applied: string;
   // Paste box
@@ -59,7 +59,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   unlockAll: 'Unlock all', showAll: 'Show all',
   problemsCount: '{count} problems', noProblems: 'No problems',
   panelPalette: 'Symbols', panelInspector: 'Inspector', collapse: 'Collapse {panel}', expand: 'Expand {panel}',
-  actionsHint: 'Select one symbol to edit its actions.', tabProperties: 'Properties', tabActions: 'Actions', tabProblems: 'Problems', tabWhatIf: 'What-if', tabs: 'Inspector sections',
+  actionsHint: 'Select one symbol to edit its actions.', tabProperties: 'Properties', tabRules: 'Rules', tabActions: 'Actions', tabProblems: 'Problems', tabWhatIf: 'What-if', tabs: 'Inspector sections',
   apply: 'Apply', applying: 'Applying', close: 'Close',
   dirtyTitle: 'Discard your changes?', dirtyBody: 'The diagram has changes that were not applied.', dirtyDiscard: 'Discard changes', dirtyKeep: 'Keep editing',
   applyFailed: 'The diagram could not be applied.', applied: 'Applied',
