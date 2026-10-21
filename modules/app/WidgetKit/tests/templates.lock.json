@@ -4629,7 +4629,12 @@
     "symbol": {
       "type": "select",
       "value": "tank.vertical",
-      "options": []
+      "options": [
+        "home.tv",
+        "home.router",
+        "home.camera.security",
+        "home.plug.smart"
+      ]
     },
     "orientation": {
       "type": "select",
@@ -5750,7 +5755,12 @@
         "symbol": {
           "type": "select",
           "value": "tank.vertical",
-          "options": []
+          "options": [
+            "home.tv",
+            "home.router",
+            "home.camera.security",
+            "home.plug.smart"
+          ]
         },
         "x": {
           "type": "number",
