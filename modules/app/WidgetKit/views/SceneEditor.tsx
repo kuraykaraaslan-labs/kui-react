@@ -492,6 +492,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
             onDragStart={(symbol) => setPaletteDrag({ symbol })}
             recent={recent}
             locale={locale}
+            className="flex-1 p-3"
           />
         </Panel>
 
@@ -517,7 +518,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
         </div>
 
         <Panel title={m.panelInspector} side="right" open={open.inspector} onToggle={() => setOpen((o) => ({ ...o, inspector: !o.inspector }))} m={m} className="order-3" testId="panel-inspector" wide>
-          <div role="tablist" aria-label={m.tabs} className="flex overflow-x-auto border-b border-border" onKeyDown={onTabKey}>
+          <div role="tablist" aria-label={m.tabs} className="flex overflow-x-auto border-b border-border px-3" onKeyDown={onTabKey}>
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -535,9 +536,9 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
               </button>
             ))}
           </div>
-          <div id={`scene-tabpanel-${activeTab}`} role="tabpanel" aria-labelledby={`scene-tab-${activeTab}`} className="min-h-0 flex-1 overflow-auto">
+          <div id={`scene-tabpanel-${activeTab}`} role="tabpanel" aria-labelledby={`scene-tab-${activeTab}`} className="min-h-0 flex-1 overflow-auto p-3">
             {(activeTab === 'properties' || activeTab === 'rules') && <SceneInspector ctx={ctx} tab={activeTab} showTabs={false} />}
-            {activeTab === 'actions' && (selectedElements.length === 1 && selectionCount(selection) === 1 ? host.renderActions?.(selectedElements[0]) : <p className="p-3 text-sm text-text-secondary">{m.actionsHint}</p>)}
+            {activeTab === 'actions' && (selectedElements.length === 1 && selectionCount(selection) === 1 ? host.renderActions?.(selectedElements[0]) : <p className="text-sm text-text-secondary">{m.actionsHint}</p>)}
             {activeTab === 'problems' && <SceneProblems ctx={ctx} onSelect={focusProblem} onOpenRule={() => setTab('rules')} />}
             {activeTab === 'whatif' && <SceneWhatIf ctx={ctx} value={whatIf} onChange={setWhatIf} />}
           </div>
@@ -589,7 +590,7 @@ function Panel({ title, side, open, onToggle, m, className, children, testId, wi
     <aside
       data-testid={testId}
       data-open={open}
-      className={cn('flex min-h-0 flex-col border-t border-border bg-surface-raised transition-[width] motion-reduce:transition-none lg:border-t-0', side === 'left' ? 'lg:border-r' : 'lg:border-l', open ? cn('max-h-80 lg:max-h-none', wide ? 'lg:w-80' : 'lg:w-64') : 'lg:w-10', className)}
+      className={cn('flex min-h-0 flex-col border-t border-border bg-surface-raised transition-[width] motion-reduce:transition-none lg:border-t-0', side === 'left' ? 'lg:border-r' : 'lg:border-l', open ? cn('max-h-80 lg:max-h-none', wide ? 'lg:w-96' : 'lg:w-72') : 'lg:w-10', className)}
     >
       <div className={cn('flex items-center justify-between gap-2 border-b border-border px-2 py-1.5', !open && 'lg:flex-col lg:border-b-0')}>
         <h3 className={cn('text-xs font-semibold uppercase tracking-wide text-text-secondary', !open && 'lg:[writing-mode:vertical-rl]')}>{title}</h3>

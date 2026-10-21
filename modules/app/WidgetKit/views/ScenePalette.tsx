@@ -150,7 +150,7 @@ export function ScenePalette({ onAdd, onDragStart, recent, locale, addOn = 'clic
         )}
       </div>
 
-      <div role="group" aria-label={m.familyGroup} className="flex gap-1.5 overflow-x-auto pb-1">
+      <div role="group" aria-label={m.familyGroup} className="flex gap-1.5 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,#000_90%,transparent)]">
         <button type="button" aria-pressed={!family} onClick={() => { setFamily(''); }} className={chip(!family)}>{m.allFamilies}</button>
         {families.map((f) => (
           <button key={f} type="button" aria-pressed={family === f} onClick={() => { setFamily(family === f ? '' : f); setSector(''); }} className={chip(family === f)}>
@@ -158,7 +158,7 @@ export function ScenePalette({ onAdd, onDragStart, recent, locale, addOn = 'clic
           </button>
         ))}
       </div>
-      <div role="group" aria-label={m.sectorGroup} className="flex gap-1.5 overflow-x-auto pb-1">
+      <div role="group" aria-label={m.sectorGroup} className="flex gap-1.5 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,#000_90%,transparent)]">
         <button type="button" aria-pressed={!sector} onClick={() => setSector('')} className={chip(!sector)}>{m.allSectors}</button>
         {sectorsHere.map((s) => (
           <button key={s} type="button" aria-pressed={sector === s} onClick={() => setSector(sector === s ? '' : s)} className={chip(sector === s)}>
