@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import type { SlotData } from '../kind';
 import type { EditResult, Selection } from './scene-edit-logic';
 import type { SceneModel, SceneSettings } from './scada-scene-logic';
+import type { SceneEditorMessagesOverride } from './scene-editor-messages-canvas';
 
 /** What the host (next-boilerplate, a showcase) gives the editor beyond the diagram itself. */
 export interface EditorHost {
@@ -58,4 +59,9 @@ export interface SceneEditorProps {
   onClose: () => void;
   /** The host's number words (unit included), as `sceneModel` takes them. */
   format?: (n: number, own?: { unit?: string; decimals?: number }) => string;
+  /** The host's words for the shell and canvas (any subset of the English defaults). */
+  messages?: SceneEditorMessagesOverride;
+  /** The localStorage key of the saved pieces and recent symbols (default `kui.scada.editor`); the editor works without storage. */
+  storageKey?: string;
+  className?: string;
 }
