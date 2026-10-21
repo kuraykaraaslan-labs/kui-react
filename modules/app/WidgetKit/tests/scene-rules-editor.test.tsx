@@ -146,6 +146,23 @@ describe('SceneRulesEditor: editing', () => {
     fireEvent.change(screen.getByLabelText('State'), { target: { value: '' } });
     expect('state' in rulesOf(probe)[0]).toBe(false);
   });
+  it('sets the state effects: mode, data quality, speed, direction, acknowledgement, opening, command badges', () => {
+    const { probe } = mount([{ target: 'pump1', key: 'value', op: 'gt', value: '1' }]);
+    fireEvent.click(screen.getByRole('button', { name: /When/ }));
+    fireEvent.change(screen.getByLabelText('Mode'), { target: { value: 'maintenance' } });
+    fireEvent.change(screen.getByLabelText('Data quality'), { target: { value: 'stale' } });
+    fireEvent.change(screen.getByLabelText('Speed (% of nominal)'), { target: { value: '50' } });
+    fireEvent.change(screen.getByLabelText('Direction'), { target: { value: 'true' } });
+    fireEvent.change(screen.getByLabelText('Alarm acknowledged'), { target: { value: 'false' } });
+    fireEvent.change(screen.getByLabelText('Opening (%)'), { target: { value: '40' } });
+    fireEvent.change(screen.getByLabelText('Command pending'), { target: { value: 'true' } });
+    fireEvent.change(screen.getByLabelText('Command failed'), { target: { value: 'false' } });
+    expect(rulesOf(probe)[0]).toMatchObject({ mode: 'maintenance', quality: 'stale', speed: 50, reverse: 'true', ack: 'false', position: 40, pending: 'true', failed: 'false' });
+    expect(validateRules(rulesOf(probe), { elementIds: ['pump1', 'tank1', 'valve1'] })).toEqual([]);
+    fireEvent.change(screen.getByLabelText('Mode'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText('Speed (% of nominal)'), { target: { value: '' } });
+    expect('mode' in rulesOf(probe)[0]).toBe(false);
+  });
   it('turns a rule off and on', () => {
     const { probe } = mount(RULES);
     fireEvent.click(screen.getAllByRole('checkbox', { name: 'On: rule 1' })[0]);

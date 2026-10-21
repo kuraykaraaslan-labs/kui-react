@@ -163,6 +163,14 @@ describe('rulesFor and ruleTargets', () => {
   });
 });
 
+describe('describeRule: state effects', () => {
+  it('says each of the state effects in words', () => {
+    expect(describeRule({ target: 'p', mode: 'lockout', quality: 'offline', speed: 50, reverse: 'true', ack: 'false', position: 40, pending: 'true', failed: 'false' }))
+      .toBe('Always, set the mode to locked out, mark its data lost, run it at 50 % of its speed, run it in reverse, mark its alarm unacknowledged, show it 40 % open, show a command pending and clear the failed command');
+    expect(describeRule({ target: 'p', reverse: 'false', ack: 'true', pending: 'false', failed: 'true', mode: 'unknown' })).toBe('Always, set the mode to unknown, run it forward, mark its alarm acknowledged, clear the pending command and show a failed command');
+  });
+});
+
 describe('describeRule', () => {
   it('writes a rule as a sentence', () => {
     const r = { target: 'pump1', key: 'temp', op: 'gt', value: '24', state: 'warning', label: 'High' };
