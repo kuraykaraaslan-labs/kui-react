@@ -517,7 +517,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
         </div>
 
         <Panel title={m.panelInspector} side="right" open={open.inspector} onToggle={() => setOpen((o) => ({ ...o, inspector: !o.inspector }))} m={m} className="order-3" testId="panel-inspector" wide>
-          <div role="tablist" aria-label={m.tabs} className="flex border-b border-border" onKeyDown={onTabKey}>
+          <div role="tablist" aria-label={m.tabs} className="flex overflow-x-auto border-b border-border" onKeyDown={onTabKey}>
             {tabs.map((t) => (
               <button
                 key={t.id}
@@ -528,7 +528,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
                 aria-controls={`scene-tabpanel-${t.id}`}
                 tabIndex={activeTab === t.id ? 0 : -1}
                 onClick={() => setTab(t.id)}
-                className={cn('-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus', activeTab === t.id ? 'border-primary font-medium text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary')}
+                className={cn('-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus', activeTab === t.id ? 'border-primary font-medium text-text-primary' : 'border-transparent text-text-secondary hover:text-text-primary')}
               >
                 {t.label}
                 {t.badge ? <span className="rounded-full bg-warning-subtle px-1.5 text-xs text-warning-fg">{t.badge}</span> : null}

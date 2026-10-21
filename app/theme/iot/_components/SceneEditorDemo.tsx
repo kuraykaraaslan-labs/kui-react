@@ -11,7 +11,7 @@ const COLUMNS = ['value', 'value2', 'running', 'status', 'warning', 'critical', 
 const ACTION_IDS = new Set(['ch', 'ahu']);
 
 /** A blank diagram with example readings for the ids the first symbols will get (`?scene=empty`). */
-const EMPTY_SETTINGS: SceneSettings = { width: 1200, height: 700, scale: 0.7, background: 'dots', fit: 'canvas', elements: [], links: [], shapes: [] };
+const EMPTY_SETTINGS: SceneSettings = { width: 1000, height: 560, scale: 0.9, background: 'dots', fit: 'canvas', elements: [], links: [], shapes: [] };
 const EMPTY_ROWS = [
   { id: 'tank1', value: 72, running: true }, { id: 'tank2', value: 35, running: true }, { id: 'pump1', running: true }, { id: 'pump2', running: true },
   { id: 'valve1', running: true }, { id: 'meter1', running: true }, { id: 'filter1', running: true }, { id: 'fan1', running: true },
