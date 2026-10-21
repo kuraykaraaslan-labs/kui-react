@@ -151,6 +151,8 @@ describe('moving symbols', () => {
   });
 
   it('nudges the focused symbol with the arrows (1 unit, Shift = 10) as one undo step per burst', async () => {
+    // The clock is fixed so the three presses are one burst however slow the machine is.
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(1_000_000_000_000);
     const { canvas, applied } = mount();
     const g = canvas.querySelector('[data-element="valve1"]') as Element;
     fireEvent.focus(g);
@@ -161,7 +163,27 @@ describe('moving symbols', () => {
     key(canvas, 'z', { ctrlKey: true });
     expect(screen.getByTestId('editor-apply')).toBeDisabled();
     key(canvas, 'y', { ctrlKey: true });
+    spy.mockRestore();
     expect(element(await applied(), 'valve1')).toMatchObject({ x: 502, y: 210 });
+  });
+});
+
+describe('nudge bursts', () => {
+  it('presses less than the window apart are one undo step, however the clock falls; a pause starts a new step', () => {
+    let now = 1_000_000_000_000;
+    const spy = vi.spyOn(Date, 'now').mockImplementation(() => now);
+    try {
+      const { canvas } = mount();
+      const g = canvas.querySelector('[data-element="valve1"]') as Element;
+      fireEvent.focus(g);
+      key(g, 'ArrowRight'); now += 790; key(g, 'ArrowRight'); now += 790; key(g, 'ArrowRight');
+      key(canvas, 'z', { ctrlKey: true });
+      expect(screen.getByTestId('editor-apply')).toBeDisabled();
+      key(canvas, 'y', { ctrlKey: true });
+      now += 5000; key(g, 'ArrowRight'); now += 5000; key(g, 'ArrowRight');
+      key(canvas, 'z', { ctrlKey: true });
+      expect(screen.getByTestId('editor-apply')).toBeEnabled();
+    } finally { spy.mockRestore(); }
   });
 });
 

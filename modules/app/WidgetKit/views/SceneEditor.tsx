@@ -44,7 +44,15 @@ const BURST_MS = 800;
 
 type TabId = 'properties' | 'rules' | 'actions' | 'problems' | 'whatif';
 
-const bucket = (kind: string) => `${kind}:${Math.floor(Date.now() / BURST_MS)}`;
+/** A burst is a run of presses less than `BURST_MS` apart: they share one key, so they are one undo step (a fixed clock bucket would split a burst that straddles its edge). */
+const lastPress = new Map<string, { at: number; n: number }>();
+const bucket = (kind: string) => {
+  const now = Date.now();
+  const last = lastPress.get(kind);
+  const n = last && now - last.at < BURST_MS ? last.n : (last?.n ?? 0) + 1;
+  lastPress.set(kind, { at: now, n });
+  return `${kind}:${n}`;
+};
 const round2 = (v: number) => Math.round(v * 100) / 100;
 const TOOL_LABEL = { select: 'toolSelect', connect: 'toolConnect', pan: 'toolPan', text: 'toolText', zone: 'toolZone', divider: 'toolDivider' } as const;
 
