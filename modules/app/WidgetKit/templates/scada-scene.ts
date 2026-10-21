@@ -3,8 +3,17 @@ import type { SettingsTemplate, Sparse } from '../settings/types';
 import type { BuiltinKindSpec } from '../kind';
 import { isFormKey } from '../views/control-form-logic';
 import { MAX_SCENE_ELEMENTS, MAX_SCENE_LINKS, MAX_SCENE_SHAPES, parsePort, type SceneElementSetting, type SceneLinkSetting, type SceneShapeSetting } from '../views/scada-scene-logic';
+import { MAX_RULE_LABEL, MAX_SCENE_RULES, RULE_OPS, validateRules } from '../views/scene-rules-logic';
 import { isScadaSymbol, SCADA_SYMBOLS, SCADA_SYMBOL_DEFS, type SymbolDef } from '../views/scada-logic';
 import { MEDIUM_OPTIONS, SYMBOL_OPTIONS } from './scada';
+
+const YES_NO = [opt('', 'No change'), opt('true', 'Yes'), opt('false', 'No')];
+const RULE_OP_OPTIONS = [
+  opt('', 'Always'), opt('eq', 'equal to'), opt('ne', 'not equal to'), opt('gt', 'greater than'), opt('gte', 'greater than or equal to'),
+  opt('lt', 'less than'), opt('lte', 'less than or equal to'), opt('between', 'between (inclusive)'), opt('in', 'one of (comma list)'),
+  opt('set', 'set'), opt('unset', 'not set'), opt('true', 'true'), opt('false', 'false'),
+];
+if (RULE_OP_OPTIONS.length !== RULE_OPS.length + 1) throw new Error('scada.scene: the operator options and the rule engine disagree');
 
 const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter((r) => r && typeof r === 'object') : []);
 
@@ -16,7 +25,7 @@ const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter((r) 
  */
 export const SCADA_SCENE: SettingsTemplate = {
   id: 'builtin:scada.scene',
-  version: 2,
+  version: 3,
   namespace: '',
   label: 'Process diagram',
   format: true,
@@ -31,6 +40,7 @@ export const SCADA_SCENE: SettingsTemplate = {
     { id: 'data', label: 'Data', tab: 'Data', since: 1 },
     { id: 'motion', label: 'Animation', tab: 'Display', since: 1 },
     { id: 'shapes', label: 'Titles and zones', tab: 'Display', since: 2 },
+    { id: 'rules', label: 'Rules', tab: 'Data', since: 3 },
   ],
   fields: since(1, {
     width: { label: 'Canvas width', type: 'number', display: 'input', min: 200, max: 4000, value: 1200, group: 'canvas', description: 'Scene units. The diagram scales to the card and keeps its proportions.' },
@@ -71,6 +81,13 @@ export const SCADA_SCENE: SettingsTemplate = {
         min: { label: 'Minimum', type: 'number', nullable: true, display: 'input', placeholder: '0' },
         max: { label: 'Maximum', type: 'number', nullable: true, display: 'input', placeholder: '100' },
         showValue: { label: 'Show the number', type: 'boolean', value: true },
+        fillColor: { label: 'Liquid colour', type: 'color', description: 'Empty = the symbol\'s own.' },
+        idleColor: { label: 'Idle colour', type: 'color', description: 'Empty = the scene\'s.' },
+        runningColor: { label: 'Running colour', type: 'color', description: 'Empty = the scene\'s.' },
+        warningColor: { label: 'Warning colour', type: 'color', description: 'Empty = the scene\'s.' },
+        criticalColor: { label: 'Critical colour', type: 'color', description: 'Empty = the scene\'s.' },
+        unit: { label: 'Unit', type: 'text', maxLength: 16, placeholder: 'The card\'s unit', description: 'Written after this symbol\'s numbers.' },
+        decimals: { label: 'Decimals', type: 'number', nullable: true, display: 'input', min: 0, max: 6, placeholder: 'The card\'s', description: 'For this symbol\'s numbers.' },
       },
     },
     links: {
@@ -116,6 +133,39 @@ export const SCADA_SCENE: SettingsTemplate = {
     },
     calm: { label: 'Calm look', type: 'boolean', value: false, group: 'colour', description: 'Running parts are drawn in plain ink, not green; only a warning or an alarm shows colour (ISA-101 style).' },
     }),
+    ...since(3, {
+    rules: {
+      label: 'Rules', type: 'repeater', group: 'rules', max: MAX_SCENE_RULES,
+      description: 'Make symbols and connections follow the data. A rule names a target, up to two conditions and what to change while they hold. Rules run top to bottom; every rule that matches applies, a later rule wins for the same change, and "Stop" ends the rules for that target.',
+      fields: {
+        enabled: { label: 'On', type: 'boolean', value: true },
+        target: { label: 'Applies to', type: 'text', maxLength: 64, required: true, placeholder: 'pump1, a connection id or *', description: 'A symbol id, a connection id (its "State from row"), or * for all of them.' },
+        source: { label: 'When: read', type: 'select', value: 'column', options: [opt('column', 'A column of a row'), opt('param', 'A board parameter')] },
+        key: { label: 'Column or parameter', type: 'text', maxLength: 64, placeholder: 'value, status, mode' },
+        of: { label: 'Of row', type: 'text', maxLength: 64, placeholder: 'This symbol\'s own row', description: 'The id of another symbol or connection whose row is read.' },
+        op: { label: 'Is', type: 'select', options: RULE_OP_OPTIONS, description: 'Empty = the rule always applies.' },
+        value: { label: 'Value', type: 'text', maxLength: 80, placeholder: '80, off, a,b,c' },
+        to: { label: 'Up to', type: 'text', maxLength: 40, placeholder: 'Upper end of "between"' },
+        join: { label: 'Join with', type: 'select', value: 'all', options: [opt('all', 'And (all hold)'), opt('any', 'Or (one holds)')] },
+        source2: { label: 'And when: read', type: 'select', value: 'column', options: [opt('column', 'A column of a row'), opt('param', 'A board parameter')] },
+        key2: { label: 'Column or parameter', type: 'text', maxLength: 64 },
+        of2: { label: 'Of row', type: 'text', maxLength: 64, placeholder: 'This symbol\'s own row' },
+        op2: { label: 'Is', type: 'select', options: RULE_OP_OPTIONS, description: 'Empty = no second condition.' },
+        value2: { label: 'Value', type: 'text', maxLength: 80 },
+        to2: { label: 'Up to', type: 'text', maxLength: 40 },
+        state: { label: 'Then: state', type: 'select', options: [opt('', 'No change'), opt('idle', 'Idle'), opt('running', 'Running'), opt('warning', 'Warning'), opt('critical', 'Critical'), opt('off', 'Off (passive, nothing flowing)')] },
+        color: { label: 'Colour', type: 'color', description: 'Replaces the state colour.' },
+        fillColor: { label: 'Liquid colour', type: 'color' },
+        dim: { label: 'Passive look', type: 'select', options: YES_NO },
+        blink: { label: 'Blink', type: 'select', options: YES_NO, description: 'Not when the viewer asks for reduced motion or the animation is off.' },
+        hidden: { label: 'Hide', type: 'select', options: YES_NO, description: 'Connections that touch a hidden symbol still draw.' },
+        label: { label: 'Name', type: 'text', maxLength: MAX_RULE_LABEL, placeholder: 'High: {value}', description: 'Tokens: {value}, {value2}, {label}, {id}, {param:name}.' },
+        medium: { label: 'Medium', type: 'select', options: [opt('', 'No change'), ...MEDIUM_OPTIONS] },
+        animate: { label: 'Motion', type: 'select', options: [opt('', 'No change'), opt('false', 'Stop it'), opt('true', 'Leave it on')] },
+        stop: { label: 'Stop here', type: 'boolean', value: false, description: 'No later rule applies to this target once this one matched.' },
+      },
+    },
+    }),
   }),
   rules: [
     (v: Sparse) => {
@@ -134,10 +184,15 @@ export const SCADA_SCENE: SettingsTemplate = {
           else if (!ids.has(port.id)) issues.push({ path: `links.${i}.${end}`, message: 'No symbol has this id' });
         }
       });
+      const linkIds = list<SceneLinkSetting>(v.links).map((l) => (typeof l.id === 'string' ? l.id : '')).filter(Boolean);
+      issues.push(...validateRules(v.rules, { elementIds: ids, linkIds }));
       return issues;
     },
   ],
-  migrations: [{ from: 1, to: 2, note: 'Titles and zones on the canvas, single-line connections and a calm look (all new, nothing changes for a saved diagram).' }],
+  migrations: [
+    { from: 1, to: 2, note: 'Titles and zones on the canvas, single-line connections and a calm look (all new, nothing changes for a saved diagram).' },
+    { from: 2, to: 3, note: 'Rules and per-symbol colours, unit and decimals (all new).' },
+  ],
 };
 
 export const SCADA_SCENE_KIND: BuiltinKindSpec = {

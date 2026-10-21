@@ -12,6 +12,8 @@ import { cablePath, hosePath, strip } from './scada-line';
 import {
   drawScada, isScadaSymbol, SCADA_SYMBOL_DEFS, scadaPaint, type ScadaSettings, type SymbolDef,
 } from './scada-logic';
+import { evaluateRules, type SceneEffects, type RuleState } from './scene-rules-logic';
+import { cssColor } from '../settings/style';
 import { el, r2, text, type SvgNode } from './svg-node';
 
 export type SceneLinkKind = 'pipe' | 'hose' | 'cable' | 'wire' | 'strip' | 'line' | 'sld';
@@ -36,6 +38,14 @@ export type SceneElementSetting = {
   labelPos?: 'b' | 't' | 'n';
   /** Where the number of a level or dial sits: under the symbol (default) or beside it. */
   valuePos?: 'b' | 'r';
+  /** Own colours and number words; empty = the scene's or the symbol's default. */
+  fillColor?: string;
+  idleColor?: string;
+  runningColor?: string;
+  warningColor?: string;
+  criticalColor?: string;
+  unit?: string;
+  decimals?: number | null;
 };
 
 /** A drawing on the canvas that is not a process symbol: a title, a zone outline, a divider. Never takes a reading. */
@@ -87,6 +97,8 @@ export type SceneSettings = {
   runningColor?: string;
   warningColor?: string;
   criticalColor?: string;
+  /** Data-driven rules (`scene-rules-logic.ts`). */
+  rules?: unknown;
 };
 
 /** The height of a label line and the margin around the content, in scene units. */
@@ -255,29 +267,80 @@ export function linkNodes(kind: SceneLinkKind, points: Pt[], paint: Paint, k: nu
   return [el('g', { transform: `scale(${r2(k * 1000) / 1000})` }, inner)];
 }
 
-/** The settings a symbol draws with, from the scene's colours and one element's own choices. */
-function symbolSettings(scene: SceneSettings, e: SceneElementSetting, link?: SceneLinkSetting): ScadaSettings {
+/** The settings a symbol draws with, from the scene's colours, one element's own choices and what the rules decided. */
+function symbolSettings(scene: SceneSettings, e: SceneElementSetting, link?: SceneLinkSetting, fx: SceneEffects = {}): ScadaSettings {
   return {
     symbol: e.symbol,
     length: e.length,
     min: typeof e.min === 'number' ? e.min : undefined,
     max: typeof e.max === 'number' ? e.max : undefined,
-    medium: link?.medium ?? e.medium,
+    // An `off` part carries nothing.
+    medium: fx.state === 'off' ? 'none' : fx.medium ?? link?.medium ?? e.medium,
     mediumColor: link?.mediumColor ?? e.mediumColor,
     arrows: link?.arrows === true,
-    animation: scene.animation,
-    idleColor: scene.idleColor,
-    runningColor: scene.calm === true ? 'var(--text-primary)' : scene.runningColor,
-    warningColor: scene.warningColor,
-    criticalColor: scene.criticalColor,
+    animation: fx.animate === false ? false : scene.animation,
+    fillColor: e.fillColor || undefined,
+    idleColor: e.idleColor || scene.idleColor,
+    runningColor: e.runningColor || (scene.calm === true ? 'var(--text-primary)' : scene.runningColor),
+    warningColor: e.warningColor || scene.warningColor,
+    criticalColor: e.criticalColor || scene.criticalColor,
   };
 }
+
+/** How much a passive (dimmed) part shows through. */
+export const DIM_OPACITY = 0.4;
+
+const slot = (value: SlotData['value']): SlotData => ({ shape: 'scalar', value });
+
+/** The slots a symbol reads with a state the rules forced: the alarm columns are replaced, the table is not touched. */
+function withState(slots: Record<string, SlotData>, state: RuleState): Record<string, SlotData> {
+  const out = { ...slots };
+  if (state === 'running') out.running = slot(true);
+  else if (state === 'idle' || state === 'off') out.running = slot(false);
+  out.status = slot(state === 'warning' || state === 'critical' ? state : null);
+  out.warning = slot(false);
+  out.critical = slot(false);
+  return out;
+}
+
+/**
+ * The accent replaces the state colour (and the liquid's, in an alarm); `fillColor` replaces the liquid's. Symbols draw
+ * an idle part in the muted ink, so an accent, or an idle colour that is not the default, makes it a coloured part that
+ * does not move (state `running`, `running` flag unchanged).
+ */
+function withColors(paint: Paint, fx: SceneEffects): Paint {
+  const idle = paint.state === 'idle';
+  const accent = fx.color ?? (idle && paint.idle !== MUTED ? paint.idle : undefined);
+  if (!accent && !fx.fillColor) return paint;
+  const alarm = paint.state === 'warning' || paint.state === 'critical';
+  return { ...paint, state: accent && idle ? 'running' : paint.state, color: accent ?? paint.color, fill: fx.fillColor ?? (fx.color && alarm ? fx.color : paint.fill) };
+}
+
+/** A passive look and a blink around a drawing. The blink only runs where motion is allowed (`paint.animate`). */
+function dressed(nodes: SvgNode[], paint: Paint, fx: SceneEffects): SvgNode[] {
+  let out = nodes;
+  if (fx.dim ?? fx.state === 'off') out = [el('g', { opacity: DIM_OPACITY }, out)];
+  if (fx.blink === true && paint.animate) {
+    out = [el('g', undefined, [...out, el('animate', { attributeName: 'opacity', values: '1;0.2;1', dur: '1.2s', repeatCount: 'indefinite' })])];
+  }
+  return out;
+}
+
+/** A number as text; a symbol's own `unit` and `decimals` ask the host's formatter for them. */
+export type SceneFormat = (n: number, own?: { unit?: string; decimals?: number }) => string;
+
+const defaultFormat: SceneFormat = (n, own) => {
+  const t = typeof own?.decimals === 'number' ? n.toFixed(own.decimals) : String(r2(n));
+  return own?.unit ? `${t} ${own.unit}` : t;
+};
 
 export interface SceneModelInput {
   /** Reduced motion off = animated. */
   animate?: boolean;
   /** The host's number words (unit included). */
-  format?: (n: number) => string;
+  format?: SceneFormat;
+  /** The effective board parameters, for rules that read a parameter. */
+  params?: Record<string, unknown>;
 }
 
 /** Everything the scene draws, decided once. `problems` counts what could not be placed or joined. */
@@ -288,7 +351,21 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
   const rows = rowsById(data.points, s.idColumn || 'id');
   const list = (Array.isArray(s.elements) ? (s.elements as SceneElementSetting[]) : []).filter((e) => e && typeof e === 'object').slice(0, MAX_SCENE_ELEMENTS);
   const links = (Array.isArray(s.links) ? (s.links as SceneLinkSetting[]) : []).filter((l) => l && typeof l === 'object').slice(0, MAX_SCENE_LINKS);
-  const fmt = o.format ?? ((n: number) => String(r2(n)));
+  const baseFormat: SceneFormat = o.format ?? defaultFormat;
+  // A symbol's own unit and decimals, when it has them; every other number follows the host.
+  const fmtOf = (e: SceneElementSetting | undefined): ((n: number) => string) => {
+    const unit = typeof e?.unit === 'string' && e.unit.trim() ? e.unit.trim() : undefined;
+    const decimals = typeof e?.decimals === 'number' && Number.isFinite(e.decimals) ? Math.min(6, Math.max(0, Math.round(e.decimals))) : undefined;
+    return unit === undefined && decimals === undefined ? (n) => baseFormat(n) : (n) => baseFormat(n, { unit, decimals });
+  };
+  const ownLinkIds = links.map((l) => (typeof l.id === 'string' ? l.id : '')).filter(Boolean);
+  const placeable = list.filter((e) => typeof e.id === 'string' && e.id && isScadaSymbol(e.symbol));
+  const byId = new Map<string, SceneElementSetting>();
+  for (const e of placeable) if (!byId.has(e.id as string)) byId.set(e.id as string, e);
+  // What the rules decided, by symbol id and by connection id.
+  const effects = Array.isArray(s.rules) && s.rules.length
+    ? evaluateRules(s.rules, { rows, params: o.params ?? {}, targets: [...byId.keys(), ...ownLinkIds], format: (id, n) => fmtOf(byId.get(id))(n) })
+    : new Map<string, SceneEffects>();
   const boxes = new Map<string, PlacedElement>();
   const settingsOf = new Map<string, SceneElementSetting>();
   // A symbol on a line takes the medium of the first connection that touches it, so a pipe and the valve in it agree.
@@ -307,6 +384,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
   };
   const elementNodes: SvgNode[] = [];
   const labelNodes: SvgNode[] = [];
+  const hidden = new Set<string>();
   let problems = 0;
 
   for (const e of list) {
@@ -315,7 +393,9 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const k = scale * (typeof e.scale === 'number' && e.scale > 0 ? e.scale : 1);
     const row = rows.get(e.id);
     const own = e.medium && e.medium !== 'none' ? e : { ...e, medium: touching.get(e.id) ?? 'none' };
-    const paint = scadaPaint(symbolSettings(s, own), rowSlots(row), { animate: o.animate, format: fmt });
+    const fx = effects.get(e.id) ?? {};
+    const fmtE = fmtOf(e);
+    const paint = withColors(scadaPaint(symbolSettings(s, own, undefined, fx), fx.state ? withState(rowSlots(row), fx.state) : rowSlots(row), { animate: o.animate, format: fmtE }), fx);
     const turn = Number(e.turn);
     const drawn = drawScada(e.symbol, paint, turn === 90 || turn === 180 || turn === 270 ? turn : 0, e.mirror === true);
     const w = r2(drawn.w * k); const h = r2(drawn.h * k);
@@ -323,11 +403,13 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const box: PlacedElement = { id: e.id, symbol: e.symbol, x, y, w, h, k };
     boxes.set(e.id, box);
     settingsOf.set(e.id, e);
-    const named = s.showLabels !== false && (!!e.label || typeof row?.label === 'string') && e.labelPos !== 'n';
+    const named = s.showLabels !== false && (!!e.label || !!fx.label || typeof row?.label === 'string') && e.labelPos !== 'n';
     grow(x - 2, y - (named && e.labelPos === 't' ? LABEL : 2), x + w + (e.valuePos === 'r' ? 56 : 2), y + h + (s.showLabels !== false && e.labelPos !== 'n' ? LABEL * 2 + 2 : 2));
-    elementNodes.push(el('g', { transform: `translate(${x} ${y}) scale(${r2(k * 1000) / 1000})` }, drawn.nodes));
+    // A hidden symbol keeps its box (connections still join it and the view does not jump), but draws nothing.
+    if (fx.hidden === true) { hidden.add(e.id); continue; }
+    elementNodes.push(el('g', { transform: `translate(${x} ${y}) scale(${r2(k * 1000) / 1000})` }, dressed(drawn.nodes, paint, fx)));
     if (s.showLabels !== false) {
-      const name = typeof row?.label === 'string' && row.label ? row.label : e.label ?? '';
+      const name = fx.label ?? (typeof row?.label === 'string' && row.label ? row.label : e.label ?? '');
       const showValue = def.valueUnder === true && e.showValue !== false && paint.value !== null;
       let ty = y + box.h + 14;
       if (name && e.labelPos !== 'n') {
@@ -337,7 +419,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
       }
       if (showValue) {
         const beside = e.valuePos === 'r';
-        labelNodes.push(text(r2(beside ? x + box.w + 8 : x + box.w / 2), r2(beside ? y + box.h / 2 + 5 : ty), fmt(paint.value as number),
+        labelNodes.push(text(r2(beside ? x + box.w + 8 : x + box.w / 2), r2(beside ? y + box.h / 2 + 5 : ty), fmtE(paint.value as number),
           { 'text-anchor': beside ? 'start' : 'middle', 'font-size': 14, 'font-weight': 600, fill: INK, 'font-family': 'inherit' }));
       }
     }
@@ -376,11 +458,20 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     if (!a || !b || !ba || !bb) { problems += 1; continue; }
     const kind = (typeof l.kind === 'string' && LINK_KINDS.has(l.kind) ? l.kind : 'pipe') as SceneLinkKind;
     const stateId = typeof l.id === 'string' && l.id ? l.id : a.id;
-    const paint = scadaPaint(symbolSettings(s, settingsOf.get(a.id) ?? {}, l), rowSlots(rows.get(stateId)), { animate: o.animate, format: fmt });
+    // A connection with its own id answers its own rules; without one it follows its "from" symbol's state, colours
+    // and motion (an `off` symbol's line is passive too; never its hidden, dim, blink, label or medium).
+    const own = typeof l.id === 'string' && l.id ? effects.get(l.id) : undefined;
+    const fromFx = effects.get(a.id);
+    const fx: SceneEffects = own ?? (!(typeof l.id === 'string' && l.id) && fromFx
+      ? { state: fromFx.state, color: fromFx.color, fillColor: fromFx.fillColor, animate: fromFx.animate }
+      : {});
+    if (fx.hidden === true) continue;
+    const slots = rowSlots(rows.get(stateId));
+    const paint = withColors(scadaPaint(symbolSettings(s, settingsOf.get(a.id) ?? {}, l, fx), fx.state ? withState(slots, fx.state) : slots, { animate: o.animate, format: fmtOf(settingsOf.get(a.id)) }), fx);
     const pa = portPoint(ba, a.side, a.at); const pb = portPoint(bb, b.side, b.at);
     const route = routeLink(pa, a.side, pb, b.side, l.mid ?? null);
     for (const pt of route) grow(pt.x - 8, pt.y - 8, pt.x + 8, pt.y + 8);
-    linkNodeList.push(...linkNodes(kind, route, paint, scale));
+    linkNodeList.push(...dressed(linkNodes(kind, route, paint, scale), paint, fx));
   }
 
   // The view: the content with a margin, or the whole canvas.
@@ -397,10 +488,10 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
   }
 
   // Each symbol's box and name, for a host that makes symbols clickable (the view draws a hit area where a symbol has an action).
-  const hits = [...boxes.values()].map((b) => {
+  const hits = [...boxes.values()].filter((b) => !hidden.has(b.id)).map((b) => {
     const e = settingsOf.get(b.id);
     const row = rows.get(b.id);
-    const name = typeof row?.label === 'string' && row.label ? row.label : e?.label || b.id;
+    const name = effects.get(b.id)?.label ?? (typeof row?.label === 'string' && row.label ? row.label : e?.label || b.id);
     return { id: b.id, name, x: b.x, y: b.y, w: b.w, h: b.h };
   });
 

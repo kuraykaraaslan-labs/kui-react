@@ -18,10 +18,10 @@ export const DOUBLE_CLICK_MS = 250;
  * The diagram scales to the card and keeps its proportions. A symbol the host gives an action to answers a click, a
  * double click, a right click and the keyboard (Enter or Space, the context-menu key); the others stay plain pictures.
  */
-export function ScadaSceneView({ settings, format, data, locale, title, elementActions }: WidgetViewProps) {
+export function ScadaSceneView({ settings, format, data, locale, title, elementActions, params }: WidgetViewProps) {
   const m = useKitMessages().scada;
   const reduced = useReducedMotion();
-  const g = sceneModel(settings as S, data, { animate: !reduced, format: (n) => formatValue(n, format, {}, locale) });
+  const g = sceneModel(settings as S, data, { animate: !reduced, params, format: (n, own) => formatValue(n, format, own ?? {}, locale) });
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (pending.current) clearTimeout(pending.current); }, []);
 
