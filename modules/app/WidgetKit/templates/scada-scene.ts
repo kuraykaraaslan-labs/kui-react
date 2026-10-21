@@ -25,7 +25,7 @@ const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter((r) 
  */
 export const SCADA_SCENE: SettingsTemplate = {
   id: 'builtin:scada.scene',
-  version: 3,
+  version: 4,
   namespace: '',
   label: 'Process diagram',
   format: true,
@@ -162,6 +162,14 @@ export const SCADA_SCENE: SettingsTemplate = {
         label: { label: 'Name', type: 'text', maxLength: MAX_RULE_LABEL, placeholder: 'High: {value}', description: 'Tokens: {value}, {value2}, {label}, {id}, {param:name}.' },
         medium: { label: 'Medium', type: 'select', options: [opt('', 'No change'), ...MEDIUM_OPTIONS] },
         animate: { label: 'Motion', type: 'select', options: [opt('', 'No change'), opt('false', 'Stop it'), opt('true', 'Leave it on')] },
+        mode: { label: 'Mode', type: 'select', options: [opt('', 'No change'), opt('auto', 'Automatic'), opt('manual', 'Manual (M badge)'), opt('local', 'Local (L badge)'), opt('maintenance', 'In maintenance (wrench)'), opt('lockout', 'Locked out (padlock)'), opt('simulation', 'Simulated (S badge)')], description: 'A badge in the top right corner. A locked-out symbol does not run its actions.' },
+        quality: { label: 'Data quality', type: 'select', options: [opt('', 'No change'), opt('good', 'Good'), opt('stale', 'Stale (clock, dimmed)'), opt('bad', 'Bad or uncertain (?, dimmed)'), opt('offline', 'Lost (cross, faded)')], description: 'Shows a dashed frame and a badge in the top left corner.' },
+        speed: { label: 'Speed (% of nominal)', type: 'number', nullable: true, display: 'input', min: 0, max: 400, placeholder: '100', description: 'Fans, pumps, reels and flow run at this share of their drawn pace. 0 = stalled (keeps its colour, stands still).' },
+        reverse: { label: 'Direction', type: 'select', options: [opt('', 'No change'), opt('false', 'Forward'), opt('true', 'Reverse')], description: 'Rotation and flow run the other way.' },
+        ack: { label: 'Alarm acknowledged', type: 'select', options: [opt('', 'No change'), opt('false', 'No (pulses until someone acknowledges)'), opt('true', 'Yes (steady)')] },
+        position: { label: 'Opening (%)', type: 'number', nullable: true, display: 'input', min: 0, max: 100, placeholder: 'Not shown', description: 'A bar along the bottom of a valve, damper, door or blind.' },
+        pending: { label: 'Command pending', type: 'select', options: YES_NO, description: 'A spinner in the bottom right corner.' },
+        failed: { label: 'Command failed', type: 'select', options: YES_NO, description: 'A red mark in the bottom right corner.' },
         stop: { label: 'Stop here', type: 'boolean', value: false, description: 'No later rule applies to this target once this one matched.' },
       },
     },
@@ -192,6 +200,7 @@ export const SCADA_SCENE: SettingsTemplate = {
   migrations: [
     { from: 1, to: 2, note: 'Titles and zones on the canvas, single-line connections and a calm look (all new, nothing changes for a saved diagram).' },
     { from: 2, to: 3, note: 'Rules and per-symbol colours, unit and decimals (all new).' },
+    { from: 3, to: 4, note: 'Symbol states: mode, data quality, speed, direction, alarm acknowledgement, opening and command badges, as row columns and as rule effects (all new).' },
   ],
 };
 

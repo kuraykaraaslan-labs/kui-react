@@ -9,6 +9,7 @@
 
 import { el, polar, r2, type SvgNode } from './svg-node';
 import type { rangesToBands } from './gauge-logic';
+import type { SymbolStates } from './scada-states';
 
 export type ScadaState = 'idle' | 'running' | 'warning' | 'critical';
 
@@ -41,6 +42,8 @@ export interface Paint {
   length: number;
   /** Draw flow-direction arrows on straight runs and on connections. */
   arrows: boolean;
+  /** Mode, data quality, speed, direction, alarm acknowledgement, opening, command in flight (`scada-states.ts`). Always set by `scadaPaint`. */
+  states?: SymbolStates;
 }
 
 export interface Drawn {

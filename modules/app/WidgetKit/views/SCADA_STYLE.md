@@ -42,3 +42,26 @@ sibling helpers, never from another pack. Rules on top of the pen above:
 - State goes on the active part only (`accent(p)`); housings stay neutral; a reading is printed by the host (`valueUnder`) unless it belongs inside the drawing (a dial).
 - Motion only through `turning` and the `animate` helpers of `scada-draw.ts`, only while `p.running && p.animate`.
 - A pack's sample is one scene and one board in `sample/scada-sector-<name>.ts`.
+
+## Symbol states (`scada-states.ts`)
+
+Besides idle, running, warning and critical, every symbol, drawn by any pack, can be shown in a mode, with doubtful
+data, at another speed, in reverse, with an alarm nobody has acknowledged, part way open, or with a command in
+flight. None of this is drawn per symbol: `drawScada` calls `applyStates` after the symbol is drawn and turned, and
+a connection calls it from `linkNodes`. A pack only has to animate through the shared helpers (`turning`, `blades`,
+the flow helpers) so that the speed and direction can change its pace.
+
+| Column or effect | Values | Look |
+| --- | --- | --- |
+| `mode` | auto, manual, local, maintenance, lockout, simulation | badge top right (M, L, S, wrench, padlock); a lockout also stops actions run from the symbol |
+| `quality` | good, stale, bad, offline | dashed frame, dimmed (0.7, 0.55, 0.35), badge top left (clock, ?, cross) |
+| `speed` | percent of nominal; 0 = stalled; negative = reversed | animation durations scaled; 0 removes the animation and keeps the colour |
+| `direction` | forward, reverse | rotation and flow run the other way; a piston or a flicker has no direction |
+| `ack` | false = an alarm nobody has acknowledged | a pulsing frame in the alarm colour and a bell badge (steady where motion is off); true = nothing extra |
+| `position` | 0 to 100 | a bar along the bottom of the box |
+| `pending`, `failed` | flags | spinner or red mark bottom right |
+
+A single symbol widget has no room for more columns (six slots), so its `status` slot also takes a mode or a quality
+word (`maintenance`, `stale`, `offline`). In a scene every one of these is a column of the row and an effect of a rule.
+Badges are 24 units across and stay inside the box; they never turn or mirror with the symbol. Every colour is a theme
+token, every weight is on the scale above, and `tests/scada-style.test.ts` renders every symbol in these states too.

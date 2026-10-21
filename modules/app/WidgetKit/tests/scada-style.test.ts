@@ -14,6 +14,14 @@ const STATES: Array<[string, Record<string, unknown>]> = [
   ['warning', { running: true, status: 'warning', value: 80 }],
   ['critical', { critical: true, value: 95 }],
   ['empty', {}],
+  // The states layer (scada-states.ts) puts badges, frames and retimed motion on every symbol.
+  ['manual', { running: true, value: 50, mode: 'manual', speed: 50 }],
+  ['maintenance', { running: true, mode: 'maintenance', position: 40 }],
+  ['lockout', { mode: 'lockout', quality: 'stale' }],
+  ['offline', { quality: 'offline', status: 'warning' }],
+  ['unacknowledged', { running: true, status: 'critical', ack: false, quality: 'bad' }],
+  ['pending', { running: true, pending: true, direction: 'reverse', speed: 250, position: 100 }],
+  ['failed', { failed: true, mode: 'local', speed: 0 }],
 ];
 
 const walk = (nodes: SvgNode[], visit: (n: SvgNode) => void) => nodes.forEach((n) => { visit(n); if (n.c) walk(n.c, visit); });

@@ -25,7 +25,9 @@ export function ScadaSceneView({ settings, format, data, locale, title, elementA
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (pending.current) clearTimeout(pending.current); }, []);
 
-  const act = (gesture: ElementGesture, id: string) => elementActions?.run(gesture, id);
+  // A locked-out symbol (mode `lockout`) is still named and focusable, but nothing runs from it.
+  const lockedIds = new Set(g.hits.filter((h) => h.locked).map((h) => h.id));
+  const act = (gesture: ElementGesture, id: string) => { if (!lockedIds.has(id)) elementActions?.run(gesture, id); };
   // A symbol with both a click and a double click runs the click only after the second click did not come.
   const click = (id: string) => {
     if (pending.current) clearTimeout(pending.current);
@@ -46,8 +48,9 @@ export function ScadaSceneView({ settings, format, data, locale, title, elementA
           key={h.id}
           x={h.x} y={h.y} width={h.w} height={h.h}
           role="button" tabIndex={0} aria-label={h.name} data-element={h.id}
+          aria-disabled={h.locked || undefined} data-locked={h.locked || undefined}
           fill="transparent"
-          className="cursor-pointer outline-none hover:fill-primary/10 focus-visible:stroke-border-focus"
+          className={h.locked ? 'cursor-not-allowed outline-none focus-visible:stroke-border-focus' : 'cursor-pointer outline-none hover:fill-primary/10 focus-visible:stroke-border-focus'}
           strokeWidth={2}
           onClick={elementActions!.has('click', h.id) || elementActions!.has('doubleClick', h.id) ? () => click(h.id) : undefined}
           onDoubleClick={elementActions!.has('doubleClick', h.id) ? () => doubleClick(h.id) : undefined}

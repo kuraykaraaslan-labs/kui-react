@@ -5698,5 +5698,525 @@
         }
       }
     }
+  },
+  "builtin:scada.scene@4": {
+    "width": {
+      "type": "number",
+      "value": 1200
+    },
+    "height": {
+      "type": "number",
+      "value": 700
+    },
+    "scale": {
+      "type": "number",
+      "value": 0.6
+    },
+    "background": {
+      "type": "select",
+      "value": "none",
+      "options": [
+        "none",
+        "dots",
+        "panel"
+      ]
+    },
+    "fit": {
+      "type": "select",
+      "value": "content",
+      "options": [
+        "content",
+        "canvas"
+      ]
+    },
+    "anchor": {
+      "type": "select",
+      "value": "center",
+      "options": [
+        "center",
+        "corner"
+      ]
+    },
+    "showLabels": {
+      "type": "boolean",
+      "value": true
+    },
+    "elements": {
+      "type": "repeater",
+      "fields": {
+        "id": {
+          "type": "text"
+        },
+        "symbol": {
+          "type": "select",
+          "value": "tank.vertical",
+          "options": []
+        },
+        "x": {
+          "type": "number",
+          "value": 0
+        },
+        "y": {
+          "type": "number",
+          "value": 0
+        },
+        "turn": {
+          "type": "select",
+          "value": "0",
+          "options": [
+            "0",
+            "90",
+            "180",
+            "270"
+          ]
+        },
+        "mirror": {
+          "type": "boolean",
+          "value": false
+        },
+        "length": {
+          "type": "select",
+          "value": "1",
+          "options": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "scale": {
+          "type": "number"
+        },
+        "label": {
+          "type": "text"
+        },
+        "labelPos": {
+          "type": "select",
+          "value": "b",
+          "options": [
+            "b",
+            "t",
+            "n"
+          ]
+        },
+        "valuePos": {
+          "type": "select",
+          "value": "b",
+          "options": [
+            "b",
+            "r"
+          ]
+        },
+        "medium": {
+          "type": "select",
+          "value": "none",
+          "options": [
+            "none",
+            "cold",
+            "hot",
+            "water",
+            "custom"
+          ]
+        },
+        "mediumColor": {
+          "type": "color",
+          "value": "var(--info)"
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "showValue": {
+          "type": "boolean",
+          "value": true
+        },
+        "fillColor": {
+          "type": "color"
+        },
+        "idleColor": {
+          "type": "color"
+        },
+        "runningColor": {
+          "type": "color"
+        },
+        "warningColor": {
+          "type": "color"
+        },
+        "criticalColor": {
+          "type": "color"
+        },
+        "unit": {
+          "type": "text"
+        },
+        "decimals": {
+          "type": "number"
+        }
+      }
+    },
+    "links": {
+      "type": "repeater",
+      "fields": {
+        "from": {
+          "type": "text"
+        },
+        "to": {
+          "type": "text"
+        },
+        "kind": {
+          "type": "select",
+          "value": "pipe",
+          "options": [
+            "pipe",
+            "hose",
+            "cable",
+            "wire",
+            "strip",
+            "line",
+            "sld"
+          ]
+        },
+        "id": {
+          "type": "text"
+        },
+        "medium": {
+          "type": "select",
+          "value": "none",
+          "options": [
+            "none",
+            "cold",
+            "hot",
+            "water",
+            "custom"
+          ]
+        },
+        "mediumColor": {
+          "type": "color",
+          "value": "var(--info)"
+        },
+        "mid": {
+          "type": "number"
+        },
+        "arrows": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    },
+    "idleColor": {
+      "type": "color",
+      "value": "var(--text-secondary)"
+    },
+    "runningColor": {
+      "type": "color",
+      "value": "var(--success)"
+    },
+    "warningColor": {
+      "type": "color",
+      "value": "var(--warning)"
+    },
+    "criticalColor": {
+      "type": "color",
+      "value": "var(--error)"
+    },
+    "idColumn": {
+      "type": "data-key",
+      "value": "id"
+    },
+    "animation": {
+      "type": "boolean",
+      "value": true
+    },
+    "shapes": {
+      "type": "repeater",
+      "fields": {
+        "kind": {
+          "type": "select",
+          "value": "text",
+          "options": [
+            "text",
+            "zone",
+            "divider"
+          ]
+        },
+        "text": {
+          "type": "text"
+        },
+        "x": {
+          "type": "number",
+          "value": 0
+        },
+        "y": {
+          "type": "number",
+          "value": 0
+        },
+        "w": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "size": {
+          "type": "select",
+          "value": "m",
+          "options": [
+            "s",
+            "m",
+            "l"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "value": "middle",
+          "options": [
+            "start",
+            "middle",
+            "end"
+          ]
+        },
+        "tone": {
+          "type": "select",
+          "value": "neutral",
+          "options": [
+            "neutral",
+            "info",
+            "success",
+            "warning",
+            "error"
+          ]
+        },
+        "dashed": {
+          "type": "boolean",
+          "value": true
+        }
+      }
+    },
+    "calm": {
+      "type": "boolean",
+      "value": false
+    },
+    "rules": {
+      "type": "repeater",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "value": true
+        },
+        "target": {
+          "type": "text"
+        },
+        "source": {
+          "type": "select",
+          "value": "column",
+          "options": [
+            "column",
+            "param"
+          ]
+        },
+        "key": {
+          "type": "text"
+        },
+        "of": {
+          "type": "text"
+        },
+        "op": {
+          "type": "select",
+          "options": [
+            "",
+            "eq",
+            "ne",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between",
+            "in",
+            "set",
+            "unset",
+            "true",
+            "false"
+          ]
+        },
+        "value": {
+          "type": "text"
+        },
+        "to": {
+          "type": "text"
+        },
+        "join": {
+          "type": "select",
+          "value": "all",
+          "options": [
+            "all",
+            "any"
+          ]
+        },
+        "source2": {
+          "type": "select",
+          "value": "column",
+          "options": [
+            "column",
+            "param"
+          ]
+        },
+        "key2": {
+          "type": "text"
+        },
+        "of2": {
+          "type": "text"
+        },
+        "op2": {
+          "type": "select",
+          "options": [
+            "",
+            "eq",
+            "ne",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between",
+            "in",
+            "set",
+            "unset",
+            "true",
+            "false"
+          ]
+        },
+        "value2": {
+          "type": "text"
+        },
+        "to2": {
+          "type": "text"
+        },
+        "state": {
+          "type": "select",
+          "options": [
+            "",
+            "idle",
+            "running",
+            "warning",
+            "critical",
+            "off"
+          ]
+        },
+        "color": {
+          "type": "color"
+        },
+        "fillColor": {
+          "type": "color"
+        },
+        "dim": {
+          "type": "select",
+          "options": [
+            "",
+            "true",
+            "false"
+          ]
+        },
+        "blink": {
+          "type": "select",
+          "options": [
+            "",
+            "true",
+            "false"
+          ]
+        },
+        "hidden": {
+          "type": "select",
+          "options": [
+            "",
+            "true",
+            "false"
+          ]
+        },
+        "label": {
+          "type": "text"
+        },
+        "medium": {
+          "type": "select",
+          "options": [
+            "",
+            "none",
+            "cold",
+            "hot",
+            "water",
+            "custom"
+          ]
+        },
+        "animate": {
+          "type": "select",
+          "options": [
+            "",
+            "false",
+            "true"
+          ]
+        },
+        "mode": {
+          "type": "select",
+          "options": [
+            "",
+            "auto",
+            "manual",
+            "local",
+            "maintenance",
+            "lockout",
+            "simulation"
+          ]
+        },
+        "quality": {
+          "type": "select",
+          "options": [
+            "",
+            "good",
+            "stale",
+            "bad",
+            "offline"
+          ]
+        },
+        "speed": {
+          "type": "number"
+        },
+        "reverse": {
+          "type": "select",
+          "options": [
+            "",
+            "false",
+            "true"
+          ]
+        },
+        "ack": {
+          "type": "select",
+          "options": [
+            "",
+            "false",
+            "true"
+          ]
+        },
+        "position": {
+          "type": "number"
+        },
+        "pending": {
+          "type": "select",
+          "options": [
+            "",
+            "true",
+            "false"
+          ]
+        },
+        "failed": {
+          "type": "select",
+          "options": [
+            "",
+            "true",
+            "false"
+          ]
+        },
+        "stop": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    }
   }
 }
