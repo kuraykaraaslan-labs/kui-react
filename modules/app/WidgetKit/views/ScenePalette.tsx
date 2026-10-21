@@ -1,7 +1,7 @@
 'use client';
 // The symbol palette: every symbol of the registry by family and sector, searched by name and alias, drawn from its own
 // drawing. Click, double click or Enter adds; a tile drags onto the canvas (`text/x-scada-symbol` carries the key).
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { SCADA_SYMBOL_DEFS, type SymbolDef } from './scada-logic';
@@ -34,6 +34,19 @@ const chip = (on: boolean) => cn(
   'shrink-0 rounded-full border px-2.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
   on ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary hover:border-border-strong hover:text-text-primary',
 );
+
+/**
+ * The drawing of one tile. A symbol's thumbnail never changes, so the subtree is memoised by key: moving the focus, typing in the
+ * search or any other re-render of the palette leaves the (several thousand) SVG nodes of the other tiles alone.
+ */
+const Thumb = memo(function Thumb({ symbol }: { symbol: string }) {
+  const thumb = symbolThumb(symbol);
+  return (
+    <svg viewBox={thumb?.viewBox ?? '0 0 100 100'} preserveAspectRatio="xMidYMid meet" className="h-12 w-full" aria-hidden="true" focusable="false">
+      {thumb && <SvgTree nodes={thumb.nodes} />}
+    </svg>
+  );
+});
 
 export function ScenePalette({ onAdd, onDragStart, recent, locale, addOn = 'click', messages, className }: ScenePaletteProps) {
   const m = useMemo(() => mergeMessages<PaletteMessages>(DEFAULT_PALETTE_MESSAGES, messages), [messages]);
@@ -93,7 +106,6 @@ export function ScenePalette({ onAdd, onDragStart, recent, locale, addOn = 'clic
   };
 
   const tile = (key: string, section: number, index: number) => {
-    const thumb = symbolThumb(key);
     const on = here.section === section && here.index === index;
     return (
       <div
@@ -119,9 +131,7 @@ export function ScenePalette({ onAdd, onDragStart, recent, locale, addOn = 'clic
         // Tiles far off screen are not laid out or painted until they scroll near.
         style={{ contentVisibility: 'auto', containIntrinsicSize: 'auto 96px' }}
       >
-        <svg viewBox={thumb?.viewBox ?? '0 0 100 100'} preserveAspectRatio="xMidYMid meet" className="h-12 w-full" aria-hidden="true" focusable="false">
-          {thumb && <SvgTree nodes={thumb.nodes} />}
-        </svg>
+        <Thumb symbol={key} />
         <span className="w-full truncate text-xs font-medium leading-tight text-text-primary">{nameOf(key)}</span>
         <span className="w-full truncate font-mono text-[10px] leading-tight text-text-secondary">{key}</span>
       </div>
