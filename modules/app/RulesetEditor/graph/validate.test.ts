@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILTIN_CATALOG, catalogFromBlocks } from '../catalog';
+import { BUILTIN_CATALOG, catalogFromBlocks, FLOW_BLOCKS } from '../catalog';
 import { issuesByNode, issueMessage, syncCycle, validateGraph } from './validate';
 import type { GraphEdge, GraphNode } from './types';
 
@@ -9,9 +9,7 @@ const catalog = catalogFromBlocks([[
   { type: 'action.log', params: { text: { type: 'string', required: true } } },
   { type: 'action.mqtt', params: { topic: { type: 'string', required: true, when: { param: 'mode', value: 'custom' } }, mode: { type: 'enum', options: ['auto', 'custom'], default: 'auto' } } },
   { type: 'note.comment', inputs: 0, outputs: [] },
-  { type: 'port.in', inputs: 0, outputs: ['out'] },
-  { type: 'port.out', outputs: [], params: { port: { type: 'enum', options: ['out'] } } },
-]]);
+], FLOW_BLOCKS]);
 
 const node = (nodeId: string, type: string, config?: Record<string, unknown>): GraphNode => ({ nodeId, type, label: nodeId, x: 0, y: 0, config });
 const edge = (from: string, port: string, to: string): GraphEdge => ({ edgeId: from + '-' + to, sourceNodeId: from, sourcePort: port, targetNodeId: to, targetPort: 'in' });
@@ -80,37 +78,43 @@ describe('validateGraph', () => {
     expect(result.warnings.map((w) => w.code + ':' + w.nodeId)).toEqual(['unconnected:a', 'no_feed:c']);
   });
 
-  it('reports a subflow that nests badly through the nest callback', () => {
-    const nodes = [node('a', 'trigger.boot'), node('b', 'subflow.loop')];
-    const catalogWithSub = { ...catalog, blocks: { ...catalog.blocks, 'subflow.loop': { type: 'subflow.loop', title: 'Loop' } } };
-    const result = validateGraph({ nodes, edges: [edge('a', 'out', 'b')] }, catalogWithSub, { nest: (id) => (id === 'loop' ? 'cycle' : null) });
-    expect(codes(result.errors)).toEqual(['cycle']);
-    expect(result.errors[0].arg).toBe('loop');
-  });
-
-  describe('inside a subflow', () => {
-    const inner = (extra: GraphNode[] = [], outPort = 'out') => ({
-      nodes: [node('pin', 'port.in'), node('pout', 'port.out', { port: outPort }), ...extra],
-      edges: [edge('pin', 'out', 'pout')],
+  describe('flows that run each other', () => {
+    it('accepts a flow with one flow_input and a flow_run at the end of a chain', () => {
+      const result = validateGraph({
+        nodes: [node('in', 'trigger.flow_input'), node('c', 'cond.compare'), node('run', 'action.flow_run', { flow: 'other' })],
+        edges: [edge('in', 'out', 'c'), edge('c', 'yes', 'run')],
+      }, catalog, { flowId: 'mine' });
+      expect(result).toEqual({ errors: [], warnings: [] });
     });
-    it('accepts the new subflow layout', () => {
-      expect(validateGraph(inner(), catalog, { subflow: { inputs: 1, outputs: ['out'] } })).toEqual({ errors: [], warnings: [] });
+    it('rejects a second flow_input, and points at the extra one', () => {
+      const result = validateGraph({
+        nodes: [node('in', 'trigger.flow_input'), node('in2', 'trigger.flow_input'), node('log', 'action.log', { text: 'x' })],
+        edges: [edge('in', 'out', 'log'), edge('in2', 'out', 'log')],
+      }, catalog);
+      expect(result.errors.map((e) => [e.code, e.nodeId])).toEqual([['one_flow_input', 'in2']]);
+      expect(result.errors[0].message).toBe('A flow can have only one Flow input block.');
     });
-    it('rejects an output block that names a missing output', () => {
-      const result = validateGraph(inner([], 'gone'), catalog, { subflow: { inputs: 1, outputs: ['out'] } });
-      expect(codes(result.errors)).toEqual(['port']);
+    it('does not warn about a flow_input nothing is wired to yet', () => {
+      expect(validateGraph({ nodes: [node('in', 'trigger.flow_input')], edges: [] }, catalog).warnings).toEqual([]);
     });
-    it('allows one input block, and none when the subflow has no input', () => {
-      expect(codes(validateGraph(inner([node('pin2', 'port.in')]), catalog, { subflow: { inputs: 1, outputs: ['out'] } }).errors)).toContain('one_input');
-      expect(codes(validateGraph(inner(), catalog, { subflow: { inputs: 0, outputs: ['out'] } }).errors)).toEqual(['port_in']);
+    it('needs the flow of a flow_run: a warning, an error when the chain is active', () => {
+      const graph = { nodes: [node('in', 'trigger.flow_input'), node('run', 'action.flow_run', { flow: '' })], edges: [edge('in', 'out', 'run')] };
+      const idle = validateGraph(graph, catalog);
+      expect(idle.warnings.map((w) => [w.code, w.nodeId, w.param])).toEqual([['required', 'run', 'flow']]);
+      const active = validateGraph(graph, catalog, { active: true });
+      expect(active.errors.map((e) => [e.code, e.nodeId, e.param])).toEqual([['required', 'run', 'flow']]);
     });
-    it('warns when the subflow has an input but no input block', () => {
-      const result = validateGraph({ nodes: [node('pout', 'port.out', { port: 'out' })], edges: [] }, catalog, { subflow: { inputs: 1, outputs: ['out'] } });
-      expect(codes(result.warnings)).toContain('missing_in');
+    it('rejects a flow_run that runs its own flow', () => {
+      const graph = { nodes: [node('in', 'trigger.flow_input'), node('run', 'action.flow_run', { flow: 'mine' })], edges: [edge('in', 'out', 'run')] };
+      const result = validateGraph(graph, catalog, { flowId: 'mine' });
+      expect(result.errors.map((e) => [e.code, e.nodeId])).toEqual([['run_self', 'run']]);
+      expect(codes(validateGraph(graph, catalog, { flowId: 'other' }).errors)).toEqual([]);
+      expect(codes(validateGraph(graph, catalog).errors)).toEqual([]);
     });
-    it('rejects bad output names', () => {
-      const result = validateGraph(inner(), catalog, { subflow: { inputs: 1, outputs: ['out', 'error', 'Bad Name'] } });
-      expect(result.errors.filter((e) => e.code === 'out_name').map((e) => e.arg)).toEqual(['error', 'Bad Name']);
+    it('gives a flow_run no output port but the error one', () => {
+      const graph = { nodes: [node('run', 'action.flow_run', { flow: 'g' }), node('log', 'action.log', { text: 'x' })] };
+      expect(codes(validateGraph({ ...graph, edges: [edge('run', 'out', 'log')] }, catalog).errors)).toEqual(['edge_port']);
+      expect(codes(validateGraph({ ...graph, edges: [edge('run', 'error', 'log')] }, catalog).errors)).toEqual([]);
     });
   });
 });
@@ -123,7 +127,7 @@ describe('issue helpers', () => {
     expect(map.get('b')?.map((i) => i.code)).toEqual(['required', 'unconnected']);
   });
   it('words every code', () => {
-    for (const code of ['unsupported', 'unknown', 'required', 'port', 'cycle', 'depth', 'cycle_sync', 'edge', 'edge_port', 'no_input', 'one_input', 'missing_in', 'port_in', 'out_name', 'unconnected', 'no_feed'] as const) {
+    for (const code of ['unsupported', 'unknown', 'required', 'cycle_sync', 'edge', 'edge_port', 'no_input', 'one_flow_input', 'run_self', 'unconnected', 'no_feed'] as const) {
       expect(issueMessage(code, 'x', 'p').length).toBeGreaterThan(5);
     }
   });

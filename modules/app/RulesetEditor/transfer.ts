@@ -9,8 +9,8 @@
  * The rulesets theme page wires these to dialogs; everything here is unit-tested
  * in `transfer.test.ts`.
  */
-import { RuleNodeTypeEnum, RuleGroupSchema, RuleSubflowSchema } from './types';
-import type { RuleChain, RuleEdge, RuleGroup, RuleNode, RuleNodeOriginal, RuleNodeType, RuleSubflow } from './types';
+import { RuleNodeTypeEnum, RuleGroupSchema } from './types';
+import type { RuleChain, RuleEdge, RuleGroup, RuleNode, RuleNodeOriginal, RuleNodeType } from './types';
 import type { Catalog } from './catalog/types';
 import { chainsToRoltek, roltekConfigs, roltekToChains, ROLTEK_FORMAT, type RoltekConfig, type RoltekConfigImport, type RoltekFile } from './format/roltek';
 import { isSecretKey, looksLikeSecret } from './secrets';
@@ -47,7 +47,6 @@ export function cloneChain(c: RuleChain): RuleChain {
     nodes: c.nodes.map((n) => ({ ...n, config: clone(n.config), original: clone(n.original) })),
     edges: c.edges.map((e) => ({ ...e })),
     ...(c.groups && { groups: clone(c.groups) }),
-    ...(c.subflows && { subflows: clone(c.subflows) }),
     createdAt: c.createdAt ? new Date(c.createdAt) : undefined,
     updatedAt: c.updatedAt ? new Date(c.updatedAt) : undefined,
   };
@@ -158,7 +157,6 @@ export function buildExport(chains: RuleChain[], opts: { all?: boolean; now?: Da
       nodes,
       edges: c.edges.map((e) => ({ ...e })),
       ...(c.groups && { groups: clone(c.groups) }),
-      ...(c.subflows && { subflows: c.subflows.map((sf) => ({ ...clone(sf), nodes: scrubNodes(sf.nodes, `${c.name} / subflow ${sf.name}`) })) }),
       createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : undefined,
       updatedAt: c.updatedAt ? new Date(c.updatedAt).toISOString() : undefined,
     };
@@ -326,13 +324,13 @@ function normalizeKui(raw: unknown, i: number, existing: RuleChain[], now: Date)
     .map((g) => RuleGroupSchema.safeParse(g))
     .flatMap((r) => (r.success ? [{ ...r.data, nodeIds: r.data.nodeIds.filter((id) => ids.has(id)) }] : []))
     .filter((g) => g.nodeIds.length);
-  const subflows: RuleSubflow[] = (Array.isArray(raw.subflows) ? raw.subflows : [])
-    .map((sf) => RuleSubflowSchema.safeParse(sf))
-    .flatMap((r) => (r.success ? [r.data] : []));
+  // a file of an older version may still list subflows: they are not imported
+  const subflows = Array.isArray(raw.subflows) ? raw.subflows.length : 0;
 
   const notes: string[] = [];
   if (placeholders) notes.push(`${plural(placeholders, 'node')} not available here (placeholder)`);
   if (dropped) notes.push(`${plural(dropped, 'connection')} dropped`);
+  if (subflows) notes.push(`${plural(subflows, 'subflow')} in the file not imported (flows call each other with Flow input and Run flow blocks)`);
   const clash = existing.find((c) => c.chainId === chainId);
   return {
     key: `${i}:${chainId}`,
@@ -340,7 +338,7 @@ function normalizeKui(raw: unknown, i: number, existing: RuleChain[], now: Date)
       chainId, name, slug: slugify(name) || chainId,
       description: str(raw.description) || undefined,
       active: false, nodes, edges,
-      ...(groups.length && { groups }), ...(subflows.length && { subflows }),
+      ...(groups.length && { groups }),
       createdAt: now, updatedAt: now,
     },
     nodes: nodes.length,

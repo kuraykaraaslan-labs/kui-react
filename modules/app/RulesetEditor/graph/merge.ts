@@ -1,21 +1,21 @@
 import { stable } from './history';
 import { clone } from './ids';
 import type { EditorState } from './state';
-import type { GraphEdge, RuleGroup, RuleSubflow, GraphNode } from './types';
+import type { GraphEdge, RuleGroup, GraphNode } from './types';
 
 /**
- * Three-way merge of one flow (a chain with its groups and subflows): the flow as it was when it was
+ * Three-way merge of one flow (a chain with its groups): the flow as it was when it was
  * opened (`base`), as it is in the editor (`mine`) and as the host has it now (`theirs`).
  *
- * - A node, group or subflow only one side changed (or added, or deleted) is taken from that side.
+ * - A node or group only one side changed (or added, or deleted) is taken from that side.
  * - Changed on both sides in different ways: a conflict. It keeps the editor's version and is listed.
  * - Connections are a set, keyed by their ends: one removed or added by either side stays removed or added.
  *   A connection to a node that is gone goes with it.
  *
- * Pure: no DOM, no storage. Subflows are compared as a whole (a subflow edited on both sides is a conflict).
+ * Pure: no DOM, no storage.
  */
 
-export type MergeKind = 'node' | 'group' | 'subflow';
+export type MergeKind = 'node' | 'group';
 
 export type MergeConflict = { kind: MergeKind; id: string; /** the editor's side deleted it */ deleted: boolean };
 
@@ -115,6 +115,5 @@ export function mergeGraphs(base: EditorState | null | undefined, mine: EditorSt
   const have = new Set(nodes.map((n) => n.nodeId));
   const edges = mergeEdges(b.edges, mine.edges, theirs.edges, out).filter((e) => have.has(e.sourceNodeId) && have.has(e.targetNodeId));
   const groups = mergeGroups(b.groups, mine.groups, theirs.groups, have, out);
-  const subflows = mergeItems<RuleSubflow>(b.subflows, mine.subflows, theirs.subflows, 'subflow', (s) => s.subflowId, out);
-  return { graph: { nodes, edges, groups, subflows }, conflicts: out.conflicts, fromTheirs: out.fromTheirs };
+  return { graph: { nodes, edges, groups }, conflicts: out.conflicts, fromTheirs: out.fromTheirs };
 }

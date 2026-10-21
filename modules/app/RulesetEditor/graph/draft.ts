@@ -1,5 +1,5 @@
 /**
- * The browser draft of a flow: unsaved work kept in `localStorage`, one entry per flow or subflow, so a closed
+ * The browser draft of a flow: unsaved work kept in `localStorage`, one entry per flow, so a closed
  * tab, a crash or a switch to another flow does not lose it. Pure apart from the storage it is given; every
  * storage access is guarded, because storage can be blocked, full or missing.
  */
@@ -11,8 +11,6 @@ export const DRAFT_PREFIX = 'kui-ruleset-draft:';
 export const DRAFT_MAX = 2_000_000;
 /** pause after the last change before the draft is written */
 export const DRAFT_DELAY_MS = 800;
-
-export type DraftKind = 'flow' | 'subflow';
 
 export type Draft = {
   v: 1;
@@ -26,9 +24,9 @@ export type Draft = {
 
 export type DraftStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
-/** `kui-ruleset-draft:f:<id>` for a flow, `…:s:<id>` for a subflow; a flow not saved yet has an empty id */
-export function draftKey(kind: DraftKind, id: string | null | undefined): string {
-  return `${DRAFT_PREFIX}${kind === 'subflow' ? 's' : 'f'}:${id ?? ''}`;
+/** `kui-ruleset-draft:f:<id>`; a flow not saved yet has an empty id */
+export function draftKey(id: string | null | undefined): string {
+  return `${DRAFT_PREFIX}f:${id ?? ''}`;
 }
 
 /** a short checksum of a text: what a draft was made from */

@@ -2,13 +2,14 @@
  * The `roltek-automation-1` file format, converted to and from the chains of this editor. Pure, no React.
  *
  *   { format, rev?, flows: [{ id, name, enabled, nodes: [{ id, type, params, x, y, name?, disabled? }],
- *     edges: [{ from, from_port, to }], groups: [{ id, name, color, nodes }] }], subflows: [...], configs: [...] }
+ *     edges: [{ from, from_port, to }], groups: [{ id, name, color, nodes }] }], configs: [...] }
  *
  * A chain maps to a flow: `nodeId` to `id`, `label` to `name`, `config` to `params`, the script of a
  * built-in node to the param its block stores in `script`, `sourceNodeId` / `sourcePort` / `targetNodeId`
  * to `from` / `from_port` / `to`. Nodes whose block the catalog does not have become placeholders and
- * leave again as `unsupported` blocks, so a round trip through this editor loses nothing. A flow carries
- * the subflows it uses; a subflow definition that no node uses is not written.
+ * leave again as `unsupported` blocks, so a round trip through this editor loses nothing. Flows call each other with
+ * `trigger.flow_input` and `action.flow_run` blocks; the file has no subflows. An older file that still has a `subflows`
+ * list is read without it (each flow notes that they were not imported), and its `subflow.*` nodes become placeholders.
  *
  * Config nodes (`configs`: `{ id, type, name?, params }`, a broker or an account several flows name) are not part of
  * a chain: the host passes the ones to write (`chainsToRoltek(chains, { configs })`) and reads them back with
@@ -18,17 +19,16 @@
 import { BUILTIN_CATALOG } from '../catalog/builtin';
 import { withNoteBlock } from '../catalog/note';
 import { nodePortsOf } from '../catalog/ports';
-import type { Catalog, ParamSpec } from '../catalog/types';
+import type { Catalog } from '../catalog/types';
 import { clone, newId, slug } from '../graph/ids';
-import { catalogWithSubflows, usesOf } from '../graph/subflows';
 import { isSecretKey, looksLikeSecret } from '../secrets';
-import type { RuleChain, RuleEdge, RuleGroup, RuleNode, RuleSubflow } from '../types';
+import type { RuleChain, RuleEdge, RuleGroup, RuleNode } from '../types';
 
 export const ROLTEK_FORMAT = 'roltek-automation-1';
 
 /** ids of nodes in a roltek-automation-1 file */
 export const NODE_ID_RE = /^[A-Za-z0-9_]{1,16}$/;
-/** ids of flows and subflows in a roltek-automation-1 file */
+/** ids of flows (and config nodes) in a roltek-automation-1 file */
 export const FLOW_ID_RE = /^[a-z0-9_-]{1,32}$/;
 
 export type RoltekNode = {
@@ -42,10 +42,6 @@ export type RoltekFlow = {
   id: string; name: string; enabled: boolean; description?: string;
   nodes: RoltekNode[]; edges: RoltekEdge[]; groups?: RoltekGroup[];
 };
-export type RoltekSubflow = {
-  id: string; name: string; description?: string; inputs: 0 | 1; outputs: string[];
-  params: Record<string, ParamSpec>; nodes: RoltekNode[]; edges: RoltekEdge[]; groups?: RoltekGroup[];
-};
 export type RoltekOmitted = { path: string; reason: 'secret' };
 /** a config node of the file: its type is a `config.*` block of the catalog, its params that block's params */
 export type RoltekConfig = { id: string; type: string; name?: string; params: Record<string, unknown> };
@@ -55,7 +51,6 @@ export type RoltekFile = {
   exported_at?: string;
   source?: string;
   flows: RoltekFlow[];
-  subflows: RoltekSubflow[];
   configs: RoltekConfig[];
   omitted?: RoltekOmitted[];
 };
@@ -193,7 +188,7 @@ function configsToRoltek(configs: RoltekConfig[], catalog: Catalog, state: Expor
 }
 
 /**
- * Convert chains (and the subflows they carry) to a roltek-automation-1 file. Secret settings are left
+ * Convert chains to a roltek-automation-1 file. Secret settings are left
  * out and listed in `omitted`; text that looks like a password is listed in `suspicious`.
  */
 export function chainsToRoltek(
@@ -202,13 +197,6 @@ export function chainsToRoltek(
   const base = withNoteBlock(options.catalog ?? BUILTIN_CATALOG);
   const state: ExportState = { omitted: [], suspicious: [], descriptions: [] };
 
-  // a flow carries the subflows it uses (and the ones those use); a definition nobody uses is not written
-  const subflows: RuleSubflow[] = [];
-  for (const chain of chains) {
-    for (const sf of neededSubflows(chain.nodes, chain.subflows ?? [])) if (!subflows.some((s) => s.subflowId === sf.subflowId)) subflows.push(sf);
-  }
-  const outer = catalogWithSubflows(base, subflows);
-
   const usedIds = new Set<string>();
   const flows: RoltekFlow[] = chains.map((chain) => {
     const id = FLOW_ID_RE.test(chain.chainId) && !usedIds.has(chain.chainId) ? chain.chainId : newId(usedIds, chain.name, 'flow');
@@ -216,17 +204,8 @@ export function chainsToRoltek(
     if (chain.description && looksLikeSecret(chain.description)) state.suspicious.push(`flows.${id}.description`);
     return {
       id, name: chain.name, enabled: chain.active, ...(chain.description ? { description: chain.description } : {}),
-      ...graphToRoltek(chain, outer, `flows.${id}`, state),
+      ...graphToRoltek(chain, base, `flows.${id}`, state),
     } as RoltekFlow;
-  });
-
-  const exportedSubflows: RoltekSubflow[] = subflows.map((sf) => {
-    const inner = catalogWithSubflows(base, subflows, { subflowId: sf.subflowId, outputs: sf.outputs });
-    return {
-      id: sf.subflowId, name: sf.name, ...(sf.description ? { description: sf.description } : {}),
-      inputs: sf.inputs, outputs: [...sf.outputs], params: clone(sf.params),
-      ...graphToRoltek(sf, inner, `subflows.${sf.subflowId}`, state),
-    };
   });
 
   const file: RoltekFile = {
@@ -234,7 +213,6 @@ export function chainsToRoltek(
     exported_at: (options.now ?? new Date()).toISOString(),
     source: options.source ?? 'kui-react',
     flows,
-    subflows: exportedSubflows,
     configs: configsToRoltek(options.configs ?? [], base, state),
     ...(state.omitted.length ? { omitted: state.omitted } : {}),
   };
@@ -316,34 +294,6 @@ function graphFromRoltek(raw: Record<string, unknown>, catalog: Catalog): GraphR
   return { nodes, edges, groups, placeholders, dropped };
 }
 
-function subflowFromRoltek(raw: Record<string, unknown>, catalog: Catalog, subflows: RuleSubflow[]): RuleSubflow | null {
-  const id = str(raw.id);
-  if (!FLOW_ID_RE.test(id)) return null;
-  const outputs = (Array.isArray(raw.outputs) ? raw.outputs : []).map(String);
-  const inner = catalogWithSubflows(catalog, subflows, { subflowId: id, outputs });
-  const { nodes, edges, groups } = graphFromRoltek(raw, inner);
-  return {
-    subflowId: id, name: str(raw.name) || id, ...(str(raw.description) ? { description: str(raw.description) } : {}),
-    inputs: raw.inputs === 0 ? 0 : 1, outputs,
-    params: isObject(raw.params) ? (raw.params as Record<string, ParamSpec>) : {},
-    nodes, edges, groups,
-  };
-}
-
-/** the subflows a list of nodes needs, and the ones those need in turn */
-function neededSubflows(nodes: RuleNode[], all: RuleSubflow[]): RuleSubflow[] {
-  const byId = new Map(all.map((sf) => [sf.subflowId, sf]));
-  const out: RuleSubflow[] = [];
-  const queue = [...usesOf(nodes)];
-  for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
-    const sf = byId.get(id);
-    if (!sf || out.includes(sf)) continue;
-    out.push(sf);
-    queue.push(...usesOf(sf.nodes));
-  }
-  return out;
-}
-
 export type RoltekConfigImport = {
   /** the config nodes to store, every secret param empty (`null`) */
   configs: RoltekConfig[];
@@ -393,29 +343,23 @@ export function roltekToChains(
   options: { /** note the config nodes the chains leave out (default true); false when the host imports them with `roltekConfigs` */ noteConfigs?: boolean } = {},
 ): RoltekConversion[] {
   const catalog = withNoteBlock(givenCatalog);
-  const rawSubflows = (Array.isArray(file.subflows) ? file.subflows : []).filter(isObject);
-  // the blocks of all subflows must exist before any graph is read: they may use each other
-  const declared: RuleSubflow[] = rawSubflows
-    .filter((raw) => FLOW_ID_RE.test(str(raw.id)))
-    .map((raw) => ({ subflowId: str(raw.id), name: str(raw.name), inputs: raw.inputs === 0 ? 0 : 1, outputs: (Array.isArray(raw.outputs) ? raw.outputs : []).map(String), params: isObject(raw.params) ? (raw.params as Record<string, ParamSpec>) : {}, nodes: [], edges: [], groups: [] } as RuleSubflow));
-  const subflows = rawSubflows.map((raw) => subflowFromRoltek(raw, catalog, declared)).filter((sf): sf is RuleSubflow => sf !== null);
-  const outer = catalogWithSubflows(catalog, declared);
+  // a file of an older version may still list subflows: they are not imported
+  const subflows = Array.isArray(file.subflows) ? file.subflows.length : 0;
   const configs = options.noteConfigs !== false && Array.isArray(file.configs) ? file.configs.length : 0;
 
   return (Array.isArray(file.flows) ? file.flows : []).filter(isObject).map((raw, i) => {
     const chainId = str(raw.id) || `import-${i + 1}`;
     const name = str(raw.name).trim() || chainId;
-    const graph = graphFromRoltek(raw, outer);
-    const carried = neededSubflows(graph.nodes, subflows);
+    const graph = graphFromRoltek(raw, catalog);
     const notes: string[] = [];
     if (graph.placeholders) notes.push(`${plural(graph.placeholders, 'node')} not available here (placeholder)`);
     if (graph.dropped) notes.push(`${plural(graph.dropped, 'connection')} dropped`);
+    if (subflows) notes.push(`${plural(subflows, 'subflow')} in the file not imported (flows call each other with Flow input and Run flow blocks)`);
     if (configs) notes.push(`${plural(configs, 'config node')} in the file not imported`);
     const chain: RuleChain = {
       chainId, name, slug: slug(name, chainId), description: str(raw.description) || undefined, active: false,
       nodes: graph.nodes, edges: graph.edges,
       ...(graph.groups.length ? { groups: graph.groups } : {}),
-      ...(carried.length ? { subflows: carried } : {}),
       createdAt: now, updatedAt: now,
     };
     return { id: chainId, chain, placeholders: graph.placeholders, notes };

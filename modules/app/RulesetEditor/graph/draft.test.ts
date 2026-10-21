@@ -18,13 +18,12 @@ const blocked: DraftStorage = {
 };
 
 describe('draftKey', () => {
-  it('tells flows and subflows apart', () => {
-    expect(draftKey('flow', 'a')).not.toBe(draftKey('subflow', 'a'));
-    expect(draftKey('flow', 'a')).toBe('kui-ruleset-draft:f:a');
-    expect(draftKey('subflow', 'a')).toBe('kui-ruleset-draft:s:a');
+  it('has one key per flow', () => {
+    expect(draftKey('a')).not.toBe(draftKey('b'));
+    expect(draftKey('a')).toBe('kui-ruleset-draft:f:a');
   });
   it('has a key for a flow not saved yet', () => {
-    expect(draftKey('flow', null)).toBe('kui-ruleset-draft:f:');
+    expect(draftKey(null)).toBe('kui-ruleset-draft:f:');
   });
 });
 

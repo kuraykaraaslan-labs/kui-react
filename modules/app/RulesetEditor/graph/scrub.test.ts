@@ -6,10 +6,7 @@ import { snapshotOf } from './state';
 import type { GraphNode } from './types';
 
 const node = (nodeId: string, extra: Partial<GraphNode> = {}): GraphNode => ({ nodeId, type: 'action.http', label: nodeId, x: 0, y: 0, ...extra });
-const state = (nodes: GraphNode[], subflowNodes: GraphNode[] = []) => ({
-  nodes, edges: [], groups: [],
-  subflows: subflowNodes.length ? [{ subflowId: 's1', name: 's', inputs: 1 as const, outputs: ['out'], params: {}, nodes: subflowNodes, edges: [], groups: [] }] : [],
-});
+const state = (nodes: GraphNode[]) => ({ nodes, edges: [], groups: [] });
 const memory = () => {
   const data = new Map<string, string>();
   const s: DraftStorage = { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => void data.set(k, v), removeItem: (k) => void data.delete(k) };
@@ -36,8 +33,8 @@ describe('scrubNode', () => {
 });
 
 describe('scrubSnapshot', () => {
-  it('covers the chain and the subflows', () => {
-    const snap = snapshotOf(state([node('a', { config: { password: 'p', u: 1 } })], [node('b', { config: { token: 't', u: 2 } })]));
+  it('scrubs every node', () => {
+    const snap = snapshotOf(state([node('a', { config: { password: 'p', u: 1 } }), node('b', { config: { token: 't', u: 2 } })]));
     const out = scrubSnapshot(snap);
     expect(out).not.toContain('"p"');
     expect(out).not.toContain('"t"');

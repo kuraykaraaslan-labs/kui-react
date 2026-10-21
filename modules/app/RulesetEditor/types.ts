@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { ParamSpec } from './catalog/types';
 
 /** an id: any non-empty text (the same rule the domain types use) */
 const IdSchema = z.string().min(1);
@@ -72,21 +71,6 @@ export const RuleGroupSchema = z.object({
   nodeIds: z.array(z.string()),
 });
 
-/** A reusable piece of graph with its own ports and params, used as the block `subflow.<subflowId>`. */
-export const RuleSubflowSchema = z.object({
-  subflowId: z.string(),
-  name: z.string(),
-  description: z.string().optional(),
-  inputs: z.union([z.literal(0), z.literal(1)]),
-  /** names of the output ports */
-  outputs: z.array(z.string()),
-  /** param schema of an instance (see `ParamSpec` in ruleset/catalog) */
-  params: z.record(z.string(), z.custom<ParamSpec>()),
-  nodes: z.array(RuleNodeSchema),
-  edges: z.array(RuleEdgeSchema),
-  groups: z.array(RuleGroupSchema),
-});
-
 export const RuleChainSchema = z.object({
   chainId: IdSchema,
   name: z.string(),
@@ -96,8 +80,6 @@ export const RuleChainSchema = z.object({
   nodes: z.array(RuleNodeSchema),
   edges: z.array(RuleEdgeSchema),
   groups: z.array(RuleGroupSchema).optional(),
-  /** subflows this chain uses; they are shared when a host app keeps them elsewhere */
-  subflows: z.array(RuleSubflowSchema).optional(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
 });
@@ -108,5 +90,4 @@ export type RuleNode = z.infer<typeof RuleNodeSchema>;
 export type RuleNodeOriginal = z.infer<typeof RuleNodeOriginalSchema>;
 export type RuleEdge = z.infer<typeof RuleEdgeSchema>;
 export type RuleGroup = z.infer<typeof RuleGroupSchema>;
-export type RuleSubflow = z.infer<typeof RuleSubflowSchema>;
 export type RuleChain = z.infer<typeof RuleChainSchema>;

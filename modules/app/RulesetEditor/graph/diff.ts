@@ -1,5 +1,5 @@
 /**
- * What a deploy changes: the router's `flowlib.js` `diff`, ported. Two flows (or subflows) in the
+ * What a deploy changes: the router's `flowlib.js` `diff`, ported. Two flows in the
  * `roltek-automation-1` shape go in; the change list per node and field, per connection and per group comes out.
  * A moved node is listed apart (`moved`): layout is not a change of what the flow does.
  *
@@ -16,9 +16,9 @@ export type DiffNode = {
 };
 export type DiffEdge = { from: string; from_port?: string; to: string };
 export type DiffGroup = { id: string; [key: string]: unknown };
-/** a flow or a subflow, the parts the diff reads */
+/** a flow, the parts the diff reads */
 export type DiffItem = {
-  name?: unknown; description?: unknown; inputs?: unknown; outputs?: unknown; params?: unknown;
+  name?: unknown; description?: unknown;
   nodes?: readonly DiffNode[]; edges?: readonly DiffEdge[]; groups?: readonly DiffGroup[];
 };
 
@@ -31,7 +31,7 @@ export type DiffEdgeRef = { key: string; from: string; from_port: string; to: st
 export type FlowDiff = {
   /** there was no earlier version */
   isNew: boolean;
-  /** flow or subflow fields: `name`, `description`, `inputs`, `outputs`, `params` */
+  /** flow fields: `name`, `description` */
   meta: DiffFieldChange[];
   nodes: { added: DiffNodeRef[]; removed: DiffNodeRef[]; changed: DiffNodeChange[]; moved: string[] };
   edges: { added: DiffEdgeRef[]; removed: DiffEdgeRef[] };
@@ -62,7 +62,7 @@ export function edgeKey(from: string, port: string | undefined, to: string): str
 }
 
 const byId = <T extends { id: string }>(a: T, b: T) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-const META_KEYS = ['name', 'description', 'inputs', 'outputs', 'params'] as const;
+const META_KEYS = ['name', 'description'] as const;
 
 /** `a`: the earlier version (null for a new item), `b`: the new one. Pure. */
 export function diffFlows(a: DiffItem | null | undefined, b: DiffItem): FlowDiff {

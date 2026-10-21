@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEMO_CATALOG, DEMO_CHOICES, DEMO_FLOW } from './demo';
 import { chainsToRoltek, roltekToChains } from './format/roltek';
-import { catalogWithSubflows } from './graph/subflows';
 import { validateGraph } from './graph/validate';
 import { validateParams } from './catalog/params';
 import type { RuleChain } from './types';
@@ -26,26 +25,25 @@ describe('the sample', () => {
     }
   });
   it('has the flow with exactly the one problem it is meant to show', () => {
-    const catalog = catalogWithSubflows(DEMO_CATALOG, DEMO_FLOW.subflows ?? []);
-    const result = validateGraph({ nodes: DEMO_FLOW.nodes, edges: DEMO_FLOW.edges }, catalog);
+    const result = validateGraph({ nodes: DEMO_FLOW.nodes, edges: DEMO_FLOW.edges }, DEMO_CATALOG, { flowId: 'boiler-demo' });
     expect(result.errors).toEqual([]);
     expect(result.warnings.map((w) => [w.code, w.nodeId, w.param])).toEqual([['required', 'n4', 'channels']]);
   });
-  it('has a subflow that is fine inside', () => {
-    const sf = DEMO_FLOW.subflows![0];
-    const inner = catalogWithSubflows(DEMO_CATALOG, [], { subflowId: sf.subflowId, outputs: sf.outputs });
-    expect(validateGraph(sf, inner, { subflow: { inputs: sf.inputs, outputs: sf.outputs } })).toEqual({ errors: [], warnings: [] });
+  it('runs a flow the host lists as callable', () => {
+    const run = DEMO_FLOW.nodes.find((n) => n.type === 'action.flow_run');
+    expect(DEMO_CHOICES.flows.map((c) => c.value)).toContain(run?.config?.flow);
+    expect(DEMO_CATALOG.blocks['trigger.flow_input']).toMatchObject({ group: 'flow', inputs: 0, outputs: ['out'] });
+    expect(DEMO_CATALOG.groups.some((g) => g.id === 'flow')).toBe(true);
   });
   it('survives a trip through roltek-automation-1', () => {
     const { file } = chainsToRoltek([chain], { catalog: DEMO_CATALOG });
     expect(file.flows[0].groups).toHaveLength(1);
-    expect(file.subflows).toHaveLength(1);
+    expect(file).not.toHaveProperty('subflows');
     const [back] = roltekToChains(JSON.parse(JSON.stringify(file)), DEMO_CATALOG);
     expect(back.placeholders).toBe(0);
     expect(back.chain.nodes.map((n) => [n.nodeId, n.type, n.label])).toEqual(chain.nodes.map((n) => [n.nodeId, n.type, n.label]));
     expect(back.chain.edges.map((e) => [e.sourceNodeId, e.sourcePort, e.targetNodeId])).toEqual(chain.edges.map((e) => [e.sourceNodeId, e.sourcePort, e.targetNodeId]));
     expect(back.chain.groups).toEqual(chain.groups);
-    // the file has no edge ids: they are numbered again
-    expect(back.chain.subflows).toEqual(chain.subflows!.map((sf) => ({ ...sf, edges: sf.edges.map((e, i) => ({ ...e, edgeId: `e${i + 1}` })) })));
+    expect(back.chain).not.toHaveProperty('subflows');
   });
 });

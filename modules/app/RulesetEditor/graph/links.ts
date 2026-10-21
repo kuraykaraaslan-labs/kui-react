@@ -1,8 +1,10 @@
 import type { RuleNode } from '../types';
+import { FLOW_INPUT, FLOW_RUN } from './types';
 
 /**
  * Link blocks: a `link out` or `link call` leads to the `link in` it names, and a `link in` knows the blocks that
- * call it, in this flow or in another one. Pure: name resolution and the search over `RuleNode.config`; the host
+ * call it, in this flow or in another one. The same goes for flows that run each other: a `flow_run` block leads to
+ * the `flow_input` of the flow it names, and a `flow_input` knows the `flow_run` blocks that run its flow. Pure: name resolution and the search over `RuleNode.config`; the host
  * loads the other flows (`createFlowCache` keeps them for 30 s).
  */
 
@@ -16,14 +18,12 @@ export const FLOW_CACHE_MS = 30_000;
 
 export type LinkFlow = {
   id: string;
-  kind: 'flow' | 'subflow';
   name: string;
   nodes: RuleNode[];
 };
 
 export type LinkHit = {
   flow: string;
-  kind: 'flow' | 'subflow';
   flowName: string;
   node: string;
   /** what to show for the block */
@@ -32,10 +32,15 @@ export type LinkHit = {
   link: string;
 };
 
-export type FlowRef = { id: string | null; kind: 'flow' | 'subflow' };
+export type FlowRef = { id: string | null };
 
 export function isLinkBlock(node: Pick<RuleNode, 'type'> | null | undefined): boolean {
   return !!node && LINK_TYPES.includes(node.type);
+}
+
+/** `flow_input` and `flow_run` blocks: they lead from one flow to another */
+export function isFlowBlock(node: Pick<RuleNode, 'type'> | null | undefined): boolean {
+  return !!node && (node.type === FLOW_INPUT || node.type === FLOW_RUN);
 }
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
@@ -58,7 +63,7 @@ export function findIns(flows: LinkFlow[], names: string[]): LinkHit[] {
   for (const f of flows) {
     for (const n of f.nodes ?? []) {
       const link = str(n?.config?.name);
-      if (n?.type === LINK_IN && names.includes(link)) out.push({ flow: f.id, kind: f.kind, flowName: f.name || f.id, node: n.nodeId, name: n.label || link, link });
+      if (n?.type === LINK_IN && names.includes(link)) out.push({ flow: f.id, flowName: f.name || f.id, node: n.nodeId, name: n.label || link, link });
     }
   }
   return out;
@@ -70,8 +75,29 @@ export function findCallers(flows: LinkFlow[], name: string): LinkHit[] {
   for (const f of flows) {
     for (const n of f.nodes ?? []) {
       if ((n?.type === LINK_OUT || n?.type === LINK_CALL) && linkNames(n).includes(name)) {
-        out.push({ flow: f.id, kind: f.kind, flowName: f.name || f.id, node: n.nodeId, name: n.label || (n.type === LINK_CALL ? 'Link call' : 'Link out'), link: name });
+        out.push({ flow: f.id, flowName: f.name || f.id, node: n.nodeId, name: n.label || (n.type === LINK_CALL ? 'Link call' : 'Link out'), link: name });
       }
+    }
+  }
+  return out;
+}
+
+/** the `flow_input` block of the flow with this id */
+export function findFlowInputs(flows: LinkFlow[], flowId: string): LinkHit[] {
+  const out: LinkHit[] = [];
+  for (const f of flows) {
+    if (f.id !== flowId) continue;
+    for (const n of f.nodes ?? []) if (n?.type === FLOW_INPUT) out.push({ flow: f.id, flowName: f.name || f.id, node: n.nodeId, name: n.label || 'Flow input', link: flowId });
+  }
+  return out;
+}
+
+/** the `flow_run` blocks that run the flow with this id */
+export function findRunners(flows: LinkFlow[], flowId: string): LinkHit[] {
+  const out: LinkHit[] = [];
+  for (const f of flows) {
+    for (const n of f.nodes ?? []) {
+      if (n?.type === FLOW_RUN && flowId !== '' && str(n.config?.flow) === flowId) out.push({ flow: f.id, flowName: f.name || f.id, node: n.nodeId, name: n.label || 'Run flow', link: flowId });
     }
   }
   return out;
@@ -82,12 +108,16 @@ export function findCallers(flows: LinkFlow[], name: string): LinkHit[] {
  * target. The block itself is never a hit.
  */
 export function linkHits(flows: LinkFlow[], node: RuleNode, here: FlowRef, name?: string): LinkHit[] {
-  const notSelf = (h: LinkHit) => !(h.flow === here.id && h.kind === here.kind && h.node === node.nodeId);
+  const notSelf = (h: LinkHit) => !(h.flow === (here.id ?? '') && h.node === node.nodeId);
+  if (node.type === FLOW_RUN) return findFlowInputs(flows, str(node.config?.flow)).filter(notSelf);
+  if (node.type === FLOW_INPUT) return findRunners(flows, here.id ?? '').filter(notSelf);
   return node.type === LINK_IN ? findCallers(flows, str(node.config?.name)).filter(notSelf) : findIns(flows, name ? [name] : linkNames(node)).filter(notSelf);
 }
 
 /** the sentence for "nothing found" */
 export function noHitsMessage(node: RuleNode, name?: string): string {
+  if (node.type === FLOW_INPUT) return 'No Run flow block runs this flow.';
+  if (node.type === FLOW_RUN) return 'The flow this block runs has no Flow input block.';
   if (node.type === LINK_IN) return 'No block calls this link in.';
   return `No link in is called ${(name ? [name] : linkNames(node)).join(', ') || '?'}.`;
 }

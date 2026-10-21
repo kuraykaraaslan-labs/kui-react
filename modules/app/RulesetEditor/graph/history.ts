@@ -24,7 +24,7 @@ export type History = {
   /** start over from this snapshot: no steps in either direction */
   reset: (snapshot: string) => void;
   present: () => string | null;
-  /** change the present state without a step (a save turned pending subflows into saved ones) */
+  /** change the present state without a step (a save turned pending changes into saved ones) */
   replace: (snapshot: string) => void;
   /**
    * Add a step. Returns false when nothing changed. A push with the same key as the one before it,

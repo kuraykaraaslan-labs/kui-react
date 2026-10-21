@@ -54,7 +54,7 @@ export function scrubNode<N extends GraphNode>(node: N, test: SecretTest = secre
 }
 
 /**
- * The snapshot of an editor state (`snapshotOf`) with every node, in the chain and in subflows, scrubbed. A text that
+ * The snapshot of an editor state (`snapshotOf`) with every node scrubbed. A text that
  * is not a snapshot of nodes, or has no secret in it, comes back as it is.
  */
 export function scrubSnapshot(snapshot: string, test: SecretTest = secretByName): string {
@@ -62,7 +62,6 @@ export function scrubSnapshot(snapshot: string, test: SecretTest = secretByName)
   try { raw = JSON.parse(snapshot); } catch { return snapshot; }
   if (!isRecord(raw)) return snapshot;
   const nodes = (list: unknown) => (Array.isArray(list) ? list.map((n) => (isRecord(n) && typeof n.type === 'string' ? scrubNode(n as GraphNode, test) : n)) : list);
-  const subflows = Array.isArray(raw.subflows) ? raw.subflows.map((s) => (isRecord(s) ? { ...s, nodes: nodes(s.nodes) } : s)) : raw.subflows;
-  const out = stable({ ...raw, nodes: nodes(raw.nodes), subflows });
+  const out = stable({ ...raw, nodes: nodes(raw.nodes) });
   return out === stable(raw) ? snapshot : out;
 }

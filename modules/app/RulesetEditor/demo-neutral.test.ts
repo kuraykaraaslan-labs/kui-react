@@ -28,7 +28,7 @@ describe('the neutral demo', () => {
     expect(NEUTRAL_FLOW.nodes.find((n) => n.type === 'action.notify')?.config?.to).toSatisfy((v: string) => teams.includes(v));
   });
   it('goes into the roltek file and comes back with every block known (none turns into a placeholder)', () => {
-    const chain = { chainId: 'overdue', name: 'Overdue', slug: 'overdue', active: false, ...NEUTRAL_FLOW, groups: [], subflows: [] };
+    const chain = { chainId: 'overdue', name: 'Overdue', slug: 'overdue', active: false, ...NEUTRAL_FLOW, groups: [] };
     const out = buildRoltekExport([chain], { catalog: NEUTRAL_CATALOG });
     expect(out.file.flows[0].nodes.map((n) => n.type)).toEqual(['trigger.schedule', 'cond.compare', 'action.notify', 'action.webhook']);
     const back = roltekToChains(JSON.parse(out.json), NEUTRAL_CATALOG)[0].chain;

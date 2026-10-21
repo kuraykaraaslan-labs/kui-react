@@ -84,7 +84,7 @@ export type BlockDecl = {
   version?: number;
   /** palette group id, see `Catalog.groups` */
   group?: string;
-  /** `trigger` | `cond` | `logic` | `action` | `subflow` … (taken from the type prefix when missing) */
+  /** `trigger` | `cond` | `logic` | `action` | `flow` … (taken from the type prefix when missing) */
   category?: string;
   params?: Record<string, ParamSpec>;
   /** 0 = no input port; default 1 */
@@ -109,10 +109,8 @@ export type BlockDecl = {
    * tab draws it; its first paragraph is the hint of the palette entry.
    */
   help?: string;
-  /** not offered in the palette (placeholders, subflow ports) */
+  /** not offered in the palette (placeholders) */
   internal?: boolean;
-  /** set on `subflow.<id>` blocks */
-  subflow?: string;
 };
 
 export type CatalogGroup = { id: string; label: string };

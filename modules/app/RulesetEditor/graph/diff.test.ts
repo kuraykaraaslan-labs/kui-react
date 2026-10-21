@@ -62,8 +62,8 @@ describe('diffFlows', () => {
     expect(d.isNew).toBe(true);
     expect(d.meta.map((m) => m.key)).toEqual(['name']);
     expect(d.nodes.added).toHaveLength(3);
-    const sub = diffFlows({ outputs: ['a'], params: {} }, { outputs: ['a', 'b'], params: {} });
-    expect(sub.meta).toEqual([{ key: 'outputs', from: '["a"]', to: '["a","b"]' }]);
+    const renamed = diffFlows({ name: 'a' }, { name: 'b' });
+    expect(renamed.meta).toEqual([{ key: 'name', from: 'a', to: 'b' }]);
   });
 
   it('reads a missing port as out', () => {

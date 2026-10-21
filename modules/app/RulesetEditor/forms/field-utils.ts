@@ -56,7 +56,7 @@ export const VALUE_KINDS = ['num', 'str', 'bool', 'json', 'path', 'expr', 'env',
 export type ValueKind = (typeof VALUE_KINDS)[number];
 
 export const VALUE_KIND_LABELS: Record<ValueKind, string> = {
-  num: 'Number', str: 'Text', bool: 'Yes / no', json: 'JSON', path: 'Variable', expr: 'Expression', env: 'Subflow param', now: 'Current time',
+  num: 'Number', str: 'Text', bool: 'Yes / no', json: 'JSON', path: 'Variable', expr: 'Expression', env: 'Environment variable', now: 'Current time',
 };
 
 export type ValueParam = { kind: ValueKind; v?: unknown };

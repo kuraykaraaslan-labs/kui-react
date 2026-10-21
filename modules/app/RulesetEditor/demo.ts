@@ -1,9 +1,10 @@
 /**
  * A sample for the showcase and the demo page: a small catalog written the way `blocks.d` files of
  * roltek-automation-1 are (enum with labels, `when`, dynamic outputs, host lists, a script, secrets),
- * the lists a host injects, and a flow that uses a group, a subflow and has one problem to find.
+ * the lists a host injects, and a flow that uses a group, calls another flow and has one problem to find.
  * Not used by the editor itself.
  */
+import { FLOW_BLOCKS, FLOWS_SOURCE } from './catalog/flow';
 import { catalogFromBlocks, type RawBlock } from './catalog/fromBlocks';
 import type { ParamChoices } from './catalog/types';
 import type { RuleChain } from './types';
@@ -113,53 +114,38 @@ const BLOCKS: RawBlock[] = [
 ];
 
 /** the sample catalog, in the roltek-automation-1 shape (error port on every node with an input) */
-export const DEMO_CATALOG = catalogFromBlocks([BLOCKS]);
+export const DEMO_CATALOG = catalogFromBlocks([BLOCKS, FLOW_BLOCKS]);
 
 /** the lists a host app would inject for `source` fields */
 export const DEMO_CHOICES: ParamChoices = {
   brokers: [{ value: 'broker-lan', label: 'LAN broker' }, { value: 'broker-cloud', label: 'Cloud broker' }],
   channels: [{ value: 'email', label: 'E-mail' }, { value: 'sms', label: 'SMS' }, { value: 'webhook', label: 'Webhook' }],
   adc_channels: [{ value: 'adc1', label: 'Analog input 1' }, { value: 'adc2', label: 'Analog input 2' }],
+  // the callable flows of the workspace (those with a Flow input block), the open one left out
+  [FLOWS_SOURCE]: [{ value: 'escalation', label: 'Escalation' }, { value: 'night-shift', label: 'Night shift' }],
 };
 
 /**
- * A flow with a group (the first three nodes), a subflow with two outputs, a connection from an error
+ * A flow with a group (the first two nodes), a Run flow block at the end of a chain, a connection from an error
  * port, and a notify block without a channel: the editor marks it and lists the problem.
  */
-export const DEMO_FLOW: Pick<RuleChain, 'nodes' | 'edges' | 'groups' | 'subflows'> = {
+export const DEMO_FLOW: Pick<RuleChain, 'nodes' | 'edges' | 'groups'> = {
   nodes: [
     { nodeId: 'n1', type: 'trigger.mqtt_in', label: 'Boiler temperature', x: 40, y: 80, config: { broker: 'broker-lan', topic: 'site/boiler/temp' } },
     { nodeId: 'n2', type: 'cond.compare', label: 'Too hot?', x: 260, y: 80, config: { path: 'msg.payload.temp', op: 'gt', value: { kind: 'num', v: 90 } } },
-    { nodeId: 'n3', type: 'subflow.sf-hold', label: 'Hold 2 min', x: 480, y: 40, config: { hold: 120000 } },
+    { nodeId: 'n3', type: 'logic.delay', label: 'Hold 2 min', x: 480, y: 40, config: { hold: 120000 } },
     { nodeId: 'n4', type: 'action.notify', label: 'Tell the operator', x: 720, y: 20, config: { message: 'Boiler is at {{msg.payload.temp}} °C' } },
-    { nodeId: 'n5', type: 'action.log', label: 'Log it', x: 720, y: 190, config: { level: 'warn', text: 'Boiler too hot' } },
-    { nodeId: 'n6', type: 'action.log', label: 'Log the error', x: 480, y: 250, config: { level: 'error', text: 'Compare failed' } },
+    { nodeId: 'n5', type: 'action.log', label: 'Log it', x: 480, y: 190, config: { level: 'info', text: 'Boiler is fine' } },
+    { nodeId: 'n6', type: 'action.log', label: 'Log the error', x: 480, y: 330, config: { level: 'error', text: 'Compare failed' } },
+    { nodeId: 'n7', type: 'action.flow_run', label: 'Escalate', x: 720, y: 150, config: { flow: 'escalation' } },
   ],
   edges: [
     { edgeId: 'e1', sourceNodeId: 'n1', sourcePort: 'out', targetNodeId: 'n2', targetPort: 'in' },
     { edgeId: 'e2', sourceNodeId: 'n2', sourcePort: 'yes', targetNodeId: 'n3', targetPort: 'in' },
-    { edgeId: 'e3', sourceNodeId: 'n3', sourcePort: 'confirmed', targetNodeId: 'n4', targetPort: 'in' },
-    { edgeId: 'e4', sourceNodeId: 'n3', sourcePort: 'dropped', targetNodeId: 'n5', targetPort: 'in' },
-    { edgeId: 'e5', sourceNodeId: 'n2', sourcePort: 'error', targetNodeId: 'n6', targetPort: 'in' },
+    { edgeId: 'e3', sourceNodeId: 'n3', sourcePort: 'out', targetNodeId: 'n4', targetPort: 'in' },
+    { edgeId: 'e4', sourceNodeId: 'n3', sourcePort: 'out', targetNodeId: 'n7', targetPort: 'in' },
+    { edgeId: 'e5', sourceNodeId: 'n2', sourcePort: 'no', targetNodeId: 'n5', targetPort: 'in' },
+    { edgeId: 'e6', sourceNodeId: 'n2', sourcePort: 'error', targetNodeId: 'n6', targetPort: 'in' },
   ],
   groups: [{ groupId: 'g1', name: 'Sensing', color: 4, nodeIds: ['n1', 'n2'] }],
-  subflows: [
-    {
-      subflowId: 'sf-hold', name: 'Hold, then confirm', description: 'Passes a message on only if no newer one cancels it within the hold time',
-      inputs: 1, outputs: ['confirmed', 'dropped'],
-      params: { hold: { type: 'duration', default: 60000, label: 'Hold for' } },
-      nodes: [
-        { nodeId: 'pin', type: 'port.in', label: 'Subflow input', x: 40, y: 80, config: {} },
-        { nodeId: 'wait', type: 'logic.delay', label: 'Wait', x: 260, y: 80, config: { hold: 60000 } },
-        { nodeId: 'ok', type: 'port.out', label: 'Subflow output', x: 500, y: 40, config: { port: 'confirmed' } },
-        { nodeId: 'no', type: 'port.out', label: 'Subflow output', x: 500, y: 160, config: { port: 'dropped' } },
-      ],
-      edges: [
-        { edgeId: 's1', sourceNodeId: 'pin', sourcePort: 'out', targetNodeId: 'wait', targetPort: 'in' },
-        { edgeId: 's2', sourceNodeId: 'wait', sourcePort: 'out', targetNodeId: 'ok', targetPort: 'in' },
-        { edgeId: 's3', sourceNodeId: 'wait', sourcePort: 'error', targetNodeId: 'no', targetPort: 'in' },
-      ],
-      groups: [],
-    },
-  ],
 };

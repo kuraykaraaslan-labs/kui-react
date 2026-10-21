@@ -13,7 +13,7 @@ export type RawBlockFile = { blocks: RawBlock[] };
 const NO_INPUT = new Set(['trigger', 'config', 'note']);
 
 const DEFAULT_OUTPUTS: Record<string, string[]> = {
-  trigger: ['out'], cond: ['yes', 'no'], logic: ['out'], action: ['out'], ui: ['out'], config: [], port: [], note: [],
+  trigger: ['out'], cond: ['yes', 'no'], logic: ['out'], action: ['out'], ui: ['out'], config: [], flow: [], note: [],
 };
 
 /** header tint and icon colour per category, in kui tokens */
@@ -23,8 +23,7 @@ const CATEGORY_VISUAL: Record<string, BlockVisual> = {
   logic: { iconColor: 'text-secondary', headerBg: 'bg-secondary-subtle' },
   action: { iconColor: 'text-success-fg', headerBg: 'bg-success-subtle' },
   ui: { iconColor: 'text-info', headerBg: 'bg-info-subtle' },
-  subflow: { iconColor: 'text-secondary', headerBg: 'bg-secondary-subtle' },
-  port: { iconColor: 'text-info', headerBg: 'bg-info-subtle' },
+  flow: { iconColor: 'text-secondary', headerBg: 'bg-secondary-subtle' },
 };
 const RISKY_VISUAL: BlockVisual = { iconColor: 'text-error', headerBg: 'bg-error-subtle' };
 const RISKY = new Set<BlockRisk>(['external', 'control', 'system', 'code']);
@@ -38,7 +37,7 @@ export const ROLTEK_GROUPS: CatalogGroup[] = [
   { id: 'lora', label: 'LoRa' },
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'debug', label: 'Debug' },
-  { id: 'subflow', label: 'Subflows' },
+  { id: 'flow', label: 'Flows' },
 ];
 
 export function categoryOf(type: string): string {

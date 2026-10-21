@@ -5,7 +5,7 @@ import type { GraphEdge, GraphNode } from './types';
 
 const node = (nodeId: string, x = 0, extra: Partial<GraphNode> = {}): GraphNode => ({ nodeId, type: 'FILTER', label: nodeId, x, y: 0, ...extra });
 const edge = (edgeId: string, from: string, to: string, port = 'out'): GraphEdge => ({ edgeId, sourceNodeId: from, sourcePort: port, targetNodeId: to, targetPort: 'in' });
-const state = (p: Partial<EditorState> = {}): EditorState => ({ nodes: [], edges: [], groups: [], subflows: [], ...p });
+const state = (p: Partial<EditorState> = {}): EditorState => ({ nodes: [], edges: [], groups: [], ...p });
 const ids = (s: EditorState) => s.nodes.map((n) => n.nodeId);
 
 const BASE = state({ nodes: [node('a'), node('b', 100), node('c', 200)], edges: [edge('e1', 'a', 'b'), edge('e2', 'b', 'c')] });
@@ -108,7 +108,7 @@ describe('mergeGraphs: connections', () => {
   });
 });
 
-describe('mergeGraphs: groups and subflows', () => {
+describe('mergeGraphs: groups', () => {
   const g = (groupId: string, nodeIds: string[], name = groupId) => ({ groupId, name, color: 0, nodeIds });
   it('merges groups by id and drops members that are gone, and empty groups', () => {
     const base = state({ ...BASE, groups: [g('g1', ['a', 'b'])] });
@@ -123,15 +123,5 @@ describe('mergeGraphs: groups and subflows', () => {
     const mine = state({ ...base, groups: [g('g1', ['a', 'b']), g('g2', ['b'])] });
     const r = mergeGraphs(base, mine, base);
     expect(r.graph.groups.find((x) => x.groupId === 'g2')).toBeUndefined();
-  });
-
-  it('merges subflows as a whole', () => {
-    const sf = (subflowId: string, name: string) => ({ subflowId, name, inputs: 1 as const, outputs: ['out'], params: {}, nodes: [], edges: [], groups: [] });
-    const base = state({ subflows: [sf('s1', 'One')] });
-    const mine = state({ subflows: [sf('s1', 'Mine')] });
-    const theirs = state({ subflows: [sf('s1', 'Theirs'), sf('s2', 'Two')] });
-    const r = mergeGraphs(base, mine, theirs);
-    expect(r.conflicts).toEqual([{ kind: 'subflow', id: 's1', deleted: false }]);
-    expect(r.graph.subflows.map((s) => [s.subflowId, s.name])).toEqual([['s1', 'Mine'], ['s2', 'Two']]);
   });
 });

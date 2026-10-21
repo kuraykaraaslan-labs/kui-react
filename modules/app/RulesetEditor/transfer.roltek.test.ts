@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { RuleChain, RuleSubflow } from './types';
+import type { RuleChain } from './types';
 import { catalogFromBlocks } from './catalog';
 import { chainsToRoltek, ROLTEK_FORMAT, roltekToChains } from './format/roltek';
 import { newNode } from './graph/edit';
@@ -19,18 +19,7 @@ const FILE = {
     { id: 'guest', name: 'Guest', enabled: true, nodes: [{ id: 'n1', type: 'trigger.quota', params: {}, x: 0, y: 0 }, { id: 'n2', type: 'action.notify', params: { token: { $secret: true } }, x: 200, y: 0 }], edges: [{ from: 'n1', from_port: 'out', to: 'n2' }] },
     { id: 'other', name: 'Other', enabled: false, nodes: [{ id: 'n1', type: 'trigger.quota', params: {}, x: 0, y: 0 }], edges: [] },
   ],
-  subflows: [],
   configs: [],
-};
-
-const sf: RuleSubflow = {
-  subflowId: 'sf-a', name: 'A', inputs: 1, outputs: ['out'], params: {},
-  nodes: [
-    { nodeId: 'pin', type: 'port.in', label: 'in', x: 0, y: 0 },
-    { nodeId: 'pout', type: 'port.out', label: 'out', x: 200, y: 0, config: { port: 'out', apiKey: 'secret-key' } },
-  ],
-  edges: [{ edgeId: 'e1', sourceNodeId: 'pin', sourcePort: 'out', targetNodeId: 'pout', targetPort: 'in' }],
-  groups: [],
 };
 
 function chain(over: Partial<RuleChain> = {}): RuleChain {
@@ -38,11 +27,10 @@ function chain(over: Partial<RuleChain> = {}): RuleChain {
     chainId: 'guest', name: 'Guest', slug: 'guest', active: true,
     nodes: [
       { nodeId: 'n1', type: 'TRIGGER', label: 'In', x: 0, y: 0 },
-      { nodeId: 'n2', type: 'TRANSFORM', label: 'Shape', x: 200, y: 0, config: { password: 'pw' } },
+      { nodeId: 'n2', type: 'TRANSFORM', label: 'Shape', x: 200, y: 0, config: { password: 'pw', apiKey: 'secret-key' } },
     ],
     edges: [{ edgeId: 'e1', sourceNodeId: 'n1', sourcePort: 'out', targetNodeId: 'n2', targetPort: 'in' }],
     groups: [{ groupId: 'g1', name: 'Both', color: 4, nodeIds: ['n1', 'n2'] }],
-    subflows: [sf],
     createdAt: new Date('2026-01-01'), updatedAt: new Date('2026-02-01'),
     ...over,
   };
@@ -111,80 +99,73 @@ describe('buildRoltekExport', () => {
     expect(buildRoltekExport([chain(), chain({ chainId: 'b' })], { all: true, now: NOW }).fileName).toMatch(/^automation-all-/);
     expect(buildRoltekExport([chain()], { now: NOW, suffix: 'v2' }).fileName).toMatch(/^automation-guest-v2-/);
   });
-  it('lists the secrets it left out, including the ones inside subflows', () => {
-    const used = chain({ nodes: [...chain().nodes, { nodeId: 'n3', type: 'subflow.sf-a', label: 'A', x: 400, y: 0 }] });
-    const withSub = buildRoltekExport([used], { now: NOW });
-    expect(withSub.omitted).toEqual(['flows.guest.nodes.n2.params.password', 'subflows.sf-a.nodes.pout.params.apiKey']);
-    expect(JSON.stringify(withSub.file)).not.toContain('secret-key');
-    expect(JSON.stringify(withSub.file)).not.toContain('"pw"');
+  it('lists the secrets it left out', () => {
+    expect(r.omitted).toEqual(['flows.guest.nodes.n2.params.password', 'flows.guest.nodes.n2.params.apiKey']);
+    expect(JSON.stringify(r.file)).not.toContain('secret-key');
+    expect(JSON.stringify(r.file)).not.toContain('"pw"');
   });
   it('can be read back into the same chains', () => {
-    const used = chain({ nodes: [...chain().nodes, { nodeId: 'n3', type: 'subflow.sf-a', label: 'A', x: 400, y: 0 }] });
+    const used = chain({ nodes: [...chain().nodes, { nodeId: 'n3', type: 'trigger.flow_input', label: 'Entry', x: 400, y: 0 }] });
     const back = parseImport(buildRoltekExport([used], { now: NOW }).json, [], { now: NOW }) as ImportPreview;
     expect(back.source).toBe('roltek');
-    expect(back.items[0].chain.nodes.map((n) => n.type)).toEqual(['TRIGGER', 'TRANSFORM', 'subflow.sf-a']);
-    expect(back.items[0].chain.subflows?.[0].subflowId).toBe('sf-a');
+    expect(back.items[0].chain.nodes.map((n) => n.type)).toEqual(['TRIGGER', 'TRANSFORM', 'PLACEHOLDER']);
+    expect(back.items[0].chain).not.toHaveProperty('subflows');
   });
-  it('does not write a subflow that no node uses', () => {
-    expect(r.file.subflows).toEqual([]);
-    expect(r.omitted).toEqual(['flows.guest.nodes.n2.params.password']);
+  it('writes no subflows list', () => {
+    expect(r.file).not.toHaveProperty('subflows');
   });
 });
 
-describe('groups and subflows in kui-ruleset-1', () => {
+describe('groups in kui-ruleset-1', () => {
   it('survive an export and an import', () => {
     const exported = buildExport([chain()], { now: NOW });
     const r = parseImport(exported.json, [], { now: NOW }) as ImportPreview;
     const back = r.items[0].chain;
     expect(back.groups).toEqual([{ groupId: 'g1', name: 'Both', color: 4, nodeIds: ['n1', 'n2'] }]);
-    expect(back.subflows?.[0]).toMatchObject({ subflowId: 'sf-a', outputs: ['out'] });
   });
-  it('are scrubbed of secrets like nodes are', () => {
-    const exported = buildExport([chain()], { now: NOW });
-    expect(exported.file.rulesets[0].subflows?.[0].nodes[1].config).toEqual({ port: 'out', apiKey: null });
-    expect(exported.omitted).toContain('Guest / subflow A / out / config.apiKey');
-    expect(chain().subflows?.[0].nodes[1].config?.apiKey).toBe('secret-key');
-  });
-  it('are read leniently: bad groups and subflows are skipped, missing members dropped', () => {
+  it('are read leniently: bad groups are skipped, missing members dropped', () => {
     const file = JSON.parse(buildExport([chain()], { now: NOW }).json);
     file.rulesets[0].groups = [{ groupId: 'g1', name: 'x', color: 99, nodeIds: ['n1'] }, { groupId: 'g2', name: 'ok', color: 1, nodeIds: ['n1', 'zzz'] }, { groupId: 'g3', name: 'empty', color: 1, nodeIds: ['zzz'] }];
-    file.rulesets[0].subflows = [{ subflowId: 'broken' }, ...file.rulesets[0].subflows];
     const back = (parseImport(JSON.stringify(file), [], { now: NOW }) as ImportPreview).items[0].chain;
     expect(back.groups).toEqual([{ groupId: 'g2', name: 'ok', color: 1, nodeIds: ['n1'] }]);
-    expect(back.subflows?.map((s) => s.subflowId)).toEqual(['sf-a']);
   });
   it('are left out when a chain has none', () => {
     const plain = chain();
     delete plain.groups;
-    delete plain.subflows;
     const back = (parseImport(buildExport([plain], { now: NOW }).json, [], { now: NOW }) as ImportPreview).items[0].chain;
     expect(back).not.toHaveProperty('groups');
-    expect(back).not.toHaveProperty('subflows');
+  });
+});
+
+describe('subflows of an older kui-ruleset-1 file', () => {
+  it('are not imported: the file is read, they are noted, their instances become placeholders', () => {
+    const file = JSON.parse(buildExport([chain({ nodes: [...chain().nodes, { nodeId: 'n3', type: 'subflow.sf-a', label: 'A', x: 400, y: 0 }] })], { now: NOW }).json);
+    file.rulesets[0].subflows = [{ subflowId: 'sf-a', name: 'A', inputs: 1, outputs: ['out'], params: {}, nodes: [], edges: [], groups: [] }];
+    const item = (parseImport(JSON.stringify(file), [], { now: NOW }) as ImportPreview).items[0];
+    expect(item.chain).not.toHaveProperty('subflows');
+    expect(item.chain.nodes[2]).toMatchObject({ type: 'PLACEHOLDER', original: { type: 'subflow.sf-a', source: 'kui' } });
+    expect(item.notes).toEqual(['1 node not available here (placeholder)', '1 subflow in the file not imported (flows call each other with Flow input and Run flow blocks)']);
   });
 });
 
 describe('cloneChain', () => {
-  it('copies groups and subflows deeply', () => {
+  it('copies groups deeply', () => {
     const original = chain();
     const copy = cloneChain(original);
     copy.groups![0].nodeIds.push('x');
-    copy.subflows![0].nodes[1].config!.port = 'changed';
     expect(original.groups![0].nodeIds).toEqual(['n1', 'n2']);
-    expect(original.subflows![0].nodes[1].config!.port).toBe('out');
   });
   it('adds nothing a chain did not have', () => {
     const plain = chain();
     delete plain.groups;
-    delete plain.subflows;
     const copy = cloneChain(plain);
     expect(copy).not.toHaveProperty('groups');
-    expect(copy).not.toHaveProperty('subflows');
   });
 });
 
 describe('the block version of a node (v)', () => {
   const versioned = catalogFromBlocks([[{ type: 'trigger.quota', version: 2 }, { type: 'action.notify', version: 3 }]]);
-  const file = { format: ROLTEK_FORMAT, flows: [{ id: 'f', name: 'F', enabled: true, nodes: [{ id: 'n1', type: 'trigger.quota', params: {}, x: 0, y: 0, v: 2 }, { id: 'n2', type: 'action.notify', params: {}, x: 200, y: 0 }], edges: [] }], subflows: [], configs: [] };
+  const file = { format: ROLTEK_FORMAT, flows: [{ id: 'f', name: 'F', enabled: true, nodes: [{ id: 'n1', type: 'trigger.quota', params: {}, x: 0, y: 0, v: 2 }, { id: 'n2', type: 'action.notify', params: {}, x: 200, y: 0 }], edges: [] }], configs: [] };
 
   it('is read on import, kept untouched when a node has none, and written back on export', () => {
     const [c] = roltekToChains(file, versioned, NOW);
