@@ -96,9 +96,8 @@ export const SCADA_SCENE: SettingsTemplate = {
     criticalColor: colorField('Critical', 'colour', 'var(--error)'),
     idColumn: { label: 'Row id column', type: 'data-key', slot: 'points', value: 'id', group: 'data', advanced: true, description: 'Which column of the table names a symbol or connection.' },
     animation: { label: 'Animate running parts', type: 'boolean', value: true, group: 'motion', advanced: true },
-  }),
-  // Version 2: titles, zones and dividers, and the calm look.
-  ...since(2, {
+    // Version 2: titles, zones and dividers, and the calm look.
+    ...since(2, {
     shapes: {
       label: 'Titles and zones', type: 'repeater', group: 'shapes', max: MAX_SCENE_SHAPES,
       description: 'A title, a zone outline or a divider line on the canvas. They carry no reading. x and y are the anchor of a title and the top-left corner of a zone or divider.',
@@ -116,6 +115,7 @@ export const SCADA_SCENE: SettingsTemplate = {
       },
     },
     calm: { label: 'Calm look', type: 'boolean', value: false, group: 'colour', description: 'Running parts are drawn in plain ink, not green; only a warning or an alarm shows colour (ISA-101 style).' },
+    }),
   }),
   rules: [
     (v: Sparse) => {

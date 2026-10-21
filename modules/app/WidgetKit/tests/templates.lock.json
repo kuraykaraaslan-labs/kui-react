@@ -5169,6 +5169,74 @@
     "animation": {
       "type": "boolean",
       "value": true
+    },
+    "shapes": {
+      "type": "repeater",
+      "fields": {
+        "kind": {
+          "type": "select",
+          "value": "text",
+          "options": [
+            "text",
+            "zone",
+            "divider"
+          ]
+        },
+        "text": {
+          "type": "text"
+        },
+        "x": {
+          "type": "number",
+          "value": 0
+        },
+        "y": {
+          "type": "number",
+          "value": 0
+        },
+        "w": {
+          "type": "number"
+        },
+        "h": {
+          "type": "number"
+        },
+        "size": {
+          "type": "select",
+          "value": "m",
+          "options": [
+            "s",
+            "m",
+            "l"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "value": "middle",
+          "options": [
+            "start",
+            "middle",
+            "end"
+          ]
+        },
+        "tone": {
+          "type": "select",
+          "value": "neutral",
+          "options": [
+            "neutral",
+            "info",
+            "success",
+            "warning",
+            "error"
+          ]
+        },
+        "dashed": {
+          "type": "boolean",
+          "value": true
+        }
+      }
+    },
+    "calm": {
+      "type": "boolean",
+      "value": false
     }
   }
 }
