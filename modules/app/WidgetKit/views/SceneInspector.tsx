@@ -165,6 +165,7 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
     const r = ctx.apply((s) => renameElement(s, from, to));
     if (r.refused) { fail('id', m.refused(r.refused)); return false; }
     clear('id');
+    ctx.host.onRename?.(from, r.id ?? to);
     // The selection holds ids: it follows the symbol to its new name.
     ctx.setSelection({ elements: [r.id ?? to] });
     announce(m.idRenamed(r.id ?? to));

@@ -134,7 +134,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const names = (id: string) => geo.hits.find((h) => h.id === id)?.name ?? id;
   const selectedElements = selection.elements ?? [];
   const skipped = useMemo(() => new Set([...locked, ...hidden]), [locked, hidden]);
-  const problemList = useMemo(() => findProblems(settings, props.data), [settings, props.data]);
+  const problemList = useMemo(() => findProblems(settings, props.data, { extra: props.host?.problems }), [settings, props.data, props.host?.problems]);
 
   const refusal = (r: EditResult): boolean => { if (r.refused) say(fill(m.refused, { reason: r.refused })); return !!r.refused; };
 
@@ -319,7 +319,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
       const r = apply((s) => renameElement(s, from, next));
       if (r.refused) return r.refused;
       setSelection(only({ kind: 'element', id: next }));
-      if (next !== from) say(fill(m.renamed, { from, to: next }));
+      if (next !== from) { say(fill(m.renamed, { from, to: next })); host.onRename?.(from, next); }
     } else {
       const index = renaming.index;
       const r = apply((s) => setShapeProps(s, index, { text: to }));
@@ -492,6 +492,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
             onDragStart={(symbol) => setPaletteDrag({ symbol })}
             recent={recent}
             locale={locale}
+            messages={props.panelMessages?.palette}
             className="flex-1 p-3"
           />
         </Panel>
@@ -537,10 +538,10 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
             ))}
           </div>
           <div id={`scene-tabpanel-${activeTab}`} role="tabpanel" aria-labelledby={`scene-tab-${activeTab}`} className="min-h-0 flex-1 overflow-auto p-3">
-            {(activeTab === 'properties' || activeTab === 'rules') && <SceneInspector ctx={ctx} tab={activeTab} showTabs={false} />}
+            {(activeTab === 'properties' || activeTab === 'rules') && <SceneInspector ctx={ctx} tab={activeTab} showTabs={false} messages={props.panelMessages?.inspector} rulesMessages={props.panelMessages?.rules} />}
             {activeTab === 'actions' && (selectedElements.length === 1 && selectionCount(selection) === 1 ? host.renderActions?.(selectedElements[0]) : <p className="text-sm text-text-secondary">{m.actionsHint}</p>)}
-            {activeTab === 'problems' && <SceneProblems ctx={ctx} onSelect={focusProblem} onOpenRule={() => setTab('rules')} />}
-            {activeTab === 'whatif' && <SceneWhatIf ctx={ctx} value={whatIf} onChange={setWhatIf} />}
+            {activeTab === 'problems' && <SceneProblems ctx={ctx} onSelect={focusProblem} onOpenRule={() => setTab('rules')} messages={props.panelMessages?.problems} />}
+            {activeTab === 'whatif' && <SceneWhatIf ctx={ctx} value={whatIf} onChange={setWhatIf} messages={props.panelMessages?.whatIf} />}
           </div>
         </Panel>
       </div>
