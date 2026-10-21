@@ -289,7 +289,7 @@ export interface InspectorMessages {
   notAColour: string;
   groups: {
     symbol: string; placement: string; label: string; data: string; medium: string; colours: string; connection: string; route: string;
-    words: string; look: string; canvas: string; more: string;
+    words: string; look: string; canvas: string; source: string; more: string;
   };
   actionsNone: string;
   actionsMissing: string;
@@ -318,7 +318,7 @@ export const DEFAULT_INSPECTOR_MESSAGES: InspectorMessages = {
   notAColour: 'This is not a colour.',
   groups: {
     symbol: 'Symbol', placement: 'Position and size', label: 'Name and number', data: 'Scale and units', medium: 'Medium', colours: 'Colours',
-    connection: 'Connection', route: 'Route and look', words: 'Words', look: 'Look', canvas: 'Canvas', more: 'More',
+    connection: 'Connection', route: 'Route and look', words: 'Words', look: 'Look', canvas: 'Canvas', source: 'Data', more: 'More',
   },
   actionsNone: 'Select a symbol to see its actions.',
   actionsMissing: 'The host has not connected an actions editor.',

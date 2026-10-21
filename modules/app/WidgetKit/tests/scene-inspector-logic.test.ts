@@ -86,6 +86,13 @@ describe('sharedValues', () => {
     expect(r.values).toEqual({ a: 1 });
     expect([...r.differs].sort()).toEqual(['b', 'c']);
   });
+  it('counts an unset key as the field\'s default, so it is not a difference', () => {
+    const r = sharedValues([{ turn: '0' }, {}], ['turn'], { turn: '0' });
+    expect(r.differs.size).toBe(0);
+    expect(r.values).toEqual({ turn: '0' });
+    expect(sharedValues([{ turn: '90' }, {}], ['turn'], { turn: '0' }).differs.has('turn')).toBe(true);
+    expect(sharedValues([{}, {}], ['turn'], { turn: '0' })).toEqual({ values: {}, differs: new Set() });
+  });
   it('is empty for no rows', () => {
     expect(sharedValues([], ['a'])).toEqual({ values: {}, differs: new Set() });
   });

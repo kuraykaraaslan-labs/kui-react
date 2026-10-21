@@ -1,0 +1,213 @@
+import { describe, it, expect } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import type { SceneSettings } from '../views/scada-scene-logic';
+import { SceneRulesEditor } from '../views/SceneRulesEditor';
+import type { Rec } from '../views/scene-edit-logic';
+import { validateRules } from '../views/scene-rules-logic';
+import { Harness, newProbe } from './scene-panel-harness';
+import { smallScene } from './scene-edit-fixture';
+
+const rulesOf = (p: ReturnType<typeof newProbe>) => ((p.current!.ctx.settings as { rules?: Rec[] }).rules ?? []);
+const points = { shape: 'table' as const, rows: [{ id: 'pump1', running: true, status: 'warning', value: 30 }, { id: 'tank1', value: 5 }, { id: 'valve1', running: false }] };
+
+function scene(rules: Rec[]): SceneSettings {
+  return { ...smallScene(), rules } as SceneSettings;
+}
+function mount(rules: Rec[], o: { selection?: { elements?: string[]; links?: number[] }; host?: object; params?: Record<string, unknown>; data?: object } = {}) {
+  const probe = newProbe();
+  const view = render(
+    <Harness initial={scene(rules)} selection={o.selection} probe={probe} data={(o.data ?? { points }) as never} params={o.params} host={o.host}>
+      {(ctx) => <SceneRulesEditor ctx={ctx} />}
+    </Harness>,
+  );
+  return { probe, ...view };
+}
+
+const RULES: Rec[] = [
+  { target: 'pump1', key: 'value', op: 'gt', value: '24', state: 'warning', label: 'High' },
+  { target: '*', key: 'status', op: 'eq', value: 'critical', state: 'critical' },
+  { target: 'valve1', key: 'running', op: 'true', color: 'var(--info)' },
+  { target: 'pump1', key: 'running', op: 'false', state: 'idle' },
+];
+
+describe('SceneRulesEditor: the list', () => {
+  it('shows each rule as a sentence, grouped: the selection first, then *, then the others by target', () => {
+    mount(RULES, { selection: { elements: ['pump1'] } });
+    const groups = [...document.querySelectorAll('[data-group]')].map((g) => g.getAttribute('data-group'));
+    expect(groups).toEqual(['own', 'star', 'others', 't-valve1']);
+    expect(screen.getByRole('heading', { name: 'Rules for pump1 (Mud pump)' })).toBeInTheDocument();
+    expect(screen.getByText("When value of this symbol is above 24, set the state to warning and show 'High'")).toBeInTheDocument();
+    expect(screen.getByText('When status of this symbol is critical, set the state to critical')).toBeInTheDocument();
+    const own = document.querySelector('[data-group="own"]')!;
+    expect([...own.querySelectorAll('[data-rule]')].map((r) => r.getAttribute('data-rule'))).toEqual(['0', '3']);
+  });
+  it('lists everything under the others, without a selection, and says when there are no rules', () => {
+    mount(RULES);
+    expect(document.querySelector('[data-group="own"]')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent('4 rules');
+  });
+  it('has an empty state', () => {
+    mount([]);
+    expect(screen.getByText(/No rules yet/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('0 rules');
+  });
+  it('marks each rule live: matching now, not matching, matching some, off, no target', () => {
+    mount([
+      { target: 'pump1', key: 'value', op: 'gt', value: '24' },
+      { target: 'pump1', key: 'value', op: 'gt', value: '99' },
+      { target: '*', key: 'running', op: 'true' },
+      { target: 'valve1', key: 'running', op: 'true', enabled: false },
+      { target: 'ghost', key: 'running', op: 'true' },
+    ]);
+    const mark = (i: number) => document.querySelector(`[data-rule="${i}"]`)!.textContent;
+    expect(mark(0)).toContain('Matching now');
+    expect(mark(1)).toContain('Not matching');
+    expect(mark(2)).toContain('Matching 1 of 4');
+    expect(mark(3)).toContain('Off');
+    expect(mark(4)).toContain('No target');
+  });
+  it('reads board parameters for the live mark', () => {
+    mount([{ target: 'pump1', source: 'param', key: 'mode', op: 'eq', value: 'night' }], { params: { mode: 'night' } });
+    expect(document.querySelector('[data-rule="0"]')!.textContent).toContain('Matching now');
+  });
+});
+
+describe('SceneRulesEditor: editing', () => {
+  it('adds a rule for the selected symbol and opens it', () => {
+    const { probe } = mount([], { selection: { elements: ['pump1'] } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add rule' }));
+    expect(rulesOf(probe)).toEqual([expect.objectContaining({ target: 'pump1', enabled: true })]);
+    expect(screen.getByLabelText('Applies to')).toHaveValue('pump1');
+  });
+  it('adds a rule with no target when nothing is selected, and shows the validation message', () => {
+    const { probe } = mount([]);
+    fireEvent.click(screen.getByRole('button', { name: 'Add rule' }));
+    expect(rulesOf(probe)[0].target).toBe('');
+    expect(screen.getByText('Choose a symbol, a connection or *')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Applies to'), { target: { value: '*' } });
+    expect(rulesOf(probe)[0].target).toBe('*');
+    expect(screen.queryByText('Choose a symbol, a connection or *')).toBeNull();
+  });
+  it('builds a condition: column, row, operator, value, and a second condition joined with any', () => {
+    const { probe } = mount([{ target: 'pump1', enabled: true }]);
+    fireEvent.click(screen.getByRole('button', { name: /^When|Always/ }));
+    fireEvent.change(screen.getByLabelText('Column'), { target: { value: 'value' } });
+    fireEvent.change(screen.getByLabelText('Is'), { target: { value: 'between' } });
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Up to'), { target: { value: '20' } });
+    expect(rulesOf(probe)[0]).toMatchObject({ key: 'value', op: 'between', value: '10', to: '20' });
+    fireEvent.click(screen.getByRole('button', { name: 'Add a second condition' }));
+    expect(rulesOf(probe)[0]).toMatchObject({ op2: 'eq', join: 'all' });
+    const second = document.querySelector('[data-condition="2"]') as HTMLElement;
+    fireEvent.change(within(second).getByLabelText('Read'), { target: { value: 'param' } });
+    fireEvent.change(within(second).getByLabelText('Parameter'), { target: { value: 'mode' } });
+    fireEvent.change(within(second).getByLabelText('Value'), { target: { value: 'night' } });
+    fireEvent.change(screen.getByLabelText('Join with'), { target: { value: 'any' } });
+    expect(rulesOf(probe)[0]).toMatchObject({ source2: 'param', key2: 'mode', value2: 'night', join: 'any' });
+    expect(screen.getByRole('button', { name: /When value of this symbol is between 10 and 20 or parameter mode is night/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the second condition' }));
+    expect('op2' in rulesOf(probe)[0]).toBe(false);
+    expect(rulesOf(probe)[0]).toMatchObject({ key2: '' });
+    expect(document.querySelector('[data-condition="2"]')).toBeNull();
+  });
+  it('offers the host\'s columns and parameters, with free text as the fallback, and reads another symbol\'s row', () => {
+    const { probe } = mount([{ target: 'pump1', key: '', op: 'gt', value: '1' }], {
+      host: { columns: [{ key: 'temp', label: 'Temperature' }], params: [{ key: 'mode', label: 'Mode', values: ['day', 'night'] }] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /When/ }));
+    const list = document.querySelector('datalist')!;
+    expect([...list.querySelectorAll('option')].map((o) => o.getAttribute('value'))).toEqual(['temp']);
+    fireEvent.change(screen.getByLabelText('Column'), { target: { value: 'vibration' } });
+    expect(rulesOf(probe)[0].key).toBe('vibration');
+    fireEvent.change(screen.getByLabelText('Of row'), { target: { value: 'tank1' } });
+    expect(rulesOf(probe)[0].of).toBe('tank1');
+    fireEvent.change(screen.getByLabelText('Read'), { target: { value: 'param' } });
+    expect([...document.querySelector('datalist')!.querySelectorAll('option')].map((o) => o.getAttribute('value'))).toEqual(['mode']);
+    fireEvent.change(screen.getByLabelText('Parameter'), { target: { value: 'mode' } });
+    expect([...document.querySelectorAll('datalist')[1].querySelectorAll('option')].map((o) => o.getAttribute('value'))).toEqual(['day', 'night']);
+    expect(screen.queryByLabelText('Of row')).toBeNull();
+  });
+  it('sets the effects: state, colours, yes/no looks, motion, medium, stop, and inserts a token into the name', () => {
+    const { probe } = mount([{ target: 'pump1', key: 'value', op: 'gt', value: '1' }]);
+    fireEvent.click(screen.getByRole('button', { name: /When/ }));
+    fireEvent.change(screen.getByLabelText('State'), { target: { value: 'critical' } });
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Colour: theme colours' })).getByRole('radio', { name: 'Primary' }));
+    fireEvent.change(screen.getByLabelText('Passive look'), { target: { value: 'true' } });
+    fireEvent.change(screen.getByLabelText('Blink'), { target: { value: 'true' } });
+    fireEvent.change(screen.getByLabelText('Hide'), { target: { value: 'false' } });
+    fireEvent.change(screen.getByLabelText('Motion'), { target: { value: 'false' } });
+    fireEvent.change(screen.getByLabelText('Medium'), { target: { value: 'hot' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: /Stop here/ }));
+    const name = screen.getByLabelText('Name') as HTMLInputElement;
+    fireEvent.change(name, { target: { value: 'High: ' } });
+    name.setSelectionRange(6, 6);
+    fireEvent.click(screen.getByRole('button', { name: 'Insert {value}' }));
+    expect(rulesOf(probe)[0]).toMatchObject({ state: 'critical', color: 'var(--primary)', dim: 'true', blink: 'true', hidden: 'false', animate: 'false', medium: 'hot', stop: true, label: 'High: {value}' });
+    fireEvent.change(screen.getByLabelText('State'), { target: { value: '' } });
+    expect('state' in rulesOf(probe)[0]).toBe(false);
+  });
+  it('turns a rule off and on', () => {
+    const { probe } = mount(RULES);
+    fireEvent.click(screen.getAllByRole('checkbox', { name: 'On: rule 1' })[0]);
+    expect(rulesOf(probe)[0].enabled).toBe(false);
+    expect(screen.getByRole('button', { name: /\(off\)$/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'On: rule 1' }));
+    expect(rulesOf(probe)[0].enabled).toBe(true);
+  });
+  it('moves a rule within the list it is shown in, duplicates and deletes, each one undo step', () => {
+    const { probe } = mount(RULES, { selection: { elements: ['pump1'] } });
+    expect(screen.getByRole('button', { name: 'Move up: rule 1' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Move down: rule 1' }));
+    expect(rulesOf(probe).map((r) => r.target)).toEqual(['*', 'valve1', 'pump1', 'pump1']);
+    expect(rulesOf(probe)[3].key).toBe('value');
+    expect(probe.current!.history.past).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate: rule 4' }));
+    expect(rulesOf(probe)).toHaveLength(5);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete: rule 5' }));
+    expect(rulesOf(probe)).toHaveLength(4);
+    act(() => probe.current!.undo());
+    expect(rulesOf(probe)).toHaveLength(5);
+    act(() => probe.current!.undo());
+    act(() => probe.current!.undo());
+    expect(rulesOf(probe).map((r) => r.target)).toEqual(['pump1', '*', 'valve1', 'pump1']);
+  });
+  it('disables up at the top and down at the bottom of a group', () => {
+    mount(RULES, { selection: { elements: ['pump1'] } });
+    expect(screen.getByRole('button', { name: 'Move down: rule 4' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Move up: rule 2' })).toBeDisabled();
+  });
+  it('shows the validation messages of the template\'s own rules under the field', () => {
+    const { probe } = mount([{ target: 'pump1', key: '', op: 'gt', value: 'abc', of: 'ghost' }]);
+    fireEvent.click(screen.getByRole('button', { name: /When/ }));
+    expect(screen.getByText('Name the column')).toBeInTheDocument();
+    expect(screen.getByText('This operator compares numbers: the value must be a number')).toBeInTheDocument();
+    expect(screen.getAllByText('No symbol or connection has this id').length).toBeGreaterThan(0);
+    expect(document.querySelector('[data-rule="0"]')!.textContent).toMatch(/3 problems/);
+    expect(validateRules(rulesOf(probe), { elementIds: ['pump1'] }).length).toBe(3);
+  });
+  it('keeps a target that is no longer in the diagram visible and selectable', () => {
+    mount([{ target: 'ghost', state: 'idle' }]);
+    fireEvent.click(screen.getByRole('button', { name: /Always/ }));
+    expect(screen.getByRole('option', { name: 'ghost (not in the diagram)' })).toBeInTheDocument();
+  });
+  it('shows a refusal from the edit model', () => {
+    const rules = Array.from({ length: 200 }, () => ({ target: '*', state: 'idle' }));
+    mount(rules);
+    fireEvent.click(screen.getByRole('button', { name: 'Add rule' }));
+    expect(screen.getByRole('alert')).toHaveTextContent(/at most 200 rules/);
+  });
+  it('ignores a stray entry in the list', () => {
+    mount([null as never, { target: 'pump1', state: 'idle' }]);
+    expect(document.querySelectorAll('[data-rule]')).toHaveLength(1);
+  });
+  it('takes the host\'s words, for the sentence and the controls', () => {
+    const probe = newProbe();
+    render(
+      <Harness initial={scene([{ target: 'pump1', key: 'value', op: 'gt', value: '1', state: 'idle' }])} probe={probe} data={{ points }}>
+        {(ctx) => <SceneRulesEditor ctx={ctx} messages={{ add: 'Kural ekle', words: { when: 'Eger', ops: { gt: 'buyuk {value}' } } }} />}
+      </Harness>,
+    );
+    expect(screen.getByRole('button', { name: 'Kural ekle' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Eger value of this symbol buyuk 1/ })).toBeInTheDocument();
+  });
+});

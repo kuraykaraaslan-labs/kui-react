@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { WhatIfState } from '../views/scene-editor-types';
 import { emptyWhatIf, isEmptyWhatIf, overlayParams, overlayRows, overrideCount, readOverride, setOverride, setParamOverride } from '../views/scene-whatif-logic';
 
 describe('what-if overrides', () => {
@@ -23,7 +24,7 @@ describe('what-if overrides', () => {
     expect(setParamOverride(setParamOverride(emptyWhatIf(), 'm', 'x'), 'm', '').params).toEqual({});
   });
   it('never changes its input and keeps a value that is zero or false', () => {
-    const base = Object.freeze({ rows: Object.freeze({}), params: Object.freeze({}) }) as never;
+    const base = Object.freeze({ rows: Object.freeze({}), params: Object.freeze({}) }) as unknown as WhatIfState;
     const s = setOverride(base, ['a'], 'value', 0);
     expect(s.rows.a).toEqual({ value: 0 });
     expect(setOverride(s, ['a'], 'running', false).rows.a).toEqual({ value: 0, running: false });

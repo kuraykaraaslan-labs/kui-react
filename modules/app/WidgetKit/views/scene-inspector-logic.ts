@@ -55,7 +55,7 @@ const GROUPS: Record<FieldScope, Record<string, string>> = {
   shape: { kind: 'words', text: 'words', x: 'placement', y: 'placement', w: 'placement', h: 'placement', size: 'look', align: 'look', tone: 'look', dashed: 'look' },
   scene: {
     width: 'canvas', height: 'canvas', scale: 'canvas', anchor: 'canvas', background: 'look', fit: 'look', showLabels: 'look', calm: 'look', animation: 'look',
-    idleColor: 'colours', runningColor: 'colours', warningColor: 'colours', criticalColor: 'colours', idColumn: 'data',
+    idleColor: 'colours', runningColor: 'colours', warningColor: 'colours', criticalColor: 'colours', idColumn: 'source',
   },
 };
 
@@ -100,14 +100,18 @@ export function fieldVisible(scope: FieldScope, key: string, rows: readonly Rec[
   return true;
 }
 
-/** What several rows share: a key's value when they all have the same, and the keys where they differ. */
-export function sharedValues(rows: readonly Rec[], keys: readonly string[]): { values: Rec; differs: Set<string> } {
+/**
+ * What several rows share: a key's value when they all have the same, and the keys where they differ. A row without the
+ * key counts as having the field's default (`defaults`), so "not set" and "set to the default" are not a difference.
+ */
+export function sharedValues(rows: readonly Rec[], keys: readonly string[], defaults: Rec = {}): { values: Rec; differs: Set<string> } {
   const values: Rec = {};
   const differs = new Set<string>();
   if (!rows.length) return { values, differs };
   for (const k of keys) {
-    const first = rows[0][k];
-    if (rows.every((r) => JSON.stringify(r[k]) === JSON.stringify(first))) { if (first !== undefined) values[k] = first; } else differs.add(k);
+    const at = (r: Rec) => r[k] ?? defaults[k];
+    const first = at(rows[0]);
+    if (rows.every((r) => JSON.stringify(at(r)) === JSON.stringify(first))) { if (rows[0][k] !== undefined) values[k] = rows[0][k]; } else differs.add(k);
   }
   return { values, differs };
 }
