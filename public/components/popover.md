@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-03
 
-Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel.
+Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel. `shrinkTrigger` caps the trigger wrapper at its container's width, so a `max-w-full` / `truncate` trigger shrinks instead of overflowing.
 
 ## Variants
 

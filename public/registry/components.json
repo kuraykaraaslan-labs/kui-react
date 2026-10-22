@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-22T07:46:40.802Z",
+  "generatedAt": "2026-10-22T11:06:33.200Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2736,7 +2736,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Overlays/Popover/index.tsx",
       "abbr": "Po",
-      "description": "Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel.",
+      "description": "Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel. `shrinkTrigger` caps the trigger wrapper at its container's width, so a `max-w-full` / `truncate` trigger shrinks instead of overflowing.",
       "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useEffect, useRef, useState } from 'react';\n\nexport function Popover({ trigger, children, placement = 'bottom' }) {\n  // manages open state, outside-click + Escape close, focus management\n}",
       "variants": [
         {
@@ -3007,7 +3007,7 @@
       "variants": [
         {
           "title": "Sidebar + topbar + content",
-          "code": "const [sidebarCollapsed, setSidebarCollapsed] = useState(false);\n\n<AppShell\n  logo={<span className=\"font-black text-primary\">Acme</span>}\n  compactLogo={<span className=\"font-black text-primary\">A</span>}\n  sidebarCollapsed={sidebarCollapsed}\n  sidebar={\n    <AppSidebar\n      navGroups={navGroups}\n      activeId={activeId}\n      onSelect={setActiveId}\n      collapsed={sidebarCollapsed}\n      onCollapsedChange={setSidebarCollapsed}\n      searchable\n      footer={<Avatar name=\"Jane Doe\" size=\"sm\" status=\"online\" />}\n    />\n  }\n  topbar={\n    <AppTopBar>\n      <GlobalSearch onSearch={handleSearch} onSelect={handleSelect} className=\"flex-1 max-w-sm hidden sm:block\" />\n      <div className=\"ml-auto flex items-center gap-1\">\n        <Button variant=\"ghost\" size=\"sm\" iconOnly>🔔</Button>\n        <UserMenu user={currentUser} />\n      </div>\n    </AppTopBar>\n  }\n>\n  {/* page content */}\n</AppShell>"
+          "code": "const [sidebarCollapsed, setSidebarCollapsed] = useState(true);\n\n<AppShell\n  logo={<span className=\"font-black text-primary\">Acme</span>}\n  compactLogo={<span className=\"font-black text-primary\">A</span>}\n  sidebarCollapsed={sidebarCollapsed}\n  sidebar={\n    <AppSidebar\n      navGroups={navGroups}\n      activeId={activeId}\n      onSelect={setActiveId}\n      collapsed={sidebarCollapsed}\n      onCollapsedChange={setSidebarCollapsed}\n      searchable\n      footer={<Avatar name=\"Jane Doe\" size=\"sm\" status=\"online\" />}\n    />\n  }\n  topbar={\n    <AppTopBar>\n      <GlobalSearch onSearch={handleSearch} onSelect={handleSelect} className=\"flex-1 max-w-sm hidden sm:block\" />\n      <div className=\"ml-auto flex items-center gap-1\">\n        <Button variant=\"ghost\" size=\"sm\" iconOnly>🔔</Button>\n        <UserMenu user={currentUser} onlyAvatar />\n      </div>\n    </AppTopBar>\n  }\n>\n  {/* page content */}\n</AppShell>"
         },
         {
           "title": "Sadece topbar (sidebar yok)",
@@ -3071,7 +3071,7 @@
       "filePath": "modules/app/AppTopBar.tsx",
       "abbr": "AT",
       "description": "Top bar wrapper passed into AppShell's header slot. The logo slot anchors the left side while children (GlobalSearch, UserMenu, Button, etc.) are arranged in a flex row. Named regions `start` (after the logo) and `end` (pushed to the far end) take a node or ordered `{ id, node, order, hidden }` items, for controls other modules contribute.",
-      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\n\nexport function AppTopBar({ logo, children, className, ...rest }) {\n  return (\n    <div className={cn('flex items-center gap-3 flex-1', className)} {...rest}>\n      {logo && <div className=\"shrink-0\">{logo}</div>}\n      {children}\n    </div>\n  );\n}",
+      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\n\nexport function AppTopBar({ logo, children, className, ...rest }) {\n  return (\n    <div className={cn('flex min-w-0 items-center gap-3 flex-1', className)} {...rest}>\n      {logo && <div className=\"shrink-0\">{logo}</div>}\n      {children}\n    </div>\n  );\n}",
       "variants": [
         {
           "title": "Arama + actions + kullanıcı",
