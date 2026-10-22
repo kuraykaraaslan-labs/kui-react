@@ -122,7 +122,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Pagination | `Pagination.tsx` | `page`, `total`, `pageSize`, `onChange` |
 | Stepper | `Stepper.tsx` | `steps`, `currentStep` |
 | TabGroup | `TabGroup.tsx` | `tabs` (`order`, `lazy`, `isolate` per tab), `defaultTab`, `lazy`, `isolate` (error boundary + Suspense per panel), `renderError`, `onTabError` |
-| Breadcrumb | `Breadcrumb.tsx` | `items` (label + href) |
+| Breadcrumb | `Breadcrumb.tsx` | `items` (label + href, optional `icon`, `chip`, `tone`), `leading` (first crumb, never collapsed), `maxItems`, `separator`, `renderLink` |
 | Callout | `Callout.tsx` | `variant` (note\|tip\|info\|warning\|danger), `title` (null hides), `icon` (null hides) — docs admonition, `<aside>` not `role="alert"` |
 | TableOfContents | `TableOfContents.tsx` | `items` (`{id,text,depth}`), `minDepth`, `maxDepth`, `activeId` (else scroll-spy via `libs/hooks/useScrollSpy`), `offset` |
 | DocPager | `DocPager.tsx` | `prev`, `next` (`{title,href}`), `labels`, `renderLink` |
@@ -144,7 +144,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | SearchBar | `SearchBar.tsx` | `value`, `onChange`, `onClear`, `placeholder` |
 | DateRangePicker | `DateRangePicker.tsx` | `start`, `end`, `onChange` |
 | ContentScoreBar | `ContentScoreBar.tsx` | `score` (0–100), `label`, `thresholds` |
-| DropdownMenu | `DropdownMenu.tsx` | `trigger`, `items` (label\|icon\|danger\|disabled\|separator, plus `id`\|`href`\|`group`\|`order`\|`hidden`\|`disabledReason`), `align` (left\|right), `portal`; helpers `arrangeMenuItems`, `mergeMenuItems` |
+| DropdownMenu | `DropdownMenu.tsx` | `trigger`, `items` (label\|icon\|danger\|disabled\|separator\|heading, plus `id`\|`href`\|`group`\|`order`\|`hidden`\|`disabledReason`\|`selected`\|`trailing`), `align` (left\|right), `portal`, `groupLabels`, `search`, `header`, `footer`, `menuClassName`, controlled `open`/`onOpenChange`; arrow keys / Home / End; helpers `arrangeMenuItems`, `mergeMenuItems` |
 | Slider | `Slider.tsx` | `slides`, `autoPlay`, `autoPlayInterval`, `showDots`, `showArrows`, `loop` — accessible carousel |
 | Accordion | `Accordion.tsx` | `items`, `openIds`, `onChange`, `allowMultiple` |
 | ColorPicker | `ColorPicker/` | `value`, `onChange`, `format` (hex\|rgb\|hsl) |

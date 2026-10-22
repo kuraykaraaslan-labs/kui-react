@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { DropdownMenu, arrangeMenuItems, mergeMenuItems, type DropdownItem } from './DropdownMenu';
 
@@ -191,10 +192,302 @@ describe('DropdownMenu', () => {
     });
   });
 
+  describe('page menu extensions', () => {
+    function pages(onWater = vi.fn()): DropdownItem[] {
+      return [
+        { id: 'overview', label: 'Overview', group: 'pages', selected: true, trailing: <span>Home</span> },
+        { id: 'alarms', label: 'Alarms', group: 'pages', disabled: true },
+        { id: 'water', label: 'Water', group: 'pages', onClick: onWater },
+        { id: 'energy', label: 'Energy', group: 'pages' },
+        { id: 'line-1', label: 'Line 1', group: 'drill' },
+        { id: 'line-2', label: 'Line 2', group: 'drill' },
+        { id: 'pump', label: 'Pump room', group: 'drill' },
+        { id: 'boiler', label: 'Boiler', group: 'drill' },
+      ];
+    }
+    const SEARCH = { placeholder: 'Find a page', emptyText: 'No page matches' };
+    const GROUP_LABELS = { pages: 'Pages', drill: 'Drill-downs' };
+
+    async function open(props: Partial<React.ComponentProps<typeof DropdownMenu>> = {}) {
+      const user = userEvent.setup();
+      render(<DropdownMenu trigger={<button>Pages</button>} items={pages()} {...props} />);
+      await user.click(screen.getByRole('button', { name: 'Pages' }));
+      return user;
+    }
+
+    it('renders headings as muted, non-focusable presentation labels', async () => {
+      await open({
+        items: [{ type: 'heading', id: 'h', label: 'Pages' }, { label: 'Overview' }, { label: 'Energy' }],
+      });
+      const heading = screen.getByText('Pages', { selector: '[role="presentation"]' });
+      expect(heading).toHaveClass('text-xs', 'uppercase', 'text-text-secondary');
+      expect(heading).not.toHaveAttribute('tabindex');
+      expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Overview', 'Energy']);
+    });
+
+    it('groupLabels draws a heading for each labelled group instead of a separator', async () => {
+      await open({ groupLabels: GROUP_LABELS });
+      expect(screen.getByText('Pages', { selector: '[role="presentation"]' })).toBeInTheDocument();
+      expect(screen.getByText('Drill-downs', { selector: '[role="presentation"]' })).toBeInTheDocument();
+      expect(screen.queryByRole('separator')).not.toBeInTheDocument();
+    });
+
+    it('marks the selected item as current, tints it and focuses it on open', async () => {
+      await open({ items: [{ label: 'Overview' }, { label: 'Energy', selected: true }, { label: 'Water' }] });
+      const selected = screen.getByRole('menuitem', { name: 'Energy' });
+      expect(selected).toHaveAttribute('aria-current', 'true');
+      expect(selected).toHaveClass('bg-primary-subtle', 'text-primary', 'font-semibold');
+      expect(screen.getByRole('menuitem', { name: 'Overview' })).not.toHaveAttribute('aria-current');
+      await waitFor(() => expect(selected).toHaveFocus());
+    });
+
+    it('a selected link carries aria-current too', async () => {
+      await open({ items: [{ label: 'Overview', href: '#overview', selected: true }] });
+      expect(screen.getByRole('menuitem', { name: 'Overview' })).toHaveAttribute('aria-current', 'true');
+    });
+
+    it('draws trailing content at the far end of the row', async () => {
+      await open({ items: [{ label: 'Overview', trailing: <span data-testid="badge">Home</span> }] });
+      const badge = screen.getByTestId('badge');
+      expect(screen.getByRole('menuitem', { name: /^Overview/ })).toContainElement(badge);
+      expect(badge.parentElement).toHaveClass('ml-auto');
+    });
+
+    it('renders a footer under the entries, outside the menu list, and applies menuClassName to the panel', async () => {
+      await open({ items: [{ label: 'Overview' }], footer: <a href="#manage">Manage pages</a>, menuClassName: 'w-72' });
+      const menu = screen.getByRole('menu');
+      const footer = screen.getByText('Manage pages');
+      expect(menu).not.toContainElement(footer);
+      expect(footer.parentElement).toHaveClass('border-t', 'border-border');
+      expect(menu.parentElement).toHaveClass('w-72');
+      expect(menu.parentElement).toContainElement(footer);
+    });
+
+    it('menuClassName lands on the menu itself when there is no search box or footer', async () => {
+      await open({ items: [{ label: 'Overview' }], menuClassName: 'w-72' });
+      expect(screen.getByRole('menu')).toHaveClass('w-72');
+    });
+
+    it('shows no search box below minItems', async () => {
+      await open({ items: pages().slice(0, 7), search: SEARCH });
+      expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    });
+
+    it('shows the search box from 8 entries (or minItems), focused on open', async () => {
+      await open({ search: SEARCH, groupLabels: GROUP_LABELS });
+      const box = screen.getByRole('searchbox', { name: 'Find a page' });
+      expect(box).toHaveAttribute('placeholder', 'Find a page');
+      // The search box stays put while a long list scrolls.
+      expect(screen.getByRole('menu')).toHaveClass('max-h-96', 'overflow-y-auto');
+      expect(screen.getByRole('menu')).not.toContainElement(box);
+      await waitFor(() => expect(box).toHaveFocus());
+    });
+
+    it('minItems lowers the threshold and ariaLabel names the box', async () => {
+      await open({ items: pages().slice(0, 3), search: { ...SEARCH, minItems: 3, ariaLabel: 'Search pages' } });
+      expect(screen.getByRole('searchbox', { name: 'Search pages' })).toBeInTheDocument();
+    });
+
+    it('filters entries by label in any case, keeping only headings with a match', async () => {
+      const user = await open({ search: SEARCH, groupLabels: GROUP_LABELS });
+      await user.type(screen.getByRole('searchbox'), 'LINE');
+      expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Line 1', 'Line 2']);
+      expect(screen.getByText('Drill-downs')).toBeInTheDocument();
+      expect(screen.queryByText('Pages', { selector: '[role="presentation"]' })).not.toBeInTheDocument();
+    });
+
+    it('shows emptyText when nothing matches', async () => {
+      const user = await open({ search: SEARCH });
+      await user.type(screen.getByRole('searchbox'), 'zzz');
+      expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('No page matches');
+    });
+
+    it('Enter in the search box activates the first enabled match', async () => {
+      const onWater = vi.fn();
+      const user = userEvent.setup();
+      render(<DropdownMenu trigger={<button>Pages</button>} items={pages(onWater)} search={SEARCH} />);
+      await user.click(screen.getByRole('button', { name: 'Pages' }));
+      await waitFor(() => expect(screen.getByRole('searchbox')).toHaveFocus());
+      // "a" matches Alarms (disabled) before Water.
+      await user.keyboard('a{Enter}');
+      expect(onWater).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('forgets the query when the menu closes', async () => {
+      const user = await open({ search: SEARCH });
+      await waitFor(() => expect(screen.getByRole('searchbox')).toHaveFocus());
+      await user.keyboard('line');
+      await user.keyboard('{Escape}');
+      await user.click(screen.getByRole('button', { name: 'Pages' }));
+      expect(screen.getByRole('searchbox')).toHaveValue('');
+      expect(screen.getAllByRole('menuitem')).toHaveLength(8);
+    });
+
+    it('ArrowDown from the search box goes to the first item', async () => {
+      const user = await open({ search: SEARCH });
+      await waitFor(() => expect(screen.getByRole('searchbox')).toHaveFocus());
+      await user.keyboard('{ArrowDown}');
+      expect(screen.getByRole('menuitem', { name: /^Overview/ })).toHaveFocus();
+    });
+
+    it('arrow keys move between enabled items and wrap; Home and End jump to the ends', async () => {
+      const user = await open({
+        items: [{ label: 'Edit' }, { label: 'Delete' }, { label: 'Archive', disabled: true }, { label: 'Share' }],
+      });
+      const item = (name: string) => screen.getByRole('menuitem', { name });
+      await waitFor(() => expect(item('Edit')).toHaveFocus());
+      await user.keyboard('{ArrowDown}');
+      expect(item('Delete')).toHaveFocus();
+      await user.keyboard('{ArrowDown}');
+      expect(item('Share')).toHaveFocus();
+      await user.keyboard('{ArrowDown}');
+      expect(item('Edit')).toHaveFocus();
+      await user.keyboard('{ArrowUp}');
+      expect(item('Share')).toHaveFocus();
+      await user.keyboard('{Home}');
+      expect(item('Edit')).toHaveFocus();
+      await user.keyboard('{End}');
+      expect(item('Share')).toHaveFocus();
+    });
+
+    it('arrow keys skip headings', async () => {
+      const user = await open({ items: pages(), groupLabels: GROUP_LABELS });
+      await waitFor(() => expect(screen.getByRole('menuitem', { name: /^Overview/ })).toHaveFocus());
+      await user.keyboard('{ArrowDown}{ArrowDown}{ArrowDown}');
+      expect(screen.getByRole('menuitem', { name: 'Line 1' })).toHaveFocus();
+    });
+
+    describe('controlled open', () => {
+      it('shows the menu while open is true and reports requests through onOpenChange', async () => {
+        const onOpenChange = vi.fn();
+        const user = userEvent.setup();
+        const { rerender } = render(
+          <DropdownMenu open trigger={<button>Pages</button>} items={[{ label: 'Overview' }]} onOpenChange={onOpenChange} />,
+        );
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Pages' })).toHaveAttribute('aria-expanded', 'true');
+        await user.click(screen.getByRole('menuitem', { name: 'Overview' }));
+        expect(onOpenChange).toHaveBeenLastCalledWith(false);
+        // The host owns the state: the menu stays until it passes open={false}.
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+        rerender(<DropdownMenu open={false} trigger={<button>Pages</button>} items={[{ label: 'Overview' }]} onOpenChange={onOpenChange} />);
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      });
+
+      it('a trigger click while closed asks to open without opening by itself', async () => {
+        const onOpenChange = vi.fn();
+        const user = userEvent.setup();
+        render(<DropdownMenu open={false} trigger={<button>Pages</button>} items={[{ label: 'Overview' }]} onOpenChange={onOpenChange} />);
+        await user.click(screen.getByRole('button', { name: 'Pages' }));
+        expect(onOpenChange).toHaveBeenCalledWith(true);
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      });
+
+      it('Escape asks to close', async () => {
+        const onOpenChange = vi.fn();
+        const user = userEvent.setup();
+        render(<DropdownMenu open trigger={<button>Pages</button>} items={[{ label: 'Overview' }]} onOpenChange={onOpenChange} />);
+        await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Overview' })).toHaveFocus());
+        await user.keyboard('{Escape}');
+        expect(onOpenChange).toHaveBeenCalledWith(false);
+      });
+
+      it('a host shortcut opens the menu and focus lands on the selected item', async () => {
+        function Host() {
+          const [open, setOpen] = useState(false);
+          return (
+            <div onKeyDown={(e) => { if (e.key === 'g') setOpen(true); }}>
+              <input aria-label="Board" />
+              <DropdownMenu
+                open={open}
+                onOpenChange={setOpen}
+                trigger={<button>Pages</button>}
+                items={[{ label: 'Overview' }, { label: 'Energy', selected: true }]}
+              />
+            </div>
+          );
+        }
+        render(<Host />);
+        fireEvent.keyDown(screen.getByRole('textbox', { name: 'Board' }), { key: 'g' });
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+        await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Energy' })).toHaveFocus());
+        await userEvent.setup().keyboard('{Escape}');
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      });
+
+      it('uncontrolled menus report open and close through onOpenChange too', async () => {
+        const onOpenChange = vi.fn();
+        const user = userEvent.setup();
+        render(<DropdownMenu trigger={<button>Pages</button>} items={[{ label: 'Overview' }]} onOpenChange={onOpenChange} />);
+        await user.click(screen.getByRole('button', { name: 'Pages' }));
+        expect(onOpenChange).toHaveBeenLastCalledWith(true);
+        expect(screen.getByRole('menu')).toBeInTheDocument();
+        await user.click(screen.getByRole('menuitem', { name: 'Overview' }));
+        expect(onOpenChange).toHaveBeenLastCalledWith(false);
+        expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      });
+    });
+  });
+
   describe('arrangeMenuItems / mergeMenuItems', () => {
     it('leaves a list without group or order exactly as it is', () => {
       const items: DropdownItem[] = [{ label: 'A' }, { type: 'separator' }, { label: 'B' }];
       expect(arrangeMenuItems(items)).toEqual(items);
+    });
+
+    const labels = (list: DropdownItem[]) =>
+      list.map((i) => (i.type === 'separator' ? '-' : i.type === 'heading' ? `#${i.label}` : i.label));
+
+    it('keeps headings in a plain list and drops one with no visible entry under it', () => {
+      expect(
+        labels(
+          arrangeMenuItems([
+            { type: 'heading', label: 'Pages' },
+            { label: 'Overview' },
+            { type: 'heading', label: 'Empty' },
+            { type: 'separator' },
+            { type: 'heading', label: 'Hidden only' },
+            { label: 'Secret', hidden: true },
+            { type: 'heading', label: 'Drill-downs' },
+            { label: 'Line 1' },
+            { type: 'heading', label: 'Trailing' },
+          ]),
+        ),
+      ).toEqual(['#Pages', 'Overview', '-', '#Drill-downs', 'Line 1']);
+    });
+
+    it('a hidden heading is left out like any hidden entry', () => {
+      expect(labels(arrangeMenuItems([{ type: 'heading', label: 'Pages', hidden: true }, { label: 'Overview' }]))).toEqual(['Overview']);
+    });
+
+    it('groupLabels puts a heading in place of the separator before a labelled group (the first one too)', () => {
+      const items: DropdownItem[] = [
+        { label: 'Line 1', group: 'drill', order: 10 },
+        { label: 'Overview', group: 'pages', order: 1 },
+        { type: 'heading', label: 'Ignored in grouped mode' },
+        { label: 'Help', group: 'misc', order: 20 },
+        { label: 'Energy', group: 'pages', order: 2 },
+      ];
+      const arranged = arrangeMenuItems(items, { groupLabels: { pages: 'Pages', drill: 'Drill-downs' } });
+      expect(labels(arranged)).toEqual(['#Pages', 'Overview', 'Energy', '#Drill-downs', 'Line 1', '-', 'Help']);
+      expect(arranged[0]).toEqual({ type: 'heading', id: 'group:pages', label: 'Pages' });
+      // Without labels the grouped layout is unchanged.
+      expect(labels(arrangeMenuItems(items))).toEqual(['Overview', 'Energy', '-', 'Line 1', '-', 'Help']);
+    });
+
+    it('groupLabels ignores inherited keys and empty labels', () => {
+      const arranged = arrangeMenuItems(
+        [{ label: 'A', group: 'constructor' }, { label: 'B', group: 'b' }],
+        { groupLabels: { b: '' } },
+      );
+      expect(labels(arranged)).toEqual(['A', '-', 'B']);
+    });
+
+    it('mergeMenuItems carries headings like any other entry', () => {
+      const merged = mergeMenuItems([{ type: 'heading', id: 'h', label: 'Old' }, { id: 'a', label: 'A' }], [{ type: 'heading', id: 'h', label: 'New' }]);
+      expect(labels(merged)).toEqual(['#New', 'A']);
     });
 
     it('mergeMenuItems replaces by id in place and appends the rest', () => {

@@ -18,6 +18,22 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- Page navigation building blocks (next-boilerplate phase 07-dashboard 29, the board title's page menu and
+  drill-down path), all optional so current menus and trails render as before:
+  - `DropdownMenu`: `{ type: 'heading', label }` entries (`DropdownHeading`, a muted uppercase label that is
+    dropped when no visible entry follows it); `groupLabels` gives grouped items a heading per labelled group in
+    place of its separator (`arrangeMenuItems(items, { groupLabels })`); items take `selected`
+    (`aria-current="true"`, tinted, focused on open) and `trailing` (a badge or chip at the far end); `search`
+    (`{ placeholder, emptyText, ariaLabel?, minItems? = 8 }`) puts a filter box over a long menu, focused on open,
+    Enter picks the first enabled match and the query clears on close; `footer`, `menuClassName` and controlled
+    `open` / `onOpenChange`. ArrowUp / ArrowDown (wrapping), Home and End move between enabled items. With a
+    search box or a footer the entries sit in their own `role="menu"` list inside the panel (with a search box
+    that list scrolls past `max-h-96`, so the box and the footer stay in view).
+  - `Breadcrumb`: items take `icon`, `chip` (pill) and `tone` (status dot: success, warning, error, info,
+    neutral); `leading` renders a node (the page-menu button) as the first crumb, never collapsed by `maxItems`;
+    `renderLink` gets the crumb's content as a third argument.
+  kui-ejs and KUInative have `DropdownMenu` and `Breadcrumb` counterparts without these props; they follow when
+  a host there needs the page menu.
 - Documentation building blocks for `@kuraykaraaslan/docs`: `Callout` (note / tip / info / warning / danger
   admonition, a labelled `<aside>` with rich children — not a live region, unlike `AlertBanner`),
   `TableOfContents` ("On this page" heading nav filtered by depth, scroll-spy through the new

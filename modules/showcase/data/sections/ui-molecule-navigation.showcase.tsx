@@ -2,6 +2,7 @@
 import { Badge } from '@/modules/ui/Badge';
 import { Pagination } from '@/modules/ui/Pagination';
 import { Breadcrumb } from '@/modules/ui/Breadcrumb';
+import { DropdownMenu } from '@/modules/ui/DropdownMenu';
 import { TabGroup } from '@/modules/ui/TabGroup';
 import { Button } from '@/modules/ui/Button';
 import { Stepper } from '@/modules/ui/Stepper';
@@ -343,7 +344,7 @@ export function TabGroup({ tabs, defaultTab, label = 'Tabs', className }) {
       title: 'Breadcrumb',
       category: 'Organism',
       abbr: 'Bc',
-      description: 'Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default "Breadcrumb"). Last item marked with aria-current="page" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation.',
+      description: 'Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default "Breadcrumb"). Last item marked with aria-current="page" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation. Items take an icon, a chip (pill) style and a status tone dot; `leading` puts a node (a page-menu button) first, never collapsed by maxItems.',
       filePath: 'modules/ui/Breadcrumb.tsx',
       sourceCode: `import { cn } from '@/libs/utils/cn';
 
@@ -422,6 +423,26 @@ export function Breadcrumb({ items, className, renderLink, ariaLabel = 'Breadcru
             />
           ),
           code: `import Link from 'next/link';\n\n<Breadcrumb\n  ariaLabel="Page trail"\n  items={[...]}\n  renderLink={(item, className) => (\n    <Link href={item.href} className={className}>{item.label}</Link>\n  )}\n/>`,
+        },
+        {
+          title: 'Page path: leading menu, chips, tones',
+          preview: (
+            <Breadcrumb
+              ariaLabel="Board pages"
+              leading={
+                <DropdownMenu
+                  trigger={<Button variant="ghost" size="xs">Pages ▾</Button>}
+                  items={[{ label: 'Overview', selected: true }, { label: 'Energy' }, { label: 'Line 1' }]}
+                />
+              }
+              items={[
+                { label: 'Overview', href: '#overview', chip: true },
+                { label: 'Line 1', href: '#line-1', chip: true, tone: 'success' },
+                { label: 'Pump room', chip: true, tone: 'warning' },
+              ]}
+            />
+          ),
+          code: `<Breadcrumb\n  ariaLabel="Board pages"\n  leading={<DropdownMenu trigger={<Button variant="ghost" size="xs">Pages ▾</Button>} items={pages} />}\n  items={[\n    { label: 'Overview', href: '/b/overview', chip: true },\n    { label: 'Line 1', href: '/b/line-1', chip: true, tone: 'success' },\n    { label: 'Pump room', chip: true, tone: 'warning' },\n  ]}\n/>`,
         },
       ],
     },

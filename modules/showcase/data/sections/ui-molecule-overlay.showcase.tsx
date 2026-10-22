@@ -5,6 +5,7 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { Tooltip } from '@/modules/ui/Tooltip';
 import { DropdownMenu } from '@/modules/ui/DropdownMenu';
 import { Popover } from '@/modules/ui/Popover';
+import { Badge } from '@/modules/ui/Badge';
 import { useState } from 'react';
 import type { ShowcaseComponent } from '../showcase.types';
 
@@ -422,7 +423,7 @@ export function Tooltip({ content, placement = 'top', children, className }) {
       title: 'DropdownMenu',
       category: 'Organism',
       abbr: 'Dm',
-      description: 'Accessible dropdown using role="menu" + role="menuitem". Closes on Escape and outside click. Supports left/right alignment, icons, separators, danger and disabled items, and arrow-key navigation. Items take an optional id, href, group, order, hidden and disabledReason so other modules can contribute entries; `portal` escapes clipping parents.',
+      description: 'Accessible dropdown using role="menu" + role="menuitem". Closes on Escape and outside click. Supports left/right alignment, icons, separators, danger and disabled items, and arrow-key navigation. Items take an optional id, href, group, order, hidden and disabledReason so other modules can contribute entries; `portal` escapes clipping parents. Page-menu extras: heading entries (or `groupLabels` per group), `selected` and `trailing` items, a `search` box once the list is long, a `footer`, `menuClassName`, and controlled `open` / `onOpenChange`.',
       filePath: 'modules/ui/DropdownMenu.tsx',
       sourceCode: `'use client';
 import { cn } from '@/libs/utils/cn';
@@ -509,6 +510,46 @@ export function DropdownMenu({ trigger, items, align = 'left', className }) {
 />
 // Merge contributed items into a base list (same id replaces in place):
 const items = mergeMenuItems(baseItems, contributedItems);`,
+        },
+        {
+          title: 'Page menu: group headings, selected, trailing, search, footer',
+          preview: (
+            <DropdownMenu
+              trigger={<Button variant="outline" size="sm">Pages ▾</Button>}
+              menuClassName="w-72"
+              groupLabels={{ pages: 'Pages', drill: 'Drill-downs' }}
+              search={{ placeholder: 'Find a page', emptyText: 'No page matches' }}
+              footer={<a href="#pages" className="block px-3 py-2 text-sm text-primary hover:bg-surface-overlay">Manage pages</a>}
+              items={[
+                { id: 'overview', label: 'Overview', group: 'pages', selected: true, trailing: <Badge variant="neutral" size="sm">Home</Badge> },
+                { id: 'energy', label: 'Energy', group: 'pages' },
+                { id: 'water', label: 'Water', group: 'pages' },
+                { id: 'alarms', label: 'Alarms', group: 'pages', trailing: <Badge variant="error" size="sm">3</Badge> },
+                { id: 'line-1', label: 'Line 1', group: 'drill' },
+                { id: 'line-2', label: 'Line 2', group: 'drill' },
+                { id: 'pump', label: 'Pump room', group: 'drill' },
+                { id: 'boiler', label: 'Boiler', group: 'drill' },
+              ]}
+            />
+          ),
+          code: `// Headings come from groupLabels; the search box shows from 8 entries (search.minItems).
+// Arrow keys, Home and End move between items; Enter in the box picks the first match.
+const [open, setOpen] = useState(false); // optional: controlled, e.g. for a keyboard shortcut
+<DropdownMenu
+  open={open}
+  onOpenChange={setOpen}
+  trigger={<Button variant="outline" size="sm">Pages ▾</Button>}
+  menuClassName="w-72"
+  groupLabels={{ pages: 'Pages', drill: 'Drill-downs' }}
+  search={{ placeholder: 'Find a page', emptyText: 'No page matches' }}
+  footer={<a href="/pages">Manage pages</a>}
+  items={[
+    { id: 'overview', label: 'Overview', group: 'pages', selected: true, trailing: <Badge size="sm">Home</Badge> },
+    { id: 'energy', label: 'Energy', group: 'pages' },
+    { id: 'line-1', label: 'Line 1', group: 'drill' },
+    // … or plain lists with { type: 'heading', label: 'Pages' } entries
+  ]}
+/>`,
         },
       ],
     },

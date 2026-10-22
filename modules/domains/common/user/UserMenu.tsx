@@ -82,9 +82,9 @@ export function UserMenu({
   // replaces a built-in item (same id) keeps that item's place.
   const placed = (list: DropdownItem[] = []) =>
     list.map((item) => {
-      if (item.type === 'separator') return item;
+      if (item.type === 'separator' || item.type === 'heading') return item;
       const replaced = builtIn.find((b) => b.id !== undefined && b.id === item.id);
-      const slot = replaced && replaced.type !== 'separator' ? replaced : undefined;
+      const slot = replaced && replaced.type !== 'separator' && replaced.type !== 'heading' ? replaced : undefined;
       return {
         ...item,
         group: item.group ?? slot?.group ?? 'account',
