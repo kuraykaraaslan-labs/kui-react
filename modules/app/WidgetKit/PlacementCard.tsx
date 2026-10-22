@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Modal } from '@/modules/ui/Modal';
 import type { ReactNode } from 'react';
 import { WidgetCard } from './WidgetCard';
+import { ZoomPane } from './ZoomPane';
 import { resolvePlacement, toCsvText } from './settings/resolve';
 import { primaryMeta } from './settings/source-meta';
 import { toXlsxBytes } from './settings/xlsx';
@@ -137,8 +138,11 @@ export function PlacementCard({
         {body}
       </WidgetCard>
       {full && (
-        <Modal open fullscreen onClose={() => setFull(false)} title={title || template.label} closeLabel={m.card.closeFullscreen}>
-          <div className="@container h-full min-h-[60vh]">{body}</div>
+        // A picture that zooms gets the zoom pane; anything else scrolls when it is taller than the screen.
+        <Modal open fullscreen scrollable={!view.zoomable} onClose={() => setFull(false)} title={title || template.label} closeLabel={m.card.closeFullscreen}>
+          {view.zoomable
+            ? <ZoomPane className="min-h-[60vh]">{body}</ZoomPane>
+            : <div className="@container h-full min-h-[60vh]">{body}</div>}
         </Modal>
       )}
     </>

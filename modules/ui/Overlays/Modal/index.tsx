@@ -129,7 +129,8 @@ export function Modal({
           </button>
         </div>
         {children && (
-          <div className={cn('px-6 py-4 flex-1', scrollable && 'overflow-y-auto')}>
+          // min-h-0: a flex item is otherwise as tall as its content, and a tall child would push past the panel.
+          <div className={cn('px-6 py-4 flex-1 min-h-0', scrollable && 'overflow-y-auto')}>
             {children}
           </div>
         )}

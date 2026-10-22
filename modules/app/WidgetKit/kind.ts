@@ -125,6 +125,8 @@ export interface WidgetKindView {
    * no-data text (`$card.emptyDisplay`); a view without it gets the text alone.
    */
   emptyShape?: boolean;
+  /** The full-screen view zooms and pans the picture (a process diagram) instead of only showing it larger. */
+  zoomable?: boolean;
   /** CSV rows (first row = header) for the card's download button. */
   toCsv?: (data: WidgetViewProps['data'], settings: Sparse, format: ValueFormat) => string[][];
 }

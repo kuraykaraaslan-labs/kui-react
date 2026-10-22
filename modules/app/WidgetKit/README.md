@@ -59,6 +59,9 @@ tests/parity/         the reference rendering: cases.ts (49+ widget cases as JSO
 kind.ts               SlotData, SlotSpec, WidgetViewProps, WidgetKindView, BuiltinKindSpec
 WidgetCard.tsx        the frame: title row, buttons, body states, stale, footer
 PlacementCard.tsx     one placement: resolved settings + WidgetCard + view, full screen, CSV
+ZoomPane.tsx          the full screen of a view marked `zoomable` (scada.scene): opens fitted; Ctrl/Cmd + wheel, pinch,
+                      + - 0 and its toolbar zoom about the pointer; the wheel, the scroll bars or a drag move it
+zoom-logic.ts         its steps (1-8x, 1.25 a step, a mouse notch = a step), limits and the scroll that keeps the point (pure)
 WidgetSettingsEditor.tsx  tabs (Display, Data, Card, Actions), Basic/Advanced, read-only newer parts
 previews.tsx          layout thumbnails: renderWidgetPreview(id), one inline SVG per option `preview` id;
                       type thumbnails for a catalog/picker: renderWidgetTypePreview(type, settings?) (static, no view mounts)
@@ -165,7 +168,8 @@ controls, every view) comes from `messages.ts`, by group: `card`, `board`, `edit
   language; one without a code (a host's own rule) keeps its `message`.
 - The kit passes its texts to the primitives too: `charts.total` is the stacked tooltip's total row
   (`tooltipTotalLabel`), `card.closeFullscreen` and `board.closeDrawer` name the close buttons of the
-  full-screen `Modal` and the board's `Drawer`s (`closeLabel`).
+  full-screen `Modal` and the board's `Drawer`s (`closeLabel`); `card.zoom*` are the full-screen zoom's toolbar,
+  buttons and hint.
 - `controls.failed`: when a host sets it, a failed write shows "failed (reason)". A host whose
   `onControl` already rejects with a worded error should leave it out.
 - Keep `messages` stable (memoize it): the provider merges it once per change. Keep `templateText` and

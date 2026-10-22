@@ -38,6 +38,13 @@ export interface WidgetCardMessages {
   bindData: string;
   /** The close button of the full-screen view. */
   closeFullscreen: string;
+  /** The zoom of a full-screen picture (a process diagram): its toolbar, its buttons and how to use it. */
+  zoom: string;
+  zoomIn: string;
+  zoomOut: string;
+  zoomFit: string;
+  zoomLevel: (percent: number) => string;
+  zoomHint: string;
 }
 
 /** WidgetBoard: the toolbar, the edit buttons, the drawers, import and its errors. */
@@ -348,6 +355,12 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     updated: (when) => `Updated ${when}`,
     bindData: 'Bind data to this widget in its settings.',
     closeFullscreen: 'Close dialog',
+    zoom: 'Zoom',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    zoomFit: 'Fit to view',
+    zoomLevel: (percent) => `Zoom ${percent}%`,
+    zoomHint: 'Ctrl + wheel or pinch to zoom; scroll or drag to move.',
   },
   board: {
     export: 'Export',

@@ -70,4 +70,5 @@ export const SCADA_SCENE_VIEW: WidgetKindView = {
   // Without rows the diagram still draws every symbol idle; only a scene with no symbols is empty.
   isEmpty: (_data, settings) => !Array.isArray((settings as S).elements) || ((settings as S).elements as unknown[]).length === 0,
   emptyShape: false,
+  zoomable: true,
 };
