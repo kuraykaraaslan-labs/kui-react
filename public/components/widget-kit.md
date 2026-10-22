@@ -7,7 +7,7 @@
 - **status:** beta
 - **since:** 2026-10
 
-Dashboard widget kit (next-boilerplate dashboard phase 21). WidgetCard frames every widget (title row with icon, subtitle and help, card buttons for full screen, CSV and refresh, loading/empty/unconfigured/error/stale/unavailable states, "Updated" footer; `unavailable` keeps the title and shows an UnavailableContribution). Versioned settings templates (core:card, core:format, core:board and one per widget type) give ThingsBoard-depth editing with free colours (any CSS colour or a theme token); stored settings carry $v and migrate with append-only steps. WidgetSettingsEditor edits a placement in tabs with Basic/Advanced, layout variants picked from thumbnail cards (renderWidgetPreview, or a host renderPreview); WidgetBoard lays out a whole board with edit mode and JSON export/import that carries every card.
+Dashboard widgets. PlacementCard draws a widget from its kind, settings and data inside a WidgetCard frame: title, card buttons, and the loading, empty, not-configured and error states. Built-in kinds cover numbers, states, gauges, tables, feeds, content, charts, maps, controls and SCADA process diagrams. Settings from the data source are the defaults; a placement's own settings win. WidgetSettingsEditor and WidgetBoard exist in kui-react only.
 
 ## Depends on
 
@@ -51,7 +51,7 @@ Each card is a labelled section; card buttons have aria-labels; loading sets ari
 <WidgetCard title="Load" card={card} stale={stale}>{body}</WidgetCard>
 ```
 
-### WidgetCard unavailable (admin view of a widget whose module is off)
+### WidgetCard — unavailable
 
 ```tsx
 <WidgetCard title="Open calls" card={card} state="unavailable"
@@ -64,7 +64,7 @@ Each card is a labelled section; card buttons have aria-labels; loading sets ari
 <WidgetSettingsEditor templates={[kind.template, CORE_CARD, CORE_FORMAT]} settings={settings} onChange={setSettings} caps={caps} />
 ```
 
-### WidgetBoard (edit, export, import)
+### WidgetBoard — edit, export, import
 
 ```tsx
 <WidgetBoard doc={doc} onChange={setDoc} data={data} kinds={BUILTIN_KINDS} views={BUILTIN_VIEWS} />
