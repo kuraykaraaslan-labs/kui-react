@@ -9,6 +9,7 @@ import { symbolFamilies, SECTORS } from './scada-aliases';
 import { mergeMessages, DEFAULT_PALETTE_MESSAGES, type DeepPartial, type PaletteMessages } from './scene-editor-messages-panels';
 import { moveInGrid, paletteSections, symbolThumb, type GridKey, type GridPos } from './scene-palette-logic';
 import { SvgTree } from './SvgTree';
+import { CONTROL, SMALL_BUTTON } from './scene-panel-ui';
 
 /** The data type the canvas reads from a dragged tile. */
 export const SYMBOL_DRAG_TYPE = 'text/x-scada-symbol';
@@ -30,10 +31,8 @@ const DEFAULT_COLS = 3;
 const TILE_MIN = 104;
 const nameOf = (key: string) => (SCADA_SYMBOL_DEFS[key as keyof typeof SCADA_SYMBOL_DEFS] as SymbolDef | undefined)?.label ?? key;
 
-const chip = (on: boolean) => cn(
-  'shrink-0 rounded-full border px-2.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-  on ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary hover:border-border-strong hover:text-text-primary',
-);
+/** A filter that narrows the list stands out from one left at "All". */
+const filterClass = (on: boolean) => cn(CONTROL, 'min-w-0 flex-1 cursor-pointer truncate py-1 text-xs', on && 'border-primary bg-primary-subtle text-primary');
 
 /**
  * The drawing of one tile. A symbol's thumbnail never changes, so the subtree is memoised by key: moving the focus, typing in the
@@ -160,24 +159,30 @@ export function ScenePalette({ onAdd, onDragStart, recent, locale, addOn = 'clic
         )}
       </div>
 
-      <div role="group" aria-label={m.familyGroup} className="flex gap-1.5 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,#000_90%,transparent)]">
-        <button type="button" aria-pressed={!family} onClick={() => { setFamily(''); }} className={chip(!family)}>{m.allFamilies}</button>
-        {families.map((f) => (
-          <button key={f} type="button" aria-pressed={family === f} onClick={() => { setFamily(family === f ? '' : f); setSector(''); }} className={chip(family === f)}>
-            {m.families[f]}
-          </button>
-        ))}
-      </div>
-      <div role="group" aria-label={m.sectorGroup} className="flex gap-1.5 overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,#000_90%,transparent)]">
-        <button type="button" aria-pressed={!sector} onClick={() => setSector('')} className={chip(!sector)}>{m.allSectors}</button>
-        {sectorsHere.map((s) => (
-          <button key={s} type="button" aria-pressed={sector === s} onClick={() => setSector(sector === s ? '' : s)} className={chip(sector === s)}>
-            {m.sectors[s]}
-          </button>
-        ))}
-      </div>
+      {/* A filter with one choice narrows nothing, so it is left out. */}
+      {(families.length > 1 || sectorsHere.length > 1) && (
+        <div className="flex gap-2" data-part="filters">
+          {families.length > 1 && (
+            <select aria-label={m.familyGroup} title={m.familyGroup} value={family} onChange={(e) => { setFamily(e.target.value); setSector(''); }} className={filterClass(!!family)}>
+              <option value="">{m.allFamilies}</option>
+              {families.map((f) => <option key={f} value={f}>{m.families[f]}</option>)}
+            </select>
+          )}
+          {sectorsHere.length > 1 && (
+            <select aria-label={m.sectorGroup} title={m.sectorGroup} value={sector} onChange={(e) => setSector(e.target.value)} className={filterClass(!!sector)}>
+              <option value="">{m.allSectors}</option>
+              {sectorsHere.map((s) => <option key={s} value={s}>{m.sectors[s]}</option>)}
+            </select>
+          )}
+        </div>
+      )}
 
-      <p role="status" className="text-[11px] text-text-secondary">{total ? m.count(total) : m.none}</p>
+      <div className="flex items-center justify-between gap-2">
+        <p role="status" className="text-[11px] text-text-secondary">{total ? m.count(total) : m.none}</p>
+        {(family || sector) && (
+          <button type="button" onClick={() => { setFamily(''); setSector(''); }} className={cn(SMALL_BUTTON, 'shrink-0 text-[11px]')}>{m.clearFilters}</button>
+        )}
+      </div>
 
       <div ref={grid} className="min-h-0 flex-1 overflow-y-auto pr-1" data-part="grid">
         {total > 0 && (

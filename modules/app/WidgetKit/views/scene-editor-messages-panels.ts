@@ -30,6 +30,8 @@ export interface PaletteMessages {
   sectorGroup: string;
   allFamilies: string;
   allSectors: string;
+  /** Puts the family and the sector back to "All". */
+  clearFilters: string;
   recent: string;
   list: string;
   /** The live count under the search ("12 symbols"). */
@@ -51,6 +53,7 @@ export const DEFAULT_PALETTE_MESSAGES: PaletteMessages = {
   sectorGroup: 'Sector',
   allFamilies: 'All families',
   allSectors: 'All sectors',
+  clearFilters: 'Clear filters',
   recent: 'Recent',
   list: 'Symbols',
   count: (n) => (n === 1 ? '1 symbol' : `${n} symbols`),

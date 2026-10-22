@@ -96,22 +96,21 @@ describe('ScenePalette', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear the search' }));
     expect(tiles(container)).toHaveLength(SCADA_SYMBOLS.length);
   });
-  it('filters by family and sector chips, and offers a sector only when the family has it', () => {
+  it('filters by sector, leaves out a filter with one choice, and clears the filters', () => {
     const { container } = render(<ScenePalette onAdd={() => {}} />);
-    const fam = screen.getByRole('group', { name: 'Family' });
-    fireEvent.click(within(fam).getByRole('button', { name: 'Home electronics' }));
-    expect(keys(container)).toHaveLength(4);
-    expect(within(fam).getByRole('button', { name: 'Home electronics' })).toHaveAttribute('aria-pressed', 'true');
-    const sec = screen.getByRole('group', { name: 'Sector' });
-    expect(within(sec).getAllByRole('button').map((b) => b.textContent)).toEqual(['All sectors', 'Home', 'Telecom', 'Energy', 'Safety', 'City']);
-    fireEvent.click(within(sec).getByRole('button', { name: 'Energy' }));
+    // One family only: a family filter would narrow nothing.
+    expect(screen.queryByRole('combobox', { name: 'Family' })).toBeNull();
+    const sec = screen.getByRole('combobox', { name: 'Sector' });
+    expect(within(sec).getAllByRole('option').map((o) => o.textContent)).toEqual(['All sectors', 'Home', 'Telecom', 'Energy', 'Safety', 'City']);
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+    fireEvent.change(sec, { target: { value: 'energy' } });
     expect(keys(container)).toEqual(['home.plug.smart']);
-    fireEvent.click(within(fam).getByRole('button', { name: 'All families' }));
-    fireEvent.click(within(sec).getByRole('button', { name: 'Telecom' }));
+    fireEvent.change(sec, { target: { value: 'telecom' } });
     expect(keys(container)).toEqual(['home.router']);
-    expect(keys(container)).not.toContain('home.tv');
-    fireEvent.click(within(sec).getByRole('button', { name: 'Telecom' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(sec).toHaveValue('');
     expect(keys(container)).toHaveLength(SCADA_SYMBOLS.length);
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
   });
   it('shows recent symbols on top, and hides them while searching', () => {
     const { container } = render(<ScenePalette onAdd={() => {}} recent={['home.camera.security', 'home.router']} />);
@@ -190,9 +189,11 @@ describe('ScenePalette', () => {
     expect(onDragStart).toHaveBeenCalledWith('home.tv', expect.anything());
   });
   it('takes the host\'s texts over the English ones', () => {
-    render(<ScenePalette onAdd={() => {}} messages={{ search: 'Sembol ara', families: { home: 'Household devices' } }} />);
+    render(<ScenePalette onAdd={() => {}} messages={{ search: 'Sembol ara', allSectors: 'Every sector', sectors: { telecom: 'Telecoms' } }} />);
     expect(screen.getByRole('searchbox', { name: 'Sembol ara' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Household devices' })).toBeInTheDocument();
-    expect(within(screen.getByRole('group', { name: 'Sector' })).getByRole('button', { name: 'Telecom' })).toBeInTheDocument();
+    const sec = screen.getByRole('combobox', { name: 'Sector' });
+    expect(within(sec).getByRole('option', { name: 'Every sector' })).toBeInTheDocument();
+    expect(within(sec).getByRole('option', { name: 'Telecoms' })).toBeInTheDocument();
+    expect(within(sec).getByRole('option', { name: 'Energy' })).toBeInTheDocument();
   });
 });
