@@ -8,6 +8,8 @@ describe('TimeWindowPicker', () => {
     const onChange = vi.fn();
     render(<TimeWindowPicker value={{ mode: 'relative', last: '1h', interval: '5m' }} onChange={onChange} />);
     expect(screen.getByRole('radio', { name: '1h' })).toHaveAttribute('aria-checked', 'true');
+    // In a container narrower than the segments, they scroll inside the control instead of overflowing it.
+    expect(screen.getByRole('radiogroup')).toHaveClass('max-w-full', 'overflow-x-auto');
     await userEvent.setup().click(screen.getByRole('radio', { name: '7d' }));
     expect(onChange).toHaveBeenCalledWith({ mode: 'relative', last: '7d', interval: '5m', aggregation: undefined, timezone: undefined });
   });
