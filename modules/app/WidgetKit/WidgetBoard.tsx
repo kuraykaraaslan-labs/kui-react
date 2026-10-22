@@ -109,8 +109,10 @@ export function WidgetBoard({
   const rowH = typeof board.rowHeight === 'number' ? board.rowHeight : 40;
   const gap = typeof board.gap === 'number' ? board.gap : 8;
   const bgImage = safeUrl(board.backgroundImage);
+  const bgColor = cssColor(board.backgroundColor);
+  // No colour of its own: no backdrop, the page background shows through.
   const surface: CSSProperties = {
-    backgroundColor: cssColor(board.backgroundColor) ?? 'var(--canvas-bg, var(--surface-sunken))',
+    ...(bgColor ? { backgroundColor: bgColor } : {}),
     ...(bgImage ? { backgroundImage: `url("${bgImage}")`, backgroundSize: BG_SIZE[String(board.backgroundSize)] ?? 'cover', backgroundPosition: 'center' } : {}),
     padding: board.outerMargin ? gap : 0,
   };

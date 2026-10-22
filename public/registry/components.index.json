@@ -2771,8 +2771,7 @@
         "--text-secondary",
         "--primary",
         "--warning-subtle",
-        "--warning-fg",
-        "--canvas-bg"
+        "--warning-fg"
       ],
       "variantCount": 4
     },

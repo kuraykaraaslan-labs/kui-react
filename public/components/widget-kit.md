@@ -41,7 +41,6 @@ Each card is a labelled section; card buttons have aria-labels; loading sets ari
 - `--primary`
 - `--warning-subtle`
 - `--warning-fg`
-- `--canvas-bg`
 
 ## Variants
 

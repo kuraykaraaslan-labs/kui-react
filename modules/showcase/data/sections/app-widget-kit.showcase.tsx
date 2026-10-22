@@ -86,7 +86,7 @@ export function buildAppWidgetKitData(): ShowcaseComponent[] {
       since: '2026-10',
       status: 'beta',
       composes: ['schema-form', 'tab-group', 'drawer', 'modal', 'tooltip', 'chart', 'map-view', 'control-tile', 'unavailable-contribution'],
-      designTokens: ['--surface-raised', '--surface-base', '--border', '--text-primary', '--text-secondary', '--primary', '--warning-subtle', '--warning-fg', '--canvas-bg'],
+      designTokens: ['--surface-raised', '--surface-base', '--border', '--text-primary', '--text-secondary', '--primary', '--warning-subtle', '--warning-fg'],
       a11y: {
         wcagLevel: 'AA',
         ariaPatterns: ['region', 'tablist', 'dialog', 'radiogroup'],

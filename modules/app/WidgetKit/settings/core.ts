@@ -141,7 +141,7 @@ export const CORE_BOARD: SettingsTemplate = {
     outerMargin: { label: 'Gap around the edge', type: 'boolean', value: false, group: 'grid' },
     autoFillHeight: { label: 'Fill the screen height', type: 'boolean', value: false, group: 'grid',
       description: 'Rows stretch so the board fits the screen (wall displays).' },
-    backgroundColor: colorField('Background colour', 'background', undefined, { description: 'Empty = the default canvas colour.' }),
+    backgroundColor: colorField('Background colour', 'background', undefined, { description: 'Empty = no background; the page shows through.' }),
     backgroundImage: { label: 'Background image', type: 'url', maxLength: 2000, group: 'background', placeholder: 'https://… or /uploads/…' },
     backgroundSize: {
       label: 'Image size', type: 'select', display: 'segmented', value: 'cover', group: 'background',
