@@ -251,7 +251,7 @@ const stream = useLogStream({ maxLines: 10_000 });   // stream.push(lines) from 
       variants: [
         { title: 'Default', layout: 'stack', preview: <ServiceMap nodes={MAP_NODES} edges={MAP_EDGES} />, code: `<ServiceMap nodes={nodes} edges={edges} />` },
         { title: 'With a selection and a custom panel', layout: 'stack', preview: <ServiceMap nodes={MAP_NODES} edges={MAP_EDGES} defaultSelectedId="pay" renderSelection={(n, { incoming, outgoing }) => <p className="text-sm">{n.name}: called by {incoming.length}, calls {outgoing.length}.</p>} />, code: `<ServiceMap nodes={nodes} edges={edges} renderSelection={(node, { incoming, outgoing }) => <Panel node={node} />} />` },
-        { title: 'Right to left', layout: 'stack', preview: <div dir="rtl"><ServiceMap nodes={MAP_NODES.slice(0, 5)} edges={MAP_EDGES.slice(0, 5)} height={300} /></div>, code: `<div dir="rtl"><ServiceMap nodes={nodes} edges={edges} /></div>` },
+        { title: 'Right to left', layout: 'stack', preview: <div dir="rtl" className="w-full"><ServiceMap nodes={MAP_NODES.slice(0, 5)} edges={MAP_EDGES.slice(0, 5)} height={300} /></div>, code: `<div dir="rtl"><ServiceMap nodes={nodes} edges={edges} /></div>` },
       ],
     }),
     entry({
