@@ -18,6 +18,13 @@ export type PopoverProps = {
   /** Controlled open state. With it, the panel opens and closes only through `onOpenChange` (e.g. an Apply button inside). */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Let the trigger shrink to the popover's container. The wrapper is an inline-block that sizes
+   * itself to the whole trigger, so a trigger's own `max-w-full` and `truncate` never apply and a
+   * long trigger overflows a narrow container. With `shrinkTrigger` the wrapper is capped at its
+   * container's width (`max-w-full`) and such a trigger truncates instead. Off by default.
+   */
+  shrinkTrigger?: boolean;
 };
 
 export function Popover({
@@ -28,6 +35,7 @@ export function Popover({
   focusTrap = true,
   open: openProp,
   onOpenChange,
+  shrinkTrigger = false,
 }: PopoverProps) {
   const [openState, setOpenState] = useState(false);
   const open = openProp ?? openState;
@@ -61,7 +69,7 @@ export function Popover({
   });
 
   return (
-    <div ref={containerRef} className="relative inline-block">
+    <div ref={containerRef} className={cn('relative inline-block', shrinkTrigger && 'max-w-full')}>
       <div onClick={() => setOpen((o) => !o)}>{trigger}</div>
       {open && (
         <div

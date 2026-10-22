@@ -4,6 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { Popover } from './index';
 
 describe('Popover', () => {
+  it('caps its wrapper at the container width only with shrinkTrigger', () => {
+    const { container, rerender } = render(<Popover trigger={<button>Open</button>}>Panel</Popover>);
+    expect((container.firstChild as HTMLElement).className).toBe('relative inline-block');
+    rerender(<Popover shrinkTrigger trigger={<button>Open</button>}>Panel</Popover>);
+    expect((container.firstChild as HTMLElement).className).toBe('relative inline-block max-w-full');
+  });
+
   it('is closed by default', () => {
     render(<Popover trigger={<button>Open</button>}>Panel content</Popover>);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
