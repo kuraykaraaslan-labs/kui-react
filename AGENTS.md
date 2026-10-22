@@ -168,7 +168,7 @@ Full page-section components that combine multiple UI molecules into usable work
 | Component | File | What it does |
 |-----------|------|-------------|
 | AppShell | `AppShell.tsx` | Root layout: sidebar aside + sticky top bar + main content with mobile drawer |
-| AppSidebar | `AppSidebar.tsx` | Collapsible sidebar nav with grouped items, count or node badges, `header` (above the nav groups) and `footer` slots |
+| AppSidebar | `AppSidebar.tsx` | Collapsible sidebar nav with grouped items, nested `children` (disclosure toggles, active branch opens), count or node badges, `header` (above the nav groups) and `footer` slots with `headerClassName` / `footerClassName`, `renderLink` for a router Link |
 | AppTopBar | `AppTopBar.tsx` | Flex wrapper for header content (logo + `start` / `end` regions of ordered items + custom children) |
 | AppDrawer | `AppDrawer.tsx` | Slide-in drawer shell used inside `AppShell` mobile mode |
 | AppFooter | `AppFooter.tsx` | Site footer: logo, version badge, status pill, nav, social, copyright |
