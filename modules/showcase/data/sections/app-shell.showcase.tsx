@@ -60,7 +60,9 @@ function NotificationMenuDemo() {
 
 function AppShellFullDemo() {
   const [activeId, setActiveId] = useState('dashboard');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // The preview is a whole shell in a narrow pane: the sidebar starts collapsed and the user menu
+  // shows its avatar only, so the top bar's search, bell and menu fit next to the sidebar.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   return (
     <div className="w-full rounded-xl overflow-hidden border border-border" style={{ height: 280 }}>
@@ -93,7 +95,7 @@ function AppShellFullDemo() {
             <GlobalSearch onSearch={() => {}} onSelect={() => {}} className="flex-1 max-w-sm hidden sm:block" />
             <div className="ml-auto flex items-center gap-1">
               <NotificationMenuDemo />
-              <UserMenu user={DEMO_USER} />
+              <UserMenu user={DEMO_USER} onlyAvatar />
             </div>
           </AppTopBar>
         }
@@ -323,7 +325,7 @@ export function AppShell({ logo, compactLogo, sidebarCollapsed = false, sidebar,
           title: 'Sidebar + topbar + content',
           layout: 'stack' as const,
           preview: <AppShellFullDemo />,
-          code: `const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+          code: `const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
 <AppShell
   logo={<span className="font-black text-primary">Acme</span>}
@@ -345,7 +347,7 @@ export function AppShell({ logo, compactLogo, sidebarCollapsed = false, sidebar,
       <GlobalSearch onSearch={handleSearch} onSelect={handleSelect} className="flex-1 max-w-sm hidden sm:block" />
       <div className="ml-auto flex items-center gap-1">
         <Button variant="ghost" size="sm" iconOnly>🔔</Button>
-        <UserMenu user={currentUser} />
+        <UserMenu user={currentUser} onlyAvatar />
       </div>
     </AppTopBar>
   }
@@ -503,7 +505,7 @@ import { cn } from '@/libs/utils/cn';
 
 export function AppTopBar({ logo, children, className, ...rest }) {
   return (
-    <div className={cn('flex items-center gap-3 flex-1', className)} {...rest}>
+    <div className={cn('flex min-w-0 items-center gap-3 flex-1', className)} {...rest}>
       {logo && <div className="shrink-0">{logo}</div>}
       {children}
     </div>
