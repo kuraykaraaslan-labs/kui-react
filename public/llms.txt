@@ -62,8 +62,9 @@ Reads from `public/registry/components.json`. Refresh with `npm run registry:sna
   ui/ + app/. 16 verticals: ai, api-doc, blog, commerce, common, event,
   fintech, food, forum, iot, jobs, landing, media, real-estate, social,
   travel. Each exports a barrel `index.ts` + `types.ts` (Zod schemas).
-- `app/theme/<vertical>/` — Full multi-page theme demos. 16 themes, one per
-  domain vertical.
+- `app/theme/<vertical>/` — Full multi-page theme demos. 19 themes, most of
+  them one per domain vertical; `promozone` and `scada` (a WidgetKit SCADA
+  console) have none.
 
 ## Imports
 

@@ -5,7 +5,7 @@ import { SceneEditor } from '@/modules/app/WidgetKit/views/SceneEditor';
 import { HOME_SCENE } from '@/modules/app/WidgetKit/sample/scada-home';
 import type { SceneSettings } from '@/modules/app/WidgetKit/views/scada-scene-logic';
 import { useSearchParams } from 'next/navigation';
-import { renderIcon } from './IotDashboard';
+import { SCADA_KIT_HOST } from './ScadaPlacement';
 
 const COLUMNS = ['value', 'value2', 'running', 'status', 'warning', 'critical', 'label', 'capacity'].map((key) => ({ key }));
 const ACTION_IDS = new Set(['router', 'cam']);
@@ -17,12 +17,15 @@ const EMPTY_ROWS = [
   { id: 'camera1', running: true }, { id: 'camera2', running: true }, { id: 'plug1', value: 12, running: true }, { id: 'plug2', value: 35, running: true },
 ];
 
-/** The process diagram editor on the home network sample, with example board parameters and a stand-in actions panel. */
+/**
+ * The process diagram editor on the home network sample, with example board parameters and a stand-in actions panel.
+ * The SCADA theme's Editor page and the IoT theme's scene-editor page both show it.
+ */
 export function SceneEditorDemo() {
   const [applied, setApplied] = useState<SceneSettings | null>(null);
   const empty = useSearchParams().get('scene') === 'empty';
   return (
-    <WidgetKitProvider value={{ renderIcon }}>
+    <WidgetKitProvider value={SCADA_KIT_HOST}>
       <div className="flex h-[calc(100vh-7rem)] min-h-[680px] flex-col gap-2">
         <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-surface-base">
           <SceneEditor

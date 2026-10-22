@@ -270,6 +270,7 @@ For the full and always-up-to-date list with every exported component, see the r
 kui-react and kui-ejs are two implementations of the same design system (see `docs/adr/0003-react-ejs-parity-contract.md`). Parity is **not** all-or-nothing — the exceptions below are deliberate, not gaps to silently close:
 
 - Shared verticals, kept in parity: `common`, `api-doc`.
+- Shared themes without a domain vertical: `scada` (WidgetKit SCADA console; its diagram editor page is React-only, kui-ejs has Overview and Diagram).
 - React-only by design (13 verticals): `ai`, `blog`, `commerce`, `event`, `fintech`, `food`, `forum`, `iot`, `jobs`, `landing`, `media`, `nft`, `real-estate`, `reviews`, `social`, `travel`.
 - EJS-only by design: `invoice`, `modem`, `ups` — device/admin-panel demos with no React counterpart.
 - App-layer exceptions: kui-ejs deliberately reverted `Gantt` and `FormBuilder` after shipping them ("moved out of scope" commits) — do not re-add without deciding scope first.
@@ -416,6 +417,7 @@ One theme demo per domain vertical. For the live route + status of each, see the
 | NFT marketplace | `/theme/nft/` | `modules/domains/nft/` |
 | Personalise (B2B promo catalog) | `/theme/promozone/` | theme-local components under `app/theme/promozone/` (no domain vertical yet) |
 | Real estate | `/theme/real-estate/` | `modules/domains/real-estate/` |
+| SCADA console (home network) | `/theme/scada/` | `modules/app/WidgetKit/` (`scada.scene`, `scada.symbol`, `SceneEditor`); no domain vertical |
 | Social feed | `/theme/social/` | `modules/domains/social/` |
 | Travel (flight + hotel) | `/theme/travel/` | `modules/domains/travel/` |
 

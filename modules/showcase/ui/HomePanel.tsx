@@ -45,6 +45,7 @@ const themes: { label: string; href: string; desc: string; screenshot: string }[
   { label: 'IoT Platform',    href: '/theme/iot',         desc: 'Device fleet, telemetry & rule engine',     screenshot: '/assets/img/screenshot-iot.png' },
   { label: 'NFT Marketplace', href: '/theme/nft',         desc: 'Collections, auctions & wallet connect',    screenshot: '/assets/img/screenshot-nft.png' },
   { label: 'Personalise',     href: '/theme/promozone',   desc: 'B2B promo catalog & quote requests',        screenshot: '/assets/img/screenshot-promozone.png' },
+  { label: 'SCADA Console',   href: '/theme/scada',       desc: 'Home network diagram, devices & editor',    screenshot: '/assets/img/screenshot-scada.png' },
 ];
 
 export function HomePanel() {

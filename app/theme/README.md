@@ -20,6 +20,7 @@ landing/
 media/
 nft/
 real-estate/
+scada/
 social/
 travel/
 ```
@@ -30,6 +31,7 @@ travel/
 |-------|-----------------|
 | `common/` | `$KUIEJS_ROOT/views/theme/common/` |
 | `api-doc/` | `$KUIEJS_ROOT/views/theme/api-doc/` |
+| `scada/` | `$KUIEJS_ROOT/views/theme/scada/` (Overview and Diagram; the editor is React-only) |
 | all others | NextJS-only, no EJS counterpart |
 
 EJS extras (`invoice`, `modem`, `ups`) have no NextJS theme yet.

@@ -24,6 +24,7 @@ const themes = [
   { name: 'travel',      path: '/theme/travel' },
   { name: 'iot',         path: '/theme/iot' },
   { name: 'nft',         path: '/theme/nft' },
+  { name: 'scada',       path: '/theme/scada' },
 ];
 
 const BASE_URL   = process.env.BASE_URL   || 'http://localhost:3000';

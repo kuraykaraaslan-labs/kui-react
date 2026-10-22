@@ -169,4 +169,5 @@ export const THEME_TITLES: Record<string, string> = {
   iot:           'IoT Theme',
   nft:           'NFT Theme',
   promozone:     'Personalise Theme',
+  scada:         'SCADA Theme',
 };
