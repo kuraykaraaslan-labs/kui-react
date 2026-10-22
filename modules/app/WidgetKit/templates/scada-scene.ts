@@ -4,7 +4,7 @@ import type { BuiltinKindSpec } from '../kind';
 import { isFormKey } from '../views/control-form-logic';
 import { MAX_SCENE_ELEMENTS, MAX_SCENE_LINKS, MAX_SCENE_SHAPES, parsePort, type SceneElementSetting, type SceneLinkSetting, type SceneShapeSetting } from '../views/scada-scene-logic';
 import { MAX_RULE_LABEL, MAX_SCENE_RULES, RULE_OPS, validateRules } from '../views/scene-rules-logic';
-import { SYMBOL_RENAMES, isScadaSymbol, SCADA_SYMBOLS, SCADA_SYMBOL_DEFS, type SymbolDef } from '../views/scada-logic';
+import { isScadaSymbol, SCADA_SYMBOLS, SCADA_SYMBOL_DEFS, type SymbolDef } from '../views/scada-logic';
 import { MEDIUM_OPTIONS, SYMBOL_OPTIONS } from './scada';
 
 const YES_NO = [opt('', 'No change'), opt('true', 'Yes'), opt('false', 'No')];
@@ -66,7 +66,7 @@ export const SCADA_SCENE: SettingsTemplate = {
       description: 'The id names the symbol for connections and picks its row in the bound table; x and y place it on the canvas.',
       fields: {
         id: { label: 'Id', type: 'text', maxLength: 64, required: true, placeholder: 'pump1' },
-        symbol: { label: 'Symbol', type: 'select', value: 'tank.vertical', required: true, options: SYMBOL_OPTIONS },
+        symbol: { label: 'Symbol', type: 'select', value: 'home.router', required: true, options: SYMBOL_OPTIONS },
         x: { label: 'x', type: 'number', display: 'input', value: 0 },
         y: { label: 'y', type: 'number', display: 'input', value: 0 },
         turn: { label: 'Turn', type: 'select', value: '0', options: [opt('0', '0°'), opt('90', '90°'), opt('180', '180°'), opt('270', '270°')] },
@@ -201,7 +201,7 @@ export const SCADA_SCENE: SettingsTemplate = {
     { from: 1, to: 2, note: 'Titles and zones on the canvas, single-line connections and a calm look (all new, nothing changes for a saved diagram).' },
     { from: 2, to: 3, note: 'Rules and per-symbol colours, unit and decimals (all new).' },
     { from: 3, to: 4, note: 'Symbol states: mode, data quality, speed, direction, alarm acknowledgement, opening and command badges, as row columns and as rule effects (all new).' },
-    { from: 4, to: 5, note: 'Seven symbols that duplicated another one were merged (television, smart plug, smoke detector, shell-and-tube exchanger, emergency shutdown valve, freeze dryer, fermenter); saved diagrams are upgraded to the kept symbol.', ops: [{ op: 'each', key: 'elements', ops: [{ op: 'mapValue', key: 'symbol', map: SYMBOL_RENAMES }] }] },
+    { from: 4, to: 5, note: 'Symbols that duplicated another one were merged.' },
   ],
 };
 

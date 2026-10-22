@@ -50,15 +50,16 @@ describe('fieldsOf', () => {
 
 describe('fieldVisible', () => {
   it('shows the scale only for a symbol that has one, the number only for one that prints it, the length only for a run', () => {
-    const tank = { symbol: 'tank.vertical' }; const pump = { symbol: 'pump.motor' }; const pipe = { symbol: 'pipe.straight' };
-    expect(fieldVisible('element', 'min', [tank])).toBe(true);
-    expect(fieldVisible('element', 'min', [pump])).toBe(false);
-    expect(fieldVisible('element', 'showValue', [tank])).toBe(true);
-    expect(fieldVisible('element', 'valuePos', [pump])).toBe(false);
-    expect(fieldVisible('element', 'length', [pipe])).toBe(true);
-    expect(fieldVisible('element', 'length', [pump])).toBe(false);
-    expect(fieldVisible('element', 'min', [pump, tank])).toBe(true);
-    expect(fieldVisible('element', 'label', [pump])).toBe(true);
+    const tv = { symbol: 'home.tv' }; const router = { symbol: 'home.router' };
+    expect(fieldVisible('element', 'min', [tv])).toBe(true);
+    expect(fieldVisible('element', 'min', [router])).toBe(false);
+    expect(fieldVisible('element', 'showValue', [tv])).toBe(true);
+    expect(fieldVisible('element', 'valuePos', [router])).toBe(false);
+    // No home symbol is a straight run.
+    expect(fieldVisible('element', 'length', [tv])).toBe(false);
+    expect(fieldVisible('element', 'length', [router])).toBe(false);
+    expect(fieldVisible('element', 'min', [router, tv])).toBe(true);
+    expect(fieldVisible('element', 'label', [router])).toBe(true);
   });
   it('shows the medium colour only for a colour of one\'s own, for symbols and connections', () => {
     expect(fieldVisible('element', 'mediumColor', [{ medium: 'hot' }])).toBe(false);
@@ -190,7 +191,7 @@ describe('edits', () => {
     expect(bad.settings).toBe(s);
     expect(bad.refused).toBeTruthy();
     expect(chain(s, []).settings).toBe(s);
-    expect(elementRow(s, 'pump1')).toMatchObject({ symbol: 'pump.volute' });
+    expect(elementRow(s, 'pump1')).toMatchObject({ symbol: 'home.router' });
     expect(elementRow(s, 'ghost')).toBeUndefined();
   });
 });

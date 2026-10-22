@@ -17,7 +17,7 @@ describe('history', () => {
   });
   it('undoes and redoes an edit to the very same settings', () => {
     const start = smallScene();
-    const { history, result } = apply(createHistory(start), (s) => addElement(s, 'pump.volute', { x: 1, y: 1 }));
+    const { history, result } = apply(createHistory(start), (s) => addElement(s, 'home.router', { x: 1, y: 1 }));
     expect(history.present).toBe(result.settings);
     const back = undo(history);
     expect(back.present).toBe(start);

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyStates, DEFAULT_STATES, hasStates, isLocked, mergeStates, parseMode, parseQuality, readStates, retime } from '../views/scada-states';
 import { drawScada, scadaPaint } from '../views/scada-logic';
-import { sceneModel } from '../views/scada-scene-logic';
+import { linkNodes, sceneModel } from '../views/scada-scene-logic';
 import { evaluateRules, validateRules } from '../views/scene-rules-logic';
 import { el, svgToString, type SvgNode } from '../views/svg-node';
 
@@ -71,68 +71,68 @@ describe('the layer on a drawn symbol', () => {
   const draw = (symbol: string, data: Record<string, unknown>, animate = true) =>
     drawScada(symbol as never, scadaPaint({ symbol }, slots(data), { animate }));
   it('a plain symbol is exactly what it was', () => {
-    const a = draw('pump.motor', { running: true, value: 50 });
-    const b = drawScada('pump.motor' as never, { ...scadaPaint({ symbol: 'pump.motor' }, slots({ running: true, value: 50 }), { animate: true }), states: undefined });
+    const a = draw('home.router', { running: true, value: 50 });
+    const b = drawScada('home.router' as never, { ...scadaPaint({ symbol: 'home.router' }, slots({ running: true, value: 50 }), { animate: true }), states: undefined });
     expect(html(a.nodes)).toBe(html(b.nodes));
   });
   it('a mode puts its badge in the top right corner, inside the box', () => {
-    const d = draw('pump.motor', { running: true, mode: 'maintenance' });
+    const d = draw('home.router', { running: true, mode: 'maintenance' });
     const h = html(d.nodes);
     expect(h).toContain(`cx="${d.w - 14}" cy="14"`);
     expect(h).toContain('var(--warning)');
   });
   it('lost data dims the drawing, frames it with a dashed line and puts a badge top left', () => {
-    const d = draw('tank.vertical', { value: 40, quality: 'offline' });
+    const d = draw('home.tv', { value: 40, quality: 'offline' });
     const h = html(d.nodes);
     expect(h).toContain('opacity="0.35"');
     expect(h).toContain('stroke-dasharray="4 4"');
     expect(h).toContain('cx="14" cy="14"');
   });
   it('an unacknowledged alarm pulses where motion is allowed and holds still where it is not', () => {
-    const on = html(draw('pump.motor', { running: true, status: 'critical', ack: false }).nodes);
-    const off = html(draw('pump.motor', { running: true, status: 'critical', ack: false }, false).nodes);
+    const on = html(draw('home.router', { running: true, status: 'critical', ack: false }).nodes);
+    const off = html(draw('home.router', { running: true, status: 'critical', ack: false }, false).nodes);
     expect(on).toContain('values="1;0.15;1"');
     expect(off).not.toContain('values="1;0.15;1"');
     expect(off).toContain('opacity="0.85"');
     // Acknowledged or not reported: no ring.
-    expect(html(draw('pump.motor', { running: true, status: 'critical', ack: true }).nodes)).not.toContain('values="1;0.15;1"');
+    expect(html(draw('home.router', { running: true, status: 'critical', ack: true }).nodes)).not.toContain('values="1;0.15;1"');
     // Not an alarm: no ring either.
-    expect(html(draw('pump.motor', { running: true, ack: false }).nodes)).not.toContain('values="1;0.15;1"');
+    expect(html(draw('home.router', { running: true, ack: false }).nodes)).not.toContain('values="1;0.15;1"');
   });
   it('a command in flight is a spinner, a failed one a red mark; the opening is a bar', () => {
-    expect(html(draw('valve', { pending: true }).nodes)).toContain('type="rotate"');
-    expect(html(draw('valve', { pending: true }, false).nodes)).not.toContain('animateTransform');
-    expect(html(draw('valve', { failed: true, pending: true }).nodes)).toContain('>!<');
-    const bar = html(draw('valve', { position: 50, running: true }).nodes);
+    expect(html(draw('home.plug.smart', { pending: true }).nodes)).toContain('type="rotate"');
+    expect(html(draw('home.plug.smart', { pending: true }, false).nodes)).not.toContain('animateTransform');
+    expect(html(draw('home.plug.smart', { failed: true, pending: true }).nodes)).toContain('>!<');
+    const bar = html(draw('home.plug.smart', { position: 50, running: true }).nodes);
     expect(bar).toContain('rx="4"');
   });
   it('speed and direction act on a symbol and on a connection; connections get no badges', () => {
-    const fast = html(draw('pump.motor', { running: true, speed: 200 }).nodes);
-    const slow = html(draw('pump.motor', { running: true, speed: 50 }).nodes);
+    const fast = html(draw('home.router', { running: true, speed: 200 }).nodes);
+    const slow = html(draw('home.router', { running: true, speed: 50 }).nodes);
     expect(fast).not.toBe(slow);
-    const pipe = draw('pipe.straight', { running: true, mode: 'manual', speed: 50, direction: 'reverse' });
-    const p = html(pipe.nodes);
+    const paint = scadaPaint({ symbol: 'home.router' }, slots({ running: true, mode: 'manual', speed: 50, direction: 'reverse' }), { animate: true });
+    const p = html(linkNodes('pipe', [{ x: 0, y: 50 }, { x: 100, y: 50 }], paint, 1));
     expect(p).not.toContain('>M<');
     expect(p).toContain('from="0" to="22"');
     expect(p).toContain('dur="1.8s"');
   });
   it('badges do not turn or mirror with the symbol', () => {
-    const d = draw('pump.motor', { running: true, mode: 'manual' });
-    const turned = drawScada('pump.motor', scadaPaint({ symbol: 'pump.motor' }, slots({ running: true, mode: 'manual' }), { animate: true }), 90, true);
+    const d = draw('home.router', { running: true, mode: 'manual' });
+    const turned = drawScada('home.router', scadaPaint({ symbol: 'home.router' }, slots({ running: true, mode: 'manual' }), { animate: true }), 90, true);
     expect(html(d.nodes)).toContain('>M<');
     expect(html(turned.nodes)).toContain('>M<');
     expect(html(turned.nodes)).not.toContain('scale(-1 1)>' + '<circle');
   });
   it('applyStates leaves a tree untouched when nothing is set', () => {
     const t = [el('rect', { x: 0, y: 0, width: 5, height: 5 })];
-    expect(applyStates(t, 100, 100, scadaPaint({ symbol: 'valve' }, {}, {}))).toBe(t);
+    expect(applyStates(t, 100, 100, scadaPaint({ symbol: 'home.plug.smart' }, {}, {}))).toBe(t);
   });
 });
 
 describe('in a scene', () => {
   const base = {
     width: 600, height: 300, scale: 0.6, fit: 'canvas' as const,
-    elements: [{ id: 'p1', symbol: 'pump.motor', x: 100, y: 100 }, { id: 'v1', symbol: 'valve', x: 300, y: 100 }],
+    elements: [{ id: 'p1', symbol: 'home.router', x: 100, y: 100 }, { id: 'v1', symbol: 'home.plug.smart', x: 300, y: 100 }],
     links: [{ from: 'p1.r', to: 'v1.l', kind: 'pipe', medium: 'cold' }],
   };
   const model = (rows: Array<Record<string, unknown>>, extra: Record<string, unknown> = {}) =>

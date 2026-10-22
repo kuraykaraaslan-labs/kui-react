@@ -65,7 +65,7 @@ describe('the viewport', () => {
   });
 
   it('grows the base box for content outside the canvas', () => {
-    const far = addElement(scene, 'pump.volute', { x: 2500, y: 900 }).settings;
+    const far = addElement(scene, 'home.router', { x: 2500, y: 900 }).settings;
     const wide = baseBox(far, sceneModel(far, {}));
     expect(wide.x + wide.w).toBeGreaterThan(2500);
     expect(wide.y + wide.h).toBeGreaterThan(900);

@@ -53,10 +53,11 @@ const mount = (selection: Selection, tab: 'properties' | 'rules' = 'properties')
 
 describe('the panels are usable without a pointer or a screen', () => {
   it('gives every control of the palette a name, and the tiles a listbox with options', () => {
-    const { container } = render(<ScenePalette onAdd={() => {}} recent={['valve']} />);
+    const { container } = render(<ScenePalette onAdd={() => {}} recent={['home.plug.smart']} />);
     expect(unnamed(container)).toEqual([]);
     expect(container.querySelectorAll('[role="listbox"]')).toHaveLength(1);
-    expect(container.querySelectorAll('[role="option"]').length).toBeGreaterThan(240);
+    // The four symbols, and the recent one above them.
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(5);
     expect(container.querySelectorAll('svg:not([aria-hidden="true"])')).toHaveLength(0);
   });
   it('gives every control of the inspector a name, for each kind of selection', () => {
@@ -105,10 +106,10 @@ describe('the panels are usable without a pointer or a screen', () => {
 
 describe('panel messages', () => {
   it('merges any part over the English ones without changing the defaults, and keeps functions', () => {
-    const merged = mergeMessages(DEFAULT_PANEL_MESSAGES, { palette: { search: 'Ara', families: { sld: 'Tek hat' } }, rules: { words: { ops: { gt: 'üstünde {value}' } } } });
+    const merged = mergeMessages(DEFAULT_PANEL_MESSAGES, { palette: { search: 'Ara', families: { home: 'Household devices' } }, rules: { words: { ops: { gt: 'üstünde {value}' } } } });
     expect(merged.palette.search).toBe('Ara');
-    expect(merged.palette.families.sld).toBe('Tek hat');
-    expect(merged.palette.families.hvac).toBe('HVAC');
+    expect(merged.palette.families.home).toBe('Household devices');
+    expect(merged.palette.sectors.telecom).toBe('Telecom');
     expect(merged.rules.words.ops.gt).toBe('üstünde {value}');
     expect(merged.rules.words.ops.lt).toBe('is below {value}');
     expect(merged.palette.count(2)).toBe('2 symbols');
@@ -122,7 +123,7 @@ describe('panel messages', () => {
     for (const group of [m.palette.families, m.palette.sectors, m.rules.states, m.rules.opLabels, m.rules.words.ops, m.rules.words.states, m.problems.groups, m.whatIf.statuses]) {
       for (const [k, v] of Object.entries(group)) expect(typeof v === 'string' && v.length > 0, k).toBe(true);
     }
-    expect(Object.keys(m.palette.families)).toHaveLength(35);
-    expect(Object.keys(m.palette.sectors)).toHaveLength(24);
+    expect(Object.keys(m.palette.families)).toHaveLength(1);
+    expect(Object.keys(m.palette.sectors)).toHaveLength(5);
   });
 });

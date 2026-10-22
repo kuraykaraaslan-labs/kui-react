@@ -31,8 +31,8 @@ describe('captureAssembly', () => {
     expect(captureAssembly(smallScene(), ['pump1'])!.links).toEqual([]);
   });
   it('carries the own fields of a symbol and no unknown ones', () => {
-    const s = deepFreeze({ elements: [{ id: 'a', symbol: 'tank.open', x: 5, y: 5, label: 'L', fillColor: '#abc', unit: 'bar', decimals: 2, sneaky: 'x' }] }) as SceneSettings;
-    expect(captureAssembly(s, ['a'])!.elements[0]).toEqual({ id: 'a', symbol: 'tank.open', x: 0, y: 0, label: 'L', fillColor: '#abc', unit: 'bar', decimals: 2 });
+    const s = deepFreeze({ elements: [{ id: 'a', symbol: 'home.tv', x: 5, y: 5, label: 'L', fillColor: '#abc', unit: 'bar', decimals: 2, sneaky: 'x' }] }) as SceneSettings;
+    expect(captureAssembly(s, ['a'])!.elements[0]).toEqual({ id: 'a', symbol: 'home.tv', x: 0, y: 0, label: 'L', fillColor: '#abc', unit: 'bar', decimals: 2 });
   });
 });
 
@@ -56,7 +56,7 @@ describe('insertAssembly', () => {
     expect(new Set(all).size).toBe(all.length);
   });
   it('mixes a taken id and a free one correctly', () => {
-    const s = deepFreeze({ elements: [{ id: 'tank1', symbol: 'tank.open', x: 0, y: 0 }] }) as SceneSettings;
+    const s = deepFreeze({ elements: [{ id: 'tank1', symbol: 'home.tv', x: 0, y: 0 }] }) as SceneSettings;
     const r = insertAssembly(s, piece, { x: 0, y: 0 });
     expect(r.ids).toEqual(['tank2', 'pump1']);
     expect(links(r.settings)[0]).toEqual({ from: 'tank2.r', to: 'pump1.l', kind: 'pipe' });
@@ -68,7 +68,7 @@ describe('insertAssembly', () => {
     expect(hits.map((h) => [h.id, h.x, h.y])).toEqual(orig.slice(0, 2).map((h) => [h.id, h.x, h.y]));
   });
   it('refuses at a cap and for an assembly of the other anchor', () => {
-    const full: SceneSettings = { elements: Array.from({ length: MAX_SCENE_ELEMENTS - 1 }, (_, i) => ({ id: `a${i}`, symbol: 'tank.open', x: i, y: 0 })) };
+    const full: SceneSettings = { elements: Array.from({ length: MAX_SCENE_ELEMENTS - 1 }, (_, i) => ({ id: `a${i}`, symbol: 'home.tv', x: i, y: 0 })) };
     const r = insertAssembly(full, piece, { x: 0, y: 0 });
     expect(r.settings).toBe(full);
     expect(r.refused).toMatch(/200/);
@@ -119,7 +119,7 @@ describe('serialize and parseClipboard', () => {
     expect(a.elements[0]).not.toHaveProperty('onClick');
     expect(a.links[0]).not.toHaveProperty('script');
     expect(({} as Rec).polluted).toBeUndefined();
-    expect(a.elements[0].symbol).toBe('tank.vertical');
+    expect(a.elements[0].symbol).toBe('home.tv');
   });
   it('refuses a value of the wrong kind in a known field', () => {
     for (const patch of [{ x: 'a' }, { x: 1e12 }, { symbol: 'nope' }, { id: 'a b' }, { turn: 45 }, { scale: 99 }, { label: 'x'.repeat(61) }, { mirror: 'yes' }]) {
@@ -141,7 +141,7 @@ describe('serialize and parseClipboard', () => {
   });
   it('refuses lists past the caps', () => {
     const many = clone(piece) as unknown as { elements: Rec[] };
-    many.elements = Array.from({ length: MAX_SCENE_ELEMENTS + 1 }, (_, i) => ({ id: `a${i}`, symbol: 'tank.open', x: 0, y: 0 }));
+    many.elements = Array.from({ length: MAX_SCENE_ELEMENTS + 1 }, (_, i) => ({ id: `a${i}`, symbol: 'home.tv', x: 0, y: 0 }));
     expect(cleanAssembly(many).ok).toBe(false);
     const notList = { ...clone(piece), links: {} };
     expect(cleanAssembly(notList).ok).toBe(false);
@@ -165,7 +165,7 @@ describe('problems', () => {
   });
   it('finds duplicate and unusable ids and unknown symbols', () => {
     const s = deepFreeze({ elements: [
-      { id: 'a', symbol: 'tank.open', x: 1, y: 1 }, { id: 'a', symbol: 'tank.open', x: 2, y: 2 }, { id: '1x', symbol: 'tank.open', x: 3, y: 3 }, { id: 'b', symbol: 'nope', x: 4, y: 4 },
+      { id: 'a', symbol: 'home.tv', x: 1, y: 1 }, { id: 'a', symbol: 'home.tv', x: 2, y: 2 }, { id: '1x', symbol: 'home.tv', x: 3, y: 3 }, { id: 'b', symbol: 'nope', x: 4, y: 4 },
     ] }) as SceneSettings;
     expect(codes(s)).toEqual(['duplicate-id:a', 'invalid-id:1x', 'unknown-symbol:b']);
   });
@@ -183,7 +183,7 @@ describe('problems', () => {
     expect(codes(s, { points: { shape: 'table', rows: [{ tag: 'tank1' }, { tag: 'pump1' }, { tag: 'valve1' }] } })).toEqual([]);
   });
   it('finds symbols and shapes outside the canvas', () => {
-    const s = deepFreeze({ width: 400, height: 300, elements: [{ id: 'a', symbol: 'tank.open', x: 500, y: 10 }, { id: 'b', symbol: 'tank.open', x: 10, y: 10 }], shapes: [{ kind: 'text', x: -5, y: 10, text: 'x' }] }) as SceneSettings;
+    const s = deepFreeze({ width: 400, height: 300, elements: [{ id: 'a', symbol: 'home.tv', x: 500, y: 10 }, { id: 'b', symbol: 'home.tv', x: 10, y: 10 }], shapes: [{ kind: 'text', x: -5, y: 10, text: 'x' }] }) as SceneSettings;
     expect(codes(s)).toEqual(['off-canvas:a', 'off-canvas:shape:0']);
   });
   it('finds zero-size zones and titles without words', () => {
@@ -191,14 +191,14 @@ describe('problems', () => {
     expect(codes(s)).toEqual(['zero-size-zone:shape:0', 'empty-title:shape:2']);
   });
   it('warns near a cap and errors past it', () => {
-    const many = (n: number) => ({ elements: Array.from({ length: n }, (_, i) => ({ id: `a${i}`, symbol: 'tank.open', x: i, y: 0 })) }) as SceneSettings;
+    const many = (n: number) => ({ elements: Array.from({ length: n }, (_, i) => ({ id: `a${i}`, symbol: 'home.tv', x: i, y: 0 })) }) as SceneSettings;
     expect(codes(many(179))).toEqual([]);
     expect(codes(many(180))).toEqual(['near-cap:scene']);
     expect(problems(many(180))[0].severity).toBe('warning');
     expect(problems(many(201))[0]).toMatchObject({ code: 'over-cap', severity: 'error' });
   });
   it('lists errors before warnings', () => {
-    const s = deepFreeze({ width: 300, elements: [{ id: 'a', symbol: 'tank.open', x: 999, y: 0 }, { id: 'a', symbol: 'tank.open', x: 1, y: 1 }] }) as SceneSettings;
+    const s = deepFreeze({ width: 300, elements: [{ id: 'a', symbol: 'home.tv', x: 999, y: 0 }, { id: 'a', symbol: 'home.tv', x: 1, y: 1 }] }) as SceneSettings;
     expect(problems(s).map((p) => p.severity)).toEqual(['error', 'warning']);
   });
   it('takes the checks of the host, one or several, and survives one that throws', () => {

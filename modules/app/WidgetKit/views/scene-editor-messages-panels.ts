@@ -35,7 +35,7 @@ export interface PaletteMessages {
   /** The live count under the search ("12 symbols"). */
   count: (n: number) => string;
   none: string;
-  /** What a tile does on a click or Enter ("Add Motor pump"). */
+  /** What a tile does on a click or Enter ("Add Smart plug"). */
   add: (name: string) => string;
   hint: string;
   families: Record<ScadaFamily, string>;
@@ -45,7 +45,7 @@ export interface PaletteMessages {
 export const DEFAULT_PALETTE_MESSAGES: PaletteMessages = {
   title: 'Symbols',
   search: 'Search symbols',
-  searchPlaceholder: 'Search: pump, breaker, heat exchanger...',
+  searchPlaceholder: 'Search: tv, router, camera...',
   clearSearch: 'Clear the search',
   familyGroup: 'Family',
   sectorGroup: 'Sector',
@@ -57,18 +57,8 @@ export const DEFAULT_PALETTE_MESSAGES: PaletteMessages = {
   none: 'No symbol matches. Try another word, or clear the family and sector.',
   add: (name) => `Add ${name}`,
   hint: 'Click or press Enter to add at the centre of the view, or drag onto the canvas.',
-  families: {
-    process: 'Process', water: 'Water', network: 'Water network', wastewater: 'Wastewater', oil: 'Drilling and oil', energy: 'Energy',
-    sld: 'Single-line', hvac: 'HVAC', isa: 'Instruments (ISA)', instrument: 'Gauges', telecom: 'Telecom', food: 'Food and drink',
-    factory: 'Factory', mining: 'Mining', agri: 'Agriculture', city: 'City', line: 'Strip line', connection: 'Connections',
-    fluid: 'Pumps and valves', mech: 'Mechanical', safety: 'Safety and control', home: 'Home electronics', appliance: 'Home appliances', kitchen: 'Kitchen', gadget: 'Gadgets',
-    pharma: 'Pharma and cleanroom', paper: 'Pulp and paper', steel: 'Steel and metals', storage: 'Energy storage', gasnet: 'Gas and heating networks', hydro: 'Hydro, dam and marine', building: 'Building services', logistics: 'Logistics', watergas: 'Water and gas safety', access: 'Building access',
-  },
-  sectors: {
-    process: 'Process', water: 'Water', wastewater: 'Wastewater', oilgas: 'Oil and gas', power: 'Electrical', energy: 'Energy', hvac: 'HVAC',
-    instrumentation: 'Instrumentation', telecom: 'Telecom', food: 'Food and drink', factory: 'Factory', mining: 'Mining', agriculture: 'Agriculture', city: 'City', home: 'Home', safety: 'Safety',
-    pharma: 'Pharma', paper: 'Pulp and paper', steel: 'Steel', hydro: 'Hydro and marine', storage: 'Storage', gas: 'Gas and heating', building: 'Buildings', logistics: 'Logistics',
-  },
+  families: { home: 'Home electronics' },
+  sectors: { home: 'Home', telecom: 'Telecom', energy: 'Energy', safety: 'Safety', city: 'City' },
 };
 
 // ─── Rules ───────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { sceneModel, type SceneSettings } from '../views/scada-scene-logic';
 import { svgToString } from '../views/svg-node';
 import { SCADA_SCENE } from '../templates/scada-scene';
 import { migrate, validate } from '../settings/engine';
-import { SECTOR_SCENES } from '../sample/scada-sector-all';
+import { HOME_SCENE } from '../sample/scada-home';
 
 type Row = Record<string, unknown>;
 const rowsOf = (rows: Row[]) => new Map(rows.map((r) => [String(r.id), r]));
@@ -191,7 +191,7 @@ describe('validateRules', () => {
 });
 
 describe('the template', () => {
-  const base = { elements: [{ id: 'p', symbol: 'pump.volute' }, { id: 'q', symbol: 'tank.vertical' }], links: [{ from: 'p.r', to: 'q.l', id: 'pipe1' }] };
+  const base = { elements: [{ id: 'p', symbol: 'home.router' }, { id: 'q', symbol: 'home.tv' }], links: [{ from: 'p.r', to: 'q.l', id: 'pipe1' }] };
   const issues = (extra: Record<string, unknown>) => validate(SCADA_SCENE, { ...base, ...extra }).issues.map((i) => i.path);
 
   it('is version 5 and the steps from 2, 3 and 4 only note what is new', () => {
@@ -220,15 +220,13 @@ describe('the template', () => {
     expect(paths).toContain('rules.0.state');
   });
   it('takes the per-symbol colours, unit and decimals, and refuses a bad one', () => {
-    const ok = [{ id: 'p', symbol: 'pump.volute', fillColor: '#123456', idleColor: 'var(--info)', runningColor: '#0f0', warningColor: '#ff0', criticalColor: '#f00', unit: 'bar', decimals: 2 }];
+    const ok = [{ id: 'p', symbol: 'home.router', fillColor: '#123456', idleColor: 'var(--info)', runningColor: '#0f0', warningColor: '#ff0', criticalColor: '#f00', unit: 'bar', decimals: 2 }];
     expect(validate(SCADA_SCENE, { elements: ok }).issues).toEqual([]);
-    expect(validate(SCADA_SCENE, { elements: [{ id: 'p', symbol: 'pump.volute', decimals: 9, warningColor: 'nope' }] }).issues.map((i) => i.path).sort())
+    expect(validate(SCADA_SCENE, { elements: [{ id: 'p', symbol: 'home.router', decimals: 9, warningColor: 'nope' }] }).issues.map((i) => i.path).sort())
       .toEqual(['elements.0.decimals', 'elements.0.warningColor']);
   });
-  it('the sample scenes with rules pass the template\'s own validation', () => {
-    const withRules = SECTOR_SCENES.filter((s) => Array.isArray(s.settings.rules));
-    expect(withRules.length).toBeGreaterThanOrEqual(3);
-    for (const s of withRules) expect(validate(SCADA_SCENE, s.settings).issues, s.title).toEqual([]);
+  it('the sample scene passes the template\'s own validation', () => {
+    expect(validate(SCADA_SCENE, HOME_SCENE.settings).issues).toEqual([]);
   });
 });
 
@@ -237,9 +235,9 @@ describe('the template', () => {
 const scene = (over: Partial<SceneSettings> = {}): SceneSettings => ({
   fit: 'canvas', width: 800, height: 400, scale: 0.6,
   elements: [
-    { id: 'pump', symbol: 'pump.volute', x: 100, y: 100, label: 'Pump' },
-    { id: 'tank', symbol: 'tank.vertical', x: 400, y: 100, label: 'Tank', max: 100 },
-    { id: 'lt', symbol: 'isa.level', x: 600, y: 100 },
+    { id: 'pump', symbol: 'home.router', x: 100, y: 100, label: 'Pump' },
+    { id: 'tank', symbol: 'home.tv', x: 400, y: 100, label: 'Tank', max: 100 },
+    { id: 'lt', symbol: 'home.plug.smart', x: 600, y: 100 },
   ],
   links: [{ from: 'pump.r', to: 'tank.l', kind: 'pipe', id: 'feed' }, { from: 'tank.r', to: 'lt.l', kind: 'wire' }],
   ...over,
@@ -271,10 +269,14 @@ describe('rules in the scene model', () => {
     expect(idle).not.toContain('var(--error)');
   });
   it('off is passive: dimmed, not running, and nothing flows', () => {
-    const base = scene({ elements: [{ id: 'pump', symbol: 'pump.volute', x: 100, y: 100, medium: 'hot' }] });
+    const base = scene({
+      elements: [{ id: 'pump', symbol: 'home.router', x: 100, y: 100, medium: 'hot' }, { id: 'tank', symbol: 'home.tv', x: 400, y: 100 }],
+      links: [{ from: 'pump.r', to: 'tank.l', kind: 'pipe' }],
+    });
     const on = markup(base, [{ id: 'pump', running: true }]);
     const off = markup({ ...base, rules: [{ target: 'pump', state: 'off' }] }, [{ id: 'pump', running: true }]);
-    expect(count(off, 'opacity="0.4"')).toBe(count(on, 'opacity="0.4"') + 1);
+    // The symbol and the connection that follows it are both passive.
+    expect(count(off, 'opacity="0.4"')).toBe(count(on, 'opacity="0.4"') + 2);
     expect(off).not.toContain('<animate');
     expect(off).not.toContain('var(--error)'); // the hot medium colour is gone
     expect(on).toContain('var(--error)');
@@ -285,17 +287,14 @@ describe('rules in the scene model', () => {
   });
   it('colour also colours an idle symbol, and the symbol stays still', () => {
     const idle = [{ id: 'pump', running: false }];
-    const s = scene({ elements: [{ id: 'pump', symbol: 'isa.level', x: 100, y: 100 }], links: [], rules: [{ target: 'pump', color: '#ff00aa' }] });
+    const s = scene({ elements: [{ id: 'pump', symbol: 'home.router', x: 100, y: 100 }], links: [], rules: [{ target: 'pump', color: '#ff00aa' }] });
     expect(markup(s, idle)).toContain('#ff00aa');
     expect(markup(s, idle)).not.toContain('<animate');
   });
-  it('colour replaces the state colour; fillColor the liquid', () => {
+  it('colour replaces the state colour, in an alarm too', () => {
     const c = markup(scene({ rules: [{ target: 'pump', color: '#ff00aa' }] }));
     expect(c).toContain('#ff00aa');
     expect(plain).not.toContain('#ff00aa');
-    const f = markup(scene({ rules: [{ target: 'tank', fillColor: '#00ccee' }] }));
-    expect(f).toContain('#00ccee');
-    // in an alarm the accent also paints the liquid
     const a = markup(scene({ rules: [{ target: 'tank', state: 'warning', color: '#ff00aa' }] }));
     expect(a).toContain('#ff00aa');
   });
@@ -312,7 +311,7 @@ describe('rules in the scene model', () => {
     expect(blink(markup({ ...s, rules: [{ target: 'tank', blink: 'true' }, { target: 'tank', animate: 'false' }] }))).toBe(0);
   });
   it('animate false stops the motion of a running symbol', () => {
-    const base = scene({ elements: [{ id: 'pump', symbol: 'pump.volute', x: 100, y: 100 }], links: [] });
+    const base = scene({ elements: [{ id: 'pump', symbol: 'home.router', x: 100, y: 100 }], links: [] });
     const moving = markup(base);
     const still = markup({ ...base, rules: [{ target: 'pump', animate: 'false' }] });
     expect(moving).toContain('<animate');
@@ -349,16 +348,15 @@ describe('rules in the scene model', () => {
     expect(m.hits.find((h) => h.id === 'tank')?.name).toBe('Level 55');
   });
   it('a label shows even on a symbol with no name of its own', () => {
-    const s = scene({ elements: [{ id: 'pump', symbol: 'pump.volute', x: 100, y: 100 }], links: [], rules: [{ target: 'pump', label: 'Duty pump' }] });
+    const s = scene({ elements: [{ id: 'pump', symbol: 'home.router', x: 100, y: 100 }], links: [], rules: [{ target: 'pump', label: 'Duty pump' }] });
     expect(markup(s)).toContain('>Duty pump<');
   });
   it('label text is escaped in markup', () => {
     expect(markup(scene({ rules: [{ target: 'tank', label: '<script>&' }] }))).toContain('&lt;script&gt;&amp;');
   });
   it('medium changes what flows', () => {
-    const base = scene({ elements: [{ id: 'pump', symbol: 'pump.volute', x: 100, y: 100 }], links: [] });
-    expect(markup(base)).not.toContain('var(--error)');
-    expect(markup({ ...base, rules: [{ target: 'pump', medium: 'hot' }] })).toContain('var(--error)');
+    expect(plain).not.toContain('var(--error)');
+    expect(markup(scene({ rules: [{ target: 'feed', medium: 'hot' }] }))).toContain('var(--error)');
   });
   it('rules read board parameters', () => {
     const s = scene({ rules: [{ target: 'tank', source: 'param', key: 'mode', op: 'eq', value: 'off', dim: 'true' }] });
@@ -396,13 +394,13 @@ describe('rules in the scene model', () => {
 
 describe('per-symbol colours, unit and decimals', () => {
   it('a symbol\'s own colours beat the scene\'s', () => {
-    const s = scene({ runningColor: '#00aa33', elements: [{ id: 'pump', symbol: 'pump.volute', x: 100, y: 100, runningColor: '#3300aa' }], links: [] });
+    const s = scene({ runningColor: '#00aa33', elements: [{ id: 'pump', symbol: 'home.router', x: 100, y: 100, runningColor: '#3300aa' }], links: [] });
     const m = markup(s, [{ id: 'pump', running: true }]);
     expect(m).toContain('#3300aa');
     expect(m).not.toContain('#00aa33');
   });
   it('idle, warning and critical colours of one symbol', () => {
-    const e = { id: 'pump', symbol: 'isa.level', x: 100, y: 100, idleColor: '#111199', warningColor: '#aa5500', criticalColor: '#cc0011' };
+    const e = { id: 'pump', symbol: 'home.router', x: 100, y: 100, idleColor: '#111199', warningColor: '#aa5500', criticalColor: '#cc0011' };
     const s = scene({ elements: [e], links: [] });
     expect(markup(s, [{ id: 'pump', running: false }])).toContain('#111199');
     expect(markup(s, [{ id: 'pump', running: true }])).not.toContain('#111199');
@@ -410,59 +408,39 @@ describe('per-symbol colours, unit and decimals', () => {
     expect(markup(s, [{ id: 'pump', status: 'critical' }])).toContain('#cc0011');
   });
   it('an empty colour is the scene\'s default', () => {
-    const e = { id: 'pump', symbol: 'pump.volute', x: 100, y: 100, runningColor: '' };
+    const e = { id: 'pump', symbol: 'home.router', x: 100, y: 100, runningColor: '' };
     expect(markup(scene({ runningColor: '#00aa33', elements: [e], links: [] }), [{ id: 'pump', running: true }])).toContain('#00aa33');
-  });
-  it('fillColor colours the liquid', () => {
-    const s = scene({ elements: [{ id: 'tank', symbol: 'tank.vertical', x: 100, y: 100, fillColor: '#00ccee', max: 100 }], links: [] });
-    expect(markup(s, [{ id: 'tank', value: 40 }])).toContain('#00ccee');
   });
   it('unit and decimals of a symbol go to the formatter, the others keep the host\'s', () => {
     const calls: Array<[number, unknown]> = [];
     const format = (n: number, own?: { unit?: string; decimals?: number }) => { calls.push([n, own]); return `${n}|${own?.unit ?? ''}|${own?.decimals ?? ''}`; };
-    const s = scene({ elements: [{ id: 'lt', symbol: 'isa.level', x: 100, y: 100, unit: ' m', decimals: 2 }, { id: 'lt2', symbol: 'isa.level', x: 300, y: 100 }], links: [] });
+    const s = scene({ elements: [{ id: 'lt', symbol: 'home.plug.smart', x: 100, y: 100, unit: ' m', decimals: 2 }, { id: 'lt2', symbol: 'home.plug.smart', x: 300, y: 100 }], links: [] });
     const html = markup(s, [{ id: 'lt', value: 1.5 }, { id: 'lt2', value: 2.5 }], { format });
     expect(html).toContain('1.5|m|2');
     expect(html).toContain('2.5||');
     expect(calls.some(([n, own]) => n === 2.5 && own === undefined)).toBe(true);
   });
   it('the built-in formatter writes decimals and the unit', () => {
-    const s = scene({ elements: [{ id: 'lt', symbol: 'isa.level', x: 100, y: 100, unit: 'bar', decimals: 1 }], links: [] });
+    const s = scene({ elements: [{ id: 'lt', symbol: 'home.plug.smart', x: 100, y: 100, unit: 'bar', decimals: 1 }], links: [] });
     expect(markup(s, [{ id: 'lt', value: 4.26 }])).toContain('>4.3 bar<');
   });
   it('a bad unit or decimals is ignored, a large one is capped', () => {
-    const s = (decimals: unknown) => scene({ elements: [{ id: 'lt', symbol: 'isa.level', x: 100, y: 100, decimals: decimals as number }], links: [] });
+    const s = (decimals: unknown) => scene({ elements: [{ id: 'lt', symbol: 'home.plug.smart', x: 100, y: 100, decimals: decimals as number }], links: [] });
     expect(markup(s('x'), [{ id: 'lt', value: 4.26 }])).toContain('>4.26<');
     expect(markup(s(99), [{ id: 'lt', value: 1 }])).toContain('>1.000000<');
   });
   it('a label token uses the symbol\'s own unit and decimals', () => {
-    const s = scene({ elements: [{ id: 'lt', symbol: 'isa.level', x: 100, y: 100, unit: 'bar', decimals: 1 }], links: [], rules: [{ target: 'lt', label: 'P {value}' }] });
+    const s = scene({ elements: [{ id: 'lt', symbol: 'home.plug.smart', x: 100, y: 100, unit: 'bar', decimals: 1 }], links: [], rules: [{ target: 'lt', label: 'P {value}' }] });
     expect(markup(s, [{ id: 'lt', value: 4.26 }])).toContain('>P 4.3 bar<');
   });
 });
 
-describe('the sample boards show the rules', () => {
-  const sample = (title: string) => SECTOR_SCENES.find((s) => s.title === title)!;
-  const html = (title: string, params?: Record<string, unknown>) => {
-    const s = sample(title);
-    return markup(s.settings as SceneSettings, s.rows, { params });
-  };
-  it('HVAC: the boiler carries its number; the chiller goes passive when the mode parameter is off', () => {
-    const on = html('Building HVAC');
-    expect(on).toContain('>Heating boiler 68<');
-    expect(on).not.toContain('>Chiller (off)<');
-    const off = html('Building HVAC', { mode: 'off' });
-    expect(off).toContain('>Chiller (off)<');
-    expect(count(off, 'opacity="0.4"')).toBeGreaterThan(count(on, 'opacity="0.4"'));
-  });
-  it('power: the drive that warns blinks and says so', () => {
-    const m = html('Plant substation');
-    expect(m).toContain('>Drive: check<');
-    expect(count(m, 'attributeName="opacity"')).toBe(1);
-  });
-  it('wastewater: the basins above 70 turn amber and say so', () => {
-    const m = html('Wastewater treatment');
-    expect(m).toContain('>Basin 1 · high 72<');
-    expect(m).not.toContain('>Basin 2 · high');
+describe('the home sample shows its states', () => {
+  it('the camera warns and says so, the router and the connections run', () => {
+    const m = markup(HOME_SCENE.settings as SceneSettings, HOME_SCENE.rows);
+    expect(m).toContain('>Porch camera · motion<');
+    expect(m).toContain('var(--warning)');
+    expect(m).toContain('<animate');
+    expect(draw(HOME_SCENE.settings as SceneSettings, HOME_SCENE.rows).problems).toBe(0);
   });
 });

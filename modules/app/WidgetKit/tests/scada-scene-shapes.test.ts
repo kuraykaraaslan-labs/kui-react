@@ -4,7 +4,7 @@ import { svgToString } from '../views/svg-node';
 
 const base = {
   width: 600, height: 300, scale: 0.6, fit: 'canvas' as const,
-  elements: [{ id: 'a', symbol: 'breaker', x: 100, y: 100 }, { id: 'b', symbol: 'transformer', x: 300, y: 100 }],
+  elements: [{ id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }, { id: 'b', symbol: 'home.router', x: 300, y: 100 }],
   links: [{ from: 'a.r', to: 'b.l', kind: 'sld' }],
 };
 const markup = (s: Record<string, unknown>, rows: Array<Record<string, unknown>> = []) =>

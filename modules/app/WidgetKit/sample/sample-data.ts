@@ -6,7 +6,7 @@
 import type { SlotData } from '../kind';
 import type { BoardDocument, BoardPlacement } from '../settings/board';
 import { PLANT_MODEL } from './sample-boards';
-import { POOL_SCENE, scadaSources } from './scada-scenes';
+import { HOME_SCENE, homeSources } from './scada-home';
 
 export interface SampleSource {
   key: string;
@@ -339,8 +339,8 @@ function themedSources(now: number, at: (minAgo: number) => string): SampleSourc
         })),
       },
     },
-    // ── process diagrams (readings per symbol id, and a record for the form)
-    ...scadaSources(now),
+    // ── the process diagram (readings per symbol id, and a record for the form)
+    ...homeSources(now),
   ];
 }
 
@@ -410,9 +410,9 @@ export const SAMPLE_GALLERY_BOARD: BoardDocument = {
     // A CC0 clip from MDN's examples (the same kind of public sample as the image above).
     P('video', 'content.video', 'Line camera', 0, 65, 6, 6, {},
       { src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4' }),
-    P('symbol', 'scada.symbol', 'Storage tank', 0, 71, 3, 6, { value: 'sample.cpu', running: 'sample.pump' },
-      { symbol: 'tank.vertical', label: 'Tank 1', $format: { unit: '%', decimals: 0 } }),
-    P('form', 'control.form', 'Drilling parameters', 3, 71, 4, 8, { record: 'sample.scada.rig.params' }, { label: 'Set and save together' }),
-    P('scene', 'scada.scene', 'Pool plant', 0, 79, 12, 12, { points: 'sample.scada.pool' }, POOL_SCENE.settings),
+    P('symbol', 'scada.symbol', 'Smart plug', 0, 71, 3, 6, { value: 'sample.cpu', running: 'sample.pump' },
+      { symbol: 'home.plug.smart', label: 'Desk plug', $format: { unit: 'W', decimals: 0 } }),
+    P('form', 'control.form', 'Router settings', 3, 71, 4, 8, { record: 'sample.scada.home.params' }, { label: 'Set and save together' }),
+    P('scene', 'scada.scene', HOME_SCENE.title, 0, 79, 12, 8, { points: HOME_SCENE.source }, HOME_SCENE.settings),
   ],
 };

@@ -35,7 +35,7 @@ describe('SceneRulesEditor: the list', () => {
     mount(RULES, { selection: { elements: ['pump1'] } });
     const groups = [...document.querySelectorAll('[data-group]')].map((g) => g.getAttribute('data-group'));
     expect(groups).toEqual(['own', 'star', 'others', 't-valve1']);
-    expect(screen.getByRole('heading', { name: 'Rules for pump1 (Mud pump)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Rules for pump1 (Wi-Fi router)' })).toBeInTheDocument();
     expect(screen.getByText("When value of this symbol is above 24, set the state to warning and show 'High'")).toBeInTheDocument();
     expect(screen.getByText('When status of this symbol is critical, set the state to critical')).toBeInTheDocument();
     const own = document.querySelector('[data-group="own"]')!;

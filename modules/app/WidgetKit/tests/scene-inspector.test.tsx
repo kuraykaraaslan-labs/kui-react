@@ -155,10 +155,10 @@ describe('SceneInspector: the diagram', () => {
 describe('SceneInspector: a symbol', () => {
   it('shows its name and id and the template\'s fields in groups', () => {
     mount({ selection: { elements: ['pump1'] } });
-    expect(screen.getByRole('heading', { name: 'Mud pump (pump1)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Wi-Fi router (pump1)' })).toBeInTheDocument();
     for (const g of ['Symbol', 'Position and size', 'Name and number', 'Medium', 'Colours']) expect(screen.getByRole('heading', { name: g })).toBeInTheDocument();
     expect(ctl('Id')).toHaveValue('pump1');
-    expect(ctl('Symbol')).toHaveValue('pump.volute');
+    expect(ctl('Symbol')).toHaveValue('home.router');
     expect(ctl('x')).toHaveValue(300);
     for (const label of ['Name', 'Name position', 'Own size', 'Unit', 'Decimals']) expect(ctl(label)).toBeInTheDocument();
     expect(screen.getAllByRole('radiogroup', { name: /theme colours/ }).map((g) => g.getAttribute('aria-label'))).toEqual(
@@ -221,8 +221,8 @@ describe('SceneInspector: a symbol', () => {
   });
   it('changes the symbol of the selection', () => {
     const { probe } = mount({ selection: { elements: ['pump1'] } });
-    fireEvent.change(ctl('Symbol'), { target: { value: 'valve.ball' } });
-    expect(el(probe, 'pump1').symbol).toBe('valve.ball');
+    fireEvent.change(ctl('Symbol'), { target: { value: 'home.plug.smart' } });
+    expect(el(probe, 'pump1').symbol).toBe('home.plug.smart');
   });
 });
 

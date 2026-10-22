@@ -88,9 +88,9 @@ export function linkIds(s: SceneSettings): Set<string> {
   return ids;
 }
 
-const PACKS = new Set(['process', 'isa', 'hvac', 'sld', 'energy', 'telecom', 'food', 'agri', 'wastewater', 'oilgas', 'factory', 'mining', 'city']);
+const PACKS = new Set(['home']);
 
-/** `pump.volute` -> `pump`, `isa.controller.flow` -> `controller`: the word a new symbol's id starts with. */
+/** `home.router` -> `router`, `home.camera.security` -> `camera`: the word a new symbol's id starts with. */
 export function shortName(symbol: string): string {
   const parts = symbol.split('.');
   if (parts.length > 1 && PACKS.has(parts[0])) parts.shift();

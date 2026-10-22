@@ -1,6 +1,6 @@
 {
   "input": {
-    "symbol": "tank.vertical",
+    "symbol": "home.router",
     "orientation": "0",
     "mirror": false,
     "length": "1",
@@ -21,7 +21,7 @@
     "animation": true
   },
   "expected": {
-    "symbol": "tank.vertical",
+    "symbol": "home.router",
     "orientation": "0",
     "mirror": false,
     "length": "1",

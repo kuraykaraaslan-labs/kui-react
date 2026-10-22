@@ -17,10 +17,10 @@ const model = (s: SceneSettings) => sceneModel(s, {});
 
 describe('ids', () => {
   it('names a new symbol from its short name, without the sector prefix', () => {
-    expect(shortName('pump.volute')).toBe('pump');
-    expect(shortName('isa.controller.flow')).toBe('controller');
-    expect(shortName('process.valve.control')).toBe('valve');
-    expect(shortName('strainer')).toBe('strainer');
+    expect(shortName('home.router')).toBe('router');
+    expect(shortName('home.camera.security')).toBe('camera');
+    expect(shortName('home.plug.smart')).toBe('plug');
+    expect(shortName('gateway')).toBe('gateway');
   });
   it('gives every symbol of the library a usable id stem', () => {
     for (const k of SCADA_SYMBOLS) expect(isFormKey(`${shortName(k)}1`), k).toBe(true);
@@ -32,35 +32,36 @@ describe('ids', () => {
 
 describe('addElement', () => {
   it('adds last in draw order with the next free id', () => {
-    const r = addElement(smallScene(), 'pump.volute', { x: 120.456, y: 80 });
+    const r = addElement(smallScene(), 'home.router', { x: 120.456, y: 80 });
     expect(r.refused).toBeUndefined();
-    expect(r.id).toBe('pump2');
-    expect(els(r.settings).at(-1)).toEqual({ id: 'pump2', symbol: 'pump.volute', x: 120.46, y: 80 });
-    expect(ids(r.settings)).toEqual(['tank1', 'pump1', 'valve1', 'pump2']);
+    expect(r.id).toBe('router1');
+    expect(els(r.settings).at(-1)).toEqual({ id: 'router1', symbol: 'home.router', x: 120.46, y: 80 });
+    expect(ids(r.settings)).toEqual(['tank1', 'pump1', 'valve1', 'router1']);
+    expect(addElement(r.settings, 'home.router', { x: 0, y: 0 }).id).toBe('router2');
   });
   it('does not touch its input', () => {
     const s = smallScene();
-    addElement(s, 'pump.volute', { x: 1, y: 2 });
+    addElement(s, 'home.router', { x: 1, y: 2 });
     expect(els(s)).toHaveLength(3);
   });
   it('adds to a scene that has no symbols yet', () => {
-    const r = addElement({ width: 400 }, 'tank.open', { x: 0, y: 0 });
-    expect(r.settings).toEqual({ width: 400, elements: [{ id: 'tank1', symbol: 'tank.open', x: 0, y: 0 }] });
+    const r = addElement({ width: 400 }, 'home.tv', { x: 0, y: 0 });
+    expect(r.settings).toEqual({ width: 400, elements: [{ id: 'tv1', symbol: 'home.tv', x: 0, y: 0 }] });
   });
   it('refuses an unknown symbol and a bad position', () => {
     const s = smallScene();
     expect(addElement(s, 'nope', { x: 0, y: 0 })).toEqual({ settings: s, refused: expect.any(String) });
-    expect(addElement(s, 'pump.volute', { x: Number.NaN, y: 0 }).refused).toBeTruthy();
+    expect(addElement(s, 'home.router', { x: Number.NaN, y: 0 }).refused).toBeTruthy();
   });
   it('takes starting fields and checks them', () => {
-    const r = addElement(smallScene(), 'pump.volute', { x: 0, y: 0 }, { label: 'Feed pump', scale: 1.5 });
+    const r = addElement(smallScene(), 'home.router', { x: 0, y: 0 }, { label: 'Feed pump', scale: 1.5 });
     expect(els(r.settings).at(-1)).toMatchObject({ label: 'Feed pump', scale: 1.5 });
-    expect(addElement(smallScene(), 'pump.volute', { x: 0, y: 0 }, { scale: 99 }).refused).toBeTruthy();
-    expect(addElement(smallScene(), 'pump.volute', { x: 0, y: 0 }, { id: 'x' }).refused).toBeTruthy();
+    expect(addElement(smallScene(), 'home.router', { x: 0, y: 0 }, { scale: 99 }).refused).toBeTruthy();
+    expect(addElement(smallScene(), 'home.router', { x: 0, y: 0 }, { id: 'x' }).refused).toBeTruthy();
   });
   it('is refused at the cap of symbols', () => {
-    const full: SceneSettings = { elements: Array.from({ length: MAX_SCENE_ELEMENTS }, (_, i) => ({ id: `a${i}`, symbol: 'tank.open', x: i, y: 0 })) };
-    const r = addElement(full, 'pump.volute', { x: 0, y: 0 });
+    const full: SceneSettings = { elements: Array.from({ length: MAX_SCENE_ELEMENTS }, (_, i) => ({ id: `a${i}`, symbol: 'home.tv', x: i, y: 0 })) };
+    const r = addElement(full, 'home.router', { x: 0, y: 0 });
     expect(r.settings).toBe(full);
     expect(r.refused).toMatch(/200/);
   });
@@ -127,7 +128,7 @@ describe('setElementProps and friends', () => {
     expect(setOwnSize(smallScene(), 'pump1', 5).refused).toBeTruthy();
   });
   it('lets a symbol change into another one of the library', () => {
-    expect(els(setElementProps(smallScene(), 'pump1', { symbol: 'pump.motor' }).settings)[1].symbol).toBe('pump.motor');
+    expect(els(setElementProps(smallScene(), 'pump1', { symbol: 'home.camera.security' }).settings)[1].symbol).toBe('home.camera.security');
   });
   it('turns by quarter turns and keeps the stored type', () => {
     const s = smallScene();
@@ -184,13 +185,13 @@ describe('renameElement', () => {
     expect(rules(r.settings).map((x) => [x.target, x.of, x.of2])).toEqual([['feedPump', '', undefined], ['*', '', undefined], ['valve1', 'tank1', 'feedPump'], ['line1', '', undefined]]);
   });
   it('renames the end that is written with a colon or with a fraction', () => {
-    const s = deepFreeze({ elements: [{ id: 'a', symbol: 'tank.open', x: 0, y: 0 }, { id: 'b', symbol: 'tank.open', x: 100, y: 0 }], links: [{ from: 'a:t:0.26', to: ' b.l ', kind: 'pipe' }] }) as SceneSettings;
+    const s = deepFreeze({ elements: [{ id: 'a', symbol: 'home.tv', x: 0, y: 0 }, { id: 'b', symbol: 'home.tv', x: 100, y: 0 }], links: [{ from: 'a:t:0.26', to: ' b.l ', kind: 'pipe' }] }) as SceneSettings;
     const r = renameElement(s, 'b', 'bb');
     expect(links(r.settings)[0]).toEqual({ from: 'a:t:0.26', to: ' bb.l ', kind: 'pipe' });
     expect(links(renameElement(s, 'a', 'aa').settings)[0].from).toBe('aa:t:0.26');
   });
   it('renames an id that contains dots', () => {
-    const s = deepFreeze({ elements: [{ id: 'a.l', symbol: 'tank.open', x: 0, y: 0 }, { id: 'b', symbol: 'tank.open', x: 100, y: 0 }], links: [{ from: 'a.l.r', to: 'b.l', kind: 'pipe' }] }) as SceneSettings;
+    const s = deepFreeze({ elements: [{ id: 'a.l', symbol: 'home.tv', x: 0, y: 0 }, { id: 'b', symbol: 'home.tv', x: 100, y: 0 }], links: [{ from: 'a.l.r', to: 'b.l', kind: 'pipe' }] }) as SceneSettings;
     expect(links(renameElement(s, 'a.l', 'c').settings)[0].from).toBe('c.r');
   });
   it('refuses a duplicate, an unusable id and an id that is not there', () => {
@@ -233,7 +234,7 @@ describe('connections', () => {
   });
   it('is refused at the cap of connections', () => {
     const s: SceneSettings = {
-      elements: [{ id: 'a', symbol: 'tank.open', x: 0, y: 0 }, { id: 'b', symbol: 'tank.open', x: 9, y: 0 }],
+      elements: [{ id: 'a', symbol: 'home.tv', x: 0, y: 0 }, { id: 'b', symbol: 'home.tv', x: 9, y: 0 }],
       links: Array.from({ length: MAX_SCENE_LINKS }, (_, i) => ({ from: `a.l:0.${i}`, to: 'b.r', kind: 'pipe' })),
     };
     const r = addLink(s, 'a.t', 'b.b');
@@ -338,8 +339,8 @@ describe('deleteSelection', () => {
 describe('align and distribute', () => {
   const s = deepFreeze({
     elements: [
-      { id: 'a', symbol: 'valve.ball', x: 100, y: 100 }, { id: 'b', symbol: 'valve.ball', x: 200, y: 160 },
-      { id: 'c', symbol: 'valve.ball', x: 450, y: 130 },
+      { id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }, { id: 'b', symbol: 'home.plug.smart', x: 200, y: 160 },
+      { id: 'c', symbol: 'home.plug.smart', x: 450, y: 130 },
     ],
   }) as SceneSettings;
   const sel = { elements: ['a', 'b', 'c'] };
@@ -355,7 +356,7 @@ describe('align and distribute', () => {
     expect(els(align(s, model(s), sel, 'middle').settings).map((e) => e.y)).toEqual([130, 130, 130]);
   });
   it('uses the drawn boxes, so symbols of different sizes line up on their edges', () => {
-    const t = deepFreeze({ elements: [{ id: 'a', symbol: 'valve.ball', x: 100, y: 100 }, { id: 'b', symbol: 'valve.ball', x: 300, y: 100, scale: 2 }] }) as SceneSettings;
+    const t = deepFreeze({ elements: [{ id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }, { id: 'b', symbol: 'home.plug.smart', x: 300, y: 100, scale: 2 }] }) as SceneSettings;
     const r = align(t, model(t), { elements: ['a', 'b'] }, 'top');
     const hit = (id: string) => model(r.settings).hits.find((h) => h.id === id)!;
     expect(hit('a').y).toBeCloseTo(hit('b').y, 1);
@@ -376,7 +377,7 @@ describe('align and distribute', () => {
   });
   it('distributes vertically, by centre order', () => {
     const t = deepFreeze({ elements: [
-      { id: 'a', symbol: 'valve.ball', x: 100, y: 100 }, { id: 'b', symbol: 'valve.ball', x: 100, y: 120 }, { id: 'c', symbol: 'valve.ball', x: 100, y: 400 },
+      { id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }, { id: 'b', symbol: 'home.plug.smart', x: 100, y: 120 }, { id: 'c', symbol: 'home.plug.smart', x: 100, y: 400 },
     ] }) as SceneSettings;
     const r = distribute(t, model(t), { elements: ['c', 'a', 'b'] }, 'vertical').settings;
     expect(els(r).map((e) => e.y)).toEqual([100, 250, 400]);
@@ -385,7 +386,7 @@ describe('align and distribute', () => {
     expect(distribute(s, model(s), { elements: ['a', 'b'] }, 'horizontal').settings).toBe(s);
   });
   it('aligns shapes with symbols', () => {
-    const t = deepFreeze({ elements: [{ id: 'a', symbol: 'valve.ball', x: 100, y: 100 }], shapes: [{ kind: 'zone', x: 300, y: 200, w: 100, h: 100 }] }) as SceneSettings;
+    const t = deepFreeze({ elements: [{ id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }], shapes: [{ kind: 'zone', x: 300, y: 200, w: 100, h: 100 }] }) as SceneSettings;
     const r = align(t, model(t), { elements: ['a'], shapes: [0] }, 'middle').settings;
     expect(els(r)[0].y).toBe(185);
     expect(shapes(r)[0].y).toBe(135);
@@ -397,7 +398,7 @@ describe('duplicate', () => {
     const r = duplicate(smallScene(), { elements: ['tank1', 'pump1'], shapes: [2] });
     expect(r.ids).toEqual(['tank2', 'pump2']);
     expect(ids(r.settings)).toEqual(['tank1', 'pump1', 'valve1', 'tank2', 'pump2']);
-    expect(els(r.settings)[3]).toMatchObject({ symbol: 'tank.vertical', x: 120, y: 220, label: 'Feed' });
+    expect(els(r.settings)[3]).toMatchObject({ symbol: 'home.tv', x: 120, y: 220, label: 'Feed' });
     expect(links(r.settings)).toHaveLength(3);
     expect(links(r.settings)[2]).toEqual({ from: 'tank2.r', to: 'pump2.l', kind: 'pipe' });
     expect(r.links).toEqual([2]);
@@ -405,11 +406,11 @@ describe('duplicate', () => {
     expect(shapes(r.settings)[3]).toMatchObject({ kind: 'divider', x: 60, y: 420 });
   });
   it('numbers from the stem, so a copy of pump1 is pump2 and a copy of a plain id gets 1', () => {
-    const t = deepFreeze({ elements: [{ id: 'flt', symbol: 'filter.sand', x: 0, y: 0 }, { id: 'pump7', symbol: 'pump.volute', x: 50, y: 0 }] }) as SceneSettings;
+    const t = deepFreeze({ elements: [{ id: 'flt', symbol: 'home.plug.smart', x: 0, y: 0 }, { id: 'pump7', symbol: 'home.router', x: 50, y: 0 }] }) as SceneSettings;
     expect(duplicate(t, { elements: ['flt', 'pump7'] }).ids).toEqual(['flt1', 'pump8']);
   });
   it('is refused past the caps and a no-op for an empty selection', () => {
-    const full: SceneSettings = { elements: Array.from({ length: MAX_SCENE_ELEMENTS }, (_, i) => ({ id: `a${i}`, symbol: 'tank.open', x: i, y: 0 })) };
+    const full: SceneSettings = { elements: Array.from({ length: MAX_SCENE_ELEMENTS }, (_, i) => ({ id: `a${i}`, symbol: 'home.tv', x: i, y: 0 })) };
     const r = duplicate(full, { elements: ['a1'] });
     expect(r.settings).toBe(full);
     expect(r.refused).toBeTruthy();
@@ -474,7 +475,7 @@ describe('every edit leaves its input alone', () => {
     const s = smallScene();
     const m = model(s);
     const runs: Array<() => unknown> = [
-      () => addElement(s, 'pump.volute', { x: 1, y: 1 }), () => moveSelection(s, { elements: ['pump1'], shapes: [0] }, 3, 3), () => setElementProps(s, 'pump1', { label: 'x' }),
+      () => addElement(s, 'home.router', { x: 1, y: 1 }), () => moveSelection(s, { elements: ['pump1'], shapes: [0] }, 3, 3), () => setElementProps(s, 'pump1', { label: 'x' }),
       () => renameElement(s, 'pump1', 'p'), () => deleteElements(s, ['pump1']), () => addLink(s, 'tank1.t', 'valve1.t'), () => setMid(s, 1, 4),
       () => deleteLink(s, 0), () => addShape(s, 'zone', { x: 0, y: 0 }), () => resizeShape(s, 1, { w: 90 }), () => deleteShapes(s, [0]),
       () => align(s, m, { elements: ['tank1', 'pump1'] }, 'top'), () => distribute(s, m, { elements: ['tank1', 'pump1', 'valve1'] }, 'horizontal'),

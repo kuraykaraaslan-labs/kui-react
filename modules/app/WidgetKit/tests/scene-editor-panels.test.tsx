@@ -13,9 +13,9 @@ const seen: { ctx?: EditorCtx; whatIf?: WhatIfState } = {};
 vi.mock('../views/ScenePalette', () => ({
   ScenePalette: (p: { onAdd: (s: string) => void; onDragStart?: (s: string, e: React.PointerEvent) => void; recent?: string[] }) => (
     <div data-testid="palette-probe">
-      <button type="button" onClick={() => p.onAdd('pump.volute')}>add pump</button>
-      <button type="button" onClick={() => p.onAdd('valve.ball')}>add valve</button>
-      <button type="button" data-testid="palette-drag" onPointerDown={(e) => p.onDragStart?.('valve.ball', e)}>drag valve</button>
+      <button type="button" onClick={() => p.onAdd('home.router')}>add router</button>
+      <button type="button" onClick={() => p.onAdd('home.plug.smart')}>add plug</button>
+      <button type="button" data-testid="palette-drag" onPointerDown={(e) => p.onDragStart?.('home.plug.smart', e)}>drag plug</button>
       <output data-testid="recent">{(p.recent ?? []).join(',')}</output>
     </div>
   ),
@@ -138,25 +138,25 @@ describe('what the shell hands the inspector', () => {
 describe('the palette', () => {
   it('adds at the centre of the view on the grid, selects the symbol, and does not stack two on one spot', async () => {
     const m = mount();
-    fireEvent.click(screen.getByText('add pump'));
-    fireEvent.click(screen.getByText('add pump'));
+    fireEvent.click(screen.getByText('add router'));
+    fireEvent.click(screen.getByText('add router'));
     const s = await m.applied();
     const [a, b] = [elements(s)[3], elements(s)[4]] as Array<{ id: string; x: number; y: number }>;
-    expect([a.id, b.id]).toEqual(['pump2', 'pump3']);
+    expect([a.id, b.id]).toEqual(['router1', 'router2']);
     // The view is centred on the canvas (500, 300), on the grid; the second goes aside.
     expect(a.x % 10).toBe(0);
     expect(Math.abs(a.x - 500)).toBeLessThan(15);
     expect(Math.abs(a.y - 300)).toBeLessThan(15);
     expect(b.x - a.x).toBe(20);
     expect(b.y - a.y).toBe(20);
-    expect(selected(document.body)).toEqual(['pump3']);
+    expect(selected(document.body)).toEqual(['router2']);
   });
 
   it('adds at the centre of what is shown after a zoom and a pan', async () => {
     const m = mount();
     key(m.canvas, '+'); key(m.canvas, '+');
     const vb = viewBox(m.svg);
-    fireEvent.click(screen.getByText('add valve'));
+    fireEvent.click(screen.getByText('add plug'));
     const v = elements(await m.applied())[3] as { x: number; y: number };
     expect(Math.abs(v.x - (vb.x + vb.w / 2))).toBeLessThan(12);
     expect(Math.abs(v.y - (vb.y + vb.h / 2))).toBeLessThan(12);
@@ -164,19 +164,19 @@ describe('the palette', () => {
 
   it('puts the symbols used most recently first, and remembers them', () => {
     mount();
-    fireEvent.click(screen.getByText('add pump'));
-    fireEvent.click(screen.getByText('add valve'));
-    fireEvent.click(screen.getByText('add pump'));
-    expect(text('recent')).toBe('pump.volute,valve.ball');
-    expect(JSON.parse(window.localStorage.getItem('kui.scada.editor.recent') as string)).toEqual(['pump.volute', 'valve.ball']);
+    fireEvent.click(screen.getByText('add router'));
+    fireEvent.click(screen.getByText('add plug'));
+    fireEvent.click(screen.getByText('add router'));
+    expect(text('recent')).toBe('home.router,home.plug.smart');
+    expect(JSON.parse(window.localStorage.getItem('kui.scada.editor.recent') as string)).toEqual(['home.router', 'home.plug.smart']);
     cleanup();
     mount();
-    expect(text('recent')).toBe('pump.volute,valve.ball');
+    expect(text('recent')).toBe('home.router,home.plug.smart');
   });
 
   it('uses the storage key the host gives', () => {
     mount({ storageKey: 'my.editor' });
-    fireEvent.click(screen.getByText('add pump'));
+    fireEvent.click(screen.getByText('add router'));
     expect(window.localStorage.getItem('my.editor.recent')).not.toBeNull();
     expect(window.localStorage.getItem('kui.scada.editor.recent')).toBeNull();
   });
@@ -187,7 +187,7 @@ describe('the palette', () => {
     const p = at(m.svg, { x: 733, y: 417 });
     fireEvent.pointerUp(window, { pointerId: 5, ...p });
     const v = elements(await m.applied())[3] as { id: string; x: number; y: number; symbol: string };
-    expect(v).toMatchObject({ symbol: 'valve.ball', x: 730, y: 420 });
+    expect(v).toMatchObject({ symbol: 'home.plug.smart', x: 730, y: 420 });
   });
 
   it('adds nothing when the pointer drag ends outside the canvas', () => {
@@ -261,7 +261,7 @@ describe('what-if values reach the model and never the settings', () => {
   it('draws the scene with the animation off while editing', () => {
     const rows = { points: { shape: 'table' as const, rows: [{ id: 'pump1', running: true }] } };
     // The same scene does animate when it is asked to (so the check below is not vacuous).
-    expect(JSON.stringify(sceneModel(smallScene(), rows, { animate: true }).nodes)).toContain('animateTransform');
+    expect(JSON.stringify(sceneModel(smallScene(), rows, { animate: true }).nodes)).toContain('"t":"animate"');
     mount({ data: rows });
     const drawn = document.querySelector('[data-layer="scene"]') as Element;
     expect(drawn.querySelector('path, rect, circle')).not.toBeNull();

@@ -2316,6 +2316,333 @@
    "html": "<section aria-label=\"Pressure\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Pressure</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:12px 12px 16px\"><div class=\"flex flex-col h-full min-h-16 relative\"><div aria-hidden=\"true\" class=\"flex flex-1 flex-col h-full min-h-0 opacity-40 pointer-events-none select-none\" inert=\"\"><div class=\"flex flex-col gap-2 h-full min-h-0 w-full\"><div class=\"flex-1 min-h-0 w-full\"><div aria-label=\"Gauge\" aria-valuemax=\"100\" aria-valuemin=\"0\" aria-valuetext=\"no value\" class=\"flex flex-col h-full items-center justify-center min-h-0 relative w-full\" data-layout=\"arc\" role=\"meter\" style=\"container-type:size\"><div class=\"relative\" style=\"aspect-ratio:1.8163;container-type:inline-size;margin-bottom:16px;width:min(100cqw,calc((100cqh - 16px) * 1.8163))\"><svg aria-hidden=\"true\" class=\"absolute h-full inset-0 overflow-visible w-full\" viewbox=\"11.00 11.00 178.00 98.00\"><path d=\"M20.00 100.00 A80 80 0 0 1 180.00 100.00\" data-part=\"track\" fill=\"none\" stroke=\"var(--border)\" stroke-linecap=\"round\" stroke-width=\"14\"></path></svg><div class=\"absolute\" style=\"bottom:8.163%;left:50%;transform:translateX(-50%)\"><span class=\"flex flex-col gap-1 items-center text-center\"><span class=\"leading-none\" style=\"font-size:clamp(0.875rem,16cqw,3rem)\"><span class=\"font-semibold gap-[0.25em] inline-flex items-baseline leading-none tabular-nums text-text-primary tracking-tight\" style=\"color:var(--text-primary);font-size:1em\"><span>—</span></span></span></span></div><span class=\"absolute leading-none tabular-nums text-[11px] whitespace-nowrap\" data-part=\"min\" style=\"color:var(--text-secondary);left:1.124%;top:calc(97.959% + 4px)\">0</span><span class=\"absolute leading-none tabular-nums text-[11px] whitespace-nowrap\" data-part=\"max\" style=\"color:var(--text-secondary);right:1.124%;top:calc(97.959% + 4px)\">100</span></div></div></div></div></div><div class=\"absolute flex inset-0 items-center justify-center p-2\"><p class=\"bg-surface-raised border border-border px-3 py-1 rounded-full shadow-sm text-center text-text-secondary text-xs\">No data</p></div></div></div></section>"
   },
   {
+   "id": "scada.tv-reading",
+   "kind": "scada.symbol",
+   "title": "Living room",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    },
+    "symbol": "home.tv",
+    "max": 100,
+    "label": "TV"
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 62,
+     "fetchedAt": "2026-10-20T10:00:00.000Z",
+     "meta": {
+      "unit": "%",
+      "decimals": 0
+     }
+    },
+    "running": {
+     "shape": "scalar",
+     "value": true,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    }
+   },
+   "html": "<section aria-label=\"Living room\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Living room</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><figure aria-label=\"Television TV, Running, 62 %\" class=\"flex flex-col gap-1 h-full items-center justify-center m-0 min-h-0 w-full\" data-state=\"running\" data-symbol=\"home.tv\" role=\"img\"><svg aria-hidden=\"true\" class=\"flex-1 min-h-0 w-full\" focusable=\"false\" preserveaspectratio=\"xMidYMid meet\" viewbox=\"0 0 100 100\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"6\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"50\" x2=\"50\" y1=\"96\" y2=\"100\"></line><rect fill=\"var(--border-strong)\" height=\"6\" rx=\"3\" width=\"80\" x=\"10\" y=\"90\"></rect><rect fill=\"var(--surface-sunken)\" height=\"24\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"7\" x=\"18\" y=\"66\"></rect><rect fill=\"var(--surface-sunken)\" height=\"24\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"7\" x=\"75\" y=\"66\"></rect><rect fill=\"var(--surface-raised)\" height=\"52\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"88\" x=\"6\" y=\"14\"></rect><rect fill=\"var(--surface-sunken)\" height=\"38\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"78\" x=\"11\" y=\"19\"></rect><rect fill=\"var(--success)\" fill-opacity=\"0.2\" height=\"38\" rx=\"3\" width=\"78\" x=\"11\" y=\"19\"></rect><circle cx=\"67.16\" cy=\"30.4\" fill=\"var(--success)\" fill-opacity=\"0.85\" r=\"4.94\"></circle><path d=\"M14 54 L35.96 38 L51.56 46.36 L67.16 38 L86 54 Z\" fill=\"var(--success)\" fill-opacity=\"0.6\" stroke-linejoin=\"round\"></path><circle cx=\"83\" cy=\"61.5\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"1.8\"></circle></svg><span class=\"font-semibold leading-none tabular-nums text-sm text-text-primary\" data-part=\"value\">62 %</span><span class=\"leading-tight max-w-full text-text-secondary text-xs truncate\" data-part=\"label\">TV</span></figure></div></section>"
+  },
+  {
+   "id": "scada.router-running",
+   "kind": "scada.symbol",
+   "settings": {
+    "symbol": "home.router",
+    "label": "Router"
+   },
+   "data": {
+    "running": {
+     "shape": "scalar",
+     "value": true,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><figure aria-label=\"Wi-Fi router Router, Running\" class=\"flex flex-col gap-1 h-full items-center justify-center m-0 min-h-0 w-full\" data-state=\"running\" data-symbol=\"home.router\" role=\"img\"><svg aria-hidden=\"true\" class=\"flex-1 min-h-0 w-full\" focusable=\"false\" preserveaspectratio=\"xMidYMid meet\" viewbox=\"0 0 100 100\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"10\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"90\" x2=\"100\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"50\" x2=\"50\" y1=\"76\" y2=\"100\"></line><path d=\"M44.05 30.65 A8 8 0 0 1 55.95 30.65\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"1\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><path d=\"M38.85 25.96 A15 15 0 0 1 61.15 25.96\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"0.78\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0.3s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><path d=\"M33.65 21.28 A22 22 0 0 1 66.35 21.28\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"0.56\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0.6s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"20\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"74\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"32\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"80\" x=\"10\" y=\"44\"></rect><circle cx=\"24\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"33\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"42\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"51\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"60\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"20\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"31\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"42\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"53\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"9\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"12\" x=\"70\" y=\"50\"></rect><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"73\" x2=\"73\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"76\" x2=\"76\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"79\" x2=\"79\" y1=\"52\" y2=\"57\"></line></svg><span class=\"leading-tight max-w-full text-text-secondary text-xs truncate\" data-part=\"label\">Router</span></figure></div></section>"
+  },
+  {
+   "id": "scada.router-idle",
+   "kind": "scada.symbol",
+   "settings": {
+    "symbol": "home.router"
+   },
+   "data": {
+    "running": {
+     "shape": "scalar",
+     "value": false,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><figure aria-label=\"Wi-Fi router, Idle\" class=\"flex flex-col gap-1 h-full items-center justify-center m-0 min-h-0 w-full\" data-state=\"idle\" data-symbol=\"home.router\" role=\"img\"><svg aria-hidden=\"true\" class=\"flex-1 min-h-0 w-full\" focusable=\"false\" preserveaspectratio=\"xMidYMid meet\" viewbox=\"0 0 100 100\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"10\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"90\" x2=\"100\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"50\" x2=\"50\" y1=\"76\" y2=\"100\"></line><path d=\"M44.05 30.65 A8 8 0 0 1 55.95 30.65\" fill=\"none\" stroke=\"var(--text-secondary)\" stroke-linecap=\"round\" stroke-opacity=\"0.3\" stroke-width=\"2.5\"></path><path d=\"M38.85 25.96 A15 15 0 0 1 61.15 25.96\" fill=\"none\" stroke=\"var(--text-secondary)\" stroke-linecap=\"round\" stroke-opacity=\"0.3\" stroke-width=\"2.5\"></path><path d=\"M33.65 21.28 A22 22 0 0 1 66.35 21.28\" fill=\"none\" stroke=\"var(--text-secondary)\" stroke-linecap=\"round\" stroke-opacity=\"0.3\" stroke-width=\"2.5\"></path><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"20\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"74\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"32\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"80\" x=\"10\" y=\"44\"></rect><circle cx=\"24\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><circle cx=\"33\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><circle cx=\"42\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><circle cx=\"51\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><circle cx=\"60\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"20\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"31\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"42\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"53\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"9\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"12\" x=\"70\" y=\"50\"></rect><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"73\" x2=\"73\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"76\" x2=\"76\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"79\" x2=\"79\" y1=\"52\" y2=\"57\"></line></svg></figure></div></section>"
+  },
+  {
+   "id": "scada.plug-warning",
+   "kind": "scada.symbol",
+   "settings": {
+    "symbol": "home.plug.smart",
+    "max": 60
+   },
+   "data": {
+    "value": {
+     "shape": "scalar",
+     "value": 48,
+     "fetchedAt": "2026-10-20T10:00:00.000Z",
+     "meta": {
+      "unit": "W",
+      "decimals": 0
+     }
+    },
+    "running": {
+     "shape": "scalar",
+     "value": true,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    },
+    "status": {
+     "shape": "scalar",
+     "value": "warning",
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><figure aria-label=\"Smart plug, Warning, 48 W\" class=\"flex flex-col gap-1 h-full items-center justify-center m-0 min-h-0 w-full\" data-state=\"warning\" data-symbol=\"home.plug.smart\" role=\"img\"><svg aria-hidden=\"true\" class=\"flex-1 min-h-0 w-full\" focusable=\"false\" preserveaspectratio=\"xMidYMid meet\" viewbox=\"0 0 100 100\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"0\" x2=\"24\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"76\" x2=\"100\" y1=\"50\" y2=\"50\"></line><rect fill=\"var(--surface-raised)\" height=\"66\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"52\" x=\"24\" y=\"16\"></rect><circle cx=\"50\" cy=\"42\" fill=\"var(--surface-sunken)\" r=\"15\" stroke=\"var(--warning)\" stroke-width=\"2.5\"></circle><circle cx=\"43\" cy=\"42\" fill=\"var(--border-strong)\" r=\"2.6\"></circle><circle cx=\"57\" cy=\"42\" fill=\"var(--border-strong)\" r=\"2.6\"></circle><rect fill=\"var(--border-strong)\" height=\"3\" width=\"3.2\" x=\"48.4\" y=\"30\"></rect><rect fill=\"var(--border-strong)\" height=\"3\" width=\"3.2\" x=\"48.4\" y=\"51\"></rect><circle cx=\"50\" cy=\"68\" fill=\"var(--surface-sunken)\" r=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\"></circle><circle cx=\"50\" cy=\"68\" fill=\"var(--warning)\" fill-opacity=\"1\" r=\"2.8\"></circle></svg><span class=\"font-semibold leading-none tabular-nums text-sm text-text-primary\" data-part=\"value\">48 W</span></figure></div></section>"
+  },
+  {
+   "id": "scada.camera-turned",
+   "kind": "scada.symbol",
+   "settings": {
+    "symbol": "home.camera.security",
+    "orientation": "90",
+    "mirror": true
+   },
+   "data": {
+    "running": {
+     "shape": "scalar",
+     "value": true,
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    },
+    "status": {
+     "shape": "scalar",
+     "value": "critical",
+     "fetchedAt": "2026-10-20T10:00:00.000Z"
+    }
+   },
+   "html": "<section class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><figure aria-label=\"Security camera, Critical\" class=\"flex flex-col gap-1 h-full items-center justify-center m-0 min-h-0 w-full\" data-state=\"critical\" data-symbol=\"home.camera.security\" role=\"img\"><svg aria-hidden=\"true\" class=\"flex-1 min-h-0 w-full\" focusable=\"false\" preserveaspectratio=\"xMidYMid meet\" viewbox=\"0 0 100 100\"><g transform=\"translate(100 0) rotate(90)\"><g transform=\"translate(100 0) scale(-1 1)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"6\" y1=\"50\" y2=\"50\"></line><rect fill=\"var(--surface-raised)\" height=\"44\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"8\" x=\"6\" y=\"28\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"14\" x=\"14\" y=\"47\"></rect><g transform=\"rotate(8 28 50)\"><rect fill=\"var(--surface-sunken)\" height=\"7\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"56\" x=\"30\" y=\"31\"></rect><rect fill=\"var(--surface-raised)\" height=\"24\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"52\" x=\"32\" y=\"38\"></rect><rect fill=\"var(--surface-sunken)\" height=\"18\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"8\" x=\"84\" y=\"41\"></rect><rect fill=\"var(--error)\" fill-opacity=\"0.9\" height=\"14\" rx=\"1\" width=\"3\" x=\"90.5\" y=\"43\"></rect><circle cx=\"78\" cy=\"45\" fill=\"var(--error)\" fill-opacity=\"0.7\" r=\"1.8\"></circle><circle cx=\"78\" cy=\"55\" fill=\"var(--error)\" fill-opacity=\"0.7\" r=\"1.8\"></circle><circle cx=\"42\" cy=\"50\" fill=\"var(--error)\" fill-opacity=\"1\" r=\"3.4\"><animate attributename=\"fill-opacity\" dur=\"1.4s\" repeatcount=\"indefinite\" values=\"1;0.25;1\"></animate></circle><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"52\" x2=\"70\" y1=\"46\" y2=\"46\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"52\" x2=\"70\" y1=\"54\" y2=\"54\"></line></g><circle cx=\"28\" cy=\"50\" fill=\"var(--surface-sunken)\" r=\"5.4\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\"></circle></g></g></svg></figure></div></section>"
+  },
+  {
+   "id": "scada.empty-shape",
+   "kind": "scada.symbol",
+   "title": "Router",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    }
+   },
+   "data": {},
+   "boundSlots": [
+    "value"
+   ],
+   "html": "<section aria-label=\"Router\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Router</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><div class=\"flex flex-col h-full min-h-16 relative\"><div aria-hidden=\"true\" class=\"flex flex-1 flex-col h-full min-h-0 opacity-40 pointer-events-none select-none\" inert=\"\"><figure aria-label=\"Wi-Fi router\" class=\"flex flex-col gap-1 h-full items-center justify-center m-0 min-h-0 w-full\" data-state=\"idle\" data-symbol=\"home.router\" role=\"img\"><svg aria-hidden=\"true\" class=\"flex-1 min-h-0 w-full\" focusable=\"false\" preserveaspectratio=\"xMidYMid meet\" viewbox=\"0 0 100 100\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"10\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"90\" x2=\"100\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"50\" x2=\"50\" y1=\"76\" y2=\"100\"></line><path d=\"M44.05 30.65 A8 8 0 0 1 55.95 30.65\" fill=\"none\" stroke=\"var(--text-secondary)\" stroke-linecap=\"round\" stroke-opacity=\"0.3\" stroke-width=\"2.5\"></path><path d=\"M38.85 25.96 A15 15 0 0 1 61.15 25.96\" fill=\"none\" stroke=\"var(--text-secondary)\" stroke-linecap=\"round\" stroke-opacity=\"0.3\" stroke-width=\"2.5\"></path><path d=\"M33.65 21.28 A22 22 0 0 1 66.35 21.28\" fill=\"none\" stroke=\"var(--text-secondary)\" stroke-linecap=\"round\" stroke-opacity=\"0.3\" stroke-width=\"2.5\"></path><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"20\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"74\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"32\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"80\" x=\"10\" y=\"44\"></rect><circle cx=\"24\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><circle cx=\"33\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><circle cx=\"42\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><circle cx=\"51\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><circle cx=\"60\" cy=\"55\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"2.2\"></circle><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"20\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"31\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"42\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"53\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"9\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"12\" x=\"70\" y=\"50\"></rect><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"73\" x2=\"73\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"76\" x2=\"76\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"79\" x2=\"79\" y1=\"52\" y2=\"57\"></line></svg></figure></div><div class=\"absolute flex inset-0 items-center justify-center p-2\"><p class=\"bg-surface-raised border border-border px-3 py-1 rounded-full shadow-sm text-center text-text-secondary text-xs\">No data</p></div></div></div></section>"
+  },
+  {
+   "id": "scada.scene-small",
+   "kind": "scada.scene",
+   "title": "Home network",
+   "settings": {
+    "width": 600,
+    "height": 300,
+    "scale": 0.7,
+    "background": "dots",
+    "elements": [
+     {
+      "id": "plug",
+      "symbol": "home.plug.smart",
+      "x": 80,
+      "y": 220,
+      "label": "Plug",
+      "max": 60
+     },
+     {
+      "id": "router",
+      "symbol": "home.router",
+      "x": 260,
+      "y": 120,
+      "label": "Router",
+      "labelPos": "t"
+     },
+     {
+      "id": "tv",
+      "symbol": "home.tv",
+      "x": 440,
+      "y": 80,
+      "label": "TV"
+     },
+     {
+      "id": "cam",
+      "symbol": "home.camera.security",
+      "x": 440,
+      "y": 220,
+      "labelPos": "n"
+     }
+    ],
+    "links": [
+     {
+      "from": "plug.r",
+      "to": "router.b",
+      "kind": "cable",
+      "id": "plug"
+     },
+     {
+      "from": "router.r",
+      "to": "tv.l",
+      "kind": "line",
+      "id": "router"
+     },
+     {
+      "from": "router.r",
+      "to": "cam.l",
+      "kind": "wire",
+      "id": "cam"
+     }
+    ]
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "plug",
+       "value": 9,
+       "running": true
+      },
+      {
+       "id": "router",
+       "running": true
+      },
+      {
+       "id": "tv",
+       "running": false
+      },
+      {
+       "id": "cam",
+       "running": true,
+       "status": "warning"
+      }
+     ]
+    }
+   },
+   "html": "<section aria-label=\"Home network\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Home network</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><svg aria-label=\"Home network\" class=\"h-full min-h-0 w-full\" preserveaspectratio=\"xMidYMid meet\" role=\"img\" viewbox=\"23 23 474 286\"><path d=\"M75 75h0M125 75h0M175 75h0M225 75h0M275 75h0M325 75h0M375 75h0M425 75h0M475 75h0M75 125h0M125 125h0M175 125h0M225 125h0M275 125h0M325 125h0M375 125h0M425 125h0M475 125h0M75 175h0M125 175h0M175 175h0M225 175h0M275 175h0M325 175h0M375 175h0M425 175h0M475 175h0M75 225h0M125 225h0M175 225h0M225 225h0M275 225h0M325 225h0M375 225h0M425 225h0M475 225h0M75 275h0M125 275h0M175 275h0M225 275h0M275 275h0M325 275h0M375 275h0M425 275h0M475 275h0\" fill=\"none\" stroke=\"var(--border)\" stroke-linecap=\"round\" stroke-width=\"3\"></path><g transform=\"scale(0.7)\"><path d=\"M164.29 314.29 L351.43 314.29 Q371.43 314.29 371.43 294.29 L371.43 221.43\" fill=\"none\" stroke=\"var(--text-primary)\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-opacity=\"0.92\" stroke-width=\"6\"></path><path d=\"M164.29 314.29 L351.43 314.29 Q371.43 314.29 371.43 294.29 L371.43 221.43\" fill=\"none\" stroke=\"var(--surface-base)\" stroke-linejoin=\"round\" stroke-opacity=\"0.4\" stroke-width=\"1.3\"></path><path d=\"M164.29 314.29 L351.43 314.29 Q371.43 314.29 371.43 294.29 L371.43 221.43\" fill=\"none\" stroke=\"var(--success)\" stroke-dasharray=\"3 13\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2.4\"><animate attributename=\"stroke-dashoffset\" dur=\"0.7s\" from=\"16\" repeatcount=\"indefinite\" to=\"0\"></animate></path><rect fill=\"var(--surface-sunken)\" height=\"12\" rx=\"2\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"8\" x=\"166.29\" y=\"308.29\"></rect><rect fill=\"var(--surface-sunken)\" height=\"8\" rx=\"2\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"12\" x=\"365.43\" y=\"223.43\"></rect></g><g transform=\"scale(0.7)\"><path d=\"M421.43 171.43 L480 171.43 Q500 171.43 500 151.43 L500 134.29 Q500 114.29 520 114.29 L578.57 114.29\" fill=\"none\" stroke=\"var(--text-primary)\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2.2\"></path><polygon fill=\"var(--text-primary)\" points=\"467.21,171.43 455.09,174.68 455.09,168.18\" stroke=\"var(--surface-base)\" stroke-linejoin=\"round\" stroke-width=\"1\"></polygon></g><g transform=\"scale(0.7)\"><path d=\"M421.43 171.43 L480 171.43 Q500 171.43 500 191.43 L500 294.29 Q500 314.29 520 314.29 L578.57 314.29\" fill=\"none\" stroke=\"var(--warning)\" stroke-dasharray=\"5 4\" stroke-linecap=\"butt\" stroke-linejoin=\"round\" stroke-opacity=\"1\" stroke-width=\"2.5\"><animate attributename=\"stroke-dashoffset\" dur=\"0.7s\" from=\"9\" repeatcount=\"indefinite\" to=\"0\"></animate></path><circle cx=\"421.42857142857144\" cy=\"171.42857142857144\" fill=\"var(--surface-raised)\" r=\"4.5\" stroke=\"var(--text-primary)\" stroke-width=\"1.5\"></circle><circle cx=\"578.5714285714286\" cy=\"314.2857142857143\" fill=\"var(--surface-raised)\" r=\"4.5\" stroke=\"var(--text-primary)\" stroke-width=\"1.5\"></circle></g><g transform=\"translate(45 185) scale(0.7)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"0\" x2=\"24\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"76\" x2=\"100\" y1=\"50\" y2=\"50\"></line><rect fill=\"var(--surface-raised)\" height=\"66\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"52\" x=\"24\" y=\"16\"></rect><circle cx=\"50\" cy=\"42\" fill=\"var(--surface-sunken)\" r=\"15\" stroke=\"var(--success)\" stroke-width=\"2.5\"></circle><circle cx=\"43\" cy=\"42\" fill=\"var(--border-strong)\" r=\"2.6\"></circle><circle cx=\"57\" cy=\"42\" fill=\"var(--border-strong)\" r=\"2.6\"></circle><rect fill=\"var(--border-strong)\" height=\"3\" width=\"3.2\" x=\"48.4\" y=\"30\"></rect><rect fill=\"var(--border-strong)\" height=\"3\" width=\"3.2\" x=\"48.4\" y=\"51\"></rect><circle cx=\"50\" cy=\"68\" fill=\"var(--surface-sunken)\" r=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\"></circle><circle cx=\"50\" cy=\"68\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.8\"></circle></g><g transform=\"translate(225 85) scale(0.7)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"10\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"90\" x2=\"100\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"50\" x2=\"50\" y1=\"76\" y2=\"100\"></line><path d=\"M44.05 30.65 A8 8 0 0 1 55.95 30.65\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"1\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><path d=\"M38.85 25.96 A15 15 0 0 1 61.15 25.96\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"0.78\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0.3s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><path d=\"M33.65 21.28 A22 22 0 0 1 66.35 21.28\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"0.56\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0.6s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"20\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"74\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"32\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"80\" x=\"10\" y=\"44\"></rect><circle cx=\"24\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"33\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"42\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"51\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"60\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"20\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"31\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"42\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"53\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"9\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"12\" x=\"70\" y=\"50\"></rect><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"73\" x2=\"73\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"76\" x2=\"76\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"79\" x2=\"79\" y1=\"52\" y2=\"57\"></line></g><g transform=\"translate(405 45) scale(0.7)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"6\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"50\" x2=\"50\" y1=\"96\" y2=\"100\"></line><rect fill=\"var(--border-strong)\" height=\"6\" rx=\"3\" width=\"80\" x=\"10\" y=\"90\"></rect><rect fill=\"var(--surface-sunken)\" height=\"24\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"7\" x=\"18\" y=\"66\"></rect><rect fill=\"var(--surface-sunken)\" height=\"24\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"7\" x=\"75\" y=\"66\"></rect><rect fill=\"var(--surface-raised)\" height=\"52\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"88\" x=\"6\" y=\"14\"></rect><rect fill=\"var(--surface-sunken)\" height=\"38\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"78\" x=\"11\" y=\"19\"></rect><polygon fill=\"var(--surface-base)\" fill-opacity=\"0.3\" points=\"13,55 43.76,21 57.8,21 26.6,55\"></polygon><circle cx=\"83\" cy=\"61.5\" fill=\"var(--text-secondary)\" fill-opacity=\"0.3\" r=\"1.8\"></circle></g><g transform=\"translate(405 185) scale(0.7)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"6\" y1=\"50\" y2=\"50\"></line><rect fill=\"var(--surface-raised)\" height=\"44\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"8\" x=\"6\" y=\"28\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"14\" x=\"14\" y=\"47\"></rect><g transform=\"rotate(8 28 50)\"><rect fill=\"var(--surface-sunken)\" height=\"7\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"56\" x=\"30\" y=\"31\"></rect><rect fill=\"var(--surface-raised)\" height=\"24\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"52\" x=\"32\" y=\"38\"></rect><rect fill=\"var(--surface-sunken)\" height=\"18\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"8\" x=\"84\" y=\"41\"></rect><rect fill=\"var(--warning)\" fill-opacity=\"0.9\" height=\"14\" rx=\"1\" width=\"3\" x=\"90.5\" y=\"43\"></rect><circle cx=\"78\" cy=\"45\" fill=\"var(--warning)\" fill-opacity=\"0.7\" r=\"1.8\"></circle><circle cx=\"78\" cy=\"55\" fill=\"var(--warning)\" fill-opacity=\"0.7\" r=\"1.8\"></circle><circle cx=\"42\" cy=\"50\" fill=\"var(--warning)\" fill-opacity=\"1\" r=\"3.4\"><animate attributename=\"fill-opacity\" dur=\"1.4s\" repeatcount=\"indefinite\" values=\"1;0.25;1\"></animate></circle><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"52\" x2=\"70\" y1=\"46\" y2=\"46\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"52\" x2=\"70\" y1=\"54\" y2=\"54\"></line></g><circle cx=\"28\" cy=\"50\" fill=\"var(--surface-sunken)\" r=\"5.4\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\"></circle></g><text fill=\"var(--text-secondary)\" font-family=\"inherit\" font-size=\"14\" text-anchor=\"middle\" x=\"80\" y=\"269\">Plug</text><text fill=\"var(--text-primary)\" font-family=\"inherit\" font-size=\"14\" font-weight=\"600\" text-anchor=\"middle\" x=\"80\" y=\"285\">9.0</text><text fill=\"var(--text-secondary)\" font-family=\"inherit\" font-size=\"14\" text-anchor=\"middle\" x=\"260\" y=\"78\">Router</text><text fill=\"var(--text-secondary)\" font-family=\"inherit\" font-size=\"14\" text-anchor=\"middle\" x=\"440\" y=\"129\">TV</text></svg></div></section>"
+  },
+  {
+   "id": "scada.scene-connections",
+   "kind": "scada.scene",
+   "title": "Connections",
+   "settings": {
+    "width": 600,
+    "height": 400,
+    "scale": 0.6,
+    "fit": "canvas",
+    "elements": [
+     {
+      "id": "a",
+      "symbol": "home.router",
+      "x": 80,
+      "y": 80
+     },
+     {
+      "id": "b",
+      "symbol": "home.router",
+      "x": 480,
+      "y": 80
+     },
+     {
+      "id": "c",
+      "symbol": "home.plug.smart",
+      "x": 80,
+      "y": 320
+     },
+     {
+      "id": "d",
+      "symbol": "home.plug.smart",
+      "x": 480,
+      "y": 320
+     }
+    ],
+    "links": [
+     {
+      "from": "a.r",
+      "to": "b.l",
+      "kind": "pipe",
+      "medium": "cold",
+      "arrows": true
+     },
+     {
+      "from": "a.b",
+      "to": "c.t",
+      "kind": "hose",
+      "medium": "hot"
+     },
+     {
+      "from": "c.r",
+      "to": "d.l",
+      "kind": "cable"
+     },
+     {
+      "from": "b.b",
+      "to": "d.t",
+      "kind": "strip"
+     },
+     {
+      "from": "a.r:0.8",
+      "to": "d.t:0.2",
+      "kind": "sld",
+      "id": "sld"
+     }
+    ]
+   },
+   "data": {
+    "points": {
+     "shape": "table",
+     "fetchedAt": "2026-10-20T10:04:00.000Z",
+     "rows": [
+      {
+       "id": "a",
+       "running": true
+      },
+      {
+       "id": "b",
+       "running": true
+      },
+      {
+       "id": "c",
+       "running": true,
+       "status": "critical"
+      },
+      {
+       "id": "sld",
+       "running": true
+      }
+     ]
+    }
+   },
+   "html": "<section aria-label=\"Connections\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Connections</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><svg aria-label=\"Connections\" class=\"h-full min-h-0 w-full\" preserveaspectratio=\"xMidYMid meet\" role=\"img\" viewbox=\"0 0 600 400\"><g transform=\"scale(0.6)\"><path d=\"M183.33 133.33 L750 133.33\" fill=\"none\" stroke=\"var(--border-strong)\" stroke-linejoin=\"round\" stroke-width=\"28\"></path><path d=\"M183.33 133.33 L750 133.33\" fill=\"none\" stroke=\"var(--surface-sunken)\" stroke-linejoin=\"round\" stroke-width=\"24\"></path><path d=\"M183.33 133.33 L750 133.33\" fill=\"none\" stroke=\"var(--info)\" stroke-dasharray=\"14 8\" stroke-linecap=\"butt\" stroke-opacity=\"0.9\" stroke-width=\"8\"><animate attributename=\"stroke-dashoffset\" dur=\"0.9s\" from=\"22\" repeatcount=\"indefinite\" to=\"0\"></animate></path><polygon fill=\"var(--info)\" points=\"472.17,133.33 461.9,136.08 461.9,130.58\" stroke=\"var(--surface-base)\" stroke-linejoin=\"round\" stroke-width=\"1\"></polygon></g><g transform=\"scale(0.6)\"><path d=\"M133.33 183.33 L133.33 483.33\" fill=\"none\" stroke=\"var(--border-strong)\" stroke-linejoin=\"round\" stroke-width=\"23\"></path><path d=\"M133.33 183.33 L133.33 483.33\" fill=\"none\" stroke=\"var(--error)\" stroke-linejoin=\"round\" stroke-opacity=\"0.9\" stroke-width=\"20\"></path><path d=\"M133.33 183.33 L133.33 483.33\" fill=\"none\" stroke=\"var(--surface-base)\" stroke-dasharray=\"2.4 5.6\" stroke-linejoin=\"round\" stroke-opacity=\"0.34\" stroke-width=\"20\"><animate attributename=\"stroke-dashoffset\" dur=\"1.2s\" from=\"16\" repeatcount=\"indefinite\" to=\"0\"></animate></path><rect fill=\"var(--surface-sunken)\" height=\"10\" rx=\"2.5\" stroke=\"var(--border-strong)\" stroke-width=\"1.6\" width=\"30\" x=\"118.33\" y=\"184.33\"></rect><rect fill=\"var(--surface-sunken)\" height=\"10\" rx=\"2.5\" stroke=\"var(--border-strong)\" stroke-width=\"1.6\" width=\"30\" x=\"118.33\" y=\"472.33\"></rect></g><g transform=\"scale(0.6)\"><path d=\"M183.33 533.33 L750 533.33\" fill=\"none\" stroke=\"var(--text-primary)\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-opacity=\"0.92\" stroke-width=\"6\"></path><path d=\"M183.33 533.33 L750 533.33\" fill=\"none\" stroke=\"var(--surface-base)\" stroke-linejoin=\"round\" stroke-opacity=\"0.4\" stroke-width=\"1.3\"></path><path d=\"M183.33 533.33 L750 533.33\" fill=\"none\" stroke=\"var(--error)\" stroke-dasharray=\"3 13\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2.4\"><animate attributename=\"stroke-dashoffset\" dur=\"0.7s\" from=\"16\" repeatcount=\"indefinite\" to=\"0\"></animate></path><rect fill=\"var(--surface-sunken)\" height=\"12\" rx=\"2\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"8\" x=\"185.33\" y=\"527.33\"></rect><rect fill=\"var(--surface-sunken)\" height=\"12\" rx=\"2\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"8\" x=\"740\" y=\"527.33\"></rect></g><g transform=\"scale(0.6)\"><path d=\"M800 183.33 L800 483.33\" fill=\"none\" stroke=\"var(--text-primary)\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"3\"></path><path d=\"M800 183.33 L800 483.33\" fill=\"none\" stroke=\"var(--success)\" stroke-dasharray=\"3 15\" stroke-linecap=\"butt\" stroke-linejoin=\"round\" stroke-width=\"3\"><animate attributename=\"stroke-dashoffset\" dur=\"0.8s\" from=\"18\" repeatcount=\"indefinite\" to=\"0\"></animate></path></g><g transform=\"scale(0.6)\"><path d=\"M183.33 163.33 L746.67 163.33 Q770 163.33 770 186.67 L770 483.33\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"butt\" stroke-linejoin=\"round\" stroke-width=\"2.5\"></path></g><g transform=\"translate(50 50) scale(0.6)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"10\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"90\" x2=\"100\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"50\" x2=\"50\" y1=\"76\" y2=\"100\"></line><path d=\"M44.05 30.65 A8 8 0 0 1 55.95 30.65\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"1\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><path d=\"M38.85 25.96 A15 15 0 0 1 61.15 25.96\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"0.78\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0.3s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><path d=\"M33.65 21.28 A22 22 0 0 1 66.35 21.28\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"0.56\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0.6s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"20\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"74\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"32\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"80\" x=\"10\" y=\"44\"></rect><circle cx=\"24\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"33\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"42\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"51\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"60\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"20\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"31\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"42\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"53\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"9\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"12\" x=\"70\" y=\"50\"></rect><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"73\" x2=\"73\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"76\" x2=\"76\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"79\" x2=\"79\" y1=\"52\" y2=\"57\"></line></g><g transform=\"translate(450 50) scale(0.6)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"0\" x2=\"10\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-width=\"2.5\" x1=\"90\" x2=\"100\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"50\" x2=\"50\" y1=\"76\" y2=\"100\"></line><path d=\"M44.05 30.65 A8 8 0 0 1 55.95 30.65\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"1\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><path d=\"M38.85 25.96 A15 15 0 0 1 61.15 25.96\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"0.78\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0.3s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><path d=\"M33.65 21.28 A22 22 0 0 1 66.35 21.28\" fill=\"none\" stroke=\"var(--success)\" stroke-linecap=\"round\" stroke-opacity=\"0.56\" stroke-width=\"2.5\"><animate attributename=\"stroke-opacity\" begin=\"0.6s\" dur=\"1.5s\" repeatcount=\"indefinite\" values=\"0.15;1;0.15\"></animate></path><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"20\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"30\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"6\" x=\"74\" y=\"16\"></rect><rect fill=\"var(--surface-raised)\" height=\"32\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"80\" x=\"10\" y=\"44\"></rect><circle cx=\"24\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"33\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"42\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"51\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><circle cx=\"60\" cy=\"55\" fill=\"var(--success)\" fill-opacity=\"1\" r=\"2.2\"></circle><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"20\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"31\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"42\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"6\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1\" width=\"8\" x=\"53\" y=\"65\"></rect><rect fill=\"var(--surface-sunken)\" height=\"9\" rx=\"3\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\" width=\"12\" x=\"70\" y=\"50\"></rect><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"73\" x2=\"73\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"76\" x2=\"76\" y1=\"52\" y2=\"57\"></line><line stroke=\"var(--border-strong)\" stroke-linecap=\"round\" stroke-width=\"1.5\" x1=\"79\" x2=\"79\" y1=\"52\" y2=\"57\"></line></g><g transform=\"translate(50 290) scale(0.6)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"0\" x2=\"24\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"76\" x2=\"100\" y1=\"50\" y2=\"50\"></line><rect fill=\"var(--surface-raised)\" height=\"66\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"52\" x=\"24\" y=\"16\"></rect><circle cx=\"50\" cy=\"42\" fill=\"var(--surface-sunken)\" r=\"15\" stroke=\"var(--error)\" stroke-width=\"2.5\"></circle><circle cx=\"43\" cy=\"42\" fill=\"var(--border-strong)\" r=\"2.6\"></circle><circle cx=\"57\" cy=\"42\" fill=\"var(--border-strong)\" r=\"2.6\"></circle><rect fill=\"var(--border-strong)\" height=\"3\" width=\"3.2\" x=\"48.4\" y=\"30\"></rect><rect fill=\"var(--border-strong)\" height=\"3\" width=\"3.2\" x=\"48.4\" y=\"51\"></rect><circle cx=\"50\" cy=\"68\" fill=\"var(--surface-sunken)\" r=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\"></circle><circle cx=\"50\" cy=\"68\" fill=\"var(--error)\" fill-opacity=\"1\" r=\"2.8\"></circle></g><g transform=\"translate(450 290) scale(0.6)\"><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"0\" x2=\"24\" y1=\"50\" y2=\"50\"></line><line stroke=\"var(--text-primary)\" stroke-linecap=\"butt\" stroke-opacity=\"0.92\" stroke-width=\"5\" x1=\"76\" x2=\"100\" y1=\"50\" y2=\"50\"></line><rect fill=\"var(--surface-raised)\" height=\"66\" rx=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"2.5\" width=\"52\" x=\"24\" y=\"16\"></rect><circle cx=\"50\" cy=\"42\" fill=\"var(--surface-sunken)\" r=\"15\" stroke=\"var(--border-strong)\" stroke-opacity=\"0.55\" stroke-width=\"2.5\"></circle><circle cx=\"43\" cy=\"42\" fill=\"var(--border-strong)\" r=\"2.6\"></circle><circle cx=\"57\" cy=\"42\" fill=\"var(--border-strong)\" r=\"2.6\"></circle><rect fill=\"var(--border-strong)\" height=\"3\" width=\"3.2\" x=\"48.4\" y=\"30\"></rect><rect fill=\"var(--border-strong)\" height=\"3\" width=\"3.2\" x=\"48.4\" y=\"51\"></rect><circle cx=\"50\" cy=\"68\" fill=\"var(--surface-sunken)\" r=\"6\" stroke=\"var(--border-strong)\" stroke-width=\"1.5\"></circle><circle cx=\"50\" cy=\"68\" fill=\"var(--text-secondary)\" fill-opacity=\"0.35\" r=\"2.8\"></circle></g></svg></div></section>"
+  },
+  {
+   "id": "scada.scene-empty",
+   "kind": "scada.scene",
+   "title": "Plant",
+   "settings": {
+    "$card": {
+     "showTitle": true
+    }
+   },
+   "data": {},
+   "boundSlots": [
+    "points"
+   ],
+   "html": "<section aria-label=\"Plant\" class=\"bg-surface-raised border border-border flex flex-col group/wk h-full min-h-0 overflow-hidden relative rounded-xl shadow-sm text-text-primary\" style=\"border-radius:12px\"><header class=\"flex gap-2 items-start min-w-0 relative\" style=\"padding:8px 12px 0\"><div class=\"flex-1 min-w-0\"><div class=\"flex gap-1.5 items-center min-w-0\"><h3 class=\"font-semibold text-sm truncate\">Plant</h3></div></div><div class=\"flex gap-0.5 items-center lg:group-focus-within/wk:opacity-100 lg:group-hover/wk:opacity-100 lg:opacity-0 opacity-100 shrink-0 transition-opacity\"><button aria-label=\"Full screen\" class=\"disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus h-7 hover:bg-surface-overlay hover:text-text-primary inline-flex items-center justify-center rounded-md text-text-secondary transition-colors w-7\" title=\"Full screen\" type=\"button\"><i data-icon=\"expand\" class=\"h-3.5 w-3.5\"></i></button></div></header><div class=\"@container flex-1 min-h-0 overflow-auto relative\" style=\"padding:8px 8px 16px\"><div class=\"flex h-full items-center justify-center min-h-16 text-center text-sm text-text-secondary\">No data</div></div></section>"
+  },
+  {
    "id": "markdown.plain",
    "kind": "content.markdown",
    "title": "Notes",

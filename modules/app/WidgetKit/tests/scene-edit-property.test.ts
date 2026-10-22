@@ -7,8 +7,7 @@ import {
   setElementProps, setLinkKind, setMid, setOwnSize, setShapeProps, turnElements, undo, type EditResult, type History, type Rec,
 } from '../views/scene-edit-logic';
 import { SCADA_SCENE } from '../templates/scada-scene';
-import { SCADA_SCENES } from '../sample/scada-scenes';
-import { SECTOR_SCENES } from '../sample/scada-sector-all';
+import { HOME_SCENE } from '../sample/scada-home';
 import { clone, deepFreeze, smallScene } from './scene-edit-fixture';
 
 // ─── A seeded generator, so a failure names its seed ─────────────────────────
@@ -103,7 +102,7 @@ function randomOp(r: Rng, s: SceneSettings): Op {
     ['duplicate', () => { const sel = { elements: some(4), shapes: [shapeIdx()] }; return (x) => duplicate(x, sel); }],
     ['reorder', () => { const sel = { elements: some(), shapes: [shapeIdx()] }; const mode = r.pick(['front', 'back', 'forward', 'backward'] as const); return (x) => reorder(x, sel, mode); }],
     ['setCanvas', () => { const p = r.pick([{ width: 1500 }, { scale: 0.9 }, { anchor: 'corner' as const }, { anchor: 'center' as const }, { height: 100 }]); return (x) => setCanvas(x, p, model()); }],
-    ['insertAssembly', () => { const piece = ids.length ? captureAssembly(s, some(4)) : null; const at = anyPos(); return (x) => (piece ? insertAssembly(x, piece, at) : addElement(x, 'tank.open', at)); }],
+    ['insertAssembly', () => { const piece = ids.length ? captureAssembly(s, some(4)) : null; const at = anyPos(); return (x) => (piece ? insertAssembly(x, piece, at) : addElement(x, 'home.tv', at)); }],
   ];
   const [name, make] = r.pick(table);
   return { name, run: make() };
@@ -114,7 +113,7 @@ function randomOp(r: Rng, s: SceneSettings): Op {
 function nearCap(): SceneSettings {
   return deepFreeze({
     width: 1400, height: 900,
-    elements: Array.from({ length: MAX_SCENE_ELEMENTS - 2 }, (_, i) => ({ id: `n${i}`, symbol: SCADA_SYMBOLS[i % 20], x: 40 + (i % 20) * 60, y: 40 + Math.floor(i / 20) * 70 })),
+    elements: Array.from({ length: MAX_SCENE_ELEMENTS - 2 }, (_, i) => ({ id: `n${i}`, symbol: SCADA_SYMBOLS[i % SCADA_SYMBOLS.length], x: 40 + (i % 20) * 60, y: 40 + Math.floor(i / 20) * 70 })),
     links: Array.from({ length: MAX_SCENE_LINKS - 2 }, (_, i) => ({ from: `n${i % 190}.r:0.${(i % 9) + 1}`, to: `n${(i % 190) + 1}.l`, kind: 'pipe' })),
     shapes: Array.from({ length: MAX_SCENE_SHAPES - 2 }, (_, i) => ({ kind: 'text', x: 10 + i, y: 10, text: `t${i}` })),
     rules: [{ target: 'n3', of: 'n4', of2: '', key: 'v' }, { target: '*', of: '' }],
@@ -131,8 +130,7 @@ const STARTS: Array<[string, () => SceneSettings]> = [
   ['small', smallScene],
   ['empty', () => deepFreeze({ width: 800, height: 500 } as SceneSettings)],
   ['near caps', nearCap],
-  ...SCADA_SCENES.slice(0, 3).map((x): [string, () => SceneSettings] => [x.title, () => withRules(x.settings as SceneSettings)]),
-  ...SECTOR_SCENES.slice(0, 3).map((x): [string, () => SceneSettings] => [x.title, () => withRules(x.settings as SceneSettings)]),
+  [HOME_SCENE.title, () => withRules(HOME_SCENE.settings as SceneSettings)],
 ];
 
 describe('random edit sequences hold the invariants', () => {
@@ -189,12 +187,8 @@ describe('random edit sequences hold the invariants', () => {
   }, 60_000);
 });
 
-describe('the sample scenes open and come back unchanged', () => {
-  const all = [...SCADA_SCENES, ...SECTOR_SCENES];
-  it('covers the five original scenes and the sector scenes', () => {
-    expect(SCADA_SCENES).toHaveLength(5);
-    expect(SECTOR_SCENES.length).toBeGreaterThanOrEqual(11);
-  });
+describe('the sample scene opens and comes back unchanged', () => {
+  const all = [HOME_SCENE];
   describe.each(all.map((x) => [x.title, x] as const))('%s', (_t, scene) => {
     const settings = deepFreeze(clone(scene.settings)) as SceneSettings;
     const json = JSON.stringify(settings);
@@ -203,7 +197,7 @@ describe('the sample scenes open and come back unchanged', () => {
       check(settings, scene.title);
     });
     it('is the same after adding a symbol and undoing it', () => {
-      const h = apply(createHistory(settings), (s) => addElement(s, 'pump.volute', { x: 10, y: 10 })).history;
+      const h = apply(createHistory(settings), (s) => addElement(s, 'home.router', { x: 10, y: 10 })).history;
       expect(arr(h.present.elements)).toHaveLength(arr(settings.elements).length + 1);
       const back = undo(h).present;
       expect(back).toBe(settings);

@@ -66,12 +66,12 @@ describe('linkLegs', () => {
   const legs = linkLegs(s, m);
   it('routes every joined link with the scene router and keeps the stored index', () => {
     expect(legs.map((l) => l.index)).toEqual([0, 1]);
-    expect(legs[0].points[0]).toEqual({ x: 122.8, y: 200 });
+    expect(legs[0].points[0]).toEqual({ x: 130, y: 200 });
     expect(legs[0].points.at(-1)).toEqual({ x: 270, y: 200 });
     expect(legs[0].from).toEqual({ id: 'tank1', side: 'r', at: 0.5 });
   });
   it('gives a handle on the middle leg of a Z route and none on an L route', () => {
-    const z = { elements: [{ id: 'a', symbol: 'valve.ball', x: 100, y: 100 }, { id: 'b', symbol: 'valve.ball', x: 300, y: 250 }], links: [{ from: 'a.r', to: 'b.l' }, { from: 'a.b', to: 'b.l:0.2' }] } as SceneSettings;
+    const z = { elements: [{ id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }, { id: 'b', symbol: 'home.plug.smart', x: 300, y: 250 }], links: [{ from: 'a.r', to: 'b.l' }, { from: 'a.b', to: 'b.l:0.2' }] } as SceneSettings;
     const zm = sceneModel(z, {});
     const [flat, l] = linkLegs(z, zm);
     expect(flat.handle).toMatchObject({ axis: 'x', x: (130 + 16 + 270 - 16) / 2 });
@@ -81,7 +81,7 @@ describe('linkLegs', () => {
     expect(midValue(flat.handle!, { x: 213.456, y: 0 })).toBe(213.46);
   });
   it('uses y for two vertical ports', () => {
-    const v = { elements: [{ id: 'a', symbol: 'valve.ball', x: 100, y: 100 }, { id: 'b', symbol: 'valve.ball', x: 300, y: 300 }], links: [{ from: 'a.b', to: 'b.t' }] } as SceneSettings;
+    const v = { elements: [{ id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }, { id: 'b', symbol: 'home.plug.smart', x: 300, y: 300 }], links: [{ from: 'a.b', to: 'b.t' }] } as SceneSettings;
     expect(linkLegs(v, sceneModel(v, {}))[0].handle).toMatchObject({ axis: 'y', y: (130 + 16 + 270 - 16) / 2 });
   });
   it('leaves out a link that dangles', () => {
@@ -118,7 +118,7 @@ describe('pick', () => {
     expect(at(300, 200, { ports: 'none' })).toEqual({ kind: 'element', id: 'pump1' });
   });
   it('picks the topmost of overlapping symbols (the later one in the list)', () => {
-    const o = { elements: [{ id: 'a', symbol: 'valve.ball', x: 100, y: 100 }, { id: 'b', symbol: 'valve.ball', x: 110, y: 100 }] } as SceneSettings;
+    const o = { elements: [{ id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }, { id: 'b', symbol: 'home.plug.smart', x: 110, y: 100 }] } as SceneSettings;
     expect(pick(sceneModel(o, {}), o, { x: 105, y: 100 }, { ports: 'none' }).id).toBe('b');
   });
   it('picks a connection near its leg and not far from it', () => {
@@ -136,7 +136,7 @@ describe('pick', () => {
   });
   it('lets a symbol win over the zone it sits in, and a title over a symbol', () => {
     expect(at(300, 200, { ports: 'none' }).kind).toBe('element');
-    const t = { elements: [{ id: 'a', symbol: 'valve.ball', x: 100, y: 100 }], shapes: [{ kind: 'text', x: 100, y: 105, text: 'Over' }] } as SceneSettings;
+    const t = { elements: [{ id: 'a', symbol: 'home.plug.smart', x: 100, y: 100 }], shapes: [{ kind: 'text', x: 100, y: 105, text: 'Over' }] } as SceneSettings;
     expect(pick(sceneModel(t, {}), t, { x: 100, y: 100 }, { ports: 'none' })).toMatchObject({ kind: 'shape', index: 0 });
   });
   it('is none on empty canvas', () => {

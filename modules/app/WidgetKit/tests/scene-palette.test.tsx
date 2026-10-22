@@ -9,18 +9,18 @@ const keys = (c: HTMLElement) => tiles(c).map((t) => t.getAttribute('data-symbol
 
 describe('paletteSections', () => {
   it('lists recent symbols on top while nothing is searched, once each, valid ones only, at most the cap', () => {
-    const recent = ['pump.motor', 'nope', 'pump.motor', ...SCADA_SYMBOLS.slice(0, 20)];
+    const recent = ['home.plug.smart', 'nope', 'home.plug.smart', ...SCADA_SYMBOLS, ...SCADA_SYMBOLS];
     const s = paletteSections({ recent });
-    expect(s.recent[0]).toBe('pump.motor');
+    expect(s.recent[0]).toBe('home.plug.smart');
     expect(s.recent).not.toContain('nope');
     expect(new Set(s.recent).size).toBe(s.recent.length);
-    expect(s.recent.length).toBe(RECENT_MAX);
+    expect(s.recent.length).toBe(Math.min(RECENT_MAX, SCADA_SYMBOLS.length));
     expect(s.results).toHaveLength(SCADA_SYMBOLS.length);
   });
   it('shows no recent row while a search is typed, and only the recent ones the filters keep', () => {
-    expect(paletteSections({ query: 'valve', recent: ['pump.motor'] }).recent).toEqual([]);
-    expect(paletteSections({ family: 'sld', recent: ['pump.motor', 'sld.fuse'] }).recent).toEqual(['sld.fuse']);
-    expect(paletteSections({ sector: 'telecom', recent: ['pump.motor'] }).recent).toEqual([]);
+    expect(paletteSections({ query: 'camera', recent: ['home.plug.smart'] }).recent).toEqual([]);
+    expect(paletteSections({ sector: 'telecom', recent: ['home.plug.smart', 'home.router'] }).recent).toEqual(['home.router']);
+    expect(paletteSections({ sector: 'energy', recent: ['home.tv'] }).recent).toEqual([]);
   });
 });
 
@@ -59,7 +59,7 @@ describe('symbolThumb', () => {
       expect(t!.nodes.length, k).toBeGreaterThan(0);
       expect(JSON.stringify(t!.nodes)).not.toContain('animate');
     }
-    expect(symbolThumb('pump.motor')).toBe(symbolThumb('pump.motor'));
+    expect(symbolThumb('home.router')).toBe(symbolThumb('home.router'));
     expect(symbolThumb('nope')).toBeNull();
   });
 });
@@ -69,9 +69,9 @@ describe('ScenePalette', () => {
     const { container } = render(<ScenePalette onAdd={() => {}} />);
     expect(screen.getByRole('listbox', { name: 'Symbols' })).toBeInTheDocument();
     expect(keys(container)).toHaveLength(SCADA_SYMBOLS.length);
-    const tile = container.querySelector('[data-symbol="pump.motor"]')!;
-    expect(tile).toHaveTextContent('Motor pump');
-    expect(tile).toHaveTextContent('pump.motor');
+    const tile = container.querySelector('[data-symbol="home.plug.smart"]')!;
+    expect(tile).toHaveTextContent('Smart plug');
+    expect(tile).toHaveTextContent('home.plug.smart');
     expect(tile.querySelector('svg')!.children.length).toBeGreaterThan(0);
     expect(screen.getByRole('status')).toHaveTextContent(`${SCADA_SYMBOLS.length} symbols`);
   });
@@ -86,10 +86,10 @@ describe('ScenePalette', () => {
   it('searches with the ranking: the plain name first, and says when nothing matches', () => {
     const { container } = render(<ScenePalette onAdd={() => {}} />);
     const box = screen.getByRole('searchbox', { name: 'Search symbols' });
-    fireEvent.change(box, { target: { value: 'pump' } });
-    expect(keys(container)[0]).toBe('pump.motor');
-    fireEvent.change(box, { target: { value: 'heat exchanger' } });
-    expect(keys(container).slice(0, 2)).toEqual(expect.arrayContaining(['process.exchanger.plate', 'process.exchanger.shell']));
+    fireEvent.change(box, { target: { value: 'router' } });
+    expect(keys(container)[0]).toBe('home.router');
+    fireEvent.change(box, { target: { value: 'smart' } });
+    expect(keys(container).slice(0, 2)).toEqual(expect.arrayContaining(['home.plug.smart', 'home.tv']));
     fireEvent.change(box, { target: { value: 'zzzzqq' } });
     expect(tiles(container)).toHaveLength(0);
     expect(screen.getByRole('status')).toHaveTextContent(/No symbol matches/);
@@ -99,36 +99,36 @@ describe('ScenePalette', () => {
   it('filters by family and sector chips, and offers a sector only when the family has it', () => {
     const { container } = render(<ScenePalette onAdd={() => {}} />);
     const fam = screen.getByRole('group', { name: 'Family' });
-    fireEvent.click(within(fam).getByRole('button', { name: 'Single-line' }));
-    expect(keys(container)).toHaveLength(16);
-    expect(within(fam).getByRole('button', { name: 'Single-line' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(within(fam).getByRole('button', { name: 'Home electronics' }));
+    expect(keys(container)).toHaveLength(4);
+    expect(within(fam).getByRole('button', { name: 'Home electronics' })).toHaveAttribute('aria-pressed', 'true');
     const sec = screen.getByRole('group', { name: 'Sector' });
-    expect(within(sec).queryByRole('button', { name: 'Telecom' })).toBeNull();
-    fireEvent.click(within(sec).getByRole('button', { name: 'Electrical' }));
-    expect(keys(container)).toHaveLength(16);
+    expect(within(sec).getAllByRole('button').map((b) => b.textContent)).toEqual(['All sectors', 'Home', 'Telecom', 'Energy', 'Safety', 'City']);
+    fireEvent.click(within(sec).getByRole('button', { name: 'Energy' }));
+    expect(keys(container)).toEqual(['home.plug.smart']);
     fireEvent.click(within(fam).getByRole('button', { name: 'All families' }));
     fireEvent.click(within(sec).getByRole('button', { name: 'Telecom' }));
-    expect(keys(container)).toEqual(expect.arrayContaining(['telecom.ups', 'telecom.rack']));
-    expect(keys(container)).not.toContain('pump.motor');
+    expect(keys(container)).toEqual(['home.router']);
+    expect(keys(container)).not.toContain('home.tv');
     fireEvent.click(within(sec).getByRole('button', { name: 'Telecom' }));
     expect(keys(container)).toHaveLength(SCADA_SYMBOLS.length);
   });
   it('shows recent symbols on top, and hides them while searching', () => {
-    const { container } = render(<ScenePalette onAdd={() => {}} recent={['sld.fuse', 'pump.motor']} />);
-    expect(keys(container).slice(0, 2)).toEqual(['sld.fuse', 'pump.motor']);
+    const { container } = render(<ScenePalette onAdd={() => {}} recent={['home.camera.security', 'home.router']} />);
+    expect(keys(container).slice(0, 2)).toEqual(['home.camera.security', 'home.router']);
     expect(screen.getByRole('group', { name: 'Recent' })).toBeInTheDocument();
-    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'fuse' } });
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'cctv' } });
     expect(screen.queryByRole('group', { name: 'Recent' })).toBeNull();
-    expect(keys(container)[0]).toBe('sld.fuse');
+    expect(keys(container)[0]).toBe('home.camera.security');
   });
   it('adds on a click, never twice, and on Enter or Space', () => {
     const onAdd = vi.fn();
     const { container } = render(<ScenePalette onAdd={onAdd} />);
-    const tile = container.querySelector<HTMLElement>('[data-symbol="valve"]')!;
+    const tile = container.querySelector<HTMLElement>('[data-symbol="home.plug.smart"]')!;
     fireEvent.click(tile);
     fireEvent.doubleClick(tile);
     expect(onAdd).toHaveBeenCalledTimes(1);
-    expect(onAdd).toHaveBeenCalledWith('valve');
+    expect(onAdd).toHaveBeenCalledWith('home.plug.smart');
     fireEvent.keyDown(tile, { key: 'Enter' });
     fireEvent.keyDown(tile, { key: ' ' });
     expect(onAdd).toHaveBeenCalledTimes(3);
@@ -136,19 +136,19 @@ describe('ScenePalette', () => {
   it('adds on a double click only, when asked', () => {
     const onAdd = vi.fn();
     const { container } = render(<ScenePalette onAdd={onAdd} addOn="doubleClick" />);
-    const tile = container.querySelector<HTMLElement>('[data-symbol="valve"]')!;
+    const tile = container.querySelector<HTMLElement>('[data-symbol="home.plug.smart"]')!;
     fireEvent.click(tile);
     expect(onAdd).not.toHaveBeenCalled();
     fireEvent.doubleClick(tile);
-    expect(onAdd).toHaveBeenCalledWith('valve');
+    expect(onAdd).toHaveBeenCalledWith('home.plug.smart');
   });
   it('adds the first match on Enter in the search box and moves into the grid with the down arrow', () => {
     const onAdd = vi.fn();
     const { container } = render(<ScenePalette onAdd={onAdd} />);
     const box = screen.getByRole('searchbox');
-    fireEvent.change(box, { target: { value: 'ups' } });
+    fireEvent.change(box, { target: { value: 'outlet' } });
     fireEvent.keyDown(box, { key: 'Enter' });
-    expect(onAdd).toHaveBeenCalledWith('telecom.ups');
+    expect(onAdd).toHaveBeenCalledWith('home.plug.smart');
     fireEvent.keyDown(box, { key: 'ArrowDown' });
     return new Promise<void>((resolve) => requestAnimationFrame(() => {
       expect(document.activeElement).toBe(tiles(container)[0]);
@@ -162,9 +162,12 @@ describe('ScenePalette', () => {
     all[0].focus();
     fireEvent.keyDown(all[0], { key: 'ArrowRight' });
     expect(document.activeElement).toBe(all[1]);
+    // Four tiles, three to a row: below the second is the short last row's only tile.
     fireEvent.keyDown(all[1], { key: 'ArrowDown' });
-    expect(document.activeElement).toBe(all[4]);
-    fireEvent.keyDown(all[4], { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(all[3]);
+    fireEvent.keyDown(all[3], { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(all[0]);
+    fireEvent.keyDown(all[0], { key: 'ArrowRight' });
     expect(document.activeElement).toBe(all[1]);
     fireEvent.keyDown(all[1], { key: 'End' });
     expect(document.activeElement).toBe(all.at(-1));
@@ -177,19 +180,19 @@ describe('ScenePalette', () => {
   it('drags a tile carrying the symbol key and tells the shell', () => {
     const onDragStart = vi.fn();
     const { container } = render(<ScenePalette onAdd={() => {}} onDragStart={onDragStart} />);
-    const tile = container.querySelector<HTMLElement>('[data-symbol="breaker"]')!;
+    const tile = container.querySelector<HTMLElement>('[data-symbol="home.tv"]')!;
     expect(tile.draggable).toBe(true);
     const data: Record<string, string> = {};
     const dataTransfer = { setData: (t: string, v: string) => { data[t] = v; }, effectAllowed: '' };
     fireEvent.dragStart(tile, { dataTransfer });
-    expect(data[SYMBOL_DRAG_TYPE]).toBe('breaker');
+    expect(data[SYMBOL_DRAG_TYPE]).toBe('home.tv');
     expect(dataTransfer.effectAllowed).toBe('copy');
-    expect(onDragStart).toHaveBeenCalledWith('breaker', expect.anything());
+    expect(onDragStart).toHaveBeenCalledWith('home.tv', expect.anything());
   });
   it('takes the host\'s texts over the English ones', () => {
-    render(<ScenePalette onAdd={() => {}} messages={{ search: 'Sembol ara', families: { sld: 'Tek hat' } }} />);
+    render(<ScenePalette onAdd={() => {}} messages={{ search: 'Sembol ara', families: { home: 'Household devices' } }} />);
     expect(screen.getByRole('searchbox', { name: 'Sembol ara' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tek hat' })).toBeInTheDocument();
-    expect(within(screen.getByRole('group', { name: 'Family' })).getByRole('button', { name: 'Water' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Household devices' })).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Sector' })).getByRole('button', { name: 'Telecom' })).toBeInTheDocument();
   });
 });

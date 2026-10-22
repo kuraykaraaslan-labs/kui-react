@@ -28,7 +28,7 @@ describe('SceneProblems', () => {
   it('groups by severity, errors first, with a summary, and each item is a labelled button', () => {
     const s = {
       ...smallScene(),
-      elements: [...(smallScene().elements as Rec[]), { id: 'far', symbol: 'tank.open', x: 5000, y: 10 }, { id: 'bad', symbol: 'nope', x: 1, y: 1 }],
+      elements: [...(smallScene().elements as Rec[]), { id: 'far', symbol: 'home.tv', x: 5000, y: 10 }, { id: 'bad', symbol: 'nope', x: 1, y: 1 }],
       links: [...(smallScene().links as Rec[]), { from: 'ghost.r', to: 'tank1.l' }],
       rules: [{ target: 'ghost', state: 'idle' }, { target: 'pump1', state: 'idle', source: 'param', key: 'mode', op: 'set' }],
     } as SceneSettings;
@@ -46,7 +46,7 @@ describe('SceneProblems', () => {
   it('selects what a problem is about: a symbol, a connection, a shape, the scene', () => {
     const s = {
       ...smallScene(),
-      elements: [...(smallScene().elements as Rec[]), { id: 'far', symbol: 'tank.open', x: 5000, y: 10 }],
+      elements: [...(smallScene().elements as Rec[]), { id: 'far', symbol: 'home.tv', x: 5000, y: 10 }],
       links: [...(smallScene().links as Rec[]), { from: 'ghost.r', to: 'tank1.l' }],
       shapes: [...(smallScene().shapes as Rec[]), { kind: 'text', x: 10, y: 10, text: '' }],
       rules: [],

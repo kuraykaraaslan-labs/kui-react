@@ -82,7 +82,7 @@ const THUMBS = new Map<string, SymbolThumb>();
 
 /**
  * A symbol drawn for the palette from its own drawing: running, with something to show where it has a level or a dial,
- * in the quiet ink (not the running green, a grid of 243 would shout), no animation, no name and no number. Pure, so
+ * in the quiet ink (not the running green, a full grid would shout), no animation, no name and no number. Pure, so
  * each is drawn once and kept.
  */
 export function symbolThumb(key: string): SymbolThumb | null {

@@ -4628,7 +4628,7 @@
   "builtin:scada.symbol@1": {
     "symbol": {
       "type": "select",
-      "value": "tank.vertical",
+      "value": "home.router",
       "options": [
         "home.tv",
         "home.router",
@@ -4811,8 +4811,7 @@
         },
         "symbol": {
           "type": "select",
-          "value": "tank.vertical",
-          "options": []
+          "value": "home.router"
         },
         "x": {
           "type": "number",
@@ -5018,8 +5017,7 @@
         },
         "symbol": {
           "type": "select",
-          "value": "tank.vertical",
-          "options": []
+          "value": "home.router"
         },
         "x": {
           "type": "number",
@@ -5294,8 +5292,7 @@
         },
         "symbol": {
           "type": "select",
-          "value": "tank.vertical",
-          "options": []
+          "value": "home.router"
         },
         "x": {
           "type": "number",
@@ -5754,7 +5751,7 @@
         },
         "symbol": {
           "type": "select",
-          "value": "tank.vertical",
+          "value": "home.router",
           "options": [
             "home.tv",
             "home.router",
@@ -6232,7 +6229,7 @@
   "builtin:scada.symbol@2": {
     "symbol": {
       "type": "select",
-      "value": "tank.vertical",
+      "value": "home.router",
       "options": [
         "home.tv",
         "home.router",
@@ -6415,7 +6412,7 @@
         },
         "symbol": {
           "type": "select",
-          "value": "tank.vertical",
+          "value": "home.router",
           "options": [
             "home.tv",
             "home.router",

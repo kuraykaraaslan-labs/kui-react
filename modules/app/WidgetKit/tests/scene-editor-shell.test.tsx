@@ -29,7 +29,7 @@ describe('the keyboard', () => {
     expect(stops.every((g) => g.getAttribute('tabindex') === '0' && g.getAttribute('role') === 'button')).toBe(true);
     expect(stops.map((g) => g.getAttribute('data-element') ?? `s${g.getAttribute('data-shape')}${g.getAttribute('data-link') ?? ''}`).slice(0, 3)).toEqual(['tank1', 'pump1', 'valve1']);
     // Every stop has a name a screen reader can say: the symbol, its type and where it is.
-    expect(canvas.querySelector('[data-element="pump1"]')).toHaveAttribute('aria-label', 'pump1, pump.volute, at 300, 200');
+    expect(canvas.querySelector('[data-element="pump1"]')).toHaveAttribute('aria-label', 'pump1, home.router, at 300, 200');
     expect(canvas.querySelector('[data-link="0"]')?.getAttribute('aria-label')).toBe('Connection from Feed to pump1');
     fireEvent.focus(canvas.querySelector('[data-element="pump1"]') as Element);
     expect(selected(document.body)).toEqual(['pump1']);
@@ -86,7 +86,7 @@ describe('the keyboard', () => {
     key(canvas, 'd', { ctrlKey: true });
     expect(selected(document.body)).toEqual(['tank2']);
     const s = await applied();
-    expect(element(s, 'tank2')).toMatchObject({ symbol: 'tank.vertical', x: 120, y: 220, label: 'Feed' });
+    expect(element(s, 'tank2')).toMatchObject({ symbol: 'home.tv', x: 120, y: 220, label: 'Feed' });
   });
 
   it('undoes and redoes with Ctrl or Cmd + Z, Shift+Z and Y', async () => {
@@ -277,7 +277,7 @@ describe('the clipboard', () => {
   it('refuses a piece drawn with another meaning of x and y, and text that is far too long', async () => {
     clipboard();
     const m = mount();
-    const wrong = JSON.stringify({ format: 'kui.scada.assembly', version: 1, anchor: 'corner', elements: [{ id: 'a', symbol: 'pump.volute', x: 0, y: 0 }], shapes: [], links: [] });
+    const wrong = JSON.stringify({ format: 'kui.scada.assembly', version: 1, anchor: 'corner', elements: [{ id: 'a', symbol: 'home.router', x: 0, y: 0 }], shapes: [], links: [] });
     fireEvent.paste(m.canvas, { clipboardData: { getData: () => wrong } });
     expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('another meaning of x and y');
     key(screen.getByRole('dialog'), 'Escape');

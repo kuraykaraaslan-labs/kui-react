@@ -47,7 +47,7 @@ describe.each([SAMPLE_GALLERY_BOARD, ...SAMPLE_BOARDS].map((b) => [b.board.title
   });
 });
 
-it('offers the themed boards (five general, five SCADA, then the sector boards) with distinct titles', () => {
-  expect(SAMPLE_BOARDS.length).toBeGreaterThanOrEqual(21);
+it('offers the five themed boards with distinct titles', () => {
+  expect(SAMPLE_BOARDS).toHaveLength(5);
   expect(new Set(SAMPLE_BOARDS.map((b) => b.board.title)).size).toBe(SAMPLE_BOARDS.length);
 });

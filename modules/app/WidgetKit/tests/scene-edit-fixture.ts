@@ -17,9 +17,9 @@ export function smallScene(): SceneSettings {
   return deepFreeze({
     width: 1000, height: 600, scale: 0.6,
     elements: [
-      { id: 'tank1', symbol: 'tank.vertical', x: 100, y: 200, label: 'Feed' },
-      { id: 'pump1', symbol: 'pump.volute', x: 300, y: 200, turn: '0' },
-      { id: 'valve1', symbol: 'valve.ball', x: 500, y: 200 },
+      { id: 'tank1', symbol: 'home.tv', x: 100, y: 200, label: 'Feed' },
+      { id: 'pump1', symbol: 'home.router', x: 300, y: 200, turn: '0' },
+      { id: 'valve1', symbol: 'home.plug.smart', x: 500, y: 200 },
     ],
     links: [
       { from: 'tank1.r', to: 'pump1.l', kind: 'pipe' },

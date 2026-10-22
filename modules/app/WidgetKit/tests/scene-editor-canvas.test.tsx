@@ -472,14 +472,14 @@ describe('zoom and pan of the editor viewport', () => {
 describe('dropping a symbol from the palette', () => {
   it('adds the symbol at the snapped drop point and selects it', async () => {
     const { svg, canvas, applied } = mount();
-    const over = dragEvent('dragOver', canvas, svg, { x: 733, y: 417 }, 'pump.volute');
+    const over = dragEvent('dragOver', canvas, svg, { x: 733, y: 417 }, 'home.router');
     expect(over.defaultPrevented).toBe(true);
-    dragEvent('drop', canvas, svg, { x: 733, y: 417 }, 'pump.volute');
-    expect(screen.getByTestId('scene-live').textContent).toContain('Added pump2 (pump.volute) at 730, 420');
+    dragEvent('drop', canvas, svg, { x: 733, y: 417 }, 'home.router');
+    expect(screen.getByTestId('scene-live').textContent).toContain('Added router1 (home.router) at 730, 420');
     const s = await applied();
     expect(elements(s)).toHaveLength(4);
-    expect(elements(s)[3]).toMatchObject({ id: 'pump2', symbol: 'pump.volute', x: 730, y: 420 });
-    expect(document.body.querySelector('[data-selected="pump2"]')).not.toBeNull();
+    expect(elements(s)[3]).toMatchObject({ id: 'router1', symbol: 'home.router', x: 730, y: 420 });
+    expect(document.body.querySelector('[data-selected="router1"]')).not.toBeNull();
   });
 
   it('ignores a drop of something that is not a library symbol', () => {
@@ -492,7 +492,7 @@ describe('dropping a symbol from the palette', () => {
   it('does not snap a drop when the grid is off', async () => {
     const { svg, canvas, applied } = mount();
     fireEvent.click(screen.getByTestId('toggle-grid'));
-    dragEvent('drop', canvas, svg, { x: 733.3, y: 417.7 }, 'valve.ball');
+    dragEvent('drop', canvas, svg, { x: 733.3, y: 417.7 }, 'home.plug.smart');
     const v = elements(await applied())[3] as { x: number; y: number };
     expect(v.x).toBeCloseTo(733.3, 1);
     expect(v.y).toBeCloseTo(417.7, 1);

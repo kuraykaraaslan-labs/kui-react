@@ -1,6 +1,7 @@
 // Shared drawing helpers for the process symbols (pure, no React): the paint a symbol is drawn with, the metal / ink
-// colours, the pipe and wire builders every connected symbol uses, and the fan / blade rotation. The symbol files
-// (`scada-water.ts`, `scada-energy.ts`) build node trees from these; `scada-logic.ts` picks one and turns it.
+// colours, the pipe and wire builders the scene's connections use, and the fan / blade rotation. The home symbols
+// (`scada-symbols-home.ts`) and the scene's hoses, cables and strip (`scene-connections.ts`) build node trees from
+// these; `scada-logic.ts` picks a symbol and turns it.
 //
 // Every symbol lives in a box 100 units high whose connections sit on the centre lines (y = 50 for left / right,
 // x = 50 for top / bottom), so symbols placed on neighbouring grid cells of the same height join without a gap.
