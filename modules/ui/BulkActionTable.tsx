@@ -119,7 +119,7 @@ export function BulkActionTable<
   const headerCheckbox = (
     <input
       type="checkbox"
-      className="h-4 w-4 rounded border-border-strong accent-[var(--primary)]"
+      className="h-4 w-4 accent-[var(--primary)]"
       checked={allVisibleSelected}
       // `indeterminate` is a DOM property, not an attribute — setting it via a
       // ref callback is the only way it renders, and without it a partial
@@ -146,7 +146,7 @@ export function BulkActionTable<
       return (
         <input
           type="checkbox"
-          className="h-4 w-4 rounded border-border-strong accent-[var(--primary)] disabled:opacity-40"
+          className="h-4 w-4 accent-[var(--primary)] disabled:opacity-40"
           checked={selectedSet.has(id)}
           disabled={reason !== undefined}
           title={reason}

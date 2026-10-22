@@ -537,7 +537,7 @@ function LegacyAdvancedView<T extends Record<string, unknown>>(
                       if (el) el.indeterminate = someSelected;
                     }}
                     onChange={toggleAll}
-                    className="h-4 w-4 rounded border-border text-primary focus-visible:ring-2 focus-visible:ring-border-focus"
+                    className="h-4 w-4 focus-visible:ring-2 focus-visible:ring-border-focus"
                   />
                 </th>
               )}
@@ -641,7 +641,7 @@ function LegacyAdvancedRow<T extends Record<string, unknown>>({
               aria-label={`Select row ${rowIndex + 1}`}
               checked={isSelected}
               onChange={() => onToggleRow(rowIndex)}
-              className="h-4 w-4 rounded border-border text-primary focus-visible:ring-2 focus-visible:ring-border-focus"
+              className="h-4 w-4 focus-visible:ring-2 focus-visible:ring-border-focus"
             />
           </td>
         )}
