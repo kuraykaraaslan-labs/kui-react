@@ -6,6 +6,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- Documentation building blocks for `@kuraykaraaslan/docs`: `Callout` (note / tip / info / warning / danger
+  admonition, a labelled `<aside>` with rich children — not a live region, unlike `AlertBanner`),
+  `TableOfContents` ("On this page" heading nav filtered by depth, scroll-spy through the new
+  `libs/hooks/useScrollSpy` or a controlled `activeId`) and `DocPager` (previous / next page cards with a
+  `renderLink` slot for a router Link). Showcase entries under Organisms. kui-ejs and KUInative have no
+  docs layout components, so there is no parity change.
 - WidgetKit layout thumbnails (next-boilerplate phase 07-dashboard 21, the open "layout thumbnails" item):
   `renderWidgetPreview(id)` and `WIDGET_PREVIEW_IDS` in `previews.tsx` draw every `preview` id the builtin
   and core templates name (stat, sparkline, attributes, gauge, progress, state, feed, button, switch,

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-21T19:07:28.564Z",
+  "generatedAt": "2026-10-22T07:46:40.802Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2473,6 +2473,106 @@
       "status": "stable",
       "since": "2026-05",
       "designTokens": []
+    },
+    {
+      "id": "callout",
+      "name": "Callout",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/Callout.tsx",
+      "abbr": "Ad",
+      "description": "Docs-style admonition (note, tip, info, warning, danger) for authored content. A labelled <aside>, never a live region — use AlertBanner for system feedback.",
+      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { FontAwesomeIcon } from '@fortawesome/react-fontawesome';\nimport {\n  faCircleInfo,\n  faLightbulb,\n  faNoteSticky,\n  faTriangleExclamation,\n  faCircleExclamation,\n} from '@fortawesome/free-solid-svg-icons';\n\n// Authored, static emphasis inside long-form content (docs, lessons, articles) —\n// a Docusaurus-style admonition. Deliberately NOT AlertBanner: that one is a\n// role=\"alert\" live region for system feedback and takes a plain-string message;\n// a callout is part of the page's prose, is never announced, and holds rich\n// children (paragraphs, lists, code).\n\nexport type CalloutVariant = 'note' | 'tip' | 'info' | 'warning' | 'danger';\n\nexport const CALLOUT_VARIANTS: CalloutVariant[] = ['note', 'tip', 'info', 'warning', 'danger'];\n\nconst variantMap: Record<CalloutVariant, { container: string; icon: typeof faCircleInfo; label: string }> = {\n  note:    { container: 'bg-surface-sunken border-border-strong text-text-primary', icon: faNoteSticky,          label: 'Note' },\n  tip:     { container: 'bg-success-subtle border-success text-success-fg',        icon: faLightbulb,           label: 'Tip' },\n  info:    { container: 'bg-info-subtle border-info text-info-fg',                 icon: faCircleInfo,          label: 'Info' },\n  warning: { container: 'bg-warning-subtle border-warning text-warning-fg',        icon: faTriangleExclamation, label: 'Warning' },\n  danger:  { container: 'bg-error-subtle border-error text-error-fg',              icon: faCircleExclamation,   label: 'Danger' },\n};\n\ntype CalloutProps = {\n  variant?: CalloutVariant;\n  /** Heading text. Defaults to the variant's label (\"Note\", \"Tip\", ...); pass `null` for no heading. */\n  title?: React.ReactNode | null;\n  /** Replaces the variant's default icon; pass `null` for no icon. */\n  icon?: React.ReactNode | null;\n  children?: React.ReactNode;\n  className?: string;\n} & Omit<React.HTMLAttributes<HTMLElement>, 'title'>;\n\nexport function Callout({ variant = 'note', title, icon, children, className, ...rest }: CalloutProps) {\n  const v = variantMap[variant];\n  const heading = title === undefined ? v.label : title;\n  const glyph = icon === undefined ? <FontAwesomeIcon icon={v.icon} className=\"w-3.5 h-3.5\" /> : icon;\n\n  return (\n    <aside\n      data-callout={variant}\n      aria-label={typeof heading === 'string' ? heading : v.label}\n      className={cn('my-4 rounded-lg border border-l-4 px-4 py-3 text-sm', v.container, className)}\n      {...rest}\n    >\n      {(heading !== null || glyph !== null) && (\n        <p className=\"mb-1 flex items-center gap-2 font-semibold\">\n          {glyph !== null && <span aria-hidden=\"true\" className=\"shrink-0\">{glyph}</span>}\n          {heading}\n        </p>\n      )}\n      <div className=\"leading-relaxed [&>:first-child]:mt-0 [&>:last-child]:mb-0\">{children}</div>\n    </aside>\n  );\n}\n",
+      "variants": [
+        {
+          "title": "Variants",
+          "code": "<Callout variant=\"note\">…</Callout>\n<Callout variant=\"tip\">…</Callout>\n<Callout variant=\"info\">…</Callout>\n<Callout variant=\"warning\">…</Callout>\n<Callout variant=\"danger\">…</Callout>"
+        },
+        {
+          "title": "Custom title, no icon",
+          "code": "<Callout variant=\"tip\" title=\"Faster builds\" icon={null}>\n  <p>Content is parsed once at build time.</p>\n</Callout>"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": [
+        "--border",
+        "--border-strong",
+        "--error",
+        "--error-subtle",
+        "--info",
+        "--info-subtle",
+        "--primary",
+        "--success",
+        "--success-fg",
+        "--success-subtle",
+        "--surface-sunken",
+        "--text-primary",
+        "--warning",
+        "--warning-subtle"
+      ]
+    },
+    {
+      "id": "table-of-contents",
+      "name": "TableOfContents",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/TableOfContents.tsx",
+      "abbr": "Toc",
+      "description": "\"On this page\" heading navigation with built-in scroll-spy (IntersectionObserver) or a controlled activeId. Filters by heading depth.",
+      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useScrollSpy } from '@/libs/hooks/useScrollSpy';\n\n// \"On this page\" navigation for long-form content. Items are the page's own\n// headings (id + text + depth); the active one is tracked with an\n// IntersectionObserver unless the caller controls `activeId`.\n\nexport type TocItem = { id: string; text: string; depth: number };\n\ntype TableOfContentsProps = {\n  items: TocItem[];\n  title?: React.ReactNode;\n  /** Shallowest heading depth to show. Default 2 (h2). */\n  minDepth?: number;\n  /** Deepest heading depth to show. Default 3 (h3). */\n  maxDepth?: number;\n  /** Controlled active heading id. When omitted the component scroll-spies the headings itself. */\n  activeId?: string;\n  /** Distance in px from the viewport top at which a heading counts as current (sticky header height). Default 80. */\n  offset?: number;\n  /** Accessible name of the nav landmark. Default \"Table of contents\". */\n  ariaLabel?: string;\n  className?: string;\n} & Omit<React.HTMLAttributes<HTMLElement>, 'title'>;\n\nexport function TableOfContents({\n  items,\n  title = 'On this page',\n  minDepth = 2,\n  maxDepth = 3,\n  activeId,\n  offset = 80,\n  ariaLabel = 'Table of contents',\n  className,\n  ...rest\n}: TableOfContentsProps) {\n  const visible = items.filter((i) => i.depth >= minDepth && i.depth <= maxDepth);\n  const spyActive = useScrollSpy(activeId === undefined ? visible.map((i) => i.id) : [], offset);\n  const current = activeId ?? spyActive;\n\n  if (visible.length === 0) return null;\n\n  return (\n    <nav aria-label={ariaLabel} className={cn('text-sm', className)} {...rest}>\n      {title && <p className=\"mb-2 text-xs font-semibold uppercase tracking-wide text-text-secondary\">{title}</p>}\n      <ul className=\"space-y-1 border-l border-border\">\n        {visible.map((item) => {\n          const isActive = item.id === current;\n          return (\n            <li key={item.id}>\n              <a\n                href={`#${item.id}`}\n                aria-current={isActive ? 'location' : undefined}\n                style={{ paddingLeft: `${0.75 + (item.depth - minDepth) * 0.75}rem` }}\n                className={cn(\n                  '-ml-px block border-l py-0.5 pr-2 transition-colors',\n                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded-r',\n                  isActive\n                    ? 'border-primary font-medium text-primary'\n                    : 'border-transparent text-text-secondary hover:text-text-primary hover:border-border-strong'\n                )}\n              >\n                {item.text}\n              </a>\n            </li>\n          );\n        })}\n      </ul>\n    </nav>\n  );\n}\n",
+      "variants": [
+        {
+          "title": "Controlled active heading",
+          "code": "<TableOfContents items={headings} activeId=\"from-a-git-commit\" />"
+        },
+        {
+          "title": "Top level only",
+          "code": "<TableOfContents items={headings} maxDepth={2} title=\"Contents\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": [
+        "--border",
+        "--border-focus",
+        "--border-strong",
+        "--primary",
+        "--secondary",
+        "--text-primary",
+        "--text-secondary"
+      ]
+    },
+    {
+      "id": "doc-pager",
+      "name": "DocPager",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/DocPager.tsx",
+      "abbr": "Pv",
+      "description": "Previous / next page cards for the foot of a document. Each side names its neighbour; renderLink plugs in a router Link.",
+      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { FontAwesomeIcon } from '@fortawesome/react-fontawesome';\nimport { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';\n\n// Previous / next page cards at the foot of a document. Unlike Pagination\n// (numbered pages of one list), each side names the neighbouring page.\n\nexport type DocPagerLink = { title: string; href: string };\n\ntype DocPagerProps = {\n  prev?: DocPagerLink | null;\n  next?: DocPagerLink | null;\n  labels?: { previous?: string; next?: string };\n  /** Render a link yourself (a router `Link` for client-side navigation); defaults to a plain anchor. */\n  renderLink?: (link: DocPagerLink, className: string, children: React.ReactNode) => React.ReactNode;\n  /** Accessible name of the nav landmark. Default \"Docs pages\". */\n  ariaLabel?: string;\n  className?: string;\n} & React.HTMLAttributes<HTMLElement>;\n\nconst cardClass = cn(\n  'group flex flex-col gap-0.5 rounded-lg border border-border bg-surface-raised px-4 py-3 transition-colors',\n  'hover:border-primary',\n  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus'\n);\n\nexport function DocPager({\n  prev,\n  next,\n  labels,\n  renderLink,\n  ariaLabel = 'Docs pages',\n  className,\n  ...rest\n}: DocPagerProps) {\n  if (!prev && !next) return null;\n\n  const link = (target: DocPagerLink, align: 'start' | 'end', label: string) => {\n    const cls = cn(cardClass, align === 'end' && 'items-end text-right');\n    const body = (\n      <>\n        <span className=\"flex items-center gap-1.5 text-xs text-text-secondary\">\n          {align === 'start' && <FontAwesomeIcon icon={faChevronLeft} className=\"w-2.5 h-2.5\" aria-hidden=\"true\" />}\n          {label}\n          {align === 'end' && <FontAwesomeIcon icon={faChevronRight} className=\"w-2.5 h-2.5\" aria-hidden=\"true\" />}\n        </span>\n        <span className=\"text-sm font-medium text-text-primary group-hover:text-primary\">{target.title}</span>\n      </>\n    );\n    return renderLink ? renderLink(target, cls, body) : <a href={target.href} rel={align === 'start' ? 'prev' : 'next'} className={cls}>{body}</a>;\n  };\n\n  return (\n    <nav aria-label={ariaLabel} className={cn('grid gap-3 sm:grid-cols-2', className)} {...rest}>\n      {prev ? link(prev, 'start', labels?.previous ?? 'Previous') : <span aria-hidden=\"true\" />}\n      {next ? link(next, 'end', labels?.next ?? 'Next') : null}\n    </nav>\n  );\n}\n",
+      "variants": [
+        {
+          "title": "Both neighbours",
+          "code": "<DocPager prev={{ title: 'Installation', href: '/docs/install' }} next={{ title: 'Configuration', href: '/docs/config' }} />"
+        },
+        {
+          "title": "First page (next only)",
+          "code": "<DocPager next={{ title: 'Getting started', href: '/docs/intro' }} labels={{ next: 'Start here' }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": [
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--secondary",
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary"
+      ]
     },
     {
       "id": "modal",

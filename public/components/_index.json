@@ -347,6 +347,24 @@
     "category": "Organism",
     "file": "view-toggle.md"
   },
+  "callout": {
+    "name": "Callout",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "callout.md"
+  },
+  "table-of-contents": {
+    "name": "TableOfContents",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "table-of-contents.md"
+  },
+  "doc-pager": {
+    "name": "DocPager",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "doc-pager.md"
+  },
   "modal": {
     "name": "Modal",
     "layer": "ui",

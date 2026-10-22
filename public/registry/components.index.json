@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-21T19:07:28.564Z",
+  "generatedAt": "2026-10-22T07:46:40.802Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1448,6 +1448,76 @@
       "status": "stable",
       "since": "2026-05",
       "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "callout",
+      "name": "Callout",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/Callout.tsx",
+      "abbr": "Ad",
+      "description": "Docs-style admonition (note, tip, info, warning, danger) for authored content. A labelled <aside>, never a live region — use AlertBanner for system feedback.",
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": [
+        "--border",
+        "--border-strong",
+        "--error",
+        "--error-subtle",
+        "--info",
+        "--info-subtle",
+        "--primary",
+        "--success",
+        "--success-fg",
+        "--success-subtle",
+        "--surface-sunken",
+        "--text-primary",
+        "--warning",
+        "--warning-subtle"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "table-of-contents",
+      "name": "TableOfContents",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/TableOfContents.tsx",
+      "abbr": "Toc",
+      "description": "\"On this page\" heading navigation with built-in scroll-spy (IntersectionObserver) or a controlled activeId. Filters by heading depth.",
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": [
+        "--border",
+        "--border-focus",
+        "--border-strong",
+        "--primary",
+        "--secondary",
+        "--text-primary",
+        "--text-secondary"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "doc-pager",
+      "name": "DocPager",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/DocPager.tsx",
+      "abbr": "Pv",
+      "description": "Previous / next page cards for the foot of a document. Each side names its neighbour; renderLink plugs in a router Link.",
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": [
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--secondary",
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary"
+      ],
       "variantCount": 2
     },
     {

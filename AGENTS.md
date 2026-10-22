@@ -123,6 +123,9 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Stepper | `Stepper.tsx` | `steps`, `currentStep` |
 | TabGroup | `TabGroup.tsx` | `tabs` (`order`, `lazy`, `isolate` per tab), `defaultTab`, `lazy`, `isolate` (error boundary + Suspense per panel), `renderError`, `onTabError` |
 | Breadcrumb | `Breadcrumb.tsx` | `items` (label + href) |
+| Callout | `Callout.tsx` | `variant` (note\|tip\|info\|warning\|danger), `title` (null hides), `icon` (null hides) — docs admonition, `<aside>` not `role="alert"` |
+| TableOfContents | `TableOfContents.tsx` | `items` (`{id,text,depth}`), `minDepth`, `maxDepth`, `activeId` (else scroll-spy via `libs/hooks/useScrollSpy`), `offset` |
+| DocPager | `DocPager.tsx` | `prev`, `next` (`{title,href}`), `labels`, `renderLink` |
 | PageHeader | `PageHeader.tsx` | `title`, `subtitle`, `actions` |
 | EmptyState | `EmptyState.tsx` | `icon`, `title`, `description`, `action` |
 | ContributionBoundary | `ContributionBoundary.tsx` | `fallback` (node or `({ error, reset })`), `onError(error, info)`, `resetKeys` — isolates one contributed slot item / tab / widget / block |
