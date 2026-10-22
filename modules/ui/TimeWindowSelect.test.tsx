@@ -21,6 +21,13 @@ describe('TimeWindowSelect', () => {
     expect(screen.getByRole('tab', { name: 'Realtime' })).toHaveAttribute('aria-selected', 'true');
   });
 
+  it('the trigger can shrink to a narrow container: its Popover wrapper is capped at the container width', () => {
+    setup({ mode: 'relative', last: '24h' });
+    const trigger = screen.getByRole('button', { name: /Change time window/ });
+    expect(trigger).toHaveClass('max-w-full');
+    expect(trigger.parentElement?.parentElement).toHaveClass('relative', 'inline-block', 'max-w-full');
+  });
+
   it('edits are a draft until Update; Cancel drops them', async () => {
     const { onChange, user, open } = setup({ mode: 'relative', last: '24h' });
     await open();
