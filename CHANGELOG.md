@@ -4,6 +4,18 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+### Removed
+
+- WidgetKit: the process symbol library is reduced to four home symbols, drawn as before: `home.tv` (television),
+  `home.router` (Wi-Fi router), `home.camera.security` (security camera) and `home.plug.smart` (smart plug), in
+  `views/scada-symbols-home.ts`. `scada.symbol` defaults to `home.router`; `scada.scene`, its connections, the states
+  layer and the diagram editor are unchanged and draw these four. The palette has one family (`home`) and five
+  sectors. `SYMBOL_RENAMES` and `canonicalSymbol` are gone: a saved symbol that is not in the library falls back to the
+  default in a symbol widget and is listed as a problem in a diagram. The scene's hose, cable and strip connections
+  live in `views/scene-connections.ts`. The SCADA and sector sample boards are gone; the widget gallery and the IoT
+  theme's diagram editor use one small diagram, `sample/scada-home.ts` ("Home network"), and the gallery's form edits
+  its router settings. kui-ejs and KUInative vendor these files and follow on their next re-vendor.
+
 ### Added
 
 - Documentation building blocks for `@kuraykaraaslan/docs`: `Callout` (note / tip / info / warning / danger
