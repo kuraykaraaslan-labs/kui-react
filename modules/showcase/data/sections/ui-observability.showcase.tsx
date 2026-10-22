@@ -172,8 +172,8 @@ const LOCALES: LocaleOption[] = [
   { code: 'de', name: 'Deutsch', englishName: 'German', href: '#de' },
   { code: 'ar', name: 'العربية', englishName: 'Arabic', href: '#ar' },
 ];
-function LocaleDemo({ variant, buttons }: { variant?: 'menu' | 'inline'; buttons?: boolean }) {
-  const [current, setCurrent] = useState('en');
+function LocaleDemo({ variant, buttons, initial = 'en' }: { variant?: 'menu' | 'inline'; buttons?: boolean; initial?: string }) {
+  const [current, setCurrent] = useState(initial);
   const options = buttons ? LOCALES.map(({ href: _h, ...o }) => { void _h; return o; }) : LOCALES;
   return <LocaleSwitcher locales={options} current={current} variant={variant} onChange={(code, _o, e) => { e.preventDefault(); setCurrent(code); }} />;
 }
@@ -367,7 +367,7 @@ const [text, setText] = useState(humanText);
       variants: [
         { title: 'Menu of links', layout: 'stack', previewClassName: 'min-h-64', preview: <LocaleDemo />, code: `<LocaleSwitcher locales={locales} current="en" />` },
         { title: 'Inline buttons', layout: 'stack', preview: <LocaleDemo variant="inline" buttons />, code: `<LocaleSwitcher variant="inline" locales={localesWithoutHref} current="en" onChange={(code) => setLocale(code)} />` },
-        { title: 'Right to left', layout: 'stack', previewClassName: 'min-h-64', preview: <div dir="rtl"><LocaleDemo /></div>, code: `<div dir="rtl"><LocaleSwitcher locales={locales} current="ar" /></div>` },
+        { title: 'Right to left', layout: 'stack', previewClassName: 'min-h-64', preview: <div dir="rtl"><LocaleDemo initial="ar" /></div>, code: `<div dir="rtl"><LocaleSwitcher locales={locales} current="ar" /></div>` },
       ],
     }),
     entry({
