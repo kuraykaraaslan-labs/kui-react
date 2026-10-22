@@ -8,7 +8,7 @@
 
 import type { SlotData } from '../kind';
 import { arrow, flowColor, INK, MUTED, pipes, wire, type Paint } from './scada-draw';
-import { cablePath, hosePath, strip } from './scada-line';
+import { cablePath, hosePath, strip } from './scene-connections';
 import {
   canonicalSymbol, drawScada, isScadaSymbol, SCADA_SYMBOL_DEFS, scadaPaint, type ScadaSettings, type ScadaSymbol, type SymbolDef,
 } from './scada-logic';
