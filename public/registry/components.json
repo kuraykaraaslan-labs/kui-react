@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-22T12:46:40.402Z",
+  "generatedAt": "2026-10-22T12:54:54.078Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2629,7 +2629,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Overlays/Drawer/index.tsx",
       "abbr": "Dr",
-      "description": "Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). Accepts closeOnRouteChange (M6 stub).",
+      "description": "Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). closeOnRouteChange closes it when the Next.js pathname changes while open, as the AppShell mobile sidebar does.",
       "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useEffect, useRef } from 'react';\n\nexport function Drawer({ open, onClose, title, side = 'right', children, footer, className }) {\n  // focus trap + Escape key handler\n  return (\n    <div className={cn('fixed inset-0 z-50 flex', !open && 'pointer-events-none')} aria-modal=\"true\" role=\"dialog\" aria-label={title}>\n      <div className={cn('absolute inset-0 bg-black/50 transition-opacity duration-200', open ? 'opacity-100' : 'opacity-0')} onClick={onClose} aria-hidden=\"true\" />\n      <div className={cn('relative flex flex-col w-80 max-w-full h-full bg-surface-raised shadow-xl transition-transform duration-200 focus-visible:outline-none', side === 'right' ? 'ml-auto border-l border-border' : 'mr-auto border-r border-border', open ? 'translate-x-0' : side === 'right' ? 'translate-x-full' : '-translate-x-full', className)}>\n        <div className=\"flex items-center justify-between gap-3 px-4 py-4 border-b border-border shrink-0\">\n          <h2 className=\"text-base font-semibold text-text-primary\">{title}</h2>\n          <button type=\"button\" onClick={onClose} aria-label=\"Close drawer\" className=\"text-text-disabled hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded\">✕</button>\n        </div>\n        <div className=\"flex-1 overflow-y-auto px-4 py-4\">{children}</div>\n        {footer && <div className=\"px-4 py-4 border-t border-border shrink-0 flex justify-end gap-2\">{footer}</div>}\n      </div>\n    </div>\n  );\n}",
       "variants": [
         {
@@ -2641,8 +2641,8 @@
           "code": "<Drawer open={open} onClose={() => setOpen(false)} title=\"Navigation\" side=\"left\">...</Drawer>"
         },
         {
-          "title": "Route-aware close (M6 stub)",
-          "code": "// closeOnRouteChange is accepted in M1 and reserved for M6 router-events integration.\n<Drawer\n  open={open}\n  onClose={() => setOpen(false)}\n  title=\"Route-aware drawer\"\n  side=\"right\"\n  closeOnRouteChange\n>\n  ...\n</Drawer>"
+          "title": "Route-aware close",
+          "code": "// closeOnRouteChange: closes when the Next.js pathname changes while open.\n<Drawer\n  open={open}\n  onClose={() => setOpen(false)}\n  title=\"Route-aware drawer\"\n  side=\"right\"\n  closeOnRouteChange\n>\n  ...\n</Drawer>"
         }
       ],
       "status": "stable",

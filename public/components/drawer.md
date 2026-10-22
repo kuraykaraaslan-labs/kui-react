@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-02
 
-Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). Accepts closeOnRouteChange (M6 stub).
+Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). closeOnRouteChange closes it when the Next.js pathname changes while open, as the AppShell mobile sidebar does.
 
 ## Used by
 
@@ -41,10 +41,10 @@ const [open, setOpen] = useState(false);
 <Drawer open={open} onClose={() => setOpen(false)} title="Navigation" side="left">...</Drawer>
 ```
 
-### Route-aware close (M6 stub)
+### Route-aware close
 
 ```tsx
-// closeOnRouteChange is accepted in M1 and reserved for M6 router-events integration.
+// closeOnRouteChange: closes when the Next.js pathname changes while open.
 <Drawer
   open={open}
   onClose={() => setOpen(false)}

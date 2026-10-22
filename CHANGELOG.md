@@ -18,6 +18,11 @@ All notable changes to this project will be documented here. Format follows [Kee
   whole strip at a breakpoint. A `false` or `''` slot no longer draws an empty strip. Found while building
   @kuraykaraaslan/docs, whose phone-only navbar links in the sidebar header left a bordered strip on desktop.
   Same nesting and slot classes in kui-ejs's AppSidebar.ejs; KUInative has no AppSidebar.
+- Overlays `closeOnRouteChange` works: `useRouteClose` (a no-op stub until now, "TODO M6") calls `onClose` when the
+  Next.js pathname changes while a Drawer or Modal is open. Query-string changes do not count, so no static page needs a
+  Suspense boundary for it. AppShell's mobile sidebar drawer opts in, so a client-side link inside it (AppSidebar
+  `renderLink`) closes the drawer instead of leaving it over the new page. Server-rendered kui-ejs has no counterpart:
+  its links reload the page.
 
 ### Removed
 

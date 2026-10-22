@@ -71,9 +71,9 @@ function DrawerRouteAwareDemo() {
       >
         <div className="space-y-3 text-sm text-text-secondary">
           <p>
-            The <code className="font-mono text-xs">closeOnRouteChange</code> prop is accepted in M1
-            and reserved for the M6 router-events integration. For now it is a no-op stub so the
-            public API stays stable across milestones.
+            With <code className="font-mono text-xs">closeOnRouteChange</code> the drawer closes when
+            the Next.js pathname changes while it is open, e.g. after a link inside it navigates
+            client-side. The AppShell mobile sidebar drawer opts in.
           </p>
           <p>Body scroll is locked while this drawer is open (try scrolling the page behind it).</p>
         </div>
@@ -280,7 +280,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       title: 'Drawer',
       category: 'Organism',
       abbr: 'Dr',
-      description: 'Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). Accepts closeOnRouteChange (M6 stub).',
+      description: 'Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). closeOnRouteChange closes it when the Next.js pathname changes while open, as the AppShell mobile sidebar does.',
       filePath: 'modules/ui/Overlays/Drawer/index.tsx',
       sourceCode: `'use client';
 import { cn } from '@/libs/utils/cn';
@@ -314,9 +314,9 @@ export function Drawer({ open, onClose, title, side = 'right', children, footer,
           code: `<Drawer open={open} onClose={() => setOpen(false)} title="Navigation" side="left">...</Drawer>`,
         },
         {
-          title: 'Route-aware close (M6 stub)',
+          title: 'Route-aware close',
           preview: <DrawerRouteAwareDemo />,
-          code: `// closeOnRouteChange is accepted in M1 and reserved for M6 router-events integration.\n<Drawer\n  open={open}\n  onClose={() => setOpen(false)}\n  title="Route-aware drawer"\n  side="right"\n  closeOnRouteChange\n>\n  ...\n</Drawer>`,
+          code: `// closeOnRouteChange: closes when the Next.js pathname changes while open.\n<Drawer\n  open={open}\n  onClose={() => setOpen(false)}\n  title="Route-aware drawer"\n  side="right"\n  closeOnRouteChange\n>\n  ...\n</Drawer>`,
         },
       ],
     },

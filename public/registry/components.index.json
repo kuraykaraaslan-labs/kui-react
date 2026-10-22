@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-22T12:46:40.402Z",
+  "generatedAt": "2026-10-22T12:54:54.078Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1553,7 +1553,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Overlays/Drawer/index.tsx",
       "abbr": "Dr",
-      "description": "Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). Accepts closeOnRouteChange (M6 stub).",
+      "description": "Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). closeOnRouteChange closes it when the Next.js pathname changes while open, as the AppShell mobile sidebar does.",
       "status": "stable",
       "since": "2025-02",
       "designTokens": [
