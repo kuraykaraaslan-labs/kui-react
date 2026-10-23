@@ -105,6 +105,12 @@ export interface WidgetViewProps {
   /** A clicked element target (markdown `[label](action:<id>)`): the host runs that action. */
   onElementClick?: (id: string) => void;
   /**
+   * `chart.pie`: a slice was clicked (or Enter / Space pressed on a focused slice; with this prop every slice is a
+   * button). `row` is the table row the slice came from; the folded "Other" slice reports the aggregate
+   * `{ <label column>: <other label>, <value column>: <sum> }`. Absent = the slices are plain shapes.
+   */
+  onSliceClick?: (row: Record<string, unknown>) => void;
+  /**
    * A diagram's symbols and their actions (`scada.scene`): which gestures a symbol answers (the host knows what the
    * placement stored for it) and a way to run them. A symbol with no gesture is not interactive at all.
    */

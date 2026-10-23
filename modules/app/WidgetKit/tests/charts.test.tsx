@@ -18,7 +18,7 @@ import { CHART_SCATTER_VIEW } from '../views/ScatterChartView';
 import { CHART_HISTOGRAM_VIEW } from '../views/HistogramChartView';
 import { HEATMAP_VIEW } from '../views/HeatmapView';
 import { WidgetKitProvider } from '../WidgetKitContext';
-import { applySeriesRules, axisFormat, formatAxisLabels, histogramBins, mergeSeriesSlots, rowsToPieSeries, ruleFor, valueStats } from '../views/chart-data';
+import { applySeriesRules, axisFormat, formatAxisLabels, histogramBins, mergeSeriesSlots, rowsToPieSeries, rowsToPieSlices, ruleFor, valueStats } from '../views/chart-data';
 
 beforeAll(() => {
   vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
@@ -401,6 +401,47 @@ describe('pie settings', () => {
     const { container } = renderView(CHART_PIE_VIEW, CHART_PIE, { slices: table(rows) }, { tooltipValue: 'percent' });
     fireEvent.mouseEnter(container.querySelector('svg path')!);
     expect(screen.getByRole('tooltip').textContent).toBe('A50%');
+  });
+});
+
+describe('pie slice click (onSliceClick)', () => {
+  const rows = [{ label: 'A', value: 5, id: 'a' }, { label: 'B', value: 30, id: 'b' }, { label: 'C', value: 10, id: 'c' }, { label: 'D', value: 1, id: 'd' }];
+  const View = CHART_PIE_VIEW.View;
+  const draw = (onSliceClick?: (row: Record<string, unknown>) => void, stored: Record<string, unknown> = {}) =>
+    render(<View settings={effective(CHART_PIE, stored)} format={{}} data={{ slices: table(rows) }} locale="en" onSliceClick={onSliceClick} />);
+
+  it('keeps the row behind every slice, and an aggregate behind the folded one', () => {
+    const r = rowsToPieSlices(rows, { label: 'label', value: 'value', max: 3, sort: 'desc' })!;
+    expect(r.series[0].data.map((p) => p.x)).toEqual(['B', 'C', 'Other']);
+    expect(r.rows).toEqual([rows[1], rows[2], { label: 'Other', value: 6 }]);
+    expect(r.rows[0]).toBe(rows[1]);
+    // The slices themselves are what they were: the model and its golden do not change.
+    expect(rowsToPieSeries(rows, { label: 'label', value: 'value', max: 3, sort: 'desc' })).toEqual(r.series);
+  });
+  it('without the prop the slices are plain shapes in one picture', () => {
+    const { container } = draw();
+    expect(container.querySelector('svg')).toHaveAttribute('role', 'img');
+    expect(container.querySelectorAll('[data-slice]')).toHaveLength(0);
+    expect(container.querySelectorAll('path[role="button"]')).toHaveLength(0);
+  });
+  it('with the prop every slice is a focusable button named by its label and value, reporting its row', () => {
+    const onSliceClick = vi.fn();
+    const { container } = draw(onSliceClick, { maxSlices: 3 });
+    expect(container.querySelector('svg')).toHaveAttribute('role', 'group');
+    const slices = [...container.querySelectorAll('path[role="button"]')];
+    expect(slices).toHaveLength(3);
+    expect(slices[0]).toHaveAttribute('tabindex', '0');
+    expect(slices[0].getAttribute('aria-label')).toBe('B, 30');
+    expect(slices.map((s) => s.getAttribute('data-slice'))).toEqual(['0', '1', '2']);
+    fireEvent.click(slices[0]);
+    expect(onSliceClick).toHaveBeenLastCalledWith(rows[1]);
+    fireEvent.keyDown(slices[1], { key: ' ' });
+    expect(onSliceClick).toHaveBeenLastCalledWith(rows[2]);
+    fireEvent.keyDown(slices[2], { key: 'Enter' });
+    expect(onSliceClick).toHaveBeenLastCalledWith({ label: 'Other', value: 6 });
+    // Other keys do nothing.
+    fireEvent.keyDown(slices[0], { key: 'a' });
+    expect(onSliceClick).toHaveBeenCalledTimes(3);
   });
 });
 

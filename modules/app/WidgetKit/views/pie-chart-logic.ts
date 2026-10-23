@@ -5,18 +5,19 @@ import type { Series } from '@/modules/ui/Chart';
 import type { SlotData } from '../kind';
 import type { ChartViewMessages } from '../messages';
 import type { ValueFormat } from '../settings/style';
-import { rowsToPieSeries, type NumberFormatSpec } from './chart-data';
+import { rowsToPieSeries, rowsToPieSlices, type NumberFormatSpec, type PieOptions } from './chart-data';
 import { animateOf, formatSpec, legendProps, num, str, textStyleOf } from './chart-props-logic';
 
 type S = Record<string, unknown>;
 type Data = Record<string, SlotData | undefined>;
+type Row = Record<string, unknown>;
 
 const col = (v: unknown, fallback: string) => (typeof v === 'string' && v ? v : fallback);
 type PieLabels = 'none' | 'percent' | 'value' | 'name' | 'name-percent';
 const LABELS = new Set(['none', 'percent', 'value', 'name', 'name-percent']);
 
-/** The slices the `slices` table slot describes under the settings, or null when there are none. */
-export const pieSlices = (data: Data, s: S, other?: string): Series[] | null => rowsToPieSeries(data.slices?.rows, {
+/** How the settings cut the `slices` table into slices (`other` is the host's word for the folded slice). */
+const pieOptions = (s: S, other?: string): PieOptions => ({
   label: col(s.labelColumn, 'label'),
   value: col(s.valueColumn, 'value'),
   max: typeof s.maxSlices === 'number' ? s.maxSlices : 8,
@@ -24,6 +25,15 @@ export const pieSlices = (data: Data, s: S, other?: string): Series[] | null => 
   otherLabel: typeof s.otherLabel === 'string' && s.otherLabel ? s.otherLabel : other,
   colors: s.colors,
 });
+
+/** The slices the `slices` table slot describes under the settings, or null when there are none. */
+export const pieSlices = (data: Data, s: S, other?: string): Series[] | null => rowsToPieSeries(data.slices?.rows, pieOptions(s, other));
+
+/**
+ * The table row behind each slice of `pieSlices`, in the same order, for a slice click: the source row, or for the
+ * folded "Other" slice the aggregate `{ <label column>: <other label>, <value column>: <sum> }`.
+ */
+export const pieSliceRows = (data: Data, s: S, other?: string): Row[] | null => rowsToPieSlices(data.slices?.rows, pieOptions(s, other))?.rows ?? null;
 
 /** No data draws the empty shape: one grey slice, without labels, legend, tooltip or a made-up total. */
 export const EMPTY_PIE: Series[] = [{ id: 'empty', name: '', data: [{ x: '', y: 1, color: 'var(--border)' }] }];

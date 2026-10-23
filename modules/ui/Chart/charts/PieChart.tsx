@@ -7,7 +7,8 @@
 // Options: slice labels (percent / value / name / name and percent) inside the slice or outside
 // with a leader line, their text style; the start angle; an even gap between slices; the donut
 // centre (total + caption, or off); legend position, layout (wrapping line or tidy grid) and a
-// value or share after each name; legend toggling of slices; what the tooltip prints.
+// value or share after each name; legend toggling of slices; what the tooltip prints. With
+// `onSliceClick` every slice is a button (click, Enter or Space) that reports the point it came from.
 
 import { useMemo, useState, type CSSProperties } from 'react';
 import { ResponsiveContainer } from '../primitives/ResponsiveContainer';
@@ -52,7 +53,15 @@ export type PieChartProps = Omit<BaseChartProps, 'legendValues'> & {
   sliceGap?: number;
   /** What the tooltip prints for a slice. Default = 'both' (value and share). */
   tooltipValue?: 'both' | 'value' | 'percent';
+  /**
+   * Slices answer a click, Enter and Space: each becomes a focusable button named by its label and value, the chart a
+   * group instead of one picture, and the cursor a pointer. Absent = the slices are plain shapes, drawn exactly as before.
+   */
+  onSliceClick?: (slice: PieSlice) => void;
 };
+
+/** What a slice click reports: the index of the point in `series[0].data`, and what the slice showed. */
+export type PieSlice = { index: number; name: string; value: number; color: string };
 
 /** Convert a polar (cx, cy, r, angle°) to cartesian. */
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
@@ -124,6 +133,7 @@ export function PieChart({
   animate = true,
   ariaLabel,
   className,
+  onSliceClick,
 }: PieChartProps) {
   const [hover, setHover] = useState<number | null>(null);
   const [hidden, setHidden] = useState<Set<string>>(() => new Set(hiddenSlices ?? []));
@@ -131,19 +141,19 @@ export function PieChart({
   const enter = useEntrance('grow', animate);
   const fmt = valueFormat ?? defaultNumber;
   const tipOn = showTooltip && tooltipMode !== 'none';
+  const clickable = !!onSliceClick;
 
-  // Use the first series; flatten its points into wedges.
+  // Use the first series; flatten its points into wedges. `index` is the point's place in the data (a click reports it).
   const all = useMemo(() => {
     const first = series[0];
-    if (!first) return [] as Array<{ id: string; name: string; value: number; color: string }>;
-    return first.data
-      .filter((p) => p.y !== null && p.y !== undefined && p.y >= 0)
-      .map((p, i) => ({
-        id: `${first.id}-${i}`,
-        name: String(p.label ?? p.x),
-        value: p.y as number,
-        color: paletteColor(i, p.color),
-      }));
+    const out: Array<{ id: string; name: string; value: number; color: string; index: number }> = [];
+    if (!first) return out;
+    first.data.forEach((p, index) => {
+      if (p.y === null || p.y === undefined || p.y < 0) return;
+      const i = out.length;
+      out.push({ id: `${first.id}-${i}`, name: String(p.label ?? p.x), value: p.y, color: paletteColor(i, p.color), index });
+    });
+    return out;
   }, [series]);
   const slices = all.filter((s) => !hidden.has(s.name));
   const total = slices.reduce((acc, s) => acc + s.value, 0) || 1;
@@ -207,13 +217,16 @@ export function PieChart({
             : [];
           const labelR = r0 > 0 ? (r0 + radius) / 2 : radius * 0.64;
           const centreSize = Math.round(Math.max(14, Math.min(30, r0 * 0.42)));
+          const report = (w: { index: number; name: string; value: number; color: string }) =>
+            onSliceClick?.({ index: w.index, name: w.name, value: w.value, color: w.color });
 
           return (
             <>
               <svg
                 width={width}
                 height={height}
-                role="img"
+                // One picture, unless the slices are buttons: a picture's children are not reachable.
+                role={clickable ? 'group' : 'img'}
                 aria-label={ariaLabel ?? 'Pie chart'}
                 style={{ display: 'block', overflow: 'visible' }}
               >
@@ -227,6 +240,18 @@ export function PieChart({
                       onMouseEnter={() => tipOn && setHover(i)}
                       onMouseLeave={() => setHover(null)}
                       style={{ transition: animMs ? `opacity ${animMs}ms` : undefined }}
+                      {...(clickable ? {
+                        role: 'button',
+                        tabIndex: 0,
+                        'aria-label': `${w.name}, ${fmt(w.value)}`,
+                        'data-slice': w.index,
+                        className: 'cursor-pointer outline-none focus-visible:stroke-border-focus',
+                        strokeWidth: 2,
+                        onClick: () => report(w),
+                        onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); report(w); } },
+                        onFocus: () => tipOn && setHover(i),
+                        onBlur: () => setHover((h) => (h === i ? null : h)),
+                      } : {})}
                     />
                   ))}
                   {labels !== 'none' && wedges.map((w) => {

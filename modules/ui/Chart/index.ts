@@ -79,7 +79,7 @@ export type {
 export type { LineChartProps } from './charts/LineChart';
 export type { AreaChartProps } from './charts/AreaChart';
 export type { BarChartProps } from './charts/BarChart';
-export type { PieChartProps } from './charts/PieChart';
+export type { PieChartProps, PieSlice } from './charts/PieChart';
 export type { ScatterChartProps } from './charts/ScatterChart';
 export { seriesStats, resolveDomain, niceTicks, niceStep, linearRegression } from './charts/_helpers';
 export { dayMonthText, clockText } from './charts/_time';

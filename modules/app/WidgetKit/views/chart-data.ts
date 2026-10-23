@@ -260,16 +260,18 @@ export interface PieOptions {
 }
 
 /**
- * Table rows → one series whose points are the slices. Negative, zero and non-numeric values are
- * not slices. Past `max`, the smallest fold into one "Other" (always last). `sort` orders the rest.
+ * Table rows → one series whose points are the slices, with the row behind each slice (`rows[i]` is where slice `i`
+ * came from). Negative, zero and non-numeric values are not slices. Past `max`, the smallest fold into one "Other"
+ * (always last), whose row is the aggregate `{ <label column>: <other label>, <value column>: <sum> }`. `sort` orders
+ * the rest.
  */
-export function rowsToPieSeries(rows: Row[] | undefined, o: PieOptions): Series[] | null {
-  const slices: Array<{ x: string; y: number; at: number }> = [];
+export function rowsToPieSlices(rows: Row[] | undefined, o: PieOptions): { series: Series[]; rows: Row[] } | null {
+  const slices: Array<{ x: string; y: number; at: number; row: Row }> = [];
   for (const row of rows ?? []) {
     const v = asNumber(row[o.value]);
     const l = row[o.label];
     if (v === null || v <= 0 || l === null || l === undefined || l === '') continue;
-    slices.push({ x: String(l), y: v, at: slices.length });
+    slices.push({ x: String(l), y: v, at: slices.length, row });
   }
   if (slices.length === 0) return null;
   const limit = Math.max(2, Math.trunc(o.max ?? 8) || 8);
@@ -290,11 +292,18 @@ export function rowsToPieSeries(rows: Row[] | undefined, o: PieOptions): Series[
     }
   }
   const data = kept.map((s) => ({ x: s.x, y: s.y, ...(pinned.has(s.x) ? { color: pinned.get(s.x) } : {}) }));
+  const sourceRows = kept.map((s) => s.row);
   if (other !== null) {
     const name = o.otherLabel || 'Other';
     data.push({ x: name, y: other, ...(pinned.has(name) ? { color: pinned.get(name) } : {}) });
+    sourceRows.push({ [o.label]: name, [o.value]: other });
   }
-  return [{ id: 'pie', name: 'pie', data }];
+  return { series: [{ id: 'pie', name: 'pie', data }], rows: sourceRows };
+}
+
+/** The slices alone (see `rowsToPieSlices`). */
+export function rowsToPieSeries(rows: Row[] | undefined, o: PieOptions): Series[] | null {
+  return rowsToPieSlices(rows, o)?.series ?? null;
 }
 
 /**

@@ -202,6 +202,25 @@ describe('Pie / Donut settings props', () => {
     expect(container.querySelectorAll('svg path').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByRole('button', { name: 'B' })).toHaveAttribute('aria-pressed', 'false');
   });
+  it('slices are plain shapes in one picture until onSliceClick makes them buttons', () => {
+    const points = [{ id: 'p', name: 'p', data: [{ x: 'A', y: 3 }, { x: 'B', y: null }, { x: 'C', y: 1 }] }];
+    const plain = render(<PieChart series={points} />);
+    expect(plain.container.querySelector('svg')).toHaveAttribute('role', 'img');
+    expect(plain.container.querySelectorAll('path[role="button"]')).toHaveLength(0);
+    plain.unmount();
+    const onSliceClick = vi.fn();
+    const { container } = render(<PieChart series={points} onSliceClick={onSliceClick} valueFormat={(v) => `${v} kg`} />);
+    expect(container.querySelector('svg')).toHaveAttribute('role', 'group');
+    const buttons = container.querySelectorAll('path[role="button"]');
+    expect(buttons).toHaveLength(2);
+    expect(buttons[1].getAttribute('aria-label')).toBe('C, 1 kg');
+    expect(buttons[1]).toHaveAttribute('tabindex', '0');
+    // The index is the point's place in the data: the null point in between is counted.
+    fireEvent.keyDown(buttons[1], { key: 'Enter' });
+    expect(onSliceClick).toHaveBeenCalledWith({ index: 2, name: 'C', value: 1, color: 'var(--secondary)' });
+    fireEvent.click(buttons[0]);
+    expect(onSliceClick).toHaveBeenLastCalledWith({ index: 0, name: 'A', value: 3, color: 'var(--primary)' });
+  });
 });
 
 describe('ScatterChart settings props', () => {
