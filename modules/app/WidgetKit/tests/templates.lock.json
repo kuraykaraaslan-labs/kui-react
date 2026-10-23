@@ -4625,6 +4625,117 @@
       "type": "text"
     }
   },
+  "builtin:control.form@2": {
+    "label": {
+      "type": "text"
+    },
+    "labelFont": {
+      "type": "font"
+    },
+    "labelColor": {
+      "type": "color",
+      "value": "var(--text-secondary)"
+    },
+    "fields": {
+      "type": "repeater",
+      "fields": {
+        "key": {
+          "type": "text"
+        },
+        "label": {
+          "type": "text"
+        },
+        "type": {
+          "type": "select",
+          "value": "number",
+          "options": [
+            "number",
+            "boolean",
+            "text",
+            "enum"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "options": {
+          "type": "text"
+        },
+        "unit": {
+          "type": "text"
+        },
+        "gate": {
+          "type": "text"
+        },
+        "required": {
+          "type": "boolean",
+          "value": false
+        },
+        "readOnly": {
+          "type": "boolean",
+          "value": false
+        },
+        "placeholder": {
+          "type": "text"
+        },
+        "group": {
+          "type": "text"
+        }
+      }
+    },
+    "fromSource": {
+      "type": "boolean",
+      "value": true
+    },
+    "saveLabel": {
+      "type": "text"
+    },
+    "showReset": {
+      "type": "boolean",
+      "value": true
+    },
+    "resetLabel": {
+      "type": "text"
+    },
+    "saveChangedOnly": {
+      "type": "boolean",
+      "value": false
+    },
+    "disableWhen": {
+      "type": "multi-select",
+      "value": [
+        "stale"
+      ],
+      "options": [
+        "stale",
+        "unknown"
+      ]
+    },
+    "pendingText": {
+      "type": "text"
+    },
+    "successText": {
+      "type": "text"
+    },
+    "failureText": {
+      "type": "text"
+    },
+    "confirmQuestion": {
+      "type": "text"
+    },
+    "confirmLabel": {
+      "type": "text"
+    },
+    "cancelLabel": {
+      "type": "text"
+    }
+  },
   "builtin:scada.symbol@1": {
     "symbol": {
       "type": "select",

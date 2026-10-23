@@ -24,9 +24,10 @@ function errorText(f: FormField, code: FormErrorCode, m: WidgetControlMessages):
 }
 
 /**
- * `control.form`: several fields edited together, saved as one command. Save sends every editable field at once;
- * it is enabled only while something changed and every field passes its check. Reset puts the record's values back.
- * A save the command asks to confirm waits for the same confirm step every control uses.
+ * `control.form`: several fields edited together, saved as one command. Save sends every editable field that has a
+ * value at once (only the changed ones with `saveChangedOnly`; an empty or switched-off field is left out, never sent
+ * as null); it is enabled only while something changed and every field passes its check. Reset puts the record's
+ * values back. A save the command asks to confirm waits for the same confirm step every control uses.
  */
 export function ControlFormView(props: WidgetViewProps) {
   const s = props.settings as S;
@@ -65,7 +66,7 @@ export function ControlFormView(props: WidgetViewProps) {
     e.preventDefault();
     setTouched(Object.fromEntries(g.fields.map((f) => [f.key, true])));
     if (blocked || busy || dirty.length === 0 || Object.keys(errors).length > 0) return;
-    const parked = confirm.request(formPayload(g.fields, values));
+    const parked = confirm.request(formPayload(g.fields, values, g.saveChangedOnly ? dirty : undefined));
     if (parked) void run(parked.value);
   };
   const reset = () => { setValues(g.initial); setTyped({}); setTouched({}); setPhase('idle'); confirm.cancel(); };

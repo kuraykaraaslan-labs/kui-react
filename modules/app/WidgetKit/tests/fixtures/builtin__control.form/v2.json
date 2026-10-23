@@ -1,0 +1,20 @@
+{
+  "input": {
+    "labelColor": "var(--text-secondary)",
+    "fromSource": true,
+    "showReset": true,
+    "saveChangedOnly": false,
+    "disableWhen": [
+      "stale"
+    ]
+  },
+  "expected": {
+    "labelColor": "var(--text-secondary)",
+    "fromSource": true,
+    "showReset": true,
+    "saveChangedOnly": false,
+    "disableWhen": [
+      "stale"
+    ]
+  }
+}

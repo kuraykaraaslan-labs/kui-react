@@ -38,6 +38,8 @@ export type FormSettings = FeedbackSettings & {
   saveLabel?: string;
   resetLabel?: string;
   showReset?: boolean;
+  /** A save sends only the fields the viewer changed (template v2); off, every field with a value. */
+  saveChangedOnly?: boolean;
   disableWhen?: string[];
 };
 
@@ -208,19 +210,26 @@ export function formDirty(fields: FormField[], initial: FormValues, values: Form
 }
 
 /**
- * What a save sends: every editable field, so one command can set several things at once. A text is trimmed; a
- * number is a number or `null` when empty; a switched-off gated field is `null` ("not set"). Null-prototype, so a key
- * can never reach a prototype member.
+ * What a save sends: the editable fields that have something to say, so one command can set several things at once.
+ * A text is trimmed, a list choice is its value, a number is a number, and an on / off field is always sent (`false`
+ * is a value). An empty text, an empty number input, an empty choice and a switched-off gated field are LEFT OUT,
+ * never sent as `null`: the command then sees the field as absent (its `{ "$field": "key" }` resolves to nothing, so
+ * an optional parameter stays optional and a schema never refuses an empty optional field). With `only` (the keys the
+ * viewer changed, see `formDirty`), just those fields are sent. Null-prototype, so a key can never reach a prototype
+ * member.
  */
-export function formPayload(fields: FormField[], values: FormValues): Record<string, FormValue> {
+export function formPayload(fields: FormField[], values: FormValues, only?: Iterable<string>): Record<string, FormValue> {
+  const keep = only ? new Set(only) : null;
   const out: Record<string, FormValue> = Object.create(null);
   for (const f of fields) {
-    if (f.readOnly) continue;
+    if (f.readOnly || gatedOff(f, values) || (keep && !keep.has(f.key))) continue;
     const v = values[f.key];
-    out[f.key] = gatedOff(f, values) ? null
-      : f.type === 'number' ? (typeof v === 'number' && Number.isFinite(v) ? v : null)
-        : f.type === 'boolean' ? v === true
-          : String(v ?? '').trim();
+    if (f.type === 'boolean') out[f.key] = v === true;
+    else if (f.type === 'number') { if (typeof v === 'number' && Number.isFinite(v)) out[f.key] = v; }
+    else {
+      const text = String(v ?? '').trim();
+      if (text) out[f.key] = text;
+    }
   }
   return out;
 }
@@ -253,6 +262,8 @@ export function controlFormModel(s: FormSettings, data: Record<string, SlotData 
     saveLabel: save ?? host.messages.save,
     resetLabel: textOr(s.resetLabel) ?? host.messages.reset,
     showReset: s.showReset !== false,
+    /** A save sends only the changed fields (`formPayload` with the dirty keys), not every field with a value. */
+    saveChangedOnly: s.saveChangedOnly === true,
     confirm,
     messages,
     ariaLabel: textOr(s.label) ?? textOr(host.title) ?? host.messages.form,
