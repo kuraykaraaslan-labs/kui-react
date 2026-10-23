@@ -3,57 +3,25 @@ import { lazy, Suspense, useMemo, useSyncExternalStore, type ReactNode } from 'r
 import { ContributionBoundary } from '@/modules/ui/ContributionBoundary';
 import { cn } from '@/libs/utils/cn';
 import { useDarkMode } from '@/modules/ui/MapView/hooks/useDarkMode';
-import { cssColor, rangeFor, type RangeEdges } from '../settings/style';
+import { cssColor } from '../settings/style';
 import type { Sparse } from '../settings/types';
 import type { SlotData, WidgetKindView, WidgetViewProps } from '../kind';
 import { resolveModelUrl } from './content-logic';
-import { cellText, declaredColumns, matchValue, num, rawText, statusColor, type ValueColor } from './DataTableView';
+import { cellText, declaredColumns, matchValue, num, rawText } from './DataTableView';
 import { mapLegend } from './MapView';
 import { IconTile, Meta } from './ui';
 import { useKitMessages } from '../WidgetKitContext';
 import type { CommonMessages } from '../messages';
+import {
+  applyViewerRules, buildThings, MAX_MODELS, MAX_SENSORS, MAX_TOOLTIP_FIELDS, rowColor, toWorld,
+  type Row, type SensorMarker, type ViewerModelSettings,
+} from './viewer-model-logic';
 
-export type ViewerModelSettings = {
-  models?: Array<{ url?: string; label?: string; visible?: boolean }>;
-  idColumn?: string;
-  labelColumn?: string;
-  xColumn?: string;
-  yColumn?: string;
-  zColumn?: string;
-  coordinates?: 'z-up' | 'y-up';
-  valueColumn?: string;
-  unitColumn?: string;
-  markerSize?: number;
-  pulseAlarms?: boolean;
-  colorBy?: 'fixed' | 'column' | 'ranges';
-  markerColor?: string;
-  colorColumn?: string;
-  valueColors?: ValueColor[];
-  ranges?: unknown;
-  rangeEdges?: RangeEdges;
-  legend?: boolean;
-  legendPosition?: 'bottomleft' | 'bottomright' | 'topleft' | 'topright';
-  showSensorLabels?: boolean;
-  labelContent?: 'label' | 'value' | 'both';
-  tooltipTrigger?: 'hover' | 'click' | 'none';
-  tooltipColumns?: string[];
-  background?: string;
-  showNavCube?: boolean;
-  showGrid?: boolean;
-  cameraPreset?: 'iso' | 'top' | 'front';
-  autoFitOnLoad?: boolean;
-  interactive?: boolean;
-  scrollZoom?: boolean;
-};
+// The pure part (settings, markers, things, rules) lives in `viewer-model-logic.ts`; it is re-exported here so the
+// kit's imports of `buildSensors`, `toWorld`, `MAX_MODELS` and the types keep one address.
+export * from './viewer-model-logic';
+
 type S = ViewerModelSettings;
-type Row = Record<string, unknown>;
-
-/** At most this many models: one card is a federated view, not a model library. */
-export const MAX_MODELS = 8;
-/** At most this many sensor markers: they are DOM nodes moved every camera frame. */
-export const MAX_SENSORS = 200;
-/** At most this many fields in a tooltip. */
-export const MAX_TOOLTIP_FIELDS = 6;
 
 export interface ModelSource { url: string; label: string }
 
@@ -76,40 +44,12 @@ export function modelSources(settings: Sparse, resolveUrl?: (url: string) => str
   return out;
 }
 
-/** A point in the viewer's world (three.js, Y up). IFC model coordinates are Z up: (x, y, z) → (x, z, −y). */
-export function toWorld(p: [number, number, number], coordinates: S['coordinates'] = 'z-up'): [number, number, number] {
-  return coordinates === 'y-up' ? p : [p[0], p[2], -p[1]];
-}
-
-export interface SensorMarker {
-  id: string;
-  /** World position (Y up, metres), before the viewer's own origin shift. */
-  position: [number, number, number];
-  label?: string;
-  /** The formatted reading with its unit. */
-  valueText?: string;
-  color: string;
-  /** The colour is the error tone (pulses when `pulseAlarms`). */
-  alarm: boolean;
-  tooltip: { title: string; description?: string; fields: Array<{ label: string; value: string }> };
-}
-
 const tooltipKeys = (s: S): string[] =>
   [...new Set((Array.isArray(s.tooltipColumns) ? s.tooltipColumns : []).filter((k) => typeof k === 'string' && k))].slice(0, MAX_TOOLTIP_FIELDS);
 
-function rowColor(row: Row, s: S): string | undefined {
-  if ((s.colorBy ?? 'column') === 'column') {
-    if (!s.colorColumn) return undefined;
-    const raw = row[s.colorColumn];
-    return cssColor(matchValue(raw, s.valueColors)?.color) ?? statusColor(raw);
-  }
-  if (s.colorBy === 'ranges' && s.valueColumn) return cssColor(rangeFor(row[s.valueColumn], s.ranges, s.rangeEdges ?? 'from')?.color);
-  return undefined;
-}
-
 /**
  * Table rows → sensor markers. Rows without three finite coordinates are skipped (never placed at the
- * origin). Capped at `MAX_SENSORS`.
+ * origin). Capped at `MAX_SENSORS`. Each marker keeps its row (a click reports it).
  */
 export function buildSensors(
   slot: SlotData | undefined, settings: Sparse, locale?: string,
@@ -161,6 +101,7 @@ export function buildSensors(
       color,
       alarm: color === 'var(--error)',
       tooltip: { title: label ?? (s.idColumn ? rawId : `#${i + 1}`), fields, ...(status ? { description: status } : {}) },
+      row,
     });
   });
   return { sensors, rows };
@@ -208,9 +149,14 @@ export type ViewerModelWidgetViewProps = WidgetViewProps & {
   legendLabel?: string;
 };
 
-/** `viewer.model`: a card-less 3D viewer that fills the card, with sensor markers and an optional colour legend. */
+/**
+ * `viewer.model`: a card-less 3D viewer that fills the card, with sensor markers, things from a second table (simple
+ * instanced shapes standing on their points), the rules over both (coloured, hidden, labelled, pulsing, resized or
+ * lifted from their rows or the board's parameters) and an optional colour legend. A click on a marker or a thing
+ * reports its row to the host (`onMarkerClick`).
+ */
 export function ViewerModelWidgetView({
-  settings, data, locale, resolveUrl, title, loadingLabel: loadingProp, ariaLabel, legendLabel,
+  settings, data, locale, resolveUrl, title, params, onMarkerClick, loadingLabel: loadingProp, ariaLabel, legendLabel,
 }: ViewerModelWidgetViewProps) {
   const s = settings as S;
   const client = useSyncExternalStore(noop, () => true, () => false);
@@ -219,11 +165,20 @@ export function ViewerModelWidgetView({
   const kit = useKitMessages();
   const m = kit.viewer;
   const loadingLabel = loadingProp ?? m.loading;
-  const { sensors } = useMemo(
+  const built = useMemo(
     () => buildSensors(data.sensors, settings, locale, { reading: m.reading, ...kit.common }),
     [data.sensors, settings, locale, m.reading, kit.common],
   );
-  const legend = useMemo(() => (s.legend === false || sensors.length === 0 ? [] : mapLegend(data.sensors, settings)), [data.sensors, settings, s.legend, sensors.length]);
+  const builtThings = useMemo(() => buildThings(data.things, settings), [data.things, settings]);
+  const { sensors, things } = useMemo(
+    () => applyViewerRules(built.sensors, builtThings.things, s.rules, params),
+    [built.sensors, builtThings.things, s.rules, params],
+  );
+  // The legend counts the sensors' statuses (the things take their colours the same way, from their own rows).
+  const legend = useMemo(
+    () => (s.legend === false || (sensors.length === 0 && things.length === 0) ? [] : mapLegend(data.sensors, settings)),
+    [data.sensors, settings, s.legend, sensors.length, things.length],
+  );
   const webgl = useMemo(() => client && webglAvailable(), [client]);
   // The legend never sits under the view cube (top right).
   const legendAt = s.legendPosition ?? 'bottomleft';
@@ -237,7 +192,7 @@ export function ViewerModelWidgetView({
     body = (
       <ContributionBoundary fallback={({ error: e }) => <ViewerStatus kind="error" text={m.startFailed(e.message ?? '')} />}>
         <Suspense fallback={<ViewerStatus kind="loading" text={loadingLabel} />}>
-          <ViewerModelCanvas models={models} sensors={sensors} settings={s} dark={dark} />
+          <ViewerModelCanvas models={models} sensors={sensors} things={things} settings={s} dark={dark} onMarkerClick={onMarkerClick} />
         </Suspense>
       </ContributionBoundary>
     );
@@ -271,8 +226,10 @@ export function ViewerModelWidgetView({
 
 export const VIEWER_MODEL_VIEW: WidgetKindView = {
   View: ViewerModelWidgetView,
-  // Nothing to show: no model to load and no sensor to place.
-  isEmpty: (data, settings) => modelSources(settings).length === 0 && buildSensors(data.sensors, settings).sensors.length === 0,
+  // Nothing to show: no model to load, no sensor to place and no thing to draw.
+  isEmpty: (data, settings) => modelSources(settings).length === 0
+    && buildSensors(data.sensors, settings).sensors.length === 0
+    && buildThings(data.things, settings).things.length === 0,
   toCsv: (data, settings) => {
     const s = settings as S;
     const by = s.colorBy ?? 'column';

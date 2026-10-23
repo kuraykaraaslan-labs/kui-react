@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compare, evaluateRules, expandLabel, MAX_SCENE_RULES, validateRules, type SceneRule } from '../views/scene-rules-logic';
+import { compare, evaluateRules, expandLabel, MAX_SCENE_RULES, validateRules, type EffectSpec, type SceneRule } from '../views/scene-rules-logic';
 import { sceneModel, type SceneSettings } from '../views/scada-scene-logic';
 import { svgToString } from '../views/svg-node';
 import { SCADA_SCENE } from '../templates/scada-scene';
@@ -148,6 +148,39 @@ describe('label tokens', () => {
     const fx = evaluateRules([{ target: '*', label: 'first {id}' }, { target: 'p', label: 'second {id}' }], ctxOf([{ id: 'p' }, { id: 'q' }]));
     expect(fx.get('p')?.label).toBe('second p');
     expect(fx.get('q')?.label).toBe('first q');
+  });
+});
+
+describe('another kind\'s effects (the spec is data)', () => {
+  const spec: EffectSpec = {
+    color: { kind: 'color' },
+    hidden: { kind: 'flag' },
+    size: { kind: 'number', min: 0, max: 10 },
+    shape: { kind: 'enum', options: ['box', 'pin'], parse: (v) => (typeof v === 'string' && v.toLowerCase() === 'cube' ? 'box' : null), message: 'Choose a shape' },
+    note: { kind: 'text' },
+    caption: { kind: 'label' },
+  };
+  const rows = [{ id: 'p', value: 90, label: 'Pump' }];
+  const fx = (rules: SceneRule[]) => evaluateRules<Record<string, unknown>>(rules, { ...ctxOf(rows), effects: spec });
+
+  it('reads only the fields of the spec, each by its kind; the scene\'s effects are not effects here', () => {
+    const out = fx([{ target: 'p', color: 'var(--warning)', hidden: 'yes', size: '25', shape: 'CUBE', note: ' hot ', state: 'critical', dim: 'true' }]);
+    expect(out.get('p')).toEqual({ color: 'var(--warning)', hidden: true, size: 10, shape: 'box', note: 'hot' });
+    expect(fx([{ target: 'p', size: 'big', shape: 'pin', note: '' }]).has('p')).toBe(false);
+    expect(fx([{ target: 'p', size: '', shape: 'sphere' }]).has('p')).toBe(false);
+  });
+  it('the label kind lands under its own key, filled in per target', () => {
+    expect(fx([{ target: '*', caption: '{label} at {value}' }]).get('p')).toEqual({ caption: 'Pump at 90' });
+  });
+  it('the scene\'s default spec still reads the scene\'s effects', () => {
+    expect(evaluateRules([{ target: 'p', state: 'warning', speed: '500', medium: 'none' }], ctxOf(rows)).get('p')).toEqual({ state: 'warning', speed: 400, medium: 'none' });
+  });
+  it('validates against the spec: a choice, a number, a label length; targets from the data are any text', () => {
+    const paths = (rules: unknown) => validateRules(rules, { elementIds: [], fromData: true }, spec).map((i) => `${i.path}`);
+    expect(paths([{ target: 'anything', of: 'other', key: 'v', op: 'set', shape: 'cube', size: 5, caption: 'x', state: 'dead', speed: 'fast' }])).toEqual([]);
+    expect(paths([{ target: 'p', shape: 'sphere', size: 'big', caption: 'x'.repeat(81) }])).toEqual(['rules.0.shape', 'rules.0.size', 'rules.0.caption']);
+    expect(validateRules([{ target: 'p', shape: 'sphere' }], { elementIds: [], fromData: true }, spec)[0].message).toBe('Choose a shape');
+    expect(paths([{ dim: 'true' }])).toEqual(['rules.0.target']);
   });
 });
 

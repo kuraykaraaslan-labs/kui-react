@@ -120,6 +120,12 @@ export interface WidgetViewProps {
    */
   onRangeSelect?: (range: { from: number; to: number } | null) => void;
   /**
+   * `map` and `viewer.model`: a marker was clicked (the map's markers; the viewer's sensor markers and its things, by
+   * a click on the shape itself); `row` is the table row it came from. The viewer keeps its tooltip behaviour either
+   * way. Absent = no gesture is wired (a thing is then only a picture).
+   */
+  onMarkerClick?: (row: Record<string, unknown>) => void;
+  /**
    * A diagram's symbols and their actions (`scada.scene`): which gestures a symbol answers (the host knows what the
    * placement stored for it) and a way to run them. A symbol with no gesture is not interactive at all.
    */

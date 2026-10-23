@@ -1,13 +1,18 @@
-// The data-driven rules of the process scene (pure, no React): a rule names a target (a symbol id, a connection id or
-// `*`), up to two conditions on the bound table or on a board parameter, and the effects to apply while they hold.
-// Rules run top to bottom; every enabled rule that matches applies, a later rule overrides the same effect, and `stop`
-// ends the evaluation for that target. `sceneModel` applies the result; kui-ejs and KUInative vendor this file.
+// The data-driven rules of the process scene, and of every other kind with rules (pure, no React): a rule names a
+// target (a symbol id, a connection id, a marker or thing id, or `*`), up to two conditions on the bound table or on
+// a board parameter, and the effects to apply while they hold. Rules run top to bottom; every enabled rule that
+// matches applies, a later rule overrides the same effect, and `stop` ends the evaluation for that target. The
+// targets and the effects are data: a kind hands the engine its target ids and an `EffectSpec` naming the effect
+// fields it reads (the process scene's is `SCENE_RULE_EFFECTS`, the default; the 3D viewer's lives with its logic).
+// `sceneModel` and `applyViewerRules` apply the result; kui-ejs and KUInative vendor this file, and next-boilerplate
+// keeps a server-safe copy of it.
 //
 // A rule is one flat row (the settings form has no nested lists):
 //   target, enabled, stop
 //   source ('column' | 'param'), key, of, op, value, to        (first condition)
 //   join ('all' | 'any'), source2, key2, of2, op2, value2, to2 (second condition, used when op2 is set)
-//   state, color, fillColor, dim, blink, hidden, label, medium, animate (effects; empty = no change)
+//   the effect fields of the kind's spec (empty = no change), e.g. the scene's
+//   state, color, fillColor, dim, blink, hidden, label, medium, animate
 
 import { asBoolean, asNumber } from '@/modules/ui/ControlTile/control-logic';
 import { cssColor } from '../settings/style';
@@ -18,13 +23,51 @@ export const MAX_SCENE_RULES = 200;
 /** The longest label an effect can produce, in characters. */
 export const MAX_RULE_LABEL = 80;
 
-import { parseMode, parseQuality, type SymbolMode, type SymbolQuality } from './scada-states';
+import { parseMode, parseQuality, SYMBOL_MODES, SYMBOL_QUALITIES, type SymbolMode, type SymbolQuality } from './scada-states';
 
 export const RULE_STATES = ['idle', 'running', 'warning', 'critical', 'off'] as const;
 export type RuleState = (typeof RULE_STATES)[number];
 export const RULE_OPS = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'between', 'in', 'set', 'unset', 'true', 'false'] as const;
 export type RuleOp = (typeof RULE_OPS)[number];
 export type RuleSource = 'column' | 'param';
+
+/**
+ * How an effect field of a rule row is read: a yes / no flag, a colour (`cssColor`), a trimmed text, a number kept
+ * within bounds, one of a list (an optional `parse` accepts the words the kind knows), or a label: a text with tokens,
+ * filled in per target once the rules ran (`expandLabel`), capped at `MAX_RULE_LABEL`. Anything malformed is simply
+ * not an effect.
+ */
+export type EffectKind =
+  | { kind: 'flag' }
+  | { kind: 'color' }
+  | { kind: 'text' }
+  | { kind: 'label' }
+  | { kind: 'number'; min?: number; max?: number }
+  | { kind: 'enum'; options: readonly string[]; parse?: (v: unknown) => string | null; message?: string };
+
+/** The effects one kind of rules offers, by rule-row field: the engine reads and validates exactly these. */
+export type EffectSpec = Record<string, EffectKind>;
+
+/** The process scene's effects (what `SceneEffects` types and `sceneModel` applies). The default spec. */
+export const SCENE_RULE_EFFECTS: EffectSpec = {
+  state: { kind: 'enum', options: RULE_STATES, message: 'Choose a state' },
+  color: { kind: 'color' },
+  fillColor: { kind: 'color' },
+  dim: { kind: 'flag' },
+  blink: { kind: 'flag' },
+  hidden: { kind: 'flag' },
+  animate: { kind: 'flag' },
+  reverse: { kind: 'flag' },
+  ack: { kind: 'flag' },
+  pending: { kind: 'flag' },
+  failed: { kind: 'flag' },
+  mode: { kind: 'enum', options: SYMBOL_MODES, parse: parseMode, message: 'Choose a mode' },
+  quality: { kind: 'enum', options: SYMBOL_QUALITIES, parse: parseQuality, message: 'Choose a data quality' },
+  speed: { kind: 'number', min: 0, max: 400 },
+  position: { kind: 'number', min: 0, max: 100 },
+  label: { kind: 'label' },
+  medium: { kind: 'text' },
+};
 
 export interface SceneRule {
   enabled?: boolean;
@@ -65,6 +108,8 @@ export interface SceneRule {
   position?: number | string;
   pending?: boolean | string;
   failed?: boolean | string;
+  /** The effect fields of another kind's spec (the 3D viewer's `pulse`, `size`, `dz`). */
+  [effect: string]: unknown;
 }
 
 /** What the rules that matched decided for one target. A missing key means "no rule said anything". */
@@ -97,15 +142,16 @@ export interface RuleContext {
   rows: Map<string, Row>;
   /** The effective board parameters. */
   params?: Record<string, unknown>;
-  /** What `*` stands for (the ids of the symbols and connections). Default: the ids of `rows`. */
+  /** What `*` stands for (the ids of the symbols and connections, or of the markers and things). Default: the ids of `rows`. */
   targets?: Iterable<string>;
   /** A number as text for `{value}` and `{value2}` (the host's words, unit included); default: the number itself. */
   format?: (targetId: string, n: number) => string;
+  /** The effect fields this kind of rules reads. Default: the process scene's (`SCENE_RULE_EFFECTS`). */
+  effects?: EffectSpec;
 }
 
 const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : typeof v === 'number' && Number.isFinite(v) ? String(v) : '');
 const isOp = (v: unknown): v is RuleOp => typeof v === 'string' && (RULE_OPS as readonly string[]).includes(v);
-const isState = (v: unknown): v is RuleState => typeof v === 'string' && (RULE_STATES as readonly string[]).includes(v);
 const scalar = (v: unknown): string | number | boolean | undefined => {
   if (v === null || v === undefined || v === '') return undefined;
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -200,59 +246,69 @@ export function expandLabel(template: string, target: string, ctx: RuleContext):
 
 const flag = (v: unknown): boolean | undefined => asBoolean(v) ?? undefined;
 
-/** The effects one rule asks for (label as the raw template). Anything malformed is simply not an effect. */
-function effectsOf(rule: SceneRule): SceneEffects & { labelTemplate?: string } {
-  const out: SceneEffects & { labelTemplate?: string } = {};
-  if (isState(rule.state)) out.state = rule.state;
-  const color = cssColor(rule.color); if (color) out.color = color;
-  const fill = cssColor(rule.fillColor); if (fill) out.fillColor = fill;
-  for (const k of ['dim', 'blink', 'hidden', 'animate'] as const) {
-    const b = flag(rule[k]);
-    if (b !== undefined) out[k] = b;
+/** One of an enum effect's options: through the kind's own words (`parse`) when it has them, else the option itself. */
+const enumOf = (e: Extract<EffectKind, { kind: 'enum' }>, v: unknown): string | null =>
+  (e.parse ? e.parse(v) : typeof v === 'string' && e.options.includes(v) ? v : null);
+
+/** The effects one rule asks for under a spec (the label as its raw template). Anything malformed is simply not an effect. */
+function effectsOf(rule: SceneRule, spec: EffectSpec): { fx: Record<string, unknown>; labelTemplate?: string } {
+  const fx: Record<string, unknown> = {};
+  let labelTemplate: string | undefined;
+  for (const [key, e] of Object.entries(spec)) {
+    const v = rule[key];
+    if (e.kind === 'flag') {
+      const b = flag(v);
+      if (b !== undefined) fx[key] = b;
+    } else if (e.kind === 'color') {
+      const c = cssColor(v);
+      if (c) fx[key] = c;
+    } else if (e.kind === 'text') {
+      if (typeof v === 'string' && v.trim()) fx[key] = v.trim();
+    } else if (e.kind === 'label') {
+      if (typeof v === 'string' && v.trim()) labelTemplate = v;
+    } else if (e.kind === 'number') {
+      const n = asNumber(v);
+      if (n !== null && v !== '') fx[key] = Math.min(e.max ?? Infinity, Math.max(e.min ?? -Infinity, n));
+    } else {
+      const o = enumOf(e, v);
+      if (o) fx[key] = o;
+    }
   }
-  for (const k of ['reverse', 'ack', 'pending', 'failed'] as const) {
-    const b = flag(rule[k]);
-    if (b !== undefined) out[k] = b;
-  }
-  const mode = parseMode(rule.mode); if (mode) out.mode = mode;
-  const quality = parseQuality(rule.quality); if (quality) out.quality = quality;
-  const speed = asNumber(rule.speed); if (speed !== null && rule.speed !== '') out.speed = Math.min(400, Math.max(0, speed));
-  const position = asNumber(rule.position); if (position !== null && rule.position !== '') out.position = Math.min(100, Math.max(0, position));
-  if (typeof rule.label === 'string' && rule.label.trim()) out.labelTemplate = rule.label;
-  if (typeof rule.medium === 'string' && rule.medium.trim() && rule.medium !== 'none') out.medium = rule.medium.trim();
-  else if (rule.medium === 'none') out.medium = 'none';
-  return out;
+  return { fx, labelTemplate };
 }
 
 /**
- * The effects per target id. A target that no rule touched is not in the map. A disabled rule never applies; a rule
- * whose target is not one of the targets does nothing (`validateRules` reports it).
+ * The effects per target id, under the context's spec (the scene's by default; `T` is what that spec decides, e.g.
+ * `SceneEffects`). A target that no rule touched is not in the map. A disabled rule never applies; a rule whose
+ * target is not one of the targets does nothing (`validateRules` reports it). The filled-in label lands under the
+ * spec's label field (`label`).
  */
-export function evaluateRules(rules: unknown, ctx: RuleContext): Map<string, SceneEffects> {
-  const out = new Map<string, SceneEffects>();
+export function evaluateRules<T extends object = SceneEffects>(rules: unknown, ctx: RuleContext): Map<string, T> {
+  const out = new Map<string, T>();
   const list = (Array.isArray(rules) ? (rules as SceneRule[]) : []).filter((r) => r && typeof r === 'object').slice(0, MAX_SCENE_RULES);
   if (!list.length) return out;
+  const spec = ctx.effects ?? SCENE_RULE_EFFECTS;
+  const labelKey = Object.keys(spec).find((k) => spec[k].kind === 'label') ?? 'label';
   const all = [...new Set(ctx.targets ?? ctx.rows.keys())];
   const known = new Set(all);
-  const parsed = list.map((r) => ({ r, fx: effectsOf(r) }));
+  const parsed = list.map((r) => ({ r, ...effectsOf(r, spec) }));
   const templates = new Map<string, string>();
   const stopped = new Set<string>();
-  for (const { r, fx } of parsed) {
+  for (const { r, fx, labelTemplate } of parsed) {
     if (r.enabled === false) continue;
     const target = text(r.target);
     if (!target) continue;
     const ids = target === '*' ? all : known.has(target) ? [target] : [];
     for (const id of ids) {
       if (stopped.has(id) || !ruleMatches(r, id, ctx)) continue;
-      const { labelTemplate, ...rest } = fx;
-      if (Object.keys(rest).length) out.set(id, { ...out.get(id), ...rest });
+      if (Object.keys(fx).length) out.set(id, { ...out.get(id), ...fx } as T);
       if (labelTemplate !== undefined) templates.set(id, labelTemplate);
       if (r.stop === true) stopped.add(id);
     }
   }
   for (const [id, tpl] of templates) {
     const label = expandLabel(tpl, id, ctx);
-    if (label) out.set(id, { ...out.get(id), label });
+    if (label) out.set(id, { ...out.get(id), [labelKey]: label } as T);
   }
   return out;
 }
@@ -264,20 +320,29 @@ export interface RuleIssue { path: string; message: string }
 const NUMERIC_OPS = new Set(['gt', 'gte', 'lt', 'lte']);
 const NEEDS_VALUE = new Set(['eq', 'ne', 'in', 'gt', 'gte', 'lt', 'lte', 'between']);
 
-/** Problems with a rules list against the ids of the scene (the same checks the settings form shows). */
-export function validateRules(rules: unknown, ids: { elementIds: Iterable<string>; linkIds?: Iterable<string> }): RuleIssue[] {
+/**
+ * Problems with a rules list against the ids of the scene and the effects of the kind (the same checks the settings
+ * form shows). With `fromData` the targets are row ids the data brings (the 3D viewer's markers and things): any
+ * non-empty target or `of` is then accepted, as the settings cannot know the rows.
+ */
+export function validateRules(
+  rules: unknown,
+  ids: { elementIds: Iterable<string>; linkIds?: Iterable<string>; fromData?: boolean },
+  effects: EffectSpec = SCENE_RULE_EFFECTS,
+): RuleIssue[] {
   const issues: RuleIssue[] = [];
   const list = Array.isArray(rules) ? (rules as SceneRule[]) : [];
   if (list.length > MAX_SCENE_RULES) issues.push({ path: 'rules', message: `At most ${MAX_SCENE_RULES} rules` });
   const elements = new Set(ids.elementIds);
   const known = new Set([...elements, ...(ids.linkIds ?? [])]);
-  const idOk = (v: unknown) => text(v) === '' || known.has(text(v));
+  const fromData = ids.fromData === true;
+  const idOk = (v: unknown) => fromData || text(v) === '' || known.has(text(v));
   list.forEach((r, i) => {
     if (!r || typeof r !== 'object') return;
     const at = (f: string) => `rules.${i}.${f}`;
     const target = text(r.target);
-    if (!target) issues.push({ path: at('target'), message: 'Choose a symbol, a connection or *' });
-    else if (target !== '*' && !known.has(target)) issues.push({ path: at('target'), message: 'No symbol or connection has this id' });
+    if (!target) issues.push({ path: at('target'), message: fromData ? 'Name a row id or *' : 'Choose a symbol, a connection or *' });
+    else if (!fromData && target !== '*' && !known.has(target)) issues.push({ path: at('target'), message: 'No symbol or connection has this id' });
     const condition = (n: '' | '2') => {
       const op = text(n ? r.op2 : r.op); const source = n ? r.source2 : r.source;
       const key = text(n ? r.key2 : r.key); const of = n ? r.of2 : r.of;
@@ -302,14 +367,14 @@ export function validateRules(rules: unknown, ids: { elementIds: Iterable<string
       condition('2');
       if (r.join !== undefined && r.join !== '' && r.join !== 'all' && r.join !== 'any') issues.push({ path: at('join'), message: 'Join with all or any' });
     }
-    if (r.state !== undefined && r.state !== '' && !isState(r.state)) issues.push({ path: at('state'), message: 'Choose a state' });
-    if (r.mode !== undefined && r.mode !== '' && !parseMode(r.mode)) issues.push({ path: at('mode'), message: 'Choose a mode' });
-    if (r.quality !== undefined && r.quality !== '' && !parseQuality(r.quality)) issues.push({ path: at('quality'), message: 'Choose a data quality' });
-    for (const f of ['speed', 'position'] as const) {
-      const v = r[f];
-      if (v !== undefined && v !== '' && asNumber(v) === null) issues.push({ path: at(f), message: 'Use a number' });
+    // The effects, as the spec reads them: a choice must be one of its options, a number a number, a label short enough.
+    for (const [key, e] of Object.entries(effects)) {
+      const v = r[key];
+      if (v === undefined || v === '') continue;
+      if (e.kind === 'enum' && !enumOf(e, v)) issues.push({ path: at(key), message: e.message ?? 'Choose one of the options' });
+      else if (e.kind === 'number' && asNumber(v) === null) issues.push({ path: at(key), message: 'Use a number' });
+      else if (e.kind === 'label' && typeof v === 'string' && v.length > MAX_RULE_LABEL) issues.push({ path: at(key), message: `At most ${MAX_RULE_LABEL} characters` });
     }
-    if (typeof r.label === 'string' && r.label.length > MAX_RULE_LABEL) issues.push({ path: at('label'), message: `At most ${MAX_RULE_LABEL} characters` });
   });
   return issues;
 }

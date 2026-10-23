@@ -1,18 +1,24 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { effective, templateDefaults, validate } from '../settings/engine';
+import { effective, migrate, templateDefaults, validate } from '../settings/engine';
 import type { SlotData, WidgetViewProps } from '../kind';
 import { VIEWER_MODEL, VIEWER_MODEL_KIND } from '../templates/viewer-model';
 import { BUILTIN_VIEWS } from '../views';
 import { resolveModelUrl } from '../views/content-logic';
-import { buildSensors, modelSources, toWorld, VIEWER_MODEL_VIEW, MAX_MODELS } from '../views/ViewerModelView';
+import {
+  applyViewerRules, buildSensors, buildThings, modelSources, toWorld, VIEWER_MODEL_VIEW, MAX_MODELS, MAX_THINGS, VIEWER_RULE_EFFECTS,
+} from '../views/ViewerModelView';
+import { validateRules } from '../views/scene-rules-logic';
+import { thingMeshName } from '../views/viewer-things';
 import { sampleData } from '../sample/sample-data';
 import { PLANT_MODEL } from '../sample/sample-boards';
 
 // ── A fake kui-viewer (jsdom has no WebGL) ────────────────────────────────────────────────────
 // Just enough of the React binding: <KUIViewer> makes a viewer on mount and disposes it on unmount,
-// <ModelLoader> resolves or rejects per URL, useViewer reads the context.
+// <ModelLoader> resolves or rejects per URL, useViewer reads the context. The scene keeps what is
+// added to it (the things layer's meshes), the camera is a plain object (three.js is real, the
+// viewer is not).
 
 class Vec3 {
   constructor(public x = 0, public y = 0, public z = 0) {}
@@ -22,8 +28,17 @@ class Vec3 {
   project() { this.x /= 100; this.y /= 100; this.z = 0; return this; }
 }
 
+type FakeMesh = { name?: string; count?: number; position: Vec3 };
+type FakeViewer = {
+  disposed: boolean;
+  controls: Record<string, unknown>;
+  camera: { position: { x: number; y: number; z: number } };
+  scene: { background: { isColor: boolean; set: (c: string) => void; value?: string }; children: FakeMesh[] };
+  invalidate: ReturnType<typeof vi.fn>;
+};
+
 const fake = vi.hoisted(() => ({
-  created: [] as Array<{ disposed: boolean; controls: Record<string, unknown>; camera: { position: { x: number; y: number; z: number } }; scene: { background: { isColor: boolean; set: (c: string) => void; value?: string } } }>,
+  created: [] as Array<{ disposed: boolean; controls: Record<string, unknown>; camera: { position: { x: number; y: number; z: number } }; scene: { background: { isColor: boolean; set: (c: string) => void; value?: string }; children: Array<{ name?: string; count?: number; position: { x: number; y: number; z: number } }> }; invalidate: ReturnType<typeof vi.fn> }>,
   failing: new Set<string>(),
   loads: [] as string[],
 }));
@@ -37,9 +52,16 @@ vi.mock('@kuraykaraaslan/kui-viewer/react', () => {
     Object.defineProperty(canvas, 'clientWidth', { value: 400 });
     Object.defineProperty(canvas, 'clientHeight', { value: 200 });
     const background: { isColor: boolean; value?: string; set: (c: string) => void } = { isColor: true, set: (c: string) => { background.value = c; } };
+    const children: FakeMesh[] = [];
+    const scene = {
+      background,
+      children,
+      add(o: FakeMesh) { children.push(o); return scene; },
+      remove(o: FakeMesh) { const i = children.indexOf(o); if (i >= 0) children.splice(i, 1); return scene; },
+    };
     const v = {
       disposed: false,
-      scene: { background, children: [] },
+      scene,
       camera: { position: new Vec3(10, 10, 10), fov: 50, aspect: 2, updateMatrixWorld: () => {}, matrixWorld: { elements: [1, 0, 0, 0] } },
       controls: { enabled: true, enableZoom: true, target: new Vec3(), update: vi.fn() },
       renderer: { domElement: canvas },
@@ -92,6 +114,22 @@ const TABLE: SlotData = {
   ],
 };
 
+/** The dashboard's `things` contract (phase 35 B.4): one row per object in the room. */
+const THINGS: SlotData = {
+  shape: 'table',
+  columns: [
+    { key: 'id', label: 'Badge', type: 'text' }, { key: 'kind', label: 'Kind', type: 'text' }, { key: 'label', label: 'Who', type: 'text' },
+    { key: 'x', label: 'X', type: 'number' }, { key: 'y', label: 'Y', type: 'number' }, { key: 'z', label: 'Z', type: 'number' },
+    { key: 'heading', label: 'Heading', type: 'number' }, { key: 'status', label: 'Status', type: 'text' }, { key: 'size', label: 'Size', type: 'number' },
+  ],
+  rows: [
+    { id: 'B-1', kind: 'Cylinder', label: 'Ayşe', x: 1, y: 2, z: 0, heading: 90, status: 'Normal', size: 1.7 },
+    { id: 'B-2', kind: 'box', label: 'Forklift 3', x: 4, y: 5, z: 0, heading: 180, status: 'Alarm' },
+    { id: 'B-3', kind: 'no-such', label: 'Crate', x: 7, y: 8, z: 0, status: 'Normal' },
+    { id: 'B-4', kind: 'pin', x: 'n/a', y: 1, z: 0 },
+  ],
+};
+
 const props = (settings: Record<string, unknown> = {}, data: WidgetViewProps['data'] = { sensors: TABLE }): WidgetViewProps =>
   ({ settings: effective(VIEWER_MODEL, settings), format: {}, data, locale: 'en', title: 'Plant' });
 
@@ -110,13 +148,30 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('builtin:viewer.model template', () => {
-  it('is v1 with valid defaults, a registered view and the kind\'s geometry', () => {
-    expect(VIEWER_MODEL.version).toBe(1);
-    expect(VIEWER_MODEL.migrations).toEqual([]);
-    expect(VIEWER_MODEL_KIND).toMatchObject({ type: 'viewer.model', label: '3D model', icon: 'fas fa-cube', defaultW: 6, defaultH: 8 });
-    expect(VIEWER_MODEL_KIND.slots).toEqual([{ key: 'sensors', label: 'Sensors', shape: 'table', required: false }]);
+  it('is v2 (things and rules) with one note-only step, valid defaults, a registered view and the kind\'s geometry', () => {
+    expect(VIEWER_MODEL.version).toBe(2);
+    expect(VIEWER_MODEL.migrations).toHaveLength(1);
+    expect(VIEWER_MODEL.migrations[0]).toMatchObject({ from: 1, to: 2 });
+    expect(VIEWER_MODEL_KIND).toMatchObject({ type: 'viewer.model', label: '3D model', icon: 'fas fa-cube', defaultW: 6, defaultH: 8, group: 'viewer' });
+    expect(VIEWER_MODEL_KIND.slots).toEqual([
+      { key: 'sensors', label: 'Sensors', shape: 'table', required: false },
+      { key: 'things', label: 'Things (one row each)', shape: 'table', required: false },
+    ]);
     expect(BUILTIN_VIEWS['viewer.model']).toBe(VIEWER_MODEL_VIEW);
     expect(validate(VIEWER_MODEL, templateDefaults(VIEWER_MODEL)).issues).toEqual([]);
+    const groups = new Set(VIEWER_MODEL.groups.map((g) => g.id));
+    for (const [key, f] of Object.entries(VIEWER_MODEL.fields)) {
+      expect(groups.has(f.group ?? ''), key).toBe(true);
+      expect(f.since, key).toBe(key.startsWith('thing') || key === 'showThingLabels' || key === 'rules' ? 2 : 1);
+    }
+    expect((VIEWER_MODEL.fields.rules.fields!.op as { options: Array<{ value: string }> }).options.map((o) => o.value)).toContain('between');
+  });
+
+  it('settings saved by v1 migrate unchanged', () => {
+    const stored = { ...PLANT_MODEL, showGrid: true };
+    const r = migrate(VIEWER_MODEL, stored, 1);
+    expect(r.values).toEqual(stored);
+    expect(r.applied.map((a) => [a.from, a.to])).toEqual([[1, 2]]);
   });
 
   it('accepts internal and https models and refuses anything else', () => {
@@ -125,6 +180,17 @@ describe('builtin:viewer.model template', () => {
     expect([...new Set(bad.map((i) => i.path))].sort()).toEqual(['models.0.url', 'models.1.url']);
     expect(resolveModelUrl('javascript:alert(1)')).toBeNull();
     expect(resolveModelUrl('/a b.ifc')).toBeNull();
+  });
+
+  it('checks the shape of a rule (the targets are row ids the data brings)', () => {
+    expect(validate(VIEWER_MODEL, { rules: [{ target: 'B-2', key: 'status', op: 'eq', value: 'Alarm', color: 'var(--error)', pulse: 'true', size: 2, dz: 0.5 }] }).issues).toEqual([]);
+    expect(validate(VIEWER_MODEL, { rules: [{ target: '*', op: 'gt', key: 'value', value: '10', hidden: 'true', label: 'High: {value}' }] }).issues).toEqual([]);
+    const paths = validate(VIEWER_MODEL, { rules: [{ target: '', op: 'gt', key: 'value', value: 'abc', size: 'big' }] }).issues.map((i) => i.path);
+    expect(paths).toContain('rules.0.target');
+    expect(paths).toContain('rules.0.value');
+    expect(paths).toContain('rules.0.size');
+    // the engine's own check, with the viewer's effects: a thing id is any text, `state` is not an effect here
+    expect(validateRules([{ target: 'anything', of: 'other', key: 'v', op: 'set', state: 'dead' }], { elementIds: [], fromData: true }, VIEWER_RULE_EFFECTS)).toEqual([]);
   });
 
   it('the sample plant settings and source pass unchanged', () => {
@@ -157,7 +223,7 @@ describe('models and sensors', () => {
     expect(toWorld([1, 2, 3], 'y-up')).toEqual([1, 2, 3]);
   });
 
-  it('turns rows into markers: coordinates, reading with unit, status colour, tooltip', () => {
+  it('turns rows into markers: coordinates, reading with unit, status colour, tooltip, the row', () => {
     const { sensors } = buildSensors(TABLE, effective(VIEWER_MODEL, { tooltipColumns: ['label'] }), 'en');
     expect(sensors.map((m) => m.id)).toEqual(['TT-1', 'PT-2']); // the row without a y is not placed
     expect(sensors[0]).toMatchObject({ position: [1, 3, -2], label: 'Column top', color: 'var(--success)', alarm: false });
@@ -166,6 +232,7 @@ describe('models and sensors', () => {
     expect(sensors[1]).toMatchObject({ color: 'var(--error)', alarm: true });
     expect(sensors[1].tooltip.description).toBe('Alarm');
     expect(sensors[0].tooltip.fields.map((f) => f.label)).toEqual(['Reading', 'Sensor']);
+    expect(sensors[1].row).toBe(TABLE.rows![1]);
   });
 
   it('colours by ranges on the reading, or one fixed colour', () => {
@@ -175,14 +242,81 @@ describe('models and sensors', () => {
     expect(fixed.every((m) => m.color === '#123456')).toBe(true);
   });
 
-  it('is empty with no model and no placed sensor; exports the sensor columns as CSV', () => {
+  it('is empty with no model, no placed sensor and no thing; exports the sensor columns as CSV', () => {
     const s = effective(VIEWER_MODEL, {});
     expect(VIEWER_MODEL_VIEW.isEmpty!({}, s)).toBe(true);
     expect(VIEWER_MODEL_VIEW.isEmpty!({ sensors: TABLE }, s)).toBe(false);
+    expect(VIEWER_MODEL_VIEW.isEmpty!({ things: THINGS }, s)).toBe(false);
     expect(VIEWER_MODEL_VIEW.isEmpty!({}, effective(VIEWER_MODEL, MODELS))).toBe(false);
     const csv = VIEWER_MODEL_VIEW.toCsv!({ sensors: TABLE }, s, {});
     expect(csv[0]).toEqual(['Tag', 'Sensor', 'X', 'Y', 'Z', 'Reading', 'Unit', 'Status']);
     expect(csv).toHaveLength(3);
+  });
+});
+
+describe('things from rows', () => {
+  it('builds one thing per row with a kind, a point it stands on, a heading, a label, a colour and a size', () => {
+    const { things, rows } = buildThings(THINGS, effective(VIEWER_MODEL, { thingSizeColumn: 'size' }));
+    expect(things.map((t) => t.id)).toEqual(['B-1', 'B-2', 'B-3']); // the row without an x is not placed
+    expect(things[0]).toMatchObject({ kind: 'cylinder', position: [1, 0, -2], heading: 90, label: 'Ayşe', color: 'var(--success)', alarm: false, size: 1.7 });
+    expect(things[1]).toMatchObject({ kind: 'box', heading: 180, label: 'Forklift 3', color: 'var(--error)', alarm: true, size: 0.5 });
+    // an unknown kind word takes the fixed kind; no heading = 0
+    expect(things[2]).toMatchObject({ kind: 'box', heading: 0, size: 0.5 });
+    expect(things[0].row).toBe(THINGS.rows![0]);
+    expect([...rows.keys()]).toEqual(['B-1', 'B-2', 'B-3']);
+  });
+  it('takes the fixed kind and size, the sensors\' coordinate convention and colour settings', () => {
+    const s = effective(VIEWER_MODEL, { thingKind: 'pin', thingKindColumn: '', thingSize: 2, coordinates: 'y-up', colorBy: 'fixed', markerColor: '#123456' });
+    const { things } = buildThings(THINGS, s);
+    expect(things.every((t) => t.kind === 'pin' && t.size === 2 && t.color === '#123456' && !t.alarm)).toBe(true);
+    expect(things[0].position).toEqual([1, 2, 0]);
+    // ranges on the reading column, read from the thing's own row
+    const ranged = buildThings({ shape: 'table', rows: [{ id: 'a', x: 0, y: 0, z: 0, value: 80 }] }, effective(VIEWER_MODEL, { colorBy: 'ranges', ranges: [{ from: 50, color: 'var(--warning)' }] })).things;
+    expect(ranged[0].color).toBe('var(--warning)');
+  });
+  it('names a thing by the row number without an id column, keeps duplicate ids apart, and stops at the cap', () => {
+    const rows = Array.from({ length: MAX_THINGS + 5 }, (_, i) => ({ id: i < 2 ? 'dup' : `t${i}`, x: i, y: 0, z: 0 }));
+    const { things } = buildThings({ shape: 'table', rows }, effective(VIEWER_MODEL, {}));
+    expect(things).toHaveLength(MAX_THINGS);
+    expect(things.slice(0, 2).map((t) => t.id)).toEqual(['dup', 'dup#1']);
+    const numbered = buildThings({ shape: 'table', rows: [{ x: 0, y: 0, z: 0 }, { x: 1, y: 0, z: 0 }] }, effective(VIEWER_MODEL, { thingIdColumn: '' })).things;
+    expect(numbered.map((t) => t.id)).toEqual(['0', '1']);
+  });
+});
+
+describe('rules on markers and things', () => {
+  const s = effective(VIEWER_MODEL, { thingSizeColumn: 'size' });
+  const sensors = buildSensors(TABLE, s, 'en').sensors;
+  const things = buildThings(THINGS, s).things;
+
+  it('colour, pulse, size and lift from a row, hidden from a parameter, a label with tokens, on both', () => {
+    const rules = [
+      { target: '*', key: 'status', op: 'eq', value: 'Alarm', color: 'var(--warning)', size: 20, dz: 2 },
+      { target: 'B-1', source: 'param', key: 'floor', op: 'ne', value: '1', hidden: 'true' },
+      { target: 'TT-1', label: '{label}: {value}', pulse: 'true' },
+    ];
+    const out = applyViewerRules(sensors, things, rules, { floor: 2 });
+    expect(out.sensors.map((m) => m.id)).toEqual(['TT-1', 'PT-2']);
+    expect(out.sensors[1]).toMatchObject({ color: 'var(--warning)', alarm: false, size: 20, position: [4, 8, -5] });
+    expect(out.sensors[0]).toMatchObject({ label: 'Column top: 118.4', alarm: true });
+    expect(out.sensors[0].size).toBeUndefined();
+    expect(out.things.map((t) => t.id)).toEqual(['B-2', 'B-3']);
+    expect(out.things[0]).toMatchObject({ color: 'var(--warning)', alarm: false, size: 20, position: [4, 2, -5] });
+    expect(out.things[1]).toBe(things[2]); // untouched: the same object
+    // the parameter on the other value keeps the thing
+    expect(applyViewerRules(sensors, things, rules, { floor: 1 }).things.map((t) => t.id)).toEqual(['B-1', 'B-2', 'B-3']);
+  });
+  it('a pulse follows the colour unless a rule says otherwise; a colour that is the error tone pulses', () => {
+    const red = applyViewerRules(sensors, things, [{ target: 'B-1', color: 'var(--error)' }], {});
+    expect(red.things[0]).toMatchObject({ color: 'var(--error)', alarm: true });
+    const calm = applyViewerRules(sensors, things, [{ target: 'B-2', pulse: 'false' }], {});
+    expect(calm.things[1]).toMatchObject({ color: 'var(--error)', alarm: false });
+  });
+  it('does nothing without rules, with no targets, or when no rule matches', () => {
+    expect(applyViewerRules(sensors, things, [], {})).toEqual({ sensors, things });
+    expect(applyViewerRules(sensors, things, undefined, {}).things).toBe(things);
+    expect(applyViewerRules([], [], [{ target: '*', hidden: 'true' }], {})).toEqual({ sensors: [], things: [] });
+    expect(applyViewerRules(sensors, things, [{ target: 'ghost', hidden: 'true' }], {}).things).toBe(things);
   });
 });
 
@@ -214,6 +348,8 @@ describe('ViewerModelView', () => {
     await waitFor(() => expect((markers[0] as HTMLElement).style.visibility).toBe('visible'));
     expect((markers[0] as HTMLElement).style.transform).toMatch(/translate\(/);
     expect(screen.getByRole('list', { name: 'Legend' }).textContent).toContain('Alarm');
+    // no thing: three.js was never brought in, the scene holds no mesh of the kit's
+    expect(v.scene.children.some((c) => String(c.name ?? '').startsWith('widget-kit:things'))).toBe(false);
   });
 
   it('opens a tooltip with the reading and the status on hover', async () => {
@@ -227,6 +363,44 @@ describe('ViewerModelView', () => {
     expect(tip.textContent).toContain('9.8');
     fireEvent.mouseLeave(button);
     expect(screen.queryByRole('tooltip')).toBeNull();
+  });
+
+  it('a click on a sensor marker reports its row (and still toggles the tooltip on a click trigger)', async () => {
+    withWebgl();
+    const onMarkerClick = vi.fn();
+    render(<View {...props({ tooltipTrigger: 'click' })} onMarkerClick={onMarkerClick} />);
+    const button = await screen.findByRole('button', { name: /Drum/ });
+    fireEvent.click(button);
+    expect(onMarkerClick).toHaveBeenCalledWith(TABLE.rows![1]);
+    expect(screen.getByRole('tooltip').textContent).toContain('Drum');
+    fireEvent.click(button);
+    expect(screen.queryByRole('tooltip')).toBeNull();
+    expect(onMarkerClick).toHaveBeenCalledTimes(2);
+  });
+
+  it('draws the things as one instanced mesh per kind, updated in place, with a label over the nearest ones', async () => {
+    withWebgl();
+    const { rerender } = render(<View {...props({ thingSizeColumn: 'size' }, { things: THINGS })} />);
+    await screen.findByTestId('kui-viewer');
+    const v = fake.created[0];
+    // three.js arrives lazily; then every kind present has its mesh with one instance per row
+    await waitFor(() => expect(v.scene.children.map((c) => c.name).filter((n) => String(n).startsWith('widget-kit:things')).sort())
+      .toEqual([thingMeshName('box'), thingMeshName('cylinder')]));
+    const box = v.scene.children.find((c) => c.name === thingMeshName('box'))!;
+    expect(box.count).toBe(2);
+    expect(v.scene.children.find((c) => c.name === thingMeshName('cylinder'))!.count).toBe(1);
+    expect(v.invalidate).toHaveBeenCalledWith('widget-kit:things');
+    // the labels: the three labelled things, placed by the camera
+    await waitFor(() => expect(document.querySelectorAll('[data-thing]')).toHaveLength(3));
+    expect(screen.getByText('Forklift 3')).toBeTruthy();
+    await waitFor(() => expect((document.querySelector('[data-thing="B-2"]') as HTMLElement).style.visibility).toBe('visible'));
+    // rows leave and one moves: the same box mesh with one instance, the cylinder's mesh gone, one label left
+    const fewer: SlotData = { ...THINGS, rows: [{ ...THINGS.rows![1], x: 9 }] };
+    rerender(<View {...props({ thingSizeColumn: 'size' }, { things: fewer })} />);
+    await waitFor(() => expect(box.count).toBe(1));
+    expect(v.scene.children.find((c) => c.name === thingMeshName('box'))).toBe(box);
+    expect(v.scene.children.find((c) => c.name === thingMeshName('cylinder'))).toBeUndefined();
+    await waitFor(() => expect(document.querySelectorAll('[data-thing]')).toHaveLength(1));
   });
 
   it('locks the camera and hides the view cube when not interactive', async () => {

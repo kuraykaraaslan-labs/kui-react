@@ -1,7 +1,9 @@
 'use client';
 // The `viewer.model` widget's 3D canvas: kui-viewer's React binding, loaded lazily by ViewerModelView
 // (never on the server, never in a card that is not shown). Everything kit-specific (sensor markers,
-// tooltips, the load and error states) is drawn here as DOM over the viewer's canvas, in kit styles.
+// tooltips, the things' labels, the load and error states) is drawn here as DOM over the viewer's canvas,
+// in kit styles; the things themselves are instanced meshes in the viewer's scene (`viewer-things.ts`,
+// three.js loaded lazily too, only once there is a thing to draw).
 //
 // kui-viewer's stylesheet is prefixed (`kuiviewer:` utilities and `--kuiviewer-*` tokens), so it
 // does not touch the host's styles; it is imported here, so a board without a 3D card never loads it.
@@ -10,8 +12,14 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { KUIViewer, ModelLoader, NavCube, useViewer, type KUIViewerProps } from '@kuraykaraaslan/kui-viewer/react';
 import { cn } from '@/libs/utils/cn';
 import { useKitMessages } from '../WidgetKitContext';
-import type { ModelSource, SensorMarker, ViewerModelSettings } from './ViewerModelView';
+import type { ModelSource } from './ViewerModelView';
 import { ViewerStatus } from './ViewerModelView';
+import { MAX_THING_LABELS, type Row, type SensorMarker, type ThingMarker, type ViewerModelSettings } from './viewer-model-logic';
+import { useReducedMotion } from './useReducedMotion';
+import {
+  disposeThingMeshes, hasPulsingThings, nearestThings, newThingMeshState, pickThing, pulseThingMeshes, syncThingMeshes,
+  type ThingMeshState, type ThreeLib,
+} from './viewer-things';
 
 type Viewer = Parameters<NonNullable<KUIViewerProps['onReady']>>[0];
 
@@ -19,11 +27,12 @@ type Viewer = Parameters<NonNullable<KUIViewerProps['onReady']>>[0];
 // dependency of the kit, and this keeps the widget independent of kui-viewer's internals).
 interface Vec3 { x: number; y: number; z: number; set(x: number, y: number, z: number): Vec3; project(camera: unknown): Vec3; clone(): Vec3 }
 interface ViewerLike {
-  scene: { background: unknown; children: Array<{ position: Vec3 }> };
+  scene: { background: unknown; children: Array<{ position: Vec3 }>; add(object: object): unknown; remove(object: object): unknown };
   camera: { position: Vec3; fov: number; aspect: number; updateMatrixWorld(): void; matrixWorld: { elements: ArrayLike<number> } };
   controls: { enabled: boolean; enableZoom?: boolean; target?: Vec3; update?: () => void };
   renderer: { domElement: HTMLCanvasElement };
-  rtc: { global: Vec3 };
+  /** The origin shift (scene = world − global); `onChange` fires when a model sets it or a re-tile moves it. */
+  rtc: { global: Vec3; onChange?: (listener: () => void) => () => void };
   invalidate(source?: string): void;
 }
 const asLike = (v: Viewer) => v as unknown as ViewerLike;
@@ -116,6 +125,20 @@ function setInteraction(viewer: ViewerLike, enabled: boolean, wheel: boolean) {
   if ('enableZoom' in controls) controls.enableZoom = wheel;
 }
 
+/** What a frame of the overlays depends on: the camera, the canvas size and the origin shift. */
+function frameKey(v: ViewerLike, w: number, h: number): string {
+  const g = v.rtc.global;
+  return `${Array.prototype.join.call(v.camera.matrixWorld.elements, ',')}|${w}x${h}|${g.x},${g.y},${g.z}`;
+}
+
+/** Moves an overlay node to a projected point (NDC) on a canvas of `w` × `h` px, hiding it when off screen. */
+function placeNode(el: HTMLElement, p: Vec3, w: number, h: number): boolean {
+  const inView = p.z > -1 && p.z < 1 && Math.abs(p.x) <= 1.05 && Math.abs(p.y) <= 1.05;
+  el.style.visibility = inView ? 'visible' : 'hidden';
+  el.style.transform = `translate(${((p.x + 1) / 2) * w}px, ${((1 - p.y) / 2) * h}px)`;
+  return inView;
+}
+
 type Handle = Parameters<NonNullable<ComponentProps<typeof ModelLoader>['onLoad']>>[0];
 
 /** Loads one model into the viewer (headless) and reports the outcome. */
@@ -191,13 +214,18 @@ function SceneSync({ settings, dark, host, handles, settled }: {
   return null;
 }
 
-/** Sensor markers: DOM over the canvas, moved with the camera every frame it changes. */
-function SensorOverlay({ viewer, sensors, settings }: { viewer: Viewer | null; sensors: SensorMarker[]; settings: ViewerModelSettings }) {
+/** Sensor markers: DOM over the canvas, moved with the camera every frame it changes. A click reports the marker's row. */
+function SensorOverlay({ viewer, sensors, settings, onMarkerClick }: {
+  viewer: Viewer | null;
+  sensors: SensorMarker[];
+  settings: ViewerModelSettings;
+  onMarkerClick?: (row: Row) => void;
+}) {
   const nodes = useRef(new Map<string, HTMLElement>());
   const dirty = useRef(true);
   const [active, setActive] = useState<string | null>(null);
   const trigger = settings.tooltipTrigger ?? 'hover';
-  const size = typeof settings.markerSize === 'number' ? settings.markerSize : 14;
+  const defaultSize = typeof settings.markerSize === 'number' ? settings.markerSize : 14;
   const showLabels = settings.showSensorLabels !== false;
   const content = settings.labelContent ?? 'both';
   const pulse = settings.pulseAlarms !== false;
@@ -217,7 +245,7 @@ function SensorOverlay({ viewer, sensors, settings }: { viewer: Viewer | null; s
       const h = canvas.clientHeight;
       const g = v.rtc.global;
       v.camera.updateMatrixWorld();
-      const key = `${Array.prototype.join.call(v.camera.matrixWorld.elements, ',')}|${w}x${h}|${g.x},${g.y},${g.z}`;
+      const key = frameKey(v, w, h);
       if (key === last && !dirty.current) return;
       last = key;
       dirty.current = false;
@@ -225,9 +253,7 @@ function SensorOverlay({ viewer, sensors, settings }: { viewer: Viewer | null; s
         const el = nodes.current.get(s.id);
         if (!el) continue;
         p.set(s.position[0] - g.x, s.position[1] - g.y, s.position[2] - g.z).project(v.camera);
-        const inView = p.z > -1 && p.z < 1 && Math.abs(p.x) <= 1.05 && Math.abs(p.y) <= 1.05;
-        el.style.visibility = inView ? 'visible' : 'hidden';
-        el.style.transform = `translate(${((p.x + 1) / 2) * w}px, ${((1 - p.y) / 2) * h}px)`;
+        placeNode(el, p, w, h);
         // Nearer markers draw over farther ones.
         el.style.zIndex = active === s.id ? '30' : String(10 + Math.round((1 - p.z) * 1000));
       }
@@ -241,6 +267,7 @@ function SensorOverlay({ viewer, sensors, settings }: { viewer: Viewer | null; s
     <div data-part="sensors" className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
       {sensors.map((s) => {
         const open = active === s.id && trigger !== 'none';
+        const size = s.size ?? defaultSize;
         const text = content === 'label' ? s.label : content === 'value' ? s.valueText : [s.label, s.valueText].filter(Boolean).join(' · ');
         const dot: CSSProperties = { width: size, height: size, background: s.color, boxShadow: `0 0 0 2px var(--surface-base), 0 1px 4px rgb(0 0 0 / 0.35)` };
         return (
@@ -256,7 +283,11 @@ function SensorOverlay({ viewer, sensors, settings }: { viewer: Viewer | null; s
               onMouseLeave={trigger === 'hover' ? () => setActive((a) => (a === s.id ? null : a)) : undefined}
               onFocus={() => setActive(s.id)}
               onBlur={() => setActive((a) => (a === s.id ? null : a))}
-              onClick={trigger === 'click' ? () => setActive((a) => (a === s.id ? null : s.id)) : undefined}
+              onClick={trigger === 'click' || onMarkerClick ? () => {
+                // The tooltip toggles as before; the host hears about the click as well.
+                if (trigger === 'click') setActive((a) => (a === s.id ? null : s.id));
+                onMarkerClick?.(s.row);
+              } : undefined}
             >
               {s.alarm && pulse && <span aria-hidden="true" className="absolute inset-0 animate-ping rounded-full opacity-60" style={{ background: s.color }} />}
             </button>
@@ -295,15 +326,184 @@ function SensorOverlay({ viewer, sensors, settings }: { viewer: Viewer | null; s
   );
 }
 
+/** The things' labels: DOM for the nearest `MAX_THING_LABELS` labelled things, placed just above each shape every frame the camera changes. */
+function ThingLabels({ viewer, things }: { viewer: Viewer; things: ThingMarker[] }) {
+  const nodes = useRef(new Map<string, HTMLElement>());
+  const dirty = useRef(true);
+  const [shown, setShown] = useState<ThingMarker[]>([]);
+
+  useLayoutEffect(() => { dirty.current = true; });
+
+  useEffect(() => {
+    const v = asLike(viewer);
+    const p = v.camera.position.clone();
+    let raf = 0;
+    let last = '';
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const canvas = v.renderer.domElement;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      const g = v.rtc.global;
+      v.camera.updateMatrixWorld();
+      const key = frameKey(v, w, h);
+      if (key === last && !dirty.current) return;
+      last = key;
+      dirty.current = false;
+      // The nearest set changes with the camera: a new set renders first, and is placed on the next frame.
+      const near = nearestThings(things, v.camera.position, g, MAX_THING_LABELS);
+      if (near.length !== shown.length || near.some((t, i) => t !== shown[i])) { setShown(near); return; }
+      for (const t of near) {
+        const el = nodes.current.get(t.id);
+        if (!el) continue;
+        p.set(t.position[0] - g.x, t.position[1] - g.y + t.size, t.position[2] - g.z).project(v.camera);
+        placeNode(el, p, w, h);
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [viewer, things, shown]);
+
+  if (shown.length === 0) return null;
+  return (
+    <div data-part="things" className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+      {shown.map((t) => (
+        <div key={t.id} ref={(el) => { if (el) nodes.current.set(t.id, el); else nodes.current.delete(t.id); }}
+          data-thing={t.id} className="absolute left-0 top-0" style={{ visibility: 'hidden' }}>
+          <span aria-hidden="true" data-part="thing-label"
+            className="absolute left-0 top-0 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-border bg-surface-raised/90 px-1.5 py-0.5 text-[11px] font-medium leading-4 text-text-primary shadow-sm backdrop-blur-sm">
+            {t.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** A pointer that travels further, or stays down longer, is an orbit, not a click on a thing. */
+const CLICK_PX = 6;
+const CLICK_MS = 600;
+
+/**
+ * The things: one instanced mesh per kind in the viewer's scene, written in place as the rows change, the alarm ones
+ * pulsing, a click on a shape reported to the host with the thing's row, and a DOM label over the nearest ones.
+ */
+function ThingsLayer({ viewer, things, host, dark, showLabels, onMarkerClick }: {
+  viewer: Viewer | null;
+  things: ThingMarker[];
+  host: HTMLElement | null;
+  dark: boolean;
+  showLabels: boolean;
+  onMarkerClick?: (row: Row) => void;
+}) {
+  const [three, setThree] = useState<ThreeLib | null>(null);
+  const state = useRef<ThingMeshState>(newThingMeshState());
+  const colorCache = useRef(new Map<string, string | null>());
+  const [originTick, setOriginTick] = useState(0);
+  const reduced = useReducedMotion();
+
+  // three.js (the viewer's own copy) comes in once there is a thing to draw, never before.
+  useEffect(() => {
+    if (three || things.length === 0) return;
+    let on = true;
+    import('three').then((m) => { if (on) setThree(m); }).catch(() => { /* no three: the markers still draw, the things do not */ });
+    return () => { on = false; };
+  }, [three, things.length]);
+
+  // The viewer's origin shift (set when the first model loads, moved by a re-tile): the instances follow it.
+  useEffect(() => {
+    if (!viewer) return;
+    return asLike(viewer).rtc.onChange?.(() => setOriginTick((n) => n + 1));
+  }, [viewer]);
+
+  // A colour resolves once per CSS text and theme (a token's value flips with the theme).
+  useEffect(() => {
+    colorCache.current = new Map();
+    state.current.colors.clear();
+  }, [host, dark]);
+
+  // The meshes follow the things, the origin and the theme.
+  useEffect(() => {
+    if (!three || !viewer || !host) return;
+    const v = asLike(viewer);
+    syncThingMeshes(three, v.scene, state.current, things, v.rtc.global, (css) => {
+      const cached = colorCache.current.get(css);
+      if (cached !== undefined) return cached;
+      const hex = resolveCssColor(css, host);
+      colorCache.current.set(css, hex);
+      return hex;
+    });
+    v.invalidate('widget-kit:things');
+  }, [three, viewer, host, things, dark, originTick]);
+
+  // Everything out of the scene when the layer goes.
+  useEffect(() => {
+    if (!three || !viewer) return;
+    const v = asLike(viewer);
+    const st = state.current;
+    return () => { disposeThingMeshes(v.scene, st); v.invalidate('widget-kit:things'); };
+  }, [three, viewer]);
+
+  // The pulse: the alarm things breathe in size, unless the viewer asks for reduced motion.
+  useEffect(() => {
+    if (!three || !viewer || reduced || !hasPulsingThings(state.current)) return;
+    const v = asLike(viewer);
+    const st = state.current;
+    let raf = 0;
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      if (pulseThingMeshes(three, st, v.rtc.global, 1 + 0.12 * Math.sin(now / 250))) v.invalidate('widget-kit:things');
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      if (pulseThingMeshes(three, st, v.rtc.global, 1)) v.invalidate('widget-kit:things');
+    };
+  }, [three, viewer, things, reduced, originTick]);
+
+  // A click on a shape (not an orbit drag) reports the thing's row.
+  useEffect(() => {
+    if (!three || !viewer || !onMarkerClick) return;
+    const v = asLike(viewer);
+    const canvas = v.renderer.domElement;
+    let down: { x: number; y: number; at: number } | null = null;
+    const onDown = (e: PointerEvent) => { if (e.button === 0) down = { x: e.clientX, y: e.clientY, at: performance.now() }; };
+    const onUp = (e: PointerEvent) => {
+      const start = down;
+      down = null;
+      if (!start || Math.hypot(e.clientX - start.x, e.clientY - start.y) > CLICK_PX || performance.now() - start.at > CLICK_MS) return;
+      const r = canvas.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const ndc = { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 };
+      const id = pickThing(three, v.camera as unknown as Parameters<typeof pickThing>[1], state.current, ndc);
+      const hit = id === null ? undefined : things.find((t) => t.id === id);
+      if (hit) onMarkerClick(hit.row);
+    };
+    canvas.addEventListener('pointerdown', onDown);
+    canvas.addEventListener('pointerup', onUp);
+    return () => {
+      canvas.removeEventListener('pointerdown', onDown);
+      canvas.removeEventListener('pointerup', onUp);
+    };
+  }, [three, viewer, things, onMarkerClick]);
+
+  if (!viewer || !showLabels || things.length === 0) return null;
+  return <ThingLabels viewer={viewer} things={things} />;
+}
+
 export interface ViewerModelCanvasProps {
   models: ModelSource[];
   sensors: SensorMarker[];
+  /** The things after the rules (an empty list draws none and never loads three.js). */
+  things: ThingMarker[];
   settings: ViewerModelSettings;
   dark: boolean;
+  /** A sensor marker or a thing was clicked: the host gets its row. */
+  onMarkerClick?: (row: Row) => void;
 }
 
-/** The live viewer, its models and the sensor overlay. The viewer is disposed when this unmounts. */
-export function ViewerModelCanvas({ models, sensors, settings, dark }: ViewerModelCanvasProps) {
+/** The live viewer, its models, the things and the sensor overlay. The viewer is disposed when this unmounts. */
+export function ViewerModelCanvas({ models, sensors, things, settings, dark, onMarkerClick }: ViewerModelCanvasProps) {
   const texts = useKitMessages().viewer;
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
@@ -341,7 +541,8 @@ export function ViewerModelCanvas({ models, sensors, settings, dark }: ViewerMod
           </div>
         )}
       </KUIViewer>
-      <SensorOverlay viewer={viewer} sensors={sensors} settings={settings} />
+      <SensorOverlay viewer={viewer} sensors={sensors} settings={settings} onMarkerClick={onMarkerClick} />
+      <ThingsLayer viewer={viewer} things={things} host={host} dark={dark} showLabels={settings.showThingLabels !== false} onMarkerClick={onMarkerClick} />
       {!settled && models.length > 0 && (
         <ViewerStatus kind="loading" className="pointer-events-none bg-transparent"
           text={models.length > 1 ? texts.loadingModels(done, models.length) : texts.loadingModel} />

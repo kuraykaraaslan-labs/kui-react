@@ -3,17 +3,10 @@ import type { SettingsTemplate, Sparse } from '../settings/types';
 import type { BuiltinKindSpec } from '../kind';
 import { isFormKey } from '../views/control-form-logic';
 import { MAX_SCENE_ELEMENTS, MAX_SCENE_LINKS, MAX_SCENE_SHAPES, parsePort, type SceneElementSetting, type SceneLinkSetting, type SceneShapeSetting } from '../views/scada-scene-logic';
-import { MAX_RULE_LABEL, MAX_SCENE_RULES, RULE_OPS, validateRules } from '../views/scene-rules-logic';
+import { MAX_RULE_LABEL, MAX_SCENE_RULES, validateRules } from '../views/scene-rules-logic';
 import { isScadaSymbol, SCADA_SYMBOLS, SCADA_SYMBOL_DEFS, type SymbolDef } from '../views/scada-logic';
 import { MEDIUM_OPTIONS, SYMBOL_OPTIONS } from './scada';
-
-const YES_NO = [opt('', 'No change'), opt('true', 'Yes'), opt('false', 'No')];
-const RULE_OP_OPTIONS = [
-  opt('', 'Always'), opt('eq', 'equal to'), opt('ne', 'not equal to'), opt('gt', 'greater than'), opt('gte', 'greater than or equal to'),
-  opt('lt', 'less than'), opt('lte', 'less than or equal to'), opt('between', 'between (inclusive)'), opt('in', 'one of (comma list)'),
-  opt('set', 'set'), opt('unset', 'not set'), opt('true', 'true'), opt('false', 'false'),
-];
-if (RULE_OP_OPTIONS.length !== RULE_OPS.length + 1) throw new Error('scada.scene: the operator options and the rule engine disagree');
+import { ruleConditionFields, stopField, YES_NO } from './rule-fields';
 
 const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter((r) => r && typeof r === 'object') : []);
 
@@ -138,21 +131,12 @@ export const SCADA_SCENE: SettingsTemplate = {
       label: 'Rules', type: 'repeater', group: 'rules', max: MAX_SCENE_RULES,
       description: 'Make symbols and connections follow the data. A rule names a target, up to two conditions and what to change while they hold. Rules run top to bottom; every rule that matches applies, a later rule wins for the same change, and "Stop" ends the rules for that target.',
       fields: {
-        enabled: { label: 'On', type: 'boolean', value: true },
-        target: { label: 'Applies to', type: 'text', maxLength: 64, required: true, placeholder: 'pump1, a connection id or *', description: 'A symbol id, a connection id (its "State from row"), or * for all of them.' },
-        source: { label: 'When: read', type: 'select', value: 'column', options: [opt('column', 'A column of a row'), opt('param', 'A board parameter')] },
-        key: { label: 'Column or parameter', type: 'text', maxLength: 64, placeholder: 'value, status, mode' },
-        of: { label: 'Of row', type: 'text', maxLength: 64, placeholder: 'This symbol\'s own row', description: 'The id of another symbol or connection whose row is read.' },
-        op: { label: 'Is', type: 'select', options: RULE_OP_OPTIONS, description: 'Empty = the rule always applies.' },
-        value: { label: 'Value', type: 'text', maxLength: 80, placeholder: '80, off, a,b,c' },
-        to: { label: 'Up to', type: 'text', maxLength: 40, placeholder: 'Upper end of "between"' },
-        join: { label: 'Join with', type: 'select', value: 'all', options: [opt('all', 'And (all hold)'), opt('any', 'Or (one holds)')] },
-        source2: { label: 'And when: read', type: 'select', value: 'column', options: [opt('column', 'A column of a row'), opt('param', 'A board parameter')] },
-        key2: { label: 'Column or parameter', type: 'text', maxLength: 64 },
-        of2: { label: 'Of row', type: 'text', maxLength: 64, placeholder: 'This symbol\'s own row' },
-        op2: { label: 'Is', type: 'select', options: RULE_OP_OPTIONS, description: 'Empty = no second condition.' },
-        value2: { label: 'Value', type: 'text', maxLength: 80 },
-        to2: { label: 'Up to', type: 'text', maxLength: 40 },
+        ...ruleConditionFields({
+          targetPlaceholder: 'pump1, a connection id or *',
+          targetDescription: 'A symbol id, a connection id (its "State from row"), or * for all of them.',
+          ownRow: 'This symbol\'s own row',
+          otherRow: 'The id of another symbol or connection whose row is read.',
+        }),
         state: { label: 'Then: state', type: 'select', options: [opt('', 'No change'), opt('idle', 'Idle'), opt('running', 'Running'), opt('warning', 'Warning'), opt('critical', 'Critical'), opt('off', 'Off (passive, nothing flowing)')] },
         color: { label: 'Colour', type: 'color', description: 'Replaces the state colour.' },
         fillColor: { label: 'Liquid colour', type: 'color' },
@@ -170,7 +154,7 @@ export const SCADA_SCENE: SettingsTemplate = {
         position: { label: 'Opening (%)', type: 'number', nullable: true, display: 'input', min: 0, max: 100, placeholder: 'Not shown', description: 'A bar along the bottom of a valve, damper, door or blind.' },
         pending: { label: 'Command pending', type: 'select', options: YES_NO, description: 'A spinner in the bottom right corner.' },
         failed: { label: 'Command failed', type: 'select', options: YES_NO, description: 'A red mark in the bottom right corner.' },
-        stop: { label: 'Stop here', type: 'boolean', value: false, description: 'No later rule applies to this target once this one matched.' },
+        stop: stopField(),
       },
     },
     }),
