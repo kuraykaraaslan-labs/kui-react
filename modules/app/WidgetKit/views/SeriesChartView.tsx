@@ -4,7 +4,7 @@ import { AreaChart, BarChart, LineChart, type Series } from '@/modules/ui/Chart'
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { useKitMessages } from '../WidgetKitContext';
 import type { SeriesPreset } from '../templates/series';
-import { mergeSeriesSlots, numberFormatter, seriesCsv, tableCsv, withFormatters } from './chart-data';
+import { bandStampTimes, mergeSeriesSlots, numberFormatter, seriesCsv, tableCsv, withFormatters } from './chart-data';
 import { categoryMode, seriesChartIsEmpty, seriesChartModel, tooltipValueText } from './series-chart-logic';
 
 export * from './series-chart-logic';
@@ -14,15 +14,25 @@ export * from './series-chart-logic';
  * on a time axis when every x is a date (line, and area unless stacked) or on a band axis of
  * formatted timestamps (bars, stacked areas, non-date x values). A series may sit on a right-hand
  * value axis with its own bounds, title and unit; zoom on the time axis is viewer-local and never
- * changes the board window. The chart fills the card body.
+ * changes the board window. A host that passes `onRangeSelect` takes the drag instead: the viewer
+ * then brushes a range of instants for the host (whole bars on a band axis of timestamps), and the
+ * local zoom stands down. The chart fills the card body.
  */
-export function SeriesChartView({ preset, settings, format, data, locale }: WidgetViewProps & { preset: SeriesPreset }) {
+export function SeriesChartView({ preset, settings, format, data, locale, onRangeSelect }: WidgetViewProps & { preset: SeriesPreset }) {
   const m = useKitMessages().charts;
   const model = useMemo(() => seriesChartModel(preset, settings, format, data, locale, m), [preset, settings, format, data, locale, m]);
   const series: Series[] = useMemo(() => withFormatters(model.series, locale), [model.series, locale]);
+  // A band axis of timestamps (bars, a stacked area) can still report a range: its categories' instants, looked up
+  // only when a host listens, so the model (and its golden) is the same without the prop.
+  const categoryTimes = useMemo(
+    () => (onRangeSelect && model.xAxis === 'band' && !model.byCategory ? bandStampTimes(mergeSeriesSlots(data)) ?? undefined : undefined),
+    [onRangeSelect, model.xAxis, model.byCategory, data],
+  );
   const common = {
     series,
     fill: true,
+    onRangeSelect,
+    categoryTimes,
     yFormat: numberFormatter(model.yFormat, locale),
     y2Format: numberFormatter(model.y2Format, locale),
     ...model.legend,

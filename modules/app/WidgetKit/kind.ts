@@ -111,6 +111,15 @@ export interface WidgetViewProps {
    */
   onSliceClick?: (row: Record<string, unknown>) => void;
   /**
+   * `chart.line` / `chart.area` / `chart.bar` on an axis of instants: the viewer brushed a range (a pointer drag across
+   * the plot: mouse, pen or touch; on a band axis of timestamps whole bars, to the end of the last one's bucket) or
+   * asked for a reset with a double click, or Escape while the band shows (`null`). `from` and `to` are ms since the
+   * epoch, `from < to`. Keyboard: the plot is focusable, the arrow keys move the selection's end, Shift + arrows its
+   * start, Enter reports it. With this prop the chart's own zoom stands down (the host owns the window); absent = as
+   * before, and no band ever appears.
+   */
+  onRangeSelect?: (range: { from: number; to: number } | null) => void;
+  /**
    * A diagram's symbols and their actions (`scada.scene`): which gestures a symbol answers (the host knows what the
    * placement stored for it) and a way to run them. A symbol with no gesture is not interactive at all.
    */

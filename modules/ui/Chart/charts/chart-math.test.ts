@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   toTime, isTimeSeries, timeExtent, timePoints, visibleYExtent, xTime, invTime, timeTicks,
-  formatTick, brushDomain, nearestIndex,
+  formatTick, brushDomain, brushRange, bandIndex, bandRange, keyRange, keyedTimeRange, nearestIndex,
 } from './_time';
 import { buildHeatGrid, heatIntensity } from './_heatmap';
 import type { Series } from '../types';
@@ -76,6 +76,52 @@ describe('time axis maths', () => {
     expect(nearestIndex([10, 20, 40], 31)).toBe(2);
     expect(nearestIndex([10, 20, 40], -5)).toBe(0);
     expect(nearestIndex([10, 20, 40], 99)).toBe(2);
+  });
+});
+
+describe('a range for the host (brush, band and keyboard)', () => {
+  const full: [number, number] = [0, 10_000];
+  it('a time brush reports the zoom domain as from / to, with the same click and sliver rules', () => {
+    expect(brushRange(240, 240, full, full, rect)).toBeNull();
+    expect(brushRange(100, 104, full, full, rect)).toBeNull();
+    const r = brushRange(440, 140, full, full, rect)!;
+    expect(r.from).toBeCloseTo(2500);
+    expect(r.to).toBeCloseTo(10_000);
+  });
+  it('bandIndex clamps a pixel along the axis to a category', () => {
+    expect(bandIndex(-5, 100, 4)).toBe(0);
+    expect(bandIndex(0, 100, 4)).toBe(0);
+    expect(bandIndex(150, 100, 4)).toBe(1);
+    expect(bandIndex(999, 100, 4)).toBe(3);
+    expect(bandIndex(50, 0, 4)).toBe(0);
+    expect(bandIndex(50, 100, 0)).toBe(0);
+  });
+  it('bandRange spans whole buckets, to the end of the last one, in either order', () => {
+    const times = [1000, 2000, 3000, 4000];
+    expect(bandRange(times, 1, 2)).toEqual({ from: 2000, to: 4000 });
+    expect(bandRange(times, 2, 1)).toEqual({ from: 2000, to: 4000 });
+    expect(bandRange(times, 0, 0)).toEqual({ from: 1000, to: 2000 });
+    // the last bucket is as long as the gap before it
+    expect(bandRange(times, 3, 3)).toEqual({ from: 4000, to: 5000 });
+    expect(bandRange(times, -4, 99)).toEqual({ from: 1000, to: 5000 });
+    expect(bandRange([1000], 0, 0)).toBeNull();
+    expect(bandRange([], 0, 0)).toBeNull();
+    expect(bandRange([5000, 5000], 0, 1)).toBeNull();
+  });
+  it('keyRange: arrows move the end, Shift + arrows the start, inside the bounds and never crossing', () => {
+    expect(keyRange(null, 1, false, 0, 100, 10)).toEqual({ anchor: 0, focus: 10 });
+    expect(keyRange({ anchor: 0, focus: 10 }, 1, false, 0, 100, 10)).toEqual({ anchor: 0, focus: 20 });
+    expect(keyRange({ anchor: 0, focus: 20 }, 1, true, 0, 100, 10)).toEqual({ anchor: 10, focus: 20 });
+    // the start cannot pass the end; the end cannot leave the bounds
+    expect(keyRange({ anchor: 10, focus: 20 }, 1, true, 0, 100, 50)).toEqual({ anchor: 20, focus: 20 });
+    expect(keyRange({ anchor: 10, focus: 95 }, 1, false, 0, 100, 10)).toEqual({ anchor: 10, focus: 100 });
+    expect(keyRange({ anchor: 10, focus: 20 }, -1, false, 0, 100, 50)).toEqual({ anchor: 0, focus: 0 });
+    expect(keyRange(null, -1, false, 0, 100, 10)).toEqual({ anchor: 0, focus: 0 });
+  });
+  it('keyedTimeRange needs at least the smallest zoom', () => {
+    expect(keyedTimeRange({ anchor: 0, focus: 0 })).toBeNull();
+    expect(keyedTimeRange({ anchor: 0, focus: 999 })).toBeNull();
+    expect(keyedTimeRange({ anchor: 0, focus: 1000 })).toEqual({ from: 0, to: 1000 });
   });
 });
 

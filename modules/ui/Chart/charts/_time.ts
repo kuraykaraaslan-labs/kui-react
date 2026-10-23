@@ -190,6 +190,61 @@ export function brushDomain(px0: number, px1: number, domain: TimeDomain, full: 
   return hi - lo < MIN_ZOOM_MS ? null : [lo, hi];
 }
 
+// ── A range the viewer selects for the host (dashboard phase 35: a brush that moves the board window) ──
+
+/** What a brush or a keyboard selection reports: epoch ms, `from < to`. */
+export interface TimeRange { from: number; to: number }
+
+/** A keyboard selection along the x axis, in data units (ms, or a category index): where it started and where its end is. */
+export interface KeySelection { anchor: number; focus: number }
+
+/** The range a time-axis brush from `px0` to `px1` reports (the zoom rules: at least `MIN_BRUSH_PX` wide and `MIN_ZOOM_MS` long). */
+export function brushRange(px0: number, px1: number, domain: TimeDomain, full: TimeDomain, rect: PlotRect): TimeRange | null {
+  const d = brushDomain(px0, px1, domain, full, rect);
+  return d ? { from: d[0], to: d[1] } : null;
+}
+
+/** The category index under `along` px from the start of a band axis of `count` categories `step` px wide (clamped). */
+export function bandIndex(along: number, step: number, count: number): number {
+  if (count <= 0 || !(step > 0)) return 0;
+  return Math.min(count - 1, Math.max(0, Math.floor(along / step)));
+}
+
+/**
+ * The time range of the categories `i0` to `i1` (either order) of a band axis whose categories are instants: from the
+ * first one's instant to the END of the last one's bucket (the next category's instant, or the last gap carried past the
+ * end). Null without a second instant to size a bucket from.
+ */
+export function bandRange(times: readonly number[], i0: number, i1: number): TimeRange | null {
+  if (times.length < 2) return null;
+  const a = Math.max(0, Math.min(i0, i1));
+  const b = Math.min(times.length - 1, Math.max(i0, i1));
+  if (!(b >= a)) return null;
+  const from = times[a];
+  const to = b + 1 < times.length ? times[b + 1] : times[b] + (times[b] - times[b - 1]);
+  return Number.isFinite(from) && Number.isFinite(to) && to > from ? { from, to } : null;
+}
+
+/**
+ * The selection after an arrow key: the arrows move its end (`focus`) by `step`, Shift + arrows move its start
+ * (`anchor`); both stay inside `lo..hi` and the start never passes the end. The first key starts both at `lo`.
+ */
+export function keyRange(sel: KeySelection | null, dir: -1 | 1, shift: boolean, lo: number, hi: number, step: number): KeySelection {
+  const cur = sel ?? { anchor: lo, focus: lo };
+  const clamp = (v: number) => Math.min(hi, Math.max(lo, v));
+  if (shift) {
+    const anchor = clamp(cur.anchor + dir * step);
+    return { anchor: Math.min(anchor, cur.focus), focus: cur.focus };
+  }
+  const focus = clamp(cur.focus + dir * step);
+  return { anchor: Math.min(cur.anchor, focus), focus };
+}
+
+/** The range a keyboard selection on a time axis reports (too short = nothing). */
+export function keyedTimeRange(sel: KeySelection): TimeRange | null {
+  return sel.focus - sel.anchor >= MIN_ZOOM_MS ? { from: sel.anchor, to: sel.focus } : null;
+}
+
 /** Index of the time in the sorted `times` nearest to `t`. */
 export function nearestIndex(times: number[], t: number): number {
   if (times.length === 0) return -1;

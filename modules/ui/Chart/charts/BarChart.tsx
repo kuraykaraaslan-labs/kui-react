@@ -7,8 +7,11 @@
 // `yAxis: 'right'` (vertical bars), custom category ticks and markers (a histogram's bin edges and
 // mean), plus the shared cartesian surface (legend position / values / toggling, fixed value
 // bounds, axis titles, thresholds, tooltip mode and total, axis text style, entrance animation).
+// With `onRangeSelect` and `categoryTimes` (the instant of each category) a pointer drag along the
+// category axis selects whole bars for the host as a time range, a double click or Escape asks for
+// a reset, and the keyboard builds a selection (arrows, Shift + arrows, Enter).
 
-import { useId, useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { ResponsiveContainer } from '../primitives/ResponsiveContainer';
 import { XAxis, YAxis } from '../primitives/Axis';
 import { Grid } from '../primitives/Grid';
@@ -24,6 +27,7 @@ import {
 } from './_helpers';
 import { chartLegend, plotPadding, useSeriesVisibility, valueText } from './_cartesian';
 import { useEntrance, valueLabelProps } from './_marks';
+import { bandIndex, bandRange, keyRange, MIN_BRUSH_PX, type KeySelection } from './_time';
 
 export type BarChartProps = BaseChartProps & {
   /** Corner radius in pixels at the end of each bar (the baseline end stays square). Default = 4. */
@@ -104,8 +108,14 @@ export function BarChart({
   tooltipTotalLabel = 'Total',
   animate = true,
   valueLabelStyle,
+  onRangeSelect,
+  categoryTimes,
 }: BarChartProps) {
   const [hover, setHover] = useState<{ index: number; along: number; pos: number } | null>(null);
+  // A range selection for the host: the pointer band in px along the category axis, and the keyed one in indices.
+  const [brush, setBrush] = useState<{ from: number; to: number } | null>(null);
+  const [keySel, setKeySel] = useState<KeySelection | null>(null);
+  const captured = useRef(false);
   const vis = useSeriesVisibility(series);
   const visible = vis.visible;
   const horizontal = orientation === 'horizontal';
@@ -116,6 +126,7 @@ export function BarChart({
   const enter = useEntrance(horizontal ? 'reveal-x' : 'reveal-y', animate);
 
   const categories = useMemo(() => xCategories(vis.colored), [vis.colored]);
+  const selecting = !!onRangeSelect && !!categoryTimes && categories.length > 0 && categoryTimes.length === categories.length;
   // Horizontal bars have one value axis: a right-axis series is drawn on it like the others.
   const axisSeries = useMemo(() => (horizontal ? visible.map((s) => ({ ...s, yAxis: undefined })) : visible), [horizontal, visible]);
   const keys = useMemo(() => stackKeys(axisSeries, stacked), [axisSeries, stacked]);
@@ -235,7 +246,7 @@ export function BarChart({
           const labelEvery = !showValues || horizontal || isStacked ? 1 : Math.max(1, Math.ceil((longest * 6.6 + 6) / Math.max(1, slots > 1 ? thick + gap : step)));
 
           let tip: TooltipDatum[] = [];
-          if (hover && tipMode !== 'none') {
+          if (hover && tipMode !== 'none' && !brush) {
             tip = visible.map((s) => {
               const p = s.data[hover.index];
               const y = p?.y ?? null;
@@ -261,6 +272,26 @@ export function BarChart({
           const header = hover ? (categories[hover.index] ?? '') : '';
           const onFill = valueLabelPosition !== 'outside' || isStacked;
 
+          // Where a pointer is along the category axis (px from its start) and across it.
+          const alongOf = (e: React.MouseEvent) => {
+            const bounds = (e.currentTarget as SVGElement).getBoundingClientRect();
+            return {
+              along: horizontal ? e.clientY - bounds.top - rect.y : e.clientX - bounds.left - rect.x,
+              across: horizontal ? e.clientX - bounds.left : e.clientY - bounds.top,
+            };
+          };
+          // The selection for the host, as whole categories: the pointer band snapped, or the keyed one.
+          const indexAt = (along: number) => bandIndex(along, step, categories.length);
+          const sel = !selecting ? null
+            : brush ? { i0: indexAt(brush.from), i1: indexAt(brush.to) }
+              : keySel ? { i0: keySel.anchor, i1: keySel.focus } : null;
+          const bandPx = sel ? { from: catRect.x + Math.min(sel.i0, sel.i1) * step, to: catRect.x + (Math.max(sel.i0, sel.i1) + 1) * step } : null;
+          const report = (i0: number, i1: number) => {
+            const range = bandRange(categoryTimes!, i0, i1);
+            if (range) { onRangeSelect!(range); setHover(null); }
+          };
+          const endDrag = () => { captured.current = false; setBrush(null); };
+
           return (
             <>
               <svg
@@ -268,16 +299,57 @@ export function BarChart({
                 height={height}
                 role="img"
                 aria-label={ariaLabel ?? 'Bar chart'}
-                style={{ display: 'block', overflow: 'visible' }}
+                tabIndex={selecting ? 0 : undefined}
+                className={selecting ? 'outline-none focus-visible:ring-2 focus-visible:ring-border-focus' : undefined}
+                style={{
+                  display: 'block', overflow: 'visible',
+                  ...(selecting ? { touchAction: horizontal ? 'pan-x' : 'pan-y', cursor: 'crosshair', userSelect: 'none' } : {}),
+                }}
+                onPointerDown={(e) => {
+                  if (!selecting || e.button !== 0) return;
+                  const { along } = alongOf(e);
+                  if (along < 0 || along > catRect.width) return;
+                  // Keep the drag through a pointer that leaves the plot (not every DOM has capture: jsdom).
+                  const el = e.currentTarget;
+                  if (typeof el.setPointerCapture === 'function') {
+                    try { el.setPointerCapture(e.pointerId); captured.current = true; } catch { captured.current = false; }
+                  }
+                  setKeySel(null);
+                  setBrush({ from: along, to: along });
+                }}
+                onPointerMove={(e) => {
+                  if (brush) setBrush({ from: brush.from, to: Math.min(catRect.width, Math.max(0, alongOf(e).along)) });
+                }}
+                onPointerUp={() => {
+                  if (!brush) return;
+                  endDrag();
+                  // A click is not a brush: the band must be at least `MIN_BRUSH_PX` long.
+                  if (Math.abs(brush.to - brush.from) >= MIN_BRUSH_PX) report(indexAt(brush.from), indexAt(brush.to));
+                }}
+                onPointerCancel={endDrag}
                 onMouseMove={(e) => {
                   if (tipMode === 'none' || categories.length === 0) return;
-                  const bounds = (e.currentTarget as SVGElement).getBoundingClientRect();
-                  const along = horizontal ? e.clientY - bounds.top - rect.y : e.clientX - bounds.left - rect.x;
-                  const across = horizontal ? e.clientX - bounds.left : e.clientY - bounds.top;
+                  const { along, across } = alongOf(e);
                   if (along < 0 || along > catRect.width) { setHover(null); return; }
-                  setHover({ index: Math.min(categories.length - 1, Math.max(0, Math.floor(along / step))), along: catRect.x + along, pos: across });
+                  setHover({ index: indexAt(along), along: catRect.x + along, pos: across });
                 }}
-                onMouseLeave={() => setHover(null)}
+                onMouseLeave={() => { setHover(null); if (!captured.current) setBrush(null); }}
+                onDoubleClick={() => { if (selecting) { setKeySel(null); onRangeSelect!(null); } }}
+                onKeyDown={(e) => {
+                  if (!selecting) return;
+                  if (e.key === 'Escape') {
+                    if (!brush && !keySel) return;
+                    e.preventDefault();
+                    endDrag();
+                    setKeySel(null);
+                    onRangeSelect!(null);
+                  } else if (e.key === 'Enter') {
+                    if (keySel) { e.preventDefault(); report(keySel.anchor, keySel.focus); }
+                  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    setKeySel(keyRange(keySel, e.key === 'ArrowLeft' ? -1 : 1, e.shiftKey, 0, categories.length - 1, 1));
+                  }
+                }}
               >
                 <defs>
                   <clipPath id={clipId}>
@@ -285,7 +357,7 @@ export function BarChart({
                       width={rect.width + (showValues ? (horizontal ? 84 : 48) : 2)} height={rect.height + (showValues ? 19 : 2)} />
                   </clipPath>
                 </defs>
-                {hoverC !== null && tip.length > 0 && (
+                {hoverC !== null && tip.length > 0 && !brush && (
                   <rect
                     aria-hidden="true"
                     x={horizontal ? rect.x : hoverC - step / 2}
@@ -296,6 +368,21 @@ export function BarChart({
                     opacity={0.08}
                     rx={4}
                   />
+                )}
+                {bandPx && (
+                  // The selection for the host: the chosen categories tinted, with an edge line at each end.
+                  <g data-range-band="" aria-hidden="true" pointerEvents="none">
+                    <rect
+                      x={horizontal ? rect.x : bandPx.from}
+                      y={horizontal ? bandPx.from : rect.y}
+                      width={horizontal ? rect.width : bandPx.to - bandPx.from}
+                      height={horizontal ? bandPx.to - bandPx.from : rect.height}
+                      fill="var(--primary)" opacity={0.12}
+                    />
+                    {[bandPx.from, bandPx.to].map((at, k) => (horizontal
+                      ? <line key={k} x1={rect.x} x2={rect.x + rect.width} y1={at} y2={at} stroke="var(--primary)" strokeWidth={1} />
+                      : <line key={k} x1={at} x2={at} y1={rect.y} y2={rect.y + rect.height} stroke="var(--primary)" strokeWidth={1} />))}
+                  </g>
                 )}
                 {showGrid && (horizontal
                   ? <Grid rect={rect} yTicks={[]} xTicks={valuePixels} color={gridColor} lineStyle={gridStyle} />

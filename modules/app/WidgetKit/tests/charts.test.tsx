@@ -114,9 +114,10 @@ describe('series chart views', () => {
         </WidgetKitProvider>,
       );
       const svg = container.querySelector('svg[aria-label]')!;
-      fireEvent.mouseDown(svg, { button: 0, clientX: 150, clientY: 100 });
-      fireEvent.mouseMove(svg, { clientX: 350, clientY: 100 });
-      fireEvent.mouseUp(svg, { clientX: 350, clientY: 100 });
+      // The drag is a pointer gesture (a mouse, a pen or a finger alike).
+      fireEvent.pointerDown(svg, { button: 0, clientX: 150, clientY: 100, pointerId: 1 });
+      fireEvent.pointerMove(svg, { clientX: 350, clientY: 100, pointerId: 1 });
+      fireEvent.pointerUp(svg, { clientX: 350, clientY: 100, pointerId: 1 });
       expect(screen.getByRole('button', { name: 'Yakınlaştırmayı sıfırla' })).toBeInTheDocument();
       expect(screen.queryByText('Reset zoom')).toBeNull();
       unmount();
@@ -220,6 +221,122 @@ describe('pie view', () => {
     const csv = CHART_PIE_VIEW.toCsv!({ slices: table(rows, [{ key: 'label', label: 'Label', type: 'text' }, { key: 'value', label: 'Value', type: 'number' }]) }, {}, {});
     expect(csv[0]).toEqual(['label', 'value']);
     expect(csv[1]).toEqual(['A', '5']);
+  });
+});
+
+describe('chart brush (onRangeSelect)', () => {
+  const t = (d: number) => Date.parse(`2026-10-0${d}T00:00:00Z`);
+  const LineView = CHART_LINE_VIEW.View;
+  const line = (onRangeSelect?: (r: { from: number; to: number } | null) => void) => render(
+    <LineView settings={effective(CHART_LINE, { showPoints: true })} format={{}} data={{ series: series(['a']) }} locale="en" onRangeSelect={onRangeSelect} />,
+  );
+  const svgOf = (c: HTMLElement) => c.querySelector('svg[aria-label]') as SVGSVGElement;
+  const cx = (c: HTMLElement, i: number) => Number(c.querySelectorAll('circle[data-point]')[i].getAttribute('cx'));
+  const drag = (svg: Element, from: number, to: number) => {
+    fireEvent.pointerDown(svg, { button: 0, clientX: from, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(svg, { clientX: to, clientY: 100, pointerId: 1 });
+  };
+  const release = (svg: Element) => fireEvent.pointerUp(svg, { pointerId: 1 });
+
+  it('without the prop a drag zooms locally, as before, and draws no selection band', () => {
+    const { container } = line();
+    const svg = svgOf(container);
+    expect(svg).not.toHaveAttribute('tabindex');
+    drag(svg, cx(container, 0), cx(container, 2));
+    expect(container.querySelector('[data-range-band]')).toBeNull();
+    release(svg);
+    expect(screen.getByRole('button', { name: 'Reset zoom' })).toBeInTheDocument();
+  });
+
+  it('a drag across the time axis reports the range in epoch ms, read from the pixel positions; the local zoom stands down', () => {
+    const onRangeSelect = vi.fn();
+    const { container } = line(onRangeSelect);
+    const svg = svgOf(container);
+    expect(svg).toHaveAttribute('tabindex', '0');
+    drag(svg, cx(container, 1), cx(container, 2));
+    expect(container.querySelector('[data-range-band] rect')).toBeTruthy();
+    release(svg);
+    expect(onRangeSelect).toHaveBeenCalledTimes(1);
+    const [range] = onRangeSelect.mock.calls[0] as [{ from: number; to: number }];
+    expect(Math.round(range.from)).toBe(t(2));
+    expect(Math.round(range.to)).toBe(t(3));
+    expect(container.querySelector('[data-range-band]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reset zoom' })).toBeNull();
+    // Dragged right to left, the range still reads from < to.
+    drag(svg, cx(container, 3), cx(container, 0));
+    release(svg);
+    const [back] = onRangeSelect.mock.calls[1] as [{ from: number; to: number }];
+    expect(Math.round(back.from)).toBe(t(1));
+    expect(Math.round(back.to)).toBe(t(4));
+    // A click, or a sliver, is not a brush.
+    drag(svg, cx(container, 1), cx(container, 1) + 2);
+    release(svg);
+    expect(onRangeSelect).toHaveBeenCalledTimes(2);
+  });
+
+  it('a double click, and Escape while a band shows, ask for a reset with null', () => {
+    const onRangeSelect = vi.fn();
+    const { container } = line(onRangeSelect);
+    const svg = svgOf(container);
+    fireEvent.doubleClick(svg);
+    expect(onRangeSelect).toHaveBeenLastCalledWith(null);
+    // Nothing shows: Escape is not a reset.
+    fireEvent.keyDown(svg, { key: 'Escape' });
+    expect(onRangeSelect).toHaveBeenCalledTimes(1);
+    drag(svg, cx(container, 0), cx(container, 3));
+    fireEvent.keyDown(svg, { key: 'Escape' });
+    expect(onRangeSelect).toHaveBeenCalledTimes(2);
+    expect(onRangeSelect).toHaveBeenLastCalledWith(null);
+    expect(container.querySelector('[data-range-band]')).toBeNull();
+    // The cancelled drag reports nothing on release.
+    release(svg);
+    expect(onRangeSelect).toHaveBeenCalledTimes(2);
+  });
+
+  it('keyboard: the arrows move the end by a twentieth of the span, Shift + arrows the start, Enter reports it', () => {
+    const onRangeSelect = vi.fn();
+    const { container } = line(onRangeSelect);
+    const svg = svgOf(container);
+    fireEvent.keyDown(svg, { key: 'Enter' });
+    expect(onRangeSelect).not.toHaveBeenCalled();
+    fireEvent.keyDown(svg, { key: 'ArrowRight' });
+    fireEvent.keyDown(svg, { key: 'ArrowRight' });
+    expect(container.querySelector('[data-range-band] rect')).toBeTruthy();
+    fireEvent.keyDown(svg, { key: 'ArrowRight', shiftKey: true });
+    fireEvent.keyDown(svg, { key: 'Enter' });
+    const step = (t(4) - t(1)) / 20;
+    expect(onRangeSelect).toHaveBeenCalledWith({ from: t(1) + step, to: t(1) + 2 * step });
+  });
+
+  it('bars on timestamps report whole buckets, to the end of the last bar; bars on words offer no selection', () => {
+    const onRangeSelect = vi.fn();
+    const BarView = CHART_BAR_VIEW.View;
+    const { container } = render(<BarView settings={effective(CHART_BAR, {})} format={{}} data={{ series: series(['a']) }} locale="en" onRangeSelect={onRangeSelect} />);
+    const svg = svgOf(container);
+    expect(svg).toHaveAttribute('tabindex', '0');
+    const bars = [...container.querySelectorAll('path[data-bar]')];
+    const mid = (i: number) => Number(bars[i].getAttribute('data-x')) + Number(bars[i].getAttribute('data-w')) / 2;
+    drag(svg, mid(1), mid(2));
+    expect(container.querySelector('[data-range-band] rect')).toBeTruthy();
+    release(svg);
+    expect(onRangeSelect).toHaveBeenCalledWith({ from: t(2), to: t(4) });
+    drag(svg, mid(3) - 10, mid(3) + 10);
+    release(svg);
+    expect(onRangeSelect).toHaveBeenLastCalledWith({ from: t(4), to: t(4) + (t(4) - t(3)) });
+    fireEvent.keyDown(svg, { key: 'ArrowRight' });
+    fireEvent.keyDown(svg, { key: 'Enter' });
+    expect(onRangeSelect).toHaveBeenLastCalledWith({ from: t(1), to: t(3) });
+    fireEvent.doubleClick(svg);
+    expect(onRangeSelect).toHaveBeenLastCalledWith(null);
+    // Categories that are words (one bar per row) have no instants to report.
+    const words = render(
+      <BarView settings={effective(CHART_BAR, { xAxis: 'category', categoryColumn: 'name', valueColumn: 'n' })} format={{}}
+        data={{ rows: table([{ name: 'A', n: 1 }, { name: 'B', n: 2 }]) }} locale="en" onRangeSelect={onRangeSelect} />,
+    );
+    const wordsSvg = svgOf(words.container);
+    expect(wordsSvg).not.toHaveAttribute('tabindex');
+    drag(wordsSvg, 100, 300);
+    expect(words.container.querySelector('[data-range-band]')).toBeNull();
   });
 });
 

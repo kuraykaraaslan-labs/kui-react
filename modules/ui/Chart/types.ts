@@ -136,6 +136,20 @@ export type BaseChartProps = {
   resetZoomLabel?: string;
   /** Time axis only: drag a range to zoom, double-click or "Reset zoom" to leave it. Default = true. */
   zoom?: boolean;
+  /**
+   * Line / Area / Bar on an axis of instants: the viewer selects a range for the host instead of zooming locally. A
+   * pointer drag across the plot (mouse, pen or touch) draws a selection band and, on release, reports the range in
+   * epoch ms (`from < to`; on a band axis whole categories, see `categoryTimes`); a double click, and Escape while a
+   * band shows, report `null` (reset). Keyboard: the plot is focusable; the arrow keys move the selection's end, Shift
+   * + arrows its start, Enter reports it, Escape clears it. Absent = the chart behaves as before and no band appears.
+   */
+  onRangeSelect?: (range: { from: number; to: number } | null) => void;
+  /**
+   * Band axis only: the instant of each category (epoch ms, one per category, in order), so a selection of bars or of
+   * a stacked area's columns can be reported as a time range (`onRangeSelect`): from the first selected category to
+   * the end of the last one's bucket. Without it a band axis offers no range selection.
+   */
+  categoryTimes?: readonly number[];
   /** Format a y tick / tooltip value (e.g. `(v) => v + '%'`). Band and time axes. */
   yFormat?: (value: number) => string;
   /** Time axis only: an IANA zone the axis and tooltip are drawn in (e.g. `Europe/Istanbul`). Default = the browser's. */

@@ -114,6 +114,19 @@ export function toBandSeries(result: SlotData | undefined, locale?: string): Ser
   });
 }
 
+/**
+ * The instant (epoch ms) of each category of `toBandSeries`, in the same order, for a range selection on a band axis of
+ * timestamps (a bar chart, a stacked area). Null when any stamp is not a date: the categories are then words.
+ */
+export function bandStampTimes(result: SlotData | undefined): number[] | null {
+  const series = result?.series;
+  if (!series || series.length === 0) return null;
+  const stamps = [...new Set(series.flatMap((s) => s.points.map((p) => p.t)))].sort();
+  if (stamps.length === 0) return null;
+  const times = stamps.map((t) => Date.parse(t));
+  return times.some((t) => Number.isNaN(t)) ? null : times;
+}
+
 /** Time-axis series (x = epoch ms). Null when any timestamp is not a date (the band axis then applies). */
 export function toTimeSeries(result: SlotData | undefined): Series[] | null {
   const series = result?.series;

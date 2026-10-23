@@ -4,7 +4,11 @@
 // `mode="band"` places points by index on a category axis (stacking allowed); `mode="time"`
 // places them by timestamp (phase 9 §9.1 / §9.2: uneven sampling, gaps, drag-to-zoom). Zoom is
 // a drag-to-select brush local to this component's state: it never reaches the caller, so a
-// board's time window is untouched. Double-click or the "Reset zoom" button leaves it.
+// board's time window is untouched. Double-click or the "Reset zoom" button leaves it. With
+// `onRangeSelect` the same drag (a pointer: mouse, pen or touch) selects a range FOR the caller
+// instead (a band axis of instants too, through `categoryTimes`), a double click or Escape asks
+// for a reset, and the keyboard builds a selection (arrows, Shift + arrows, Enter); the local
+// zoom then stays out of the way, as the host owns the window.
 //
 // Everything a widget setting can change is a prop: curve (smooth / linear / step), per-series
 // stroke style, width, points and fill, hidden series (legend toggle), legend position and
@@ -27,7 +31,8 @@ import {
 } from './_helpers';
 import {
   timeExtent, timePoints, visibleYExtent, xTime, invTime, timeTicks, formatTick, formatFull,
-  brushDomain, nearestIndex, type TimeDomain, type TimePoint,
+  brushDomain, brushRange, bandIndex, bandRange, keyRange, keyedTimeRange, nearestIndex, MIN_BRUSH_PX,
+  type KeySelection, type TimeDomain, type TimePoint,
 } from './_time';
 import { chartLegend, plotPadding, useSeriesVisibility, valueText } from './_cartesian';
 import { PointMark, useEntrance, valueLabelProps } from './_marks';
@@ -68,11 +73,10 @@ export function SeriesChart({
   gridStyle, y2Min, y2Max, y2Label, y2Format, tooltipHeader = true, tooltipValueFormat, tooltipTotal = false,
   tooltipTotalLabel = 'Total',
   animate = true, valueLabelStyle, pointShape, pointSize, showValues = false, valueLabelPosition = 'top',
-  yIncludeZero = true,
+  yIncludeZero = true, onRangeSelect, categoryTimes,
 }: SeriesChartProps) {
   const isTime = mode === 'time';
   const tipMode = showTooltip ? (tooltipMode ?? 'axis') : 'none';
-  const zoomable = isTime && zoom;
 
   const vis = useSeriesVisibility(series);
   const visible = vis.visible;
@@ -82,6 +86,9 @@ export function SeriesChart({
   const [zoomDomain, setZoomDomain] = useState<TimeDomain | null>(null);
   const [hover, setHover] = useState<{ key: number; y: number } | null>(null);
   const [brush, setBrush] = useState<{ from: number; to: number } | null>(null);
+  const [keySel, setKeySel] = useState<KeySelection | null>(null);
+  // Whether the pointer of the running drag is captured (the drag then survives leaving the plot).
+  const captured = useRef(false);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const uid = useId().replace(/:/g, '');
   const clipId = `sc-clip-${uid}`;
@@ -91,6 +98,11 @@ export function SeriesChart({
   const fmt2 = y2Format ?? fmt;
 
   const categories = useMemo(() => xCategories(vis.colored), [vis.colored]);
+  // A range for the host: on the time axis, or on a band axis whose every category has its instant.
+  const selecting = !!onRangeSelect && (isTime || (!!categoryTimes && categories.length > 0 && categoryTimes.length === categories.length));
+  // The local zoom steps aside when the host takes the range.
+  const zoomable = isTime && zoom && !selecting;
+  const dragOn = zoomable || selecting;
   const rows: Row[][] = useMemo(
     () => (isTime ? timePoints(visible) : visible.map((s) => s.data.map((p, i) => ({ t: i, y: p.y, label: p.label })))),
     [isTime, visible],
@@ -240,6 +252,31 @@ export function SeriesChart({
             return b ? { px: e.clientX - b.left, py: e.clientY - b.top } : { px: 0, py: 0 };
           };
           const inPlot = (px: number) => px >= rect.x && px <= rect.x + rect.width;
+          const clampPx = (px: number) => Math.min(rect.x + rect.width, Math.max(rect.x, px));
+          const step = categories.length ? rect.width / categories.length : 0;
+
+          // The selection for the host: a pointer band (px) snapped to whole categories on a band axis, or the keyed one.
+          const bandOf = (i0: number, i1: number) => ({ from: rect.x + Math.min(i0, i1) * step, to: rect.x + (Math.max(i0, i1) + 1) * step });
+          const pointerBand = brush && selecting && !isTime
+            ? bandOf(bandIndex(brush.from - rect.x, step, categories.length), bandIndex(brush.to - rect.x, step, categories.length))
+            : brush;
+          const keyBand = keySel && selecting
+            ? (isTime ? { from: xTime(keySel.anchor, domain, rect), to: xTime(keySel.focus, domain, rect) } : bandOf(keySel.anchor, keySel.focus))
+            : null;
+          const band = selecting ? (pointerBand ?? keyBand) : null;
+          // A click is not a brush, on either axis: the band must be at least `MIN_BRUSH_PX` wide.
+          const reportBrush = (px0: number, px1: number) => {
+            if (Math.abs(px1 - px0) < MIN_BRUSH_PX) return;
+            const range = isTime
+              ? brushRange(px0, px1, domain, full, rect)
+              : bandRange(categoryTimes!, bandIndex(px0 - rect.x, step, categories.length), bandIndex(px1 - rect.x, step, categories.length));
+            if (range) { onRangeSelect!(range); setHover(null); }
+          };
+          const reportKeys = (sel: KeySelection) => {
+            const range = isTime ? keyedTimeRange(sel) : bandRange(categoryTimes!, sel.anchor, sel.focus);
+            if (range) onRangeSelect!(range);
+          };
+          const endDrag = () => { captured.current = false; setBrush(null); };
 
           return (
             <>
@@ -249,31 +286,66 @@ export function SeriesChart({
                 height={height}
                 role="img"
                 aria-label={ariaLabel ?? (variant === 'area' ? 'Area chart' : 'Line chart')}
-                style={{ display: 'block', overflow: 'visible', ...(isTime ? { touchAction: 'pan-y', cursor: zoomable ? 'crosshair' : undefined, userSelect: 'none' } : {}) }}
-                onMouseDown={(e) => {
-                  if (!zoomable || e.button !== 0) return;
-                  const { px } = local(e);
-                  if (inPlot(px)) setBrush({ from: px, to: px });
+                tabIndex={selecting ? 0 : undefined}
+                className={selecting ? 'outline-none focus-visible:ring-2 focus-visible:ring-border-focus' : undefined}
+                style={{
+                  display: 'block', overflow: 'visible',
+                  ...(isTime || selecting ? { touchAction: 'pan-y', cursor: dragOn ? 'crosshair' : undefined, userSelect: 'none' } : {}),
                 }}
+                onPointerDown={(e) => {
+                  if (!dragOn || e.button !== 0) return;
+                  const { px } = local(e);
+                  if (!inPlot(px)) return;
+                  // Keep the drag through a pointer that leaves the plot (not every DOM has capture: jsdom).
+                  const el = e.currentTarget;
+                  if (typeof el.setPointerCapture === 'function') {
+                    try { el.setPointerCapture(e.pointerId); captured.current = true; } catch { captured.current = false; }
+                  }
+                  setKeySel(null);
+                  setBrush({ from: px, to: px });
+                }}
+                onPointerMove={(e) => {
+                  if (brush) setBrush({ from: brush.from, to: clampPx(local(e).px) });
+                }}
+                onPointerUp={() => {
+                  if (!brush) return;
+                  endDrag();
+                  if (selecting) reportBrush(brush.from, brush.to);
+                  else {
+                    const next = brushDomain(brush.from, brush.to, domain, full, rect);
+                    if (next) { setZoomDomain(next); setHover(null); }
+                  }
+                }}
+                onPointerCancel={endDrag}
                 onMouseMove={(e) => {
                   const { px, py } = local(e);
-                  if (brush) setBrush({ from: brush.from, to: Math.min(rect.x + rect.width, Math.max(rect.x, px)) });
                   if (tipMode === 'none') return;
                   if (!inPlot(px)) { setHover(null); return; }
                   if (isTime) setHover({ key: invTime(px, domain, rect), y: py });
-                  else if (categories.length) {
-                    const step = rect.width / categories.length;
-                    setHover({ key: Math.min(categories.length - 1, Math.max(0, Math.floor((px - rect.x) / step))), y: py });
+                  else if (categories.length) setHover({ key: bandIndex(px - rect.x, step, categories.length), y: py });
+                }}
+                onMouseLeave={() => { setHover(null); if (!captured.current) setBrush(null); }}
+                onDoubleClick={() => {
+                  if (selecting) { setKeySel(null); onRangeSelect!(null); } else if (zoomable) setZoomDomain(null);
+                }}
+                onKeyDown={(e) => {
+                  if (!selecting) return;
+                  if (e.key === 'Escape') {
+                    if (!brush && !keySel) return;
+                    e.preventDefault();
+                    endDrag();
+                    setKeySel(null);
+                    onRangeSelect!(null);
+                  } else if (e.key === 'Enter') {
+                    if (keySel) { e.preventDefault(); reportKeys(keySel); }
+                  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const dir = e.key === 'ArrowLeft' ? -1 : 1;
+                    setKeySel(isTime
+                      ? keyRange(keySel, dir, e.shiftKey, domain[0], domain[1], span / 20)
+                      : keyRange(keySel, dir, e.shiftKey, 0, categories.length - 1, 1));
                   }
                 }}
-                onMouseUp={() => {
-                  if (!brush) return;
-                  const next = brushDomain(brush.from, brush.to, domain, full, rect);
-                  setBrush(null);
-                  if (next) { setZoomDomain(next); setHover(null); }
-                }}
-                onMouseLeave={() => { setHover(null); setBrush(null); }}
-                onDoubleClick={() => { if (zoomable) setZoomDomain(null); }}
               >
                 <defs>
                   <clipPath id={clipId}><rect x={rect.x - 4} y={rect.y - 4} width={rect.width + 8} height={rect.height + 8} /></clipPath>
@@ -327,9 +399,19 @@ export function SeriesChart({
                 {hoverX !== null && tip.map((d) => (Number.isFinite(d.py) ? (
                   <circle key={d.seriesId} cx={hoverX} cy={d.py} r={4} fill="var(--surface-raised)" stroke={d.color} strokeWidth={2} />
                 ) : null))}
-                {brush && Math.abs(brush.to - brush.from) > 0 && (
+                {!selecting && brush && Math.abs(brush.to - brush.from) > 0 && (
                   <rect x={Math.min(brush.from, brush.to)} y={rect.y} width={Math.abs(brush.to - brush.from)} height={rect.height}
                     fill={chartTheme.crosshair} opacity={0.2} pointerEvents="none" />
+                )}
+                {band && (
+                  // The selection for the host: a tinted band with its two edges (a single edge is the keyboard cursor).
+                  <g data-range-band="" aria-hidden="true" pointerEvents="none">
+                    {Math.abs(band.to - band.from) > 0 && (
+                      <rect x={Math.min(band.from, band.to)} y={rect.y} width={Math.abs(band.to - band.from)} height={rect.height} fill="var(--primary)" opacity={0.12} />
+                    )}
+                    <line x1={band.from} x2={band.from} y1={rect.y} y2={rect.y + rect.height} stroke="var(--primary)" strokeWidth={1} />
+                    <line x1={band.to} x2={band.to} y1={rect.y} y2={rect.y + rect.height} stroke="var(--primary)" strokeWidth={1} />
+                  </g>
                 )}
               </svg>
               {hoverX !== null && tip.length > 0 && (
