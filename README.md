@@ -175,4 +175,4 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) and the deeper authoring rules in [`AGE
 
 ## License
 
-0BSD — see [`LICENSE`](LICENSE).
+Apache-2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).

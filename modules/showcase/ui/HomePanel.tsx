@@ -204,7 +204,7 @@ export function HomePanel() {
           >
             {SHOWCASE_LINKS.author.name}
           </a>
-          {' '}&middot; Licensed under 0BSD
+          {' '}&middot; Licensed under Apache-2.0
         </p>
         <GithubButton />
       </div>

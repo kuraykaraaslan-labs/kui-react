@@ -259,6 +259,9 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- **Licence: Apache-2.0** in place of 0BSD (`LICENSE`), with a `NOTICE` file a copy keeps (section 4(d)); the License
+  grants no right to the KUI names (section 6). `package.json` says `Apache-2.0` and publishes `NOTICE`; the showcase home
+  panel says "Licensed under Apache-2.0", as kui-ejs and KUInative do.
 - `ComboBox`: opening it lists every option until the user types. The selected label stays in the input, selected
   on click so the first keystroke replaces it; `onSearch` is called with an empty query on open.
 - `TabGroup`: a row of tabs wider than its box (many tabs, a phone) scrolls sideways inside the tab list

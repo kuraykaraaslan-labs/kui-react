@@ -30,7 +30,8 @@
   },
   "files": [
     "dist",
-    "styles"
+    "styles",
+    "NOTICE"
   ],
   "sideEffects": [
     "./styles/index.css"
@@ -160,7 +161,7 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "vitest": "^5.0.1"
   },
-  "license": "0BSD",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kuraykaraaslan/kui-react.git"
