@@ -19,6 +19,8 @@ settings/resolve.ts   resolvePlacement (layers), toCsvText (pure)
 settings/board.ts     BoardDocument, exportBoard, importBoard (pure)
 settings/grid.ts      the board's column count (12 | 24): normalizeGridCols, scaleWidth, scaleLayout, resolveOverlaps (pure)
 templates/*.ts        one BuiltinKindSpec + SettingsTemplate per widget type; index.ts = BUILTIN_KINDS (pure)
+                      rule-fields.ts: the shared vocabulary of a rules repeater (the operator words, the condition
+                      half of a rule row), used by scada.scene and viewer.model so both store the same keys
 views/*.tsx           one view per widget type; index.ts = BUILTIN_VIEWS
 views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` functions that decide everything the view
                       draws as plain data. `*-model.ts` is the same for the content widgets. The .tsx files only
@@ -46,7 +48,16 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       minimap panels (`Scene*.tsx`, `scene-*.ts`). Click, double click and right click on a symbol go
                       through the host's `elementActions` (`kind.ts`): a hit area exists only for a symbol the host has
                       an action for.
-                      Forms: `control-form-logic.ts` (`controlFormModel`: fields, checks, payload, dirty state).
+                      Forms: `control-form-logic.ts` (`controlFormModel`: fields, checks, payload, dirty state; a save
+                      leaves an empty or switched-off field out, never sends null, and may send only what changed).
+                      3D (`viewer.model`): `viewer-model-logic.ts` (the settings, `buildThings`: one row = one thing
+                      standing on its point, `applyViewerRules`: the scene-rule engine over markers and things with the
+                      viewer's own effects: colour, hidden, label, pulse, size, dz), `viewer-things.ts` (the things as
+                      one three.js InstancedMesh per kind, written in place, the pick under a pointer, the nearest for
+                      labels; three.js is handed in, loaded lazily by `ViewerModelCanvas.tsx`, and typed by
+                      `three-module.d.ts` because three ships no types). `buildSensors` stays in `ViewerModelView.tsx`.
+                      Rules: `scene-rules-logic.ts` is one engine for every kind with rules: the targets and the effect
+                      fields are data (an `EffectSpec`; the process scene's `SCENE_RULE_EFFECTS` is the default).
                       Map extras: `map-logic.ts` also holds the status pictures, the satellite preset, the floor plan
                       address, drag write-back and the route replay model (`replayModel`, `replayAt`, `replayMarkers`).
 card-logic.ts         cardModel (the frame's classes, styles, body state), formatUpdated, styleAttribute (pure)
@@ -111,6 +122,27 @@ A widget must look and behave the same in kui-react, kui-ejs and KUInative. The 
 4. No stored code and no raw CSS in settings (the only ThingsBoard features not taken).
 
 See [/AGENTS.md](../../../AGENTS.md).
+
+## Host gestures
+
+A view draws a gesture only when the host passes its prop (`kind.ts`, `WidgetViewProps`); without the prop nothing
+changes and nothing is interactive. The host decides what the gesture does (next-boilerplate's dashboard turns each
+into a stored, server-validated action, phase 35):
+
+| Prop | Kinds | What the view does | What the host gets |
+|---|---|---|---|
+| `onSliceClick(row)` | `chart.pie` | every slice is a focusable button (click, Enter, Space; aria-label = label and value; the chart becomes a group) | the table row of the slice; the folded "Other" slice gives `{ <label column>: <other label>, <value column>: <sum> }` |
+| `onRangeSelect(range)` | `chart.line`, `chart.area`, `chart.bar` on an axis of instants | a pointer drag (mouse, pen, touch) draws a band; a double click, or Escape while a band shows, resets; the plot is focusable: arrows move the selection's end, Shift + arrows its start, Enter reports it; the viewer-local zoom stands down | `{ from, to }` in epoch ms (`from < to`; whole bars on a band axis, to the end of the last bar's bucket), or `null` to reset |
+| `onMarkerClick(row)` | `map`, `viewer.model` | a marker (the viewer: a sensor marker, or a thing by a click on its shape) answers a click; tooltips behave as before | the marker's or thing's table row |
+| `elementActions` | `scada.scene` | a symbol with an action gets a hit area (click, double click, right click, keyboard) | the gesture and the symbol id |
+| `onControl(request)` | the controls | the control asks the host to run or set | the request; the server checks it again |
+
+`viewer.model` reads a second table slot, `things` (one row = one object: `id`, `kind` box / sphere / cylinder / pin,
+`x`, `y`, `z` in the sensors' coordinates, `heading` in degrees from north, `label`, the status and reading columns
+the markers use for colour, an optional size column), capped at 2 000 rows, drawn as one instanced mesh per kind,
+never a DOM node each; the nearest 200 carry a label. Its `rules` repeater shares the scene's condition vocabulary
+(`templates/rule-fields.ts`) with the viewer's effects: colour, hidden, label, pulse, size (px for a marker, m for a
+thing) and dz (a lift in metres), on a marker id, a thing id or `*`, from the row, another row or a board parameter.
 
 ## Layout thumbnails
 

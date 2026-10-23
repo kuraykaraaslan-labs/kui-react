@@ -32,3 +32,7 @@ font size, colour, spacing or chip. Settings may override a part (a font, a colo
 - On a board the grid cell is placed from lg up only (`--wk-gc` / `--wk-gr`); below lg cells stack in y, x
   order, and a card's hide / order settings act on the cell (`cardCellResponsive`). In edit mode nothing
   is hidden (cell or card), so a hidden card keeps its edit buttons and the setting can be undone.
+- A gesture the host wires (README "Host gestures") changes the look only while it is wired, and then the same way
+  everywhere: a clickable mark is a button with a pointer cursor and the focus stroke (`--border-focus`); a
+  selection band is the primary colour at 12% between two 1px primary edges; a focusable plot takes the 2px focus
+  ring. Without the prop a chart stays one picture (`role="img"`).
