@@ -6,7 +6,8 @@
 import type * as THREE from 'three';
 import type { ThingKind, ThingMarker } from './viewer-model-logic';
 
-export type ThreeLib = typeof THREE;
+/** The three.js module (its classes), as the canvas loads it. */
+export type ThreeLib = typeof import('three');
 /** A point in the scene frame (the viewer subtracts its origin shift from every world position). */
 export interface Point3 { x: number; y: number; z: number }
 /** What the things layer needs of the scene: adding and removing its meshes. */
