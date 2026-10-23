@@ -44,8 +44,12 @@ declare module 'three' {
     translate(x: number, y: number, z: number): this;
     rotateX(angle: number): this;
     rotateY(angle: number): this;
+    setFromPoints(points: Vector3[]): this;
     computeBoundingSphere(): void;
     dispose(): void;
+  }
+  export class PlaneGeometry extends BufferGeometry {
+    constructor(width?: number, height?: number);
   }
   export class BoxGeometry extends BufferGeometry {
     constructor(width?: number, height?: number, depth?: number);
@@ -67,6 +71,12 @@ declare module 'three' {
     constructor(parameters?: { color?: number | string; roughness?: number; metalness?: number });
     color: Color;
   }
+  export class MeshBasicMaterial extends Material {
+    constructor(parameters?: { color?: number | string });
+  }
+  export class LineBasicMaterial extends Material {
+    constructor(parameters?: { color?: number | string });
+  }
   export class Object3D {
     name: string;
     visible: boolean;
@@ -83,6 +93,13 @@ declare module 'three' {
   }
   export class Scene extends Object3D {
     constructor();
+  }
+  export class Group extends Object3D {
+    constructor();
+  }
+  /** The grid helpers' kind: a raycaster matches a line within `params.Line.threshold` metres, so the pick skips them. */
+  export class LineSegments extends Object3D {
+    constructor(geometry?: BufferGeometry, material?: Material);
   }
   export class Mesh extends Object3D {
     constructor(geometry?: BufferGeometry, material?: Material);

@@ -18,7 +18,7 @@ import { MAX_THING_LABELS, type Row, type SensorMarker, type ThingMarker, type V
 import { useReducedMotion } from './useReducedMotion';
 import {
   disposeThingMeshes, hasPulsingThings, nearestThings, newThingMeshState, pickThing, pulseThingMeshes, syncThingMeshes,
-  type ThingMeshState, type ThreeLib,
+  type PickSceneLike, type ThingMeshState, type ThreeLib,
 } from './viewer-things';
 
 type Viewer = Parameters<NonNullable<KUIViewerProps['onReady']>>[0];
@@ -475,7 +475,8 @@ function ThingsLayer({ viewer, things, host, dark, showLabels, onMarkerClick }: 
       const r = canvas.getBoundingClientRect();
       if (!r.width || !r.height) return;
       const ndc = { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 };
-      const id = pickThing(three, v.camera as unknown as Parameters<typeof pickThing>[1], state.current, ndc);
+      // The whole scene is cast, so a thing behind the model's walls is not reported for a click that landed on them.
+      const id = pickThing(three, v.camera as unknown as Parameters<typeof pickThing>[1], state.current, ndc, v.scene as unknown as PickSceneLike);
       const hit = id === null ? undefined : things.find((t) => t.id === id);
       if (hit) onMarkerClick(hit.row);
     };

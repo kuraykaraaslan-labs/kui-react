@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import * as THREE from 'three';
 import { effective, migrate, templateDefaults, validate } from '../settings/engine';
 import type { SlotData, WidgetViewProps } from '../kind';
 import { VIEWER_MODEL, VIEWER_MODEL_KIND } from '../templates/viewer-model';
@@ -34,11 +35,15 @@ type FakeViewer = {
   controls: Record<string, unknown>;
   camera: { position: { x: number; y: number; z: number } };
   scene: { background: { isColor: boolean; set: (c: string) => void; value?: string }; children: FakeMesh[] };
+  renderer: { domElement: HTMLCanvasElement };
+  /** The origin shift and its listeners (`rtc.onChange`), fired by a test the way a re-tile would. */
+  rtc: { global: Vec3; onChange: (listener: () => void) => () => void };
+  originListeners: Array<() => void>;
   invalidate: ReturnType<typeof vi.fn>;
 };
 
 const fake = vi.hoisted(() => ({
-  created: [] as Array<{ disposed: boolean; controls: Record<string, unknown>; camera: { position: { x: number; y: number; z: number } }; scene: { background: { isColor: boolean; set: (c: string) => void; value?: string }; children: Array<{ name?: string; count?: number; position: { x: number; y: number; z: number } }> }; invalidate: ReturnType<typeof vi.fn> }>,
+  created: [] as FakeViewer[],
   failing: new Set<string>(),
   loads: [] as string[],
 }));
@@ -59,13 +64,21 @@ vi.mock('@kuraykaraaslan/kui-viewer/react', () => {
       add(o: FakeMesh) { children.push(o); return scene; },
       remove(o: FakeMesh) { const i = children.indexOf(o); if (i >= 0) children.splice(i, 1); return scene; },
     };
+    const originListeners: Array<() => void> = [];
     const v = {
       disposed: false,
       scene,
       camera: { position: new Vec3(10, 10, 10), fov: 50, aspect: 2, updateMatrixWorld: () => {}, matrixWorld: { elements: [1, 0, 0, 0] } },
       controls: { enabled: true, enableZoom: true, target: new Vec3(), update: vi.fn() },
       renderer: { domElement: canvas },
-      rtc: { global: new Vec3() },
+      rtc: {
+        global: new Vec3(),
+        onChange: (listener: () => void) => {
+          originListeners.push(listener);
+          return () => { const i = originListeners.indexOf(listener); if (i >= 0) originListeners.splice(i, 1); };
+        },
+      },
+      originListeners,
       invalidate: vi.fn(),
     };
     fake.created.push(v as never);
@@ -401,6 +414,54 @@ describe('ViewerModelView', () => {
     expect(v.scene.children.find((c) => c.name === thingMeshName('box'))).toBe(box);
     expect(v.scene.children.find((c) => c.name === thingMeshName('cylinder'))).toBeUndefined();
     await waitFor(() => expect(document.querySelectorAll('[data-thing]')).toHaveLength(1));
+  });
+
+  it('a click on a thing\'s shape reports its row, a drag or an empty spot does not, and the meshes follow the origin shift', async () => {
+    withWebgl();
+    const onMarkerClick = vi.fn();
+    render(<View {...props({ thingSizeColumn: 'size' }, { things: THINGS })} onMarkerClick={onMarkerClick} />);
+    await screen.findByTestId('kui-viewer');
+    const v = fake.created[0];
+    await waitFor(() => expect(v.scene.children.find((c) => c.name === thingMeshName('cylinder'))).toBeTruthy());
+    // The fake camera cannot cast a ray: a real one, above the room looking down, takes its place (the viewer object is
+    // the same, and the click handler reads the camera at click time). The canvas gets a size for the NDC maths.
+    const camera = new THREE.PerspectiveCamera(50, 2, 0.1, 1000);
+    camera.position.set(0, 30, 0.01);
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld();
+    camera.updateProjectionMatrix();
+    (v as { camera: unknown }).camera = camera;
+    const canvas = v.renderer.domElement;
+    canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 400, height: 200, right: 400, bottom: 200, x: 0, y: 0, toJSON: () => ({}) });
+    const at = (x: number, y: number, z: number) => {
+      const p = new THREE.Vector3(x, y, z).project(camera);
+      return { clientX: ((p.x + 1) / 2) * 400, clientY: ((1 - p.y) / 2) * 200, button: 0 };
+    };
+    // B-1 is the cylinder standing on world (1, 0, −2) (IFC x=1, y=2, z=0), 1.7 m tall: a click on its middle
+    const onB1 = at(1, 0.8, -2);
+    fireEvent.pointerDown(canvas, onB1);
+    fireEvent.pointerUp(canvas, onB1);
+    expect(onMarkerClick).toHaveBeenCalledTimes(1);
+    expect(onMarkerClick).toHaveBeenCalledWith(THINGS.rows![0]);
+    // an orbit: the pointer travelled further than a click allows
+    fireEvent.pointerDown(canvas, onB1);
+    fireEvent.pointerUp(canvas, { ...onB1, clientX: onB1.clientX + 40 });
+    expect(onMarkerClick).toHaveBeenCalledTimes(1);
+    // nothing stands there
+    const onNothing = at(-9, 0, 9);
+    fireEvent.pointerDown(canvas, onNothing);
+    fireEvent.pointerUp(canvas, onNothing);
+    expect(onMarkerClick).toHaveBeenCalledTimes(1);
+    // the viewer moves its origin (a re-tile): every instance is placed again from the new shift
+    const box = v.scene.children.find((c) => c.name === thingMeshName('box')) as unknown as THREE.InstancedMesh;
+    const m = new THREE.Matrix4();
+    box.getMatrixAt(0, m);
+    const before = m.elements[12];
+    expect(v.originListeners).toHaveLength(1);
+    v.rtc.global.set(100, 0, 0);
+    act(() => { for (const l of v.originListeners) l(); });
+    await waitFor(() => { box.getMatrixAt(0, m); expect(m.elements[12]).toBe(before - 100); });
+    expect(v.scene.children.find((c) => c.name === thingMeshName('box'))).toBe(box as unknown as FakeMesh);
   });
 
   it('locks the camera and hides the view cube when not interactive', async () => {

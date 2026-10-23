@@ -172,6 +172,43 @@ describe('pickThing', () => {
     syncThingMeshes(THREE, scene, state, [thing('a', 'box', 0, 0)], ORIGIN, hex);
     expect(pickThing(THREE, camera, state, ndcOf(6, 0.25, 0))).toBeNull();
   });
+  it('with the scene, a thing behind a surface of the model is not picked; one behind a line, a hidden mesh or nothing is', () => {
+    const scene = sceneOf();
+    const state = newThingMeshState();
+    syncThingMeshes(THREE, scene, state, [thing('a', 'box', 0, 0), thing('b', 'box', 6, 0)], ORIGIN, hex);
+    // a 4 m square facing the camera, between it and thing `a` only
+    const slab = () => new THREE.Mesh(new THREE.PlaneGeometry(4, 4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial());
+    const wall = slab();
+    wall.position.set(0, 5, 0);
+    wall.updateMatrixWorld();
+    const group = new THREE.Group();
+    group.add(wall);
+    scene.add(group);
+    expect(pickThing(THREE, camera, state, ndcOf(0, 0.25, 0), scene)).toBeNull();
+    expect(pickThing(THREE, camera, state, ndcOf(6, 0.25, 0), scene)).toBe('b');
+    // without the scene (the old cast over the things alone) the wall is not seen
+    expect(pickThing(THREE, camera, state, ndcOf(0, 0.25, 0))).toBe('a');
+    // a hidden surface, or one under a hidden parent, is not in the way
+    wall.visible = false;
+    expect(pickThing(THREE, camera, state, ndcOf(0, 0.25, 0), scene)).toBe('a');
+    wall.visible = true;
+    group.visible = false;
+    expect(pickThing(THREE, camera, state, ndcOf(0, 0.25, 0), scene)).toBe('a');
+    scene.remove(group);
+    // a surface behind the thing hides nothing
+    const floor = slab();
+    floor.position.set(0, -5, 0);
+    floor.updateMatrixWorld();
+    scene.add(floor);
+    expect(pickThing(THREE, camera, state, ndcOf(0, 0.25, 0), scene)).toBe('a');
+    // the grid helpers are lines: a line across the pointer, nearer than the thing, is not a surface
+    const grid = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-5, 5, 0), new THREE.Vector3(5, 5, 0)]), new THREE.LineBasicMaterial());
+    grid.updateMatrixWorld();
+    scene.add(grid);
+    expect(pickThing(THREE, camera, state, ndcOf(0, 0.25, 0), scene)).toBe('a');
+    // nothing under the pointer at all
+    expect(pickThing(THREE, camera, state, ndcOf(30, 0, 30), scene)).toBeNull();
+  });
 });
 
 describe('nearestThings', () => {

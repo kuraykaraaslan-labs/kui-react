@@ -49,11 +49,13 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       through the host's `elementActions` (`kind.ts`): a hit area exists only for a symbol the host has
                       an action for.
                       Forms: `control-form-logic.ts` (`controlFormModel`: fields, checks, payload, dirty state; a save
-                      leaves an empty or switched-off field out, never sends null, and may send only what changed).
+                      leaves an empty or switched-off field out, never sends null, and may send only what changed;
+                      the view does not save while a change is only a clear, as the form cannot say "unset").
                       3D (`viewer.model`): `viewer-model-logic.ts` (the settings, `buildThings`: one row = one thing
                       standing on its point, `applyViewerRules`: the scene-rule engine over markers and things with the
                       viewer's own effects: colour, hidden, label, pulse, size, dz), `viewer-things.ts` (the things as
-                      one three.js InstancedMesh per kind, written in place, the pick under a pointer, the nearest for
+                      one three.js InstancedMesh per kind, written in place, the pick under a pointer (cast through the
+                      whole scene, so a thing behind the model's walls is not picked), the nearest for
                       labels; three.js is handed in, loaded lazily by `ViewerModelCanvas.tsx`, and typed by
                       `three-module.d.ts` because three ships no types). `buildSensors` stays in `ViewerModelView.tsx`.
                       Rules: `scene-rules-logic.ts` is one engine for every kind with rules: the targets and the effect

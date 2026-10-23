@@ -143,15 +143,37 @@ export function pulseThingMeshes(three: ThreeLib, state: ThingMeshState, origin:
   return any;
 }
 
-/** The id of the thing under a pointer; `ndc` is the pointer in normalised device coordinates (−1..1, y up). */
-export function pickThing(three: ThreeLib, camera: THREE.Camera, state: ThingMeshState, ndc: { x: number; y: number }): string | null {
+/** What the pick needs of the scene: everything in it, so the models' own surfaces count as being in the way. */
+export interface PickSceneLike { children: THREE.Object3D[] }
+
+/** Drawn: visible itself and under no hidden parent. */
+const shown = (o: THREE.Object3D): boolean => {
+  for (let n: THREE.Object3D | null = o; n; n = n.parent) if (n.visible === false) return false;
+  return true;
+};
+
+/**
+ * The id of the thing under a pointer; `ndc` is the pointer in normalised device coordinates (−1..1, y up). With the
+ * `scene`, the whole scene is cast (the loaded models included) and a thing is reported only when its surface is the
+ * nearest one hit: a thing behind a wall of the model is not what the operator clicked. Only a mesh can be in the way;
+ * the grid helpers (lines, which a raycaster matches within a width in metres) and other non-mesh objects never are.
+ */
+export function pickThing(three: ThreeLib, camera: THREE.Camera, state: ThingMeshState, ndc: { x: number; y: number }, scene?: PickSceneLike): string | null {
   const kinds = [...state.byKind.values()];
   if (!kinds.length) return null;
   const ray = new three.Raycaster();
+  // three-mesh-bvh (the viewer's models carry its trees) stops at a mesh's first hit when asked; plain three.js ignores the flag.
+  (ray as THREE.Raycaster & { firstHitOnly?: boolean }).firstHitOnly = true;
   ray.setFromCamera(new three.Vector2(ndc.x, ndc.y), camera);
-  for (const hit of ray.intersectObjects(kinds.map((k) => k.mesh), false)) {
+  const hits = scene ? ray.intersectObjects(scene.children, true) : ray.intersectObjects(kinds.map((k) => k.mesh), false);
+  for (const hit of hits) {
+    // A raycaster does not read `visible`: a hidden element of the model (or a hidden parent) hides nothing.
+    if (!(hit.object as { isMesh?: boolean }).isMesh || !shown(hit.object)) continue;
     const km = kinds.find((k) => k.mesh === hit.object);
-    if (km && hit.instanceId !== undefined && hit.instanceId < km.things.length) return km.things[hit.instanceId].id;
+    // The nearest surface is not a thing: whatever stands behind it was not clicked.
+    if (!km) return null;
+    if (hit.instanceId !== undefined && hit.instanceId < km.things.length) return km.things[hit.instanceId].id;
+    // An instance past the drawn count (the headroom) is never hit, as `count` bounds the cast; were it, it hides nothing.
   }
   return null;
 }

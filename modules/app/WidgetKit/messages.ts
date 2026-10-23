@@ -166,6 +166,8 @@ export interface WidgetControlMessages {
   fieldInvalid: string;
   atLeast: string;
   atMost: string;
+  /** control.form: why Save is off while a change is only a clear (the form cannot unset a value). */
+  clearedNotSaved: string;
 }
 
 export interface TableMessages {
@@ -454,6 +456,7 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     fieldInvalid: 'Choose one of the listed values.',
     atLeast: 'Enter a value of at least {min}.',
     atMost: 'Enter a value of at most {max}.',
+    clearedNotSaved: 'An emptied field cannot be saved from here: enter a value or reset.',
   },
   table: {
     search: 'Search',

@@ -26,8 +26,11 @@ function errorText(f: FormField, code: FormErrorCode, m: WidgetControlMessages):
 /**
  * `control.form`: several fields edited together, saved as one command. Save sends every editable field that has a
  * value at once (only the changed ones with `saveChangedOnly`; an empty or switched-off field is left out, never sent
- * as null); it is enabled only while something changed and every field passes its check. Reset puts the record's
- * values back. A save the command asks to confirm waits for the same confirm step every control uses.
+ * as null); it is enabled only while something changed, every field passes its check and the save would carry at
+ * least one field. A change that includes a clear (a field the viewer emptied) is not saved at all: Save stays off,
+ * with a note, rather than run a command that omits the clear and report it as saved (unsetting a value is an
+ * explicit command parameter, never an implied null); Reset still puts the record's values back. A save the command
+ * asks to confirm waits for the same confirm step every control uses.
  */
 export function ControlFormView(props: WidgetViewProps) {
   const s = props.settings as S;
@@ -47,6 +50,13 @@ export function ControlFormView(props: WidgetViewProps) {
 
   const errors = formErrors(g.fields, values);
   const dirty = formDirty(g.fields, g.initial, values);
+  // What Save would send. A changed field the payload leaves out is a clear (emptied by the viewer): the form cannot
+  // say "unset", so it does not save while one is pending, with or without `saveChangedOnly`, instead of running a
+  // command that omits the clear and reporting it as saved. A field its gate switched off is not a clear (its flag
+  // is what the viewer changed, and that is sent).
+  const payload = formPayload(g.fields, values, g.saveChangedOnly ? dirty : undefined);
+  const cleared = g.fields.filter((f) => dirty.includes(f.key) && !(f.key in payload) && !gatedOff(f, values)).map((f) => f.key);
+  const cannotSave = dirty.length === 0 || cleared.length > 0 || Object.keys(errors).length > 0;
   const blocked = !!g.disabledReason;
   const busy = phase === 'pending';
   const put = (key: string, v: FormValue) => { setValues((cur) => ({ ...cur, [key]: v })); setPhase('idle'); };
@@ -65,8 +75,8 @@ export function ControlFormView(props: WidgetViewProps) {
   const submit = (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setTouched(Object.fromEntries(g.fields.map((f) => [f.key, true])));
-    if (blocked || busy || dirty.length === 0 || Object.keys(errors).length > 0) return;
-    const parked = confirm.request(formPayload(g.fields, values, g.saveChangedOnly ? dirty : undefined));
+    if (blocked || busy || cannotSave) return;
+    const parked = confirm.request(payload);
     if (parked) void run(parked.value);
   };
   const reset = () => { setValues(g.initial); setTyped({}); setTouched({}); setPhase('idle'); confirm.cancel(); };
@@ -122,6 +132,7 @@ export function ControlFormView(props: WidgetViewProps) {
         ))}
       </div>
       {blocked && <p className="text-xs text-text-secondary" role="note">{g.disabledReason}</p>}
+      {!blocked && cleared.length > 0 && <p className="text-xs text-text-secondary" role="note" data-part="cleared-note">{m.clearedNotSaved}</p>}
       {confirm.asking ? (
         <ControlConfirmPrompt
           mode={g.confirm.confirm === 'typed' ? 'typed' : 'confirm'}
@@ -132,7 +143,7 @@ export function ControlFormView(props: WidgetViewProps) {
         />
       ) : (
         <div className="flex items-center gap-2">
-          <Button type="submit" size="sm" disabled={blocked || busy || dirty.length === 0 || Object.keys(errors).length > 0}>{g.saveLabel}</Button>
+          <Button type="submit" size="sm" disabled={blocked || busy || cannotSave}>{g.saveLabel}</Button>
           {g.showReset && <Button type="button" size="sm" variant="secondary" disabled={busy || dirty.length === 0} onClick={reset}>{g.resetLabel}</Button>}
           <span className="ml-auto text-xs text-text-secondary" role="status" aria-live="polite">
             {phase === 'pending' ? say('pending') : phase === 'done' ? say('confirmed') : phase === 'failed' ? `${say('failed')}${reason ? ` (${reason})` : ''}` : ''}
