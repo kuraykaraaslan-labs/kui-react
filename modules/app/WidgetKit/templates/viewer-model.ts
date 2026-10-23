@@ -128,6 +128,7 @@ export const VIEWER_MODEL_KIND: BuiltinKindSpec = {
   type: 'viewer.model',
   label: '3D model',
   category: 'Maps & Location',
+  group: 'viewer',
   description: 'IFC/BIM models in a 3D viewer, with bound table rows as live sensor markers.',
   icon: 'fas fa-cube',
   defaultW: 6,

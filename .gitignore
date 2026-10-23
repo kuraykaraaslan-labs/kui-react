@@ -52,6 +52,9 @@ next-env.d.ts
 /public/wasm/
 /public/assets/ifc-parser.worker-*.js
 /public/assets/ifc-parser.worker-*.js.map
+# kui-viewer 0.4.0 also ships the PDF.js worker (DXF/PDF underlays of the designer)
+/public/assets/pdf.worker.min-*.js
+/public/assets/pdf.worker.min-*.js.map
 
 # AI assistant data
 .claude*
