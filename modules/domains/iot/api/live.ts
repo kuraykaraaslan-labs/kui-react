@@ -33,6 +33,11 @@ export const iotTopics = {
     kind: 'alarms',
     params: (scope === 'tenant' ? { scope: 'tenant' } : { deviceId: scope.deviceId }) as Record<string, unknown>,
   }),
+  /** One device's RPC requests (with `rpcId`: one request), or every request of the tenant (`'*'`). */
+  rpc: (deviceId: string, rpcId?: string) => ({
+    kind: 'rpc',
+    params: { deviceId, ...(rpcId ? { rpcId } : {}) } as Record<string, unknown>,
+  }),
   telemetry: (deviceId: string, keys?: readonly string[]) => ({
     kind: 'telemetry',
     params: { deviceId, ...(keys?.length ? { keys: [...keys] } : {}) } as Record<string, unknown>,

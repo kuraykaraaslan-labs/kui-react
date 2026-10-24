@@ -4,6 +4,7 @@ import type {
   AttributeEntry, AttributeScope, DeviceConnectionEvent, DeviceCredential, DeviceRecord, DeviceStatePatch, IssuedSecret,
 } from '@/modules/domains/iot/types/device';
 import type { Device } from '@/modules/domains/iot/types';
+import type { RpcCommand, RpcRequest, RpcStatus } from '@/modules/domains/iot/types/rpc';
 import { ALARMS, ALARM_EVENTS, DEVICES } from '../iot.data';
 import type { DemoLive } from './demo-live';
 
@@ -18,6 +19,19 @@ export const DEMO_PROFILES = [
   { id: 'prof-sensor', name: 'Sensors (live connection)' },
   { id: 'prof-gateway', name: 'Gateways (live connection)' },
   { id: 'prof-lorawan', name: 'LoRaWAN meters (last seen only)' },
+  { id: 'prof-tb', name: 'Legacy meters (ThingsBoard compatible)' },
+];
+
+/** The Roltek router catalog in the protocol's wire names (no factory reset, OD-8); `diag.slow` never answers (the timeout demo). */
+export const DEMO_RPC_COMMANDS: RpcCommand[] = [
+  { method: 'sys.info', label: 'System information', tier: 'basic', highImpact: false, oneway: false, paramsSchema: {}, defaultTimeoutMs: 10_000 },
+  { method: 'sys.ping', label: 'Ping a host', tier: 'basic', highImpact: false, oneway: false, defaultTimeoutMs: 15_000,
+    paramsSchema: { host: { label: 'Host', type: 'text', required: true, placeholder: '8.8.8.8' }, count: { label: 'Count', type: 'number', min: 1, max: 10, value: 3 } } },
+  { method: 'net.status', label: 'Network status', tier: 'basic', highImpact: false, oneway: false, paramsSchema: {} },
+  { method: 'cfg.sync', label: 'Apply configuration now', tier: 'privileged', highImpact: false, oneway: true, paramsSchema: {} },
+  { method: 'diag.slow', label: 'Slow diagnostic (never answers)', tier: 'basic', highImpact: false, oneway: false, paramsSchema: {}, defaultTimeoutMs: 5_000 },
+  { method: 'sys.reboot', label: 'Reboot', description: 'The device restarts and is offline for about a minute.', tier: 'critical', highImpact: true,
+    confirmText: 'REBOOT', oneway: true, persistentDefault: true, paramsSchema: {} },
 ];
 
 const MIN = 60_000;
@@ -49,6 +63,11 @@ function toRecord(d: Device): DeviceRecord {
 
 const EXTRA_DEVICES: DeviceRecord[] = [
   {
+    deviceId: 'dev-tb01', name: 'Legacy Meter DC620', label: 'Speaks the ThingsBoard topics only', type: 'DC620', serial: 'DC-620-0042',
+    deviceProfileId: 'prof-tb', status: 'ACTIVE', isGateway: false, fwTitle: 'DC620', fwVersion: '3.2', protocolMajor: null,
+    online: true, lastActivityAt: ago(MIN), createdAt: ago(400 * 86_400_000),
+  },
+  {
     deviceId: 'dev-q01', name: 'Cold Room Probe 12', label: 'Provisioned from the factory pool', type: 'Nexus T100', serial: 'RT-24-000912',
     deviceProfileId: 'prof-sensor', status: 'QUARANTINED', isGateway: false, fwTitle: 'Nexus T100', fwVersion: 'v2.4.0', protocolMajor: 1,
     online: true, lastActivityAt: ago(2 * MIN), lastConnectAt: ago(40 * MIN), createdAt: ago(40 * MIN),
@@ -61,6 +80,7 @@ const EXTRA_DEVICES: DeviceRecord[] = [
 ];
 
 type Store = {
+  rpc: RpcRequest[];
   devices: DeviceRecord[];
   credentials: Map<string, DeviceCredential | null>;
   attributes: Map<string, Record<AttributeScope, AttributeEntry[]>>;
@@ -118,6 +138,7 @@ export type DemoAdapter = IotAdapter & {
 
 export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } = {}): DemoAdapter {
   const store: Store = {
+    rpc: [],
     devices: [...DEVICES.map(toRecord), ...EXTRA_DEVICES].map((d) => ({ ...d, profileName: DEMO_PROFILES.find((p) => p.id === d.deviceProfileId)?.name ?? null })),
     credentials: new Map(),
     attributes: new Map(),
@@ -155,6 +176,29 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     store.events.set(alarmId, list);
   };
 
+  const publishRpc = (r: RpcRequest) => live.publish('rpc', { deviceId: r.deviceId }, { request: { ...r, params: undefined, response: undefined, hasResponse: r.response !== undefined } });
+  function move(r: RpcRequest, status: RpcStatus, extra: Partial<RpcRequest> = {}) {
+    if (r.status === 'SUCCESSFUL' || r.status === 'FAILED' || r.status === 'TIMEOUT' || r.status === 'EXPIRED' || r.status === 'CANCELLED') return;
+    Object.assign(r, extra, { status });
+    const now = new Date();
+    if (status === 'SENT') r.sentAt = now;
+    if (status === 'DELIVERED') r.deliveredAt = now;
+    if (['SUCCESSFUL', 'FAILED', 'TIMEOUT', 'EXPIRED', 'CANCELLED'].includes(status)) r.completedAt = now;
+    publishRpc(r);
+  }
+  /** The mock device: sent, delivered, then the answer (or nothing for `diag.slow`, which times out). */
+  function deliver(r: RpcRequest) {
+    setTimeout(() => move(r, 'SENT'), 300);
+    setTimeout(() => {
+      move(r, 'DELIVERED');
+      if (r.oneway) { setTimeout(() => move(r, 'SUCCESSFUL'), 200); return; }
+      if (r.method === 'diag.slow') { setTimeout(() => move(r, 'TIMEOUT'), r.timeoutMs ?? 5_000); return; }
+      const response = r.method === 'sys.info' ? { model: 'RT-300', uptime_s: 86_400 * 4 + 512, fw: '24.10.1' }
+        : r.method === 'sys.ping' ? { sent: 3, received: 3, avg_ms: 12.4 } : { ok: true };
+      setTimeout(() => move(r, 'SUCCESSFUL', { response }), 400);
+    }, 600);
+  }
+
   function transition(ids: string[], action: 'acknowledge' | 'clear', note?: string): AlarmBulkResult[] {
     return ids.map((id) => {
       const a = store.alarms.find((x) => x.alarmId === id);
@@ -174,7 +218,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
       return {
         canCreateDevice: true, canEditDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true,
         canWriteAttributes: true, canActivateDevice: true, canReleaseDevice: false, canReadAlarms: true, canAcknowledge: true,
-        canClear: true, canComment: true,
+        canClear: true, canComment: true, canSendRpc: true,
       };
     },
     profiles: { async options() { await wait(); return DEMO_PROFILES; } },
@@ -280,6 +324,53 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         return p && typeof p === 'object' && 'alarm' in p && 'transition' in p ? (p as AlarmLiveEvent) : null;
       },
     },
+    rpc: {
+      async methods(deviceId) {
+        await wait();
+        const d = device(deviceId);
+        if (d.deviceProfileId === 'prof-tb') return { commands: [], canSendRaw: false, supported: false };
+        return { commands: DEMO_RPC_COMMANDS.map((c) => ({ ...c, sendable: true })), canSendRaw: true, supported: true };
+      },
+      async send(deviceId, input) {
+        await wait();
+        const d = device(deviceId);
+        if (d.deviceProfileId === 'prof-tb') throw new IotApiError('conflict', 'RPC is not available for this device.');
+        const cmd = DEMO_RPC_COMMANDS.find((c) => c.method === input.method);
+        if (cmd?.highImpact && input.confirm !== true) throw new IotApiError('validation', 'This command needs a confirmation.');
+        if (cmd?.confirmText && input.confirmText !== cmd.confirmText) throw new IotApiError('validation', 'The typed confirmation does not match.');
+        const r: RpcRequest = {
+          rpcId: `rpc-${++seq}`, deviceId, deviceName: d.name, method: input.method, params: input.params ?? {}, oneway: input.oneway ?? cmd?.oneway ?? false,
+          persistent: input.persistent ?? cmd?.persistentDefault ?? false, status: 'QUEUED', source: 'console', createdAt: new Date(),
+          timeoutMs: input.timeoutMs ?? cmd?.defaultTimeoutMs ?? 10_000, highImpact: cmd?.highImpact ?? false,
+        };
+        store.rpc = [r, ...store.rpc];
+        if (!d.online && !r.persistent) { move(r, 'FAILED', { error: 'device offline' }); return { ...r }; }
+        if (d.online) deliver(r);
+        return { ...r };
+      },
+      async list(q) {
+        await wait();
+        const rows = store.rpc.filter((r) => (!q.deviceId || r.deviceId === q.deviceId) && (!q.status || r.status === q.status) && (!q.method || r.method === q.method));
+        const start = q.cursor ? Number(q.cursor) : 0;
+        const page = rows.slice(start, start + q.limit);
+        return { items: page.map((r) => ({ ...r })), nextCursor: start + q.limit < rows.length ? String(start + q.limit) : null };
+      },
+      async get(rpcId) {
+        await wait();
+        const r = store.rpc.find((x) => x.rpcId === rpcId);
+        if (!r) throw new IotApiError('not_found', 'Command not found.');
+        return { ...r };
+      },
+      async cancel(rpcId) {
+        await wait();
+        const r = store.rpc.find((x) => x.rpcId === rpcId);
+        if (!r) throw new IotApiError('not_found', 'Command not found.');
+        if (r.status !== 'QUEUED' && r.status !== 'SENT') throw new IotApiError('conflict', 'Only a queued or sent command can be cancelled.');
+        move(r, 'CANCELLED');
+        return { ...r };
+      },
+      parseLive(p) { return p && typeof p === 'object' && 'request' in p ? (p as { request: RpcRequest }) : null; },
+    },
     sim: {
       raise(deviceId) {
         const d = store.devices.find((x) => x.deviceId === deviceId);
@@ -310,6 +401,8 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         if (d.online) d.lastConnectAt = now; else { d.lastDisconnectAt = now; d.lastDisconnectReason = 'keepalive_timeout'; }
         d.lastActivityAt = now;
         publishState(d);
+        // a persistent command waits for its device: deliver what is queued once it is back
+        if (d.online) for (const r of store.rpc) if (r.deviceId === d.deviceId && r.status === 'QUEUED') deliver(r);
       },
       deviceIds() { return store.devices.map((d) => d.deviceId); },
     },

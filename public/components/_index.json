@@ -437,6 +437,12 @@
     "category": "Molecule",
     "file": "keyed-table.md"
   },
+  "typed-confirm-dialog": {
+    "name": "TypedConfirmDialog",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "typed-confirm-dialog.md"
+  },
   "video-player": {
     "name": "VideoPlayer",
     "layer": "ui",
@@ -1960,6 +1966,36 @@
     "layer": "domain",
     "category": "Domain",
     "file": "iot-new-device-drawer.md"
+  },
+  "iot-rpc-status-badge": {
+    "name": "RpcStatusBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-rpc-status-badge.md"
+  },
+  "iot-rpc-send-panel": {
+    "name": "RpcSendPanel",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-rpc-send-panel.md"
+  },
+  "iot-rpc-request-list": {
+    "name": "RpcRequestList",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-rpc-request-list.md"
+  },
+  "iot-rpc-request-detail": {
+    "name": "RpcRequestDetail",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-rpc-request-detail.md"
+  },
+  "iot-rpc-console-view": {
+    "name": "RpcConsoleView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-rpc-console-view.md"
   },
   "nft-rarity-badge": {
     "name": "RarityBadge",

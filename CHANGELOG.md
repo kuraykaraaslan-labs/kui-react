@@ -28,6 +28,9 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `TypedConfirmDialog` (`modules/ui/`): a confirmation unlocked only by typing an exact phrase (a serial, a command word).
+- IoT RPC console (docs/concepts/iot-platform phase 04): `RpcStatusBadge`, `RpcSendPanel`, `RpcRequestList`, `RpcRequestDetail`,
+  `RpcConsoleView`, the adapter's `rpc` methods and the `iotTopics.rpc` live topic; the IoT demo's Commands tab and `/theme/iot/rpc`.
 - `KeyedTable` (`modules/ui/`): a rows-in, events-out table for live data: stable row keys, keyboard row focus (Arrow keys,
   Home / End, Enter / Space), per-row state (`new` highlighted, `leaving` fading), optional selection, loading / error (retry) /
   empty states and columns that hide below a breakpoint.

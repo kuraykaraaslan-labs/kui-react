@@ -9,6 +9,7 @@ import { AdvancedDataTable } from '@/modules/ui/AdvancedDataTable';
 import { BulkActionTable } from '@/modules/ui/BulkActionTable';
 import { Timeline } from '@/modules/ui/Timeline';
 import { KeyedTable } from '@/modules/ui/KeyedTable';
+import { TypedConfirmDialog } from '@/modules/ui/TypedConfirmDialog';
 import { useCallback, useState } from 'react';
 import type { ShowcaseComponent } from '../showcase.types';
 import type { DataTableRowAction } from '@/modules/ui/Table/types';
@@ -48,6 +49,29 @@ function KeyedTableDemo({ selectable = false }: { selectable?: boolean }) {
         <button type="button" className="underline" onClick={() => setRows((r) => r.map((x) => (x.id === 'p1' ? { ...x, state: 'Removed' } : x)))}>Fade Pump 1</button>
         <span aria-live="polite">{selectable ? `${selected.size} selected` : opened}</span>
       </div>
+    </div>
+  );
+}
+
+
+/** TypedConfirmDialog demo: opens on a button; confirm unlocks when the phrase is typed. */
+function TypedConfirmDemo({ phrase }: { phrase: string }) {
+  const [open, setOpen] = useState(false);
+  const [done, setDone] = useState('');
+  return (
+    <div className="flex items-center gap-3">
+      <button type="button" className="rounded-md border border-border px-3 py-1.5 text-sm" onClick={() => setOpen(true)}>Open</button>
+      <span className="text-xs text-text-secondary" aria-live="polite">{done}</span>
+      <TypedConfirmDialog
+        open={open}
+        title={`Confirm with ${phrase}`}
+        description="This cannot be undone."
+        phrase={phrase}
+        label={`Type ${phrase} to confirm`}
+        confirmLabel="Confirm"
+        onCancel={() => setOpen(false)}
+        onConfirm={() => { setOpen(false); setDone('Confirmed'); }}
+      />
     </div>
   );
 }
@@ -800,5 +824,19 @@ export function Timeline({ items, timeZone, locale, groupByDay = true, emptyMess
     }, `import { KeyedTable } from '@/modules/ui/KeyedTable';
 <KeyedTable caption="Devices" rows={rows} getRowKey={(r) => r.id} columns={columns} onRowClick={open}
   rowState={(r) => (fresh.has(r.id) ? 'new' : undefined)} selection={{ selected, onChange }} loading={loading} error={error} onRetry={reload} />`),
+    withUsage({
+      id: 'typed-confirm-dialog',
+      title: 'TypedConfirmDialog',
+      category: 'Molecule',
+      abbr: 'TY',
+      description: 'A confirmation that needs the user to type an exact phrase (a serial, a command word) before confirming: stronger than Popconfirm for actions that cannot be undone.',
+      filePath: 'modules/ui/TypedConfirmDialog.tsx',
+      since: '2026-10',
+      variants: [
+        { title: 'A command word', layout: 'side', preview: <TypedConfirmDemo phrase="REBOOT" />, code: `<TypedConfirmDialog open title="Reboot?" phrase="REBOOT" label="Type REBOOT" confirmLabel="Reboot" onConfirm={go} onCancel={close} />` },
+        { title: 'A serial number', layout: 'side', preview: <TypedConfirmDemo phrase="RT-24-000912" />, code: `<TypedConfirmDialog open title="Release device?" phrase={device.serial} … />` },
+      ],
+    }, `import { TypedConfirmDialog } from '@/modules/ui/TypedConfirmDialog';
+<TypedConfirmDialog open={open} title="Release device?" phrase={serial} label={\`Type \${serial} to confirm\`} confirmLabel="Release" onConfirm={release} onCancel={close} />`),
   ];
 }

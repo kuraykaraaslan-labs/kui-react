@@ -25,6 +25,12 @@ import { DeviceTable, type DeviceTableRow } from '@/modules/domains/iot/device/D
 import { DeviceListView } from '@/modules/domains/iot/device/DeviceListView';
 import { DeviceDetailView } from '@/modules/domains/iot/device/DeviceDetailView';
 import { NewDeviceDrawer } from '@/modules/domains/iot/device/NewDeviceDrawer';
+import { RpcStatusBadge } from '@/modules/domains/iot/rpc/RpcStatusBadge';
+import { RpcSendPanel } from '@/modules/domains/iot/rpc/RpcSendPanel';
+import { RpcRequestList } from '@/modules/domains/iot/rpc/RpcRequestList';
+import { RpcRequestDetail } from '@/modules/domains/iot/rpc/RpcRequestDetail';
+import { RpcConsoleView } from '@/modules/domains/iot/rpc/RpcConsoleView';
+import type { RpcCommand, RpcRequest } from '@/modules/domains/iot/types/rpc';
 import { IotAdapterProvider } from '@/modules/domains/iot/api/IotAdapterProvider';
 import { IotApiError, type IotAdapter } from '@/modules/domains/iot/api/adapter';
 import type { Alarm, AlarmEvent } from '@/modules/domains/iot/types/alarm';
@@ -93,13 +99,25 @@ const TABLE_DEVICES: DeviceTableRow[] = DEVICES.map((d) => ({
   values: { temperature: 61.37, pressure: 2.4 },
 }));
 
+const RPC_COMMANDS: RpcCommand[] = [
+  { method: 'sys.info', label: 'System information', tier: 'basic', highImpact: false, oneway: false, paramsSchema: {}, sendable: true },
+  { method: 'sys.ping', label: 'Ping a host', tier: 'basic', highImpact: false, oneway: false, sendable: true, paramsSchema: { host: { label: 'Host', type: 'text', required: true } } },
+  { method: 'cfg.sync', label: 'Apply configuration', tier: 'privileged', highImpact: false, oneway: true, paramsSchema: {}, sendable: false },
+  { method: 'sys.reboot', label: 'Reboot', tier: 'critical', highImpact: true, confirmText: 'REBOOT', oneway: true, paramsSchema: {}, sendable: true },
+];
+const RPC_REQUESTS: RpcRequest[] = [
+  { rpcId: 'r1', deviceId: 'd1', deviceName: 'Pump 4', method: 'sys.info', oneway: false, persistent: false, status: 'SUCCESSFUL', source: 'console', createdAt: ago(5 * MIN), completedAt: new Date(NOW - 5 * MIN + 820), response: { uptime_s: 345_612, fw: '1.8.2' } },
+  { rpcId: 'r2', deviceId: 'd1', deviceName: 'Pump 4', method: 'sys.ping', oneway: false, persistent: false, status: 'TIMEOUT', outcome: 'unknown', source: 'dashboard_control', createdAt: ago(15 * MIN), completedAt: ago(15 * MIN - 10_000) },
+  { rpcId: 'r3', deviceId: 'd2', deviceName: 'Edge gateway 1', method: 'sys.reboot', oneway: true, persistent: true, status: 'QUEUED', source: 'console', createdAt: ago(MIN) },
+];
+
 function fixtureAdapter(fail = false): IotAdapter {
   const failing = async () => { await wait(); throw new IotApiError('unavailable', 'The server did not answer.'); };
   const alarms = ALARMS.map((a) => ({ ...a }));
   return {
     name: 'Showcase fixtures',
     async capabilities() {
-      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true };
+      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true };
     },
     profiles: { async options() { return [{ id: 'p1', name: 'Pumps' }, { id: 'p2', name: 'Gateways' }, { id: 'p3', name: 'LoRaWAN meters' }]; } },
     devices: {
@@ -115,6 +133,13 @@ function fixtureAdapter(fail = false): IotAdapter {
       async rotate() { await wait(); return { credential: { type: 'ACCESS_TOKEN', createdAt: ago(30 * 86_400_000), rotatedAt: new Date(NOW) }, secret: { token: 'Nm4Qa8Zr2Wt6Ys1Pk9Hd3Lc7Vb5Xe0Gj' } }; },
     },
     attributes: { async list(_id, scope) { await wait(); return ATTRIBUTES[scope]; }, async save() { await wait(); }, async remove() { await wait(); } },
+    rpc: {
+      async methods(deviceId) { await wait(); return deviceId === 'd4' ? { commands: [], canSendRaw: false, supported: false } : { commands: RPC_COMMANDS, canSendRaw: false, supported: true }; },
+      async send(deviceId, input) { await wait(); return { rpcId: `r${Math.round(NOW / 1000)}`, deviceId, method: input.method, oneway: false, persistent: false, status: 'QUEUED', source: 'console', createdAt: new Date(NOW) }; },
+      list: fail ? failing : async (q) => { await wait(); return { items: RPC_REQUESTS.filter((r) => !q.deviceId || r.deviceId === q.deviceId), nextCursor: null }; },
+      async get(id) { await wait(); return RPC_REQUESTS.find((r) => r.rpcId === id) ?? RPC_REQUESTS[0]; },
+      async cancel(id) { await wait(); return { ...(RPC_REQUESTS.find((r) => r.rpcId === id) ?? RPC_REQUESTS[2]), status: 'CANCELLED' }; },
+    },
     alarms: {
       list: fail ? failing : async (q) => {
         await wait();
@@ -144,6 +169,16 @@ function NewDeviceDemo() {
       <Button variant="primary" size="sm" onClick={() => setOpen(true)}>New device</Button>
       {open && <NewDeviceDrawer open profiles={[{ id: 'p1', name: 'Pumps' }]} deviceHref={(id) => `#device-${id}`} onClose={() => setOpen(false)} />}
     </Fixture>
+  );
+}
+
+function RpcDetailDemo({ request }: { request: RpcRequest }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>Open {request.method}</Button>
+      <RpcRequestDetail open={open} request={request} onClose={() => setOpen(false)} onCancel={() => setOpen(false)} onRerun={() => setOpen(false)} />
+    </>
   );
 }
 
@@ -379,6 +414,66 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       variants: [
         { title: 'Open it', layout: 'side', preview: <NewDeviceDemo />, code: '<NewDeviceDrawer open … />' },
         { title: 'Inside DeviceListView', layout: 'side', preview: <p className="text-sm text-text-secondary">The list view opens it from its New device action.</p>, code: '<DeviceListView hrefs={hrefs} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-rpc-status-badge',
+      title: 'RpcStatusBadge',
+      abbr: 'RV',
+      description: 'An RPC request status (queued, sent, delivered, successful, failed, timed out, expired, cancelled) with its outcome: a timeout reads "outcome unknown", never "did not run".',
+      filePath: 'modules/domains/iot/rpc/RpcStatusBadge.tsx',
+      usage: `<RpcStatusBadge status={r.status} outcome={r.outcome} />`,
+      variants: [
+        { title: 'Statuses', layout: 'side', preview: <div className="flex flex-wrap gap-2">{(['QUEUED', 'SENT', 'DELIVERED', 'SUCCESSFUL', 'FAILED', 'TIMEOUT', 'EXPIRED', 'CANCELLED'] as const).map((s) => <RpcStatusBadge key={s} status={s} />)}</div>, code: '<RpcStatusBadge status="DELIVERED" />' },
+        { title: 'With an outcome, medium', layout: 'side', preview: <div className="flex gap-2"><RpcStatusBadge status="TIMEOUT" outcome="unknown" size="md" /><RpcStatusBadge status="SUCCESSFUL" outcome="running" size="md" /></div>, code: '<RpcStatusBadge status="TIMEOUT" outcome="unknown" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-rpc-send-panel',
+      title: 'RpcSendPanel',
+      abbr: 'RP',
+      description: 'Send a command of the device profile catalog: declared parameters through SchemaForm, one-way, timeout, persistent delivery; a tier the viewer may not send is greyed; a high-impact command asks for its typed phrase; never a factory reset (OD-8); disabled with the reason for a ThingsBoard-scheme device (OD-85).',
+      filePath: 'modules/domains/iot/rpc/RpcSendPanel.tsx',
+      usage: `<RpcSendPanel commands={catalog.commands} canSendRaw={catalog.canSendRaw} supported={catalog.supported} deviceOnline={device.online} onSend={(i) => api.send(deviceId, i)} />`,
+      variants: [
+        { title: 'Catalog with a typed confirmation', layout: 'stack', preview: <RpcSendPanel commands={RPC_COMMANDS} deviceOnline={false} onSend={() => wait()} />, code: '<RpcSendPanel commands={commands} onSend={send} />' },
+        { title: 'ThingsBoard-scheme device', layout: 'stack', preview: <RpcSendPanel commands={[]} supported={false} onSend={() => wait()} />, code: '<RpcSendPanel commands={[]} supported={false} onSend={send} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-rpc-request-list',
+      title: 'RpcRequestList',
+      abbr: 'RL',
+      description: 'RPC requests newest first: method, status with outcome, who sent it (console, a flow, a dashboard control), created and duration; a row opens the detail.',
+      filePath: 'modules/domains/iot/rpc/RpcRequestList.tsx',
+      usage: `<RpcRequestList requests={items} onOpen={open} hasMore={!!cursor} onLoadMore={more} />`,
+      variants: [
+        { title: 'Fleet log', layout: 'stack', preview: <RpcRequestList requests={RPC_REQUESTS} showDevice now={NOW} locale="en-GB" onOpen={() => undefined} />, code: '<RpcRequestList requests={items} showDevice />' },
+        { title: 'Empty', layout: 'stack', preview: <RpcRequestList requests={[]} />, code: '<RpcRequestList requests={[]} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-rpc-request-detail',
+      title: 'RpcRequestDetail',
+      abbr: 'RQ',
+      description: 'One RPC request in a drawer: the request, the answer or the error, the progress timeline, send again and cancel (queued or sent only).',
+      filePath: 'modules/domains/iot/rpc/RpcRequestDetail.tsx',
+      usage: `<RpcRequestDetail open request={r} onClose={close} onCancel={cancel} onRerun={rerun} />`,
+      variants: [
+        { title: 'Answered', layout: 'side', preview: <RpcDetailDemo request={RPC_REQUESTS[0]} />, code: '<RpcRequestDetail open request={answered} … />' },
+        { title: 'Queued (cancellable)', layout: 'side', preview: <RpcDetailDemo request={RPC_REQUESTS[2]} />, code: '<RpcRequestDetail open request={queued} onCancel={cancel} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-rpc-console-view',
+      title: 'RpcConsoleView',
+      abbr: 'RW',
+      description: 'A device command console through the IoT adapter: send panel over the catalog and the live history (a request moves through its states without a reload); without a device, the fleet log.',
+      filePath: 'modules/domains/iot/rpc/RpcConsoleView.tsx',
+      usage: `<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId={id} deviceOnline={device.online} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'Device console', layout: 'stack', preview: <Fixture><RpcConsoleView deviceId="d1" now={NOW} /></Fixture>, code: '<RpcConsoleView deviceId="d1" />' },
+        { title: 'Fleet log', layout: 'stack', preview: <Fixture><RpcConsoleView now={NOW} /></Fixture>, code: '<RpcConsoleView />' },
       ],
     }),
   ];

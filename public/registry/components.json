@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-24T17:13:02.086Z",
+  "generatedAt": "2026-10-24T17:51:14.565Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2966,6 +2966,29 @@
         {
           "title": "Error with retry, and loading",
           "code": "<KeyedTable … error=\"The pumps could not be read.\" onRetry={reload} />\n<KeyedTable … loading />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "typed-confirm-dialog",
+      "name": "TypedConfirmDialog",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/TypedConfirmDialog.tsx",
+      "abbr": "TY",
+      "description": "A confirmation that needs the user to type an exact phrase (a serial, a command word) before confirming: stronger than Popconfirm for actions that cannot be undone.",
+      "source": "import { TypedConfirmDialog } from '@/modules/ui/TypedConfirmDialog';\n<TypedConfirmDialog open={open} title=\"Release device?\" phrase={serial} label={`Type ${serial} to confirm`} confirmLabel=\"Release\" onConfirm={release} onCancel={close} />",
+      "variants": [
+        {
+          "title": "A command word",
+          "code": "<TypedConfirmDialog open title=\"Reboot?\" phrase=\"REBOOT\" label=\"Type REBOOT\" confirmLabel=\"Reboot\" onConfirm={go} onCancel={close} />"
+        },
+        {
+          "title": "A serial number",
+          "code": "<TypedConfirmDialog open title=\"Release device?\" phrase={device.serial} … />"
         }
       ],
       "status": "stable",
@@ -9560,6 +9583,121 @@
         {
           "title": "Inside DeviceListView",
           "code": "<DeviceListView hrefs={hrefs} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-rpc-status-badge",
+      "name": "RpcStatusBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/rpc/RpcStatusBadge.tsx",
+      "abbr": "RV",
+      "description": "An RPC request status (queued, sent, delivered, successful, failed, timed out, expired, cancelled) with its outcome: a timeout reads \"outcome unknown\", never \"did not run\".",
+      "source": "<RpcStatusBadge status={r.status} outcome={r.outcome} />",
+      "variants": [
+        {
+          "title": "Statuses",
+          "code": "<RpcStatusBadge status=\"DELIVERED\" />"
+        },
+        {
+          "title": "With an outcome, medium",
+          "code": "<RpcStatusBadge status=\"TIMEOUT\" outcome=\"unknown\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-rpc-send-panel",
+      "name": "RpcSendPanel",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/rpc/RpcSendPanel.tsx",
+      "abbr": "RP",
+      "description": "Send a command of the device profile catalog: declared parameters through SchemaForm, one-way, timeout, persistent delivery; a tier the viewer may not send is greyed; a high-impact command asks for its typed phrase; never a factory reset (OD-8); disabled with the reason for a ThingsBoard-scheme device (OD-85).",
+      "source": "<RpcSendPanel commands={catalog.commands} canSendRaw={catalog.canSendRaw} supported={catalog.supported} deviceOnline={device.online} onSend={(i) => api.send(deviceId, i)} />",
+      "variants": [
+        {
+          "title": "Catalog with a typed confirmation",
+          "code": "<RpcSendPanel commands={commands} onSend={send} />"
+        },
+        {
+          "title": "ThingsBoard-scheme device",
+          "code": "<RpcSendPanel commands={[]} supported={false} onSend={send} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-rpc-request-list",
+      "name": "RpcRequestList",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/rpc/RpcRequestList.tsx",
+      "abbr": "RL",
+      "description": "RPC requests newest first: method, status with outcome, who sent it (console, a flow, a dashboard control), created and duration; a row opens the detail.",
+      "source": "<RpcRequestList requests={items} onOpen={open} hasMore={!!cursor} onLoadMore={more} />",
+      "variants": [
+        {
+          "title": "Fleet log",
+          "code": "<RpcRequestList requests={items} showDevice />"
+        },
+        {
+          "title": "Empty",
+          "code": "<RpcRequestList requests={[]} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-rpc-request-detail",
+      "name": "RpcRequestDetail",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/rpc/RpcRequestDetail.tsx",
+      "abbr": "RQ",
+      "description": "One RPC request in a drawer: the request, the answer or the error, the progress timeline, send again and cancel (queued or sent only).",
+      "source": "<RpcRequestDetail open request={r} onClose={close} onCancel={cancel} onRerun={rerun} />",
+      "variants": [
+        {
+          "title": "Answered",
+          "code": "<RpcRequestDetail open request={answered} … />"
+        },
+        {
+          "title": "Queued (cancellable)",
+          "code": "<RpcRequestDetail open request={queued} onCancel={cancel} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-rpc-console-view",
+      "name": "RpcConsoleView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/rpc/RpcConsoleView.tsx",
+      "abbr": "RW",
+      "description": "A device command console through the IoT adapter: send panel over the catalog and the live history (a request moves through its states without a reload); without a device, the fleet log.",
+      "source": "<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId={id} deviceOnline={device.online} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "Device console",
+          "code": "<RpcConsoleView deviceId=\"d1\" />"
+        },
+        {
+          "title": "Fleet log",
+          "code": "<RpcConsoleView />"
         }
       ],
       "status": "beta",

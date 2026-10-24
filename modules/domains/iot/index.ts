@@ -51,6 +51,14 @@ export { DeviceListView } from './device/DeviceListView';
 export { DeviceDetailView } from './device/DeviceDetailView';
 export { NewDeviceDrawer } from './device/NewDeviceDrawer';
 
+// ── RPC console (phase 04) ───────────────────────────────────────────────────────────────────────────────────────────
+export { RpcStatusBadge } from './rpc/RpcStatusBadge';
+export { RpcSendPanel } from './rpc/RpcSendPanel';
+export type { RpcSendPanelProps } from './rpc/RpcSendPanel';
+export { RpcRequestList, rpcDurationMs } from './rpc/RpcRequestList';
+export { RpcRequestDetail } from './rpc/RpcRequestDetail';
+export { RpcConsoleView } from './rpc/RpcConsoleView';
+
 // ── Deprecated (OD-9): the Alert* names, for one release; removed in the next minor ───────────────────────────────────
 /** @deprecated use AlarmSeverityBadge; removed in the next minor. */
 export { AlarmSeverityBadge as AlertSeverityBadge } from './alarm/AlarmSeverityBadge';

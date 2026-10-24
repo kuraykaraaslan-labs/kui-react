@@ -15,6 +15,7 @@ import {
   faChevronDown,
   faDiagramProject,
   faTableCells,
+  faTerminal,
 } from '@fortawesome/free-solid-svg-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -32,6 +33,7 @@ const NAV_GROUPS: AppSidebarNavGroup[] = [
       { id: 'widgets',    label: 'Widget gallery', icon: <FontAwesomeIcon icon={faTableCells} className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/widgets' },
       { id: 'devices',    label: 'Devices',      icon: <FontAwesomeIcon icon={faMicrochip}       className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/devices',   badge: 7 },
       { id: 'alarms',     label: 'Alarms',       icon: <FontAwesomeIcon icon={faBell}           className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/alarms' },
+      { id: 'rpc',        label: 'Commands',     icon: <FontAwesomeIcon icon={faTerminal}       className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/rpc' },
       { id: 'workspaces', label: 'Workspaces',   icon: <FontAwesomeIcon icon={faCloud}          className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/workspaces' },
       { id: 'rulesets',   label: 'Rulesets',     icon: <FontAwesomeIcon icon={faDiagramProject} className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/rulesets'   },
       { id: 'settings',   label: 'Settings',     icon: <FontAwesomeIcon icon={faGear}           className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot'            },

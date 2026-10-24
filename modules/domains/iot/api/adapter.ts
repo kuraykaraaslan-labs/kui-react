@@ -5,6 +5,7 @@ import type {
   AttributeEntry, AttributeScope, CredentialType, DeviceConnectionEvent, DeviceCredential, DeviceRecord, DeviceRegistryStatus,
   DeviceStatePatch, IssuedSecret,
 } from '../types/device';
+import type { RpcCommand, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
 
 /*
  * The IoT adapter contract (docs/concepts/iot-platform/phases/00-api-adapter-layer.md §0.2): every IoT view reads and writes
@@ -135,6 +136,41 @@ export interface IotAlarmsApi {
   parseLive?(payload: unknown): AlarmLiveEvent | null;
 }
 
+// ── RPC (phase 04) ───────────────────────────────────────────────────────────────────────────────────────────────────
+
+export type RpcListQuery = {
+  /** Absent: the fleet log (every device of the tenant), when the host offers it. */
+  deviceId?: string;
+  status?: RpcStatus;
+  method?: string;
+  cursor?: string | null;
+  limit: number;
+};
+
+export type RpcCatalog = {
+  commands: RpcCommand[];
+  /** The viewer may send methods outside the catalog (raw RPC). */
+  canSendRaw: boolean;
+  /** False when the device cannot take RPC at all (OD-85: a ThingsBoard-scheme profile); `reason` says why. */
+  supported: boolean;
+  reason?: string;
+};
+
+export type RpcLiveEvent = { request: RpcRequest };
+
+export interface IotRpcApi {
+  /** The device's catalog with what the viewer may send. */
+  methods(deviceId: string, signal?: AbortSignal): Promise<RpcCatalog>;
+  /** Sends; answers the request as it stands (often QUEUED; the rest arrives live or by `get`). */
+  send(deviceId: string, input: RpcSendInput): Promise<RpcRequest>;
+  list(query: RpcListQuery, signal?: AbortSignal): Promise<{ items: RpcRequest[]; nextCursor: string | null }>;
+  get(rpcId: string, signal?: AbortSignal): Promise<RpcRequest>;
+  /** QUEUED or SENT only. */
+  cancel(rpcId: string): Promise<RpcRequest>;
+  /** An `rpc` live payload (a state change, no params or answer) as an event, or null. */
+  parseLive?(payload: unknown): RpcLiveEvent | null;
+}
+
 // ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -154,6 +190,8 @@ export type IotCapabilities = {
   canAcknowledge: boolean;
   canClear: boolean;
   canComment: boolean;
+  /** The viewer may send at least one catalog tier (the catalog says which). */
+  canSendRpc: boolean;
 };
 
 /** Fail closed: nothing until the host says so. */
@@ -170,6 +208,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canAcknowledge: false,
   canClear: false,
   canComment: false,
+  canSendRpc: false,
 };
 
 export interface IotAdapter {
@@ -180,6 +219,7 @@ export interface IotAdapter {
   credentials?: IotCredentialsApi;
   attributes?: IotAttributesApi;
   alarms?: IotAlarmsApi;
+  rpc?: IotRpcApi;
   capabilities?(signal?: AbortSignal): Promise<Partial<IotCapabilities>>;
 }
 
