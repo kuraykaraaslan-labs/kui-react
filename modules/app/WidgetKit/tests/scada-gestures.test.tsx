@@ -103,3 +103,27 @@ describe('symbols with actions', () => {
     expect(runs).toEqual([]);
   });
 });
+
+describe('a lockout is one-way', () => {
+  // LOTO is set on the equipment: a compute script's patch (or a rule) may draw a lockout, never lift the row's.
+  const locked = { points: { shape: 'table' as const, rows: [{ id: 'cam', mode: 'lockout' }] } };
+  it('a patch that sets another mode on a locked-out symbol leaves it locked, and its click does not run', () => {
+    const { actions, runs } = host({ cam: ['click'] });
+    const { container } = render(
+      <ScadaSceneView settings={settings} format={{}} data={locked} title="Plant" elementActions={actions} scenePatch={{ objects: { cam: { mode: 'auto' } } }} />,
+    );
+    expect(hit(container, 'cam')).toHaveAttribute('data-locked', 'true');
+    expect(hit(container, 'cam')).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(hit(container, 'cam'));
+    fireEvent.keyDown(hit(container, 'cam'), { key: 'Enter' });
+    expect(runs).toEqual([]);
+  });
+  it('a patch may lock a symbol out, and then nothing runs from it', () => {
+    const { actions, runs } = host({ router: ['click'] });
+    const { container } = render(
+      <ScadaSceneView settings={settings} format={{}} data={data} title="Plant" elementActions={actions} scenePatch={{ objects: { router: { mode: 'lockout' } } }} />,
+    );
+    fireEvent.click(hit(container, 'router'));
+    expect(runs).toEqual([]);
+  });
+});

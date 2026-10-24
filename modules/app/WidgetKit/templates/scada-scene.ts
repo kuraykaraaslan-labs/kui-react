@@ -7,6 +7,7 @@ import {
   type SceneElementSetting, type SceneLinkSetting, type SceneShapeSetting,
 } from '../views/scada-scene-logic';
 import { MAX_RULE_LABEL, MAX_SCENE_RULES, validateRules } from '../views/scene-rules-logic';
+import { MAX_PATCH_COORD } from '../views/scene-patch';
 import { isScadaSymbol, SCADA_SYMBOLS, SCADA_SYMBOL_DEFS, type SymbolDef } from '../views/scada-logic';
 import { MEDIUM_OPTIONS, SYMBOL_OPTIONS } from './scada';
 import { ruleConditionFields, stopField, YES_NO } from './rule-fields';
@@ -192,8 +193,8 @@ export const SCADA_SCENE: SettingsTemplate = {
       description: 'Metres are mapped onto the canvas from the origin below at the scale below; y grows downward, as on the canvas.',
     },
     thingsScale: { label: 'Scene units per metre', type: 'number', display: 'input', min: 0.01, max: 1000, value: DEFAULT_THINGS_SCALE, group: 'things', showIf: { thingsUnits: 'metres' } },
-    thingsOriginX: { label: 'Origin x', type: 'number', display: 'input', value: 0, group: 'things', showIf: { thingsUnits: 'metres' }, description: 'Where the site\'s 0, 0 lies on the canvas.' },
-    thingsOriginY: { label: 'Origin y', type: 'number', display: 'input', value: 0, group: 'things', showIf: { thingsUnits: 'metres' } },
+    thingsOriginX: { label: 'Origin x', type: 'number', display: 'input', min: -MAX_PATCH_COORD, max: MAX_PATCH_COORD, value: 0, group: 'things', showIf: { thingsUnits: 'metres' }, description: 'Where the site\'s 0, 0 lies on the canvas.' },
+    thingsOriginY: { label: 'Origin y', type: 'number', display: 'input', min: -MAX_PATCH_COORD, max: MAX_PATCH_COORD, value: 0, group: 'things', showIf: { thingsUnits: 'metres' } },
     }),
   },
   rules: [

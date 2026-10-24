@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MAX_SCENE_THINGS, sceneModel, sceneThings, thingTurn, type SceneSettings } from '../views/scada-scene-logic';
-import { parseScenePatch, type ScenePatch } from '../views/scene-patch';
+import { MAX_PATCH_COORD, parseScenePatch, type ScenePatch } from '../views/scene-patch';
 import { svgToString } from '../views/svg-node';
 
 type Row = Record<string, unknown>;
@@ -82,6 +82,24 @@ describe('things from rows', () => {
     expect(on).not.toBe(idle);
     expect(warn).not.toBe(idle);
   });
+  it('skips a row whose place lies off every canvas (an overflow in metres included), so one far-off row never stretches the view', () => {
+    // 1e308 m at 50 units per metre is Infinity: never a view box of Infinity or NaN
+    const metres = sceneThings(scene({ thingsUnits: 'metres', thingsScale: 50 }), [{ id: 'a', x: 1e308, y: 0 }, { id: 'b', x: 2, y: 1 }], new Set());
+    expect(metres.things.map((t) => t.e.id)).toEqual(['b']);
+    expect(metres.problems).toBe(1);
+    // a huge origin is held to the same bound; a place on the bound is still a place
+    expect(sceneThings(scene({ thingsUnits: 'metres', thingsOriginX: 1e12 }), [{ id: 'a', x: 0, y: 0 }], new Set()).things[0].e.x).toBe(MAX_PATCH_COORD);
+    expect(sceneThings(scene(), [{ id: 'a', x: -MAX_PATCH_COORD, y: MAX_PATCH_COORD }, { id: 'b', x: MAX_PATCH_COORD + 1, y: 0 }], new Set()).things.map((t) => t.e.id)).toEqual(['a']);
+    // with fit 'content', a far-off row does not shrink the authored symbols
+    const content = scene({ fit: 'content' });
+    const near = draw(content, [{ id: 'cow7', symbol: 'home.tv', x: 300, y: 100 }]);
+    const far = draw(content, [{ id: 'cow7', symbol: 'home.tv', x: 300, y: 100 }, { id: 'stray', symbol: 'home.tv', x: 1e9, y: 0 }]);
+    expect(far.viewBox).toBe(near.viewBox);
+    expect(far.viewBox).not.toMatch(/Infinity|NaN/);
+    expect(far.problems).toBe(near.problems + 1);
+    // a patch's things are held to the same bound
+    expect(draw(content, [], { patch: patchOf({ things: [{ id: 'p', symbol: 'home.tv', x: 1e300, y: 1 }] }) }).thingIds).toEqual([]);
+  });
   it('a connection may end on a thing by its id; without the thing it is a problem', () => {
     const s = scene({ links: [{ from: 'pump.r', to: 'cow7.l', kind: 'pipe' }] });
     expect(draw(s, [{ id: 'cow7', symbol: 'home.tv', x: 400, y: 100 }]).problems).toBe(0);
@@ -151,6 +169,22 @@ describe('the scene patch in the model (applied last)', () => {
     expect(draw(scene(), things, { patch: patchOf({ view: { x0: 50, y0: 60, x1: 450, y1: 260 } }) }).viewBox).toBe('50 60 400 200');
     // a 3D view means nothing to a diagram
     expect(draw(scene(), things, { patch: patchOf({ view: { preset: 'top' } }) }).viewBox).toBe('0 0 800 400');
+  });
+  it('a lockout is one-way: a patch or a rule may impose one, never lift the row\'s', () => {
+    const lotoRow = [{ id: 'pump', mode: 'lockout' }];
+    expect(hit(draw(scene(), [], {}, lotoRow), 'pump')?.locked).toBe(true);
+    const lifted = draw(scene(), [], { patch: patchOf({ objects: { pump: { mode: 'auto' } } }) }, lotoRow);
+    expect(hit(lifted, 'pump')?.locked).toBe(true);
+    // the padlock stays drawn: the same picture as without the patch
+    expect(markup(lifted)).toBe(markup(draw(scene(), [], {}, lotoRow)));
+    expect(hit(draw(scene({ rules: [{ target: 'pump', mode: 'manual' }] }), [], {}, lotoRow), 'pump')?.locked).toBe(true);
+    // imposing one works, on a symbol and on a thing
+    expect(hit(draw(scene(), [], { patch: patchOf({ objects: { pump: { mode: 'lockout' } } }) }), 'pump')?.locked).toBe(true);
+    expect(hit(draw(scene(), things, { patch: patchOf({ objects: { cow7: { mode: 'lockout' } } }) }), 'cow7')?.locked).toBe(true);
+    // a thing whose own row is locked out stays locked under a patch too
+    expect(hit(draw(scene(), [{ ...things[0], mode: 'lockout' }], { patch: patchOf({ objects: { cow7: { mode: 'auto' } } }) }), 'cow7')?.locked).toBe(true);
+    // another mode over an unlocked row is applied as before
+    expect(hit(draw(scene(), [], { patch: patchOf({ objects: { pump: { mode: 'manual' } } }) }, [{ id: 'pump', mode: 'auto' }]), 'pump')?.locked).toBe(false);
   });
   it('its problems join the count and are listed', () => {
     const m = draw(scene(), things, { patch: patchOf({ problems: ['Feed lost', 'Two tags unread'] }) });

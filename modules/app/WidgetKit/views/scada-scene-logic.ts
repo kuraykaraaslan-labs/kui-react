@@ -19,7 +19,7 @@ import {
 } from './scada-logic';
 import { applyStates, isLocked, mergeStates, STATE_COLUMNS, type SymbolStates } from './scada-states';
 import { evaluateRules, parseTurn, type SceneEffects, type RuleState } from './scene-rules-logic';
-import { MAX_PATCH_LINKS, patchId, type ObjectPatch, type ScenePatch } from './scene-patch';
+import { MAX_PATCH_COORD, MAX_PATCH_LINKS, patchId, type ObjectPatch, type ScenePatch } from './scene-patch';
 import { cssColor } from '../settings/style';
 import { el, r2, text, type SvgNode } from './svg-node';
 
@@ -346,10 +346,14 @@ function withColors(base: Paint, fx: SceneEffects): Paint {
   return { ...paint, state: accent && idle ? 'running' : paint.state, color: accent ?? paint.color, fill: fx.fillColor ?? (fx.color && alarm ? fx.color : paint.fill) };
 }
 
-/** The states the rules forced, over what the row reported. */
+/**
+ * The states the rules (or a patch) forced, over what the row reported. A lockout is one-way: a rule or a patch may
+ * impose one, but never lift the one the row reports (LOTO is set on the equipment, not drawn by a script), so the
+ * symbol keeps its padlock and its gestures stay off.
+ */
 function withStates(paint: Paint, fx: SceneEffects): Paint {
   const forced: Partial<SymbolStates> = {};
-  if (fx.mode !== undefined) forced.mode = fx.mode;
+  if (fx.mode !== undefined && !(isLocked(paint.states) && fx.mode !== 'lockout')) forced.mode = fx.mode;
   if (fx.quality !== undefined) forced.quality = fx.quality;
   if (fx.speed !== undefined) forced.speed = fx.speed;
   if (fx.reverse !== undefined) forced.reverse = fx.reverse;
@@ -426,7 +430,9 @@ export interface SceneThing { e: SceneElementSetting; row: Row }
 /**
  * The things of a scene: the patch's things when it has them, else the `things` table's rows, read through the
  * scene's thing columns. A row without a usable id or a place is skipped, as is one whose id an authored symbol (or an
- * earlier thing) already has: each counts as a problem. Past `MAX_SCENE_THINGS` the rest count as one problem.
+ * earlier thing) already has: each counts as a problem. A place more than `MAX_PATCH_COORD` scene units from the
+ * canvas origin (after the metres mapping) is not a place either: one far-off row would otherwise stretch the content
+ * box until every symbol is a speck, or overflow the view box. Past `MAX_SCENE_THINGS` the rest count as one problem.
  */
 export function sceneThings(s: SceneSettings, rows: ReadonlyArray<Record<string, unknown>>, authored: ReadonlySet<string>): { things: SceneThing[]; problems: number } {
   const col = (v: unknown, d: string) => (typeof v === 'string' && v ? v : d);
@@ -436,15 +442,20 @@ export function sceneThings(s: SceneSettings, rows: ReadonlyArray<Record<string,
   const turnCol = col(s.thingsTurnColumn, 'turn'); const labelCol = col(s.thingsLabelColumn, 'label');
   const fixed = typeof s.thingsSymbol === 'string' && s.thingsSymbol.trim() ? s.thingsSymbol.trim() : '';
   const metres = s.thingsUnits === 'metres';
-  const k = finite(s.thingsScale, DEFAULT_THINGS_SCALE) > 0 ? finite(s.thingsScale, DEFAULT_THINGS_SCALE) : DEFAULT_THINGS_SCALE;
-  const ox = finite(s.thingsOriginX, 0); const oy = finite(s.thingsOriginY, 0);
+  const k = finite(s.thingsScale, DEFAULT_THINGS_SCALE) > 0 ? Math.min(1000, finite(s.thingsScale, DEFAULT_THINGS_SCALE)) : DEFAULT_THINGS_SCALE;
+  const bound = (v: number) => Math.min(MAX_PATCH_COORD, Math.max(-MAX_PATCH_COORD, v));
+  const ox = bound(finite(s.thingsOriginX, 0)); const oy = bound(finite(s.thingsOriginY, 0));
+  // A scene place, or null when it lies off every canvas (an overflow to Infinity included).
+  const onCanvas = (v: number | null): number | null => (v !== null && Number.isFinite(v) && Math.abs(v) <= MAX_PATCH_COORD ? v : null);
   const things: SceneThing[] = [];
   const seen = new Set<string>();
   let problems = rows.length > MAX_SCENE_THINGS ? 1 : 0;
   for (const row of rows.slice(0, MAX_SCENE_THINGS)) {
     if (!row || typeof row !== 'object') { problems += 1; continue; }
     const id = patchId(row[idCol]);
-    const x = coord(row[xCol]); const y = coord(row[yCol]);
+    const cx = coord(row[xCol]); const cy = coord(row[yCol]);
+    const x = onCanvas(cx === null ? null : metres ? ox + cx * k : cx);
+    const y = onCanvas(cy === null ? null : metres ? oy + cy * k : cy);
     if (id === null || x === null || y === null || authored.has(id) || seen.has(id)) { problems += 1; continue; }
     seen.add(id);
     const own = typeof row[symbolCol] === 'string' ? (row[symbolCol] as string).trim() : '';
@@ -453,8 +464,8 @@ export function sceneThings(s: SceneSettings, rows: ReadonlyArray<Record<string,
       e: {
         id,
         symbol: fixed || own,
-        x: metres ? ox + x * k : x,
-        y: metres ? oy + y * k : y,
+        x,
+        y,
         turn: thingTurn(row[turnCol]),
         ...(typeof label === 'string' && label ? { label } : typeof label === 'number' && Number.isFinite(label) ? { label: String(label) } : {}),
       },
