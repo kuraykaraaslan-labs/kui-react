@@ -38,6 +38,12 @@ All notable changes to this project will be documented here. Format follows [Kee
   and wired through `aria-describedby` (as `hint` now is).
 - `Modal`: `size` takes `xl` (36rem) and `full` (the viewport width less the 1rem gutter, height following the
   content; `fullscreen` still fills the viewport).
+- `EntityAliases` (`modules/app/EntityAliases/`, next-boilerplate dashboard phase 36.4): ThingsBoard-style entity aliases for
+  dashboards. `EntityAliasesDialog` (the board's alias list; a used alias cannot be removed), `EntityAliasDialog` (one alias,
+  key derived from the name, debounced preview, "no entity matched" blocks the save), `EntityFilterForm` (single entity,
+  entity list, name prefix, entity type, the page's entity, entity subtype, relations query, entity search query),
+  `entityFilterText`, `AliasEntitySelect` (toolbar entity select), `EntityAliasPicker` (a widget slot's alias picker),
+  `validateAlias` / `slugKey` mirroring the server caps. All data comes through the host's `EntityAliasesAccess`.
 - `TypedConfirmDialog` (`modules/ui/`): a confirmation unlocked only by typing an exact phrase (a serial, a command word).
 - IoT RPC console (docs/concepts/iot-platform phase 04): `RpcStatusBadge`, `RpcSendPanel`, `RpcRequestList`, `RpcRequestDetail`,
   `RpcConsoleView`, the adapter's `rpc` methods and the `iotTopics.rpc` live topic; the IoT demo's Commands tab and `/theme/iot/rpc`.
@@ -267,6 +273,8 @@ All notable changes to this project will be documented here. Format follows [Kee
   overlay too. The open list now handles Escape (closes, `preventDefault` + `stopPropagation`, focus back on the
   trigger) and `useFocusTrap` / `useDismiss` ignore an Escape whose `defaultPrevented` is set. With the list closed,
   Escape still closes the overlay.
+- `Modal`: the title and description ids are per instance (`useId`), so a dialog opened from a dialog is labelled
+  by its own title instead of the first one.
 - WidgetBoard: a cell's grid place applies from lg up only, so cards stack below lg instead of opening
   implicit columns, and a card's hide-on-small-screens and small-screen order act on its cell.
 - StateView: a state's `unknownLabel` still at the template default ("Unknown") follows the host's text.
