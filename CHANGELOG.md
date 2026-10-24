@@ -44,6 +44,13 @@ All notable changes to this project will be documented here. Format follows [Kee
   entity list, name prefix, entity type, the page's entity, entity subtype, relations query, entity search query),
   `entityFilterText`, `AliasEntitySelect` (toolbar entity select), `EntityAliasPicker` (a widget slot's alias picker),
   `validateAlias` / `slugKey` mirroring the server caps. All data comes through the host's `EntityAliasesAccess`.
+- `EntityAliases` key filters (next-boilerplate dashboard phase 36.7, ThingsBoard's dashboard filters): `BoardFiltersDialog`
+  (the board's filters; a used filter cannot be removed), `BoardFilterDialog` (one filter, key derived from the name, key
+  filters joined by "and", text preview), `KeyFilterEditor` (entity field / attribute / latest telemetry, key names
+  suggested through the new `EntityAliasesAccess.entityKeys`, attribute scope, value type, and / or, up to 4 conditions
+  with the operations of the value type, a dashboard parameter as a value), `boardFilterText`, `validateBoardFilter` /
+  `validateBoardFilters` / `validateKeyFilter` mirroring the caps, `normalizeBoardFilter`; `EntityAliasPicker` gains a
+  filter select (`filters`, `filterValue`, `onFilterChange`). `slugKey` takes an optional fallback base.
 - `TypedConfirmDialog` (`modules/ui/`): a confirmation unlocked only by typing an exact phrase (a serial, a command word).
 - IoT RPC console (docs/concepts/iot-platform phase 04): `RpcStatusBadge`, `RpcSendPanel`, `RpcRequestList`, `RpcRequestDetail`,
   `RpcConsoleView`, the adapter's `rpc` methods and the `iotTopics.rpc` live topic; the IoT demo's Commands tab and `/theme/iot/rpc`.

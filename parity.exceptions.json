@@ -135,7 +135,7 @@
         "kui-ejs",
         "KUInative"
       ],
-      "reason": "The dashboard alias editor (next-boilerplate dashboard phase 36.4, E36-11): aliases dialog, alias dialog, entity filter form and alias picker are board-editor surfaces, and kui-ejs and KUInative have no board editor. The toolbar entity select (AliasEntitySelect) follows the param bar's parity (NB phase 35 E12) and gets sibling mirrors when a server-rendered or native board viewer needs it (NB 36.9)."
+      "reason": "The dashboard alias and key filter editor (next-boilerplate dashboard phases 36.4 and 36.7, E36-11): aliases dialog, alias dialog, entity filter form, alias picker, filters dialog, filter dialog and key filter editor are board-editor surfaces, and kui-ejs and KUInative have no board editor. The toolbar entity select (AliasEntitySelect) follows the param bar's parity (NB phase 35 E12) and gets sibling mirrors when a server-rendered or native board viewer needs it (NB 36.9)."
     },
     {
       "id": "ui-react-modules",

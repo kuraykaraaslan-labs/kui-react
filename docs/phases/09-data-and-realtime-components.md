@@ -248,7 +248,7 @@ Added for the owner decision OD-80 (control widgets in the IoT MVP, IoT 07 §7.3
 
 Seen in: IoT 07 §7.3 control widgets (`iot.button`, `iot.switch`, `iot.slider`, `iot.setpoint`) on `/theme/iot/dashboards/[slug]`.
 
-## 9.17 `EntityAliases` (dashboard entity aliases) `[react]` (2026-10-24)
+## 9.17 `EntityAliases` (dashboard entity aliases and key filters) `[react]` (2026-10-24)
 
 > **Status 2026-10-24 (react side):** built on branch `feat/entity-aliases` for next-boilerplate dashboard phase 36.4
 > (owner decision 2026-10-24: dashboards get ThingsBoard's entity aliases; design in NB
@@ -261,7 +261,16 @@ Seen in: IoT 07 §7.3 control widgets (`iot.button`, `iot.switch`, `iot.slider`,
   record `entity-aliases`, README in the folder.
 - [ ] Run the kit's tests (`modules/app/EntityAliases/*.test.ts(x)`) and `npm run registry:snapshot`, then merge.
 - [ ] NB vendors the folder (36.4) and wires it (36.5): board settings, a placement's data tab, the toolbar, the preview route.
-- [ ] Key filters editor (NB 36.7), kui-react first, in this folder.
+- [~] Key filters editor (NB 36.7), kui-react first, in this folder (2026-10-24, tests written, not run):
+  `BoardFiltersDialog` (numbered list, filter text, a filter a widget uses cannot be removed), `BoardFilterDialog` (name,
+  key derived on add, key filters edited in place and joined by "and", preview), `KeyFilterEditor` (key type, key name
+  suggested through the new `EntityAliasesAccess.entityKeys` or typed, attribute scope, value type preset from the key,
+  and / or, up to 4 conditions with only the value type's operations, value / to / value chips, ignore case, a dashboard
+  parameter as a value), `boardFilterText`, `validateBoardFilter(s)` / `validateKeyFilter` (16 / 8 / 4 / 50 / 200 caps),
+  `normalizeBoardFilter`; `EntityAliasPicker` filter select. The phase 36.7 types are verbatim in `types.ts`. Showcase
+  variant "Key filters dialog". NB must add `entityKeys` to its access object when it re-vendors.
+- [ ] Run the key filter tests (`validate-filters`, `board-filter-text`, `key-filters`, `KeyFilterEditor`,
+  `BoardFiltersDialog`, the picker's filter select) with the rest of the kit's.
 - [ ] Sibling mirrors of `AliasEntitySelect` only when a kui-ejs or KUInative board viewer needs it (NB 36.9).
 
 ## Order
