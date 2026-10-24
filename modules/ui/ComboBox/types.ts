@@ -15,6 +15,28 @@ export type SearchFn = (query: string, signal?: AbortSignal) => Promise<ComboBox
 // M1: cursor-style pagination — host owns the cursor in closure.
 export type LoadMoreFn = () => Promise<ComboBoxOption[]>;
 
+/** Built-in strings, overridable per instance through `messages` (to translate them). */
+export type ComboBoxMessages = {
+  /** Input placeholder when no `placeholder` prop is given. */
+  placeholder: string;
+  /** Shown when nothing matches, unless the `noResultsText` prop is given. */
+  noResults: string;
+  /** Accessible name of the clear button. */
+  clear: string;
+  /** Announced while an async search is pending (the skeleton rows carry no text). */
+  loading: string;
+  /** Shown while `onLoadMore` fetches the next page. */
+  loadingMore: string;
+};
+
+export const DEFAULT_COMBOBOX_MESSAGES: ComboBoxMessages = {
+  placeholder: 'Search or select...',
+  noResults: 'No results found.',
+  clear: 'Clear selection',
+  loading: 'Loading…',
+  loadingMore: 'Loading more…',
+};
+
 export type ComboBoxProps = {
   id: string;
   label: string;
@@ -41,5 +63,6 @@ export type ComboBoxProps = {
   // TODO M3: renderOption?: (opt: ComboBoxOption) => React.ReactNode;
   // TODO M3: creatable?: boolean | { onCreate: (input: string) => Promise<ComboBoxOption> };
   // TODO M5: freeSolo?: boolean;
-  // TODO M4: messages?: Partial<ComboBoxMessages>;
+  /** Overrides for the built-in English strings (`placeholder` / `noResultsText` props still win). */
+  messages?: Partial<ComboBoxMessages>;
 };

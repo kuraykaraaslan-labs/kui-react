@@ -28,6 +28,9 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `ComboBox`: `messages` overrides its built-in English strings (`DEFAULT_COMBOBOX_MESSAGES`: placeholder, no results,
+  the clear button's name `Clear selection`, `Loading more…`, and `loading`, a new screen-reader status while the
+  skeleton rows of an async search show). The `placeholder` and `noResultsText` props still win.
 - `Select` and `MultiSelect`: `messages` overrides the built-in English strings (`DEFAULT_SELECT_MESSAGES`:
   no results, search, placeholder, required; `DEFAULT_MULTI_SELECT_MESSAGES`: no results, search, `Remove {label}`,
   loading more) so a host can translate them. The search boxes take their text as an accessible name too.

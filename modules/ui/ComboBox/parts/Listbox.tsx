@@ -23,6 +23,9 @@ type ListboxProps = {
   loading: boolean;
   loadingMore: boolean;
   noResultsText: string;
+  /** Screen-reader text while the skeleton rows show. */
+  loadingText: string;
+  loadingMoreText: string;
   virtualize: boolean | number;
   sentinelRef?: React.RefObject<HTMLLIElement | null>;
   onHighlight: (index: number) => void;
@@ -38,6 +41,8 @@ export function Listbox({
   loading,
   loadingMore,
   noResultsText,
+  loadingText,
+  loadingMoreText,
   virtualize,
   sentinelRef,
   onHighlight,
@@ -88,6 +93,7 @@ export function Listbox({
       {loading ? (
         // Skeleton rows while async search is pending.
         <>
+          <li className="sr-only" role="status">{loadingText}</li>
           {Array.from({ length: 3 }).map((_, i) => (
             <li key={`sk-${i}`} className="px-3 py-2" aria-hidden="true">
               <div className="h-3 w-full animate-pulse rounded bg-surface-overlay" />
@@ -141,7 +147,7 @@ export function Listbox({
             <li ref={sentinelRef} aria-hidden="true" data-combobox-sentinel className="h-1" />
           )}
           {loadingMore && (
-            <li className="px-3 py-2 text-xs text-text-secondary" aria-live="polite">Loading more…</li>
+            <li className="px-3 py-2 text-xs text-text-secondary" aria-live="polite">{loadingMoreText}</li>
           )}
         </>
       )}
