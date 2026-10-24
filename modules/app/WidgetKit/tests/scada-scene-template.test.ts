@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SCADA_SCENE } from '../templates/scada-scene';
+import { SCADA_SCENE, SCADA_SCENE_KIND } from '../templates/scada-scene';
 
 /** The template's own checks (what the settings editor shows next to a field, and what a save refuses). */
 const check = (v: Record<string, unknown>) => SCADA_SCENE.rules!.flatMap((r) => r(v as never));
@@ -31,8 +31,7 @@ describe('scada.scene validation rules', () => {
     expect(check({ elements: e, rules: [{ target: 'a', dx: 20, dy: -10, scale: 1.5, turn: '90', symbol: 'home.tv' }] })).toEqual([]);
     expect(paths({ elements: e, rules: [{ target: 'a', turn: '45' }] })).toEqual(['rules.0.turn']);
   });
-  it('offers the things table as a second, optional slot and its settings in a Things group', async () => {
-    const { SCADA_SCENE_KIND } = await import('../templates/scada-scene');
+  it('offers the things table as a second, optional slot and its settings in a Things group', () => {
     expect(SCADA_SCENE_KIND.slots.map((x) => [x.key, x.shape, x.required])).toEqual([['points', 'table', false], ['things', 'table', false]]);
     const things = Object.entries(SCADA_SCENE.fields).filter(([, f]) => f.group === 'things').map(([k]) => k);
     expect(things).toEqual([
