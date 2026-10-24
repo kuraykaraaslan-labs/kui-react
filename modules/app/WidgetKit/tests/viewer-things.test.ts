@@ -82,7 +82,7 @@ describe('syncThingMeshes', () => {
     expect(c.getHexString()).toBe('ff0000');
     // a colour resolves once per CSS text
     expect(resolve).toHaveBeenCalledTimes(2);
-    expect(b.instanceMatrix.needsUpdate).toBe(true);
+    expect(b.instanceMatrix.version).toBeGreaterThan(0);
   });
   it('writes a changed set in place: the same mesh, moved instances, a kind that left is gone, growth past the headroom rebuilds', () => {
     const scene = sceneOf();

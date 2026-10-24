@@ -8239,6 +8239,7 @@
      "disableWhen": [
       "stale"
      ],
+     "saveChangedOnly": false,
      "label": "Pump settings",
      "fields": [
       {
@@ -8507,6 +8508,7 @@
      "disableWhen": [
       "stale"
      ],
+     "saveChangedOnly": false,
      "saveLabel": "Apply",
      "resetLabel": "Undo"
     },
@@ -8651,7 +8653,8 @@
      "showReset": true,
      "disableWhen": [
       "stale"
-     ]
+     ],
+     "saveChangedOnly": false
     },
     "format": {}
    },
@@ -8713,6 +8716,7 @@
      "disableWhen": [
       "stale"
      ],
+     "saveChangedOnly": false,
      "fields": [
       {
        "key": "level",
@@ -8819,6 +8823,7 @@
      "disableWhen": [
       "stale"
      ],
+     "saveChangedOnly": false,
      "fields": [
       {
        "key": "a",
@@ -8919,6 +8924,7 @@
      "disableWhen": [
       "stale"
      ],
+     "saveChangedOnly": false,
      "fields": [
       {
        "key": "a",

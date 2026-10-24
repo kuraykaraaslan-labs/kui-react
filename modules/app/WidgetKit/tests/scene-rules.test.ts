@@ -181,7 +181,7 @@ describe('another kind\'s effects (the spec is data)', () => {
   it('validates against the spec: a choice, a number, a label length; targets from the data are any text', () => {
     const paths = (rules: unknown) => validateRules(rules, { elementIds: [], fromData: true }, spec).map((i) => `${i.path}`);
     expect(paths([{ target: 'anything', of: 'other', key: 'v', op: 'set', shape: 'cube', size: 5, caption: 'x', state: 'dead', speed: 'fast' }])).toEqual([]);
-    expect(paths([{ target: 'p', shape: 'sphere', size: 'big', caption: 'x'.repeat(81) }])).toEqual(['rules.0.shape', 'rules.0.size', 'rules.0.caption']);
+    expect(paths([{ target: 'p', shape: 'sphere', size: 'big', caption: 'x'.repeat(81) }])).toEqual(['rules.0.size', 'rules.0.shape', 'rules.0.caption']);
     expect(validateRules([{ target: 'p', shape: 'sphere' }], { elementIds: [], fromData: true }, spec)[0].message).toBe('Choose a shape');
     expect(paths([{ dim: 'true' }])).toEqual(['rules.0.target']);
   });
