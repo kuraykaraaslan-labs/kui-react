@@ -9,6 +9,7 @@ import type { Sparse } from '../settings/types';
 import type { SlotData } from '../kind';
 import { matchValue, num, statusColor, type ValueColor } from './table-logic';
 import { evaluateRules, type EffectSpec } from './scene-rules-logic';
+import type { CameraPreset, PatchView, ScenePatch } from './scene-patch';
 
 export type Row = Record<string, unknown>;
 
@@ -200,22 +201,13 @@ export interface ViewerEffects {
 const lift = (p: [number, number, number], dz: number | undefined): [number, number, number] => (dz ? [p[0], p[1] + dz, p[2]] : p);
 
 /**
- * The markers and things after the rules: a hidden one is gone, a coloured one takes the colour (and pulses only when
- * the rule says so or the colour is the error tone), a labelled one shows the filled-in text, a sized one its size, a
- * lifted one stands `dz` metres higher. The rows of both tables are the rule context (a thing and a marker with the
- * same id share it); `params` are the effective board parameters.
+ * Markers and things with per-id effects laid over them (the rules' or a patch's): a hidden one is gone, a coloured one
+ * takes the colour (and pulses only when told so or the colour is the error tone), a labelled one shows the text, a
+ * sized one its size, a lifted one stands `dz` metres higher. An id with no effects is returned as it was.
  */
-export function applyViewerRules(
-  sensors: SensorMarker[], things: ThingMarker[], rules: unknown, params?: Record<string, unknown>,
+export function applyViewerEffects(
+  sensors: SensorMarker[], things: ThingMarker[], fx: ReadonlyMap<string, ViewerEffects>,
 ): { sensors: SensorMarker[]; things: ThingMarker[] } {
-  if (!Array.isArray(rules) || rules.length === 0 || (sensors.length === 0 && things.length === 0)) return { sensors, things };
-  const rows = new Map<string, Row>();
-  for (const t of things) rows.set(t.id, t.row);
-  for (const m of sensors) rows.set(m.id, m.row);
-  // `things:*` names the things (a marker that shares a thing's id shares its effects, as it shares its row).
-  const fx = evaluateRules<ViewerEffects>(rules, {
-    rows, params: params ?? {}, targets: [...rows.keys()], thingIds: things.map((t) => t.id), effects: VIEWER_RULE_EFFECTS,
-  });
   if (fx.size === 0) return { sensors, things };
   const alarmOf = (e: ViewerEffects, color: string, was: boolean) => e.pulse ?? (e.color !== undefined ? color === 'var(--error)' : was);
   return {
@@ -242,4 +234,76 @@ export function applyViewerRules(
       }];
     }),
   };
+}
+
+/**
+ * The markers and things after the rules (`applyViewerEffects`). The rows of both tables are the rule context (a
+ * thing and a marker with the same id share it); `params` are the effective board parameters.
+ */
+export function applyViewerRules(
+  sensors: SensorMarker[], things: ThingMarker[], rules: unknown, params?: Record<string, unknown>,
+): { sensors: SensorMarker[]; things: ThingMarker[] } {
+  if (!Array.isArray(rules) || rules.length === 0 || (sensors.length === 0 && things.length === 0)) return { sensors, things };
+  const rows = new Map<string, Row>();
+  for (const t of things) rows.set(t.id, t.row);
+  for (const m of sensors) rows.set(m.id, m.row);
+  // `things:*` names the things (a marker that shares a thing's id shares its effects, as it shares its row).
+  const fx = evaluateRules<ViewerEffects>(rules, {
+    rows, params: params ?? {}, targets: [...rows.keys()], thingIds: things.map((t) => t.id), effects: VIEWER_RULE_EFFECTS,
+  });
+  return applyViewerEffects(sensors, things, fx);
+}
+
+// ── The scene patch (phase 35, E15) ──────────────────────────────────────────
+
+/**
+ * A patch's overrides on markers and things, applied after the rules so a script wins over a rule: colour, hidden,
+ * label (plain text), pulse, size and lift, by id. The 2D effects and a designer item's `params` mean nothing here.
+ * The patch's things replace the things table's rows before this (`buildThings` over `patch.things`).
+ */
+export function applyViewerPatch(
+  sensors: SensorMarker[], things: ThingMarker[], patch: ScenePatch | null | undefined,
+): { sensors: SensorMarker[]; things: ThingMarker[] } {
+  const objects = patch?.objects;
+  if (!objects) return { sensors, things };
+  const fx = new Map<string, ViewerEffects>();
+  for (const [id, o] of Object.entries(objects)) {
+    const e: ViewerEffects = {};
+    if (o.color !== undefined) e.color = o.color;
+    if (o.hidden !== undefined) e.hidden = o.hidden;
+    if (o.label !== undefined) e.label = o.label;
+    if (o.pulse !== undefined) e.pulse = o.pulse;
+    if (o.size !== undefined) e.size = o.size;
+    if (o.dz !== undefined) e.dz = o.dz;
+    if (Object.keys(e).length) fx.set(id, e);
+  }
+  return applyViewerEffects(sensors, things, fx);
+}
+
+/** What the viewer's camera does for a patch's view: a preset, or a target (model coordinates) and a distance (metres). */
+export type ViewerView = { preset: CameraPreset } | { target: [number, number, number]; distance: number };
+
+/** The 3D part of a patch's view (a 2D fit or region means nothing to the viewer): null when there is none. */
+export function viewerView(view: PatchView | undefined): ViewerView | null {
+  if (!view || typeof view !== 'object') return null;
+  if ('preset' in view) return { preset: view.preset };
+  if ('target' in view) return { target: view.target, distance: view.distance };
+  return null;
+}
+
+/** A stable key for a view, so the canvas moves the camera when the view changes and never on every frame. */
+export const viewerViewKey = (view: ViewerView | null): string => (view ? JSON.stringify(view) : '');
+
+/**
+ * Where the camera goes for a target and a distance: the target (model coordinates, through `toWorld`) becomes the
+ * orbit centre and the camera stands `distance` metres from it along `dir` (the current view direction, so the
+ * viewer's angle is kept; a zero direction falls back to the isometric one). World coordinates (Y up).
+ */
+export function cameraForTarget(
+  target: [number, number, number], distance: number, dir: [number, number, number], coordinates: S['coordinates'] = 'z-up',
+): { position: [number, number, number]; target: [number, number, number] } {
+  const centre = toWorld(target, coordinates);
+  const len = Math.hypot(...dir);
+  const d = len > 1e-9 ? dir.map((v) => v / len) : [1, 0.75, 1].map((v) => v / Math.hypot(1, 0.75, 1));
+  return { position: [centre[0] + d[0] * distance, centre[1] + d[1] * distance, centre[2] + d[2] * distance], target: centre };
 }

@@ -13,9 +13,10 @@ import { IconTile, Meta } from './ui';
 import { useKitMessages } from '../WidgetKitContext';
 import type { CommonMessages } from '../messages';
 import {
-  applyViewerRules, buildThings, MAX_MODELS, MAX_SENSORS, MAX_TOOLTIP_FIELDS, rowColor, toWorld,
+  applyViewerPatch, applyViewerRules, buildThings, MAX_MODELS, MAX_SENSORS, MAX_THINGS, MAX_TOOLTIP_FIELDS, rowColor, toWorld, viewerView,
   type Row, type SensorMarker, type ViewerModelSettings,
 } from './viewer-model-logic';
+import { parseScenePatch } from './scene-patch';
 
 // The pure part (settings, markers, things, rules) lives in `viewer-model-logic.ts`; it is re-exported here so the
 // kit's imports of `buildSensors`, `toWorld`, `MAX_MODELS` and the types keep one address.
@@ -153,10 +154,11 @@ export type ViewerModelWidgetViewProps = WidgetViewProps & {
  * `viewer.model`: a card-less 3D viewer that fills the card, with sensor markers, things from a second table (simple
  * instanced shapes standing on their points), the rules over both (coloured, hidden, labelled, pulsing, resized or
  * lifted from their rows or the board's parameters) and an optional colour legend. A click on a marker or a thing
- * reports its row to the host (`onMarkerClick`).
+ * reports its row to the host (`onMarkerClick`). A compute script's `scenePatch` (parsed here, at the viewer's own cap
+ * of things) replaces the things, overrides markers and things by id after the rules, and may move the camera.
  */
 export function ViewerModelWidgetView({
-  settings, data, locale, resolveUrl, title, params, onMarkerClick, loadingLabel: loadingProp, ariaLabel, legendLabel,
+  settings, data, locale, resolveUrl, title, params, onMarkerClick, scenePatch, loadingLabel: loadingProp, ariaLabel, legendLabel,
 }: ViewerModelWidgetViewProps) {
   const s = settings as S;
   const client = useSyncExternalStore(noop, () => true, () => false);
@@ -169,11 +171,23 @@ export function ViewerModelWidgetView({
     () => buildSensors(data.sensors, settings, locale, { reading: m.reading, ...kit.common }),
     [data.sensors, settings, locale, m.reading, kit.common],
   );
-  const builtThings = useMemo(() => buildThings(data.things, settings), [data.things, settings]);
-  const { sensors, things } = useMemo(
-    () => applyViewerRules(built.sensors, builtThings.things, s.rules, params),
-    [built.sensors, builtThings.things, s.rules, params],
+  const parsed = useMemo(() => parseScenePatch(scenePatch, { maxThings: MAX_THINGS }), [scenePatch]);
+  const patch = parsed.patch;
+  // A patch's things replace the table's rows; its overrides come after the rules, so a script wins over a rule.
+  const thingSlot = useMemo(
+    () => (patch?.things ? { shape: 'table' as const, rows: patch.things } : data.things),
+    [patch?.things, data.things],
   );
+  const builtThings = useMemo(() => buildThings(thingSlot, settings), [thingSlot, settings]);
+  const { sensors, things } = useMemo(
+    () => {
+      const ruled = applyViewerRules(built.sensors, builtThings.things, s.rules, params);
+      return applyViewerPatch(ruled.sensors, ruled.things, patch);
+    },
+    [built.sensors, builtThings.things, s.rules, params, patch],
+  );
+  const view = useMemo(() => viewerView(patch?.view), [patch?.view]);
+  const problemCount = (patch?.problems?.length ?? 0) + parsed.problems.length;
   // The legend counts the sensors' statuses (the things take their colours the same way, from their own rows).
   const legend = useMemo(
     () => (s.legend === false || (sensors.length === 0 && things.length === 0) ? [] : mapLegend(data.sensors, settings)),
@@ -192,14 +206,14 @@ export function ViewerModelWidgetView({
     body = (
       <ContributionBoundary fallback={({ error: e }) => <ViewerStatus kind="error" text={m.startFailed(e.message ?? '')} />}>
         <Suspense fallback={<ViewerStatus kind="loading" text={loadingLabel} />}>
-          <ViewerModelCanvas models={models} sensors={sensors} things={things} settings={s} dark={dark} onMarkerClick={onMarkerClick} />
+          <ViewerModelCanvas models={models} sensors={sensors} things={things} settings={s} dark={dark} onMarkerClick={onMarkerClick} view={view} />
         </Suspense>
       </ContributionBoundary>
     );
   }
 
   return (
-    <div role="region" aria-label={ariaLabel ?? title ?? m.region} data-part="viewer-model"
+    <div role="region" aria-label={ariaLabel ?? title ?? m.region} data-part="viewer-model" data-problems={problemCount || undefined}
       className="relative h-full min-h-40 w-full overflow-hidden" style={{ isolation: 'isolate' }}>
       {body}
       {legend.length > 0 && (

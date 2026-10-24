@@ -14,7 +14,9 @@ import { cn } from '@/libs/utils/cn';
 import { useKitMessages } from '../WidgetKitContext';
 import type { ModelSource } from './ViewerModelView';
 import { ViewerStatus } from './ViewerModelView';
-import { MAX_THING_LABELS, type Row, type SensorMarker, type ThingMarker, type ViewerModelSettings } from './viewer-model-logic';
+import {
+  cameraForTarget, MAX_THING_LABELS, viewerViewKey, type Row, type SensorMarker, type ThingMarker, type ViewerModelSettings, type ViewerView,
+} from './viewer-model-logic';
 import { useReducedMotion } from './useReducedMotion';
 import {
   disposeThingMeshes, hasPulsingThings, nearestThings, newThingMeshState, pickThing, pulseThingMeshes, syncThingMeshes,
@@ -92,6 +94,32 @@ function fitCamera(viewer: ViewerLike, bounds: NonNullable<ReturnType<typeof mod
 }
 
 /**
+ * Points the camera for a patch's view: a preset looks at the models (or, with none loaded, at the current orbit
+ * centre from the current distance) from that side; a target and a distance put the orbit centre on the target and
+ * the camera that far from it, keeping the current direction. Scene = world − the viewer's origin shift.
+ */
+function aimCamera(viewer: ViewerLike, view: ViewerView, bounds: ReturnType<typeof modelBounds>, coordinates: ViewerModelSettings['coordinates']) {
+  const { camera, controls } = viewer;
+  const t = controls.target;
+  const current: [number, number, number] = t ? [camera.position.x - t.x, camera.position.y - t.y, camera.position.z - t.z] : [1, 0.75, 1];
+  if ('preset' in view) {
+    if (bounds) { fitCamera(viewer, bounds, PRESET_DIR[view.preset] ?? PRESET_DIR.iso); return; }
+    if (!t) return;
+    const dist = Math.hypot(...current) || 10;
+    const d = PRESET_DIR[view.preset] ?? PRESET_DIR.iso;
+    const len = Math.hypot(...d) || 1;
+    camera.position.set(t.x + (d[0] / len) * dist, t.y + (d[1] / len) * dist, t.z + (d[2] / len) * dist);
+  } else {
+    const g = viewer.rtc.global;
+    const aim = cameraForTarget(view.target, view.distance, current, coordinates);
+    camera.position.set(aim.position[0] - g.x, aim.position[1] - g.y, aim.position[2] - g.z);
+    t?.set(aim.target[0] - g.x, aim.target[1] - g.y, aim.target[2] - g.z);
+  }
+  controls.update?.();
+  viewer.invalidate('widget-kit:patch-view');
+}
+
+/**
  * kui-viewer (≤ 0.3.x) listens for hotkeys on the whole window, in the capture phase, and swallows
  * Escape and its shortcuts wherever focus is: on a board, Escape would no longer close a dialog or a
  * menu. A widget is one card among many, so the viewer's window-wide keyboard is switched off (the
@@ -148,13 +176,14 @@ function ModelSlot({ url, onDone }: { url: string; onDone: (url: string, result:
   return <ModelLoader source={url} onLoad={onLoad} onError={onError} />;
 }
 
-/** Background, grid, camera and interaction: the settings that act on the live viewer. */
-function SceneSync({ settings, dark, host, handles, settled }: {
+/** Background, grid, camera and interaction: the settings that act on the live viewer; and a patch's view. */
+function SceneSync({ settings, dark, host, handles, settled, view }: {
   settings: ViewerModelSettings;
   dark: boolean;
   host: HTMLElement | null;
   handles: Map<string, Handle>;
   settled: boolean;
+  view?: ViewerView | null;
 }) {
   const viewer = asLike(useViewer());
 
@@ -182,6 +211,16 @@ function SceneSync({ settings, dark, host, handles, settled }: {
     const bounds = modelBounds(handles.values());
     if (bounds) fitCamera(viewer, bounds, PRESET_DIR[preset] ?? PRESET_DIR.iso);
   }, [viewer, settled, autoFit, preset, handles]);
+
+  // A patch's view: applied once the models settle and again only when the view itself changes (its key), never per
+  // frame, so the viewer can orbit away from it in between. Declared after the start view, so it wins over a refit.
+  const viewKey = viewerViewKey(view ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableView = useMemo(() => view ?? null, [viewKey]);
+  useEffect(() => {
+    if (!settled || !stableView) return;
+    aimCamera(viewer, stableView, modelBounds(handles.values()), settings.coordinates);
+  }, [viewer, settled, stableView, handles, settings.coordinates]);
 
   // Ground grid: kui-viewer's own helpers (same three.js instance as the viewer), under the models.
   useEffect(() => {
@@ -501,10 +540,12 @@ export interface ViewerModelCanvasProps {
   dark: boolean;
   /** A sensor marker or a thing was clicked: the host gets its row. */
   onMarkerClick?: (row: Row) => void;
+  /** A scene patch's camera (a preset, or a target and a distance), applied when it changes. */
+  view?: ViewerView | null;
 }
 
 /** The live viewer, its models, the things and the sensor overlay. The viewer is disposed when this unmounts. */
-export function ViewerModelCanvas({ models, sensors, things, settings, dark, onMarkerClick }: ViewerModelCanvasProps) {
+export function ViewerModelCanvas({ models, sensors, things, settings, dark, onMarkerClick, view }: ViewerModelCanvasProps) {
   const texts = useKitMessages().viewer;
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
@@ -535,7 +576,7 @@ export function ViewerModelCanvas({ models, sensors, things, settings, dark, onM
       className="absolute inset-0 [&_[data-kui-modal-layer]]:hidden! [&_[data-kui-overlay]]:hidden!">
       <KUIViewer className="h-full w-full" onReady={onReady} pixelRatioCap={2}>
         {models.map((m) => <ModelSlot key={m.url} url={m.url} onDone={onDone} />)}
-        <SceneSync settings={settings} dark={dark} host={host} handles={handles} settled={settled} />
+        <SceneSync settings={settings} dark={dark} host={host} handles={handles} settled={settled} view={view} />
         {navCube && (
           <div data-part="navcube" className="absolute right-1 top-1 z-20 h-24 w-24 origin-top-right scale-[0.7] [&>div]:h-full [&>div]:w-full">
             <NavCube />
