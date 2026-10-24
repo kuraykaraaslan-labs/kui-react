@@ -44,7 +44,7 @@ function AliasEntityCombo({
     [item.aliasKey, loadRef],
   );
   return (
-    <ComboBox
+    <ComboBox messages={m.comboBox}
       id={id}
       label={item.aliasName}
       options={item.current ? [toEntityOption(item.current)] : []}

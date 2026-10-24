@@ -119,7 +119,7 @@ function KeyNameField({
     [entityType, keyType, scope, accessRef, m],
   );
   return (
-    <ComboBox
+    <ComboBox messages={m.comboBox}
       // A new key type or scope starts a new search cache.
       key={`${entityType}:${keyType}:${scope ?? ''}`}
       id={id}
@@ -161,7 +161,7 @@ export function KeyFilterEditor({ value, onChange, params, entityType, access, e
     <div className={className}>
       <div className="space-y-4">
         <div className={grid}>
-          <Select
+          <Select messages={m.select}
             id={`${idBase}-key-type`}
             label={m.keyType}
             options={KEY_FILTER_KEY_TYPES.map((t) => ({ value: t, label: m.keyTypes[t] }))}
@@ -179,7 +179,7 @@ export function KeyFilterEditor({ value, onChange, params, entityType, access, e
               maxLength={FILTER_STRING_MAX} hint={m.keyNameHint} error={err('key.name')} required />
           )}
           {kf.key.type === 'attribute' && (
-            <Select
+            <Select messages={m.select}
               id={`${idBase}-scope`}
               label={m.attributeScope}
               options={ATTRIBUTE_SCOPES.map((s) => ({ value: s, label: m.attributeScopes[s] }))}
@@ -189,7 +189,7 @@ export function KeyFilterEditor({ value, onChange, params, entityType, access, e
               required
             />
           )}
-          <Select
+          <Select messages={m.select}
             id={`${idBase}-value-type`}
             label={m.valueType}
             options={KEY_FILTER_VALUE_TYPES.map((t) => ({ value: t, label: m.valueTypes[t] }))}
@@ -202,7 +202,7 @@ export function KeyFilterEditor({ value, onChange, params, entityType, access, e
 
         <FormPanel title={m.predicates}>
           {predicates.length > 1 && (
-            <Select
+            <Select messages={m.select}
               id={`${idBase}-operation`}
               label={m.operation}
               options={KEY_FILTER_OPERATIONS.map((o) => ({ value: o, label: m.operations[o] }))}

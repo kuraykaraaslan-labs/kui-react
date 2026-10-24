@@ -60,7 +60,7 @@ export function FilterValueField({
     const options = params.map((p) => ({ value: p.key, label: p.label }));
     if (value.$param && !params.some((p) => p.key === value.$param)) options.push({ value: value.$param, label: value.$param });
     field = (
-      <Select id={id} label={label} options={options} placeholder={m.paramPlaceholder} value={value.$param}
+      <Select messages={m.select} id={id} label={label} options={options} placeholder={m.paramPlaceholder} value={value.$param}
         onChange={(e) => onChange({ $param: e.target.value })} hint={m.paramValue} error={error} required />
     );
   } else if (valueType === 'number') {
@@ -79,7 +79,7 @@ export function FilterValueField({
     );
   } else if (valueType === 'boolean') {
     field = (
-      <Select id={id} label={label}
+      <Select messages={m.select} id={id} label={label}
         options={[{ value: 'true', label: m.booleanTrue }, { value: 'false', label: m.booleanFalse }]}
         placeholder={m.booleanPlaceholder} value={typeof value === 'boolean' ? String(value) : ''}
         onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value === 'true')} error={error} required />
@@ -153,7 +153,7 @@ export function PredicateRow({
       {index > 0 && <p className="pl-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">{joinText}</p>}
       <div className={cn('grid grid-cols-1 items-start gap-3 rounded-md border bg-surface-base p-3 sm:grid-cols-[11rem_1fr_auto]',
         err('op') ? 'border-error' : 'border-border')}>
-        <Select
+        <Select messages={m.select}
           id={`${id}-op`}
           label={m.predicateOp}
           options={ops.map((op) => ({ value: op, label: m.keyFilterOps[op] ?? op }))}

@@ -46,7 +46,7 @@ export function EntityTypeSelect({
     value,
   );
   return (
-    <Select
+    <Select messages={m.select}
       id={id}
       label={label ?? m.entityType}
       options={options}
@@ -91,7 +91,7 @@ export function EntityPicker({
   );
   const current = value ? (known[value] ? toEntityOption(known[value]) : { value, label: value }) : null;
   return (
-    <ComboBox
+    <ComboBox messages={m.comboBox}
       // A new entity type starts a new search cache.
       key={entityType}
       id={id}
@@ -139,7 +139,7 @@ export function EntityListPicker({
     [entityType, remember, accessRef],
   );
   return (
-    <MultiSelect
+    <MultiSelect messages={m.multiSelect}
       key={entityType}
       id={id}
       label={m.entities}
@@ -193,7 +193,7 @@ export function SubtypesPicker({
   const base = loaded.entityType === entityType ? loaded.options : [];
   const options = [...base, ...value.filter((v) => !base.some((o) => o.value === v)).map((v) => ({ value: v, label: v }))];
   return (
-    <MultiSelect
+    <MultiSelect messages={m.multiSelect}
       key={entityType}
       id={id}
       label={label}

@@ -59,7 +59,7 @@ export function EntityFilterForm({
   }
 
   const typeSelect = (
-    <Select
+    <Select messages={m.select}
       id={`${idBase}-type`}
       label={m.filterType}
       options={types.map((t) => ({ value: t, label: m.filterTypes[t] }))}
@@ -140,7 +140,7 @@ export function EntityFilterForm({
         return (
           <div className={grid}>
             {entityTypeSelect(f.entityType, {})}
-            <Select id={`${idBase}-param`} label={m.param} options={options} placeholder={m.paramPlaceholder}
+            <Select messages={m.select} id={`${idBase}-param`} label={m.param} options={options} placeholder={m.paramPlaceholder}
               value={f.param}
               onChange={(e) => {
                 const p = params.find((x) => x.key === e.target.value);
@@ -167,7 +167,7 @@ export function EntityFilterForm({
         return (
           <div className="space-y-4">
             {showProvider && (
-              <Select id={`${idBase}-provider`} label={m.provider}
+              <Select messages={m.select} id={`${idBase}-provider`} label={m.provider}
                 options={providers.map((p) => ({ value: p.key, label: p.label }))}
                 placeholder={m.providerPlaceholder} value={f.provider}
                 onChange={(e) => set({ provider: e.target.value })} error={err('filter.provider')} required />

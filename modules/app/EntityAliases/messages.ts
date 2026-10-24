@@ -286,6 +286,12 @@ export interface EntityAliasesMessages {
 
   // ---- filter validation ----
   filterError: (field: BoardFilterErrorField | KeyFilterErrorField, code: FilterErrorCode) => string;
+
+  /** The kui primitives' own texts inside the kit (ComboBox, Select, MultiSelect), so a host translates them with the rest. */
+  comboBox: { placeholder: string; noResults: string; clear: string; loading: string; loadingMore: string };
+  select: { noResults: string; search: string; placeholder: string; required: string };
+  /** `remove` takes `{label}`, the option's label. */
+  multiSelect: { noResults: string; search: string; remove: string; loadingMore: string };
 }
 
 /** The message maps a host may override key by key. */
@@ -299,6 +305,9 @@ const NESTED_KEYS = [
   'keyFilterOps',
   'textOps',
   'textJoin',
+  'comboBox',
+  'select',
+  'multiSelect',
 ] as const;
 type NestedKey = (typeof NESTED_KEYS)[number];
 
@@ -650,6 +659,11 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   pickerFilterLabel: 'Filter',
 
   filterError: defaultFilterError,
+  // Literal copies of the primitives' English defaults (this file imports no .tsx): DEFAULT_COMBOBOX_MESSAGES,
+  // DEFAULT_SELECT_MESSAGES, DEFAULT_MULTI_SELECT_MESSAGES.
+  comboBox: { placeholder: 'Search or select...', noResults: 'No results found.', clear: 'Clear selection', loading: 'Loading…', loadingMore: 'Loading more…' },
+  select: { noResults: 'No results found.', search: 'Search…', placeholder: 'Select…', required: '(required)' },
+  multiSelect: { noResults: 'No results found.', search: 'Search…', remove: 'Remove {label}', loadingMore: 'Loading more…' },
 };
 
 /** The defaults with a host's overrides on top (the nested maps, `filterTypes`, `keyFilterOps` …, merge key by key). */

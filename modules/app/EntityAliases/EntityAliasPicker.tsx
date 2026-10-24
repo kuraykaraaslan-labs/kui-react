@@ -95,7 +95,7 @@ export function EntityAliasPicker({
   const chosenFilter = filters?.find((f) => f.key === filterValue);
   return (
     <div className={cn('space-y-2', className)}>
-      <ComboBox
+      <ComboBox messages={m.comboBox}
         id={id}
         label={label ?? m.pickerLabel}
         options={options}
@@ -111,7 +111,7 @@ export function EntityAliasPicker({
         error={error}
       />
       {showFilter && (
-        <Select
+        <Select messages={m.select}
           id={`${id}-filter`}
           label={filterLabel ?? m.pickerFilterLabel}
           options={[{ value: '', label: m.none }, ...filterOptions]}

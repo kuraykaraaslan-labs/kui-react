@@ -132,7 +132,7 @@ export function BoardFilterDialog({
             <p className="text-xs text-text-secondary">{m.keyFiltersHint(draft.keyFilters.length > 1 ? draft.operation : 'and')}</p>
           </div>
           {draft.keyFilters.length > 1 && (
-            <Select
+            <Select messages={m.select}
               id={`${idBase}-operation`}
               label={m.keyFiltersOperation}
               options={KEY_FILTER_OPERATIONS.map((o) => ({ value: o, label: m.operations[o] }))}

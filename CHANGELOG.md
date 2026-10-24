@@ -38,6 +38,8 @@ All notable changes to this project will be documented here. Format follows [Kee
   and wired through `aria-describedby` (as `hint` now is).
 - `Modal`: `size` takes `xl` (36rem) and `full` (the viewport width less the 1rem gutter, height following the
   content; `fullscreen` still fills the viewport).
+- `EntityAliases`: the kit's messages carry the ComboBox, Select and MultiSelect texts (`comboBox`, `select`,
+  `multiSelect`) and pass them to every one it draws, so a host translates the whole editor in one place.
 - `EntityAliases` (`modules/app/EntityAliases/`, next-boilerplate dashboard phase 36.4): ThingsBoard-style entity aliases for
   dashboards. `EntityAliasesDialog` (the board's alias list; a used alias cannot be removed), `EntityAliasDialog` (one alias,
   key derived from the name, debounced preview, "no entity matched" blocks the save), `EntityFilterForm` (single entity,

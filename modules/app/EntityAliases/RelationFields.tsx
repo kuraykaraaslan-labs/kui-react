@@ -68,7 +68,7 @@ export function RootFields({
         onChange={(on) => onChange(on ? { param: params[0]?.key ?? '' } : { entity: { type: '', id: '' } })}
       />
       {'param' in root ? (
-        <Select
+        <Select messages={m.select}
           id={`${idBase}-root-param`}
           label={m.param}
           options={params.map((p) => ({ value: p.key, label: p.label }))}
@@ -124,7 +124,7 @@ export function QueryOptions({
   return (
     <FormPanel title={m.queryOptions}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Select
+        <Select messages={m.select}
           id={`${idBase}-direction`}
           label={m.direction}
           options={(['from', 'to'] as const).map((d) => ({ value: d, label: m.directionOptions[d] }))}
@@ -174,7 +174,7 @@ export function RelationTypeSelect({
   const options = provider?.relationTypes ?? [];
   const withCurrent = value && !options.some((o) => o.value === value) ? [...options, { value, label: value }] : options;
   return (
-    <Select
+    <Select messages={m.select}
       id={id}
       label={m.relationType}
       options={withCurrent}
@@ -223,7 +223,7 @@ export function RelationFiltersEditor({
                 onChange={(relationType) => patch(i, { ...f, relationType })}
                 m={m}
               />
-              <MultiSelect
+              <MultiSelect messages={m.multiSelect}
                 id={`${idBase}-rf${i}-entities`}
                 label={m.relationEntityTypes}
                 options={typeOptions}
