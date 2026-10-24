@@ -8,9 +8,10 @@ IoT platform domain — device fleet management, telemetry, rulesets, alarms, an
 alarm/      alarm components and views (OD-9: Alarm, five severities; alarm-severity.ts is the one severity table)
 api/        the adapter contract, the live contract and IotAdapterProvider (docs/concepts/iot-platform/phases/00)
 device/     device components and views
+profile/    device profile list, editor and its sections (online rule, auth modes, transport policy, topic schemes, rate limits, key schemas)
 ruleset/
 telemetry/
-types/      platform entities, one file per entity (alarm.ts, device.ts); ../types.ts re-exports them
+types/      platform entities, one file per entity (alarm.ts, alarm-rule.ts, device.ts, profile.ts, rpc.ts); ../types.ts re-exports them
 workspace/
 format.ts   relative / absolute time helpers
 messages.ts every text of the alarm and device components (IotMessagesInput for a host's translations)
@@ -18,7 +19,8 @@ index.ts
 types.ts
 ```
 
-Views (`DeviceListView`, `DeviceDetailView`, `AlarmListView`, `AlarmDetailView`, `AlarmBellMenu`) read only through the adapter of
+Views (`DeviceListView`, `DeviceDetailView`, `AlarmListView`, `AlarmDetailView`, `AlarmBellMenu`, `RpcConsoleView`, `DeviceProfileListView`,
+`DeviceProfileEditorView`, `AlarmRuleSetEditor`, `RpcCommandCatalogEditor`) read only through the adapter of
 the nearest `IotAdapterProvider`; leaf components take data and callbacks. Vendored into next-boilerplate's IoT kit
 (`modules/iot_device_profile/ui/kui/iot/`), so they import generic pieces from `modules/ui` only and never the vertical's
 `types.ts` barrel (it pulls the rule editor in).

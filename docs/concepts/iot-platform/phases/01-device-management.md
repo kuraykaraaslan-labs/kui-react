@@ -44,7 +44,7 @@ Added by the owner decisions of 2026-10-04: `devices.activate(id)` (OD-1, quaran
 
 ## 1.4 Device profile editor
 
-- [ ] `DeviceProfileListView` (table: name, default flag, device count, transport, provisioning strategy) and `DeviceProfileEditorView` with sections:
+- [~] `DeviceProfileListView` (table: name, default flag, device count, transport, provisioning strategy) and `DeviceProfileEditorView` with sections: (built 2026-10-24, see the profile end block; image, default dashboard, template diff and OTA wait for their host fields)
   - General: name, description, image, default flag, default dashboard (phase 07 link).
     > **→ DECISION OD-102 (owner, 2026-10-04):** a **per-profile root flow is in the MVP** (ThingsBoard style). The General section gets a **"Root flow"** field: a select of the tenant's flows from the host (`automation.flows.list`, kind `flow`) with the empty option "Tenant root flow (default)" and an "Open in editor" link; disabled with a reason when the host says the user cannot manage flows. A profile without a root flow falls back to the tenant root flow (OD-88). NB side: `iot_device_profile/00` §0.1 `rootFlowId`, `iot_automation/04` §4.5.
   - [ ] (OD-102) Demo: two fixture profiles, one with a root flow and one on the tenant default, both visible in `/theme/iot`; the select round-trips through the mock adapter.
@@ -75,8 +75,8 @@ Added by the owner decisions of 2026-10-04: `devices.activate(id)` (OD-1, quaran
     >
     > **→ DECISION OD-85 (owner, 2026-10-04):** this provisioning is our own protocol. A profile whose only scheme is "ThingsBoard compatible" gets no ThingsBoard device-provisioning or claiming API: its Provisioning section shows "Devices on the ThingsBoard scheme are added by hand or by import" and offers no provisioning-key strategy for that scheme.
   - OTA: default firmware and software package (links to phase 06). **→ DECISION OD-7 (owner, 2026-10-04):** an "Allow OTA over metered links (LTE)" toggle (`fwAllowMetered`, default **off**) with the hint "never applied while the data quota is exhausted"; the device detail can override it per device.
-- [ ] Settings blocks that are declarative (transport options, provisioning) render with `SchemaForm` (9.10) from a schema the adapter returns, so NB can add fields without a kui-react release. **→ DECISION OD-16 (owner, 2026-10-04):** that schema is the `FieldSchema` vocabulary (moved from NB `common/ui/schema-form` into kui-react 9.10); no IoT-specific schema format.
-- [ ] Unsaved-change guard and a diff summary before save.
+- [ ] (not done, ED-K21) Settings blocks that are declarative (transport options, provisioning) render with `SchemaForm` (9.10) from a schema the adapter returns, so NB can add fields without a kui-react release. **→ DECISION OD-16 (owner, 2026-10-04):** that schema is the `FieldSchema` vocabulary (moved from NB `common/ui/schema-form` into kui-react 9.10); no IoT-specific schema format.
+- [~] Unsaved-change guard and a diff summary before save. (built: one draft over the own tabs with an "Unsaved changes" bar, Discard and a Save that sends only the changed fields; no field-level diff summary)
 
 ## 1.5 Attributes editor
 
@@ -133,3 +133,57 @@ real, Telemetry / RPC / OTA / Placement placeholders). Tests: `device.test.tsx`,
 **Left.** Bulk assign / tag / delete and CSV export, the card grid toggle, the device-limit usage line (OD-75), `ConnectionSnippet`,
 the profile list and editor (1.4) and its provisioning keys, transport and online-rule blocks, the Events tab beyond connections,
 the Release device dialog (`TypedConfirmDialog`, phase 05 §5.4), the desired/reported view's server side (NB iot_device 04 §4.3).
+
+## 2026-10-24 — as built: device profile screens (1.4)
+
+> Built on branch `feat/iot-p2-screens` for NB `iot_device_profile` 03 (IoT P2, slice 6b), on the adapter of phase 00. **ED** =
+> engineering decision under the owner's delegation (owner may veto).
+
+**Types** (`types/profile.ts`, `types/alarm-rule.ts`; `types/rpc.ts` gained `RpcCatalogCommand` and `RpcCommandInput`): the profile in
+NB's field names, the protocol defaults (`blankProfileDraft`: the online rule left EMPTY, OD-63), the host's rules mirrored line for line
+(`parseLimitString`, `PROFILE_RANGES`, `onlineRuleBlock` / `allowedOnlineRules` that only forbid, `isNetwork`, key rules,
+`profileDraftIssues`), `profilePatch` (only the changed fields; one rate-limit family on its own); the alarm rule shapes of NB
+`iot_alarm` with `describeCondition` and `alarmRuleIssues`.
+
+**Adapter** (`api/adapter.ts`): `profiles.list / get / create / update / remove / setDefault / usage / transports`, `alarmRules.list /
+replace`, `rpcCatalog.list / create / update / remove / exportAll / importAll`; capabilities `canManageProfiles`,
+`canManageAlarmRules`, `canManageRpcCommands` (fail closed).
+
+**Components** (`profile/`): `DeviceProfileListView` (search, transport and online-rule filters, the default first, device counts from
+`usage` every 30 s, New profile, Make default, delete naming what still uses the profile; the host refuses the default and a profile in
+use and its answer is shown), `DeviceProfileEditorView` (General, Transport & auth, Online status, Limits, Telemetry keys, Configuration
+keys, Provisioning on ONE draft with one Save; an error dot on the tab that holds an issue; read-only without the capability; the host's
+contributed `extraTabs` after the own ones), `NewDeviceProfileDrawer` (explicit online rule, Create disabled until one is chosen for
+every transport), `OnlineRuleField` (OD-57 / OD-63: required, empty on a new profile, a rule the transport cannot serve disabled with the
+reason, a chosen one that became impossible kept, marked and blocking; interval and factor only for the window rule with the live
+"offline after" hint; "from template"), `AuthModeSelector` (three modes, MQTT basic is always username + password, no client-ID-only
+option, OD-163; locked mode for X.509-only templates), `TransportPolicyCard` (transport, TLS only / plain MQTT with the risk said,
+OD-160; URL tokens with the HTTP-only warning, OD-161; allowed networks with the invalid entries named), `ProtocolMappingCard` (topic
+schemes, both allowed, never none, ThingsBoard = telemetry and attributes only, OD-43 / OD-85; custom topics 8 / 128 / 50 / 4 KB,
+OD-35), `RateLimitEditor` (count : seconds windows per family, at most four, growing; an invalid family kept as typed and marked),
+`TelemetryKeySchemaTable` and `CfgSchemaTable` (editable; read-only with "from firmware" when `profile.json` describes the keys, P-4),
+`ProvisioningSettingsCard` (strategy; the keys are a disabled placeholder until the host has them), `DeviceProfileCard`. Contributed-tab
+bodies: `alarm/AlarmRuleSetEditor` + `alarm/AlarmRuleDrawer` (rule cards, threshold or device-offline rule, form or JSON, Save rules
+replaces the set) and `rpc/RpcCommandCatalogEditor` (add, edit without the method, remove, export, import after typing REPLACE, never a
+factory reset).
+
+**Demo:** `/theme/iot/profiles` (filters in the URL) and `/theme/iot/profiles/[slug]` (tab in `?tab=`; Alarm rules and Commands real,
+Firmware and Flows placeholders), "Device profiles" in the sidebar, the device header links its profile. Five demo profiles: the
+default, a Roltek template copy (X.509 only, schemas from firmware), LoRaWAN on last seen only, ThingsBoard topics with plain MQTT, HTTP
+on the recent-message rule with URL tokens. Showcase: 15 entries (free abbreviations, collisions stay 102). Tests: `profile/profile.test.tsx`
+(21), `alarm/alarm-rules.test.tsx` (4), `rpc/rpc-catalog.test.tsx` (4).
+
+**Decisions (ED).**
+- **ED-K20 One draft, one Save.** The own tabs edit one draft; a contributed tab saves on its own (its host route is separate). The
+  form refuses what the host refuses and still shows the host's own refusal.
+- **ED-K21 Online status drawn by `OnlineRuleField`, not `SchemaForm`.** `FieldOption` has no per-option disabled reason, and adding one
+  changes a file next-boilerplate vendors byte for byte outside its IoT modules; the field draws its own radios. The generic
+  `RadioGroup` is not extended either (it exists in kui-ejs and KUInative too; a parity change outside this slice).
+- **ED-K22 Alarm rules as form or JSON.** The form draws one comparison per severity (the common shape) and keeps the fields it does not
+  draw; a combined condition opens as JSON. A visual condition builder waits for the rule-card design of §1.4.
+- **ED-K23 Provisioning keys as a disabled placeholder.** No key, secret or button is drawn until the host has key management (NB
+  `iot_provisioning`, P3).
+
+**Left.** Image, default dashboard, template update banner with `DiffViewer`, the OTA metered toggle (no host fields yet); the
+`SchemaForm`-driven settings blocks; a field-level diff before save; `ConnectionSnippet`; the topic table per scheme; the provisioning
+key list, rotation and revocation (OD-1) with the host's service.

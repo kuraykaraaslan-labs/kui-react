@@ -290,7 +290,7 @@ Before adding a component to only one repo, check whether it belongs in the othe
 | Fintech | `fintech/` | `WalletCard`, `TransactionRow`, `CryptoPriceCard`, `PortfolioDonutChart` |
 | Food | `food/` | `RestaurantCard`, `MenuItemCard`, `DeliveryStatusBadge` |
 | Forum | `forum/` | `ForumCategoryCard`, `TopicRow`, `ReactionTypeBadge` |
-| IoT | `iot/` | `DeviceCard`, `CloudWorkspaceCard`, `RulesetEditor`, `AlarmSeverityBadge`, `DeviceListView`, `AlarmListView`, `RpcConsoleView` |
+| IoT | `iot/` | `DeviceCard`, `CloudWorkspaceCard`, `RulesetEditor`, `AlarmSeverityBadge`, `DeviceListView`, `AlarmListView`, `RpcConsoleView`, `DeviceProfileEditorView` |
 | Jobs | `jobs/` | `JobCard`, `CompanyCard`, `JobMeta`, `ApplicationStatusBadge` |
 | Landing | `landing/` | `HeroSection`, `PricingGrid`, `FeatureCard`, `FaqAccordion` |
 | Media | `media/` | `VideoCard`, `ChannelCard`, `VideoStatusBadge` |
