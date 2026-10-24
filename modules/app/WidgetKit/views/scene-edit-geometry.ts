@@ -178,9 +178,14 @@ export interface LinkLeg {
 const STUB = 16;
 const DIR: Record<SceneSide, Pt> = { l: { x: -1, y: 0 }, r: { x: 1, y: 0 }, t: { x: 0, y: -1 }, b: { x: 0, y: 1 } };
 
-/** The routed polylines of every connection that has both ends (a dangling one is left out), for hit-testing and the middle-leg handle. */
-export function linkLegs(settings: SceneSettings, model: HitModel): LinkLeg[] {
-  const boxes = new Map(model.hits.map((h) => [h.id, placed(h)] as const));
+/**
+ * The routed polylines of every connection that has both ends (a dangling one is left out), for hit-testing and the
+ * middle-leg handle. `anchors` are boxes a connection may end on that are not part of `model` (the things from data,
+ * which the editor keeps out of every editing path): a link to a thing still gets its leg, so it can be selected,
+ * re-routed and deleted from the canvas. A symbol in `model` wins over an anchor with the same id.
+ */
+export function linkLegs(settings: SceneSettings, model: HitModel, anchors: ReadonlyArray<HitModel['hits'][number]> = []): LinkLeg[] {
+  const boxes = new Map([...anchors, ...model.hits].map((h) => [h.id, placed(h)] as const));
   const out: LinkLeg[] = [];
   linksOf(settings).forEach((raw, index) => {
     if (!isRec(raw)) return;
@@ -227,6 +232,8 @@ export interface PickOptions {
   tolerance?: number;
   /** A click inside a zone selects it (default: only its outline and its title strip, so the inside stays free for a marquee). */
   zoneFill?: boolean;
+  /** Boxes connections may end on that are never picked themselves (the things from data, see `linkLegs`). */
+  anchors?: ReadonlyArray<HitModel['hits'][number]>;
 }
 
 const NONE: PickResult = { kind: 'none', id: '' };
@@ -250,7 +257,7 @@ export function pick(model: HitModel, settings: SceneSettings, point: Pt, o: Pic
     const h = model.hits[i];
     if (within(h, point)) return { kind: 'element', id: h.id };
   }
-  const legs = linkLegs(settings, model);
+  const legs = linkLegs(settings, model, o.anchors);
   for (let i = legs.length - 1; i >= 0; i -= 1) {
     if (polylineDistance(point, legs[i].points) <= tol) return { kind: 'link', id: String(legs[i].index), index: legs[i].index };
   }

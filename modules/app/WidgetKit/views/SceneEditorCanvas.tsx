@@ -75,6 +75,8 @@ export interface SceneEditorCanvasProps {
   onCancelGroup: (group: string) => void;
   /** Things from data as drawn: a locked layer, dimmed, never selected or moved (a click only inspects one). */
   things?: readonly SceneHit[];
+  /** The things' boxes in the rule-free scene (as `geo`): the read-only ends of the connections that end on a thing. */
+  anchors?: readonly SceneHit[];
   /** The thing the inspector shows, outlined on the canvas. */
   inspectedThing?: string | null;
   /** A click on a thing (its id), or on anything else (null). */
@@ -252,7 +254,7 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
     if (handle) { startHandleDrag(handle, pt); return; }
 
     const ports = [...new Set([...(hover ? [hover] : []), ...(selection.elements ?? [])])].filter((id) => !skip(id));
-    const hit = pick(geo, settings, pt, { ports: ports.length ? ports : 'none', portRadius: reach });
+    const hit = pick(geo, settings, pt, { ports: ports.length ? ports : 'none', portRadius: reach, anchors: p.anchors });
     if (hit.kind === 'port') {
       const port = portHandles(geo, hit.id).find((h) => h.side === hit.side);
       if (port) { startConnect(port, pt); return; }
@@ -305,7 +307,7 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
       const h = shape && typeof shape === 'object' ? shapeHandles(shape).find((q) => near(q)) : undefined;
       if (h) return { kind: 'shape', index: selection.shapes[0], handle: h.handle };
     } else if (selection.links?.length === 1) {
-      const leg = linkLegs(settings, geo).find((l) => l.index === selection.links?.[0]);
+      const leg = linkLegs(settings, geo, p.anchors).find((l) => l.index === selection.links?.[0]);
       if (leg) {
         if (leg.handle && near(leg.handle)) return { kind: 'mid', leg };
         if (near(leg.points[0])) return { kind: 'end', leg, end: 'from' };
@@ -475,7 +477,7 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
 
   const onDoubleClick = (e: React.MouseEvent<SVGSVGElement>) => {
     if (tool !== 'select') return;
-    const hit = pick(geo, settings, toScene(e), { ports: 'none' });
+    const hit = pick(geo, settings, toScene(e), { ports: 'none', anchors: p.anchors });
     if (hit.kind === 'element' && !skip(hit.id)) p.onRequestRename({ kind: 'element', id: hit.id });
     else if (hit.kind === 'shape') {
       const shape = shapesOf(settings)[hit.index as number] as SceneShapeSetting | undefined;
@@ -512,7 +514,7 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
   const hits = geo.hits;
   const drawnIds = new Set(model.hits.map((h) => h.id));
   const ghosts = hits.filter((h) => !drawnIds.has(h.id) && !p.hidden.has(h.id));
-  const legs = linkLegs(settings, geo);
+  const legs = linkLegs(settings, geo, p.anchors);
   const shapes = shapesOf(settings);
   const single = selectionBoxCount(selection) === 1;
   const selectedLinks = new Set(selection.links ?? []);
@@ -522,7 +524,7 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
     if (preview.link) ids.add(preview.link.fromId);
     return [...ids].filter((id) => !skip(id));
   })();
-  const elementName = (id: string) => hits.find((h) => h.id === id)?.name ?? id;
+  const elementName = (id: string) => (hits.find((h) => h.id === id) ?? p.anchors?.find((h) => h.id === id))?.name ?? id;
   const showGrid = grid && ppu * 10 >= 4;
   const cursor = panning ? 'cursor-grabbing' : tool === 'pan' ? 'cursor-grab' : tool === 'select' ? 'cursor-default' : 'cursor-crosshair';
   const only1 = single && selection.elements?.length === 1 ? elementBoxes(geo).get(selection.elements[0]) : undefined;

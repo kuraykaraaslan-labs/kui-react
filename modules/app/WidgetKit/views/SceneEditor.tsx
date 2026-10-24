@@ -119,8 +119,11 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const model = useMemo(() => sceneModel(settings, effData, opts), [settings, effData, opts]);
   const hasRules = Array.isArray(settings.rules) && settings.rules.length > 0;
   // Things from data are a locked layer: drawn (dimmed by the canvas) but never selected, moved, joined or aligned, so
-  // every editing path reads the authored symbols only.
-  const geo = useMemo(() => withoutThings(hasRules ? sceneModel({ ...settings, rules: undefined }, effData, opts) : model), [hasRules, settings, effData, opts, model]);
+  // every editing path reads the authored symbols only. Their boxes stay as read-only ends (`anchors`), so a connection
+  // that ends on a thing can still be selected, re-routed and deleted from the canvas.
+  const ruleFree = useMemo(() => (hasRules ? sceneModel({ ...settings, rules: undefined }, effData, opts) : model), [hasRules, settings, effData, opts, model]);
+  const geo = useMemo(() => withoutThings(ruleFree), [ruleFree]);
+  const anchors = useMemo(() => thingHits(ruleFree), [ruleFree]);
   const drawModel = useMemo(() => (hidden.size ? sceneModel(withSessionHidden(settings, hidden), effData, opts) : model), [hidden, settings, effData, opts, model]);
   const things = useMemo(() => thingHits(drawModel), [drawModel]);
 
@@ -536,7 +539,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
             paletteDrag={paletteDrag}
             renaming={renaming} onRename={commitRename} onRenameCancel={() => setRenaming(null)} onRequestRename={setRenaming}
             onCancelGroup={cancelGroup}
-            things={things} inspectedThing={inspected?.id ?? null}
+            things={things} anchors={anchors} inspectedThing={inspected?.id ?? null}
             onInspectThing={(id) => { setPeek(id); if (id) { setTab('properties'); say(fill(m.thingInspected, { name: things.find((h) => h.id === id)?.name ?? id })); } }}
           />
           <div className="pointer-events-none absolute bottom-3 right-3 hidden sm:block">

@@ -5,7 +5,7 @@ import {
   boxes, click, down, drag, dragEvent, element, elements, fireEvent, key, links, mockLayout, mount, move, screen, selected, shapes, up, viewBox, at,
 } from './scene-editor-harness';
 import { linkLegs } from '../views/scene-edit-geometry';
-import { sceneModel } from '../views/scada-scene-logic';
+import { sceneModel, type SceneSettings } from '../views/scada-scene-logic';
 
 beforeEach(() => { mockLayout(); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -512,5 +512,26 @@ describe('symbols a rule hides, and the action dot', () => {
   it('marks the symbols the host says have actions with a dot', () => {
     mount({ host: { actionIds: new Set(['pump1', 'valve1']) } });
     expect([...document.body.querySelectorAll('[data-action-dot]')].map((e) => e.getAttribute('data-action-dot'))).toEqual(['pump1', 'valve1']);
+  });
+});
+
+describe('a connection that ends on a thing from data', () => {
+  // The things are a locked layer the editing paths never see, but a link the author drew to one is still theirs.
+  const withThing = () => ({ ...smallScene(), links: [...links(smallScene()), { from: 'valve1.r', to: 'cow7.l', kind: 'pipe' }] }) as SceneSettings;
+  const data = { things: { shape: 'table' as const, rows: [{ id: 'cow7', symbol: 'home.plug.smart', x: 800, y: 200 }] } };
+
+  it('is selected with a click on its leg and deleted with Delete', async () => {
+    const s = withThing();
+    const full = sceneModel({ ...s, rules: undefined }, data);
+    const leg = linkLegs(s, { hits: full.hits.filter((h) => h.from !== 'things') }, full.hits.filter((h) => h.from === 'things')).find((l) => l.index === 2);
+    expect(leg).toBeDefined();
+    const { svg, canvas, applied } = mount({ data }, s);
+    expect(document.body.querySelector('[data-link="2"]')).not.toBeNull();
+    click(svg, mid(leg!.points));
+    expect(document.body.querySelector('[data-selected-link="2"]')).not.toBeNull();
+    key(canvas, 'Delete');
+    const l = links(await applied());
+    expect(l).toHaveLength(2);
+    expect(l.some((x) => x.to === 'cow7.l')).toBe(false);
   });
 });

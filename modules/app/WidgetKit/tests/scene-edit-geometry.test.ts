@@ -91,6 +91,24 @@ describe('linkLegs', () => {
   it('routes a straight link as just its two ports', () => {
     expect(legs[1].points).toEqual([{ x: 330, y: 200 }, { x: 470, y: 200 }]);
   });
+  it('routes a link that ends on an anchor (a thing from data) that is not in the model, and lets a symbol win over one', () => {
+    const t = { ...s, links: [...(s.links as unknown[]), { from: 'valve1.r', to: 'cow7.l' }] } as SceneSettings;
+    const full = sceneModel(t, { things: { shape: 'table', rows: [{ id: 'cow7', symbol: 'home.plug.smart', x: 800, y: 200 }] } });
+    const authored = { hits: full.hits.filter((h) => h.from !== 'things') };
+    const anchors = full.hits.filter((h) => h.from === 'things');
+    expect(anchors.map((h) => h.id)).toEqual(['cow7']);
+    // without the anchors the link to the thing has no leg (it could not be picked)
+    expect(linkLegs(t, authored).map((l) => l.index)).toEqual([0, 1]);
+    const withThing = linkLegs(t, authored, anchors);
+    expect(withThing.map((l) => l.index)).toEqual([0, 1, 2]);
+    expect(withThing[2].points).toEqual([{ x: 530, y: 200 }, { x: 770, y: 200 }]);
+    expect(pick(authored, t, { x: 650, y: 202 }, { ports: 'none', anchors })).toEqual({ kind: 'link', id: '2', index: 2 });
+    // an anchor is never picked itself
+    expect(pick(authored, t, { x: 800, y: 200 }, { ports: 'none', anchors }).kind).toBe('none');
+    // an anchor with an authored symbol's id does not move that symbol's end
+    const clash = [{ ...anchors[0], id: 'valve1', x: 0 }];
+    expect(linkLegs(s, m, clash)[1].points).toEqual(legs[1].points);
+  });
 });
 
 describe('shapeBounds', () => {
