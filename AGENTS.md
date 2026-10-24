@@ -139,7 +139,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | CheckboxGroup | `CheckboxGroup.tsx` | `options`, `values`, `onChange` |
 | RadioGroup | `RadioGroup.tsx` | `options` (per option `hint`, `disabled`, `disabledReason`), `value`, `onChange` |
 | MultiSelect | `MultiSelect.tsx` | `options`, `values`, `onChange`, searchable, `messages` (no results, search, remove, loading more) |
-| ComboBox | `ComboBox.tsx` | `options`, `value`, `onChange`, async search; opens listing every option until the user types |
+| ComboBox | `ComboBox.tsx` | `options`, `value`, `onChange`, async search; opens listing every option until the user types; `messages` (placeholder, no results, clear, loading, loading more) |
 | TagInput | `TagInput.tsx` | `tags`, `onChange`, `suggestions` |
 | SearchBar | `SearchBar.tsx` | `value`, `onChange`, `onClear`, `placeholder` |
 | DateRangePicker | `DateRangePicker.tsx` | `start`, `end`, `onChange` |

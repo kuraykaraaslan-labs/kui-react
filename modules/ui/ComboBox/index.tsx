@@ -10,9 +10,11 @@ import { Listbox } from './parts/Listbox';
 import { useFilter } from './hooks/useFilter';
 import { useAsync } from './hooks/useAsync';
 import { useLoadMore } from './hooks/useLoadMore';
+import { DEFAULT_COMBOBOX_MESSAGES } from './types';
 import type { ComboBoxOption, ComboBoxProps } from './types';
 
-export type { ComboBoxOption, ComboBoxProps } from './types';
+export { DEFAULT_COMBOBOX_MESSAGES } from './types';
+export type { ComboBoxMessages, ComboBoxOption, ComboBoxProps } from './types';
 
 export function ComboBox({
   id,
@@ -22,17 +24,19 @@ export function ComboBox({
   onChange,
   onSearch,
   onLoadMore,
-  placeholder = 'Search or select...',
+  placeholder,
   hint,
   error,
   disabled,
   required,
   clearable = true,
-  noResultsText = 'No results found.',
+  noResultsText,
   className,
   debounceMs = 300,
   virtualize = false,
+  messages,
 }: ComboBoxProps) {
+  const m = { ...DEFAULT_COMBOBOX_MESSAGES, ...messages };
   const rootRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const sentinelRef = useRef<HTMLLIElement | null>(null);
@@ -210,7 +214,8 @@ export function ComboBox({
         listboxId={listboxId}
         describedBy={describedBy}
         value={open ? query : (selectedOption?.label ?? query)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? m.placeholder}
+        clearLabel={m.clear}
         disabled={disabled}
         required={required}
         error={error}
@@ -245,7 +250,9 @@ export function ComboBox({
           highlightedIndex={highlightedIndex}
           loading={loading}
           loadingMore={loadingMore}
-          noResultsText={noResultsText}
+          noResultsText={noResultsText ?? m.noResults}
+          loadingText={m.loading}
+          loadingMoreText={m.loadingMore}
           virtualize={virtualize}
           sentinelRef={onLoadMore ? sentinelRef : undefined}
           onHighlight={setHighlightedIndex}

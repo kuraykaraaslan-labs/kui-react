@@ -15,6 +15,8 @@ type TriggerProps = {
   describedBy?: string;
   value: string;
   placeholder?: string;
+  /** Accessible name of the clear button. */
+  clearLabel: string;
   disabled?: boolean;
   required?: boolean;
   error?: string;
@@ -38,6 +40,7 @@ export const Trigger = forwardRef<HTMLInputElement, TriggerProps>(function Trigg
     describedBy,
     value,
     placeholder,
+    clearLabel,
     disabled,
     required,
     error,
@@ -95,7 +98,7 @@ export const Trigger = forwardRef<HTMLInputElement, TriggerProps>(function Trigg
       {clearable && showClear && !disabled && (
         <button
           type="button"
-          aria-label="Clear selection"
+          aria-label={clearLabel}
           onClick={onClear}
           className="rounded px-1 text-text-disabled transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
         >
