@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Select, type SelectOption } from './Select';
+import { Modal } from './Modal';
 
 // Select is actually two implementations behind one export: a native
 // <select> (default) and a custom listbox combobox (when any option has an
@@ -45,6 +46,12 @@ describe('Select (native <select> path)', () => {
     render(<Select id="country" label="Country" options={PLAIN_OPTIONS} value="us" onChange={onChange} />);
     await user.selectOptions(screen.getByLabelText('Country'), 'tr');
     expect(onChange).toHaveBeenCalled();
+  });
+
+  it('messages.required translates the screen-reader suffix of the native path', () => {
+    render(<Select id="country" label="Country" options={PLAIN_OPTIONS} required messages={{ required: '(Pflichtfeld)' }} onChange={() => {}} />);
+    expect(screen.getByText('(Pflichtfeld)')).toBeInTheDocument();
+    expect(screen.queryByText('(required)')).toBeNull();
   });
 
   it('disabled prevents interaction', () => {
@@ -99,6 +106,45 @@ describe('Select (custom combobox path — has icons or searchable)', () => {
     expect(combobox).toHaveAttribute('aria-expanded', 'true');
     await user.keyboard('{Escape}');
     expect(combobox).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('Escape in the search box closes the list but not an enclosing Modal', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Modal open onClose={onClose} title="Dialog">
+        <Select id="country4" label="Country" options={PLAIN_OPTIONS} searchable onChange={() => {}} />
+      </Modal>,
+    );
+    // Let the Modal's deferred initial focus land before interacting.
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    const combobox = screen.getByRole('combobox', { name: 'Country' });
+    await user.click(combobox);
+    const search = screen.getByRole('textbox', { name: 'Search…' });
+    search.focus();
+    await user.keyboard('{Escape}');
+    expect(combobox).toHaveAttribute('aria-expanded', 'false');
+    expect(combobox).toHaveFocus();
+    expect(onClose).not.toHaveBeenCalled();
+    // A second Escape, with the list closed, reaches the Modal.
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('messages translate the built-in strings', async () => {
+    const user = userEvent.setup();
+    render(
+      <Select
+        id="country5" label="Country" options={PLAIN_OPTIONS} searchable required onChange={() => {}}
+        messages={{ noResults: 'Keine Treffer.', search: 'Suchen…', placeholder: 'Auswählen…', required: '(Pflichtfeld)' }}
+      />,
+    );
+    expect(screen.getByText('Auswählen…')).toBeInTheDocument();
+    expect(screen.getByText('(Pflichtfeld)')).toBeInTheDocument();
+    await user.click(screen.getByRole('combobox'));
+    await user.type(screen.getByRole('textbox', { name: 'Suchen…' }), 'zzz');
+    expect(screen.getByText('Keine Treffer.')).toBeInTheDocument();
+    expect(screen.queryByText('No results found.')).toBeNull();
   });
 
   it('searchable filters the option list as you type', async () => {

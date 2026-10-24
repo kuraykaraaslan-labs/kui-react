@@ -95,6 +95,28 @@ describe('useFocusTrap', () => {
     expect(onEscape).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores an Escape an inner control already handled (defaultPrevented)', async () => {
+    const onEscape = vi.fn();
+    const user = userEvent.setup();
+    function InnerHandledHarness() {
+      const ref = useRef<HTMLDivElement>(null);
+      useFocusTrap(ref, { active: true, onEscape });
+      return (
+        <div ref={ref}>
+          <button onKeyDown={(e) => { if (e.key === 'Escape') e.preventDefault(); }}>Handles Escape</button>
+          <button>Plain</button>
+        </div>
+      );
+    }
+    render(<InnerHandledHarness />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Handles Escape' })).toHaveFocus());
+    await user.keyboard('{Escape}');
+    expect(onEscape).not.toHaveBeenCalled();
+    screen.getByRole('button', { name: 'Plain' }).focus();
+    await user.keyboard('{Escape}');
+    expect(onEscape).toHaveBeenCalledTimes(1);
+  });
+
   it('does not call onEscape when handleEscape is false', async () => {
     const onEscape = vi.fn();
     const user = userEvent.setup();

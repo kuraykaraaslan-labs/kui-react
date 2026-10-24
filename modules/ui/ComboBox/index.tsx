@@ -40,14 +40,21 @@ export function ComboBox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  // True once the user has typed since the list opened. Until then the input
+  // still shows the selected label, but the list is not filtered by it.
+  const [typed, setTyped] = useState(false);
   const [internalValue, setInternalValue] = useState(value ?? '');
 
   const selectedValue = value !== undefined ? value : internalValue;
 
+  // The text the list is filtered (or searched) by: empty until the user types,
+  // so an opened ComboBox lists every option rather than only the current one.
+  const searchQuery = open && typed ? query : '';
+
   // Async — debounced + AbortController + cache (M1).
   const { results: asyncResults, loading, appendResults } = useAsync(
     open && !!onSearch,
-    query,
+    searchQuery,
     onSearch,
     debounceMs
   );
@@ -64,7 +71,7 @@ export function ComboBox({
   );
 
   // Local fuzzy filter only when async is NOT in play.
-  const localFiltered = useFilter(sourceOptions, query);
+  const localFiltered = useFilter(sourceOptions, searchQuery);
   const filteredOptions = onSearch ? sourceOptions : localFiltered;
 
   const hintId = hint ? `${id}-hint` : undefined;
@@ -79,6 +86,7 @@ export function ComboBox({
   const [syncedClosedState, setSyncedClosedState] = useState<{ open: boolean; label?: string } | null>(null);
   if (!syncedClosedState || syncedClosedState.open !== open || syncedClosedState.label !== selectedLabel) {
     setSyncedClosedState({ open, label: selectedLabel });
+    if (syncedClosedState?.open !== open) setTyped(false);
     if (!open) {
       setQuery(selectedLabel ?? '');
       setHighlightedIndex(-1);
@@ -175,7 +183,11 @@ export function ComboBox({
       return;
     }
     if (event.key === 'Escape') {
+      // Only an open list consumes Escape; a closed ComboBox lets it reach the
+      // enclosing overlay (a Modal closes as usual).
+      if (!open) return;
       event.preventDefault();
+      event.stopPropagation();
       setOpen(false);
       return;
     }
@@ -208,6 +220,7 @@ export function ComboBox({
         onFocus={() => { if (!disabled) setOpen(true); }}
         onChange={(next) => {
           setQuery(next);
+          setTyped(true);
           setOpen(true);
           setHighlightedIndex(-1);
         }}
@@ -215,6 +228,8 @@ export function ComboBox({
         onClick={() => {
           if (disabled) return;
           inputRef.current?.focus();
+          // Select the shown label so the first keystroke replaces it.
+          if (!typed) inputRef.current?.select();
           setOpen(true);
         }}
         onClear={handleClear}

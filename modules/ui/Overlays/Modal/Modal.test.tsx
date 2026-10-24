@@ -94,6 +94,37 @@ describe('Modal', () => {
     expect(screen.queryByRole('button', { name: 'Close dialog' })).toBeNull();
   });
 
+  it.each([
+    ['sm', 'max-w-sm'],
+    ['md', 'max-w-md'],
+    ['lg', 'max-w-lg'],
+    ['xl', 'max-w-xl'],
+    ['full', 'max-w-none'],
+  ] as const)('size="%s" gives the panel %s', (size, cls) => {
+    render(
+      <Modal open onClose={() => {}} title="Dialog" size={size}>
+        content
+      </Modal>,
+    );
+    const panel = screen.getByText('Dialog').closest('[tabindex="-1"]') as HTMLElement;
+    expect(panel).toHaveClass(cls);
+    expect(panel).toHaveClass('rounded-xl', 'w-full');
+  });
+
+  it('an Escape an inner control handled (defaultPrevented) does not close it', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <Modal open onClose={onClose} title="Dialog">
+        <input aria-label="Inner" onKeyDown={(e) => { if (e.key === 'Escape') e.preventDefault(); }} />
+      </Modal>,
+    );
+    await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+    screen.getByRole('textbox', { name: 'Inner' }).focus();
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('renders the footer when given one', () => {
     render(
       <Modal open onClose={() => {}} title="Dialog" footer={<button>Confirm</button>}>
