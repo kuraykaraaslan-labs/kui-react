@@ -5073,10 +5073,6 @@
     "resetLabel": {
       "type": "text"
     },
-    "saveChangedOnly": {
-      "type": "boolean",
-      "value": false
-    },
     "disableWhen": {
       "type": "multi-select",
       "value": [
@@ -5104,6 +5100,10 @@
     },
     "cancelLabel": {
       "type": "text"
+    },
+    "saveChangedOnly": {
+      "type": "boolean",
+      "value": false
     }
   },
   "builtin:scada.symbol@1": {
@@ -7361,11 +7361,805 @@
             "false"
           ]
         },
+        "dx": {
+          "type": "number"
+        },
+        "dy": {
+          "type": "number"
+        },
+        "scale": {
+          "type": "number"
+        },
+        "turn": {
+          "type": "select",
+          "options": [
+            "",
+            "0",
+            "90",
+            "180",
+            "270"
+          ]
+        },
+        "symbol": {
+          "type": "select",
+          "options": [
+            "",
+            "home.tv",
+            "home.router",
+            "home.camera.security",
+            "home.plug.smart"
+          ]
+        },
         "stop": {
           "type": "boolean",
           "value": false
         }
       }
+    },
+    "thingsIdColumn": {
+      "type": "data-key",
+      "value": "id"
+    },
+    "thingsSymbol": {
+      "type": "select",
+      "value": "",
+      "options": [
+        "",
+        "home.tv",
+        "home.router",
+        "home.camera.security",
+        "home.plug.smart"
+      ]
+    },
+    "thingsSymbolColumn": {
+      "type": "data-key",
+      "value": "symbol"
+    },
+    "thingsXColumn": {
+      "type": "data-key",
+      "value": "x"
+    },
+    "thingsYColumn": {
+      "type": "data-key",
+      "value": "y"
+    },
+    "thingsTurnColumn": {
+      "type": "data-key",
+      "value": "turn"
+    },
+    "thingsLabelColumn": {
+      "type": "data-key",
+      "value": "label"
+    },
+    "thingsUnits": {
+      "type": "select",
+      "value": "scene",
+      "options": [
+        "scene",
+        "metres"
+      ]
+    },
+    "thingsScale": {
+      "type": "number",
+      "value": 50
+    },
+    "thingsOriginX": {
+      "type": "number",
+      "value": 0
+    },
+    "thingsOriginY": {
+      "type": "number",
+      "value": 0
+    }
+  },
+  "builtin:map@2": {
+    "mapKind": {
+      "type": "select",
+      "value": "geo",
+      "options": [
+        "geo",
+        "image"
+      ]
+    },
+    "imageSrc": {
+      "type": "text"
+    },
+    "imageWidth": {
+      "type": "number"
+    },
+    "imageHeight": {
+      "type": "number"
+    },
+    "latColumn": {
+      "type": "data-key",
+      "value": "lat"
+    },
+    "lngColumn": {
+      "type": "data-key",
+      "value": "lng"
+    },
+    "labelColumn": {
+      "type": "data-key",
+      "value": "label"
+    },
+    "idColumn": {
+      "type": "data-key"
+    },
+    "markerStyle": {
+      "type": "select",
+      "value": "pin",
+      "options": [
+        "pin",
+        "dot",
+        "circle",
+        "icon"
+      ]
+    },
+    "markerIcon": {
+      "type": "icon"
+    },
+    "markerSize": {
+      "type": "number",
+      "value": 24
+    },
+    "cluster": {
+      "type": "boolean",
+      "value": false
+    },
+    "clusterRadius": {
+      "type": "number",
+      "value": 40
+    },
+    "colorBy": {
+      "type": "select",
+      "value": "column",
+      "options": [
+        "fixed",
+        "column",
+        "ranges"
+      ]
+    },
+    "markerColor": {
+      "type": "color",
+      "value": "var(--primary)"
+    },
+    "colorColumn": {
+      "type": "data-key",
+      "value": "status"
+    },
+    "valueColors": {
+      "type": "repeater",
+      "value": [],
+      "fields": {
+        "value": {
+          "type": "text"
+        },
+        "color": {
+          "type": "color",
+          "value": "var(--success)"
+        },
+        "label": {
+          "type": "text"
+        },
+        "icon": {
+          "type": "icon"
+        },
+        "image": {
+          "type": "text"
+        }
+      }
+    },
+    "valueColumn": {
+      "type": "data-key"
+    },
+    "ranges": {
+      "type": "repeater",
+      "fields": {
+        "from": {
+          "type": "number"
+        },
+        "to": {
+          "type": "number"
+        },
+        "color": {
+          "type": "color",
+          "value": "var(--success)"
+        },
+        "label": {
+          "type": "text"
+        }
+      }
+    },
+    "rangeEdges": {
+      "type": "select",
+      "value": "from",
+      "options": [
+        "from",
+        "to"
+      ]
+    },
+    "legend": {
+      "type": "boolean",
+      "value": true
+    },
+    "legendPosition": {
+      "type": "select",
+      "value": "bottomleft",
+      "options": [
+        "bottomleft",
+        "bottomright",
+        "topleft",
+        "topright"
+      ]
+    },
+    "tooltipTrigger": {
+      "type": "select",
+      "value": "hover",
+      "options": [
+        "hover",
+        "click",
+        "none"
+      ]
+    },
+    "tooltipColumns": {
+      "type": "data-key",
+      "value": []
+    },
+    "tileStyle": {
+      "type": "select",
+      "value": "auto",
+      "options": [
+        "auto",
+        "light",
+        "grey",
+        "dark",
+        "streets",
+        "satellite"
+      ]
+    },
+    "fitBounds": {
+      "type": "boolean",
+      "value": true
+    },
+    "fitPadding": {
+      "type": "number",
+      "value": 32
+    },
+    "centerLat": {
+      "type": "number"
+    },
+    "centerLng": {
+      "type": "number"
+    },
+    "zoom": {
+      "type": "number",
+      "value": 4
+    },
+    "minZoom": {
+      "type": "number"
+    },
+    "maxZoom": {
+      "type": "number"
+    },
+    "zoomButtons": {
+      "type": "boolean",
+      "value": true
+    },
+    "controlsPosition": {
+      "type": "select",
+      "value": "topleft",
+      "options": [
+        "topleft",
+        "topright",
+        "bottomleft",
+        "bottomright"
+      ]
+    },
+    "draggable": {
+      "type": "boolean",
+      "value": false
+    },
+    "replay": {
+      "type": "boolean",
+      "value": false
+    },
+    "replaySpeed": {
+      "type": "select",
+      "value": "1",
+      "options": [
+        "1",
+        "2",
+        "5",
+        "10"
+      ]
+    },
+    "layerToggles": {
+      "type": "boolean",
+      "value": true
+    },
+    "layerTogglesPosition": {
+      "type": "select",
+      "value": "topright",
+      "options": [
+        "topright",
+        "topleft",
+        "bottomright",
+        "bottomleft"
+      ]
+    },
+    "scrollZoom": {
+      "type": "boolean",
+      "value": false
+    },
+    "linkTemplate": {
+      "type": "text"
+    },
+    "linkLabel": {
+      "type": "text"
+    },
+    "zonePositionsColumn": {
+      "type": "data-key",
+      "value": "positions"
+    },
+    "zoneLabelColumn": {
+      "type": "data-key",
+      "value": "name"
+    },
+    "zoneVariant": {
+      "type": "select",
+      "value": "info",
+      "options": [
+        "primary",
+        "info",
+        "success",
+        "warning",
+        "error",
+        "neutral"
+      ]
+    },
+    "zoneVariantColumn": {
+      "type": "data-key"
+    },
+    "zoneOpacity": {
+      "type": "number",
+      "value": 0.2
+    },
+    "routePositionsColumn": {
+      "type": "data-key",
+      "value": "positions"
+    },
+    "routeLabelColumn": {
+      "type": "data-key",
+      "value": "name"
+    },
+    "routeColor": {
+      "type": "color",
+      "value": "var(--primary)"
+    },
+    "routeWeight": {
+      "type": "number",
+      "value": 3
+    },
+    "routeDashed": {
+      "type": "boolean",
+      "value": false
+    },
+    "labelMode": {
+      "type": "select",
+      "value": "none",
+      "options": [
+        "always",
+        "alerts",
+        "none"
+      ]
+    },
+    "roleColumn": {
+      "type": "data-key"
+    },
+    "alertColumn": {
+      "type": "data-key"
+    },
+    "labelAnonymous": {
+      "type": "boolean",
+      "value": false
+    },
+    "identityColumns": {
+      "type": "data-key",
+      "value": []
+    }
+  },
+  "builtin:viewer.model@3": {
+    "models": {
+      "type": "repeater",
+      "value": [],
+      "fields": {
+        "url": {
+          "type": "url"
+        },
+        "label": {
+          "type": "text"
+        },
+        "visible": {
+          "type": "boolean",
+          "value": true
+        }
+      }
+    },
+    "idColumn": {
+      "type": "data-key",
+      "value": "id"
+    },
+    "labelColumn": {
+      "type": "data-key",
+      "value": "label"
+    },
+    "xColumn": {
+      "type": "data-key",
+      "value": "x"
+    },
+    "yColumn": {
+      "type": "data-key",
+      "value": "y"
+    },
+    "zColumn": {
+      "type": "data-key",
+      "value": "z"
+    },
+    "coordinates": {
+      "type": "select",
+      "value": "z-up",
+      "options": [
+        "z-up",
+        "y-up"
+      ]
+    },
+    "valueColumn": {
+      "type": "data-key",
+      "value": "value"
+    },
+    "unitColumn": {
+      "type": "data-key",
+      "value": "unit"
+    },
+    "markerSize": {
+      "type": "number",
+      "value": 14
+    },
+    "pulseAlarms": {
+      "type": "boolean",
+      "value": true
+    },
+    "colorBy": {
+      "type": "select",
+      "value": "column",
+      "options": [
+        "fixed",
+        "column",
+        "ranges"
+      ]
+    },
+    "markerColor": {
+      "type": "color",
+      "value": "var(--primary)"
+    },
+    "colorColumn": {
+      "type": "data-key",
+      "value": "status"
+    },
+    "valueColors": {
+      "type": "repeater",
+      "value": [],
+      "fields": {
+        "value": {
+          "type": "text"
+        },
+        "color": {
+          "type": "color",
+          "value": "var(--error)"
+        },
+        "label": {
+          "type": "text"
+        }
+      }
+    },
+    "ranges": {
+      "type": "repeater",
+      "fields": {
+        "from": {
+          "type": "number"
+        },
+        "to": {
+          "type": "number"
+        },
+        "color": {
+          "type": "color",
+          "value": "var(--success)"
+        },
+        "label": {
+          "type": "text"
+        }
+      }
+    },
+    "rangeEdges": {
+      "type": "select",
+      "value": "from",
+      "options": [
+        "from",
+        "to"
+      ]
+    },
+    "legend": {
+      "type": "boolean",
+      "value": true
+    },
+    "legendPosition": {
+      "type": "select",
+      "value": "bottomleft",
+      "options": [
+        "bottomleft",
+        "bottomright",
+        "topleft",
+        "topright"
+      ]
+    },
+    "labelContent": {
+      "type": "select",
+      "value": "both",
+      "options": [
+        "label",
+        "value",
+        "both"
+      ]
+    },
+    "tooltipTrigger": {
+      "type": "select",
+      "value": "hover",
+      "options": [
+        "hover",
+        "click",
+        "none"
+      ]
+    },
+    "tooltipColumns": {
+      "type": "data-key",
+      "value": []
+    },
+    "background": {
+      "type": "color"
+    },
+    "showNavCube": {
+      "type": "boolean",
+      "value": true
+    },
+    "showGrid": {
+      "type": "boolean",
+      "value": false
+    },
+    "cameraPreset": {
+      "type": "select",
+      "value": "iso",
+      "options": [
+        "iso",
+        "top",
+        "front"
+      ]
+    },
+    "autoFitOnLoad": {
+      "type": "boolean",
+      "value": true
+    },
+    "interactive": {
+      "type": "boolean",
+      "value": true
+    },
+    "scrollZoom": {
+      "type": "boolean",
+      "value": false
+    },
+    "thingIdColumn": {
+      "type": "data-key",
+      "value": "id"
+    },
+    "thingKindColumn": {
+      "type": "data-key",
+      "value": "kind"
+    },
+    "thingKind": {
+      "type": "select",
+      "value": "box",
+      "options": [
+        "box",
+        "sphere",
+        "cylinder",
+        "pin"
+      ]
+    },
+    "thingXColumn": {
+      "type": "data-key",
+      "value": "x"
+    },
+    "thingYColumn": {
+      "type": "data-key",
+      "value": "y"
+    },
+    "thingZColumn": {
+      "type": "data-key",
+      "value": "z"
+    },
+    "thingHeadingColumn": {
+      "type": "data-key",
+      "value": "heading"
+    },
+    "thingLabelColumn": {
+      "type": "data-key",
+      "value": "label"
+    },
+    "thingSize": {
+      "type": "number",
+      "value": 0.5
+    },
+    "thingSizeColumn": {
+      "type": "data-key"
+    },
+    "rules": {
+      "type": "repeater",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "value": true
+        },
+        "target": {
+          "type": "text"
+        },
+        "source": {
+          "type": "select",
+          "value": "column",
+          "options": [
+            "column",
+            "param"
+          ]
+        },
+        "key": {
+          "type": "text"
+        },
+        "of": {
+          "type": "text"
+        },
+        "op": {
+          "type": "select",
+          "options": [
+            "",
+            "eq",
+            "ne",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between",
+            "in",
+            "set",
+            "unset",
+            "true",
+            "false"
+          ]
+        },
+        "value": {
+          "type": "text"
+        },
+        "to": {
+          "type": "text"
+        },
+        "join": {
+          "type": "select",
+          "value": "all",
+          "options": [
+            "all",
+            "any"
+          ]
+        },
+        "source2": {
+          "type": "select",
+          "value": "column",
+          "options": [
+            "column",
+            "param"
+          ]
+        },
+        "key2": {
+          "type": "text"
+        },
+        "of2": {
+          "type": "text"
+        },
+        "op2": {
+          "type": "select",
+          "options": [
+            "",
+            "eq",
+            "ne",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "between",
+            "in",
+            "set",
+            "unset",
+            "true",
+            "false"
+          ]
+        },
+        "value2": {
+          "type": "text"
+        },
+        "to2": {
+          "type": "text"
+        },
+        "color": {
+          "type": "color"
+        },
+        "hidden": {
+          "type": "select",
+          "options": [
+            "",
+            "true",
+            "false"
+          ]
+        },
+        "label": {
+          "type": "text"
+        },
+        "pulse": {
+          "type": "select",
+          "options": [
+            "",
+            "true",
+            "false"
+          ]
+        },
+        "size": {
+          "type": "number"
+        },
+        "dz": {
+          "type": "number"
+        },
+        "stop": {
+          "type": "boolean",
+          "value": false
+        }
+      }
+    },
+    "labelMode": {
+      "type": "select",
+      "value": "always",
+      "options": [
+        "always",
+        "alerts",
+        "none"
+      ]
+    },
+    "thingLabelMode": {
+      "type": "select",
+      "value": "always",
+      "options": [
+        "always",
+        "alerts",
+        "none"
+      ]
+    },
+    "roleColumn": {
+      "type": "data-key"
+    },
+    "alertColumn": {
+      "type": "data-key"
+    },
+    "labelAnonymous": {
+      "type": "boolean",
+      "value": false
+    },
+    "identityColumns": {
+      "type": "data-key",
+      "value": []
     }
   }
 }

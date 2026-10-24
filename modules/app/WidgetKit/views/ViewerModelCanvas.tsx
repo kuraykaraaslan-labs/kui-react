@@ -18,6 +18,7 @@ import {
   cameraForTarget, MAX_THING_LABELS, viewerViewKey, type Row, type SensorMarker, type ThingMarker, type ViewerModelSettings, type ViewerView,
 } from './viewer-model-logic';
 import { useReducedMotion } from './useReducedMotion';
+import { labelModeOf, labelShown, type LabelMode } from './overlay-logic';
 import {
   disposeThingMeshes, hasPulsingThings, nearestThings, newThingMeshState, pickThing, pulseThingMeshes, syncThingMeshes,
   type PickSceneLike, type ThingMeshState, type ThreeLib,
@@ -264,7 +265,7 @@ function SensorOverlay({ viewer, sensors, settings, onMarkerClick }: {
   const [active, setActive] = useState<string | null>(null);
   const trigger = settings.tooltipTrigger ?? 'hover';
   const defaultSize = typeof settings.markerSize === 'number' ? settings.markerSize : 14;
-  const showLabels = settings.showSensorLabels !== false;
+  const labelMode = labelModeOf(settings as Record<string, unknown>, 'labelMode', 'showSensorLabels', 'always', 'always');
   const content = settings.labelContent ?? 'both';
   const pulse = settings.pulseAlarms !== false;
 
@@ -329,7 +330,7 @@ function SensorOverlay({ viewer, sensors, settings, onMarkerClick }: {
             >
               {s.alarm && pulse && <span aria-hidden="true" className="absolute inset-0 animate-ping rounded-full opacity-60" style={{ background: s.color }} />}
             </button>
-            {showLabels && text && !open && (
+            {labelShown(labelMode, s.alert ?? s.alarm) && text && !open && (
               <span aria-hidden="true" data-part="sensor-label"
                 className="absolute left-0 top-0 whitespace-nowrap rounded-md border border-border bg-surface-raised/90 px-1.5 py-0.5 text-[11px] font-medium leading-4 tabular-nums text-text-primary shadow-sm backdrop-blur-sm"
                 style={{ transform: `translate(${size / 2 + 6}px, -50%)` }}>
@@ -426,12 +427,12 @@ const CLICK_MS = 600;
  * The things: one instanced mesh per kind in the viewer's scene, written in place as the rows change, the alarm ones
  * pulsing, a click on a shape reported to the host with the thing's row, and a DOM label over the nearest ones.
  */
-function ThingsLayer({ viewer, things, host, dark, showLabels, onMarkerClick }: {
+function ThingsLayer({ viewer, things, host, dark, labelMode, onMarkerClick }: {
   viewer: Viewer | null;
   things: ThingMarker[];
   host: HTMLElement | null;
   dark: boolean;
-  showLabels: boolean;
+  labelMode: LabelMode;
   onMarkerClick?: (row: Row) => void;
 }) {
   const [three, setThree] = useState<ThreeLib | null>(null);
@@ -526,8 +527,10 @@ function ThingsLayer({ viewer, things, host, dark, showLabels, onMarkerClick }: 
     };
   }, [three, viewer, things, onMarkerClick]);
 
-  if (!viewer || !showLabels || things.length === 0) return null;
-  return <ThingLabels viewer={viewer} things={things} />;
+  // the labels of a mode of "alerts" are the things in trouble; of "none", nobody's
+  const named = useMemo(() => (labelMode === 'none' ? [] : things.filter((t) => labelShown(labelMode, t.alert ?? t.alarm))), [things, labelMode]);
+  if (!viewer || named.length === 0) return null;
+  return <ThingLabels viewer={viewer} things={named} />;
 }
 
 export interface ViewerModelCanvasProps {
@@ -583,7 +586,7 @@ export function ViewerModelCanvas({ models, sensors, things, settings, dark, onM
         )}
       </KUIViewer>
       <SensorOverlay viewer={viewer} sensors={sensors} settings={settings} onMarkerClick={onMarkerClick} />
-      <ThingsLayer viewer={viewer} things={things} host={host} dark={dark} showLabels={settings.showThingLabels !== false} onMarkerClick={onMarkerClick} />
+      <ThingsLayer viewer={viewer} things={things} host={host} dark={dark} labelMode={labelModeOf(settings as Record<string, unknown>, 'thingLabelMode', 'showThingLabels', 'always', 'always')} onMarkerClick={onMarkerClick} />
       {!settled && models.length > 0 && (
         <ViewerStatus kind="loading" className="pointer-events-none bg-transparent"
           text={models.length > 1 ? texts.loadingModels(done, models.length) : texts.loadingModel} />

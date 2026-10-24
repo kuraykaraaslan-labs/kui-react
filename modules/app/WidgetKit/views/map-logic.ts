@@ -10,6 +10,7 @@ import { valueMapList } from '../settings/source-meta';
 import { cssColor, rangeFor, type ColorRange, type RangeEdges } from '../settings/style';
 import type { Sparse } from '../settings/types';
 import { hostImageSrc } from './content-logic';
+import { hiddenColumns, isAlertValue, labelModeOf, labelShown, labelText, redactRow } from './overlay-logic';
 import { cellText, declaredColumns, expandLinkTemplate, matchValue, num, rawText, statusColor, type ValueColor } from './table-logic';
 
 export type MapSettings = {
@@ -30,7 +31,16 @@ export type MapSettings = {
   valueColumn?: string;
   ranges?: unknown;
   rangeEdges?: RangeEdges;
-  showLabels?: boolean;
+  /** When a name is shown beside a marker: always, only for an alert, never. Replaces `showLabels` (migrated: on is always, off is never). */
+  labelMode?: 'always' | 'alerts' | 'none';
+  /** The column that says the role: the label of a marker in privacy mode. */
+  roleColumn?: string;
+  /** The column whose value says a marker is in trouble (a status word); empty = the status column the colours come from. */
+  alertColumn?: string;
+  /** Privacy mode: no name, no identity column in a label, a tooltip or a click; the role instead. */
+  labelAnonymous?: boolean;
+  /** The columns that say who it is, besides the label column. */
+  identityColumns?: string[];
   tooltipTrigger?: 'hover' | 'click' | 'none';
   fitBounds?: boolean;
   fitPadding?: number;
@@ -149,6 +159,9 @@ export function buildMarkers(
   const fixed = cssColor(s.markerColor) ?? 'var(--primary)';
   const valueColors = effectiveValueColors(slot, s);
   const byColumn = (s.colorBy ?? 'column') === 'column' && !!s.colorColumn;
+  const hidden = hiddenColumns(s);
+  const mode = labelModeOf(settings, 'labelMode', 'showLabels', 'always', 'none');
+  const alertColumn = s.alertColumn || (byColumn ? s.colorColumn! : '');
   const markers: MapMarker[] = [];
   const rows = new Map<string, Row>();
   (slot?.rows ?? []).forEach((row, i) => {
@@ -158,8 +171,10 @@ export function buildMarkers(
     if (la === null || ln === null || !valid(la, ln)) return;
     const rawId = s.idColumn && row[s.idColumn] != null && row[s.idColumn] !== '' ? String(row[s.idColumn]) : String(i);
     const id = rows.has(rawId) ? `${rawId}#${i}` : rawId;
-    rows.set(id, row);
-    const label = s.labelColumn && row[s.labelColumn] != null && row[s.labelColumn] !== '' ? String(row[s.labelColumn]) : undefined;
+    // privacy mode: what identifies is left out of the row from here on (the click, the tooltip, the link), and the label is the role
+    const shown = redactRow(row, hidden);
+    rows.set(id, shown);
+    const label = labelText(row, s);
     const own = rowColor(row, s, valueColors);
     const color = own ?? fixed;
     // A status can bring its own picture or glyph: the value's entry (the placement's, else the source's).
@@ -168,6 +183,7 @@ export function buildMarkers(
     const glyph = !picture && entry?.icon ? entry.icon : undefined;
     // An empty value is left out of the tooltip, never shown as a dash row.
     const fields = fieldsOf.flatMap((key) => {
+      if (hidden.includes(key)) return [];
       const v = row[key];
       if (v === null || v === undefined || v === '') return [];
       const def = declared.find((c) => c.key === key);
@@ -179,7 +195,8 @@ export function buildMarkers(
     const status = statusRaw !== undefined && statusRaw !== null && statusRaw !== '' && !cssColor(statusRaw)
       ? matchValue(statusRaw, valueColors)?.label || String(statusRaw)
       : undefined;
-    const href = expandLinkTemplate(s.linkTemplate, row) ?? undefined;
+    const href = expandLinkTemplate(s.linkTemplate, shown) ?? undefined;
+    const alert = isAlertValue(row[alertColumn]);
     const title = label ?? (s.idColumn ? rawId : `#${i + 1}`);
     markers.push({
       id,
@@ -189,6 +206,9 @@ export function buildMarkers(
       shape: picture ? 'image' : glyph ? 'icon' : s.markerStyle ?? 'pin',
       ...(picture ? { image: picture } : glyph ? { icon: glyph } : s.markerStyle === 'icon' && s.markerIcon ? { icon: s.markerIcon } : {}),
       size: s.markerSize ?? 24,
+      ...(alert ? { alert: true } : {}),
+      // a mode of "alerts" names only the markers in trouble; the other modes are the map's own switch
+      ...(mode === 'alerts' && label ? { permanentLabel: labelShown(mode, alert) } : {}),
       ...(s.draggable === true && image && host.movable ? { draggable: true } : {}),
       ...(fields.length > 0 || href || status || label
         ? {
@@ -424,7 +444,7 @@ export function mapModel(settings: Sparse, data: Record<string, SlotData | undef
       ...(typeof s.maxZoom === 'number' ? { maxZoom: s.maxZoom, fitMaxZoom: Math.min(15, s.maxZoom) } : {}),
       cluster: !!s.cluster,
       clusterRadius: typeof s.clusterRadius === 'number' ? s.clusterRadius : 40,
-      showLabels: !!s.showLabels,
+      showLabels: labelModeOf(settings, 'labelMode', 'showLabels', 'always', 'none') === 'always',
       tooltipTrigger: s.tooltipTrigger ?? 'hover',
       scrollWheelZoom: s.scrollZoom === true,
       zoomControl: zoomButtons,

@@ -43,6 +43,10 @@ export type MapMarker = {
   image?: string;
   /** The viewer may drag the marker; `onMarkerMove` is told where it was dropped. */
   draggable?: boolean;
+  /** Whether this marker's label is permanent, when that differs from the map's `showLabels` (a label mode of "alerts" names only the markers in trouble). */
+  permanentLabel?: boolean;
+  /** The marker is in trouble (a warning or worse): what the "alerts" label mode names. */
+  alert?: boolean;
 };
 
 export type MapZone = {

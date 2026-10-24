@@ -263,6 +263,21 @@ controls, every view) comes from `messages.ts`, by group: `card`, `board`, `edit
   `defaultTitle`); `importBoard` refusals carry a `code` (`invalid-json`, `not-board`, `newer-format`,
   `newer-templates`) and `detail`, so a host can word them.
 
+## Names over markers and things (the overlay labels)
+
+The map card and the 3D model card name what they draw the same way (`views/overlay-logic.ts`, pure, vendored with the rest):
+
+- **`labelMode`** (the model card also has **`thingLabelMode`** for its things): `always`, `alerts` (only a marker or thing in trouble) or `none`.
+  Replaces the old on / off switches `showLabels`, `showSensorLabels` and `showThingLabels`: a stored card is migrated when it is opened (on is
+  `always`, off is `none`; map 1 → 2, model 2 → 3). A card's hover and click are its tooltip (`tooltipTrigger`); the people layer of kui-viewer,
+  which has none, also has `hover` and `click` (docs/reference/overlay-standard.md there).
+- **What is in trouble**: the colour is the error tone, or the **`alertColumn`** says a warning or worse (`isAlertValue`: warning, critical, alarm,
+  error, SOS, fall, zone, PPE, still, `true`, the codes 1 and 2). Empty alert column on a map = the status column the colours come from.
+- **Privacy mode** (`labelAnonymous`, KVKK / GDPR): the label is the **`roleColumn`**, and the label column and the **`identityColumns`** are taken
+  out of the row *where the card builds it* (`redactRow`), so they are in no tooltip, no rule, no link and no click action (a rule or a link that reads
+  an identity column sees it empty). Hiding the text at draw time would leave it in the page.
+- A model card with more labelled things than it carries (`MAX_THING_LABELS`) keeps the ones in trouble first.
+
 ## Changing a template
 
 | Change | Bump the version? | What else |

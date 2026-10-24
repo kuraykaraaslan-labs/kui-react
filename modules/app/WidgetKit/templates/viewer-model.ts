@@ -13,7 +13,7 @@ import { ruleConditionFields, stopField, YES_NO } from './rule-fields';
  */
 export const VIEWER_MODEL: SettingsTemplate = {
   id: 'builtin:viewer.model',
-  version: 2,
+  version: 3,
   namespace: '',
   label: '3D model',
   format: false,
@@ -96,9 +96,8 @@ export const VIEWER_MODEL: SettingsTemplate = {
       label: 'Legend corner', type: 'select', value: 'bottomleft', group: 'legend', required: true, showIf: { legend: true },
       options: [opt('bottomleft', 'Bottom left'), opt('bottomright', 'Bottom right'), opt('topleft', 'Top left'), opt('topright', 'Top right')],
     },
-    showSensorLabels: { label: 'Show labels in the model', type: 'boolean', value: true, group: 'tooltip' },
     labelContent: {
-      label: 'Label shows', type: 'select', display: 'segmented', value: 'both', group: 'tooltip', required: true, showIf: { showSensorLabels: true },
+      label: 'Label shows', type: 'select', display: 'segmented', value: 'both', group: 'tooltip', required: true, showIf: { labelMode: ['always', 'alerts'] },
       options: [opt('label', 'Name'), opt('value', 'Reading'), opt('both', 'Name and reading')],
     },
     tooltipTrigger: {
@@ -160,10 +159,6 @@ export const VIEWER_MODEL: SettingsTemplate = {
       description: 'The long side of a thing, in metres. A size column per row wins.',
     },
     thingSizeColumn: { label: 'Size column', type: 'data-key', slot: 'things', group: 'things', advanced: true, description: 'Metres per row. Empty = the size above.' },
-    showThingLabels: {
-      label: 'Show labels on things', type: 'boolean', value: true, group: 'things',
-      description: `The ${MAX_THING_LABELS} things nearest the camera carry their label.`,
-    },
     rules: {
       label: 'Rules', type: 'repeater', group: 'rules', max: MAX_SCENE_RULES,
       description: 'Make the sensor markers and the things follow the data. A rule names a target (a marker or thing id from the bound rows, or *), up to two conditions on its row, another row or a board parameter, and what to change while they hold. Rules run top to bottom; every rule that matches applies, a later rule wins for the same change, and "Stop" ends the rules for that target.',
@@ -185,6 +180,36 @@ export const VIEWER_MODEL: SettingsTemplate = {
       },
     },
     }),
+    // Version 3: when a name is shown, and privacy (the overlay standard). `labelMode` and `thingLabelMode` replace the on / off switches
+    // `showSensorLabels` and `showThingLabels`.
+    ...since(3, {
+      labelMode: {
+        label: 'Show names beside sensors', type: 'select', display: 'segmented', value: 'always', group: 'tooltip', required: true,
+        options: [opt('always', 'Always'), opt('alerts', 'Alerts only'), opt('none', 'Never')],
+        description: 'Alerts only names the markers whose colour is the error tone or whose alert column says a warning or worse. Tooltips open as set below either way.',
+      },
+      thingLabelMode: {
+        label: 'Show names on things', type: 'select', display: 'segmented', value: 'always', group: 'things', required: true,
+        options: [opt('always', 'Always'), opt('alerts', 'Alerts only'), opt('none', 'Never')],
+        description: `The ${MAX_THING_LABELS} things nearest the camera carry their label (the ones in trouble first).`,
+      },
+      roleColumn: {
+        label: 'Role column', type: 'data-key', slot: 'sensors', group: 'columns', advanced: true,
+        description: 'The role of a marker or a thing (a worker, a visitor). It is the label in privacy mode.',
+      },
+      alertColumn: {
+        label: 'Alert column', type: 'data-key', slot: 'sensors', group: 'columns', advanced: true,
+        description: 'A column whose value says a marker or a thing is in trouble (warning, critical, alarm, SOS, fall…). Empty = the error colour says so.',
+      },
+      labelAnonymous: {
+        label: 'Privacy mode', type: 'boolean', value: false, group: 'tooltip',
+        description: 'Names stay out of the page: a marker or a thing is labelled with its role, and the label columns and the columns below are left out of tooltips, rules and clicks.',
+      },
+      identityColumns: {
+        label: 'Columns that identify', type: 'data-key', slot: 'sensors', multiple: true, max: 8, value: [], group: 'tooltip', showIf: { labelAnonymous: true },
+        description: 'A badge number, a company, a phone: anything besides the label columns that says who it is.',
+      },
+    }),
   },
   rules: [
     safeModelUrlsRule('models'),
@@ -193,6 +218,16 @@ export const VIEWER_MODEL: SettingsTemplate = {
   ],
   migrations: [
     { from: 1, to: 2, note: 'Things from a second table (box, sphere, cylinder or pin per row) and rules on markers and things (all new).' },
+    {
+      from: 2, to: 3,
+      note: 'The label switches are now "Show names": always, alerts only or never; a privacy mode is new.',
+      ops: [
+        { op: 'rename', from: 'showSensorLabels', to: 'labelMode' },
+        { op: 'mapValue', key: 'labelMode', map: { true: 'always', false: 'none' } },
+        { op: 'rename', from: 'showThingLabels', to: 'thingLabelMode' },
+        { op: 'mapValue', key: 'thingLabelMode', map: { true: 'always', false: 'none' } },
+      ],
+    },
   ],
 };
 

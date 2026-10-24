@@ -17,6 +17,7 @@ import {
   type Row, type SensorMarker, type ViewerModelSettings,
 } from './viewer-model-logic';
 import { parseScenePatch } from './scene-patch';
+import { hiddenColumns, isAlertValue, labelText, redactRow } from './overlay-logic';
 
 // The pure part (settings, markers, things, rules) lives in `viewer-model-logic.ts`; it is re-exported here so the
 // kit's imports of `buildSensors`, `toWorld`, `MAX_MODELS` and the types keep one address.
@@ -63,6 +64,7 @@ export function buildSensors(
   const fixed = cssColor(s.markerColor) ?? 'var(--primary)';
   const fieldsOf = tooltipKeys(s);
   const byColumn = (s.colorBy ?? 'column') === 'column' && !!s.colorColumn;
+  const hidden = hiddenColumns({ labelAnonymous: s.labelAnonymous, labelColumn: s.labelColumn, identityColumns: s.identityColumns });
   const sensors: SensorMarker[] = [];
   const rows = new Map<string, Row>();
   (slot?.rows ?? []).forEach((row, i) => {
@@ -73,8 +75,10 @@ export function buildSensors(
     if (x === null || y === null || z === null) return;
     const rawId = s.idColumn && row[s.idColumn] != null && row[s.idColumn] !== '' ? String(row[s.idColumn]) : String(i);
     const id = rows.has(rawId) ? `${rawId}#${i}` : rawId;
-    rows.set(id, row);
-    const label = s.labelColumn && row[s.labelColumn] != null && row[s.labelColumn] !== '' ? String(row[s.labelColumn]) : undefined;
+    // privacy mode: what identifies stays out of the row the click, the rules and the tooltip read, and the label is the role
+    const shown = redactRow(row, hidden);
+    rows.set(id, shown);
+    const label = labelText(row, { labelColumn: s.labelColumn, roleColumn: s.roleColumn, labelAnonymous: s.labelAnonymous });
     const raw = s.valueColumn ? row[s.valueColumn] : undefined;
     const unit = s.unitColumn && typeof row[s.unitColumn] === 'string' && row[s.unitColumn] ? String(row[s.unitColumn]) : undefined;
     const valueText = raw === null || raw === undefined || raw === ''
@@ -83,6 +87,7 @@ export function buildSensors(
     const own = rowColor(row, s);
     const color = own ?? fixed;
     const fields = fieldsOf.flatMap((key) => {
+      if (hidden.includes(key)) return [];
       const v = row[key];
       if (v === null || v === undefined || v === '' || key === s.valueColumn) return [];
       const d = def(key);
@@ -101,8 +106,9 @@ export function buildSensors(
       valueText,
       color,
       alarm: color === 'var(--error)',
+      alert: color === 'var(--error)' || (!!s.alertColumn && isAlertValue(row[s.alertColumn])),
       tooltip: { title: label ?? (s.idColumn ? rawId : `#${i + 1}`), fields, ...(status ? { description: status } : {}) },
-      row,
+      row: shown,
     });
   });
   return { sensors, rows };

@@ -20,7 +20,7 @@ export const internalLinkRule = (key: string) => (v: Sparse) =>
 /** `map`: bound rows with coordinates as markers, plus optional zones (polygons) and routes (lines). */
 export const MAP: SettingsTemplate = {
   id: 'builtin:map',
-  version: 1,
+  version: 2,
   namespace: '',
   label: 'Map',
   format: false,
@@ -41,7 +41,8 @@ export const MAP: SettingsTemplate = {
     { id: 'zones', label: 'Zones', tab: 'Data', since: 1 },
     { id: 'routes', label: 'Routes', tab: 'Data', since: 1 },
   ],
-  fields: since(1, {
+  fields: {
+    ...since(1, {
     mapKind: {
       label: 'Map', type: 'select', display: 'segmented', value: 'geo', group: 'kind', required: true,
       options: [opt('geo', 'Geographic'), opt('image', 'Image (floor plan)')],
@@ -103,7 +104,6 @@ export const MAP: SettingsTemplate = {
       label: 'Legend corner', type: 'select', value: 'bottomleft', group: 'legend', required: true, showIf: { legend: true },
       options: [opt('bottomleft', 'Bottom left'), opt('bottomright', 'Bottom right'), opt('topleft', 'Top left'), opt('topright', 'Top right')],
     },
-    showLabels: { label: 'Show labels on the map', type: 'boolean', value: false, group: 'tooltip' },
     tooltipTrigger: {
       label: 'Open tooltips on', type: 'select', display: 'segmented', value: 'hover', group: 'tooltip', required: true,
       options: [opt('hover', 'Hover'), opt('click', 'Click'), opt('none', 'Never')],
@@ -188,13 +188,44 @@ export const MAP: SettingsTemplate = {
     routeWeight: { label: 'Route width (px)', type: 'number', min: 1, max: 12, value: 3, group: 'routes' },
     routeDashed: { label: 'Dashed routes', type: 'boolean', value: false, group: 'routes' },
   }),
+    // Version 2: when a name is shown, and privacy (the overlay standard). `labelMode` replaces the on / off switch `showLabels`.
+    ...since(2, {
+      labelMode: {
+        label: 'Show names', type: 'select', display: 'segmented', value: 'none', group: 'tooltip', required: true,
+        options: [opt('always', 'Always'), opt('alerts', 'Alerts only'), opt('none', 'Never')],
+        description: 'The name beside a marker. Alerts only names the markers whose status column says a warning or worse. Tooltips open as set below either way.',
+      },
+      roleColumn: {
+        label: 'Role column', type: 'data-key', slot: 'points', group: 'columns', advanced: true,
+        description: 'The marker\'s role (a worker, a visitor). It is the label in privacy mode.',
+      },
+      alertColumn: {
+        label: 'Alert column', type: 'data-key', slot: 'points', group: 'columns', advanced: true,
+        description: 'A column whose value says a marker is in trouble (warning, critical, alarm, SOS, fall…). Empty = the status column the colours come from.',
+      },
+      labelAnonymous: {
+        label: 'Privacy mode', type: 'boolean', value: false, group: 'tooltip',
+        description: 'Names stay out of the page: a marker is labelled with its role, and the label column and the columns below are left out of tooltips, links and clicks.',
+      },
+      identityColumns: {
+        label: 'Columns that identify', type: 'data-key', slot: 'points', multiple: true, max: 8, value: [], group: 'tooltip', showIf: { labelAnonymous: true },
+        description: 'A badge number, a company, a phone: anything besides the label column that says who it is.',
+      },
+    }),
+  },
   rules: [
     minBelowMax('minZoom', 'maxZoom'), internalLinkRule('linkTemplate'),
     // An image map needs its picture and its size: the size places the points, the picture is only drawn.
     (v: Sparse) => (v.mapKind === 'image' && !(typeof v.imageSrc === 'string' && v.imageSrc.trim() && typeof v.imageWidth === 'number' && typeof v.imageHeight === 'number')
       ? [{ path: 'imageSrc', message: 'An image map needs an image and its width and height' }] : []),
   ],
-  migrations: [],
+  migrations: [
+    {
+      from: 1, to: 2,
+      note: 'Show labels is now "Show names": always, alerts only or never.',
+      ops: [{ op: 'rename', from: 'showLabels', to: 'labelMode' }, { op: 'mapValue', key: 'labelMode', map: { true: 'always', false: 'none' } }],
+    },
+  ],
 };
 
 export const MAP_KIND: BuiltinKindSpec = {

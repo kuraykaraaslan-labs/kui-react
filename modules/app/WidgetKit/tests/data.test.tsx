@@ -15,8 +15,10 @@ const templates: SettingsTemplate[] = [DATA_TABLE, DATA_FEED, MAP];
 
 describe('data templates', () => {
   it.each(templates.map((t) => [t.id, t] as const))('%s validates its own defaults and every field group exists', (_id, t) => {
-    expect(t.version).toBe(1);
-    expect(t.migrations).toEqual([]);
+    // the map moved to version 2 for the label mode (its older on / off switch is renamed); the data tables are at 1
+    expect(t.version).toBe(t.id === MAP.id ? 2 : 1);
+    expect(t.migrations).toHaveLength(t.id === MAP.id ? 1 : 0);
+    if (t.id === MAP.id) expect(t.migrations[0]).toMatchObject({ from: 1, to: 2 });
     expect(validate(t, templateDefaults(t)).issues).toEqual([]);
     const groups = new Set(t.groups.map((g) => g.id));
     for (const [k, f] of Object.entries(t.fields)) expect(groups.has(f.group as string), `${t.id}.${k}`).toBe(true);

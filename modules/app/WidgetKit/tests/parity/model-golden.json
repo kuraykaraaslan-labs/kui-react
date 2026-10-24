@@ -3753,7 +3753,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomright",
-     "showLabels": true,
      "tooltipTrigger": "hover",
      "tooltipColumns": [
       "status",
@@ -3780,6 +3779,9 @@
      "routeColor": "var(--primary)",
      "routeWeight": 3,
      "routeDashed": false,
+     "labelMode": "always",
+     "labelAnonymous": false,
+     "identityColumns": [],
      "idColumn": "id",
      "linkTemplate": "/devices/{id}",
      "linkLabel": "Details"
@@ -4123,7 +4125,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "click",
      "tooltipColumns": [],
      "tileStyle": "dark",
@@ -4147,6 +4148,9 @@
      "routeColor": "var(--primary)",
      "routeWeight": 3,
      "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": [],
      "markerIcon": "fas fa-water",
      "minZoom": 3,
      "maxZoom": 12,
@@ -4454,7 +4458,6 @@
      "rangeEdges": "to",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "auto",
@@ -4478,6 +4481,9 @@
      "routeColor": "var(--primary)",
      "routeWeight": 3,
      "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": [],
      "valueColumn": "level",
      "ranges": [
       {
@@ -4760,7 +4766,6 @@
      "rangeEdges": "from",
      "legend": false,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "streets",
@@ -4783,7 +4788,10 @@
      "routeLabelColumn": "name",
      "routeColor": "var(--primary)",
      "routeWeight": 3,
-     "routeDashed": false
+     "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": []
     },
     "format": {}
    },
@@ -5118,7 +5126,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "auto",
@@ -5141,7 +5148,10 @@
      "routeLabelColumn": "name",
      "routeColor": "#7c3aed",
      "routeWeight": 5,
-     "routeDashed": true
+     "routeDashed": true,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": []
     },
     "format": {}
    },
@@ -5391,7 +5401,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "auto",
@@ -5415,6 +5424,9 @@
      "routeColor": "var(--primary)",
      "routeWeight": 3,
      "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": [],
      "imageSrc": "/plans/floor1.png",
      "imageWidth": 800,
      "imageHeight": 600
@@ -5559,7 +5571,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "auto",
@@ -5582,7 +5593,10 @@
      "routeLabelColumn": "name",
      "routeColor": "var(--primary)",
      "routeWeight": 3,
-     "routeDashed": false
+     "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": []
     },
     "format": {}
    },
@@ -7212,7 +7226,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "auto",
@@ -7235,7 +7248,10 @@
      "routeLabelColumn": "name",
      "routeColor": "var(--primary)",
      "routeWeight": 3,
-     "routeDashed": false
+     "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": []
     },
     "format": {}
    },
@@ -7253,6 +7269,7 @@
       "shape": "image",
       "image": "/tenant-7/files/alarm.svg",
       "size": 24,
+      "alert": true,
       "tooltip": {
        "title": "A",
        "fields": [],
@@ -7435,7 +7452,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "satellite",
@@ -7458,7 +7474,10 @@
      "routeLabelColumn": "name",
      "routeColor": "var(--primary)",
      "routeWeight": 3,
-     "routeDashed": false
+     "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": []
     },
     "format": {}
    },
@@ -7597,7 +7616,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "auto",
@@ -7621,6 +7639,9 @@
      "routeColor": "var(--primary)",
      "routeWeight": 3,
      "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": [],
      "imageWidth": 1200,
      "imageHeight": 800,
      "idColumn": "id"
@@ -7790,7 +7811,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "auto",
@@ -7814,6 +7834,9 @@
      "routeColor": "var(--primary)",
      "routeWeight": 3,
      "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": [],
      "imageSrc": "/files/floor-1.png",
      "imageWidth": 1200,
      "imageHeight": 800
@@ -7989,7 +8012,6 @@
      "rangeEdges": "from",
      "legend": true,
      "legendPosition": "bottomleft",
-     "showLabels": false,
      "tooltipTrigger": "hover",
      "tooltipColumns": [],
      "tileStyle": "auto",
@@ -8012,7 +8034,10 @@
      "routeLabelColumn": "name",
      "routeColor": "#7c3aed",
      "routeWeight": 3,
-     "routeDashed": false
+     "routeDashed": false,
+     "labelMode": "none",
+     "labelAnonymous": false,
+     "identityColumns": []
     },
     "format": {}
    },

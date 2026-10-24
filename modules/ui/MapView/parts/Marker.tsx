@@ -80,7 +80,7 @@ export function MarkerPart({
   // has no accessible name unless one is set explicitly (axe:
   // aria-command-name). `alt` is react-leaflet's pass-through for it.
   const accessibleName = marker.tooltip?.title ?? marker.label ?? 'Map marker';
-  const label = showLabel && marker.label ? marker.label : undefined;
+  const label = (marker.permanentLabel ?? showLabel) && marker.label ? marker.label : undefined;
   // A Leaflet marker holds one tooltip: with a permanent label, the details move to a click popup.
   const click = !!RLPopup && (tooltipTrigger === 'click' || !!label);
   const body = tooltipTrigger === 'none' ? null : marker.tooltip

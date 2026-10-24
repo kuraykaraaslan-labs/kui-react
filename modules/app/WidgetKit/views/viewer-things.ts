@@ -199,5 +199,6 @@ export function nearestThings(things: ThingMarker[], eye: Point3, origin: Point3
     const dz = t.position[2] - origin.z - eye.z;
     return dx * dx + dy * dy + dz * dz;
   };
-  return labelled.map((t) => ({ t, d: d2(t) })).sort((a, b) => a.d - b.d).slice(0, n).map((x) => x.t);
+  // the ones in trouble first, so a crowd never costs them their name; then the nearest
+  return labelled.map((t) => ({ t, d: d2(t) })).sort((a, b) => Number(b.t.alert ?? b.t.alarm) - Number(a.t.alert ?? a.t.alarm) || a.d - b.d).slice(0, n).map((x) => x.t);
 }

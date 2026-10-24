@@ -161,10 +161,11 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('builtin:viewer.model template', () => {
-  it('is v2 (things and rules) with one note-only step, valid defaults, a registered view and the kind\'s geometry', () => {
-    expect(VIEWER_MODEL.version).toBe(2);
-    expect(VIEWER_MODEL.migrations).toHaveLength(1);
+  it('is v3 (things and rules, then the label mode) with a note-only step and a renaming one, valid defaults, a registered view and the kind\'s geometry', () => {
+    expect(VIEWER_MODEL.version).toBe(3);
+    expect(VIEWER_MODEL.migrations).toHaveLength(2);
     expect(VIEWER_MODEL.migrations[0]).toMatchObject({ from: 1, to: 2 });
+    expect(VIEWER_MODEL.migrations[1]).toMatchObject({ from: 2, to: 3 });
     expect(VIEWER_MODEL_KIND).toMatchObject({ type: 'viewer.model', label: '3D model', icon: 'fas fa-cube', defaultW: 6, defaultH: 8, group: 'viewer' });
     expect(VIEWER_MODEL_KIND.slots).toEqual([
       { key: 'sensors', label: 'Sensors', shape: 'table', required: false },
@@ -175,7 +176,8 @@ describe('builtin:viewer.model template', () => {
     const groups = new Set(VIEWER_MODEL.groups.map((g) => g.id));
     for (const [key, f] of Object.entries(VIEWER_MODEL.fields)) {
       expect(groups.has(f.group ?? ''), key).toBe(true);
-      expect(f.since, key).toBe(key.startsWith('thing') || key === 'showThingLabels' || key === 'rules' ? 2 : 1);
+      const v3 = ['labelMode', 'thingLabelMode', 'roleColumn', 'alertColumn', 'labelAnonymous', 'identityColumns'];
+      expect(f.since, key).toBe(v3.includes(key) ? 3 : key.startsWith('thing') || key === 'rules' ? 2 : 1);
     }
     expect((VIEWER_MODEL.fields.rules.fields!.op as { options: Array<{ value: string }> }).options.map((o) => o.value)).toContain('between');
   });
@@ -184,7 +186,14 @@ describe('builtin:viewer.model template', () => {
     const stored = { ...PLANT_MODEL, showGrid: true };
     const r = migrate(VIEWER_MODEL, stored, 1);
     expect(r.values).toEqual(stored);
-    expect(r.applied.map((a) => [a.from, a.to])).toEqual([[1, 2]]);
+    expect(r.applied.map((a) => [a.from, a.to])).toEqual([[1, 2], [2, 3]]);
+  });
+
+  it('settings saved before the label mode keep what their on / off switches said: on is always, off is never', () => {
+    expect(migrate(VIEWER_MODEL, { showSensorLabels: false, showThingLabels: true }, 2).values).toEqual({ labelMode: 'none', thingLabelMode: 'always' });
+    expect(migrate(VIEWER_MODEL, { showSensorLabels: true, showThingLabels: false }, 2).values).toEqual({ labelMode: 'always', thingLabelMode: 'none' });
+    // a card that never set them keeps the default, which is the old one (labels on)
+    expect(templateDefaults(VIEWER_MODEL)).toMatchObject({ labelMode: 'always', thingLabelMode: 'always' });
   });
 
   it('accepts internal and https models and refuses anything else', () => {

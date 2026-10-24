@@ -48,7 +48,7 @@
     "rangeEdges": "from",
     "legend": true,
     "legendPosition": "bottomleft",
-    "showSensorLabels": true,
+    "labelMode": "always",
     "labelContent": "both",
     "tooltipTrigger": "hover",
     "tooltipColumns": [],

@@ -9,6 +9,7 @@ import type { Sparse } from '../settings/types';
 import type { SlotData } from '../kind';
 import { matchValue, num, statusColor, type ValueColor } from './table-logic';
 import { evaluateRules, type EffectSpec } from './scene-rules-logic';
+import { hiddenColumns, isAlertValue, labelText, redactRow } from './overlay-logic';
 import type { CameraPreset, PatchView, ScenePatch } from './scene-patch';
 
 export type Row = Record<string, unknown>;
@@ -37,7 +38,18 @@ export type ViewerModelSettings = {
   rangeEdges?: RangeEdges;
   legend?: boolean;
   legendPosition?: 'bottomleft' | 'bottomright' | 'topleft' | 'topright';
-  showSensorLabels?: boolean;
+  /** When a name is shown beside a sensor marker: always, only for an alert, never. Replaces `showSensorLabels` (migrated). */
+  labelMode?: 'always' | 'alerts' | 'none';
+  /** The same for the things. Replaces `showThingLabels` (migrated). */
+  thingLabelMode?: 'always' | 'alerts' | 'none';
+  /** The column that says the role (of a sensor, of a thing): the label in privacy mode. */
+  roleColumn?: string;
+  /** The column whose value says a marker or a thing is in trouble (a status word); empty = the colour says so. */
+  alertColumn?: string;
+  /** Privacy mode: no name, no identity column in a label, a tooltip, a rule or a click; the role instead. */
+  labelAnonymous?: boolean;
+  /** The columns that say who it is, besides the label columns. */
+  identityColumns?: string[];
   labelContent?: 'label' | 'value' | 'both';
   tooltipTrigger?: 'hover' | 'click' | 'none';
   tooltipColumns?: string[];
@@ -59,7 +71,6 @@ export type ViewerModelSettings = {
   thingLabelColumn?: string;
   thingSize?: number;
   thingSizeColumn?: string;
-  showThingLabels?: boolean;
   rules?: unknown;
 };
 type S = ViewerModelSettings;
@@ -87,6 +98,8 @@ export interface SensorMarker {
   color: string;
   /** The colour is the error tone (pulses when `pulseAlarms`), or a rule asked for the pulse. */
   alarm: boolean;
+  /** In trouble: the colour is the error tone, or the alert column says a warning or worse (absent: as `alarm`). What the "alerts" label mode names. */
+  alert?: boolean;
   /** A rule's size for this marker (px); absent = the `markerSize` setting. */
   size?: number;
   tooltip: { title: string; description?: string; fields: Array<{ label: string; value: string }> };
@@ -105,6 +118,8 @@ export interface ThingMarker {
   color: string;
   /** Pulses (an alarm colour, or a rule asked for it). */
   alarm: boolean;
+  /** In trouble (see the sensor marker's). */
+  alert?: boolean;
   /** The long side, in metres. */
   size: number;
   /** The table row the thing came from (a click reports it). */
@@ -146,6 +161,7 @@ export function buildThings(slot: SlotData | undefined, settings: Sparse): { thi
   const fixedColor = cssColor(s.markerColor) ?? 'var(--primary)';
   const idCol = s.thingIdColumn;
   const kindCol = s.thingKindColumn;
+  const hidden = hiddenColumns({ labelAnonymous: s.labelAnonymous, labelColumn: s.thingLabelColumn, identityColumns: s.identityColumns });
   const things: ThingMarker[] = [];
   const rows = new Map<string, Row>();
   (slot?.rows ?? []).forEach((row, i) => {
@@ -156,9 +172,10 @@ export function buildThings(slot: SlotData | undefined, settings: Sparse): { thi
     if (x === null || y === null || z === null) return;
     const rawId = idCol && row[idCol] != null && row[idCol] !== '' ? String(row[idCol]) : String(i);
     const id = rows.has(rawId) ? `${rawId}#${i}` : rawId;
-    rows.set(id, row);
+    // privacy mode: what identifies stays out of the row the click, the rules and the tooltip read
+    rows.set(id, redactRow(row, hidden));
     const kindWord = kindCol && typeof row[kindCol] === 'string' ? (row[kindCol] as string).trim().toLowerCase() : undefined;
-    const label = s.thingLabelColumn && row[s.thingLabelColumn] != null && row[s.thingLabelColumn] !== '' ? String(row[s.thingLabelColumn]) : undefined;
+    const label = labelText(row, { labelColumn: s.thingLabelColumn, roleColumn: s.roleColumn, labelAnonymous: s.labelAnonymous });
     const color = rowColor(row, s) ?? fixedColor;
     things.push({
       id,
@@ -168,8 +185,9 @@ export function buildThings(slot: SlotData | undefined, settings: Sparse): { thi
       ...(label !== undefined ? { label } : {}),
       color,
       alarm: color === 'var(--error)',
+      alert: color === 'var(--error)' || (!!s.alertColumn && isAlertValue(row[s.alertColumn])),
       size: (s.thingSizeColumn ? positive(row[s.thingSizeColumn]) : undefined) ?? fixedSize,
-      row,
+      row: redactRow(row, hidden),
     });
   });
   return { things, rows };
