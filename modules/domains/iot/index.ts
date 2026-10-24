@@ -39,6 +39,8 @@ export { ALARM_SEVERITY_META, ALARM_STATUS_META, SEVERITY_ORDER, compareSeverity
 
 // ── Devices (phase 01; NB iot_device 05) ─────────────────────────────────────────────────────────────────────────────
 export { DeviceOnlineDot } from './device/DeviceOnlineDot';
+export { DeviceAddress } from './device/DeviceAddress';
+export type { DeviceAddressProps } from './device/DeviceAddress';
 export { DeviceConnectionBadge } from './device/DeviceConnectionBadge';
 export { DeviceDetailHeader } from './device/DeviceDetailHeader';
 export { DeviceCredentialPanel, IssuedSecretNotice } from './device/DeviceCredentialPanel';

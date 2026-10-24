@@ -15,6 +15,7 @@ import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrP
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime, formatRelative, toDate } from '../format';
 import type { DeviceRecord, DeviceRegistryStatus, DeviceStatePatch } from '../types/device';
+import { DeviceAddress } from './DeviceAddress';
 import { DeviceConnectionBadge } from './DeviceConnectionBadge';
 import { NewDeviceDrawer } from './NewDeviceDrawer';
 
@@ -44,6 +45,8 @@ export function applyStatePatch(d: DeviceRecord, p: DeviceStatePatch): DeviceRec
     ...(p.lastConnectAt !== undefined ? { lastConnectAt: toDate(p.lastConnectAt) } : {}),
     ...(p.lastDisconnectAt !== undefined ? { lastDisconnectAt: toDate(p.lastDisconnectAt) } : {}),
     ...(p.reason && p.online === false ? { lastDisconnectReason: p.reason } : {}),
+    ...(p.remoteIp ? { lastRemoteIp: p.remoteIp } : {}),
+    ...(p.transport ? { lastTransport: p.transport } : {}),
   };
 }
 
@@ -174,6 +177,12 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
         <DeviceConnectionBadge online={d.online} status={d.status} lastActivityAt={d.lastActivityAt} lastDisconnectReason={d.lastDisconnectReason} size="sm" now={now} />
       ),
     },
+    {
+      key: 'address',
+      header: m.devices.address,
+      hideBelow: 'md',
+      render: (d) => <DeviceAddress ip={d.lastRemoteIp} transport={d.lastTransport} />,
+    },
     { key: 'profile', header: m.devices.profile, hideBelow: 'md', render: (d) => profileName(d.deviceProfileId, d.profileName) },
     { key: 'firmware', header: m.devices.firmware, hideBelow: 'lg', render: (d) => [d.fwTitle, d.fwVersion].filter(Boolean).join(' ') || '—' },
     {
@@ -215,7 +224,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
         <span className="ml-auto text-xs text-text-secondary" aria-live="polite">{state === 'live' ? m.common.live : m.common.polling}</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))]">
+      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))]">
         <SearchBar placeholder={m.devices.search} value={searchText} onChange={setSearchText} onClear={() => setSearchText('')} />
         <Select id="device-filter-profile" label={m.devices.profile} value={query.profileId ?? ''} onChange={(e) => change({ profileId: e.target.value || undefined })}
           options={[any, ...profiles.map((p) => ({ value: p.id, label: p.name }))]} />

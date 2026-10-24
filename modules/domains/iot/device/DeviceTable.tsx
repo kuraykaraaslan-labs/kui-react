@@ -6,6 +6,7 @@ import { useIotText } from '../api/IotAdapterProvider';
 import { formatRelative } from '../format';
 import type { DeviceOnlineState, DeviceRegistryStatus } from '../types/device';
 import type { IotMessagesInput } from '../messages';
+import { DeviceAddress } from './DeviceAddress';
 import { DeviceConnectionBadge } from './DeviceConnectionBadge';
 import { DeviceOnlineDot } from './DeviceOnlineDot';
 
@@ -26,6 +27,8 @@ export type DeviceTableRow = {
   state?: DeviceOnlineState;
   online?: boolean | null;
   lastSeenAt?: string | number | Date | null;
+  /** The client address of the newest connect (iot-device 03 §3.6), for the `address` column. */
+  remoteIp?: string | null;
   /** Latest telemetry values by key (from a latest-values source), shown in `keyColumns`. */
   values?: Record<string, unknown>;
   [extra: string]: unknown;
@@ -33,7 +36,7 @@ export type DeviceTableRow = {
 
 export type DeviceTableKeyColumn = { key: string; label?: string; unit?: string; decimals?: number };
 
-export type DeviceTableColumnId = 'name' | 'connection' | 'profile' | 'type' | 'lastSeen';
+export type DeviceTableColumnId = 'name' | 'connection' | 'profile' | 'type' | 'lastSeen' | 'address';
 
 export type DeviceTableProps = {
   rows: readonly DeviceTableRow[];
@@ -114,6 +117,7 @@ export function DeviceTable({
       hideBelow: 'sm',
       render: (r) => <span className="text-xs text-text-secondary">{formatRelative(r.lastSeenAt, { locale: lang, now: at })}</span>,
     },
+    address: { key: 'address', header: m.devices.address, hideBelow: 'md', render: (r) => <DeviceAddress ip={r.remoteIp} compact locale={lang} messages={messages} /> },
   };
 
   const cols: KeyedTableColumn<DeviceTableRow>[] = [

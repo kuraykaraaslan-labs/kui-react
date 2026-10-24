@@ -264,7 +264,7 @@ export function AlarmListView({
         <span className="ml-auto text-xs text-text-secondary" aria-live="polite">{state === 'live' ? m.common.live : m.common.polling}</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]">
+      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]">
         <SearchBar placeholder={m.alarms.search} value={searchText} onChange={setSearchText} onClear={() => setSearchText('')} />
         <Select
           id="alarm-status-filter"

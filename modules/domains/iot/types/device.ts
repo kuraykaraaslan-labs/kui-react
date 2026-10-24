@@ -48,6 +48,9 @@ export const DeviceRecordSchema = z.object({
   lastConnectAt: z.coerce.date().nullable().optional(),
   lastDisconnectAt: z.coerce.date().nullable().optional(),
   lastActivityAt: z.coerce.date().nullable().optional(),
+  /** The client address of the newest connect and its transport, as the platform's gateway saw them (iot-device 03 §3.6). */
+  lastRemoteIp: z.string().nullable().optional(),
+  lastTransport: z.string().nullable().optional(),
   /** Why the last session ended (a protocol reason such as `keepalive_timeout`), when known. */
   lastDisconnectReason: z.string().nullable().optional(),
   createdAt: z.coerce.date().optional(),
@@ -62,6 +65,9 @@ export type DeviceStatePatch = {
   lastConnectAt?: Date | number | null;
   lastDisconnectAt?: Date | number | null;
   reason?: string;
+  /** The client address and transport of the newest connect, when the change carries them. */
+  remoteIp?: string;
+  transport?: string;
 };
 
 // ── credentials (01 §1.3) ────────────────────────────────────────────────────────────────────────────────────────────

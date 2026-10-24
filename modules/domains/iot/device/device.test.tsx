@@ -10,6 +10,8 @@ import { DesiredReportedBadge } from './DesiredReportedBadge';
 import { DeviceConnectionTimeline } from './DeviceConnectionTimeline';
 import { DeviceTable, formatKeyValue } from './DeviceTable';
 import { DeviceStatusBadge } from './DeviceStatusBadge';
+import { DeviceAddress } from './DeviceAddress';
+import { applyStatePatch } from './DeviceListView';
 import { onlineStateOf, type DeviceRecord } from '../types/device';
 import { formatRelative, fill } from '../format';
 
@@ -222,5 +224,36 @@ describe('DeviceTable', () => {
     expect(screen.getByText('Quarantined')).toBeInTheDocument();
     await user.click(screen.getByText('Pump 4'));
     expect(onRowClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'd1' }));
+  });
+});
+
+describe('the device address (iot-device 03 §3.6)', () => {
+  it('shows the newest connect\'s address with its transport, and a dash before the first connect', () => {
+    const { unmount } = render(<DeviceAddress ip="203.0.113.7" transport="mqtt" />);
+    expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
+    expect(screen.getByText('MQTT')).toBeInTheDocument();
+    expect(screen.getByTitle('203.0.113.7 over MQTT, the address of the newest connect')).toBeInTheDocument();
+    unmount();
+    render(<DeviceAddress ip={null} />);
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('the device header names it', () => {
+    render(<DeviceDetailHeader device={{ ...DEVICE, lastRemoteIp: '198.51.100.4', lastTransport: 'http' }} now={NOW} />);
+    expect(screen.getByText('IP address:')).toBeInTheDocument();
+    expect(screen.getByText('198.51.100.4')).toBeInTheDocument();
+    expect(screen.getByText('HTTP')).toBeInTheDocument();
+  });
+
+  it('a live state change carries the new address onto the list row, and one without it keeps the old', () => {
+    const row = { ...DEVICE, lastRemoteIp: '203.0.113.7', lastTransport: 'mqtt' };
+    expect(applyStatePatch(row, { deviceId: 'd1', online: true, remoteIp: '198.51.100.9', transport: 'mqtt' })).toMatchObject({ online: true, lastRemoteIp: '198.51.100.9' });
+    expect(applyStatePatch(row, { deviceId: 'd1', online: false })).toMatchObject({ online: false, lastRemoteIp: '203.0.113.7' });
+  });
+
+  it('the board table has an address column on request', () => {
+    render(<DeviceTable rows={[{ id: 'd1', name: 'Pump 4', remoteIp: '203.0.113.7' }]} columns={['name', 'address']} now={NOW} tickMs={0} />);
+    expect(screen.getByRole('columnheader', { name: 'IP address' })).toBeInTheDocument();
+    expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
   });
 });

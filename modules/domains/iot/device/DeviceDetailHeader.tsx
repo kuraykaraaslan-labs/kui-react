@@ -1,11 +1,12 @@
 'use client';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBarcode, faCircleNodes, faCodeBranch, faLayerGroup, faMicrochip } from '@fortawesome/free-solid-svg-icons';
+import { faBarcode, faCircleNodes, faCodeBranch, faLayerGroup, faMicrochip, faNetworkWired } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { DeviceRecord } from '../types/device';
 import type { IotMessagesInput } from '../messages';
+import { DeviceAddress } from './DeviceAddress';
 import { DeviceConnectionBadge } from './DeviceConnectionBadge';
 
 /**
@@ -15,7 +16,7 @@ import { DeviceConnectionBadge } from './DeviceConnectionBadge';
  * only place actions come from.
  */
 export type DeviceDetailHeaderProps = {
-  device: Pick<DeviceRecord, 'name' | 'label' | 'serial' | 'status' | 'online' | 'isGateway' | 'fwTitle' | 'fwVersion' | 'protocolMajor' | 'profileName' | 'deviceProfileId' | 'lastActivityAt' | 'lastDisconnectReason'>;
+  device: Pick<DeviceRecord, 'name' | 'label' | 'serial' | 'status' | 'online' | 'isGateway' | 'fwTitle' | 'fwVersion' | 'protocolMajor' | 'profileName' | 'deviceProfileId' | 'lastActivityAt' | 'lastDisconnectReason' | 'lastRemoteIp' | 'lastTransport'>;
   profileHref?: string;
   actions?: React.ReactNode;
   locale?: string;
@@ -54,7 +55,7 @@ export function DeviceDetailHeader({ device, profileHref, actions, locale, now, 
         {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
       </div>
 
-      <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-xs text-text-secondary sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-xs text-text-secondary sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Meta icon={faBarcode} term={m.device.serial} value={device.serial ? <code className="font-mono text-text-primary">{device.serial}</code> : '—'} />
         <Meta
           icon={faLayerGroup}
@@ -65,6 +66,7 @@ export function DeviceDetailHeader({ device, profileHref, actions, locale, now, 
         />
         <Meta icon={faCodeBranch} term={m.device.firmware} value={firmware ? <span className="text-text-primary">{firmware}</span> : '—'} />
         <Meta icon={faMicrochip} term={m.device.protocol} value={device.protocolMajor != null ? <span className="text-text-primary">v{device.protocolMajor}</span> : '—'} />
+        <Meta icon={faNetworkWired} term={m.device.address} value={<DeviceAddress ip={device.lastRemoteIp} transport={device.lastTransport} locale={locale} messages={messages} />} />
       </dl>
     </section>
   );

@@ -218,7 +218,7 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
           onClick: () => setCreating(true),
         }] : undefined}
       />
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,2fr)_repeat(2,minmax(0,1fr))]">
+      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,2fr)_repeat(2,minmax(0,1fr))]">
         <SearchBar placeholder={m.profiles.search} value={searchText} onChange={setSearchText} onClear={() => setSearchText('')} />
         <Select id="profile-filter-transport" label={m.profiles.transport} value={query.transportType ?? ''}
           onChange={(e) => change({ transportType: (e.target.value || undefined) as ProfileTransport | undefined })}

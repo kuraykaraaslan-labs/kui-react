@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-24T18:36:13.537Z",
+  "generatedAt": "2026-10-24T18:58:33.394Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
