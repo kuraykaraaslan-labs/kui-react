@@ -100,6 +100,7 @@ export interface EntityAliasesMessages {
   rootTitle: string;
   rootFromPage: string;
   provider: string;
+  providerPlaceholder: string;
   queryOptions: string;
   direction: string;
   directionOptions: Record<RelationDirection, string>;
@@ -269,6 +270,7 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   rootTitle: 'Root entity',
   rootFromPage: "Use the page's entity",
   provider: 'Relation source',
+  providerPlaceholder: 'Select a relation source',
   queryOptions: 'Query options',
   direction: 'Direction',
   directionOptions: { from: 'From the root', to: 'To the root' },

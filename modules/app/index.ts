@@ -150,3 +150,44 @@ export type {
   WidgetKitMessages,
   WidgetKitMessagesInput,
 } from './WidgetKit';
+
+// Entity aliases (next-boilerplate dashboard phase 36.4, the ThingsBoard model): alias list and dialog, entity filter
+// form, filter text, toolbar entity select, a widget's alias picker
+export {
+  EntityAliasesDialog,
+  EntityAliasDialog,
+  EntityFilterForm,
+  AliasEntitySelect,
+  EntityAliasPicker,
+  AliasPreviewPanel,
+  entityFilterText,
+  aliasCompatibility,
+  aliasRemovalBlockers,
+  normalizeAlias,
+  validateAlias,
+  validateAliases,
+  slugKey,
+  MAX_ALIASES,
+  DEFAULT_ALIAS_MESSAGES,
+} from './EntityAliases';
+export type {
+  EntityAliasesDialogProps,
+  EntityAliasDialogProps,
+  EntityFilterFormProps,
+  AliasEntitySelectProps,
+  EntityAliasPickerProps,
+  EntityAlias,
+  EntityAliasFilter,
+  EntityAliasesAccess,
+  EntityAliasesMessages,
+  EntityAliasesMessagesInput,
+  AliasEntitySelectItem,
+  AliasSlot,
+  AliasRoot,
+  AliasPreview,
+  BoardParamInfo,
+  EntityRef,
+  EntityTypeInfo,
+  RelationFilter,
+  RelationProviderInfo,
+} from './EntityAliases';
