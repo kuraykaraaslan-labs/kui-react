@@ -37,6 +37,7 @@ export function TabGroup({
   loadingFallback,
   onTabError,
   retryLabel = 'Retry',
+  onTabChange,
   className,
 }: {
   tabs: Tab[];
@@ -56,6 +57,8 @@ export function TabGroup({
   onTabError?: (tabId: string, error: Error, info: ErrorInfo) => void;
   /** Label of the default error fallback's retry button. */
   retryLabel?: string;
+  /** Called with the id of the tab the user activates (e.g. to keep it in the URL). */
+  onTabChange?: (tabId: string) => void;
   className?: string;
 }) {
   const ordered = useMemo(() => sortByOrder(tabs), [tabs]);
@@ -70,6 +73,7 @@ export function TabGroup({
   function activate(id: string) {
     setActive(id);
     setActivated((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+    if (id !== current) onTabChange?.(id);
   }
 
   function handleKeyDown(e: React.KeyboardEvent, index: number) {
