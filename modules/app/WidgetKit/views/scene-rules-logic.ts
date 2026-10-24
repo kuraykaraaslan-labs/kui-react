@@ -294,8 +294,11 @@ const flag = (v: unknown): boolean | undefined => asBoolean(v) ?? undefined;
 const enumOf = (e: Extract<EffectKind, { kind: 'enum' }>, v: unknown): string | null =>
   (e.parse ? e.parse(v) : typeof v === 'string' && e.options.includes(v) ? v : null);
 
-/** The effects one rule asks for under a spec (the label as its raw template). Anything malformed is simply not an effect. */
-function effectsOf(rule: SceneRule, spec: EffectSpec): { fx: Record<string, unknown>; labelTemplate?: string } {
+/**
+ * The effects one rule asks for under a spec (the label as its raw template). Anything malformed is simply not an
+ * effect. Exported for the scene patch (`scene-patch.ts`), which reads its per-object overrides the same way.
+ */
+export function readEffects(rule: SceneRule | Record<string, unknown>, spec: EffectSpec): { fx: Record<string, unknown>; labelTemplate?: string } {
   const fx: Record<string, unknown> = {};
   let labelTemplate: string | undefined;
   for (const [key, e] of Object.entries(spec)) {
@@ -337,7 +340,7 @@ export function evaluateRules<T extends object = SceneEffects>(rules: unknown, c
   const all = [...new Set([...(ctx.targets ?? ctx.rows.keys()), ...things])];
   const known = new Set(all);
   const onlyThings = all.filter((id) => things.has(id));
-  const parsed = list.map((r) => ({ r, ...effectsOf(r, spec) }));
+  const parsed = list.map((r) => ({ r, ...readEffects(r, spec) }));
   const templates = new Map<string, string>();
   const stopped = new Set<string>();
   for (const { r, fx, labelTemplate } of parsed) {
