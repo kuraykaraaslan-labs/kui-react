@@ -315,6 +315,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'schema-form',     title: 'SchemaForm',    category: 'App', abbr: 'ScF', since: '2026-10', status: 'beta' },
       { id: 'ruleset-editor',  title: 'RulesetEditor', category: 'App', abbr: 'RE', since: '2026-10', status: 'beta' },
       { id: 'widget-kit',      title: 'WidgetKit',     category: 'App', abbr: 'WK', since: '2026-10', status: 'beta' },
+      { id: 'entity-aliases',  title: 'EntityAliases', category: 'App', abbr: 'EA', since: '2026-10', status: 'beta' },
       { id: 'maintenance-page', title: 'MaintenancePage',  category: 'App', abbr: 'Mp', since: '2026-05' },
       { id: 'share-dialog',     title: 'ShareDialog',      category: 'App', abbr: 'SD', since: '2026-05' },
       { id: 'comment-thread',   title: 'CommentThread',    category: 'App', abbr: 'CT', since: '2026-05' },

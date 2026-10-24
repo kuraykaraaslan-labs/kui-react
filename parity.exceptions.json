@@ -124,6 +124,20 @@
       "reason": "The IoT rule canvas belongs to the iot vertical, which is react-only by design (ADR 0003); kui-ejs carries no iot vertical."
     },
     {
+      "id": "entity-aliases",
+      "name": "EntityAliases",
+      "layer": "app",
+      "path": "modules/app/EntityAliases",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "The dashboard alias editor (next-boilerplate dashboard phase 36.4, E36-11): aliases dialog, alias dialog, entity filter form and alias picker are board-editor surfaces, and kui-ejs and KUInative have no board editor. The toolbar entity select (AliasEntitySelect) follows the param bar's parity (NB phase 35 E12) and gets sibling mirrors when a server-rendered or native board viewer needs it (NB 36.9)."
+    },
+    {
       "id": "ui-react-modules",
       "name": "Virtual, lazy, Toast.store",
       "layer": "ui",
@@ -169,6 +183,7 @@
         "ConditionalShell",
         "ContextMenu",
         "DetailHeader",
+        "EntityAliases",
         "EmptyErrorState",
         "FileUploadSection",
         "FilterBar",

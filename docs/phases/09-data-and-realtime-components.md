@@ -248,6 +248,22 @@ Added for the owner decision OD-80 (control widgets in the IoT MVP, IoT 07 §7.3
 
 Seen in: IoT 07 §7.3 control widgets (`iot.button`, `iot.switch`, `iot.slider`, `iot.setpoint`) on `/theme/iot/dashboards/[slug]`.
 
+## 9.17 `EntityAliases` (dashboard entity aliases) `[react]` (2026-10-24)
+
+> **Status 2026-10-24 (react side):** built on branch `feat/entity-aliases` for next-boilerplate dashboard phase 36.4
+> (owner decision 2026-10-24: dashboards get ThingsBoard's entity aliases; design in NB
+> `docs/phases/07-dashboard/36-entity-aliases-and-filters.md`). Tests written, not run yet.
+
+- [~] `modules/app/EntityAliases/`: `EntityAliasesDialog`, `EntityAliasDialog` (preview, "no entity matched"),
+  `EntityFilterForm` (eight filter types, relation types only with a relation provider), `entityFilterText`,
+  `AliasEntitySelect`, `EntityAliasPicker`; `validateAlias` / `slugKey` mirror the server caps; the data contract in
+  `types.ts` is shared verbatim with the NB server. Showcase entry `entity-aliases` (4 variants), `parity.exceptions.json`
+  record `entity-aliases`, README in the folder.
+- [ ] Run the kit's tests (`modules/app/EntityAliases/*.test.ts(x)`) and `npm run registry:snapshot`, then merge.
+- [ ] NB vendors the folder (36.4) and wires it (36.5): board settings, a placement's data tab, the toolbar, the preview route.
+- [ ] Key filters editor (NB 36.7), kui-react first, in this folder.
+- [ ] Sibling mirrors of `AliasEntitySelect` only when a kui-ejs or KUInative board viewer needs it (NB 36.9).
+
 ## Order
 
 9.11 first (everything live builds on it), then 9.1 and 9.12 (the telemetry explorer and device list need them), then 9.2, 9.7, 9.3, 9.8, 9.9, 9.10, then the rest. ~~9.10 waits for the owner's vocabulary decision;~~ (decided, OD-16) 9.10's `fromParamSpec` adapter waits for the RulesetEditor session. **→ OD-80:** 9.16 lands before IoT 07's control widgets (after 9.11 and 9.12, which it builds on).
