@@ -139,11 +139,12 @@ const UNSAFE_KEY = /^(?:__proto__|constructor|prototype)$/;
 const SCENE_KEY = /^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/;
 /** A port as the scene parses it (`scada-scene-logic.ts` `parsePort`): an id, a side, optionally where along it. */
 const PORT = /^\s*([A-Za-z_][A-Za-z0-9_.-]*?)[.:]([lrtb])(?::(\d*\.?\d+))?\s*$/;
-// Control characters and the bidirectional overrides that could make a label read as something else.
-// eslint-disable-next-line no-control-regex
-const UNSEEN = /[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
-// eslint-disable-next-line no-control-regex
-const HAS_UNSEEN = /[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
+// Control characters and the bidirectional overrides that could make a label read as something else (counted
+// by code point, not matched by a pattern: nothing here needs a control character in a regular expression).
+const isUnseen = (c: number): boolean =>
+  c <= 0x1f || (c >= 0x7f && c <= 0x9f) || c === 0x200e || c === 0x200f || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069);
+const withoutUnseen = (s: string): string => { let o = ''; for (const ch of s) o += isUnseen(ch.codePointAt(0) ?? 0) ? ' ' : ch; return o; };
+const hasUnseen = (s: string): boolean => { for (const ch of s) if (isUnseen(ch.codePointAt(0) ?? 0)) return true; return false; };
 
 const isPlain = (v: unknown): v is Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return false;
@@ -154,13 +155,13 @@ const isPlain = (v: unknown): v is Record<string, unknown> => {
 /** Text as a person reads it: no control or direction characters, runs of space as one, trimmed, capped. */
 export function plainText(v: unknown, max = MAX_PATCH_TEXT): string {
   const s = typeof v === 'string' ? v : typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
-  return s.replace(UNSEEN, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+  return withoutUnseen(s).replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
 /** An id of an object or a thing: a short text (or a finite number) with nothing unseen in it, never a prototype key. */
 export function patchId(v: unknown): string | null {
   const s = typeof v === 'string' ? v.trim() : typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
-  return !s || s.length > 64 || HAS_UNSEEN.test(s) || UNSAFE_KEY.test(s) ? null : s;
+  return !s || s.length > 64 || hasUnseen(s) || UNSAFE_KEY.test(s) ? null : s;
 }
 
 const isSceneKey = (v: unknown): v is string => typeof v === 'string' && SCENE_KEY.test(v) && !UNSAFE_KEY.test(v);

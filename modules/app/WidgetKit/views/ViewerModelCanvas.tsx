@@ -215,8 +215,7 @@ function SceneSync({ settings, dark, host, handles, settled, view }: {
   // A patch's view: applied once the models settle and again only when the view itself changes (its key), never per
   // frame, so the viewer can orbit away from it in between. Declared after the start view, so it wins over a refit.
   const viewKey = viewerViewKey(view ?? null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const stableView = useMemo(() => view ?? null, [viewKey]);
+  const stableView = useMemo<ViewerView | null>(() => (viewKey ? (JSON.parse(viewKey) as ViewerView) : null), [viewKey]);
   useEffect(() => {
     if (!settled || !stableView) return;
     aimCamera(viewer, stableView, modelBounds(handles.values()), settings.coordinates);
