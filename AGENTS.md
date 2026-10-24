@@ -149,6 +149,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Accordion | `Accordion.tsx` | `items`, `openIds`, `onChange`, `allowMultiple` |
 | ColorPicker | `ColorPicker/` | `value`, `onChange`, `format` (hex\|rgb\|hsl) |
 | Popconfirm | `Popconfirm.tsx` | `trigger`, `title`, `description`, `danger`, `onConfirm`, `onCancel` |
+| TypedConfirmDialog | `TypedConfirmDialog.tsx` | `open`, `title`, `phrase` (typed exactly to unlock), `label`, `confirmLabel`, `danger`, `busy`, `onConfirm`, `onCancel` |
 | RangeSlider | `RangeSlider.tsx` | `value`/`onChange`, `range` (single or `[min,max]`), `min`, `max`, `step` |
 | BulkActionTable | `BulkActionTable.tsx` | `columns`, `rows`, `rowId`, `selected`, `onSelectedChange`, `actions` |
 | KeyedTable | `KeyedTable.tsx` | `columns`, `rows`, `getRowKey`, `caption`, `onRowClick` (keyboard row focus), `rowState` (new / leaving), `selection`, `loading`, `error` + `onRetry`, `emptyText`, `messages` |
@@ -289,7 +290,7 @@ Before adding a component to only one repo, check whether it belongs in the othe
 | Fintech | `fintech/` | `WalletCard`, `TransactionRow`, `CryptoPriceCard`, `PortfolioDonutChart` |
 | Food | `food/` | `RestaurantCard`, `MenuItemCard`, `DeliveryStatusBadge` |
 | Forum | `forum/` | `ForumCategoryCard`, `TopicRow`, `ReactionTypeBadge` |
-| IoT | `iot/` | `DeviceCard`, `CloudWorkspaceCard`, `RulesetEditor`, `AlarmSeverityBadge`, `DeviceListView`, `AlarmListView` |
+| IoT | `iot/` | `DeviceCard`, `CloudWorkspaceCard`, `RulesetEditor`, `AlarmSeverityBadge`, `DeviceListView`, `AlarmListView`, `RpcConsoleView` |
 | Jobs | `jobs/` | `JobCard`, `CompanyCard`, `JobMeta`, `ApplicationStatusBadge` |
 | Landing | `landing/` | `HeroSection`, `PricingGrid`, `FeatureCard`, `FaqAccordion` |
 | Media | `media/` | `VideoCard`, `ChannelCard`, `VideoStatusBadge` |
