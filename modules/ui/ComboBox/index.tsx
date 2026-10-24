@@ -86,8 +86,9 @@ export function ComboBox({
   const [syncedClosedState, setSyncedClosedState] = useState<{ open: boolean; label?: string } | null>(null);
   if (!syncedClosedState || syncedClosedState.open !== open || syncedClosedState.label !== selectedLabel) {
     setSyncedClosedState({ open, label: selectedLabel });
-    if (syncedClosedState?.open !== open) setTyped(false);
     if (!open) {
+      // Reset on close, not on open: a keystroke that opens the list counts as typed.
+      setTyped(false);
       setQuery(selectedLabel ?? '');
       setHighlightedIndex(-1);
     }

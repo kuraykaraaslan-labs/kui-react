@@ -47,6 +47,17 @@ describe('ComboBox', () => {
     expect(optionNames()).toEqual(['Apple', 'Banana', 'Cherry']);
   });
 
+  it('a keystroke that reopens a closed list filters it at once', async () => {
+    const user = userEvent.setup();
+    render(<ComboBox id="fruit" label="Fruit" options={FRUITS} onChange={() => {}} />);
+    const input = screen.getByRole('searchbox', { name: 'Fruit' });
+    await user.click(input);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).toBeNull();
+    await user.keyboard('ap');
+    expect(optionNames()).toEqual(['Apple']);
+  });
+
   it('async search is called with an empty query on open, not with the selected label', async () => {
     const onSearch = vi.fn(async (_query: string) => FRUITS);
     const user = userEvent.setup();
