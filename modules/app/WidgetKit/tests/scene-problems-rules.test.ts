@@ -98,3 +98,32 @@ describe('rule problems', () => {
     expect(all[0].severity).toBe('error');
   });
 });
+
+describe('problems with things from data (phase 35)', () => {
+  const things = { things: { shape: 'table' as const, rows: [{ id: 'cow7', x: 1, y: 1 }, { id: 'pump1', x: 2, y: 2 }] } };
+  const linked = (to: string) => ({ ...smallScene(), rules: [], links: [...(smallScene().links as unknown[]), { from: 'tank1.r', to }] } as SceneSettings);
+
+  it('a rule on a thing the table has is fine; one it lacks is a warning; without a things table it stays an error', () => {
+    expect(run([{ target: 'cow7', dim: 'true' }, { target: 'pump1', key: 'v', op: 'set', of: 'cow7' }], {}, things)).toEqual([]);
+    const lacking = run([{ target: 'cow9', dim: 'true' }, { target: 'pump1', key: 'v', op: 'set', of: 'cow9' }], {}, things);
+    expect(lacking.map((p) => [p.code, p.severity])).toEqual([['rule-target-missing', 'warning'], ['rule-of-missing', 'warning']]);
+    expect(lacking[0].message).toBe('Rule 1 targets cow9, which no symbol, connection or thing from data has now');
+    expect(run([{ target: 'cow7', dim: 'true' }]).map((p) => [p.code, p.severity])).toEqual([['rule-target-missing', 'error']]);
+  });
+  it('things:* is fine with a things table and a warning without one', () => {
+    expect(run([{ target: 'things:*', dim: 'true' }], {}, things)).toEqual([]);
+    expect(run([{ target: 'things:*', dim: 'true' }]).map((p) => [p.code, p.severity])).toEqual([['rule-things-unbound', 'warning']]);
+  });
+  it('a connection may end on a thing: fine when the table has it, a warning when it lacks it, an error without a table', () => {
+    const codesOf = (s: SceneSettings, data = {}) => problems(s, data).filter((p) => p.code === 'dangling-link').map((p) => p.severity);
+    expect(codesOf(linked('cow7.l'), things)).toEqual([]);
+    expect(codesOf(linked('cow9.l'), things)).toEqual(['warning']);
+    expect(problems(linked('cow9.l'), things).find((p) => p.code === 'dangling-link')?.message).toBe('Connection 3 ends on cow9, which no symbol or thing from data has now');
+    expect(codesOf(linked('cow7.l'))).toEqual(['error']);
+    expect(codesOf(linked('nonsense'), things)).toEqual(['error']);
+  });
+  it('says when a thing has an id a symbol already has (that thing is not drawn)', () => {
+    const p = problems({ ...smallScene(), rules: [] } as SceneSettings, things).filter((x) => x.code === 'thing-id-taken');
+    expect(p.map((x) => [x.id, x.severity])).toEqual([['pump1', 'warning']]);
+  });
+});

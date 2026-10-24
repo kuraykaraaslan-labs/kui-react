@@ -7,7 +7,8 @@ import type { EditorHost } from './scene-editor-types';
 import type { Problem, ProblemCheck } from './scene-edit-problems';
 import { isRec, targetNames } from './scene-edit-core';
 import { rulesOf } from './scene-rules-edit';
-import type { SceneSettings } from './scada-scene-logic';
+import { rowsById, type SceneSettings } from './scada-scene-logic';
+import { THINGS_TARGET } from './scene-rules-logic';
 
 type Rec = Record<string, unknown>;
 const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : typeof v === 'number' && Number.isFinite(v) ? String(v) : '');
@@ -43,6 +44,9 @@ export function ruleProblems(host: Pick<EditorHost, 'params' | 'columns'> = {}):
     const params = host.params ? new Set(host.params.map((p) => p.key)) : null;
     const columns = knownColumns(host, data.points);
     const list = rulesOf(s);
+    // With a things table, an id may name a thing: one the table has now is fine, one it lacks is a warning.
+    const things = data.things ? rowsById(data.things, typeof s.thingsIdColumn === 'string' && s.thingsIdColumn ? s.thingsIdColumn : 'id') : null;
+    const known = (id: string) => names.has(id) || !!things?.has(id);
     const add = (severity: Problem['severity'], code: string, i: number, message: string) => out.push({ severity, code, id: `rule:${i}`, message });
     const live: Array<{ i: number; r: Rec }> = [];
 
@@ -52,10 +56,16 @@ export function ruleProblems(host: Pick<EditorHost, 'params' | 'columns'> = {}):
       const n = i + 1;
       const target = text(r.target);
       if (!target) add('error', 'rule-target-missing', i, `Rule ${n} has no target`);
-      else if (target !== '*' && !names.has(target)) add('error', 'rule-target-missing', i, `Rule ${n} targets ${target}, which is not in the diagram`);
+      else if (target === THINGS_TARGET) { if (!things) add('warning', 'rule-things-unbound', i, `Rule ${n} targets every thing from data, but no things table is bound`); }
+      else if (target !== '*' && !known(target)) {
+        if (things) add('warning', 'rule-target-missing', i, `Rule ${n} targets ${target}, which no symbol, connection or thing from data has now`);
+        else add('error', 'rule-target-missing', i, `Rule ${n} targets ${target}, which is not in the diagram`);
+      }
       for (const key of ['of', 'of2'] as const) {
         const id = text(r[key]);
-        if (id && !names.has(id)) add('error', 'rule-of-missing', i, `Rule ${n} reads the row of ${id}, which is not in the diagram`);
+        if (!id || known(id)) continue;
+        if (things) add('warning', 'rule-of-missing', i, `Rule ${n} reads the row of ${id}, which no symbol, connection or thing from data has now`);
+        else add('error', 'rule-of-missing', i, `Rule ${n} reads the row of ${id}, which is not in the diagram`);
       }
       if (r.enabled === false) return;
       live.push({ i, r });

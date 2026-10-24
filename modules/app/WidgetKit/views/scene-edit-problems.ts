@@ -10,7 +10,7 @@ export type ProblemSeverity = 'error' | 'warning' | 'info';
 
 export interface Problem {
   severity: ProblemSeverity;
-  /** A stable code: `duplicate-id`, `invalid-id`, `unknown-symbol`, `dangling-link`, `unbound-symbol`, `off-canvas`, `near-cap`, `over-cap`, `zero-size-zone`, `empty-title`. */
+  /** A stable code: `duplicate-id`, `invalid-id`, `unknown-symbol`, `dangling-link`, `unbound-symbol`, `off-canvas`, `near-cap`, `over-cap`, `zero-size-zone`, `empty-title`, `thing-id-taken`. */
   code: string;
   /** What it is about: a symbol id, `link:<index>`, `shape:<index>`, or `scene`. */
   id: string;
@@ -47,10 +47,15 @@ export function problems(
     if (x < 0 || y < 0 || x > width || y > height) add('warning', 'off-canvas', id || 'scene', `${id || 'A symbol'} is outside the canvas`);
   }
 
+  // With a things table, a connection may end on a thing by its id: one the table has now is fine, one it lacks only
+  // draws while a thing has it (a warning). Without one, an end that names no symbol is an error, as it always was.
+  const things = data.things ? rowsById(data.things, typeof s.thingsIdColumn === 'string' && s.thingsIdColumn ? s.thingsIdColumn : 'id') : null;
   arr(s.links).forEach((l, i) => {
     if (!isRec(l)) return;
     const ends = [l.from, l.to].map((ref) => parsePort(ref));
-    if (ends.some((p) => !p || !known.has(p.id))) add('error', 'dangling-link', `link:${i}`, `Connection ${i + 1} ends on a symbol that is not on the canvas`);
+    const missing = ends.filter((p) => p && !known.has(p.id) && !things?.has(p.id));
+    if (ends.some((p) => !p) || (missing.length && !things)) add('error', 'dangling-link', `link:${i}`, `Connection ${i + 1} ends on a symbol that is not on the canvas`);
+    else if (missing.length) add('warning', 'dangling-link', `link:${i}`, `Connection ${i + 1} ends on ${missing[0]!.id}, which no symbol or thing from data has now`);
   });
 
   arr(s.shapes).forEach((h, i) => {
@@ -63,6 +68,9 @@ export function problems(
     const x = finite(shape.x, 0); const y = finite(shape.y, 0);
     if (x < 0 || y < 0 || x > width || y > height) add('warning', 'off-canvas', id, 'A shape starts outside the canvas');
   });
+
+  // A thing whose id a symbol has is never drawn (the symbol keeps its id).
+  if (things) for (const id of known) if (things.has(id)) add('warning', 'thing-id-taken', id, `A thing from data has the id ${id}, which this symbol has: the thing is not drawn`);
 
   // A table that is bound but has no row for a symbol: the symbol never moves. With nothing bound there is nothing to compare.
   if (data.points) {

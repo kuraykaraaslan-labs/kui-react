@@ -56,6 +56,8 @@ const GROUPS: Record<FieldScope, Record<string, string>> = {
   scene: {
     width: 'canvas', height: 'canvas', scale: 'canvas', anchor: 'canvas', background: 'look', fit: 'look', showLabels: 'look', calm: 'look', animation: 'look',
     idleColor: 'colours', runningColor: 'colours', warningColor: 'colours', criticalColor: 'colours', idColumn: 'source',
+    thingsIdColumn: 'things', thingsSymbol: 'things', thingsSymbolColumn: 'things', thingsXColumn: 'things', thingsYColumn: 'things',
+    thingsTurnColumn: 'things', thingsLabelColumn: 'things', thingsUnits: 'things', thingsScale: 'things', thingsOriginX: 'things', thingsOriginY: 'things',
   },
 };
 
@@ -91,6 +93,11 @@ export function fieldVisible(scope: FieldScope, key: string, rows: readonly Rec[
     if (key === 'mediumColor') return any((r) => r.medium === 'custom');
   }
   if (scope === 'link' && key === 'mediumColor') return any((r) => r.medium === 'custom');
+  // The things table: the metres mapping only for metres, the symbol column only when no fixed symbol is set.
+  if (scope === 'scene') {
+    if (key === 'thingsScale' || key === 'thingsOriginX' || key === 'thingsOriginY') return any((r) => r.thingsUnits === 'metres');
+    if (key === 'thingsSymbolColumn') return any((r) => !(typeof r.thingsSymbol === 'string' && r.thingsSymbol));
+  }
   if (scope === 'shape') {
     const kind = (r: Rec) => (typeof r.kind === 'string' ? r.kind : 'text');
     if (key === 'w' || key === 'h') return any((r) => kind(r) !== 'text');
@@ -219,3 +226,24 @@ export const sceneOp = (patch: Rec, model?: Pick<SceneModel, 'hits'>) => (s: Sce
     }] : []),
   ]);
 };
+
+// ─── A thing from data (read-only) ───────────────────────────────────────────
+
+/**
+ * What the inspector shows of a thing from data, read from its row through the scene's thing columns: the symbol it
+ * is drawn as, where (in the row's own units), and its other columns as label / value pairs (at most `max`). Nothing
+ * here edits: a thing is placed by its row.
+ */
+export function thingSummary(s: SceneSettings, row: Rec, max = 12): { symbol: string; place: string; cells: Array<[string, string]> } {
+  const col = (v: unknown, d: string) => (typeof v === 'string' && v ? v : d);
+  const keys = { id: col(s.thingsIdColumn, 'id'), symbol: col(s.thingsSymbolColumn, 'symbol'), x: col(s.thingsXColumn, 'x'), y: col(s.thingsYColumn, 'y') };
+  const text = (v: unknown): string => (v === null || v === undefined ? '' : typeof v === 'object' ? '' : String(v));
+  const fixed = typeof s.thingsSymbol === 'string' && s.thingsSymbol.trim() ? s.thingsSymbol.trim() : '';
+  const key = fixed || text(row[keys.symbol]);
+  const symbol = isScadaSymbol(key) ? `${(SCADA_SYMBOL_DEFS[key] as SymbolDef).label} (${key})` : key;
+  const unit = s.thingsUnits === 'metres' ? ' m' : '';
+  const place = `${text(row[keys.x])}, ${text(row[keys.y])}${unit}`;
+  const shown = new Set([keys.id, keys.symbol, keys.x, keys.y]);
+  const cells = Object.entries(row).filter(([k, v]) => !shown.has(k) && text(v) !== '').slice(0, max).map(([k, v]): [string, string] => [k, text(v)]);
+  return { symbol, place, cells };
+}

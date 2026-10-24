@@ -30,6 +30,8 @@ export interface SceneEditorMessages {
   pasteTitle: string; pasteBody: string; pasteInsert: string; pasteCancel: string; pasteLabel: string;
   // Canvas
   rename: string; renameLabel: string; minimap: string; actionDot: string; hiddenByRule: string; elementLabel: string; shapeLabel: string; linkLabel: string;
+  /** The locked layer of things from data: the dimmed box's tooltip, and what is announced when one is clicked. */
+  thingLayer: string; thingInspected: string;
   handleOwnSize: string; handleResize: string; handleReconnect: string; handleMid: string; port: string;
   // Announcements
   addedElement: string; addedShape: string; connected: string; movedOne: string; movedMany: string; deleted: string; deletedMany: string;
@@ -66,6 +68,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   pasteTitle: 'Paste a diagram piece', pasteBody: 'This browser did not let the editor read the clipboard. Paste the copied text here.',
   pasteInsert: 'Insert', pasteCancel: 'Cancel', pasteLabel: 'Copied diagram piece',
   rename: 'Rename', renameLabel: 'New name', minimap: 'Overview', actionDot: 'Has actions', hiddenByRule: 'Hidden by a rule', elementLabel: '{name}, {symbol}, at {x}, {y}',
+  thingLayer: '{name}: placed by data', thingInspected: '{name} is placed by data and moves with its row',
   shapeLabel: '{kind} {text}', linkLabel: 'Connection from {from} to {to}',
   handleOwnSize: 'Resize the symbol', handleResize: 'Resize', handleReconnect: 'Move the connection end', handleMid: 'Move the middle leg', port: 'Port {side} of {name}',
   addedElement: 'Added {name} ({symbol}) at {x}, {y}', addedShape: 'Added a {kind} at {x}, {y}', connected: 'Connected {from} to {to}',

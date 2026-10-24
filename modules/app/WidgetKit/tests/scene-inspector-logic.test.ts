@@ -3,7 +3,7 @@ import { SCADA_SCENE } from '../templates/scada-scene';
 import type { SceneSettings } from '../views/scada-scene-logic';
 import { sceneModel } from '../views/scada-scene-logic';
 import {
-  chain, colourProblem, elementOp, elementRow, fieldsOf, fieldVisible, inspectorTarget, linkOp, sceneOp, shapeOp, sharedValues, storedValue,
+  chain, colourProblem, elementOp, elementRow, fieldsOf, fieldVisible, inspectorTarget, linkOp, sceneOp, shapeOp, sharedValues, storedValue, thingSummary,
 } from '../views/scene-inspector-logic';
 import { setElementProps, type Rec } from '../views/scene-edit-logic';
 import { deepFreeze, smallScene } from './scene-edit-fixture';
@@ -193,5 +193,33 @@ describe('edits', () => {
     expect(chain(s, []).settings).toBe(s);
     expect(elementRow(s, 'pump1')).toMatchObject({ symbol: 'home.router' });
     expect(elementRow(s, 'ghost')).toBeUndefined();
+  });
+});
+
+describe('things from data in the inspector', () => {
+  it('the things table\'s settings are a group of the diagram\'s fields; the metres mapping shows only for metres', () => {
+    const things = fieldsOf('scene').filter((f) => f.group === 'things').map((f) => f.key);
+    expect(things).toEqual([
+      'thingsIdColumn', 'thingsSymbol', 'thingsSymbolColumn', 'thingsXColumn', 'thingsYColumn', 'thingsTurnColumn', 'thingsLabelColumn',
+      'thingsUnits', 'thingsScale', 'thingsOriginX', 'thingsOriginY',
+    ]);
+    expect(fieldVisible('scene', 'thingsScale', [{ thingsUnits: 'scene' }])).toBe(false);
+    expect(fieldVisible('scene', 'thingsOriginX', [{ thingsUnits: 'metres' }])).toBe(true);
+    expect(fieldVisible('scene', 'thingsSymbolColumn', [{ thingsSymbol: 'home.tv' }])).toBe(false);
+    expect(fieldVisible('scene', 'thingsSymbolColumn', [{}])).toBe(true);
+  });
+  it('writes a thing setting to the diagram like any other of its fields', () => {
+    const r = sceneOp({ thingsUnits: 'metres', thingsScale: 20 })(smallScene());
+    expect(r.refused).toBeUndefined();
+    expect(r.settings).toMatchObject({ thingsUnits: 'metres', thingsScale: 20 });
+    expect(sceneOp({ thingsUnits: 'feet' })(smallScene()).refused).toBeDefined();
+  });
+  it('sums a thing up read-only from its row: what it is drawn as, where, and its other columns', () => {
+    const row = { id: 'cow7', symbol: 'home.tv', x: 12, y: 30, status: 'warning', weight: 512, note: null, nested: { a: 1 } };
+    expect(thingSummary({}, row)).toEqual({ symbol: 'Television (home.tv)', place: '12, 30', cells: [['status', 'warning'], ['weight', '512']] });
+    expect(thingSummary({ thingsSymbol: 'home.router', thingsUnits: 'metres' }, row)).toMatchObject({ symbol: 'Wi-Fi router (home.router)', place: '12, 30 m' });
+    expect(thingSummary({}, { id: 'x', symbol: 'locked.pump', x: 1, y: 2 }).symbol).toBe('locked.pump');
+    const many = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`c${i}`, i]));
+    expect(thingSummary({}, { id: 'x', ...many }, 5).cells).toHaveLength(5);
   });
 });

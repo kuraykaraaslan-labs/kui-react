@@ -7,7 +7,7 @@
 import { forwardRef, useEffect, useId, useImperativeHandle, useLayoutEffect, useRef, useState, type DragEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { isScadaSymbol } from './scada-logic';
-import type { SceneModel, SceneSettings, SceneShapeSetting, SceneSide } from './scada-scene-logic';
+import type { SceneHit, SceneModel, SceneSettings, SceneShapeSetting, SceneSide } from './scada-scene-logic';
 import {
   addLink, addShape, moveSelection, reconnectLink, resizeShape, setMid, setOwnSize, snapMove, snapPoint, type Guide, type PortRef, type Selection,
 } from './scene-edit-logic';
@@ -18,7 +18,7 @@ import {
 import { fill, type SceneEditorMessages } from './scene-editor-messages-canvas';
 import {
   clientToScene, elementAt, fromMarquee, only, ownSizeFromDrag, panBy, pinch, pixelsPerUnit, sceneToLocal, selectionBox, shapeHandles, sizeFromHandle, toggleItem,
-  hasItem, viewBoxFor, wheelFactor, zoomAt, DEFAULT_SIZE, type ShapeHandle, type Size, type Tool, type ViewBox, type Viewport,
+  hasItem, thingAt, viewBoxFor, wheelFactor, zoomAt, DEFAULT_SIZE, type ShapeHandle, type Size, type Tool, type ViewBox, type Viewport,
 } from './scene-editor-state';
 import { SvgTree } from './SvgTree';
 
@@ -73,6 +73,12 @@ export interface SceneEditorCanvasProps {
   onRequestRename: (what: Renaming) => void;
   /** An edit group the shell should take back (a drag cancelled with Escape). */
   onCancelGroup: (group: string) => void;
+  /** Things from data as drawn: a locked layer, dimmed, never selected or moved (a click only inspects one). */
+  things?: readonly SceneHit[];
+  /** The thing the inspector shows, outlined on the canvas. */
+  inspectedThing?: string | null;
+  /** A click on a thing (its id), or on anything else (null). */
+  onInspectThing?: (id: string | null) => void;
 }
 
 type Drag =
@@ -255,10 +261,15 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
       : hit.kind === 'shape' ? ({ kind: 'shape', index: hit.index as number } as const)
         : hit.kind === 'link' ? ({ kind: 'link', index: hit.index as number } as const) : null;
     if (!item) {
+      // A thing from data is never selected or moved: a click on one only shows it in the inspector.
+      const thing = !e.shiftKey && p.things?.length ? thingAt({ hits: [...p.things] }, pt) : null;
+      p.onInspectThing?.(thing);
+      if (thing) { setSelection({ elements: [], shapes: [], links: [] }); return; }
       drag.current = { kind: 'marquee', start: pt, additive: e.shiftKey, before: selection };
       if (!e.shiftKey) setSelection({ elements: [], shapes: [], links: [] });
       return;
     }
+    if (p.inspectedThing) p.onInspectThing?.(null);
     if (e.shiftKey) { setSelection(toggleItem(selection, item)); return; }
     if (item.kind === 'link') { setSelection(only(item)); return; }
     const already = hasItem(selection, item);
@@ -566,6 +577,19 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
             </g>
           ))}
         </g>
+
+        {/* Things from data: a locked layer, dimmed under a veil of the canvas colour; never a keyboard stop or a handle. */}
+        {p.things && p.things.length > 0 && (
+          <g pointerEvents="none" data-layer="things">
+            {p.things.map((h) => (
+              <g key={h.id} data-thing={h.id}>
+                <title>{fill(m.thingLayer, { name: h.name })}</title>
+                <rect x={h.x} y={h.y} width={h.w} height={h.h} rx={6 * unit} className={cn('fill-surface-base stroke-text-secondary', NS)} fillOpacity={0.5} strokeWidth={1} strokeDasharray="2 3" />
+                {p.inspectedThing === h.id && <rect data-inspected-thing={h.id} x={h.x - 3 * unit} y={h.y - 3 * unit} width={h.w + 6 * unit} height={h.h + 6 * unit} className={cn('fill-none stroke-border-focus', NS)} strokeWidth={1.5} strokeDasharray="4 3" />}
+              </g>
+            ))}
+          </g>
+        )}
 
         {/* Keyboard stand-ins: one stop per symbol, shape and connection, in draw order. */}
         <g data-layer="focus">

@@ -4,7 +4,8 @@ import { addElement, captureAssembly, type Selection } from '../views/scene-edit
 import {
   addToLibrary, baseBox, centerOn, clampViewport, clientToScene, connectFacing, elementAt, facingSides, fitViewport, fromMarquee, hasItem, isTextTarget, keyCommand, loadLibrary, loadRecent,
   ownSizeFromDrag, overlayData, overlayParams, only, panBy, pinch, pixelsPerUnit, pruneSelection, pushRecent, saveLibrary, saveRecent, selectAll, selectionBox, selectionCount,
-  sceneToLocal, shapeHandles, sizeFromHandle, toggleItem, viewBoxFor, wheelFactor, withSessionHidden, zoomAt, LIBRARY_CAP, MAX_ZOOM, MIN_ZOOM, RECENT_CAP,
+  sceneToLocal, shapeHandles, sizeFromHandle, thingAt, thingHits, thingIdsOf, toggleItem, viewBoxFor, wheelFactor, withoutThings, withSessionHidden, zoomAt,
+  LIBRARY_CAP, MAX_ZOOM, MIN_ZOOM, RECENT_CAP,
 } from '../views/scene-editor-state';
 import { smallScene } from './scene-edit-fixture';
 
@@ -361,5 +362,41 @@ describe('the local libraries', () => {
     const store = memory();
     saveRecent(store, 'k', list);
     expect(loadRecent(store, 'k')).toEqual(list);
+  });
+});
+
+describe('things from data: a locked layer', () => {
+  const things = [{ id: 'cow7', symbol: 'home.tv', x: 700, y: 400 }, { id: 'cow8', symbol: 'home.tv', x: 850, y: 400 }];
+  const full = sceneModel(scene, { things: { shape: 'table', rows: things } });
+
+  it('the editing model leaves the things out; the things layer is just them', () => {
+    expect(full.hits.map((h) => h.id)).toEqual(['tank1', 'pump1', 'valve1', 'cow7', 'cow8']);
+    expect(withoutThings(full).hits.map((h) => h.id)).toEqual(['tank1', 'pump1', 'valve1']);
+    expect(thingHits(full).map((h) => h.id)).toEqual(['cow7', 'cow8']);
+    // a model without things comes back as it was
+    expect(withoutThings(model)).toBe(model);
+  });
+  it('a thing is never selected by select-all or found by a click as a symbol, but a click finds it as a thing', () => {
+    const editing = withoutThings(full);
+    expect(selectAll(scene, editing).elements).toEqual(['tank1', 'pump1', 'valve1']);
+    const cow = thingHits(full)[0];
+    const centre = { x: cow.x + cow.w / 2, y: cow.y + cow.h / 2 };
+    expect(elementAt(editing, centre)).toBeNull();
+    expect(thingAt(full, centre)).toBe('cow7');
+    expect(thingAt(full, { x: -500, y: -500 })).toBeNull();
+  });
+  it('lists the things table\'s ids under the scene\'s id column, without repeats or unusable ones', () => {
+    const data = { things: { shape: 'table' as const, rows: [{ tag: 'A' }, { tag: 'B' }, { tag: 'A' }, { tag: '' }, { tag: 7 }, {}] } };
+    expect(thingIdsOf(data, { thingsIdColumn: 'tag' })).toEqual(['A', 'B', '7']);
+    expect(thingIdsOf({}, {})).toEqual([]);
+  });
+  it('the what-if overlay adds the sample things after the table\'s rows, without changing the data', () => {
+    const data = { things: { shape: 'table' as const, rows: [{ id: 'cow7', x: 1, y: 1 }] } };
+    const out = overlayData(data, { rows: {}, params: {}, things: [{ id: 'sample1', x: 5, y: 5 }] });
+    expect(out.things?.rows?.map((r) => r.id)).toEqual(['cow7', 'sample1']);
+    expect(data.things.rows).toHaveLength(1);
+    expect(overlayData({}, { rows: {}, params: {}, things: [{ id: 'sample1' }] }).things).toEqual({ shape: 'table', rows: [{ id: 'sample1' }] });
+    // nothing to lay over: the same object
+    expect(overlayData(data, { rows: {}, params: {}, things: [] })).toBe(data);
   });
 });

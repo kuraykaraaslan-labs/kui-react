@@ -41,6 +41,19 @@ export interface WhatIfState {
   rows: Record<string, Record<string, unknown>>;
   /** Board parameter overrides. */
   params: Record<string, unknown>;
+  /** Sample rows added to the things table (in its own columns), to preview things and their rules. */
+  things?: Array<Record<string, unknown>>;
+}
+
+/** A thing from data the author clicked on the canvas: shown read-only in the inspector (it is placed by its row). */
+export interface InspectedThing {
+  id: string;
+  /** Its name on the diagram (a rule's label, its row's, or its id). */
+  name: string;
+  /** The row that placed it (a what-if sample row included). */
+  row: Record<string, unknown>;
+  /** True for a what-if sample row (never stored). */
+  sample?: boolean;
 }
 
 /** What every panel receives. `settings` and `model` are the CURRENT draft (with what-if values applied to the model). */
@@ -56,6 +69,8 @@ export interface EditorCtx {
   apply: (op: (s: SceneSettings) => EditResult, group?: string) => EditResult;
   host: EditorHost;
   locale?: string;
+  /** A thing from data the author clicked: the inspector shows it read-only ("placed by data"). */
+  thing?: InspectedThing | null;
 }
 
 /** The words of the panels, for a host that translates them (each is a partial: what is missing stays English). */

@@ -1,17 +1,26 @@
 'use client';
 // The what-if panel: override a symbol's readings (value, second value, capacity, running, status) and the board's
 // parameters to preview every rule, without touching the data or the saved diagram. The values go to `onChange` as a
-// `WhatIfState` the shell lays over the drawn model; nothing is stored. It lists the rules that hold with these values.
+// `WhatIfState` the shell lays over the drawn model; nothing is stored. It lists the rules that hold with these values,
+// the ids the things table brings (the Data list of the things layer) and sample things to preview them.
 import { useId, useMemo, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
-import { SCADA_SYMBOL_DEFS, isScadaSymbol, type SymbolDef } from './scada-logic';
+import { SCADA_SYMBOL_DEFS, SCADA_SYMBOLS, isScadaSymbol, type SymbolDef } from './scada-logic';
 import { rowsById } from './scada-scene-logic';
 import { elementIds, isRec } from './scene-edit-core';
 import { mergeMessages, DEFAULT_WHATIF_MESSAGES, DEFAULT_RULE_WORDS, type DeepPartial, type RuleWords, type WhatIfMessages } from './scene-editor-messages-panels';
 import type { EditorCtx, WhatIfState } from './scene-editor-types';
 import { CONTROL, PanelField, SMALL_BUTTON } from './scene-panel-ui';
 import { describeRule, matchingRules } from './scene-rules-edit';
-import { emptyWhatIf, isEmptyWhatIf, overlayParams, overlayRows, overrideCount, readOverride, setOverride, setParamOverride } from './scene-whatif-logic';
+import {
+  addSampleThing, emptyWhatIf, isEmptyWhatIf, MAX_SAMPLE_THINGS, overlayParams, overlayRows, overrideCount, readOverride, removeSampleThing, sampleId,
+  sampleThings, setOverride, setParamOverride, setSampleThing, thingColumns,
+} from './scene-whatif-logic';
+import { thingIdsOf } from './scene-editor-state';
+import { patchId } from './scene-patch';
+
+/** At most this many thing ids are listed by name. */
+const LISTED_THINGS = 24;
 
 export interface SceneWhatIfProps {
   ctx: EditorCtx;
@@ -92,10 +101,23 @@ export function SceneWhatIf({ ctx, value, onChange, messages, ruleWords = DEFAUL
   const statusO = readOverride(value, ids, 'status');
   const statusReal = realOf('status');
 
-  const effective = useMemo(
-    () => ({ rows: overlayRows(rowsById(ctx.data.points, s.idColumn || 'id'), value), params: overlayParams(ctx.params, value) }),
-    [ctx.data.points, ctx.params, s.idColumn, value],
-  );
+  // The things (the table's rows, then the samples): their rows join the rule context, their ids are targets.
+  const cols = thingColumns(s);
+  const realThings = useMemo(() => thingIdsOf(ctx.data, s), [ctx.data, s]);
+  const samples = sampleThings(value);
+  const effective = useMemo(() => {
+    const rows = overlayRows(rowsById(ctx.data.points, s.idColumn || 'id'), value);
+    const thingIds: string[] = [];
+    for (const row of [...(ctx.data.things?.rows ?? []), ...(value.things ?? [])]) {
+      const id = patchId(row?.[cols.id]);
+      if (id !== null && !thingIds.includes(id)) { thingIds.push(id); rows.set(id, row); }
+    }
+    return { rows, params: overlayParams(ctx.params, value), thingIds };
+  }, [ctx.data.points, ctx.data.things, ctx.params, s.idColumn, cols.id, value]);
+  const addSample = () => onChange(addSampleThing(
+    value, s, { x: (typeof s.width === 'number' ? s.width : 1200) / 2, y: (typeof s.height === 'number' ? s.height : 700) / 2 },
+    SCADA_SYMBOLS[0] ?? '', [...elementIds(s), ...realThings],
+  ));
   const matching = useMemo(() => matchingRules(s, effective), [s, effective]);
   const params = ctx.host.params ?? [];
   const total = overrideCount(value);
@@ -179,6 +201,52 @@ export function SceneWhatIf({ ctx, value, onChange, messages, ruleWords = DEFAUL
           {m.reset}
         </button>
       </div>
+
+      <fieldset className="space-y-3 rounded-lg border border-border p-3" data-part="things">
+        <legend className="px-1 text-[11px] font-medium uppercase tracking-wide text-text-secondary">{m.things}</legend>
+        <p className="text-xs leading-snug text-text-secondary">{m.thingsNote}</p>
+        <p className="text-xs text-text-primary" data-part="thing-ids">
+          {realThings.length ? m.thingIds(realThings.slice(0, LISTED_THINGS), Math.max(0, realThings.length - LISTED_THINGS), realThings.length) : m.noThings}
+        </p>
+        {samples.length > 0 && (
+          <ul className="space-y-2">
+            {samples.map((row) => {
+              const id = sampleId(s, row);
+              const num = (column: string, label: string) => (
+                <label className="inline-flex items-center gap-1 text-xs text-text-secondary">
+                  {label}
+                  <input
+                    type="number" className={cn(CONTROL, 'w-20')} value={typeof row[column] === 'number' ? (row[column] as number) : ''}
+                    onChange={(e) => onChange(setSampleThing(value, s, id, column, e.target.value === '' ? undefined : Number(e.target.value)))}
+                  />
+                </label>
+              );
+              return (
+                <li key={id} data-sample={id} className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface-raised px-2 py-1.5">
+                  <span className="min-w-0 flex-1 truncate text-sm text-text-primary">{id}</span>
+                  {num(cols.x, m.sampleX)}
+                  {num(cols.y, m.sampleY)}
+                  <select
+                    aria-label={`${m.status}: ${id}`} className={cn(CONTROL, 'w-28')} value={typeof row.status === 'string' ? row.status : ''}
+                    onChange={(e) => onChange(setSampleThing(value, s, id, 'status', e.target.value === '' || e.target.value === 'none' ? undefined : e.target.value))}
+                  >
+                    <option value="">{m.statuses.none}</option>
+                    <option value="warning">{m.statuses.warning}</option>
+                    <option value="critical">{m.statuses.critical}</option>
+                  </select>
+                  <button type="button" className={SMALL_BUTTON} aria-label={m.removeSample(id)} title={m.removeSample(id)} onClick={() => onChange(removeSampleThing(value, s, id))}>×</button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        <button
+          type="button" onClick={addSample} disabled={samples.length >= MAX_SAMPLE_THINGS} title={samples.length >= MAX_SAMPLE_THINGS ? m.sampleFull : undefined}
+          className="rounded-md border border-border px-3 py-1.5 text-xs text-text-primary hover:border-border-strong disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+        >
+          {m.addSample}
+        </button>
+      </fieldset>
 
       <section aria-labelledby={`${base}-matching`} className="space-y-2" data-part="matching">
         <h3 id={`${base}-matching`} className="text-[11px] font-medium uppercase tracking-wide text-text-secondary">{m.matching}</h3>

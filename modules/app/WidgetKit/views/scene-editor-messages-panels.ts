@@ -354,7 +354,14 @@ export interface InspectorMessages {
   groups: {
     symbol: string; placement: string; label: string; data: string; medium: string; colours: string; connection: string; route: string;
     words: string; look: string; canvas: string; source: string; more: string;
+    /** The things table's settings (phase 35). */
+    things?: string;
   };
+  /** A thing from data, read-only: its heading, the "placed by data" line, a sample row's note and its fields' names. */
+  thing: (name: string, id: string) => string;
+  placedByData: string;
+  thingSample: string;
+  thingFields: { symbol: string; place: string; row: string };
   actionsNone: string;
   actionsMissing: string;
   /** The text of a refused edit; the edit model's own English reason by default. */
@@ -383,7 +390,12 @@ export const DEFAULT_INSPECTOR_MESSAGES: InspectorMessages = {
   groups: {
     symbol: 'Symbol', placement: 'Position and size', label: 'Name and number', data: 'Scale and units', medium: 'Medium', colours: 'Colours',
     connection: 'Connection', route: 'Route and look', words: 'Words', look: 'Look', canvas: 'Canvas', source: 'Data', more: 'More',
+    things: 'Things from data',
   },
+  thing: (name, id) => (name && name !== id ? `${name} (${id})` : id),
+  placedByData: 'Placed by data: it moves, appears and disappears with its row, so it cannot be moved or edited here. Rules and actions reach it by its id.',
+  thingSample: 'A what-if sample row: it is never stored.',
+  thingFields: { symbol: 'Drawn as', place: 'At', row: 'Its row' },
   actionsNone: 'Select a symbol to see its actions.',
   actionsMissing: 'The host has not connected an actions editor.',
   refused: (why) => why,
@@ -440,6 +452,17 @@ export interface WhatIfMessages {
   /** "pump1, pump2 and 3 more" */
   targets: (ids: string[], more: number) => string;
   overridden: (n: number) => string;
+  /** The things from data (phase 35): the ids the things table brings, and sample rows to preview them. */
+  things: string;
+  thingsNote: string;
+  noThings: string;
+  /** "12 things: cow1, cow2 … and 4 more" */
+  thingIds: (ids: string[], more: number, total: number) => string;
+  addSample: string;
+  sampleFull: string;
+  removeSample: (id: string) => string;
+  sampleX: string;
+  sampleY: string;
 }
 
 export const DEFAULT_WHATIF_MESSAGES: WhatIfMessages = {
@@ -467,6 +490,15 @@ export const DEFAULT_WHATIF_MESSAGES: WhatIfMessages = {
   noneMatching: 'No rule matches.',
   targets: (ids, more) => (more > 0 ? `${ids.join(', ')} and ${more} more` : ids.length > 1 ? `${ids.slice(0, -1).join(', ')} and ${ids[ids.length - 1]}` : ids[0] ?? ''),
   overridden: (n) => (n === 1 ? '1 value changed' : `${n} values changed`),
+  things: 'Things from data',
+  thingsNote: 'Placed by the things table, one per row. A sample row shows how a thing and its rules look; it is never stored.',
+  noThings: 'The things table brings no rows.',
+  thingIds: (ids, more, total) => `${total === 1 ? '1 thing' : `${total} things`}: ${ids.join(', ')}${more > 0 ? ` and ${more} more` : ''}`,
+  addSample: 'Add a sample thing',
+  sampleFull: 'That is as many sample things as the preview takes.',
+  removeSample: (id) => `Remove ${id}`,
+  sampleX: 'x',
+  sampleY: 'y',
 };
 
 /** Every panel's texts together (for a host that keeps one object). */

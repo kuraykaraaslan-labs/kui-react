@@ -1,6 +1,6 @@
 // The pure state of the diagram editor shell and canvas (no React): the tools, the selection, the editor's own viewport
 // (zoom and pan) with the pointer-to-scene conversion, the keyboard map, resize and own-size drags, the what-if overlay
-// and the small local libraries (saved pieces, recent symbols). The edit operations themselves live in
+// and the small local libraries (saved pieces, recent symbols), and the locked layer of things from data. The edit operations themselves live in
 // `scene-edit-logic.ts`; this file only decides what the pointer and the keys mean.
 
 import type { SlotData } from '../kind';
@@ -8,6 +8,7 @@ import type { SceneModel, SceneSettings, SceneShapeSetting, SceneSide } from './
 import { addLink, cleanAssembly, type Assembly, type EditResult, type Selection } from './scene-edit-logic';
 import { elementBoxes, linksOf, shapeBounds, shapesOf, unionBox, type Box, type MarqueeResult, type Pt } from './scene-edit-geometry';
 import type { WhatIfState } from './scene-editor-types';
+import { patchId } from './scene-patch';
 
 // ─── Tools and selection ─────────────────────────────────────────────────────
 
@@ -305,18 +306,55 @@ export function elementAt(model: Pick<SceneModel, 'hits'>, p: Pt, skip: Readonly
 
 // ─── What-if ─────────────────────────────────────────────────────────────────
 
-/** The real data with the what-if rows laid over the bound table's rows (a row that is not there yet is added). The input is not changed. */
+/**
+ * The real data with the what-if rows laid over the bound table's rows (a row that is not there yet is added), and the
+ * what-if sample things after the things table's rows. The input is not changed.
+ */
 export function overlayData(data: Record<string, SlotData | undefined>, whatIf: WhatIfState, idColumn = 'id'): Record<string, SlotData | undefined> {
   const ids = Object.keys(whatIf.rows).filter((id) => Object.keys(whatIf.rows[id] ?? {}).length > 0);
-  if (!ids.length) return data;
-  const points: SlotData = data.points ?? { shape: 'table', rows: [] };
-  const rows = (points.rows ?? []).map((r) => ({ ...r }));
-  for (const id of ids) {
-    const at = rows.findIndex((r) => String(r[idColumn]) === id);
-    if (at >= 0) Object.assign(rows[at], whatIf.rows[id]);
-    else rows.push({ [idColumn]: id, ...whatIf.rows[id] });
+  const samples = whatIf.things ?? [];
+  if (!ids.length && !samples.length) return data;
+  let out = data;
+  if (ids.length) {
+    const points: SlotData = data.points ?? { shape: 'table', rows: [] };
+    const rows = (points.rows ?? []).map((r) => ({ ...r }));
+    for (const id of ids) {
+      const at = rows.findIndex((r) => String(r[idColumn]) === id);
+      if (at >= 0) Object.assign(rows[at], whatIf.rows[id]);
+      else rows.push({ [idColumn]: id, ...whatIf.rows[id] });
+    }
+    out = { ...out, points: { ...points, rows } };
   }
-  return { ...data, points: { ...points, rows } };
+  if (samples.length) {
+    const things: SlotData = data.things ?? { shape: 'table', rows: [] };
+    out = { ...out, things: { ...things, rows: [...(things.rows ?? []), ...samples] } };
+  }
+  return out;
+}
+
+// ─── Things from data: a locked layer ────────────────────────────────────────
+
+/** The model without its things: what the editor selects, moves, joins and aligns (a thing is placed by its row). */
+export function withoutThings<M extends Pick<SceneModel, 'hits'>>(model: M): M {
+  return model.hits.some((h) => h.from === 'things') ? ({ ...model, hits: model.hits.filter((h) => h.from !== 'things') } as M) : model;
+}
+
+/** The things' boxes as drawn (the locked layer the canvas dims). */
+export const thingHits = (model: Pick<SceneModel, 'hits'>): SceneModel['hits'] => model.hits.filter((h) => h.from === 'things');
+
+/** The thing whose box holds `p`, topmost first, or null. */
+export const thingAt = (model: Pick<SceneModel, 'hits'>, p: Pt): string | null => elementAt({ hits: thingHits(model) }, p);
+
+/** The ids of the things table's rows under the scene's id column, in order, without repeats (what the Data list shows). */
+export function thingIdsOf(data: Record<string, SlotData | undefined>, s: Pick<SceneSettings, 'thingsIdColumn'>): string[] {
+  const col = typeof s.thingsIdColumn === 'string' && s.thingsIdColumn ? s.thingsIdColumn : 'id';
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const row of data.things?.rows ?? []) {
+    const id = patchId(row?.[col]);
+    if (id !== null && !seen.has(id)) { seen.add(id); out.push(id); }
+  }
+  return out;
 }
 
 /** The board parameters with the what-if overrides over them. */

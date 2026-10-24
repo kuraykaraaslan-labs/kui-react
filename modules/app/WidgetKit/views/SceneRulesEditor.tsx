@@ -16,7 +16,8 @@ import { Badge, CONTROL, PanelField, SMALL_BUTTON } from './scene-panel-ui';
 import {
   addRule, describeRule, duplicateRule, moveRule, removeRule, ruleContext, ruleMatchFor, rulesFor, rulesOf, ruleTargets, updateRule, type RuleMatch,
 } from './scene-rules-edit';
-import { validateRules } from './scene-rules-logic';
+import { THINGS_TARGET, validateRules } from './scene-rules-logic';
+import { thingIdsOf } from './scene-editor-state';
 
 export interface SceneRulesEditorProps {
   ctx: EditorCtx;
@@ -73,8 +74,13 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
       out.push({ id: e.id, text: own ? `${e.id} (${own})` : e.id });
     }
     for (const id of linkIds(s)) out.push({ id, text: id });
+    // With a things table: every thing, and each thing the table brings now, by id.
+    if (ctx.data.things) {
+      out.push({ id: THINGS_TARGET, text: THINGS_TARGET });
+      for (const id of thingIdsOf(ctx.data, s).slice(0, 100)) out.push({ id, text: id });
+    }
     return out;
-  }, [s]);
+  }, [s, ctx.data]);
 
   const columns = useMemo((): Array<{ key: string; label?: string }> => {
     if (ctx.host.columns?.length) return ctx.host.columns;
@@ -86,7 +92,8 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
 
   const issues = useMemo(() => {
     const out = new Map<number, Map<string, string>>();
-    for (const i of validateRules(list, { elementIds: elementIds(s), linkIds: linkIds(s) })) {
+    // A bound things table may bring any id later: an id it does not have now is not an error then.
+    for (const i of validateRules(list, { elementIds: elementIds(s), linkIds: linkIds(s), thingIds: thingIdsOf(ctx.data, s), things: !!ctx.data.things })) {
       const hit = /^rules\.(\d+)\.(\w+)$/.exec(i.path);
       if (!hit) continue;
       const at = out.get(Number(hit[1])) ?? new Map<string, string>();
@@ -94,16 +101,16 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
       out.set(Number(hit[1]), at);
     }
     return out;
-  }, [list, s]);
+  }, [list, s, ctx.data]);
 
   // Whether each rule holds for the real data right now.
   const matches = useMemo(() => {
-    const rc = ruleContext(s, ctx.data.points, ctx.params);
+    const rc = ruleContext(s, ctx.data.points, ctx.params, ctx.data.things);
     const all = [...targetNames(s)];
     const out = new Map<number, RuleMatch>();
     list.forEach((r, i) => { if (isRec(r)) out.set(i, ruleMatchFor(r, all, rc)); });
     return out;
-  }, [list, s, ctx.data.points, ctx.params]);
+  }, [list, s, ctx.data.points, ctx.data.things, ctx.params]);
 
   const env: Env = { m, base, ctx, run, names, columns, params, issue: (i, f) => issues.get(i)?.get(f) };
   const labels = {

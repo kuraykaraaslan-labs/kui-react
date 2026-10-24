@@ -15,9 +15,9 @@ import { useWidgetKit } from '../WidgetKitContext';
 import { SCADA_SYMBOL_DEFS, isScadaSymbol, type SymbolDef } from './scada-logic';
 import { renameElement, type EditResult, type Rec } from './scene-edit-logic';
 import { mergeMessages, DEFAULT_INSPECTOR_MESSAGES, type DeepPartial, type InspectorMessages, type RulesMessages } from './scene-editor-messages-panels';
-import type { EditorCtx } from './scene-editor-types';
+import type { EditorCtx, InspectedThing } from './scene-editor-types';
 import {
-  colourProblem, elementOp, elementRow, fieldsOf, fieldVisible, inspectorTarget, linkOp, sceneOp, shapeOp, sharedValues, storedValue, type FieldEntry, type FieldScope,
+  colourProblem, elementOp, elementRow, fieldsOf, fieldVisible, inspectorTarget, linkOp, sceneOp, shapeOp, sharedValues, storedValue, thingSummary, type FieldEntry, type FieldScope,
 } from './scene-inspector-logic';
 import { CONTROL, PanelField } from './scene-panel-ui';
 import { SceneRulesEditor } from './SceneRulesEditor';
@@ -105,6 +105,33 @@ export function SceneInspector({ ctx, messages, rulesMessages, tab, onTabChange,
   );
 }
 
+// ─── A thing from data ───────────────────────────────────────────────────────
+
+function ThingCard({ thing, ctx, m }: { thing: InspectedThing; ctx: EditorCtx; m: InspectorMessages }) {
+  const sum = thingSummary(ctx.settings, thing.row);
+  return (
+    <section className="space-y-3" data-part="thing" data-thing={thing.id} aria-label={m.thing(thing.name, thing.id)}>
+      <h3 className="text-sm font-semibold text-text-primary">{m.thing(thing.name, thing.id)}</h3>
+      <p className="rounded-md bg-surface-sunken px-3 py-2 text-xs leading-snug text-text-secondary" data-part="placed-by-data">{m.placedByData}</p>
+      {thing.sample && <p className="text-xs text-info-fg">{m.thingSample}</p>}
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+        <dt className="text-text-secondary">{m.thingFields.symbol}</dt><dd className="min-w-0 truncate text-text-primary">{sum.symbol || '—'}</dd>
+        <dt className="text-text-secondary">{m.thingFields.place}</dt><dd className="text-text-primary tabular-nums">{sum.place}</dd>
+      </dl>
+      {sum.cells.length > 0 && (
+        <div className="space-y-1">
+          <h4 className="text-[11px] font-medium uppercase tracking-wide text-text-secondary">{m.thingFields.row}</h4>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+            {sum.cells.map(([k, v]) => (
+              <div key={k} className="contents"><dt className="text-text-secondary">{k}</dt><dd className="min-w-0 truncate text-text-primary">{v}</dd></div>
+            ))}
+          </dl>
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── Properties ──────────────────────────────────────────────────────────────
 
 function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages; announce: (text: string) => void }) {
@@ -116,6 +143,8 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
   const [errors, setErrors] = useState<Record<string, string>>({});
   const target = inspectorTarget(ctx.selection, ctx.settings);
 
+  // A thing from data the author clicked: read-only, it is placed by its row.
+  if (target.kind === 'scene' && ctx.thing) return <ThingCard thing={ctx.thing} ctx={ctx} m={m} />;
   if (target.kind === 'mixed') return <p className="text-sm text-text-secondary">{m.mixed(target.elements, target.links, target.shapes)}</p>;
 
   const scope: FieldScope = target.kind === 'elements' ? 'element' : target.kind === 'links' ? 'link' : target.kind === 'shapes' ? 'shape' : 'scene';

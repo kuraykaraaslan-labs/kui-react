@@ -323,7 +323,16 @@ export function matchingRules(s: SceneSettings, ctx: RuleContext): Array<{ index
   return out;
 }
 
-/** The rule context of a scene over its bound table: rows by id, the effective parameters. */
-export function ruleContext(s: SceneSettings, points: Parameters<typeof rowsById>[0], params: Record<string, unknown> = {}): RuleContext {
-  return { rows: rowsById(points, s.idColumn || 'id'), params };
+/**
+ * The rule context of a scene over its bound table: rows by id, the effective parameters, and (with the things table)
+ * the things' rows under the scene's thing id column and their ids, so `things:*` and a thing's id match as drawn.
+ */
+export function ruleContext(
+  s: SceneSettings, points: Parameters<typeof rowsById>[0], params: Record<string, unknown> = {}, things?: Parameters<typeof rowsById>[0],
+): RuleContext {
+  const rows = rowsById(points, s.idColumn || 'id');
+  if (!things) return { rows, params };
+  const byId = rowsById(things, typeof s.thingsIdColumn === 'string' && s.thingsIdColumn ? s.thingsIdColumn : 'id');
+  for (const [id, row] of byId) rows.set(id, row);
+  return { rows, params, thingIds: [...byId.keys()] };
 }

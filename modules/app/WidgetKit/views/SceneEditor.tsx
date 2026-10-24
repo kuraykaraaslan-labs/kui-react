@@ -20,10 +20,11 @@ import { elementBoxes, shapeBounds, shapesOf, type Pt } from './scene-edit-geome
 import { fill, mergeEditorMessages, type SceneEditorMessages } from './scene-editor-messages-canvas';
 import {
   addToLibrary, baseBox, browserStorage, centerOn, clientToScene, connectFacing, fitViewport, isEmptySelection, isTextTarget, keyCommand, loadLibrary, loadRecent, only, overlayData,
-  overlayParams, pruneSelection, pushRecent, removeFromLibrary, saveLibrary, saveRecent, selectAll, selectionCount, viewBoxFor, withSessionHidden, zoomAt,
+  overlayParams, pruneSelection, pushRecent, removeFromLibrary, saveLibrary, saveRecent, selectAll, selectionCount, thingHits, viewBoxFor, withoutThings, withSessionHidden, zoomAt,
   DEFAULT_SIZE, type KeyCommand, type SavedAssembly, type Size, type Tool, type ViewBox, type Viewport,
 } from './scene-editor-state';
-import type { EditorCtx, SceneEditorProps, WhatIfState } from './scene-editor-types';
+import type { EditorCtx, InspectedThing, SceneEditorProps, WhatIfState } from './scene-editor-types';
+import { patchId } from './scene-patch';
 import { SceneEditorCanvas, type CanvasHandle, type Renaming } from './SceneEditorCanvas';
 import { SceneEditorToolbar, type LayerItem } from './SceneEditorToolbar';
 import { SceneInspector } from './SceneInspector';
@@ -98,6 +99,8 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const [library, setLibrary] = useState<SavedAssembly[]>(() => loadLibrary(browserStorage(), storageKey));
   const [recent, setRecent] = useState<string[]>(() => loadRecent(browserStorage(), storageKey));
   const [paletteDrag, setPaletteDrag] = useState<{ symbol: string } | null>(null);
+  // The thing from data the author clicked (read-only in the inspector); a selection of authored parts replaces it.
+  const [peek, setPeek] = useState<string | null>(null);
 
   const canvasRef = useRef<CanvasHandle>(null);
   const canvasHost = useRef<HTMLDivElement>(null);
@@ -115,11 +118,14 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const opts = useMemo(() => ({ animate: false, format, params: effParams }), [format, effParams]);
   const model = useMemo(() => sceneModel(settings, effData, opts), [settings, effData, opts]);
   const hasRules = Array.isArray(settings.rules) && settings.rules.length > 0;
-  const geo = useMemo(() => (hasRules ? sceneModel({ ...settings, rules: undefined }, effData, opts) : model), [hasRules, settings, effData, opts, model]);
+  // Things from data are a locked layer: drawn (dimmed by the canvas) but never selected, moved, joined or aligned, so
+  // every editing path reads the authored symbols only.
+  const geo = useMemo(() => withoutThings(hasRules ? sceneModel({ ...settings, rules: undefined }, effData, opts) : model), [hasRules, settings, effData, opts, model]);
   const drawModel = useMemo(() => (hidden.size ? sceneModel(withSessionHidden(settings, hidden), effData, opts) : model), [hidden, settings, effData, opts, model]);
+  const things = useMemo(() => thingHits(drawModel), [drawModel]);
 
   // ─── The viewport ────────────────────────────────────────────────────────
-  const [base, setBase] = useState<ViewBox>(() => baseBox(props.settings, sceneModel(props.settings, props.data, { animate: false, format, params: props.params })));
+  const [base, setBase] = useState<ViewBox>(() => baseBox(props.settings, withoutThings(sceneModel(props.settings, props.data, { animate: false, format, params: props.params }))));
   const [viewport, setViewport] = useState<Viewport | null>(null);
   const effective = viewport ?? fitViewport(base);
   const view = viewBoxFor(effective, base, size);
@@ -427,7 +433,16 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const requestClose = () => { if (dirty) setConfirming(true); else onClose(); };
 
   // ─── The panels ──────────────────────────────────────────────────────────
-  const ctx: EditorCtx = { settings, model, data: props.data, params: hostParams, selection, setSelection, apply, host, locale };
+  const inspected = useMemo((): InspectedThing | null => {
+    if (!peek || !isEmptySelection(selection)) return null;
+    const box = things.find((h) => h.id === peek);
+    if (!box) return null;
+    const col = typeof settings.thingsIdColumn === 'string' && settings.thingsIdColumn ? settings.thingsIdColumn : 'id';
+    const row = (effData.things?.rows ?? []).find((r) => patchId(r?.[col]) === peek) ?? {};
+    const sample = (whatIf.things ?? []).includes(row);
+    return { id: peek, name: box.name, row, ...(sample ? { sample } : {}) };
+  }, [peek, selection, things, settings.thingsIdColumn, effData.things, whatIf.things]);
+  const ctx: EditorCtx = { settings, model, data: props.data, params: hostParams, selection, setSelection, apply, host, locale, thing: inspected };
   const tabs: Array<{ id: TabId; label: string; badge?: number }> = [
     { id: 'properties', label: m.tabProperties },
     { id: 'rules', label: m.tabRules },
@@ -521,6 +536,8 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
             paletteDrag={paletteDrag}
             renaming={renaming} onRename={commitRename} onRenameCancel={() => setRenaming(null)} onRequestRename={setRenaming}
             onCancelGroup={cancelGroup}
+            things={things} inspectedThing={inspected?.id ?? null}
+            onInspectThing={(id) => { setPeek(id); if (id) { setTab('properties'); say(fill(m.thingInspected, { name: things.find((h) => h.id === id)?.name ?? id })); } }}
           />
           <div className="pointer-events-none absolute bottom-3 right-3 hidden sm:block">
             <SceneMinimap className="pointer-events-auto" settings={settings} geo={geo} base={base} view={view} onCenter={moveView} label={m.minimap} />
