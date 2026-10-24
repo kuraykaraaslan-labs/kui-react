@@ -43,7 +43,9 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       the symbol registry), `scada-states.ts` (mode, data quality, speed, direction, acknowledgement,
                       opening and command badges on any symbol), `scene-connections.ts` (the hose, cable and strip
                       connections), `scada-scene-logic.ts` (`sceneModel`: placement by coordinates and the link router,
-                      and `hits`, the symbols' hit rectangles). The diagram editor is `SceneEditor.tsx` with its canvas,
+                      the things from the `things` table (`sceneThings`), the scene patch applied last, and `hits`, the
+                      symbols' and things' hit rectangles, a thing's marked `from: 'things'`). `scene-patch.ts`
+                      (`parseScenePatch`: a compute script's drawing instructions, validated and capped). The diagram editor is `SceneEditor.tsx` with its canvas,
                       palette (`scada-aliases.ts`: search words and sectors), inspector, rules, problems, what-if and
                       minimap panels (`Scene*.tsx`, `scene-*.ts`). Click, double click and right click on a symbol go
                       through the host's `elementActions` (`kind.ts`): a hit area exists only for a symbol the host has
@@ -59,7 +61,9 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       labels; three.js is handed in, loaded lazily by `ViewerModelCanvas.tsx`, and typed by
                       `three-module.d.ts` because three ships no types). `buildSensors` stays in `ViewerModelView.tsx`.
                       Rules: `scene-rules-logic.ts` is one engine for every kind with rules: the targets and the effect
-                      fields are data (an `EffectSpec`; the process scene's `SCENE_RULE_EFFECTS` is the default).
+                      fields are data (an `EffectSpec`; the process scene's `SCENE_RULE_EFFECTS` is the default). The
+                      targets are ids, `*` (everything, things included) and `things:*` (every thing from data:
+                      `RuleContext.thingIds`).
                       Map extras: `map-logic.ts` also holds the status pictures, the satellite preset, the floor plan
                       address, drag write-back and the route replay model (`replayModel`, `replayAt`, `replayMarkers`).
 card-logic.ts         cardModel (the frame's classes, styles, body state), formatUpdated, styleAttribute (pure)
@@ -136,7 +140,7 @@ into a stored, server-validated action, phase 35):
 | `onSliceClick(row)` | `chart.pie` | every slice is a focusable button (click, Enter, Space; aria-label = label and value; the chart becomes a group) | the table row of the slice; the folded "Other" slice gives `{ <label column>: <other label>, <value column>: <sum> }` |
 | `onRangeSelect(range)` | `chart.line`, `chart.area`, `chart.bar` on an axis of instants | a pointer drag (mouse, pen, touch) draws a band; a double click, or Escape while a band shows, resets; the plot is focusable: arrows move the selection's end, Shift + arrows its start, Enter reports it; the viewer-local zoom stands down | `{ from, to }` in epoch ms (`from < to`; whole bars on a band axis, to the end of the last bar's bucket), or `null` to reset |
 | `onMarkerClick(row)` | `map`, `viewer.model` | a marker (the viewer: a sensor marker, or a thing by a click on its shape) answers a click; tooltips behave as before | the marker's or thing's table row |
-| `elementActions` | `scada.scene` | a symbol with an action gets a hit area (click, double click, right click, keyboard) | the gesture and the symbol id |
+| `elementActions` | `scada.scene` | a symbol or a thing with an action gets a hit area (click, double click, right click, keyboard; a thing's carries `data-from="things"`) | the gesture and the symbol's or thing's id (the host looks the row up: the `points` row of a symbol, the `things` row of a thing) |
 | `onControl(request)` | the controls | the control asks the host to run or set | the request; the server checks it again |
 
 `viewer.model` reads a second table slot, `things` (one row = one object: `id`, `kind` box / sphere / cylinder / pin,
@@ -145,6 +149,38 @@ the markers use for colour, an optional size column), capped at 2 000 rows, draw
 never a DOM node each; the nearest 200 carry a label. Its `rules` repeater shares the scene's condition vocabulary
 (`templates/rule-fields.ts`) with the viewer's effects: colour, hidden, label, pulse, size (px for a marker, m for a
 thing) and dz (a lift in metres), on a marker id, a thing id or `*`, from the row, another row or a board parameter.
+
+## Things from data and the scene patch
+
+`scada.scene` reads a second, optional table slot, `things` (next-boilerplate phase 35): one row = one symbol placed
+where the row says (a room's people, a pen's animals). The `Things` settings name its columns (`thingsIdColumn`,
+`thingsSymbolColumn` or one fixed `thingsSymbol`, `thingsXColumn`, `thingsYColumn`, `thingsTurnColumn` snapped to a
+quarter, `thingsLabelColumn`) and how x and y map (`thingsUnits` scene units, or metres from `thingsOriginX/Y` at
+`thingsScale` units per metre); the state columns are the ones a symbol already reads from its row. At most
+`MAX_SCENE_THINGS` (500) are drawn, the rest counted as one problem. A thing is drawn, ruled (an id, `*`, or
+`things:*`) and clickable like an authored symbol, a connection may end on it by its id, an id a symbol already has
+is skipped, and a key the diagram cannot draw shows a placeholder. The settings cannot know the rows, so the
+template accepts a connection end or a rule target that names no symbol (it may be a thing's); the editor's problems
+list, which sees the data, says when no thing has it. In the editor the things are a locked layer: dimmed, never
+selected, moved, joined or aligned; a click shows one read-only in the inspector ("placed by data"); the what-if panel
+lists the table's ids and adds sample things (never stored).
+
+Rule effects now also move, resize, turn and re-skin a target: `dx`, `dy` (scene units, ±4000), `scale` (0.2 to 4),
+`turn` (`'0'`, `'90'`, `'180'`, `'270'`) and `symbol` (another key; the placeholder when it cannot be drawn).
+
+`scenePatch` (`WidgetViewProps`, the shape in `views/scene-patch.ts`) is what a compute script returns beside its
+slots: drawing instructions, never an action. Both `scada.scene` and `viewer.model` parse it again with
+`parseScenePatch` (caps: 500 things in 2D, the viewer's own 2 000 in 3D, 3 000 overrides, 300 extra connections, 100
+extra titles and zones, plain texts of at most 80 characters, ids of the scene's grammar; an unknown field is dropped
+with a problem) and apply it after the authored settings and the rules, so it wins over a rule:
+
+| Part | `scada.scene` | `viewer.model` |
+|---|---|---|
+| `things` | replace the `things` table's rows (read with the card's thing columns) | replace the `things` table's rows |
+| `objects` (by id) | the scene's effects, `dx` / `dy` / `scale` / `turn` / `symbol`, and `value` (the reading) | `color`, `hidden`, `label`, `pulse`, `size`, `dz` on markers and things |
+| `links`, `shapes` | added to the authored connections, titles and zones | — |
+| `view` | `'content'`, `'canvas'` or a region `{ x0, y0, x1, y1 }` to fit | `{ preset }` or `{ target, distance }`, applied when it changes, never per frame |
+| `problems` | counted on the diagram (`data-problems`) and read with it | counted on the card (`data-problems`) |
 
 ## Layout thumbnails
 

@@ -36,3 +36,8 @@ font size, colour, spacing or chip. Settings may override a part (a font, a colo
   everywhere: a clickable mark is a button with a pointer cursor and the focus stroke (`--border-focus`); a
   selection band is the primary colour at 12% between two 1px primary edges; a focusable plot takes the 2px focus
   ring. Without the prop a chart stays one picture (`role="img"`).
+- Things from data (a scene's `things` table) look exactly like authored symbols on a board; only the editor marks
+  them, as a locked layer: a veil of `--surface-base` at 50% with a dotted `--text-secondary` outline over each, the
+  focus stroke dashed around the one the inspector shows, never a handle or a keyboard stop. A drawing the diagram
+  cannot draw (an unknown or locked symbol key) is the placeholder: a dashed `--text-secondary` box on
+  `--surface-sunken` with a question mark, the size of a symbol box.
