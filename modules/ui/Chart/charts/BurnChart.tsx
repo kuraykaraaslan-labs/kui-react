@@ -194,7 +194,8 @@ export function BurnChart({
       next = Math.min(base.length - 1, Math.max(0, (idx < 0 ? (forward ? -1 : base.length) : idx) + (forward ? 1 : -1)));
     } else if (e.key === 'Home') next = 0;
     else if (e.key === 'End') next = base.length - 1;
-    else if (e.key === 'Escape') { setCursor(null); e.preventDefault(); return; }
+    // Escape is taken only while there is a cursor to clear, so inside a Modal a second Escape still closes it.
+    else if (e.key === 'Escape') { if (cursor === null) return; setCursor(null); e.preventDefault(); return; }
     else return;
     e.preventDefault();
     setCursor(base[next].t);
