@@ -1,6 +1,6 @@
 // The data-driven rules of the process scene, and of every other kind with rules (pure, no React): a rule names a
-// target (a symbol id, a connection id, a marker or thing id, or `*`), up to two conditions on the bound table or on
-// a board parameter, and the effects to apply while they hold. Rules run top to bottom; every enabled rule that
+// target (a symbol id, a connection id, a marker or thing id, `*` for all of them, or `things:*` for every thing
+// only), up to two conditions on the bound table or on a board parameter, and the effects to apply while they hold. Rules run top to bottom; every enabled rule that
 // matches applies, a later rule overrides the same effect, and `stop` ends the evaluation for that target. The
 // targets and the effects are data: a kind hands the engine its target ids and an `EffectSpec` naming the effect
 // fields it reads (the process scene's is `SCENE_RULE_EFFECTS`, the default; the 3D viewer's lives with its logic).
@@ -12,7 +12,8 @@
 //   source ('column' | 'param'), key, of, op, value, to        (first condition)
 //   join ('all' | 'any'), source2, key2, of2, op2, value2, to2 (second condition, used when op2 is set)
 //   the effect fields of the kind's spec (empty = no change), e.g. the scene's
-//   state, color, fillColor, dim, blink, hidden, label, medium, animate
+//   state, color, fillColor, dim, blink, hidden, label, medium, animate,
+//   dx, dy (an offset in scene units), scale (a factor), turn, symbol (another drawing)
 
 import { asBoolean, asNumber } from '@/modules/ui/ControlTile/control-logic';
 import { cssColor } from '../settings/style';
@@ -27,6 +28,13 @@ import { parseMode, parseQuality, SYMBOL_MODES, SYMBOL_QUALITIES, type SymbolMod
 
 export const RULE_STATES = ['idle', 'running', 'warning', 'critical', 'off'] as const;
 export type RuleState = (typeof RULE_STATES)[number];
+/** The quarter turns a symbol is drawn at, as the element settings store them. */
+export const RULE_TURNS = ['0', '90', '180', '270'] as const;
+export type RuleTurn = (typeof RULE_TURNS)[number];
+/** A rule target that names every thing from data (and nothing authored). `*` names everything, things included. */
+export const THINGS_TARGET = 'things:*';
+/** How far an offset effect may move a target, in scene units, either way (the largest canvas). */
+export const MAX_RULE_OFFSET = 4000;
 export const RULE_OPS = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'between', 'in', 'set', 'unset', 'true', 'false'] as const;
 export type RuleOp = (typeof RULE_OPS)[number];
 export type RuleSource = 'column' | 'param';
@@ -48,6 +56,12 @@ export type EffectKind =
 /** The effects one kind of rules offers, by rule-row field: the engine reads and validates exactly these. */
 export type EffectSpec = Record<string, EffectKind>;
 
+/** A quarter turn from a rule row: `90` or `'90'` (the element settings' words); anything else is not a turn. */
+export function parseTurn(v: unknown): RuleTurn | null {
+  const n = asNumber(v);
+  return n !== null && (RULE_TURNS as readonly string[]).includes(String(n)) ? (String(n) as RuleTurn) : null;
+}
+
 /** The process scene's effects (what `SceneEffects` types and `sceneModel` applies). The default spec. */
 export const SCENE_RULE_EFFECTS: EffectSpec = {
   state: { kind: 'enum', options: RULE_STATES, message: 'Choose a state' },
@@ -67,11 +81,18 @@ export const SCENE_RULE_EFFECTS: EffectSpec = {
   position: { kind: 'number', min: 0, max: 100 },
   label: { kind: 'label' },
   medium: { kind: 'text' },
+  // Where and how big (phase 35): an offset from the authored place, a size factor over the symbol's own, a quarter
+  // turn instead of its own, and another drawing. `sceneModel` draws the placeholder for a symbol key it cannot draw.
+  dx: { kind: 'number', min: -MAX_RULE_OFFSET, max: MAX_RULE_OFFSET },
+  dy: { kind: 'number', min: -MAX_RULE_OFFSET, max: MAX_RULE_OFFSET },
+  scale: { kind: 'number', min: 0.2, max: 4 },
+  turn: { kind: 'enum', options: RULE_TURNS, parse: parseTurn, message: 'Choose 0, 90, 180 or 270' },
+  symbol: { kind: 'text' },
 };
 
 export interface SceneRule {
   enabled?: boolean;
-  /** A symbol id, a connection id or `*` (every symbol and connection). */
+  /** A symbol id, a connection id, a thing id, `*` (every symbol, connection and thing) or `things:*` (every thing). */
   target?: string;
   stop?: boolean;
   source?: RuleSource | string;
@@ -108,6 +129,15 @@ export interface SceneRule {
   position?: number | string;
   pending?: boolean | string;
   failed?: boolean | string;
+  /** Moves the target by this many scene units (clamped to ±`MAX_RULE_OFFSET`); connections follow it. */
+  dx?: number | string;
+  dy?: number | string;
+  /** Draws the target this many times its own size (0.2 to 4). */
+  scale?: number | string;
+  /** Draws the target at this quarter turn instead of its own (`'0'`, `'90'`, `'180'`, `'270'`). */
+  turn?: number | string;
+  /** Draws the target as another symbol (a SCADA symbol key; an unknown or locked one draws the placeholder). */
+  symbol?: string;
   /** The effect fields of another kind's spec (the 3D viewer's `pulse`, `size`, `dz`). */
   [effect: string]: unknown;
 }
@@ -135,6 +165,15 @@ export interface SceneEffects {
   position?: number;
   pending?: boolean;
   failed?: boolean;
+  /** An offset from the authored place, scene units. */
+  dx?: number;
+  dy?: number;
+  /** A factor over the target's own size. */
+  scale?: number;
+  /** The quarter turn that replaces the target's own. */
+  turn?: RuleTurn;
+  /** The symbol key drawn instead of the target's own. */
+  symbol?: string;
 }
 
 export interface RuleContext {
@@ -144,6 +183,11 @@ export interface RuleContext {
   params?: Record<string, unknown>;
   /** What `*` stands for (the ids of the symbols and connections, or of the markers and things). Default: the ids of `rows`. */
   targets?: Iterable<string>;
+  /**
+   * The ids of the things from data among the targets: what `things:*` stands for. A thing id is a target even when
+   * `targets` leaves it out (so `*` and an id name it too). Absent = no things, and `things:*` names nothing.
+   */
+  thingIds?: Iterable<string>;
   /** A number as text for `{value}` and `{value2}` (the host's words, unit included); default: the number itself. */
   format?: (targetId: string, n: number) => string;
   /** The effect fields this kind of rules reads. Default: the process scene's (`SCENE_RULE_EFFECTS`). */
@@ -289,8 +333,10 @@ export function evaluateRules<T extends object = SceneEffects>(rules: unknown, c
   if (!list.length) return out;
   const spec = ctx.effects ?? SCENE_RULE_EFFECTS;
   const labelKey = Object.keys(spec).find((k) => spec[k].kind === 'label') ?? 'label';
-  const all = [...new Set(ctx.targets ?? ctx.rows.keys())];
+  const things = new Set(ctx.thingIds ?? []);
+  const all = [...new Set([...(ctx.targets ?? ctx.rows.keys()), ...things])];
   const known = new Set(all);
+  const onlyThings = all.filter((id) => things.has(id));
   const parsed = list.map((r) => ({ r, ...effectsOf(r, spec) }));
   const templates = new Map<string, string>();
   const stopped = new Set<string>();
@@ -298,7 +344,7 @@ export function evaluateRules<T extends object = SceneEffects>(rules: unknown, c
     if (r.enabled === false) continue;
     const target = text(r.target);
     if (!target) continue;
-    const ids = target === '*' ? all : known.has(target) ? [target] : [];
+    const ids = target === '*' ? all : target === THINGS_TARGET ? onlyThings : known.has(target) ? [target] : [];
     for (const id of ids) {
       if (stopped.has(id) || !ruleMatches(r, id, ctx)) continue;
       if (Object.keys(fx).length) out.set(id, { ...out.get(id), ...fx } as T);
@@ -323,26 +369,29 @@ const NEEDS_VALUE = new Set(['eq', 'ne', 'in', 'gt', 'gte', 'lt', 'lte', 'betwee
 /**
  * Problems with a rules list against the ids of the scene and the effects of the kind (the same checks the settings
  * form shows). With `fromData` the targets are row ids the data brings (the 3D viewer's markers and things): any
- * non-empty target or `of` is then accepted, as the settings cannot know the rows.
+ * non-empty target or `of` is then accepted, as the settings cannot know the rows. With `things` the scene may have
+ * things from data besides its authored ids: an id that names no symbol or connection may be a thing's, so it is
+ * accepted too (the settings cannot know those rows either); `thingIds` are things known now (an editor that holds
+ * the data), accepted by name. `things:*` is always a valid target: with no things it simply names nothing.
  */
 export function validateRules(
   rules: unknown,
-  ids: { elementIds: Iterable<string>; linkIds?: Iterable<string>; fromData?: boolean },
+  ids: { elementIds: Iterable<string>; linkIds?: Iterable<string>; fromData?: boolean; things?: boolean; thingIds?: Iterable<string> },
   effects: EffectSpec = SCENE_RULE_EFFECTS,
 ): RuleIssue[] {
   const issues: RuleIssue[] = [];
   const list = Array.isArray(rules) ? (rules as SceneRule[]) : [];
   if (list.length > MAX_SCENE_RULES) issues.push({ path: 'rules', message: `At most ${MAX_SCENE_RULES} rules` });
   const elements = new Set(ids.elementIds);
-  const known = new Set([...elements, ...(ids.linkIds ?? [])]);
-  const fromData = ids.fromData === true;
+  const known = new Set([...elements, ...(ids.linkIds ?? []), ...(ids.thingIds ?? [])]);
+  const fromData = ids.fromData === true || ids.things === true;
   const idOk = (v: unknown) => fromData || text(v) === '' || known.has(text(v));
   list.forEach((r, i) => {
     if (!r || typeof r !== 'object') return;
     const at = (f: string) => `rules.${i}.${f}`;
     const target = text(r.target);
-    if (!target) issues.push({ path: at('target'), message: fromData ? 'Name a row id or *' : 'Choose a symbol, a connection or *' });
-    else if (!fromData && target !== '*' && !known.has(target)) issues.push({ path: at('target'), message: 'No symbol or connection has this id' });
+    if (!target) issues.push({ path: at('target'), message: ids.fromData === true ? 'Name a row id or *' : 'Choose a symbol, a connection or *' });
+    else if (!fromData && target !== '*' && target !== THINGS_TARGET && !known.has(target)) issues.push({ path: at('target'), message: 'No symbol or connection has this id' });
     const condition = (n: '' | '2') => {
       const op = text(n ? r.op2 : r.op); const source = n ? r.source2 : r.source;
       const key = text(n ? r.key2 : r.key); const of = n ? r.of2 : r.of;

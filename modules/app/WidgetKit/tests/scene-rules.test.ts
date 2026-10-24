@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { compare, evaluateRules, expandLabel, MAX_SCENE_RULES, validateRules, type EffectSpec, type SceneRule } from '../views/scene-rules-logic';
+import {
+  compare, evaluateRules, expandLabel, MAX_RULE_OFFSET, MAX_SCENE_RULES, parseTurn, THINGS_TARGET, validateRules, type EffectSpec, type SceneRule,
+} from '../views/scene-rules-logic';
+import { describeRule, ruleMatchFor } from '../views/scene-rules-edit';
 import { sceneModel, type SceneSettings } from '../views/scada-scene-logic';
 import { svgToString } from '../views/svg-node';
 import { SCADA_SCENE } from '../templates/scada-scene';
@@ -181,6 +184,90 @@ describe('another kind\'s effects (the spec is data)', () => {
     expect(paths([{ target: 'p', shape: 'sphere', size: 'big', caption: 'x'.repeat(81) }])).toEqual(['rules.0.shape', 'rules.0.size', 'rules.0.caption']);
     expect(validateRules([{ target: 'p', shape: 'sphere' }], { elementIds: [], fromData: true }, spec)[0].message).toBe('Choose a shape');
     expect(paths([{ dim: 'true' }])).toEqual(['rules.0.target']);
+  });
+});
+
+describe('where and how big: dx, dy, scale, turn and symbol (phase 35)', () => {
+  const rows = [{ id: 'p', value: 90 }, { id: 'q', value: 10 }];
+
+  it('reads an offset, a size factor, a quarter turn and a symbol key, each within its bounds', () => {
+    const fx = fxOf([{ target: 'p', dx: '12.5', dy: -40, scale: '1.5', turn: 90, symbol: ' home.tv ' }], rows);
+    expect(fx.get('p')).toEqual({ dx: 12.5, dy: -40, scale: 1.5, turn: '90', symbol: 'home.tv' });
+  });
+  it('clamps the offset to the largest canvas either way and the size to 0.2 .. 4', () => {
+    const fx = fxOf([{ target: 'p', dx: 99999, dy: '-99999', scale: 10 }, { target: 'q', scale: '0.01' }], rows);
+    expect(fx.get('p')).toEqual({ dx: MAX_RULE_OFFSET, dy: -MAX_RULE_OFFSET, scale: 4 });
+    expect(fx.get('q')).toEqual({ scale: 0.2 });
+  });
+  it('a turn that is not a quarter, a number that is not finite, an empty symbol are not effects', () => {
+    expect(fxOf([{ target: 'p', turn: '45', dx: 'Infinity', dy: '', scale: 'big', symbol: '   ' }], rows).has('p')).toBe(false);
+    expect(['0', '90', '180', '270', 0, 270].map(parseTurn)).toEqual(['0', '90', '180', '270', '0', '270']);
+    expect([45, '360', -90, 'ninety', null].map(parseTurn)).toEqual([null, null, null, null, null]);
+  });
+  it('a later matching rule overrides the same effect, as for every other effect', () => {
+    const fx = fxOf([
+      { target: '*', dx: 10, symbol: 'home.tv' },
+      { target: 'p', key: 'value', op: 'gt', value: '50', dx: -5, turn: '180' },
+    ], rows);
+    expect(fx.get('p')).toEqual({ dx: -5, symbol: 'home.tv', turn: '180' });
+    expect(fx.get('q')).toEqual({ dx: 10, symbol: 'home.tv' });
+  });
+  it('validates a turn and the numbers', () => {
+    const paths = (rules: unknown) => validateRules(rules, { elementIds: ['p'] }).map((i) => i.path);
+    expect(paths([{ target: 'p', turn: '45', dx: 'left', scale: 'x', dy: 3, symbol: 'anything' }])).toEqual(['rules.0.dx', 'rules.0.scale', 'rules.0.turn']);
+    expect(validateRules([{ target: 'p', turn: '45' }], { elementIds: ['p'] })[0].message).toBe('Choose 0, 90, 180 or 270');
+  });
+  it('describes them in the rule sentence (English words stand in for a translation that lacks them)', () => {
+    const r = { target: 'p', dx: 10, dy: -5, scale: 2, turn: '90', symbol: 'home.tv' };
+    expect(describeRule(r)).toBe('Always, move it by 10, -5, draw it 2 times its size, turn it to 90° and draw it as home.tv');
+    expect(describeRule({ target: THINGS_TARGET, hidden: 'true' }, undefined, { withTarget: true })).toBe('For every thing from data: Always, hide it');
+  });
+});
+
+describe('things as targets (phase 35)', () => {
+  const rows = [{ id: 'pump', value: 1 }, { id: 'cow7', value: 39.5 }, { id: 'cow8', value: 38 }, { id: 'pipe1', running: true }];
+  const ctx = { rows: rowsOf(rows), params: {}, targets: ['pump', 'pipe1'], thingIds: ['cow7', 'cow8'] };
+
+  it('`things:*` names every thing and nothing authored', () => {
+    const fx = evaluateRules([{ target: THINGS_TARGET, key: 'value', op: 'gt', value: '39', state: 'warning' }], ctx);
+    expect([...fx.keys()]).toEqual(['cow7']);
+    expect([...evaluateRules([{ target: THINGS_TARGET, dim: 'true' }], ctx).keys()]).toEqual(['cow7', 'cow8']);
+  });
+  it('`*` names the things too, and a thing is a target by its id even when `targets` leaves it out', () => {
+    expect([...evaluateRules([{ target: '*', dim: 'true' }], ctx).keys()]).toEqual(['pump', 'pipe1', 'cow7', 'cow8']);
+    expect(evaluateRules([{ target: 'cow8', dx: 4 }], ctx).get('cow8')).toEqual({ dx: 4 });
+  });
+  it('without thing ids `things:*` names nothing and the old call shape is unchanged', () => {
+    const old = { rows: rowsOf(rows), params: {}, targets: ['pump', 'pipe1'] };
+    expect(evaluateRules([{ target: THINGS_TARGET, dim: 'true' }], old).size).toBe(0);
+    expect([...evaluateRules([{ target: '*', dim: 'true' }], old).keys()]).toEqual(['pump', 'pipe1']);
+    expect(evaluateRules([{ target: 'cow7', dim: 'true' }], old).size).toBe(0);
+  });
+  it('a thing reads its own row, and `of` reads a thing\'s row', () => {
+    expect(evaluateRules([{ target: 'pump', of: 'cow7', key: 'value', op: 'gt', value: '39', blink: 'true' }], ctx).get('pump')).toEqual({ blink: true });
+  });
+  it('`stop` works per thing', () => {
+    const fx = evaluateRules([
+      { target: 'cow7', state: 'critical', stop: true },
+      { target: THINGS_TARGET, state: 'idle' },
+    ], ctx);
+    expect(fx.get('cow7')).toEqual({ state: 'critical' });
+    expect(fx.get('cow8')).toEqual({ state: 'idle' });
+  });
+  it('the live matching of the editor sees the things', () => {
+    expect(ruleMatchFor({ target: THINGS_TARGET, key: 'value', op: 'gt', value: '39' }, ['pump', 'pipe1'], ctx)).toEqual({ total: 2, matching: ['cow7'], enabled: true });
+    expect(ruleMatchFor({ target: '*' }, ['pump', 'pipe1'], ctx).total).toBe(4);
+    expect(ruleMatchFor({ target: THINGS_TARGET }, ['pump'], { rows: rowsOf(rows) }).total).toBe(0);
+  });
+  it('validation: `things:*` is a target; with `things` any id may be a thing\'s; `thingIds` are known by name', () => {
+    const ids = { elementIds: ['pump'], linkIds: ['pipe1'] };
+    const paths = (rules: unknown, extra: Record<string, unknown> = {}) => validateRules(rules, { ...ids, ...extra }).map((i) => i.path);
+    expect(paths([{ target: THINGS_TARGET, dim: 'true' }])).toEqual([]);
+    expect(paths([{ target: 'cow7', dim: 'true' }, { target: 'pump', of: 'cow7', key: 'v', op: 'set' }])).toEqual(['rules.0.target', 'rules.1.of']);
+    expect(paths([{ target: 'cow7', dim: 'true' }, { target: 'pump', of: 'cow7', key: 'v', op: 'set' }], { things: true })).toEqual([]);
+    expect(paths([{ target: 'cow7', dim: 'true' }, { target: 'ghost' }], { thingIds: ['cow7'] })).toEqual(['rules.1.target']);
+    // an empty target is still named in the scene's words
+    expect(validateRules([{ dim: 'true' }], { ...ids, things: true })[0].message).toBe('Choose a symbol, a connection or *');
   });
 });
 

@@ -115,6 +115,16 @@ export interface RuleWords {
   pendingOff: string;
   failedOn: string;
   failedOff: string;
+  /** "move it by {dx}, {dy}" (optional for a host's older translation: the English stands in). */
+  move?: string;
+  /** "draw it {scale} times its size" */
+  resize?: string;
+  /** "turn it to {turn}°" */
+  turn?: string;
+  /** "draw it as {symbol}" */
+  symbol?: string;
+  /** The lead of a rule that targets `things:*`. */
+  forThings?: string;
   stop: string;
   nothing: string;
 }
@@ -135,6 +145,8 @@ export const DEFAULT_RULE_WORDS: RuleWords = {
   speed: 'run it at {speed} % of its speed', reverseOn: 'run it in reverse', reverseOff: 'run it forward',
   ackOn: 'mark its alarm acknowledged', ackOff: 'mark its alarm unacknowledged', position: 'show it {position} % open',
   pendingOn: 'show a command pending', pendingOff: 'clear the pending command', failedOn: 'show a failed command', failedOff: 'clear the failed command',
+  move: 'move it by {dx}, {dy}', resize: 'draw it {scale} times its size', turn: 'turn it to {turn}°', symbol: 'draw it as {symbol}',
+  forThings: 'For every thing from data',
   stop: 'then stop', nothing: 'change nothing',
 };
 

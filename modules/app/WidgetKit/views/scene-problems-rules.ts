@@ -31,7 +31,8 @@ const conditionOf = (r: Rec): string => JSON.stringify([
 const EFFECTS: Array<[string, (r: Rec) => string]> = [
   ['state', (r) => text(r.state)], ['colour', (r) => text(r.color)], ['liquid colour', (r) => text(r.fillColor)], ['passive look', (r) => yes(r.dim)],
   ['blink', (r) => yes(r.blink)], ['hidden state', (r) => yes(r.hidden)], ['name', (r) => text(r.label)], ['medium', (r) => text(r.medium)],
-  ['motion', (r) => yes(r.animate)],
+  ['motion', (r) => yes(r.animate)], ['offset x', (r) => text(r.dx)], ['offset y', (r) => text(r.dy)], ['size', (r) => text(r.scale)],
+  ['turn', (r) => text(r.turn)], ['symbol', (r) => text(r.symbol)],
 ];
 
 /** The checks of a scene's rules, given what the host knows about the board (its parameters and the table's columns). */

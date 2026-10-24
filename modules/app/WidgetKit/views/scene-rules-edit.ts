@@ -11,7 +11,7 @@ import { cssColor } from '../settings/style';
 import { rowsById, type SceneSettings } from './scada-scene-logic';
 import { isSafeKey, isRec, refuse, noop, targetNames, type EditResult, type Rec, type Selection } from './scene-edit-core';
 import { DEFAULT_RULE_WORDS, type RuleWords } from './scene-editor-messages-panels';
-import { MAX_SCENE_RULES, ruleMatches, type RuleContext, type SceneRule } from './scene-rules-logic';
+import { MAX_SCENE_RULES, ruleMatches, THINGS_TARGET, type RuleContext, type SceneRule } from './scene-rules-logic';
 
 const FIELDS = (SCADA_SCENE.fields.rules.fields ?? {}) as NonNullable<(typeof SCADA_SCENE.fields.rules)['fields']>;
 
@@ -259,6 +259,12 @@ function effects(r: SceneRule, words: RuleWords): string[] {
   if (str(r.position)) out.push(fill(words.position, { position: str(r.position) }));
   const pending = yes(r.pending); if (pending !== undefined) out.push(pending ? words.pendingOn : words.pendingOff);
   const failed = yes(r.failed); if (failed !== undefined) out.push(failed ? words.failedOn : words.failedOff);
+  // Where and how big (phase 35); a host translation without these words gets the English ones.
+  const dx = str(r.dx); const dy = str(r.dy);
+  if (dx || dy) out.push(fill(words.move ?? DEFAULT_RULE_WORDS.move ?? '', { dx: dx || '0', dy: dy || '0' }));
+  if (str(r.scale)) out.push(fill(words.resize ?? DEFAULT_RULE_WORDS.resize ?? '', { scale: str(r.scale) }));
+  if (str(r.turn)) out.push(fill(words.turn ?? DEFAULT_RULE_WORDS.turn ?? '', { turn: str(r.turn) }));
+  if (str(r.symbol)) out.push(fill(words.symbol ?? DEFAULT_RULE_WORDS.symbol ?? '', { symbol: str(r.symbol) }));
   return out;
 }
 
@@ -274,7 +280,9 @@ export function describeRule(rule: unknown, words: RuleWords = DEFAULT_RULE_WORD
   const fx = list(effects(r, words), words.and) || words.nothing;
   const stop = r.stop === true ? `, ${words.stop}` : '';
   const target = str(r.target);
-  const lead = o.withTarget ? `${target === '*' ? words.forEvery : fill(words.forTarget, { target: target || '...' })}: ` : '';
+  const lead = o.withTarget
+    ? `${target === '*' ? words.forEvery : target === THINGS_TARGET ? words.forThings ?? DEFAULT_RULE_WORDS.forThings : fill(words.forTarget, { target: target || '...' })}: `
+    : '';
   const sentence = `${lead}${when}, ${fx}${stop}`;
   return r.enabled === false ? `${sentence} ${words.off}` : sentence;
 }
@@ -289,12 +297,17 @@ export interface RuleMatch {
   enabled: boolean;
 }
 
-/** Which of a rule's targets it holds for under these rows and parameters. `names` are every symbol and connection id. */
+/**
+ * Which of a rule's targets it holds for under these rows and parameters. `names` are every symbol and connection id;
+ * the context's `thingIds` (things from data, their rows in `ctx.rows`) are targets too, and all that `things:*` names.
+ */
 export function ruleMatchFor(rule: unknown, names: readonly string[], ctx: RuleContext): RuleMatch {
   if (!isRec(rule)) return { total: 0, matching: [], enabled: false };
   const r = rule as SceneRule;
   const target = str(r.target);
-  const ids = target === '*' ? [...names] : target && names.includes(target) ? [target] : [];
+  const things = [...new Set(ctx.thingIds ?? [])];
+  const all = things.length ? [...new Set([...names, ...things])] : names;
+  const ids = target === '*' ? [...all] : target === THINGS_TARGET ? things : target && all.includes(target) ? [target] : [];
   const enabled = r.enabled !== false;
   return { total: ids.length, enabled, matching: enabled ? ids.filter((id) => ruleMatches(r, id, ctx)) : [] };
 }

@@ -212,7 +212,10 @@ export function applyViewerRules(
   const rows = new Map<string, Row>();
   for (const t of things) rows.set(t.id, t.row);
   for (const m of sensors) rows.set(m.id, m.row);
-  const fx = evaluateRules<ViewerEffects>(rules, { rows, params: params ?? {}, targets: [...rows.keys()], effects: VIEWER_RULE_EFFECTS });
+  // `things:*` names the things (a marker that shares a thing's id shares its effects, as it shares its row).
+  const fx = evaluateRules<ViewerEffects>(rules, {
+    rows, params: params ?? {}, targets: [...rows.keys()], thingIds: things.map((t) => t.id), effects: VIEWER_RULE_EFFECTS,
+  });
   if (fx.size === 0) return { sensors, things };
   const alarmOf = (e: ViewerEffects, color: string, was: boolean) => e.pulse ?? (e.color !== undefined ? color === 'var(--error)' : was);
   return {
