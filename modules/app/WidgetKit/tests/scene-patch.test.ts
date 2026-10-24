@@ -219,4 +219,21 @@ describe('plain values', () => {
     expect(patchId(7)).toBe('7');
     expect([patchId(''), patchId('prototype'), patchId(NaN), patchId(`a${RLO}`), patchId('y'.repeat(65)), patchId(true)]).toEqual([null, null, null, null, null, null]);
   });
+  it('patchId refuses the rule and gesture wildcards and anything with a * in it', () => {
+    expect([patchId('*'), patchId('things:*'), patchId('pump*'), patchId(' * ')]).toEqual([null, null, null, null]);
+    // a colon is not a wildcard: a device id like a MAC address stays usable
+    expect(patchId('aa:bb:cc')).toBe('aa:bb:cc');
+  });
+  it('patchId refuses an id with a zero-width character in it (it would read like another id)', () => {
+    for (const c of [0x200b, 0x200c, 0x200d, 0x2060, 0xfeff]) expect(patchId(`pump${String.fromCharCode(c)}1`)).toBeNull();
+  });
+  it('plainText drops a zero-width character instead of turning it into a space', () => {
+    expect(plainText(`Pump${String.fromCharCode(0x200b)}1 ${String.fromCharCode(0x2060)}on`)).toBe('Pump1 on');
+  });
+  it('a patch\'s objects and things keyed by a wildcard are dropped with a problem', () => {
+    const r = parseScenePatch({ objects: { '*': { hidden: true }, 'things:*': { color: 'red' }, pump1: { dim: true } }, things: [{ id: '*', x: 1, y: 1 }, { id: 'cow7', x: 2, y: 2 }] });
+    expect(Object.keys(r.patch?.objects ?? {})).toEqual(['pump1']);
+    expect(r.patch?.things?.map((t) => t.id)).toEqual(['cow7']);
+    expect(r.problems.some((p) => p.includes('not usable'))).toBe(true);
+  });
 });

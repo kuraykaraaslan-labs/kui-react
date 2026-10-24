@@ -141,9 +141,17 @@ const SCENE_KEY = /^[A-Za-z_][A-Za-z0-9_.-]{0,63}$/;
 const PORT = /^\s*([A-Za-z_][A-Za-z0-9_.-]*?)[.:]([lrtb])(?::(\d*\.?\d+))?\s*$/;
 // Control characters and the bidirectional overrides that could make a label read as something else (counted
 // by code point, not matched by a pattern: nothing here needs a control character in a regular expression).
+// The zero-width characters (space, joiners, word joiner, byte-order mark) draw nothing, so `pump1` and `pump1` with
+// one of them would look the same in the inspector and the data list but be two ids: they count as unseen too.
+const isZeroWidth = (c: number): boolean => (c >= 0x200b && c <= 0x200d) || c === 0x2060 || c === 0xfeff;
 const isUnseen = (c: number): boolean =>
-  c <= 0x1f || (c >= 0x7f && c <= 0x9f) || c === 0x200e || c === 0x200f || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069);
-const withoutUnseen = (s: string): string => { let o = ''; for (const ch of s) o += isUnseen(ch.codePointAt(0) ?? 0) ? ' ' : ch; return o; };
+  c <= 0x1f || (c >= 0x7f && c <= 0x9f) || c === 0x200e || c === 0x200f || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069) || isZeroWidth(c);
+// In a text a control character becomes a space and a zero-width one is dropped (it stood for no space).
+const withoutUnseen = (s: string): string => {
+  let o = '';
+  for (const ch of s) { const c = ch.codePointAt(0) ?? 0; o += isZeroWidth(c) ? '' : isUnseen(c) ? ' ' : ch; }
+  return o;
+};
 const hasUnseen = (s: string): boolean => { for (const ch of s) if (isUnseen(ch.codePointAt(0) ?? 0)) return true; return false; };
 
 const isPlain = (v: unknown): v is Record<string, unknown> => {
@@ -158,10 +166,16 @@ export function plainText(v: unknown, max = MAX_PATCH_TEXT): string {
   return withoutUnseen(s).replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
-/** An id of an object or a thing: a short text (or a finite number) with nothing unseen in it, never a prototype key. */
+/**
+ * An id of an object or a thing: a short text (or a finite number) with nothing unseen in it, never a prototype key
+ * and never with a `*` in it (`*` and `things:*` are the rule wildcards, and the host's `*` gesture entry). It is
+ * looser than the scene's own id grammar on purpose (a feed's ids are often numbers, or carry a space or a colon):
+ * such a thing is placed, ruled and clickable, but a connection end follows the port grammar (`parsePort`), so a
+ * thing a connection ends on needs an id that starts with a letter or `_` and holds only letters, digits, `_`, `.`, `-`.
+ */
 export function patchId(v: unknown): string | null {
   const s = typeof v === 'string' ? v.trim() : typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
-  return !s || s.length > 64 || hasUnseen(s) || UNSAFE_KEY.test(s) ? null : s;
+  return !s || s.length > 64 || hasUnseen(s) || s.includes('*') || UNSAFE_KEY.test(s) ? null : s;
 }
 
 const isSceneKey = (v: unknown): v is string => typeof v === 'string' && SCENE_KEY.test(v) && !UNSAFE_KEY.test(v);
