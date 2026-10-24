@@ -13,7 +13,7 @@ import { IconTile, Meta } from './ui';
 import { useKitMessages } from '../WidgetKitContext';
 import type { CommonMessages } from '../messages';
 import {
-  applyViewerPatch, applyViewerRules, buildThings, MAX_MODELS, MAX_SENSORS, MAX_THINGS, MAX_TOOLTIP_FIELDS, rowColor, toWorld, viewerView,
+  applyViewerRules, buildThings, MAX_MODELS, MAX_SENSORS, MAX_THINGS, MAX_TOOLTIP_FIELDS, rowColor, toWorld, viewerView,
   type Row, type SensorMarker, type ViewerModelSettings,
 } from './viewer-model-logic';
 import { parseScenePatch } from './scene-patch';
@@ -173,17 +173,14 @@ export function ViewerModelWidgetView({
   );
   const parsed = useMemo(() => parseScenePatch(scenePatch, { maxThings: MAX_THINGS }), [scenePatch]);
   const patch = parsed.patch;
-  // A patch's things replace the table's rows; its overrides come after the rules, so a script wins over a rule.
+  // A patch's things replace the table's rows; its overrides are merged over the rules' per effect, so a script wins.
   const thingSlot = useMemo(
     () => (patch?.things ? { shape: 'table' as const, rows: patch.things } : data.things),
     [patch?.things, data.things],
   );
   const builtThings = useMemo(() => buildThings(thingSlot, settings), [thingSlot, settings]);
   const { sensors, things } = useMemo(
-    () => {
-      const ruled = applyViewerRules(built.sensors, builtThings.things, s.rules, params);
-      return applyViewerPatch(ruled.sensors, ruled.things, patch);
-    },
+    () => applyViewerRules(built.sensors, builtThings.things, s.rules, params, patch),
     [built.sensors, builtThings.things, s.rules, params, patch],
   );
   const view = useMemo(() => viewerView(patch?.view), [patch?.view]);

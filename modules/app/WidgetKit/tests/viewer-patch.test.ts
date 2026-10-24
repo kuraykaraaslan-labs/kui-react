@@ -45,12 +45,24 @@ describe('applyViewerPatch', () => {
     const out = applyViewerPatch(sensors, things, patchOf({ objects: { 'B-1': { state: 'warning', dx: 4, symbol: 'home.tv', params: { door: 'open' } } } }));
     expect(out.things).toBe(things);
   });
-  it('is applied after the rules, so it wins over a rule for the same effect', () => {
-    const ruled = applyViewerRules(sensors, things, [{ target: 'B-1', hidden: 'true' }, { target: 'B-2', color: 'var(--success)' }], {});
-    expect(ruled.things.map((t) => t.id)).toEqual(['B-2', 'B-3']);
-    // a hidden thing is gone after the rules; a patch can still recolour what is left
-    const out = applyViewerPatch(ruled.sensors, ruled.things, patchOf({ objects: { 'B-2': { color: 'var(--info)' } } }));
-    expect(out.things[0].color).toBe('var(--info)');
+  it('is merged over the rules per effect, so it wins over a rule for the same effect and leaves the others', () => {
+    const rules = [{ target: 'B-1', hidden: 'true' }, { target: 'B-2', color: 'var(--success)', label: 'Ruled' }, { target: 'B-3', dz: 3 }, { target: 'TT-1', hidden: 'true' }];
+    expect(applyViewerRules(sensors, things, rules, {}).things.map((t) => t.id)).toEqual(['B-2', 'B-3']);
+    const out = applyViewerRules(sensors, things, rules, {}, patchOf({
+      objects: { 'B-1': { hidden: false }, 'B-2': { color: 'var(--info)' }, 'B-3': { dz: 1 }, 'TT-1': { hidden: false } },
+    }));
+    // a patch's hidden: false shows what a rule hid, on a thing and on a marker
+    expect(out.things.map((t) => t.id)).toEqual(['B-1', 'B-2', 'B-3']);
+    expect(out.sensors.map((m) => m.id)).toEqual(['TT-1', 'PT-2']);
+    // the patch's colour wins; the rule's label, which the patch does not name, stays
+    expect(out.things[1]).toMatchObject({ color: 'var(--info)', label: 'Ruled' });
+    // the patch's lift replaces the rule's (1 m, not 3 + 1)
+    expect(out.things[2].position).toEqual([1, 1, -2]);
+  });
+  it('with no rules it is the patch alone, as applyViewerPatch', () => {
+    const p = patchOf({ objects: { 'B-1': { dz: 2 }, 'PT-2': { hidden: true } } });
+    expect(applyViewerRules(sensors, things, undefined, {}, p)).toEqual(applyViewerPatch(sensors, things, p));
+    expect(applyViewerRules(sensors, things, [], {}, null)).toEqual({ sensors, things });
   });
   it('things:* in a 3D rule names the things', () => {
     const out = applyViewerRules(sensors, things, [{ target: 'things:*', hidden: 'true' }], {});

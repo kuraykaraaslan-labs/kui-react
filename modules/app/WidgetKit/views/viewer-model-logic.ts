@@ -237,37 +237,31 @@ export function applyViewerEffects(
 }
 
 /**
- * The markers and things after the rules (`applyViewerEffects`). The rows of both tables are the rule context (a
- * thing and a marker with the same id share it); `params` are the effective board parameters.
+ * What the rules decided per marker and thing id. The rows of both tables are the rule context (a thing and a marker
+ * with the same id share it); `params` are the effective board parameters.
  */
-export function applyViewerRules(
+export function viewerRuleEffects(
   sensors: SensorMarker[], things: ThingMarker[], rules: unknown, params?: Record<string, unknown>,
-): { sensors: SensorMarker[]; things: ThingMarker[] } {
-  if (!Array.isArray(rules) || rules.length === 0 || (sensors.length === 0 && things.length === 0)) return { sensors, things };
+): Map<string, ViewerEffects> {
+  if (!Array.isArray(rules) || rules.length === 0 || (sensors.length === 0 && things.length === 0)) return new Map();
   const rows = new Map<string, Row>();
   for (const t of things) rows.set(t.id, t.row);
   for (const m of sensors) rows.set(m.id, m.row);
   // `things:*` names the things (a marker that shares a thing's id shares its effects, as it shares its row).
-  const fx = evaluateRules<ViewerEffects>(rules, {
+  return evaluateRules<ViewerEffects>(rules, {
     rows, params: params ?? {}, targets: [...rows.keys()], thingIds: things.map((t) => t.id), effects: VIEWER_RULE_EFFECTS,
   });
-  return applyViewerEffects(sensors, things, fx);
 }
 
 // ── The scene patch (phase 35, E15) ──────────────────────────────────────────
 
 /**
- * A patch's overrides on markers and things, applied after the rules so a script wins over a rule: colour, hidden,
- * label (plain text), pulse, size and lift, by id. The 2D effects and a designer item's `params` mean nothing here.
- * The patch's things replace the things table's rows before this (`buildThings` over `patch.things`).
+ * A patch's overrides on markers and things, by id: colour, hidden, label (plain text), pulse, size and lift. The 2D
+ * effects and a designer item's `params` mean nothing here.
  */
-export function applyViewerPatch(
-  sensors: SensorMarker[], things: ThingMarker[], patch: ScenePatch | null | undefined,
-): { sensors: SensorMarker[]; things: ThingMarker[] } {
-  const objects = patch?.objects;
-  if (!objects) return { sensors, things };
+export function viewerPatchEffects(patch: ScenePatch | null | undefined): Map<string, ViewerEffects> {
   const fx = new Map<string, ViewerEffects>();
-  for (const [id, o] of Object.entries(objects)) {
+  for (const [id, o] of Object.entries(patch?.objects ?? {})) {
     const e: ViewerEffects = {};
     if (o.color !== undefined) e.color = o.color;
     if (o.hidden !== undefined) e.hidden = o.hidden;
@@ -277,7 +271,28 @@ export function applyViewerPatch(
     if (o.dz !== undefined) e.dz = o.dz;
     if (Object.keys(e).length) fx.set(id, e);
   }
+  return fx;
+}
+
+/**
+ * The markers and things after the rules and then a patch (`applyViewerEffects`, once). The two are merged per id and
+ * per effect before anything is drawn, as the 2D scene does, so a patch wins over a rule for the same effect: its
+ * `hidden: false` shows what a rule hid, and its `dz` replaces the rule's lift instead of adding to it. The patch's
+ * things replace the things table's rows before this (`buildThings` over `patch.things`).
+ */
+export function applyViewerRules(
+  sensors: SensorMarker[], things: ThingMarker[], rules: unknown, params?: Record<string, unknown>, patch?: ScenePatch | null,
+): { sensors: SensorMarker[]; things: ThingMarker[] } {
+  const fx = viewerRuleEffects(sensors, things, rules, params);
+  for (const [id, over] of viewerPatchEffects(patch)) fx.set(id, { ...fx.get(id), ...over });
   return applyViewerEffects(sensors, things, fx);
+}
+
+/** A patch's overrides alone, with no rules (`applyViewerRules` merges both). */
+export function applyViewerPatch(
+  sensors: SensorMarker[], things: ThingMarker[], patch: ScenePatch | null | undefined,
+): { sensors: SensorMarker[]; things: ThingMarker[] } {
+  return applyViewerEffects(sensors, things, viewerPatchEffects(patch));
 }
 
 /** What the viewer's camera does for a patch's view: a preset, or a target (model coordinates) and a distance (metres). */
