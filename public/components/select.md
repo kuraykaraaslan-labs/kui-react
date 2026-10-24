@@ -11,6 +11,7 @@ Label + select + hint + error anatomy. appearance-none overrides the native drop
 
 ## Used by
 
+- `entity-aliases`
 - `form-builder`
 
 ## Design tokens consumed

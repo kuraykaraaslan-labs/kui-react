@@ -11,6 +11,7 @@ Focus-trapped dialog. Closes on Escape and backdrop click. Requires role="dialog
 
 ## Used by
 
+- `entity-aliases`
 - `onboarding-wizard`
 - `rich-text-editor`
 - `share-dialog`

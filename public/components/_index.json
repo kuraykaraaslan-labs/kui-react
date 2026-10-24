@@ -671,6 +671,12 @@
     "category": "App",
     "file": "ruleset-editor.md"
   },
+  "entity-aliases": {
+    "name": "EntityAliases",
+    "layer": "app",
+    "category": "App",
+    "file": "entity-aliases.md"
+  },
   "common-login-form": {
     "name": "LoginForm",
     "layer": "domain",

@@ -9,6 +9,10 @@
 
 Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel.
 
+## Used by
+
+- `entity-aliases`
+
 ## Variants
 
 ### Bottom (default)

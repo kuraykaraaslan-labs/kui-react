@@ -9,6 +9,10 @@
 
 CSS border-based loading indicator. Does not require FontAwesome. 5 sizes, border-border / border-t-primary colour system.
 
+## Used by
+
+- `entity-aliases`
+
 ## Design tokens consumed
 
 - `--border`

@@ -9,6 +9,10 @@
 
 Free-text input that creates chips. Add tags with Enter or comma, double-click to edit, Backspace to delete. Duplicates are ignored.
 
+## Used by
+
+- `entity-aliases`
+
 ## Design tokens consumed
 
 - `--border`

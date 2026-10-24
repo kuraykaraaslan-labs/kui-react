@@ -9,6 +9,10 @@
 
 Chip-based multi-select popover with searchable filter, keyboard navigation, and disabled-option support.
 
+## Used by
+
+- `entity-aliases`
+
 ## Variants
 
 ### Controlled

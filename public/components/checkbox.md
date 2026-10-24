@@ -11,6 +11,7 @@ Label + checkbox + optional hint / error message. aria-describedby is wired up a
 
 ## Used by
 
+- `entity-aliases`
 - `form-builder`
 
 ## Design tokens consumed

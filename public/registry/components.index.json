@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-24T20:14:31.952Z",
+  "generatedAt": "2026-10-24T20:48:53.079Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -179,6 +179,7 @@
         "color-picker",
         "comment-thread",
         "control-tile",
+        "entity-aliases",
         "form-builder",
         "gantt",
         "onboarding-wizard",
@@ -258,6 +259,9 @@
       "since": "2025-01",
       "designTokens": [
         "--border"
+      ],
+      "usedBy": [
+        "entity-aliases"
       ],
       "variantCount": 2
     },
@@ -460,6 +464,7 @@
         "--text-secondary"
       ],
       "usedBy": [
+        "entity-aliases",
         "form-builder",
         "reviews-review-submit-form",
         "rich-text-editor"
@@ -536,6 +541,7 @@
         "--text-secondary"
       ],
       "usedBy": [
+        "entity-aliases",
         "form-builder"
       ],
       "variantCount": 5
@@ -580,7 +586,8 @@
         "--text-secondary"
       ],
       "usedBy": [
-        "control-tile"
+        "control-tile",
+        "entity-aliases"
       ],
       "variantCount": 9
     },
@@ -629,6 +636,7 @@
         "--text-secondary"
       ],
       "usedBy": [
+        "entity-aliases",
         "form-builder"
       ],
       "variantCount": 5
@@ -654,6 +662,9 @@
         "--text-disabled",
         "--text-primary"
       ],
+      "usedBy": [
+        "entity-aliases"
+      ],
       "variantCount": 2
     },
     {
@@ -667,6 +678,9 @@
       "status": "stable",
       "since": "2025-02",
       "designTokens": [],
+      "usedBy": [
+        "entity-aliases"
+      ],
       "variantCount": 4
     },
     {
@@ -680,6 +694,9 @@
       "status": "beta",
       "since": "2025-03",
       "designTokens": [],
+      "usedBy": [
+        "entity-aliases"
+      ],
       "variantCount": 3
     },
     {
@@ -1310,6 +1327,9 @@
         "--text-primary",
         "--text-secondary"
       ],
+      "usedBy": [
+        "entity-aliases"
+      ],
       "variantCount": 2
     },
     {
@@ -1539,6 +1559,7 @@
         "--text-primary"
       ],
       "usedBy": [
+        "entity-aliases",
         "onboarding-wizard",
         "rich-text-editor",
         "share-dialog",
@@ -1622,6 +1643,9 @@
       "status": "stable",
       "since": "2025-03",
       "designTokens": [],
+      "usedBy": [
+        "entity-aliases"
+      ],
       "variantCount": 3
     },
     {
@@ -2845,6 +2869,69 @@
       },
       "designTokens": [],
       "variantCount": 4
+    },
+    {
+      "id": "entity-aliases",
+      "name": "EntityAliases",
+      "layer": "app",
+      "category": "App",
+      "filePath": "modules/app/EntityAliases/EntityAliasesDialog.tsx",
+      "abbr": "EA",
+      "description": "Dashboard entity aliases and key filters, the ThingsBoard model (next-boilerplate dashboard phases 36.4 and 36.7). EntityAliasesDialog lists a board's aliases (numbered rows, the filter as one readable line, resolve-multiple switch, edit, remove; an alias a widget uses cannot be removed, the widgets are named). EntityAliasDialog adds or edits one alias: name with the key derived on add, resolve-multiple with its hint, the filter form and a debounced preview; a filter that matches no entity blocks the save. EntityFilterForm covers single entity, entity list, name prefix, entity type, the page's entity (a board param), entity subtype, relations query and entity search query (the last two only when the host has a relation provider). AliasEntitySelect is the toolbar's entity select, EntityAliasPicker binds a widget's entity slot (and, once an alias is chosen, one of the board's filters). Key filters (phase 36.7, ThingsBoard's dashboard filters): BoardFiltersDialog lists the board's filters (a filter a widget uses cannot be removed), BoardFilterDialog edits one, KeyFilterEditor edits one key filter (entity field, attribute or latest telemetry; key names suggested through access.entityKeys; up to 4 conditions with the operations of the value type; a value can read a dashboard parameter), boardFilterText writes it as one line. The host supplies every read through EntityAliasesAccess; validateAlias and validateBoardFilter mirror the server caps. React only.",
+      "status": "beta",
+      "since": "2026-10",
+      "composes": [
+        "modal",
+        "select",
+        "combo-box",
+        "multi-select",
+        "tag-input",
+        "toggle",
+        "checkbox",
+        "input",
+        "button",
+        "popover",
+        "empty-state",
+        "spinner"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "dialog",
+          "combobox",
+          "listbox",
+          "switch",
+          "alert"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Tab",
+            "action": "Move between the rows, switches, edit and remove buttons and the form fields"
+          },
+          {
+            "keys": "Escape",
+            "action": "Close the topmost dialog only (the alias dialog opens over the list)"
+          },
+          {
+            "keys": "Arrow keys / Enter",
+            "action": "Move through and pick entities in the searchable pickers"
+          }
+        ],
+        "notes": "Every control has a label; icon buttons are named after their alias (\"Remove alias Pumps\"). A refused removal and a filter that matches nothing are announced with role=\"alert\"; the preview is a polite live region."
+      },
+      "designTokens": [
+        "--surface-base",
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary",
+        "--text-disabled",
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--error",
+        "--error-subtle"
+      ],
+      "variantCount": 5
     },
     {
       "id": "common-login-form",

@@ -9,6 +9,10 @@
 
 Searchable autocomplete single-select with keyboard navigation, described options, and a clearable button.
 
+## Used by
+
+- `entity-aliases`
+
 ## Variants
 
 ### Controlled selection

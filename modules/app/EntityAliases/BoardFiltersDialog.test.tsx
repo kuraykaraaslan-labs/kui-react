@@ -113,13 +113,15 @@ describe('BoardFilterDialog', () => {
   it('derives the key from the name on add, avoiding taken keys', () => {
     open();
     fireEvent.change(screen.getByLabelText(/^Filter name/), { target: { value: 'Hot' } });
-    expect((screen.getByLabelText(/^Key$|^Key\*/) as HTMLInputElement).value).toBe('hot2');
+    // The read-only key field (several labels start with "Key": key type, key name).
+    expect(screen.getByDisplayValue('hot2')).toHaveAttribute('readonly');
   });
 
   it('keeps the key of a filter being edited', () => {
     open({ filter: filters[1], existingKeys: [] });
     fireEvent.change(screen.getByLabelText(/^Filter name/), { target: { value: 'All pumps' } });
-    expect((screen.getByLabelText(/^Key$|^Key\*/) as HTMLInputElement).value).toBe('pumps');
+    // The read-only key field (several labels start with "Key": key type, key name).
+    expect(screen.getByDisplayValue('pumps')).toHaveAttribute('readonly');
   });
 
   it('shows the errors under the fields and does not save an incomplete filter', () => {

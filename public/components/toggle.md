@@ -12,6 +12,7 @@ role="switch" toggle/switch with three sizes, description slot, and disabled sup
 ## Used by
 
 - `control-tile`
+- `entity-aliases`
 
 ## Design tokens consumed
 

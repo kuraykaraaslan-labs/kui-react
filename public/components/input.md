@@ -11,6 +11,7 @@ Text input field with label, hint, error, prefix icon, password toggle, and 3 si
 
 ## Used by
 
+- `entity-aliases`
 - `form-builder`
 - `reviews-review-submit-form`
 - `rich-text-editor`
