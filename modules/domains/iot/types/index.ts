@@ -4,3 +4,4 @@ export * from './device';
 export * from './rpc';
 export * from './profile';
 export * from './alarm-rule';
+export * from './asset';

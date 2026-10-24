@@ -86,6 +86,35 @@ export { AlarmRuleSetEditor } from './alarm/AlarmRuleSetEditor';
 export { AlarmRuleDrawer, parseRuleValue, formatRuleValue, isFormable } from './alarm/AlarmRuleDrawer';
 export { RpcCommandCatalogEditor } from './rpc/RpcCommandCatalogEditor';
 
+// ── Sites and assets (phase 08; NB iot_asset 03) ─────────────────────────────────────────────────────────────────────
+export { AssetKindBadge } from './asset/AssetKindBadge';
+export type { AssetKindBadgeProps } from './asset/AssetKindBadge';
+export { ASSET_KIND_ICONS, assetKindIcon, assetKindLabel } from './asset/asset-kind';
+export { AssetBreadcrumb } from './asset/AssetBreadcrumb';
+export type { AssetBreadcrumbProps } from './asset/AssetBreadcrumb';
+export { AssetTree } from './asset/AssetTree';
+export type { AssetTreeProps } from './asset/AssetTree';
+export { AssetPicker } from './asset/AssetPicker';
+export type { AssetPickerProps } from './asset/AssetPicker';
+export { AssetFormDrawer } from './asset/AssetFormDrawer';
+export type { AssetFormDrawerProps } from './asset/AssetFormDrawer';
+export { MoveAssetDialog } from './asset/MoveAssetDialog';
+export type { MoveAssetDialogProps } from './asset/MoveAssetDialog';
+export { PlacedDeviceTable } from './asset/PlacedDeviceTable';
+export type { PlacedDeviceTableProps } from './asset/PlacedDeviceTable';
+export { PlaceDevicesDialog } from './asset/PlaceDevicesDialog';
+export type { PlaceDevicesDialogProps } from './asset/PlaceDevicesDialog';
+export { AssetRelationTable } from './asset/AssetRelationTable';
+export type { AssetRelationTableProps } from './asset/AssetRelationTable';
+export { AssetDetailView } from './asset/AssetDetailView';
+export type { AssetDetailViewProps } from './asset/AssetDetailView';
+export { AssetsView } from './asset/AssetsView';
+export type { AssetsViewProps } from './asset/AssetsView';
+export { DevicePlacementPicker } from './asset/DevicePlacementPicker';
+export type { DevicePlacementPickerProps } from './asset/DevicePlacementPicker';
+export { DevicePlacementPanel } from './asset/DevicePlacementPanel';
+export type { DevicePlacementPanelProps } from './asset/DevicePlacementPanel';
+
 // ── Deprecated (OD-9): the Alert* names, for one release; removed in the next minor ───────────────────────────────────
 /** @deprecated use AlarmSeverityBadge; removed in the next minor. */
 export { AlarmSeverityBadge as AlertSeverityBadge } from './alarm/AlarmSeverityBadge';

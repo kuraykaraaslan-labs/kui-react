@@ -51,6 +51,19 @@ import { RpcCommandCatalogEditor } from '@/modules/domains/iot/rpc/RpcCommandCat
 import { blankProfileDraft, DEFAULT_RATE_LIMITS, type DeviceProfile, type ProfileAuthMode, type ProfileRateLimits, type TelemetryKeySpec, type CfgKeySpec } from '@/modules/domains/iot/types/profile';
 import { newThresholdRule, type AlarmRuleDefinition } from '@/modules/domains/iot/types/alarm-rule';
 import { IotAdapterProvider } from '@/modules/domains/iot/api/IotAdapterProvider';
+import { AssetKindBadge } from '@/modules/domains/iot/asset/AssetKindBadge';
+import { AssetBreadcrumb } from '@/modules/domains/iot/asset/AssetBreadcrumb';
+import { AssetTree } from '@/modules/domains/iot/asset/AssetTree';
+import { AssetDetailView } from '@/modules/domains/iot/asset/AssetDetailView';
+import { AssetsView } from '@/modules/domains/iot/asset/AssetsView';
+import { AssetFormDrawer } from '@/modules/domains/iot/asset/AssetFormDrawer';
+import { MoveAssetDialog } from '@/modules/domains/iot/asset/MoveAssetDialog';
+import { PlaceDevicesDialog } from '@/modules/domains/iot/asset/PlaceDevicesDialog';
+import { PlacedDeviceTable } from '@/modules/domains/iot/asset/PlacedDeviceTable';
+import { AssetRelationTable } from '@/modules/domains/iot/asset/AssetRelationTable';
+import { DevicePlacementPanel } from '@/modules/domains/iot/asset/DevicePlacementPanel';
+import { DevicePlacementPicker } from '@/modules/domains/iot/asset/DevicePlacementPicker';
+import type { AssetCrumb, AssetNode, AssetRecord, AssetRelation, PlacedDevice } from '@/modules/domains/iot/types/asset';
 import { IotApiError, type IotAdapter } from '@/modules/domains/iot/api/adapter';
 import type { Alarm, AlarmEvent } from '@/modules/domains/iot/types/alarm';
 import type { AttributeEntry, DeviceConnectionEvent, DeviceLogEntry, DeviceLogFilter, DeviceRecord } from '@/modules/domains/iot/types/device';
@@ -163,13 +176,57 @@ const CFG_KEYS: CfgKeySpec[] = [
   { key: 'cfg.wifi.psk', type: 'string', minLength: 8, maxLength: 63, secret: true },
 ];
 
+// ── sites and assets (phase 08) ──
+
+const an = (assetId: string, name: string, kind: string, children: AssetNode[] = [], deviceCount = 0): AssetNode => ({
+  assetId, parentId: null, code: assetId.toUpperCase(), name, kind, childCount: children.length, deviceCount, children: children.map((c) => ({ ...c, parentId: assetId })),
+});
+const ASSET_TREE: AssetNode[] = [
+  an('plant', 'Istanbul plant', 'SITE', [
+    an('bldg-a', 'Building A', 'BUILDING', [an('line-3', 'Line 3', 'LINE', [an('press-3', 'Press 3', 'MACHINE', [], 1)]), an('boiler', 'Boiler room', 'ROOM', [], 1)]),
+    an('bldg-b', 'Building B', 'BUILDING', [an('floor-2', 'Floor 2', 'FLOOR', [an('server-room', 'Server room', 'ROOM', [], 2)])]),
+  ]),
+  an('depot', 'Ankara depot', 'SITE', [an('cold', 'Cold storage', 'COLD_STORE', [], 1)]),
+];
+const crumbOf = (n: AssetNode): AssetCrumb => ({ assetId: n.assetId, code: n.code, name: n.name, kind: n.kind });
+const findAsset = (id: string, list: AssetNode[] = ASSET_TREE, trail: AssetNode[] = []): { node: AssetNode; trail: AssetNode[] } | null => {
+  for (const x of list) {
+    if (x.assetId === id) return { node: x, trail };
+    const hit = findAsset(id, x.children, [...trail, x]);
+    if (hit) return hit;
+  }
+  return null;
+};
+const assetRecord = (id: string): AssetRecord => {
+  const hit = findAsset(id);
+  if (!hit) throw new IotApiError('not_found', 'Asset not found.');
+  const { node, trail } = hit;
+  return {
+    assetId: node.assetId, parentId: trail.at(-1)?.assetId ?? null, code: node.code, name: node.name, kind: node.kind,
+    description: node.kind === 'SITE' ? 'Head office, press and assembly halls' : null, timezone: node.kind === 'SITE' ? 'Europe/Istanbul' : null,
+    effectiveTimezone: 'Europe/Istanbul', lat: node.kind === 'SITE' ? 41.0786 : null, lng: node.kind === 'SITE' ? 29.0112 : null,
+    attributes: node.kind === 'SITE' ? { area_m2: 12_400, shifts: 3 } : {}, ancestors: trail.map(crumbOf), childCount: node.children.length,
+    deviceCount: node.deviceCount + node.children.reduce((s, c) => s + c.deviceCount, 0), createdAt: ago(400 * 86_400_000),
+  };
+};
+const PLACED: PlacedDevice[] = [
+  { device: { ...DEVICES[0], lastRemoteIp: '203.0.113.7', lastTransport: 'mqtt' }, placement: { assetId: 'press-3', code: 'PRESS-3', name: 'Press 3', kind: 'MACHINE' } },
+  { device: { ...DEVICES[1], lastRemoteIp: '198.51.100.24', lastTransport: 'mqtts' }, placement: { assetId: 'boiler', code: 'BOILER', name: 'Boiler room', kind: 'ROOM' } },
+  { device: DEVICES[3], placement: { assetId: 'bldg-a', code: 'BLDG-A', name: 'Building A', kind: 'BUILDING' } },
+];
+const RELATIONS: AssetRelation[] = [
+  { relationId: 'rl1', fromType: 'ASSET', fromId: 'bldg-a', toType: 'DEVICE', toId: 'd4', type: 'CONTAINS', fromName: 'Building A', toName: 'Water meter 3B' },
+  { relationId: 'rl2', fromType: 'ASSET', fromId: 'boiler', toType: 'ASSET', toId: 'line-3', type: 'FEEDS', fromName: 'Boiler room', toName: 'Line 3' },
+  { relationId: 'rl3', fromType: 'DEVICE', fromId: 'd2', toType: 'ASSET', toId: 'bldg-a', type: 'MONITORS', fromName: 'Edge gateway 1', toName: 'Building A' },
+];
+
 function fixtureAdapter(fail = false): IotAdapter {
   const failing = async () => { await wait(); throw new IotApiError('unavailable', 'The server did not answer.'); };
   const alarms = ALARMS.map((a) => ({ ...a }));
   return {
     name: 'Showcase fixtures',
     async capabilities() {
-      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true, canManageProfiles: !fail, canManageAlarmRules: !fail, canManageRpcCommands: !fail };
+      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true, canManageProfiles: !fail, canManageAlarmRules: !fail, canManageRpcCommands: !fail, canManageAssets: !fail, canPlaceDevices: !fail };
     },
     profiles: {
       transports: ['MQTT', 'HTTP', 'ANY', 'LORAWAN'],
@@ -181,6 +238,20 @@ function fixtureAdapter(fail = false): IotAdapter {
       async setDefault(id) { await wait(); return { ...PROFILES.find((x) => x.profileId === id)!, isDefault: true }; },
       async remove() { await wait(); throw new IotApiError('conflict', 'The device profile is still in use by 2 devices (iot_device).'); },
       async usage(ids) { await wait(); return Object.fromEntries(ids.map((id) => [id, { devices: DEVICES.filter((d) => d.deviceProfileId === id).length, references: [{ moduleId: 'iot_device', count: DEVICES.filter((d) => d.deviceProfileId === id).length, label: 'devices' }] }])); },
+    },
+    assets: {
+      tree: fail ? failing : async () => { await wait(); return { nodes: ASSET_TREE, truncated: false }; },
+      get: fail ? failing : async (id) => { await wait(); return assetRecord(id); },
+      async create() { await wait(); return { assetId: 'line-3' }; },
+      async update() { await wait(); },
+      async move(_id, parentId) { await wait(); if (parentId === 'press-3') throw new IotApiError('validation', 'An asset cannot be moved under itself or one of its own descendants.'); },
+      async remove() { await wait(); throw new IotApiError('conflict', 'This asset still has child assets: move or delete them first.'); },
+      devices: fail ? failing : async (id, q) => { await wait(); const rows = q.recursive === false ? PLACED.filter((p) => p.placement.assetId === id) : PLACED; return { items: rows, total: rows.length }; },
+      async place() { await wait(); },
+      placement: fail ? failing : async () => { await wait(); return { assetId: 'press-3', path: ['plant', 'bldg-a', 'line-3', 'press-3'].map((id) => crumbOf(findAsset(id)!.node)) }; },
+      async setPlacement(_d, assetId) { await wait(); return assetId ? { assetId, path: [...assetRecord(assetId).ancestors, crumbOf(findAsset(assetId)!.node)] } : { assetId: null, path: [] }; },
+      async relations() { await wait(); return RELATIONS; },
+      async removeRelation() { await wait(); },
     },
     alarmRules: {
       list: fail ? failing : async () => { await wait(); return RULES.map((definition, i) => ({ ruleId: `r${i}`, version: 1, definition })); },
@@ -239,6 +310,31 @@ function fixtureAdapter(fail = false): IotAdapter {
 function Fixture({ fail = false, children }: { fail?: boolean; children: React.ReactNode }) {
   const [adapter] = useState(() => fixtureAdapter(fail));
   return <IotAdapterProvider adapter={adapter} locale="en-GB">{children}</IotAdapterProvider>;
+}
+
+function AssetsViewDemo({ fail = false }: { fail?: boolean }) {
+  const [selected, setSelected] = useState<string | null>(fail ? null : 'bldg-a');
+  return <Fixture fail={fail}><AssetsView selectedId={selected} onSelect={setSelected} hrefs={{ asset: (id) => `#asset-${id}`, device: (id) => `#device-${id}` }} now={NOW} /></Fixture>;
+}
+
+function AssetTreeDemo() {
+  const [selected, setSelected] = useState<string>('line-3');
+  return <AssetTree nodes={ASSET_TREE} selectedId={selected} onSelect={setSelected} />;
+}
+
+function AssetDialogDemo({ which }: { which: 'form' | 'child' | 'move' | 'place' | 'picker' }) {
+  const [open, setOpen] = useState(false);
+  const label = which === 'form' ? 'Edit Building A' : which === 'child' ? 'Add a child to Building A' : which === 'move' ? 'Move Line 3' : which === 'place' ? 'Place devices on Press 3' : 'Pick an asset';
+  return (
+    <Fixture>
+      <Button variant="primary" size="sm" onClick={() => setOpen(true)}>{label}</Button>
+      {open && which === 'form' && <AssetFormDrawer open asset={assetRecord('bldg-a')} onClose={() => setOpen(false)} />}
+      {open && which === 'child' && <AssetFormDrawer open parent={{ assetId: 'bldg-a', name: 'Building A' }} onClose={() => setOpen(false)} />}
+      {open && which === 'move' && <MoveAssetDialog open asset={{ assetId: 'line-3', name: 'Line 3', parentId: 'bldg-a' }} nodes={ASSET_TREE} onClose={() => setOpen(false)} />}
+      {open && which === 'place' && <PlaceDevicesDialog open asset={{ assetId: 'press-3', name: 'Press 3' }} placedIds={new Set(['d1'])} onClose={() => setOpen(false)} />}
+      {open && which === 'picker' && <DevicePlacementPicker open value="press-3" onClose={() => setOpen(false)} onPick={() => setOpen(false)} />}
+    </Fixture>
+  );
 }
 
 function NewDeviceDemo() {
@@ -834,6 +930,138 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       variants: [
         { title: 'Catalog', layout: 'stack', preview: <Fixture><RpcCommandCatalogEditor profileId="p1" /></Fixture>, code: '<RpcCommandCatalogEditor profileId="p1" />' },
         { title: 'Read error', layout: 'stack', preview: <Fixture fail><RpcCommandCatalogEditor profileId="p1" /></Fixture>, code: '<RpcCommandCatalogEditor profileId="p1" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-asset-kind-badge',
+      title: 'AssetKindBadge',
+      abbr: 'AG',
+      description: 'The icon and label of an asset kind: site, building, floor, room, area, line, machine. Kinds are free: any other kind gets a neutral icon and its own name.',
+      filePath: 'modules/domains/iot/asset/AssetKindBadge.tsx',
+      usage: `<AssetKindBadge kind="BUILDING" />`,
+      variants: [
+        { title: 'Suggested kinds', layout: 'side', preview: <div className="flex flex-wrap gap-2">{['SITE', 'BUILDING', 'FLOOR', 'ROOM', 'AREA', 'LINE', 'MACHINE', 'OTHER'].map((k) => <AssetKindBadge key={k} kind={k} />)}</div>, code: '<AssetKindBadge kind="SITE" />' },
+        { title: 'Free kind and icon only', layout: 'side', preview: <div className="flex items-center gap-3"><AssetKindBadge kind="COLD_STORE" /><AssetKindBadge kind="MACHINE" iconOnly /><AssetKindBadge kind="SITE" size="md" /></div>, code: '<AssetKindBadge kind="COLD_STORE" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-asset-breadcrumb',
+      title: 'AssetBreadcrumb',
+      abbr: 'AI',
+      description: 'An asset path from the materialised path, root first, each step with its kind icon and a link; long paths collapse in the middle.',
+      filePath: 'modules/domains/iot/asset/AssetBreadcrumb.tsx',
+      usage: `<AssetBreadcrumb path={asset.ancestors} href={(id) => assetHref(id)} />`,
+      variants: [
+        { title: 'Linked path', layout: 'stack', preview: <AssetBreadcrumb path={['plant', 'bldg-a', 'line-3', 'press-3'].map((id) => crumbOf(findAsset(id)!.node))} href={(id) => `#asset-${id}`} currentLast />, code: '<AssetBreadcrumb path={path} href={href} currentLast />' },
+        { title: 'Collapsed', layout: 'stack', preview: <AssetBreadcrumb path={['plant', 'bldg-b', 'floor-2', 'server-room'].map((id) => crumbOf(findAsset(id)!.node))} maxItems={3} />, code: '<AssetBreadcrumb path={path} maxItems={3} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-asset-tree',
+      title: 'AssetTree',
+      abbr: 'AU',
+      description: 'The site and asset tree on the generic TreeView, with search that keeps every hit with its ancestors, an empty state with the host action, and keyboard navigation.',
+      filePath: 'modules/domains/iot/asset/AssetTree.tsx',
+      usage: `<AssetTree nodes={tree} selectedId={id} onSelect={open} />`,
+      variants: [
+        { title: 'Tree', layout: 'side', preview: <AssetTreeDemo />, code: '<AssetTree nodes={tree} selectedId={id} onSelect={setId} />' },
+        { title: 'Empty', layout: 'side', preview: <AssetTree nodes={[]} emptyAction={<Button variant="primary" size="sm">New site</Button>} />, code: '<AssetTree nodes={[]} emptyAction={newSite} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-assets-view',
+      title: 'AssetsView',
+      abbr: 'AV',
+      description: 'The Sites & assets page through the IoT adapter: the tree with search on the left, the selected asset on the right, New site; the selection and tab belong to the host URL.',
+      filePath: 'modules/domains/iot/asset/AssetsView.tsx',
+      usage: `<IotAdapterProvider adapter={adapter}><AssetsView selectedId={id} onSelect={toUrl} hrefs={{ asset, device }} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'Fixture adapter', layout: 'stack', preview: <AssetsViewDemo />, code: '<AssetsView selectedId={id} onSelect={setId} hrefs={hrefs} />' },
+        { title: 'Failing adapter', layout: 'stack', preview: <AssetsViewDemo fail />, code: '<AssetsView />' },
+      ],
+    }),
+    entry({
+      id: 'iot-asset-detail-view',
+      title: 'AssetDetailView',
+      abbr: 'AW',
+      description: 'One site or asset through the adapter: path, kind and code, add a child, edit, Move to… (never under itself), delete with the host refusal shown; tabs Overview (inherited time zone, attributes), Devices (placed here or below, online state and IP, Place devices), Child assets and Relations.',
+      filePath: 'modules/domains/iot/asset/AssetDetailView.tsx',
+      usage: `<AssetDetailView assetId={id} nodes={tree} hrefs={{ asset, device }} onChanged={reloadTree} />`,
+      variants: [
+        { title: 'A site', layout: 'stack', preview: <Fixture><AssetDetailView assetId="plant" nodes={ASSET_TREE} hrefs={{ asset: (id) => `#asset-${id}`, device: (id) => `#device-${id}` }} now={NOW} /></Fixture>, code: '<AssetDetailView assetId="plant" nodes={tree} />' },
+        { title: 'Devices tab', layout: 'stack', preview: <Fixture><AssetDetailView assetId="bldg-a" nodes={ASSET_TREE} tab="devices" hrefs={{ asset: (id) => `#asset-${id}`, device: (id) => `#device-${id}` }} now={NOW} /></Fixture>, code: '<AssetDetailView assetId="bldg-a" tab="devices" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-placed-device-table',
+      title: 'PlacedDeviceTable',
+      abbr: 'AX',
+      description: 'The devices placed under an asset: the device link, its online state (DeviceOnlineDot), the address of its newest connect (DeviceAddress) and the node it sits on; optional Remove placement.',
+      filePath: 'modules/domains/iot/asset/PlacedDeviceTable.tsx',
+      usage: `<PlacedDeviceTable rows={placed} assetId={id} deviceHref={href} onUnplace={unplace} />`,
+      variants: [
+        { title: 'Rows', layout: 'stack', preview: <PlacedDeviceTable rows={PLACED} assetId="bldg-a" deviceHref={(id) => `#device-${id}`} assetHref={(id) => `#asset-${id}`} onUnplace={() => undefined} now={NOW} />, code: '<PlacedDeviceTable rows={rows} assetId="bldg-a" onUnplace={unplace} />' },
+        { title: 'Empty', layout: 'stack', preview: <PlacedDeviceTable rows={[]} />, code: '<PlacedDeviceTable rows={[]} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-asset-relation-table',
+      title: 'AssetRelationTable',
+      abbr: 'AY',
+      description: 'Typed relations of an asset or device: from, type and to with entity icons and links; CONTAINS towards a device is its placement.',
+      filePath: 'modules/domains/iot/asset/AssetRelationTable.tsx',
+      usage: `<AssetRelationTable rows={relations} hrefs={{ asset, device }} onRemove={remove} />`,
+      variants: [
+        { title: 'Relations', layout: 'stack', preview: <AssetRelationTable rows={RELATIONS} hrefs={{ asset: (id) => `#asset-${id}`, device: (id) => `#device-${id}` }} onRemove={() => undefined} />, code: '<AssetRelationTable rows={rows} onRemove={remove} />' },
+        { title: 'Empty', layout: 'stack', preview: <AssetRelationTable rows={[]} />, code: '<AssetRelationTable rows={[]} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-asset-form-drawer',
+      title: 'AssetFormDrawer',
+      abbr: 'AZ',
+      description: 'Create or edit a site or asset: name, kind (suggested or another), code (derived when empty), description, time zone and coordinates.',
+      filePath: 'modules/domains/iot/asset/AssetFormDrawer.tsx',
+      usage: `<AssetFormDrawer open parent={{ assetId, name }} onClose={close} onSaved={reload} />`,
+      variants: [
+        { title: 'Edit', layout: 'side', preview: <AssetDialogDemo which="form" />, code: '<AssetFormDrawer open asset={asset} onClose={close} />' },
+        { title: 'New child', layout: 'side', preview: <AssetDialogDemo which="child" />, code: '<AssetFormDrawer open parent={parent} onClose={close} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-move-asset-dialog',
+      title: 'MoveAssetDialog',
+      abbr: 'AO',
+      description: 'Move to…: the new parent picked in a searchable tree that leaves out the asset and everything under it (no cycle), or the top level.',
+      filePath: 'modules/domains/iot/asset/MoveAssetDialog.tsx',
+      usage: `<MoveAssetDialog open asset={asset} nodes={tree} onClose={close} onMoved={reload} />`,
+      variants: [
+        { title: 'Move a line', layout: 'side', preview: <AssetDialogDemo which="move" />, code: '<MoveAssetDialog open asset={line} nodes={tree} />' },
+        { title: 'Pick a place for a device', layout: 'side', preview: <AssetDialogDemo which="picker" />, code: '<DevicePlacementPicker open value={assetId} onPick={place} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-place-devices-dialog',
+      title: 'PlaceDevicesDialog',
+      abbr: 'DU',
+      description: 'Place devices on an asset: search the devices, tick several, place them in one call; a device has one place, so placing it here moves it.',
+      filePath: 'modules/domains/iot/asset/PlaceDevicesDialog.tsx',
+      usage: `<PlaceDevicesDialog open asset={{ assetId, name }} placedIds={here} onClose={close} onPlaced={reload} />`,
+      variants: [
+        { title: 'Place devices', layout: 'side', preview: <AssetDialogDemo which="place" />, code: '<PlaceDevicesDialog open asset={asset} />' },
+        { title: 'Failing adapter', layout: 'side', preview: <Fixture fail><PlaceDevicesDialog open={false} asset={{ assetId: 'press-3', name: 'Press 3' }} onClose={() => undefined} /></Fixture>, code: '<PlaceDevicesDialog open={false} … />' },
+      ],
+    }),
+    entry({
+      id: 'iot-device-placement-panel',
+      title: 'DevicePlacementPanel',
+      abbr: 'DV',
+      description: 'Where a device is: the path of its asset with links, Change placement (DevicePlacementPicker) and Remove placement; the device page Placement tab.',
+      filePath: 'modules/domains/iot/asset/DevicePlacementPanel.tsx',
+      usage: `<DevicePlacementPanel deviceId={id} hrefs={{ asset }} />`,
+      variants: [
+        { title: 'Placed', layout: 'stack', preview: <Fixture><DevicePlacementPanel deviceId="d1" hrefs={{ asset: (id) => `#asset-${id}` }} /></Fixture>, code: '<DevicePlacementPanel deviceId="d1" hrefs={hrefs} />' },
+        { title: 'Not readable', layout: 'stack', preview: <Fixture fail><DevicePlacementPanel deviceId="d1" /></Fixture>, code: '<DevicePlacementPanel deviceId="d1" />' },
       ],
     }),
   ];

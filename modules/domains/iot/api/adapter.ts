@@ -8,6 +8,9 @@ import type {
 import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
 import type { DeviceProfile, DeviceProfileInput, DeviceProfileUsage, OnlineRule, ProfileTransport } from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
+import type {
+  AssetInput, AssetNode, AssetRecord, AssetRelation, AssetRelationInput, DevicePlacement, PlacedDevice, RelationEntityType,
+} from '../types/asset';
 
 /*
  * The IoT adapter contract (docs/concepts/iot-platform/phases/00-api-adapter-layer.md §0.2): every IoT view reads and writes
@@ -222,6 +225,38 @@ export interface IotRpcApi {
   parseLive?(payload: unknown): RpcLiveEvent | null;
 }
 
+// ── sites and assets (phase 08) ─────────────────────────────────────────────────────────────────────────────────────
+
+export type PlacedDeviceQuery = { page: number; pageSize: number; /** Devices on descendants too (default true). */ recursive?: boolean };
+
+/**
+ * The topology (NB `iot_asset`): the tree, one asset, its devices and relations, and a device's placement. A host refuses a move
+ * under the asset itself or a descendant (`validation`), a delete while children remain or another module still points at the
+ * asset (`conflict`, the message names it), and a second placement of a device is a move, never a second parent.
+ */
+export interface IotAssetsApi {
+  /** The whole tree (a host may bound it; `truncated` says it did). */
+  tree(signal?: AbortSignal): Promise<{ nodes: AssetNode[]; truncated: boolean }>;
+  get(assetId: string, signal?: AbortSignal): Promise<AssetRecord>;
+  create(input: AssetInput): Promise<{ assetId: string }>;
+  /** Only the changed fields; never the parent (that is `move`). */
+  update(assetId: string, patch: Partial<Omit<AssetInput, 'parentId'>>): Promise<void>;
+  /** `null` = to the top level. */
+  move(assetId: string, parentId: string | null): Promise<void>;
+  remove(assetId: string): Promise<void>;
+  /** The devices placed on the asset or (recursive) any descendant. */
+  devices(assetId: string, query: PlacedDeviceQuery, signal?: AbortSignal): Promise<Page<PlacedDevice>>;
+  /** Places the devices on the asset (each moved from where it was). */
+  place(assetId: string, deviceIds: string[]): Promise<void>;
+  placement(deviceId: string, signal?: AbortSignal): Promise<DevicePlacement>;
+  /** `null` removes the placement. */
+  setPlacement(deviceId: string, assetId: string | null): Promise<DevicePlacement>;
+  /** Relations with the entity at either end. */
+  relations?(entity: { type: RelationEntityType; id: string }, signal?: AbortSignal): Promise<AssetRelation[]>;
+  createRelation?(input: AssetRelationInput): Promise<AssetRelation>;
+  removeRelation?(relationId: string): Promise<void>;
+}
+
 // ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -249,6 +284,10 @@ export type IotCapabilities = {
   canManageAlarmRules: boolean;
   /** Edit the command catalog of a profile (create, edit, delete, import). */
   canManageRpcCommands: boolean;
+  /** Create, edit, move and delete sites and assets. */
+  canManageAssets: boolean;
+  /** Place devices on assets and manage relations. */
+  canPlaceDevices: boolean;
 };
 
 /** Fail closed: nothing until the host says so. */
@@ -269,6 +308,8 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canManageProfiles: false,
   canManageAlarmRules: false,
   canManageRpcCommands: false,
+  canManageAssets: false,
+  canPlaceDevices: false,
 };
 
 export interface IotAdapter {
@@ -282,6 +323,7 @@ export interface IotAdapter {
   rpc?: IotRpcApi;
   alarmRules?: IotAlarmRulesApi;
   rpcCatalog?: IotRpcCatalogApi;
+  assets?: IotAssetsApi;
   capabilities?(signal?: AbortSignal): Promise<Partial<IotCapabilities>>;
 }
 

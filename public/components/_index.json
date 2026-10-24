@@ -2099,6 +2099,72 @@
     "category": "Domain",
     "file": "iot-rpc-command-catalog-editor.md"
   },
+  "iot-asset-kind-badge": {
+    "name": "AssetKindBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-asset-kind-badge.md"
+  },
+  "iot-asset-breadcrumb": {
+    "name": "AssetBreadcrumb",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-asset-breadcrumb.md"
+  },
+  "iot-asset-tree": {
+    "name": "AssetTree",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-asset-tree.md"
+  },
+  "iot-assets-view": {
+    "name": "AssetsView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-assets-view.md"
+  },
+  "iot-asset-detail-view": {
+    "name": "AssetDetailView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-asset-detail-view.md"
+  },
+  "iot-placed-device-table": {
+    "name": "PlacedDeviceTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-placed-device-table.md"
+  },
+  "iot-asset-relation-table": {
+    "name": "AssetRelationTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-asset-relation-table.md"
+  },
+  "iot-asset-form-drawer": {
+    "name": "AssetFormDrawer",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-asset-form-drawer.md"
+  },
+  "iot-move-asset-dialog": {
+    "name": "MoveAssetDialog",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-move-asset-dialog.md"
+  },
+  "iot-place-devices-dialog": {
+    "name": "PlaceDevicesDialog",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-place-devices-dialog.md"
+  },
+  "iot-device-placement-panel": {
+    "name": "DevicePlacementPanel",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-placement-panel.md"
+  },
   "nft-rarity-badge": {
     "name": "RarityBadge",
     "layer": "domain",

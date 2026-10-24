@@ -8,6 +8,8 @@ export const demoHrefs = {
   devices: '/theme/iot/devices',
   profile: (profileId: string) => `/theme/iot/profiles/${profileId}`,
   profiles: '/theme/iot/profiles',
+  asset: (assetId: string) => `/theme/iot/assets?asset=${encodeURIComponent(assetId)}`,
+  assets: '/theme/iot/assets',
 };
 
 /** A demo device id from the URL's slug (seeded slugs, else the id itself for a device made in the demo). */

@@ -9,6 +9,7 @@ import { blankProfileDraft, onlineRuleBlock, type DeviceProfile, type DeviceProf
 import { newInactivityRule, type AlarmRuleDefinition } from '@/modules/domains/iot/types/alarm-rule';
 import { ALARMS, ALARM_EVENTS, DEVICES, DEVICE_PROFILES } from '../iot.data';
 import type { DemoLive } from './demo-live';
+import { createDemoAssets } from './demo-assets';
 
 /*
  * The demo adapter (docs/concepts/iot-platform/phases/00 §0.5): an in-memory store seeded from `iot.data.ts` that implements
@@ -295,13 +296,17 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     });
   }
 
+  const assets = createDemoAssets(() => store.devices, wait);
+
   const adapter: DemoAdapter = {
     name: 'Demo, in memory',
+    assets,
     async capabilities() {
       return {
         canCreateDevice: true, canEditDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true,
         canWriteAttributes: true, canActivateDevice: true, canReleaseDevice: false, canReadAlarms: true, canAcknowledge: true,
         canClear: true, canComment: true, canSendRpc: true, canManageProfiles: true, canManageAlarmRules: true, canManageRpcCommands: true,
+        canManageAssets: true, canPlaceDevices: true,
       };
     },
     profiles: {
@@ -420,7 +425,13 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         audit(d.deviceId, 'iot_device.device.created', { credentialType: 'ACCESS_TOKEN' });
         return { device: { ...d }, credential, secret: { token: randomSecret() } };
       },
-      async remove(id) { await wait(); device(id); store.devices = store.devices.filter((d) => d.deviceId !== id); },
+      async remove(id) {
+        await wait();
+        device(id);
+        // NB iot_asset's reference check: a placed device is not deleted until it is unplaced
+        if (assets.placementOf(id)) throw new IotApiError('conflict', 'The device is still referenced by 1 asset placement or relation (iot_asset).');
+        store.devices = store.devices.filter((d) => d.deviceId !== id);
+      },
       async activate(ids) {
         await wait();
         let n = 0;

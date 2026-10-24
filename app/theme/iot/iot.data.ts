@@ -599,3 +599,49 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
     createdAt: PROFILE_T0, updatedAt: new Date('2026-10-10T07:45:00Z'),
   },
 ];
+
+// ── Sites and assets (phase 08) ──────────────────────────────────────────────────────────────────────────────────────
+
+/** A seeded asset of the demo tree (`parentId` by id). The plant → 2 halls → lines → machines, and a logistics hub. */
+export type DemoAsset = {
+  assetId: string;
+  parentId: string | null;
+  code: string;
+  name: string;
+  kind: string;
+  description?: string;
+  lat?: number;
+  lng?: number;
+  timezone?: string;
+  attributes?: Record<string, unknown>;
+};
+
+export const DEMO_ASSETS: DemoAsset[] = [
+  { assetId: 'as-plant', parentId: null, code: 'BER-PLANT', name: 'Berlin plant', kind: 'SITE', lat: 52.52, lng: 13.405, timezone: 'Europe/Berlin', description: 'Press, assembly and coolant lines', attributes: { area_m2: 18_500, shifts: 3 } },
+  { assetId: 'as-hall-a', parentId: 'as-plant', code: 'HALL-A', name: 'Hall A', kind: 'BUILDING', attributes: { floors: 1 } },
+  { assetId: 'as-press-line', parentId: 'as-hall-a', code: 'PRESS-LINE', name: 'Press line', kind: 'LINE' },
+  { assetId: 'as-press-3', parentId: 'as-press-line', code: 'PRESS-3', name: 'Press 3 (Bay 3)', kind: 'MACHINE', attributes: { tonnage: 800 } },
+  { assetId: 'as-coolant', parentId: 'as-hall-a', code: 'COOLANT', name: 'Coolant station', kind: 'AREA', attributes: { target_temp_c: 18 } },
+  { assetId: 'as-hall-b', parentId: 'as-plant', code: 'HALL-B', name: 'Hall B', kind: 'BUILDING' },
+  { assetId: 'as-assembly', parentId: 'as-hall-b', code: 'ASSEMBLY', name: 'Assembly line', kind: 'LINE' },
+  { assetId: 'as-control', parentId: 'as-assembly', code: 'CONTROL-ROOM', name: 'Control room', kind: 'ROOM' },
+  { assetId: 'as-basement', parentId: 'as-hall-b', code: 'HALL-B-B1', name: 'Basement', kind: 'FLOOR' },
+  { assetId: 'as-hub', parentId: null, code: 'BER-HUB', name: 'Berlin logistics hub', kind: 'SITE', lat: 52.534, lng: 13.381, timezone: 'Europe/Berlin' },
+  { assetId: 'as-warehouse', parentId: 'as-hub', code: 'WAREHOUSE', name: 'Warehouse', kind: 'BUILDING' },
+  { assetId: 'as-zone-c', parentId: 'as-warehouse', code: 'ZONE-C', name: 'Zone C', kind: 'AREA' },
+  { assetId: 'as-dock-4', parentId: 'as-warehouse', code: 'DOCK-4', name: 'Dock 4', kind: 'AREA' },
+  { assetId: 'as-cold-room', parentId: 'as-warehouse', code: 'COLD-ROOM', name: 'Cold room', kind: 'ROOM', attributes: { target_temp_c: 4 } },
+  { assetId: 'as-roof', parentId: 'as-warehouse', code: 'ROOF', name: 'Roof', kind: 'ROOFTOP' },
+];
+
+/** Where the demo devices are placed (device id → asset id); the weather bridge and the prototype are not placed. */
+export const DEMO_PLACEMENTS: Record<string, string> = {
+  'dev-001': 'as-press-3',
+  'dev-003': 'as-coolant',
+  'dev-002': 'as-control',
+  'dev-lw01': 'as-basement',
+  'dev-004': 'as-zone-c',
+  'dev-005': 'as-dock-4',
+  'dev-q01': 'as-cold-room',
+  'dev-tb01': 'as-hall-b',
+};
