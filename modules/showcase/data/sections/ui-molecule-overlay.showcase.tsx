@@ -222,7 +222,7 @@ export function buildOverlayData(): ShowcaseComponent[] {
       title: 'Modal',
       category: 'Organism',
       abbr: 'Md',
-      description: 'Focus-trapped dialog. Closes on Escape and backdrop click. Requires role="dialog" + aria-modal + aria-labelledby; supports sm/md/lg sizes. Uses the shared Overlays focus-trap, scroll-lock and presence hooks; nested modals are layer-aware so Escape only dismisses the topmost panel.',
+      description: 'Focus-trapped dialog. Closes on Escape and backdrop click. Requires role="dialog" + aria-modal + aria-labelledby; supports sm/md/lg/xl/full sizes (full = viewport width less the gutter; fullscreen fills the viewport). An Escape an inner control already handled (an open ComboBox / Select list) closes that control, not the dialog. Uses the shared Overlays focus-trap, scroll-lock and presence hooks; nested modals are layer-aware so Escape only dismisses the topmost panel.',
       filePath: 'modules/ui/Overlays/Modal/index.tsx',
       sourceCode: `'use client';
 import { cn } from '@/libs/utils/cn';

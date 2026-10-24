@@ -6,6 +6,25 @@ import { faChevronUp, faChevronDown, faCheck } from '@fortawesome/free-solid-svg
 
 export type SelectOption = { value: string; label: string; icon?: React.ReactNode };
 
+/** Built-in strings, overridable per instance through `messages` (to translate them). */
+export type SelectMessages = {
+  /** Shown in the custom list when the search matches nothing. */
+  noResults: string;
+  /** Placeholder and accessible name of the search box (`searchable`). */
+  search: string;
+  /** Shown in the custom trigger when nothing is selected and no `placeholder` is given. */
+  placeholder: string;
+  /** Screen-reader suffix of a `required` label. */
+  required: string;
+};
+
+export const DEFAULT_SELECT_MESSAGES: SelectMessages = {
+  noResults: 'No results found.',
+  search: 'Search…',
+  placeholder: 'Select…',
+  required: '(required)',
+};
+
 type BaseProps = {
   id: string;
   label: string;
@@ -17,17 +36,21 @@ type BaseProps = {
   required?: boolean;
   searchable?: boolean;
   className?: string;
+  /** Overrides for the built-in English strings. */
+  messages?: Partial<SelectMessages>;
 };
 
 type NativeProps = BaseProps & Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'id'>;
 
 function CustomSelect({
-  id, label, options, placeholder, hint, error, disabled, required, searchable, className,
+  id, label, options, placeholder, hint, error, disabled, required, searchable, className, messages,
   value, onChange,
 }: BaseProps & { value?: string; onChange?: (v: string) => void }) {
+  const m = { ...DEFAULT_SELECT_MESSAGES, ...messages };
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const hintId  = hint && !error ? `${id}-hint` : undefined; // the hint is not rendered once an error replaces it
@@ -62,18 +85,29 @@ function CustomSelect({
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') setOpen(false);
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o); }
   }
 
+  // Escape anywhere in an open list (trigger, search box, an option) closes the
+  // list only: it is marked handled so an enclosing Modal / Drawer stays open.
+  // With the list closed, Escape passes through to the overlay as usual.
+  function onRootKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== 'Escape' || !open) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
   return (
-    <div ref={containerRef} className={cn('space-y-1', className)}>
+    <div ref={containerRef} className={cn('space-y-1', className)} onKeyDown={onRootKeyDown}>
       <label id={`${id}-label`} className="block text-sm font-medium text-text-primary">
         {label}
-        {required && <><span className="text-error ml-1" aria-hidden="true">*</span><span className="sr-only">(required)</span></>}
+        {required && <><span className="text-error ml-1" aria-hidden="true">*</span><span className="sr-only">{m.required}</span></>}
       </label>
 
       <div
+        ref={triggerRef}
         role="combobox"
         tabIndex={disabled ? -1 : 0}
         aria-haspopup="listbox"
@@ -96,7 +130,7 @@ function CustomSelect({
       >
         {selected?.icon && <span className="shrink-0">{selected.icon}</span>}
         <span className={cn('flex-1', !selected && 'text-text-disabled')}>
-          {selected ? selected.label : (placeholder ?? 'Select…')}
+          {selected ? selected.label : (placeholder ?? m.placeholder)}
         </span>
         <FontAwesomeIcon icon={open ? faChevronUp : faChevronDown} className="w-3 h-3 text-text-disabled" aria-hidden="true" />
       </div>
@@ -110,7 +144,8 @@ function CustomSelect({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search…"
+                placeholder={m.search}
+                aria-label={m.search}
                 className={cn(
                   'block w-full rounded-md border border-border bg-surface-base px-3 py-1.5 text-sm',
                   'text-text-primary placeholder:text-text-disabled',
@@ -136,7 +171,7 @@ function CustomSelect({
               </li>
             )}
             {filtered.length === 0 ? (
-              <li className="px-3 py-4 text-sm text-center text-text-secondary">No results found.</li>
+              <li className="px-3 py-4 text-sm text-center text-text-secondary">{m.noResults}</li>
             ) : (
               filtered.map((opt) => {
                 const active = opt.value === value;
@@ -172,7 +207,7 @@ function CustomSelect({
   );
 }
 
-export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select({ id, label, options, placeholder, hint, error, disabled, required, searchable, className, ...props }, ref) {
+export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select({ id, label, options, placeholder, hint, error, disabled, required, searchable, className, messages, ...props }, ref) {
   const hasIcons = options.some((o) => o.icon);
 
   if (hasIcons || searchable) {
@@ -181,7 +216,7 @@ export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select
       <CustomSelect
         id={id} label={label} options={options} placeholder={placeholder}
         hint={hint} error={error} disabled={disabled} required={required}
-        searchable={searchable} className={className}
+        searchable={searchable} className={className} messages={messages}
         value={value as string | undefined}
         onChange={(v) => onChange?.({ target: { value: v } } as React.ChangeEvent<HTMLSelectElement>)}
         {...rest}
@@ -200,7 +235,7 @@ export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select
         {required && (
           <>
             <span className="text-error ml-1" aria-hidden="true">*</span>
-            <span className="sr-only">(required)</span>
+            <span className="sr-only">{messages?.required ?? DEFAULT_SELECT_MESSAGES.required}</span>
           </>
         )}
       </label>

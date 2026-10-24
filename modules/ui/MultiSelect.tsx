@@ -11,8 +11,28 @@ import { useFilter } from './ComboBox/hooks/useFilter';
 import { useAsync } from './ComboBox/hooks/useAsync';
 import { useLoadMore } from './ComboBox/hooks/useLoadMore';
 import type { ComboBoxOption } from './ComboBox/types';
+import { fillMessage } from './_shared/format';
 
 export type MultiSelectOption = ComboBoxOption;
+
+/** Built-in strings, overridable per instance through `messages` (to translate them). */
+export type MultiSelectMessages = {
+  /** Shown in the list when the search matches nothing. */
+  noResults: string;
+  /** Placeholder and accessible name of the search box. */
+  search: string;
+  /** Accessible name of a chip's remove button; `{label}` is the option's label. */
+  remove: string;
+  /** Shown while `onLoadMore` fetches the next page. */
+  loadingMore: string;
+};
+
+export const DEFAULT_MULTI_SELECT_MESSAGES: MultiSelectMessages = {
+  noResults: 'No results found.',
+  search: 'Search…',
+  remove: 'Remove {label}',
+  loadingMore: 'Loading more…',
+};
 
 type MultiSelectProps = {
   id: string;
@@ -31,6 +51,8 @@ type MultiSelectProps = {
   // M1 — cursor pagination.
   onLoadMore?: () => Promise<MultiSelectOption[]>;
   debounceMs?: number;
+  /** Overrides for the built-in English strings. */
+  messages?: Partial<MultiSelectMessages>;
   // TODO M2: maxItems?: number; pasteSeparator?: string | RegExp; reorderable?: boolean;
 };
 
@@ -49,11 +71,14 @@ export function MultiSelect({
   onSearch,
   onLoadMore,
   debounceMs = 300,
+  messages,
 }: MultiSelectProps) {
+  const m = { ...DEFAULT_MULTI_SELECT_MESSAGES, ...messages };
   const [internal, setInternal] = useState<string[]>(value ?? []);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const sentinelRef = useRef<HTMLLIElement | null>(null);
 
@@ -109,8 +134,18 @@ export function MultiSelect({
   }, [open, searchable, onSearch]);
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') setOpen(false);
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((o) => !o); }
+  }
+
+  // Escape anywhere in an open list (trigger, search box, an option) closes the
+  // list only: it is marked handled so an enclosing Modal / Drawer stays open.
+  // With the list closed, Escape passes through to the overlay as usual.
+  function onRootKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== 'Escape' || !open) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(false);
+    triggerRef.current?.focus();
   }
 
   const hintId = hint ? `${id}-hint` : undefined;
@@ -128,13 +163,14 @@ export function MultiSelect({
   }, [options, sourceOptions]);
 
   return (
-    <div ref={containerRef} className={cn('space-y-1', className)}>
+    <div ref={containerRef} className={cn('space-y-1', className)} onKeyDown={onRootKeyDown}>
       <label id={`${id}-label`} className="block text-sm font-medium text-text-primary">
         {label}
       </label>
 
       <div className="relative">
         <div
+          ref={triggerRef}
           role="combobox"
           tabIndex={disabled ? -1 : 0}
           aria-haspopup="listbox"
@@ -170,7 +206,7 @@ export function MultiSelect({
                   {opt?.label ?? v}
                   <button
                     type="button"
-                    aria-label={`Remove ${opt?.label ?? v}`}
+                    aria-label={fillMessage(m.remove, { label: opt?.label ?? v })}
                     onClick={(e) => remove(v, e)}
                     className="hover:opacity-70 focus-visible:outline-none"
                   >
@@ -202,7 +238,8 @@ export function MultiSelect({
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search…"
+                    placeholder={m.search}
+                    aria-label={m.search}
                     aria-autocomplete="list"
                     aria-controls={listboxId}
                     className={cn(
@@ -229,7 +266,7 @@ export function MultiSelect({
                   </li>
                 ))
               ) : filtered.length === 0 ? (
-                <li className="px-3 py-4 text-sm text-center text-text-secondary">No results found.</li>
+                <li className="px-3 py-4 text-sm text-center text-text-secondary">{m.noResults}</li>
               ) : (
                 <>
                   {filtered.map((opt) => {
@@ -274,7 +311,7 @@ export function MultiSelect({
                     <li ref={sentinelRef} aria-hidden="true" data-combobox-sentinel className="h-1" />
                   )}
                   {loadingMore && (
-                    <li className="px-3 py-2 text-xs text-text-secondary" aria-live="polite">Loading more…</li>
+                    <li className="px-3 py-2 text-xs text-text-secondary" aria-live="polite">{m.loadingMore}</li>
                   )}
                 </>
               )}

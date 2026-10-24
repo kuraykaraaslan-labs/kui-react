@@ -94,7 +94,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Checkbox | `Checkbox.tsx` | `checked`, `label`, `indeterminate` |
 | Input | `Input.tsx` | `label`, `hint`, `error`, `clearable`, `type` (password shows toggle) |
 | Textarea | `Textarea.tsx` | `label`, `hint`, `error`, `rows` |
-| Select | `Select.tsx` | `label`, `options`, `error` |
+| Select | `Select.tsx` | `label`, `options`, `error`, `messages` (no results, search, placeholder, required) |
 | FileInput | `FileInput.tsx` | `accept`, `multiple`, `onFiles` |
 | DatePicker | `DatePicker.tsx` | `value`, `onChange`, `min`, `max` |
 | SkipLink | `SkipLink.tsx` | `href` — accessibility skip-to-content |
@@ -114,7 +114,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 |-----------|------|-------|
 | Card | `Card.tsx` | `variant` (raised\|flat\|outline), `title`, `subtitle`, `headerRight`, `footer`, `hoverable`, `loading` |
 | AlertBanner | `AlertBanner.tsx` | `variant` matches semantic tokens, `title`, `message`, `action` |
-| Modal | `Modal.tsx` | `open`, `onClose`, `title`, `size` |
+| Modal | `Modal.tsx` | `open`, `onClose`, `title`, `size` (sm\|md\|lg\|xl\|full), `fullscreen`; ignores an Escape an inner control already handled |
 | Drawer | `Drawer.tsx` | `open`, `onClose`, `side` (left\|right) |
 | Tooltip | `Tooltip.tsx` | `content`, `placement` |
 | Popover | `Popover.tsx` | `trigger`, `content`, `placement` |
@@ -137,9 +137,9 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | TreeView | `TreeView.tsx` | `nodes` (recursive), `onSelect` |
 | ButtonGroup | `ButtonGroup.tsx` | `options`, `selected`, `onChange` |
 | CheckboxGroup | `CheckboxGroup.tsx` | `options`, `values`, `onChange` |
-| RadioGroup | `RadioGroup.tsx` | `options`, `value`, `onChange` |
-| MultiSelect | `MultiSelect.tsx` | `options`, `values`, `onChange`, searchable |
-| ComboBox | `ComboBox.tsx` | `options`, `value`, `onChange`, async search |
+| RadioGroup | `RadioGroup.tsx` | `options` (per option `hint`, `disabled`, `disabledReason`), `value`, `onChange` |
+| MultiSelect | `MultiSelect.tsx` | `options`, `values`, `onChange`, searchable, `messages` (no results, search, remove, loading more) |
+| ComboBox | `ComboBox.tsx` | `options`, `value`, `onChange`, async search; opens listing every option until the user types |
 | TagInput | `TagInput.tsx` | `tags`, `onChange`, `suggestions` |
 | SearchBar | `SearchBar.tsx` | `value`, `onChange`, `onClear`, `placeholder` |
 | DateRangePicker | `DateRangePicker.tsx` | `start`, `end`, `onChange` |

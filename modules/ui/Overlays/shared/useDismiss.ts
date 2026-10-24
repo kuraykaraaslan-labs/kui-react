@@ -7,6 +7,8 @@ import { isFocusTrapTopLayer } from './useFocusTrap';
  *
  * - Escape: only the topmost active overlay (per useFocusTrap stack)
  *   dismisses, so stacking modals do not all close together.
+ *   An Escape an inner control already handled (`defaultPrevented`) is
+ *   ignored, so closing a dropdown inside the overlay keeps it open.
  * - Outside click: capture-phase pointerdown so children listening on
  *   the bubble phase can still consume the event (e.g. Popover triggers
  *   nested inside their own root).
@@ -46,6 +48,9 @@ export function useDismiss({
     function onKey(e: KeyboardEvent) {
       if (!escape) return;
       if (e.key !== 'Escape') return;
+      // An inner control (an open ComboBox / Select list, an inline editor)
+      // already handled this Escape: it closes that control, not the overlay.
+      if (e.defaultPrevented) return;
       if (!isFocusTrapTopLayer(layerRef)) return;
       onDismiss();
     }

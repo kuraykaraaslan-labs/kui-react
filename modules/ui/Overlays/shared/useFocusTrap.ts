@@ -10,6 +10,8 @@ import { useEffect, useCallback } from 'react';
  * - Saves the previously-focused element and restores it on close.
  * - Nested-overlay safe: a layer stack tracks "current top" so only the
  *   topmost active trap reacts to Tab/Escape.
+ * - An Escape whose `defaultPrevented` is set was handled by a control
+ *   inside the overlay (an open dropdown) and does not dismiss it.
  */
 
 const FOCUSABLE =
@@ -74,6 +76,9 @@ export function useFocusTrap(
       if (!isTopLayer(ref)) return;
 
       if (handleEscape && e.key === 'Escape') {
+        // An inner control (an open ComboBox / Select list, an inline editor)
+        // already handled this Escape: it closes that control, not the overlay.
+        if (e.defaultPrevented) return;
         onEscape?.();
         return;
       }

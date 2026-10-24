@@ -28,6 +28,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `Select` and `MultiSelect`: `messages` overrides the built-in English strings (`DEFAULT_SELECT_MESSAGES`:
+  no results, search, placeholder, required; `DEFAULT_MULTI_SELECT_MESSAGES`: no results, search, `Remove {label}`,
+  loading more) so a host can translate them. The search boxes take their text as an accessible name too.
+- `RadioGroup`: an option can be disabled on its own (`disabled`), with an optional `disabledReason` shown under it
+  and wired through `aria-describedby` (as `hint` now is).
+- `Modal`: `size` takes `xl` (36rem) and `full` (the viewport width less the 1rem gutter, height following the
+  content; `fullscreen` still fills the viewport).
 - `TypedConfirmDialog` (`modules/ui/`): a confirmation unlocked only by typing an exact phrase (a serial, a command word).
 - IoT RPC console (docs/concepts/iot-platform phase 04): `RpcStatusBadge`, `RpcSendPanel`, `RpcRequestList`, `RpcRequestDetail`,
   `RpcConsoleView`, the adapter's `rpc` methods and the `iotTopics.rpc` live topic; the IoT demo's Commands tab and `/theme/iot/rpc`.
@@ -234,6 +241,8 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- `ComboBox`: opening it lists every option until the user types. The selected label stays in the input, selected
+  on click so the first keystroke replaces it; `onSearch` is called with an empty query on open.
 - `TabGroup`: a row of tabs wider than its box (many tabs, a phone) scrolls sideways inside the tab list
   (`overflow-x-auto`, tabs `shrink-0 whitespace-nowrap`) instead of widening the page; the focus ring is drawn inset
   so the scroll box does not clip it. Keyboard and ARIA are unchanged. kui-ejs's `TabGroup` partial has the same
@@ -251,6 +260,10 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Fixed
 
+- Escape in an open `ComboBox`, `Select` or `MultiSelect` list inside a `Modal` (or `Drawer` / `Popover`) closed the
+  overlay too. The open list now handles Escape (closes, `preventDefault` + `stopPropagation`, focus back on the
+  trigger) and `useFocusTrap` / `useDismiss` ignore an Escape whose `defaultPrevented` is set. With the list closed,
+  Escape still closes the overlay.
 - WidgetBoard: a cell's grid place applies from lg up only, so cards stack below lg instead of opening
   implicit columns, and a card's hide-on-small-screens and small-screen order act on its cell.
 - StateView: a state's `unknownLabel` still at the template default ("Unknown") follows the host's text.

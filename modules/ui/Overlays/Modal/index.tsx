@@ -17,7 +17,12 @@ export type ModalProps = {
   description?: string;
   children?: React.ReactNode;
   footer?: React.ReactNode;
-  size?: 'sm' | 'md' | 'lg';
+  /**
+   * Panel width: `sm` 24rem, `md` 28rem, `lg` 32rem, `xl` 36rem, `full` the
+   * viewport width less the 1rem gutter (height still follows the content;
+   * `fullscreen` fills the whole viewport instead).
+   */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
   fullscreen?: boolean;
   scrollable?: boolean;
   closeOnBackdropClick?: boolean;
@@ -36,7 +41,7 @@ export type ModalProps = {
   ref?: React.Ref<HTMLDivElement>;
 };
 
-const sizeMap = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg' } as const;
+const sizeMap = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg', xl: 'max-w-xl', full: 'max-w-none' } as const;
 
 export function Modal({
   open,

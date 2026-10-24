@@ -8,6 +8,10 @@ export type RadioOption = {
   label: string;
   hint?: string;
   icon?: ReactNode;
+  /** Disables this option only (the group's `disabled` disables all of them). */
+  disabled?: boolean;
+  /** Why the option is disabled; shown under it (after `hint`) while it is disabled. */
+  disabledReason?: string;
 };
 
 type RadioGroupVariant = 'default' | 'card';
@@ -54,17 +58,22 @@ export function RadioGroup({
       >
         {options.map((opt) => {
           const isSelected = value === opt.value;
+          const isDisabled = !!disabled || !!opt.disabled;
+          const reason = opt.disabled && opt.disabledReason ? opt.disabledReason : undefined;
+          const hintId = opt.hint ? `${name}-${opt.value}-hint` : undefined;
+          const reasonId = reason ? `${name}-${opt.value}-reason` : undefined;
+          const describedBy = [hintId, reasonId].filter(Boolean).join(' ') || undefined;
 
           return (
             <label
               key={opt.value}
               className={cn(
                 'flex items-start gap-2',
-                disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+                isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
 
                 variant === 'card' && [
                   'rounded-lg border border-border bg-surface-base p-3 transition-colors',
-                  'hover:border-border-focus',
+                  !isDisabled && 'hover:border-border-focus',
                   isSelected && 'border-primary bg-primary/5',
                   error && 'border-error',
                 ],
@@ -77,8 +86,9 @@ export function RadioGroup({
                 name={name}
                 value={opt.value}
                 checked={isSelected}
-                disabled={disabled}
-                onChange={() => onChange?.(opt.value)}
+                disabled={isDisabled}
+                aria-describedby={describedBy}
+                onChange={() => { if (!isDisabled) onChange?.(opt.value); }}
                 data-testid={`radio-${name}-${opt.value}`}
                 className={cn(
                   'mt-0.5 h-4 w-4 border-border text-primary',
@@ -101,8 +111,14 @@ export function RadioGroup({
                 </div>
 
                 {opt.hint && (
-                  <p className="mt-0.5 text-xs text-text-secondary">
+                  <p id={hintId} className="mt-0.5 text-xs text-text-secondary">
                     {opt.hint}
+                  </p>
+                )}
+
+                {reason && (
+                  <p id={reasonId} className="mt-0.5 text-xs text-text-secondary">
+                    {reason}
                   </p>
                 )}
               </div>
