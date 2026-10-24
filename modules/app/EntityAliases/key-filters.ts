@@ -139,9 +139,18 @@ export function normalizeKeyFilter(keyFilter: KeyFilter): KeyFilter {
   };
 }
 
-/** A filter as the filters dialog saves it: the name trimmed, every key filter normalised. */
+/**
+ * A filter as the filters dialog saves it: the name trimmed, every key filter normalised, `operation` only when it is
+ * 'or' between two or more key filters (absent = 'and').
+ */
 export function normalizeBoardFilter(filter: BoardFilter): BoardFilter {
-  return { key: filter.key, name: filter.name.trim(), keyFilters: filter.keyFilters.map(normalizeKeyFilter) };
+  const keyFilters = filter.keyFilters.map(normalizeKeyFilter);
+  return {
+    key: filter.key,
+    name: filter.name.trim(),
+    ...(filter.operation === 'or' && keyFilters.length > 1 ? { operation: 'or' as const } : {}),
+    keyFilters,
+  };
 }
 
 /** The board params a filter reads (`{ $param }` values), in order, without repeats. */

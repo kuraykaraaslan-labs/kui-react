@@ -99,9 +99,26 @@ describe('boardFilterText', () => {
     expect(boardFilterText({ keyFilters: [range, field([{ op: 'startsWith', value: 'Pump' }])] }, opts)).toBe(
       "(temperature (latest) < 0 or temperature (latest) > 40) and name starts with 'Pump'",
     );
-    expect(keyFilterText(telemetry([{ op: 'gt', value: 0 }, { op: 'lt', value: 40 }]), { ...opts, inGroup: true })).toBe(
+    expect(keyFilterText(telemetry([{ op: 'gt', value: 0 }, { op: 'lt', value: 40 }]), { ...opts, joinedBy: 'and' })).toBe(
       'temperature (latest) > 0 and temperature (latest) < 40',
     );
+  });
+
+  it("joins key filters with the filter's operation (absent = and), bracketing conditions joined the other way", () => {
+    const range = telemetry([{ op: 'lt', value: 0 }, { op: 'gt', value: 40 }], 'or');
+    const band = telemetry([{ op: 'gt', value: 0 }, { op: 'lt', value: 40 }], 'and');
+    const pumps = field([{ op: 'startsWith', value: 'Pump' }]);
+    expect(boardFilterText({ operation: 'or', keyFilters: [range, pumps] }, opts)).toBe(
+      "temperature (latest) < 0 or temperature (latest) > 40 or name starts with 'Pump'",
+    );
+    expect(boardFilterText({ operation: 'or', keyFilters: [band, pumps] }, opts)).toBe(
+      "(temperature (latest) > 0 and temperature (latest) < 40) or name starts with 'Pump'",
+    );
+    expect(boardFilterText({ operation: 'and', keyFilters: [band, pumps] }, opts)).toBe(
+      "temperature (latest) > 0 and temperature (latest) < 40 and name starts with 'Pump'",
+    );
+    // One key filter: never bracketed, whatever the operation.
+    expect(boardFilterText({ operation: 'and', keyFilters: [range] }, opts)).toBe('temperature (latest) < 0 or temperature (latest) > 40');
   });
 
   it('marks what is not filled in yet', () => {

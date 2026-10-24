@@ -149,6 +149,28 @@ describe('BoardFilterDialog', () => {
     expect(onSave).toHaveBeenCalledWith({ ...filters[1], name: 'Pump names' });
   });
 
+  it('joins key filters by the chosen operation once there are two or more (default and)', () => {
+    const temp = filters[0].keyFilters[0];
+    const name = filters[1].keyFilters[0];
+    const { onSave } = open({ filter: { key: 'mixed', name: 'Mixed', keyFilters: [temp, name] }, existingKeys: [] });
+    const select = screen.getByLabelText(/^Key filters are joined by/) as HTMLSelectElement;
+    expect(select.value).toBe('and');
+    fireEvent.change(select, { target: { value: 'or' } });
+    expect(screen.getByText('An entity passes the filter when any key filter matches.')).toBeInTheDocument();
+    expect(
+      screen.getByText("temperature (latest) > the dashboard's limit or name starts with 'Pump' (ignore case)", { selector: 'p' }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith({ key: 'mixed', name: 'Mixed', operation: 'or', keyFilters: [temp, name] });
+  });
+
+  it('shows no operation select for one key filter and saves no operation then', () => {
+    const { onSave } = open({ filter: { ...filters[1], operation: 'or' }, existingKeys: [] });
+    expect(screen.queryByLabelText(/^Key filters are joined by/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith(filters[1]);
+  });
+
   it('caps the key filters at 8', () => {
     open();
     const add = screen.getByRole('button', { name: 'Add key filter' });

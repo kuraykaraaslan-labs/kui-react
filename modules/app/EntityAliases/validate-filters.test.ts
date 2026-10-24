@@ -60,6 +60,13 @@ describe('validateBoardFilter: key, name and caps', () => {
     expect(validateBoardFilter(filter({ keyFilters: Array.from({ length: MAX_KEY_FILTERS + 1 }, () => kf()) }), opts).keyFilters).toBe('tooMany');
   });
 
+  it("accepts only 'and' or 'or' as the filter's operation (absent = and)", () => {
+    expect(validateBoardFilter(filter({ operation: 'and' }), opts)).toEqual({});
+    expect(validateBoardFilter(filter({ operation: 'or' }), opts)).toEqual({});
+    expect(validateBoardFilter(filter({ operation: undefined }), opts)).toEqual({});
+    expect(validateBoardFilter(filter({ operation: 'xor' as never }), opts).operation).toBe('unknownType');
+  });
+
   it("prefixes a key filter's errors with its index", () => {
     const errors = validateBoardFilter(filter({ keyFilters: [kf(), kf({ key: { type: 'telemetry', name: '' } })] }), opts);
     expect(errors['keyFilters.1.key.name']).toBe('required');

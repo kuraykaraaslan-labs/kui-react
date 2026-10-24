@@ -36,7 +36,7 @@ All notable changes to this project will be documented here. Format follows [Kee
   `validateAlias` / `slugKey` mirroring the server caps. All data comes through the host's `EntityAliasesAccess`.
 - `EntityAliases` key filters (next-boilerplate dashboard phase 36.7, ThingsBoard's dashboard filters): `BoardFiltersDialog`
   (the board's filters; a used filter cannot be removed), `BoardFilterDialog` (one filter, key derived from the name, key
-  filters joined by "and", text preview), `KeyFilterEditor` (entity field / attribute / latest telemetry, key names
+  filters joined by and / or, text preview), `KeyFilterEditor` (entity field / attribute / latest telemetry, key names
   suggested through the new `EntityAliasesAccess.entityKeys`, attribute scope, value type, and / or, up to 4 conditions
   with the operations of the value type, a dashboard parameter as a value), `boardFilterText`, `validateBoardFilter` /
   `validateBoardFilters` / `validateKeyFilter` mirroring the caps, `normalizeBoardFilter`; `EntityAliasPicker` gains a

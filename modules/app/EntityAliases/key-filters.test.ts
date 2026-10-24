@@ -110,6 +110,14 @@ describe('normalize', () => {
     expect(normalizeBoardFilter(filter).name).toBe('Hot');
     expect(filterParamKeys(filter)).toEqual(['low', 'high']);
   });
+
+  it("keeps the filter's operation only when it is 'or' between two or more key filters", () => {
+    const kf: KeyFilter = { key: { type: 'telemetry', name: 't' }, valueType: 'number', operation: 'and', predicates: [{ op: 'gt', value: 1 }] };
+    expect(normalizeBoardFilter({ key: 'f', name: 'F', operation: 'or', keyFilters: [kf, kf] }).operation).toBe('or');
+    expect('operation' in normalizeBoardFilter({ key: 'f', name: 'F', operation: 'or', keyFilters: [kf] })).toBe(false);
+    expect('operation' in normalizeBoardFilter({ key: 'f', name: 'F', operation: 'and', keyFilters: [kf, kf] })).toBe(false);
+    expect('operation' in normalizeBoardFilter({ key: 'f', name: 'F', keyFilters: [kf, kf] })).toBe(false);
+  });
 });
 
 describe('mergeAliasMessages with the filter maps', () => {

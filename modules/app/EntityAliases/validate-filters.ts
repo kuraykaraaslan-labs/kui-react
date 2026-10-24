@@ -140,7 +140,7 @@ export function keyFilterErrorsAt(errors: BoardFilterErrors | undefined, index: 
   return out;
 }
 
-/** Every error of one filter, keyed by field (`key`, `name`, `filters`, `keyFilters`, `keyFilters.<n>.*`). */
+/** Every error of one filter, keyed by field (`key`, `name`, `filters`, `operation`, `keyFilters`, `keyFilters.<n>.*`). */
 export function validateBoardFilter(filter: BoardFilter, { existingKeys, existingNames, params }: ValidateBoardFilterOptions): BoardFilterErrors {
   const errors: BoardFilterErrors = {};
 
@@ -156,6 +156,8 @@ export function validateBoardFilter(filter: BoardFilter, { existingKeys, existin
   if (!name) errors.name = 'required';
   else if (name.length > BOARD_FILTER_NAME_MAX) errors.name = 'tooLong';
   else if (existingNames?.some((n) => n.trim().toLowerCase() === name.toLowerCase())) errors.name = 'duplicate';
+
+  if (filter.operation !== undefined && !KEY_FILTER_OPERATIONS.includes(filter.operation)) errors.operation = 'unknownType';
 
   const keyFilters = Array.isArray(filter.keyFilters) ? filter.keyFilters : [];
   if (keyFilters.length < 1) errors.keyFilters = 'tooFew';

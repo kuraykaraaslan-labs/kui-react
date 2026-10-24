@@ -22,7 +22,7 @@ nothing is copied, the behaviour is rebuilt with kui primitives.
 | `AliasEntitySelect` | The board toolbar's entity select: one searchable picker per selectable alias. The button shows the current entity's name for one alias, "Entities" for several; nothing when there is none. |
 | `EntityAliasPicker` | A widget data tab's alias picker for one entity slot `{ entityTypes, multiple }`: "None", the aliases (the ones that do not fit are disabled with the reason), "New alias". With `filters`, `filterValue` and `onFilterChange`, a second select "Filter: None / <names>" appears once an alias is chosen (the chosen filter's text as its hint); clearing the alias clears the filter. |
 | `BoardFiltersDialog` | The board's filter list: numbered rows (name, key, the filter as one line, edit, remove), "Add filter", Save / Cancel. `usage` (filter key → widget titles) blocks removing a used filter and names the widgets. `entityType` (optional) is the entity type the key names are suggested for. |
-| `BoardFilterDialog` | Add or edit one filter: name (key derived with `slugKey(name, keys, 'filter')` on add, read-only after), the key filters edited in place (each a `KeyFilterEditor`, joined by "and"; TB opens a third dialog per key filter), "Add key filter", a text preview, field errors on Save. |
+| `BoardFilterDialog` | Add or edit one filter: name (key derived with `slugKey(name, keys, 'filter')` on add, read-only after), the key filters edited in place (each a `KeyFilterEditor`; TB opens a third dialog per key filter) joined by and / or (the select appears from two key filters on, default and), "Add key filter", a text preview, field errors on Save. |
 | `KeyFilterEditor` | One key filter, controlled (table below). |
 | `boardFilterText(filter, { params, messages, formatDateTime })`, `keyFilterText` | The filter as one readable line, e.g. "temperature (latest) > 30 and status (latest) = 'ACTIVE'", "name starts with 'Pump' (ignore case)", "temperature (latest) > the dashboard's limit". Pure. |
 | `validateBoardFilter`, `validateBoardFilters`, `validateKeyFilter`, `keyFilterErrorsAt` | The key filter caps, mirrored (below). Pure. |
@@ -48,7 +48,9 @@ The two relation types are offered only when `access.relationProviders()` return
 
 ## Key filters
 
-A filter is `{ key, name, keyFilters }`; its key filters are joined by **and**. A key filter is
+A filter is `{ key, name, operation?, keyFilters }`; its key filters are joined by its `operation`, **and** (the default,
+saved as no `operation`) or **or** (TB's `keyFiltersOperation`; saved only between two or more key filters). The text
+brackets a key filter's conditions when they are joined the other way: "(a and b) or c". A key filter is
 `{ key: { type, name, scope? }, valueType, operation, predicates }`; its conditions (predicates) are joined by its
 `operation` (and / or). `KeyFilterEditor` edits one:
 
@@ -99,7 +101,7 @@ at most 8 relation filters; `stateEntity.param` and a param root must name a boa
 to many. Errors are field-keyed codes (`{ 'filter.ids': 'tooMany' }`); `messages.error(field, code)` gives the text.
 
 Key filters (`validate-filters.ts`): at most 16 filters (`MAX_BOARD_FILTERS`); the filter key follows the alias key rule
-and is unique; name 1–80 characters, unique on the board ignoring case; 1–8 key filters (`MAX_KEY_FILTERS`); a key name
+and is unique; name 1–80 characters, unique on the board ignoring case; `operation` absent, `and` or `or`; 1–8 key filters (`MAX_KEY_FILTERS`); a key name
 1–200 characters and a known key type, scope and value type; 1–4 conditions (`MAX_PREDICATES`); the operation must be one
 of the value type's; `value` (and `to` for between) is required where the operation reads it and must fit the value type
 (a finite number, a boolean, a non-blank text of at most 200 characters, a parseable ISO date); `in` / `not in` take
