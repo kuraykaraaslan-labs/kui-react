@@ -1,6 +1,7 @@
-// Entity aliases kit (next-boilerplate dashboard phase 36.4, the ThingsBoard model): the board's alias list, one
-// alias's dialog, the entity filter form, the readable filter text, the toolbar entity select and a widget's alias
-// picker. Host-agnostic: every read goes through the host's `EntityAliasesAccess`. See README.md.
+// Entity aliases kit (next-boilerplate dashboard phases 36.4 and 36.7, the ThingsBoard model): the board's alias list,
+// one alias's dialog, the entity filter form, the readable filter text, the toolbar entity select, a widget's alias
+// picker, and the board's key filters (filters dialog, filter dialog, key filter editor, filter text, validator).
+// Host-agnostic: every read goes through the host's `EntityAliasesAccess`. See README.md.
 
 export { EntityAliasesDialog, aliasRemovalBlockers } from './EntityAliasesDialog';
 export type { EntityAliasesDialogProps } from './EntityAliasesDialog';
@@ -46,8 +47,60 @@ export {
   validateFilter,
 } from './validate';
 export type { AliasErrors, AliasListErrors, ValidateAliasOptions } from './validate';
+export { BoardFiltersDialog, filterRemovalBlockers } from './BoardFiltersDialog';
+export type { BoardFiltersDialogProps } from './BoardFiltersDialog';
+export { BoardFilterDialog } from './BoardFilterDialog';
+export type { BoardFilterDialogProps } from './BoardFilterDialog';
+export { KeyFilterEditor, keyFitsSelection, keyNameOptions } from './KeyFilterEditor';
+export type { KeyFilterEditorProps } from './KeyFilterEditor';
+export { boardFilterText, keyFilterText, defaultFormatDateTime } from './board-filter-text';
+export type { BoardFilterTextOptions } from './board-filter-text';
+export {
+  ALL_KEY_FILTER_OPS,
+  ATTRIBUTE_SCOPES,
+  KEY_FILTER_KEY_TYPES,
+  KEY_FILTER_OPERATIONS,
+  KEY_FILTER_OPS,
+  KEY_FILTER_VALUE_TYPES,
+  emptyKeyFilter,
+  emptyPredicate,
+  filterParamKeys,
+  isOpValidFor,
+  isParamValue,
+  normalizeBoardFilter,
+  normalizeKeyFilter,
+  normalizePredicate,
+  predicateShape,
+  takesIgnoreCase,
+  withValueType,
+} from './key-filters';
+export type { PredicateShape } from './key-filters';
+export {
+  MAX_BOARD_FILTERS,
+  MAX_KEY_FILTERS,
+  MAX_PREDICATES,
+  MAX_FILTER_VALUES,
+  FILTER_STRING_MAX,
+  BOARD_FILTER_NAME_MAX,
+  checkFilterValue,
+  keyFilterErrorsAt,
+  validateBoardFilter,
+  validateBoardFilters,
+  validateKeyFilter,
+} from './validate-filters';
+export type { BoardFilterErrors, BoardFilterListErrors, KeyFilterErrors, ValidateBoardFilterOptions } from './validate-filters';
 export { DEFAULT_ALIAS_MESSAGES, mergeAliasMessages } from './messages';
-export type { AliasErrorCode, AliasErrorField, EntityAliasesMessages, EntityAliasesMessagesInput } from './messages';
+export type {
+  AliasErrorCode,
+  AliasErrorField,
+  BoardFilterErrorField,
+  EntityAliasesMessages,
+  EntityAliasesMessagesInput,
+  FilterErrorCode,
+  KeyFilterErrorField,
+  PredicateErrorPart,
+  PredicateTextParts,
+} from './messages';
 export { loadAliasCatalog, useAliasCatalog } from './useAliasData';
 export type { AliasCatalog } from './useAliasData';
 export type {
@@ -56,12 +109,21 @@ export type {
   AliasPreview,
   AliasRoot,
   AliasSlot,
+  AttributeScope,
+  BoardFilter,
   BoardParamInfo,
   EntityAlias,
   EntityAliasFilter,
   EntityAliasesAccess,
+  EntityKeyInfo,
   EntityRef,
   EntityTypeInfo,
+  FilterValue,
+  KeyFilter,
+  KeyFilterKeyType,
+  KeyFilterOp,
+  KeyFilterPredicate,
+  KeyFilterValueType,
   RelationDirection,
   RelationFilter,
   RelationFilterType,

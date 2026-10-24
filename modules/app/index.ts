@@ -151,8 +151,8 @@ export type {
   WidgetKitMessagesInput,
 } from './WidgetKit';
 
-// Entity aliases (next-boilerplate dashboard phase 36.4, the ThingsBoard model): alias list and dialog, entity filter
-// form, filter text, toolbar entity select, a widget's alias picker
+// Entity aliases and key filters (next-boilerplate dashboard phases 36.4 and 36.7, the ThingsBoard model): alias list
+// and dialog, entity filter form, filter text, toolbar entity select, a widget's alias picker, the board's filters
 export {
   EntityAliasesDialog,
   EntityAliasDialog,
@@ -169,6 +169,17 @@ export {
   slugKey,
   MAX_ALIASES,
   DEFAULT_ALIAS_MESSAGES,
+  BoardFiltersDialog,
+  BoardFilterDialog,
+  KeyFilterEditor,
+  boardFilterText,
+  filterRemovalBlockers,
+  normalizeBoardFilter,
+  validateBoardFilter,
+  validateBoardFilters,
+  validateKeyFilter,
+  KEY_FILTER_OPS,
+  MAX_BOARD_FILTERS,
 } from './EntityAliases';
 export type {
   EntityAliasesDialogProps,
@@ -190,4 +201,16 @@ export type {
   EntityTypeInfo,
   RelationFilter,
   RelationProviderInfo,
+  BoardFiltersDialogProps,
+  BoardFilterDialogProps,
+  KeyFilterEditorProps,
+  BoardFilter,
+  KeyFilter,
+  KeyFilterPredicate,
+  KeyFilterOp,
+  KeyFilterValueType,
+  KeyFilterKeyType,
+  AttributeScope,
+  FilterValue,
+  EntityKeyInfo,
 } from './EntityAliases';

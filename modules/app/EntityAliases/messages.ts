@@ -2,7 +2,15 @@
 // .tsx import (next-boilerplate's server copy may read `entityFilterText` and these). A function takes the values a
 // text interpolates. Every component takes `messages?: EntityAliasesMessagesInput` and merges it over the defaults.
 
-import type { AliasFilterType, RelationDirection } from './types';
+import type {
+  AliasFilterType,
+  AttributeScope,
+  KeyFilter,
+  KeyFilterKeyType,
+  KeyFilterOp,
+  KeyFilterValueType,
+  RelationDirection,
+} from './types';
 
 /** What `validateAlias` reports, keyed by field. */
 export type AliasErrorCode =
@@ -35,6 +43,49 @@ export type AliasErrorField =
   | 'filter.root'
   | 'filter.maxLevel'
   | 'filter.filters';
+
+/** What `validateBoardFilter` reports, keyed by field. */
+export type FilterErrorCode =
+  | 'required'
+  | 'pattern'
+  | 'reserved'
+  | 'tooLong'
+  | 'duplicate'
+  | 'tooMany'
+  | 'tooFew'
+  | 'unknownParam'
+  | 'unknownType'
+  | 'invalidOp'
+  | 'invalidValue';
+
+/** The parts of one predicate an error can sit on. */
+export type PredicateErrorPart = 'op' | 'value' | 'to' | 'values';
+
+/** The fields `validateKeyFilter` keys its errors by (`predicates.<n>.<part>` for one predicate). */
+export type KeyFilterErrorField =
+  | 'key.type'
+  | 'key.name'
+  | 'key.scope'
+  | 'valueType'
+  | 'operation'
+  | 'predicates'
+  | `predicates.${number}.${PredicateErrorPart}`;
+
+/** The fields `validateBoardFilter` keys its errors by (`keyFilters.<n>.<field>` for one key filter). */
+export type BoardFilterErrorField = 'key' | 'name' | 'filters' | 'keyFilters' | `keyFilters.${number}.${KeyFilterErrorField}`;
+
+/** What `boardFilterText` hands `textPredicate`: the parts already formatted (values quoted, parameters named). */
+export interface PredicateTextParts {
+  /** The key as text (`textKey`). */
+  key: string;
+  op: KeyFilterOp;
+  /** `textOps[op]`. */
+  opText: string;
+  value?: string;
+  to?: string;
+  values?: string[];
+  ignoreCase: boolean;
+}
 
 export interface EntityAliasesMessages {
   // ---- aliases dialog (the list) ----
@@ -148,11 +199,103 @@ export interface EntityAliasesMessages {
 
   // ---- validation ----
   error: (field: AliasErrorField, code: AliasErrorCode) => string;
+
+  // ---- filters dialog (the board's key filters, phase 36.7) ----
+  filtersTitle: string;
+  addFilter: string;
+  editFilter: string;
+  columnFilterName: string;
+  columnFilterText: string;
+  editFilterLabel: (name: string) => string;
+  removeFilterLabel: (name: string) => string;
+  filtersEmptyTitle: string;
+  filtersEmptyDescription: string;
+  removeFilterBlockedTitle: string;
+  /** Followed by the list of widget titles. */
+  removeFilterBlocked: (name: string) => string;
+  tooManyFilters: (max: number) => string;
+  invalidFilters: string;
+
+  // ---- filter dialog (one filter) ----
+  filterName: string;
+  filterKeyHint: string;
+  keyFilters: string;
+  keyFiltersHint: string;
+  keyFilterTitle: (n: number) => string;
+  addKeyFilter: string;
+  removeKeyFilter: (n: number) => string;
+  noKeyFilters: string;
+  filterPreview: string;
+
+  // ---- key filter editor ----
+  keyType: string;
+  keyTypes: Record<KeyFilterKeyType, string>;
+  keyName: string;
+  keyNamePlaceholder: string;
+  keyNameHint: string;
+  /** The description of the typed-in name offered first in the key suggestions. */
+  typedKeyName: string;
+  noKeysFound: string;
+  attributeScope: string;
+  attributeScopes: Record<AttributeScope, string>;
+  valueType: string;
+  valueTypes: Record<KeyFilterValueType, string>;
+  operation: string;
+  operations: Record<KeyFilter['operation'], string>;
+  predicates: string;
+  addPredicate: string;
+  removePredicate: (n: number) => string;
+  noPredicates: string;
+  predicateOp: string;
+  keyFilterOps: Record<KeyFilterOp, string>;
+  predicateValue: string;
+  predicateTo: string;
+  predicateValues: string;
+  predicateValuesPlaceholder: string;
+  ignoreCase: string;
+  booleanTrue: string;
+  booleanFalse: string;
+  booleanPlaceholder: string;
+  useParam: string;
+  useLiteral: string;
+  paramValue: string;
+
+  // ---- filter text (boardFilterText) ----
+  noKeyFilterText: string;
+  textKey: (name: string, type: KeyFilterKeyType, scope?: AttributeScope) => string;
+  textOps: Record<KeyFilterOp, string>;
+  /** One predicate as text, from parts already formatted. */
+  textPredicate: (parts: PredicateTextParts) => string;
+  textJoin: Record<KeyFilter['operation'], string>;
+  textParamValue: (label: string) => string;
+  textTrue: string;
+  textFalse: string;
+  /** A value or key name that is not filled in yet. */
+  textMissing: string;
+
+  // ---- alias picker: the filter next to the alias ----
+  pickerFilterLabel: string;
+
+  // ---- filter validation ----
+  filterError: (field: BoardFilterErrorField | KeyFilterErrorField, code: FilterErrorCode) => string;
 }
 
-export type EntityAliasesMessagesInput = Partial<Omit<EntityAliasesMessages, 'filterTypes' | 'directionOptions'>> & {
-  filterTypes?: Partial<Record<AliasFilterType, string>>;
-  directionOptions?: Partial<Record<RelationDirection, string>>;
+/** The message maps a host may override key by key. */
+const NESTED_KEYS = [
+  'filterTypes',
+  'directionOptions',
+  'keyTypes',
+  'attributeScopes',
+  'valueTypes',
+  'operations',
+  'keyFilterOps',
+  'textOps',
+  'textJoin',
+] as const;
+type NestedKey = (typeof NESTED_KEYS)[number];
+
+export type EntityAliasesMessagesInput = Partial<Omit<EntityAliasesMessages, NestedKey>> & {
+  [K in NestedKey]?: Partial<EntityAliasesMessages[K]>;
 };
 
 const lower = (s: string) => s.toLowerCase();
@@ -200,6 +343,66 @@ function defaultError(field: AliasErrorField, code: AliasErrorCode): string {
   if (code === 'required') return `${FIELD_NAMES[field]} is required.`;
   return `${FIELD_NAMES[field]} is not valid.`;
 }
+
+const FILTER_FIELD_NAMES: Record<string, string> = {
+  key: 'Key',
+  name: 'Filter name',
+  filters: 'Filters',
+  keyFilters: 'Key filters',
+  'key.type': 'Key type',
+  'key.name': 'Key name',
+  'key.scope': 'Attribute scope',
+  valueType: 'Value type',
+  operation: 'Operation',
+  predicates: 'Conditions',
+  op: 'Operation',
+  value: 'Value',
+  to: 'To',
+  values: 'Values',
+};
+
+/** The English text of a filter validation error; a host overrides `filterError` to translate. Caps match `validate-filters.ts`. */
+function defaultFilterError(field: BoardFilterErrorField | KeyFilterErrorField, code: FilterErrorCode): string {
+  // `keyFilters.0.predicates.1.value` → `value`: the text depends on the last part only.
+  const part = field.replace(/^keyFilters\.\d+\./, '').replace(/^predicates\.\d+\./, '');
+  switch (`${part}:${code}`) {
+    case 'key:pattern': return 'A key starts with a lower-case letter and has at most 40 letters, digits or underscores.';
+    case 'key:reserved': return 'This key is reserved.';
+    case 'key:duplicate': return 'Another filter already has this key.';
+    case 'name:tooLong': return 'At most 80 characters.';
+    case 'name:duplicate': return 'Another filter on this board already has this name.';
+    case 'filters:tooMany': return 'A board holds at most 16 filters.';
+    case 'keyFilters:tooFew': return 'Add at least one key filter.';
+    case 'keyFilters:tooMany': return 'At most 8 key filters.';
+    case 'key.name:tooLong': return 'At most 200 characters.';
+    case 'predicates:tooFew': return 'Add at least one condition.';
+    case 'predicates:tooMany': return 'At most 4 conditions.';
+    case 'op:invalidOp': return 'This operation does not apply to this value type.';
+    case 'value:required':
+    case 'to:required': return 'A value is required.';
+    case 'value:tooLong':
+    case 'to:tooLong': return 'At most 200 characters.';
+    case 'value:invalidValue':
+    case 'to:invalidValue': return 'Not a valid value for this value type.';
+    case 'value:unknownParam':
+    case 'to:unknownParam': return 'This board has no such parameter.';
+    case 'values:tooFew': return 'Add at least one value.';
+    case 'values:tooMany': return 'At most 50 values.';
+    case 'values:tooLong': return 'Each value has at most 200 characters.';
+    case 'values:invalidValue': return 'Every value must be a number.';
+  }
+  const name = FILTER_FIELD_NAMES[part] ?? part;
+  if (code === 'required') return `${name} is required.`;
+  if (code === 'unknownType') return `${name} is not one of the known values.`;
+  return `${name} is not valid.`;
+}
+
+const SCOPE_TEXT: Record<AttributeScope, string> = {
+  any: 'attribute',
+  client: 'client attribute',
+  shared: 'shared attribute',
+  server: 'server attribute',
+};
 
 export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   aliasesTitle: 'Entity aliases',
@@ -321,15 +524,128 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   selectEntities: 'Select entities',
 
   error: defaultError,
+
+  filtersTitle: 'Filters',
+  addFilter: 'Add filter',
+  editFilter: 'Edit filter',
+  columnFilterName: 'Filter name',
+  columnFilterText: 'Filter',
+  editFilterLabel: (name) => `Edit filter ${name}`,
+  removeFilterLabel: (name) => `Remove filter ${name}`,
+  filtersEmptyTitle: 'No filters yet',
+  filtersEmptyDescription:
+    "A filter keeps the entities of an alias whose fields, attributes or latest telemetry match. A widget picks it next to the alias.",
+  removeFilterBlockedTitle: 'Unable to delete filter',
+  removeFilterBlocked: (name) => `Filter '${name}' can't be deleted as it is used by the following widgets:`,
+  tooManyFilters: (max) => `A board holds at most ${max} filters.`,
+  invalidFilters: 'Some filters are not valid. Edit the ones marked below before saving.',
+
+  filterName: 'Filter name',
+  filterKeyHint: 'Widgets refer to the filter by this key. It is derived from the name and does not change once the filter is added.',
+  keyFilters: 'Key filters',
+  keyFiltersHint: 'An entity passes the filter when every key filter matches.',
+  keyFilterTitle: (n) => `Key filter ${n}`,
+  addKeyFilter: 'Add key filter',
+  removeKeyFilter: (n) => `Remove key filter ${n}`,
+  noKeyFilters: 'No key filters configured.',
+  filterPreview: 'Filter preview',
+
+  keyType: 'Key type',
+  keyTypes: { field: 'Entity field', attribute: 'Attribute', telemetry: 'Latest telemetry' },
+  keyName: 'Key name',
+  keyNamePlaceholder: 'Search or type a key…',
+  keyNameHint: 'The name of the entity field, attribute or telemetry key.',
+  typedKeyName: 'Use this name',
+  noKeysFound: 'No keys found.',
+  attributeScope: 'Attribute scope',
+  attributeScopes: { any: 'Any scope', client: 'Client', shared: 'Shared', server: 'Server' },
+  valueType: 'Value type',
+  valueTypes: { string: 'Text', number: 'Number', boolean: 'Boolean', datetime: 'Date and time' },
+  operation: 'Conditions are joined by',
+  operations: { and: 'And: all of them match', or: 'Or: any of them matches' },
+  predicates: 'Conditions',
+  addPredicate: 'Add condition',
+  removePredicate: (n) => `Remove condition ${n}`,
+  noPredicates: 'No conditions configured.',
+  predicateOp: 'Operation',
+  keyFilterOps: {
+    eq: 'Equal',
+    ne: 'Not equal',
+    gt: 'Greater than',
+    gte: 'Greater or equal',
+    lt: 'Less than',
+    lte: 'Less or equal',
+    between: 'Between',
+    in: 'In',
+    notIn: 'Not in',
+    set: 'Is set',
+    unset: 'Is not set',
+    true: 'Is true',
+    false: 'Is false',
+    startsWith: 'Starts with',
+    endsWith: 'Ends with',
+    contains: 'Contains',
+    notContains: 'Does not contain',
+  },
+  predicateValue: 'Value',
+  predicateTo: 'To',
+  predicateValues: 'Values',
+  predicateValuesPlaceholder: 'Type a value and press Enter',
+  ignoreCase: 'Ignore case',
+  booleanTrue: 'True',
+  booleanFalse: 'False',
+  booleanPlaceholder: 'Select a value',
+  useParam: 'Use a dashboard parameter',
+  useLiteral: 'Use a fixed value',
+  paramValue: 'Dashboard parameter',
+
+  noKeyFilterText: 'No filter specified',
+  textKey: (name, type, scope) =>
+    type === 'telemetry' ? `${name} (latest)` : type === 'attribute' ? `${name} (${SCOPE_TEXT[scope ?? 'any']})` : name,
+  textOps: {
+    eq: '=',
+    ne: '≠',
+    gt: '>',
+    gte: '≥',
+    lt: '<',
+    lte: '≤',
+    between: 'between',
+    in: 'in',
+    notIn: 'not in',
+    set: 'is set',
+    unset: 'is not set',
+    true: 'is true',
+    false: 'is false',
+    startsWith: 'starts with',
+    endsWith: 'ends with',
+    contains: 'contains',
+    notContains: 'does not contain',
+  },
+  textPredicate: ({ key, opText, op, value, to, values, ignoreCase }) => {
+    let text: string;
+    if (op === 'between') text = `${key} ${opText} ${value} and ${to}`;
+    else if (op === 'in' || op === 'notIn') text = `${key} ${opText} (${(values ?? []).join(', ')})`;
+    else if (value === undefined) text = `${key} ${opText}`;
+    else text = `${key} ${opText} ${value}`;
+    return ignoreCase ? `${text} (ignore case)` : text;
+  },
+  textJoin: { and: 'and', or: 'or' },
+  textParamValue: (label) => `the dashboard's ${label}`,
+  textTrue: 'true',
+  textFalse: 'false',
+  textMissing: '?',
+
+  pickerFilterLabel: 'Filter',
+
+  filterError: defaultFilterError,
 };
 
-/** The defaults with a host's overrides on top (the two nested maps merge key by key). */
+/** The defaults with a host's overrides on top (the nested maps, `filterTypes`, `keyFilterOps` …, merge key by key). */
 export function mergeAliasMessages(input?: EntityAliasesMessagesInput): EntityAliasesMessages {
   if (!input) return DEFAULT_ALIAS_MESSAGES;
   const out: Record<string, unknown> = { ...DEFAULT_ALIAS_MESSAGES };
   for (const [k, v] of Object.entries(input)) if (v !== undefined) out[k] = v;
-  out.filterTypes = { ...DEFAULT_ALIAS_MESSAGES.filterTypes, ...definedOnly(input.filterTypes) };
-  out.directionOptions = { ...DEFAULT_ALIAS_MESSAGES.directionOptions, ...definedOnly(input.directionOptions) };
+  for (const k of NESTED_KEYS) out[k] = { ...DEFAULT_ALIAS_MESSAGES[k], ...definedOnly(input[k] as object | undefined) };
   return out as unknown as EntityAliasesMessages;
 }
 
