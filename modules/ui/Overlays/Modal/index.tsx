@@ -1,6 +1,6 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faXmark } from '@fortawesome/free-solid-svg-icons';
@@ -58,8 +58,10 @@ export function Modal({
   ref,
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = 'modal-title';
-  const descId = description ? 'modal-desc' : undefined;
+  // Per-instance ids: two open modals (a dialog opened from a dialog) must not share a title id.
+  const uid = useId();
+  const titleId = `${uid}-title`;
+  const descId = description ? `${uid}-desc` : undefined;
   const { mounted, state } = usePresence(open);
 
   useFocusTrap(panelRef, { active: open, onEscape: onClose });

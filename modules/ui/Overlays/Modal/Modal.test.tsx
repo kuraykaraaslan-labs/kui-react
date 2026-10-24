@@ -31,6 +31,18 @@ describe('Modal', () => {
     expect(screen.getByText('Are you sure?')).toBeInTheDocument();
   });
 
+  it('gives each open modal its own title id (a dialog opened from a dialog)', () => {
+    render(
+      <>
+        <Modal open onClose={() => {}} title="Outer">outer</Modal>
+        <Modal open onClose={() => {}} title="Inner">inner</Modal>
+      </>,
+    );
+    const [outer, inner] = screen.getAllByRole('dialog');
+    expect(outer.getAttribute('aria-labelledby')).not.toBe(inner.getAttribute('aria-labelledby'));
+    expect(document.getElementById(inner.getAttribute('aria-labelledby')!)?.textContent).toBe('Inner');
+  });
+
   it('calls onClose when Escape is pressed', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
