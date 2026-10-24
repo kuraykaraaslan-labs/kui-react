@@ -29,6 +29,7 @@ export function DeviceDetailScreen({ slug }: { slug: string }) {
       </Link>
       <DeviceDetailView
         deviceId={deviceId}
+        hrefs={{ profile: demoHrefs.profile }}
         tab={sp.get('tab') ?? undefined}
         onTabChange={(tab) => router.replace(`?tab=${tab}`, { scroll: false })}
         onDeleted={() => router.push(demoHrefs.devices)}

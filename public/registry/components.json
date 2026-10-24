@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-24T17:51:14.565Z",
+  "generatedAt": "2026-10-24T18:36:13.537Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -9698,6 +9698,355 @@
         {
           "title": "Fleet log",
           "code": "<RpcConsoleView />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-profile-card",
+      "name": "DeviceProfileCard",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/DeviceProfileCard.tsx",
+      "abbr": "PE",
+      "description": "One device profile at a glance: name, the default star, the template it was copied from, its transport and online rule, and how many devices use it.",
+      "source": "<DeviceProfileCard profile={p} deviceCount={usage.devices} href={profileHref(p.profileId)} />",
+      "variants": [
+        {
+          "title": "Default profile",
+          "code": "<DeviceProfileCard profile={p} deviceCount={12} />"
+        },
+        {
+          "title": "Template copy, count unknown",
+          "code": "<DeviceProfileCard profile={copy} deviceCount={null} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-profile-list-view",
+      "name": "DeviceProfileListView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/DeviceProfileListView.tsx",
+      "abbr": "PN",
+      "description": "The device profiles through the IoT adapter: search, transport and online-rule filters, the default first, device counts refreshed every 30 s, New profile (explicit online rule, OD-63), Make default and delete (the host refuses the default and a profile in use).",
+      "source": "<IotAdapterProvider adapter={adapter}><DeviceProfileListView hrefs={{ profile: (id) => `/profiles/${id}` }} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "Profiles",
+          "code": "<DeviceProfileListView hrefs={hrefs} />"
+        },
+        {
+          "title": "Read error, read-only",
+          "code": "<DeviceProfileListView hrefs={hrefs} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-profile-editor-view",
+      "name": "DeviceProfileEditorView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/DeviceProfileEditorView.tsx",
+      "abbr": "QE",
+      "description": "One device profile through the IoT adapter: General, Transport & auth, Online status, Limits, Telemetry keys, Configuration keys and Provisioning on one draft with one Save that sends only the changed fields and blocks what the host would refuse; contributed tabs (alarm rules, commands) follow.",
+      "source": "<DeviceProfileEditorView profileId={id} extraTabs={[{ id: 'alarm-rules', label: 'Alarm rules', content: <AlarmRuleSetEditor profileId={id} /> }]} />",
+      "variants": [
+        {
+          "title": "Editable profile with contributed tabs",
+          "code": "<DeviceProfileEditorView profileId=\"p1\" extraTabs={tabs} />"
+        },
+        {
+          "title": "Template copy (schemas from firmware)",
+          "code": "<DeviceProfileEditorView profileId=\"p2\" tab=\"telemetry\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-new-device-profile-drawer",
+      "name": "NewDeviceProfileDrawer",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/NewDeviceProfileDrawer.tsx",
+      "abbr": "QN",
+      "description": "New device profile: name, description, transport and an explicit online rule (nothing preselected for any transport, Create disabled until one is chosen, OD-63); the rest takes the protocol defaults.",
+      "source": "<NewDeviceProfileDrawer open onClose={close} onCreated={(p) => router.push(href(p.profileId))} />",
+      "variants": [
+        {
+          "title": "Open the drawer",
+          "code": "<NewDeviceProfileDrawer open onClose={close} />"
+        },
+        {
+          "title": "With LoRaWAN",
+          "code": "<NewDeviceProfileDrawer open transports={['MQTT', 'HTTP', 'ANY', 'LORAWAN']} onClose={close} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-online-rule-field",
+      "name": "OnlineRuleField",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/OnlineRuleField.tsx",
+      "abbr": "OR",
+      "description": "The online rule of a profile (OD-57): live connection, recent message (interval × factor with a live \"offline after\" hint) or last seen only. Required and empty on a new profile (OD-63); a rule the transport cannot serve is disabled with the reason, and a chosen one that became impossible blocks saving.",
+      "source": "<OnlineRuleField value={{ onlineRule, expectedIntervalS, onlineWindowFactor }} transport={transportType} onChange={set} />",
+      "variants": [
+        {
+          "title": "New profile: nothing chosen",
+          "code": "<OnlineRuleField value={{ onlineRule: null, … }} transport=\"MQTT\" />"
+        },
+        {
+          "title": "Recent message on HTTP",
+          "code": "<OnlineRuleField value={{ onlineRule: \"UPLINK_WINDOW\", expectedIntervalS: 600, onlineWindowFactor: 3 }} transport=\"HTTP\" />"
+        },
+        {
+          "title": "Live connection chosen, transport became LoRaWAN",
+          "code": "<OnlineRuleField value={{ onlineRule: \"LIVE_SOCKET\", … }} transport=\"LORAWAN\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-auth-mode-selector",
+      "name": "AuthModeSelector",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/AuthModeSelector.tsx",
+      "abbr": "AM",
+      "description": "The authentication modes a profile allows: access token, MQTT basic (always a username and a password, OD-163: no client-ID-only mode) and X.509; at least one; locked for an X.509-only template.",
+      "source": "<AuthModeSelector value={allowedAuthModes} onChange={set} />",
+      "variants": [
+        {
+          "title": "Token and MQTT basic",
+          "code": "<AuthModeSelector value={['ACCESS_TOKEN', 'MQTT_BASIC']} />"
+        },
+        {
+          "title": "Locked to X.509",
+          "code": "<AuthModeSelector value={['X509_CERTIFICATE']} locked />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-transport-policy-card",
+      "name": "TransportPolicyCard",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/TransportPolicyCard.tsx",
+      "abbr": "TP",
+      "description": "How a profile’s devices reach the platform: transport, TLS only or plain MQTT (OD-160, TLS by default), tokens in the URL for devices without headers (OD-161, HTTP-only) and the networks devices may connect from (invalid entries named).",
+      "source": "<TransportPolicyCard value={draft} onChange={(p) => set(p)} />",
+      "variants": [
+        {
+          "title": "TLS only, pinned network",
+          "code": "<TransportPolicyCard value={{ transportType: \"ANY\", mqttTransport: \"TLS_REQUIRED\", … }} />"
+        },
+        {
+          "title": "Plain MQTT and URL tokens (warns)",
+          "code": "<TransportPolicyCard value={{ mqttTransport: \"PLAINTEXT_ALLOWED\", allowTokenInUrl: true, … }} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-protocol-mapping-card",
+      "name": "ProtocolMappingCard",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/ProtocolMappingCard.tsx",
+      "abbr": "QM",
+      "description": "Topic schemes (Roltek default and/or ThingsBoard compatible, at least one; ThingsBoard carries telemetry and attributes only, OD-85) and custom topics with the decided limits 8 / 128 / 50 / 4 KB (OD-35, OD-43).",
+      "source": "<ProtocolMappingCard value={draft} onChange={(p) => set(p)} />",
+      "variants": [
+        {
+          "title": "Roltek default",
+          "code": "<ProtocolMappingCard value={{ topicSchemes: ['ROLTEK'], … }} />"
+        },
+        {
+          "title": "Both schemes",
+          "code": "<ProtocolMappingCard value={{ topicSchemes: ['ROLTEK', 'TB'], … }} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-rate-limit-editor",
+      "name": "RateLimitEditor",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/RateLimitEditor.tsx",
+      "abbr": "RA",
+      "description": "Per-device rate limits in the protocol notation: each family is up to four windows count : seconds, each longer than the one before; an invalid family is marked, a changed one can go back to the protocol default.",
+      "source": "<RateLimitEditor value={draft.rateLimits} onChange={(v) => set({ rateLimits: v })} />",
+      "variants": [
+        {
+          "title": "Protocol defaults",
+          "code": "<RateLimitEditor value={DEFAULT_RATE_LIMITS} />"
+        },
+        {
+          "title": "A family with an error",
+          "code": "<RateLimitEditor value={{ …, telemetry_msgs: '300:60,10:1' }} errors={{ telemetry_msgs: '…' }} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-telemetry-key-schema-table",
+      "name": "TelemetryKeySchemaTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/TelemetryKeySchemaTable.tsx",
+      "abbr": "TK",
+      "description": "A profile’s fallback telemetry keys (key, type, unit, label, range, decimals) for devices without a firmware description; read-only with a \"from firmware\" badge when profile.json describes them (P-4).",
+      "source": "<TelemetryKeySchemaTable value={draft.telemetrySchema} onChange={(v) => set({ telemetrySchema: v })} />",
+      "variants": [
+        {
+          "title": "Editable",
+          "code": "<TelemetryKeySchemaTable value={keys} onChange={setKeys} />"
+        },
+        {
+          "title": "From firmware (read-only)",
+          "code": "<TelemetryKeySchemaTable value={keys} fromFirmware=\"roltek-esp32 1.8.2\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-cfg-schema-table",
+      "name": "CfgSchemaTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/CfgSchemaTable.tsx",
+      "abbr": "QC",
+      "description": "A profile’s fallback cfg.* allowlist: integer, boolean or string keys with ranges, lengths, allowed values and the write-only secret flag; read-only when the firmware describes them.",
+      "source": "<CfgSchemaTable value={draft.cfgSchema} onChange={(v) => set({ cfgSchema: v })} />",
+      "variants": [
+        {
+          "title": "Editable",
+          "code": "<CfgSchemaTable value={keys} onChange={setKeys} />"
+        },
+        {
+          "title": "From firmware (read-only)",
+          "code": "<CfgSchemaTable value={keys} fromFirmware=\"…\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-provisioning-settings-card",
+      "name": "ProvisioningSettingsCard",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/ProvisioningSettingsCard.tsx",
+      "abbr": "QP",
+      "description": "A profile’s provisioning strategy (strategies the host cannot serve yet are marked) and its provisioning keys; without the host’s key management the keys are a clearly disabled placeholder and no secret is ever drawn (OD-1).",
+      "source": "<ProvisioningSettingsCard strategy={draft.provisionStrategy} availableStrategies={['DISABLED']} />",
+      "variants": [
+        {
+          "title": "No provisioning yet (placeholder)",
+          "code": "<ProvisioningSettingsCard strategy=\"DISABLED\" />"
+        },
+        {
+          "title": "Strategies offered",
+          "code": "<ProvisioningSettingsCard strategy=\"CHECK_PRE_PROVISIONED_DEVICES\" availableStrategies={[…]} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-alarm-rule-set-editor",
+      "name": "AlarmRuleSetEditor",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/alarm/AlarmRuleSetEditor.tsx",
+      "abbr": "RG",
+      "description": "The alarm rules of a device profile through the IoT adapter: rule cards with the comparison per severity, add a threshold or the device-offline rule, edit in a drawer (form or JSON), remove; Save rules replaces the whole set. Read-only without canManageAlarmRules.",
+      "source": "<IotAdapterProvider adapter={adapter}><AlarmRuleSetEditor profileId={id} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "Rules",
+          "code": "<AlarmRuleSetEditor profileId=\"p1\" />"
+        },
+        {
+          "title": "Read error",
+          "code": "<AlarmRuleSetEditor profileId=\"p1\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-alarm-rule-drawer",
+      "name": "AlarmRuleDrawer",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/alarm/AlarmRuleDrawer.tsx",
+      "abbr": "QD",
+      "description": "Edits one alarm rule as a form (one comparison per severity, optional topic, debounce, hysteresis, runbook; or the offline delay) or as JSON for combined conditions; Apply returns it to the set.",
+      "source": "<AlarmRuleDrawer open rule={rule} others={otherRules} onApply={apply} onClose={close} />",
+      "variants": [
+        {
+          "title": "Threshold rule",
+          "code": "<AlarmRuleDrawer open rule={threshold} … />"
+        },
+        {
+          "title": "Device offline rule",
+          "code": "<AlarmRuleDrawer open rule={offline} … />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-rpc-command-catalog-editor",
+      "name": "RpcCommandCatalogEditor",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/rpc/RpcCommandCatalogEditor.tsx",
+      "abbr": "QR",
+      "description": "The command catalog of a device profile through the IoT adapter: tier, high impact with a typed phrase, one-way, long-running, parameters; add, edit, remove, export and import (replaces the catalog after typing REPLACE). Never a factory reset (OD-8).",
+      "source": "<IotAdapterProvider adapter={adapter}><RpcCommandCatalogEditor profileId={id} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "Catalog",
+          "code": "<RpcCommandCatalogEditor profileId=\"p1\" />"
+        },
+        {
+          "title": "Read error",
+          "code": "<RpcCommandCatalogEditor profileId=\"p1\" />"
         }
       ],
       "status": "beta",

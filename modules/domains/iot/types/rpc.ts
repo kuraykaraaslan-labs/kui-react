@@ -36,6 +36,16 @@ export type RpcCommand = {
   sendable?: boolean;
 };
 
+/** A command as its profile's catalog stores it (the catalog editor's row): the host's id and the parameters it masks in the history. */
+export type RpcCatalogCommand = RpcCommand & {
+  commandId: string;
+  maskedParams?: string[];
+  updatedAt?: Date | string;
+};
+
+/** What the catalog editor sends (create, edit, import): never `sendable` (the host answers it per viewer). */
+export type RpcCommandInput = Omit<RpcCommand, 'sendable'> & { maskedParams?: string[] };
+
 /** "running" = an accepted long method; "unknown" = a timeout; "late" = an answer after the end. */
 export type RpcOutcome = 'running' | 'unknown' | 'late' | null;
 

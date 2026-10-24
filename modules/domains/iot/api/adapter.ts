@@ -5,7 +5,9 @@ import type {
   AttributeEntry, AttributeScope, CredentialType, DeviceConnectionEvent, DeviceCredential, DeviceRecord, DeviceRegistryStatus,
   DeviceStatePatch, IssuedSecret,
 } from '../types/device';
-import type { RpcCommand, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
+import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
+import type { DeviceProfile, DeviceProfileInput, DeviceProfileUsage, OnlineRule, ProfileTransport } from '../types/profile';
+import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
 
 /*
  * The IoT adapter contract (docs/concepts/iot-platform/phases/00-api-adapter-layer.md §0.2): every IoT view reads and writes
@@ -84,9 +86,50 @@ export interface IotDevicesApi {
   parseState?(payload: unknown): DeviceStatePatch | null;
 }
 
+export type ProfileListQuery = {
+  page: number;
+  pageSize: number;
+  search?: string;
+  transportType?: ProfileTransport;
+  onlineRule?: OnlineRule;
+};
+
 export interface IotProfilesApi {
   /** The profiles a filter or a form offers (id and name). */
   options(signal?: AbortSignal): Promise<Array<{ id: string; name: string }>>;
+  // ── the profile screens (phase 01 §1.4; NB iot_device_profile 03) ──
+  list?(query: ProfileListQuery, signal?: AbortSignal): Promise<Page<DeviceProfile>>;
+  get?(profileId: string, signal?: AbortSignal): Promise<DeviceProfile>;
+  /** A create always carries a name and an explicit online rule (OD-63: the host refuses one without). */
+  create?(input: DeviceProfileInput & { name: string; onlineRule: OnlineRule }): Promise<DeviceProfile>;
+  /** Only the changed fields; a transport the stored rule cannot serve is refused unless the same edit picks an allowed rule. */
+  update?(profileId: string, patch: DeviceProfileInput): Promise<DeviceProfile>;
+  /** Refused (conflict) for the default profile and while anything still references it. */
+  remove?(profileId: string): Promise<void>;
+  setDefault?(profileId: string): Promise<DeviceProfile>;
+  /** What still points at each profile (devices, alarm rules, commands, …), for the list's device count and the delete hint. */
+  usage?(profileIds: string[], signal?: AbortSignal): Promise<Record<string, DeviceProfileUsage>>;
+  /** The transports this host offers (default MQTT, HTTP, ANY). */
+  transports?: ProfileTransport[];
+}
+
+/** The alarm rules of a profile (NB `iot_alarm`): read, and replace the whole set (types unique in a profile). */
+export interface IotAlarmRulesApi {
+  list(profileId: string, signal?: AbortSignal): Promise<AlarmRuleRecord[]>;
+  replace(profileId: string, rules: AlarmRuleDefinition[]): Promise<AlarmRuleRecord[]>;
+}
+
+/** The command catalog of a profile (NB `iot_rpc`): one command at a time, or the whole catalog as JSON (import / export). */
+export interface IotRpcCatalogApi {
+  list(profileId: string, signal?: AbortSignal): Promise<{ commands: RpcCatalogCommand[]; supported: boolean }>;
+  create(profileId: string, command: RpcCommandInput): Promise<RpcCatalogCommand>;
+  /** Every field but the method (a renamed method is a new command). */
+  update(profileId: string, commandId: string, patch: Partial<Omit<RpcCommandInput, 'method'>>): Promise<RpcCatalogCommand>;
+  remove(profileId: string, commandId: string): Promise<void>;
+  /** The import shape (no ids). */
+  exportAll(profileId: string): Promise<RpcCommandInput[]>;
+  /** Replaces the whole catalog. */
+  importAll(profileId: string, commands: RpcCommandInput[]): Promise<RpcCatalogCommand[]>;
 }
 
 export interface IotCredentialsApi {
@@ -192,6 +235,12 @@ export type IotCapabilities = {
   canComment: boolean;
   /** The viewer may send at least one catalog tier (the catalog says which). */
   canSendRpc: boolean;
+  /** Create, edit, delete profiles and make one the default. */
+  canManageProfiles: boolean;
+  /** Edit the alarm rules of a profile. */
+  canManageAlarmRules: boolean;
+  /** Edit the command catalog of a profile (create, edit, delete, import). */
+  canManageRpcCommands: boolean;
 };
 
 /** Fail closed: nothing until the host says so. */
@@ -209,6 +258,9 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canClear: false,
   canComment: false,
   canSendRpc: false,
+  canManageProfiles: false,
+  canManageAlarmRules: false,
+  canManageRpcCommands: false,
 };
 
 export interface IotAdapter {
@@ -220,6 +272,8 @@ export interface IotAdapter {
   attributes?: IotAttributesApi;
   alarms?: IotAlarmsApi;
   rpc?: IotRpcApi;
+  alarmRules?: IotAlarmRulesApi;
+  rpcCatalog?: IotRpcCatalogApi;
   capabilities?(signal?: AbortSignal): Promise<Partial<IotCapabilities>>;
 }
 

@@ -59,6 +59,26 @@ export { RpcRequestList, rpcDurationMs } from './rpc/RpcRequestList';
 export { RpcRequestDetail } from './rpc/RpcRequestDetail';
 export { RpcConsoleView } from './rpc/RpcConsoleView';
 
+// ── Device profiles (phase 01 §1.4; NB iot_device_profile 03) ──────────────────────────────────────────────────────
+export { DeviceProfileCard } from './profile/DeviceProfileCard';
+export { DeviceProfileListView, usageList } from './profile/DeviceProfileListView';
+export type { DeviceProfileListViewProps } from './profile/DeviceProfileListView';
+export { DeviceProfileEditorView } from './profile/DeviceProfileEditorView';
+export type { DeviceProfileEditorViewProps } from './profile/DeviceProfileEditorView';
+export { NewDeviceProfileDrawer } from './profile/NewDeviceProfileDrawer';
+export { OnlineRuleField, formatSeconds } from './profile/OnlineRuleField';
+export type { OnlineRuleValue, OnlineRuleFieldProps } from './profile/OnlineRuleField';
+export { AuthModeSelector } from './profile/AuthModeSelector';
+export { TransportPolicyCard } from './profile/TransportPolicyCard';
+export { ProtocolMappingCard } from './profile/ProtocolMappingCard';
+export { RateLimitEditor } from './profile/RateLimitEditor';
+export { TelemetryKeySchemaTable } from './profile/TelemetryKeySchemaTable';
+export { CfgSchemaTable, parseCfgEnum } from './profile/CfgSchemaTable';
+export { ProvisioningSettingsCard } from './profile/ProvisioningSettingsCard';
+export { AlarmRuleSetEditor } from './alarm/AlarmRuleSetEditor';
+export { AlarmRuleDrawer, parseRuleValue, formatRuleValue, isFormable } from './alarm/AlarmRuleDrawer';
+export { RpcCommandCatalogEditor } from './rpc/RpcCommandCatalogEditor';
+
 // ── Deprecated (OD-9): the Alert* names, for one release; removed in the next minor ───────────────────────────────────
 /** @deprecated use AlarmSeverityBadge; removed in the next minor. */
 export { AlarmSeverityBadge as AlertSeverityBadge } from './alarm/AlarmSeverityBadge';

@@ -4,8 +4,10 @@ import type {
   AttributeEntry, AttributeScope, DeviceConnectionEvent, DeviceCredential, DeviceRecord, DeviceStatePatch, IssuedSecret,
 } from '@/modules/domains/iot/types/device';
 import type { Device } from '@/modules/domains/iot/types';
-import type { RpcCommand, RpcRequest, RpcStatus } from '@/modules/domains/iot/types/rpc';
-import { ALARMS, ALARM_EVENTS, DEVICES } from '../iot.data';
+import { isRefusedRpcMethod, type RpcCatalogCommand, type RpcCommand, type RpcCommandInput, type RpcRequest, type RpcStatus } from '@/modules/domains/iot/types/rpc';
+import { blankProfileDraft, onlineRuleBlock, type DeviceProfile, type DeviceProfileUsage } from '@/modules/domains/iot/types/profile';
+import { newInactivityRule, type AlarmRuleDefinition } from '@/modules/domains/iot/types/alarm-rule';
+import { ALARMS, ALARM_EVENTS, DEVICES, DEVICE_PROFILES } from '../iot.data';
 import type { DemoLive } from './demo-live';
 
 /*
@@ -15,12 +17,28 @@ import type { DemoLive } from './demo-live';
  * "last seen only" device show OD-1 and OD-57; alarms cover the five OD-9 severities and every alarm has a timeline.
  */
 
-export const DEMO_PROFILES = [
-  { id: 'prof-sensor', name: 'Sensors (live connection)' },
-  { id: 'prof-gateway', name: 'Gateways (live connection)' },
-  { id: 'prof-lorawan', name: 'LoRaWAN meters (last seen only)' },
-  { id: 'prof-tb', name: 'Legacy meters (ThingsBoard compatible)' },
-];
+export const DEMO_PROFILES = DEVICE_PROFILES.map((p) => ({ id: p.profileId, name: p.name }));
+
+/** The alarm rules the demo profiles start with (the sensors: a two-severity temperature rule and the offline rule). */
+const DEMO_RULES: Record<string, AlarmRuleDefinition[]> = {
+  'prof-sensor': [
+    {
+      type: 'high_temperature', title: '{{device.name}}: temperature {{value}} °C', enabled: true,
+      severities: [
+        { severity: 'CRITICAL', condition: { key: 'temperature', op: '>', value: 95 } },
+        { severity: 'MAJOR', condition: { key: 'temperature', op: '>', value: 80 } },
+      ],
+      debounce: { mode: 'count', raise: 3, clear: 3 }, hysteresis: 3, runbook: 'Check the coolant flow and the pump.',
+    },
+    newInactivityRule(),
+  ],
+  'prof-http': [
+    {
+      type: 'battery_low', title: '{{device.name}}: battery {{value}} %', enabled: true,
+      severities: [{ severity: 'WARNING', condition: { any: [{ key: 'battery', op: '<', value: 20 }, { key: 'battery_v', op: '<', value: 3.1 }] } }],
+    },
+  ],
+};
 
 /** The Roltek router catalog in the protocol's wire names (no factory reset, OD-8); `diag.slow` never answers (the timeout demo). */
 export const DEMO_RPC_COMMANDS: RpcCommand[] = [
@@ -80,6 +98,9 @@ const EXTRA_DEVICES: DeviceRecord[] = [
 ];
 
 type Store = {
+  profiles: DeviceProfile[];
+  rules: Map<string, AlarmRuleDefinition[]>;
+  catalog: Map<string, RpcCatalogCommand[]>;
   rpc: RpcRequest[];
   devices: DeviceRecord[];
   credentials: Map<string, DeviceCredential | null>;
@@ -138,6 +159,9 @@ export type DemoAdapter = IotAdapter & {
 
 export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } = {}): DemoAdapter {
   const store: Store = {
+    profiles: DEVICE_PROFILES.map((p) => structuredClone(p)),
+    rules: new Map(Object.entries(DEMO_RULES).map(([k, v]) => [k, structuredClone(v)])),
+    catalog: new Map(['prof-sensor', 'prof-gateway', 'prof-http'].map((pid) => [pid, DEMO_RPC_COMMANDS.map((c, i) => ({ ...c, commandId: `${pid}-cmd-${i}`, maskedParams: [] }))])),
     rpc: [],
     devices: [...DEVICES.map(toRecord), ...EXTRA_DEVICES].map((d) => ({ ...d, profileName: DEMO_PROFILES.find((p) => p.id === d.deviceProfileId)?.name ?? null })),
     credentials: new Map(),
@@ -165,6 +189,29 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     if (!a) throw new IotApiError('not_found', 'Alarm not found.');
     return a;
   };
+  const profileOf = (id: string) => {
+    const p = store.profiles.find((x) => x.profileId === id);
+    if (!p) throw new IotApiError('not_found', 'Device profile not found.');
+    return p;
+  };
+  const usageOf = (id: string): DeviceProfileUsage => {
+    const devices = store.devices.filter((d) => d.deviceProfileId === id).length;
+    const rules = store.rules.get(id)?.length ?? 0;
+    const commands = store.catalog.get(id)?.length ?? 0;
+    return {
+      devices,
+      references: [
+        ...(devices ? [{ moduleId: 'iot_device', count: devices, label: devices === 1 ? 'device' : 'devices' }] : []),
+        ...(rules ? [{ moduleId: 'iot_alarm', count: rules, label: rules === 1 ? 'alarm rule' : 'alarm rules' }] : []),
+        ...(commands ? [{ moduleId: 'iot_rpc', count: commands, label: commands === 1 ? 'RPC command' : 'RPC commands' }] : []),
+      ],
+    };
+  };
+  const refuseRule = (p: Pick<DeviceProfile, 'onlineRule' | 'transportType' | 'expectedIntervalS'>) => {
+    if (onlineRuleBlock(p.onlineRule, p.transportType)) throw new IotApiError('validation', 'The chosen online rule cannot be used with this transport (online_rule_not_allowed).');
+    if (p.onlineRule === 'UPLINK_WINDOW' && !p.expectedIntervalS) throw new IotApiError('validation', 'The recent-message online rule needs the expected message interval (expected_interval_required).');
+  };
+  const catalogOf = (profileId: string) => store.catalog.get(profileId) ?? [];
   const publishAlarm = (alarm: Alarm, transition: AlarmTransition) => live.publish('alarms', { deviceId: alarm.deviceId }, { alarm, transition } satisfies AlarmLiveEvent);
   const publishState = (d: DeviceRecord) => live.publish('deviceState', { deviceId: d.deviceId }, {
     deviceId: d.deviceId, online: d.online, lastActivityAt: d.lastActivityAt ?? null, lastConnectAt: d.lastConnectAt ?? null,
@@ -218,10 +265,98 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
       return {
         canCreateDevice: true, canEditDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true,
         canWriteAttributes: true, canActivateDevice: true, canReleaseDevice: false, canReadAlarms: true, canAcknowledge: true,
-        canClear: true, canComment: true, canSendRpc: true,
+        canClear: true, canComment: true, canSendRpc: true, canManageProfiles: true, canManageAlarmRules: true, canManageRpcCommands: true,
       };
     },
-    profiles: { async options() { await wait(); return DEMO_PROFILES; } },
+    profiles: {
+      transports: ['MQTT', 'HTTP', 'ANY', 'LORAWAN'],
+      async options() { await wait(); return store.profiles.map((p) => ({ id: p.profileId, name: p.name })); },
+      async list(q) {
+        await wait();
+        let rows = [...store.profiles].sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name));
+        if (q.search) rows = rows.filter((p) => p.name.toLowerCase().includes(q.search!.toLowerCase()));
+        if (q.transportType) rows = rows.filter((p) => p.transportType === q.transportType);
+        if (q.onlineRule) rows = rows.filter((p) => p.onlineRule === q.onlineRule);
+        return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize).map((p) => structuredClone(p)), total: rows.length };
+      },
+      async get(id) { await wait(); return structuredClone(profileOf(id)); },
+      async create(input) {
+        await wait();
+        if (store.profiles.some((p) => p.name === input.name)) throw new IotApiError('conflict', 'A device profile with this name already exists.', { fieldErrors: { name: 'This name is taken.' } });
+        const blank = blankFields();
+        const p: DeviceProfile = { ...blank, ...input, rateLimits: { ...blank.rateLimits, ...input.rateLimits }, profileId: `prof-n${++seq}`, isDefault: false, template: null, schemaSource: null, createdAt: new Date(), updatedAt: new Date() } as DeviceProfile;
+        refuseRule(p);
+        store.profiles.push(p);
+        return structuredClone(p);
+      },
+      async update(id, patch) {
+        await wait();
+        const p = profileOf(id);
+        const next = { ...p, ...patch, rateLimits: { ...p.rateLimits, ...patch.rateLimits } } as DeviceProfile;
+        refuseRule(next);
+        if (patch.name && store.profiles.some((x) => x.profileId !== id && x.name === patch.name)) throw new IotApiError('conflict', 'A device profile with this name already exists.', { fieldErrors: { name: 'This name is taken.' } });
+        Object.assign(p, next, { updatedAt: new Date() });
+        return structuredClone(p);
+      },
+      async remove(id) {
+        await wait();
+        const p = profileOf(id);
+        if (p.isDefault) throw new IotApiError('conflict', 'The default device profile cannot be deleted. Make another profile the default first.');
+        const hit = usageOf(id).references[0];
+        if (hit) throw new IotApiError('conflict', `The device profile is still in use by ${hit.count} ${hit.label} (${hit.moduleId}).`);
+        store.profiles = store.profiles.filter((x) => x.profileId !== id);
+      },
+      async setDefault(id) {
+        await wait();
+        const p = profileOf(id);
+        for (const x of store.profiles) x.isDefault = x.profileId === id;
+        return structuredClone(p);
+      },
+      async usage(ids) {
+        await wait();
+        return Object.fromEntries(ids.filter((id) => store.profiles.some((p) => p.profileId === id)).map((id) => [id, usageOf(id)]));
+      },
+    },
+    alarmRules: {
+      async list(profileId) { await wait(); profileOf(profileId); return (store.rules.get(profileId) ?? []).map((definition, i) => ({ ruleId: `${profileId}-rule-${i}`, version: 1, definition: structuredClone(definition) })); },
+      async replace(profileId, rules) {
+        await wait();
+        profileOf(profileId);
+        if (new Set(rules.map((r) => r.type)).size !== rules.length) throw new IotApiError('validation', 'Each alarm type at most once in a profile.');
+        store.rules.set(profileId, structuredClone(rules));
+        return rules.map((definition, i) => ({ ruleId: `${profileId}-rule-${i}`, version: 1, definition: structuredClone(definition) }));
+      },
+    },
+    rpcCatalog: {
+      async list(profileId) { await wait(); const p = profileOf(profileId); return { commands: structuredClone(catalogOf(profileId)), supported: p.topicSchemes.includes('ROLTEK') }; },
+      async create(profileId, input) {
+        await wait();
+        profileOf(profileId);
+        if (isRefusedRpcMethod(input.method)) throw new IotApiError('validation', 'A factory reset is never a command.');
+        if (catalogOf(profileId).some((c) => c.method === input.method)) throw new IotApiError('conflict', 'This method is already in the catalog.', { fieldErrors: { method: 'Already in the catalog.' } });
+        const c: RpcCatalogCommand = { ...input, commandId: `${profileId}-cmd-${++seq}` };
+        store.catalog.set(profileId, [...catalogOf(profileId), c]);
+        return structuredClone(c);
+      },
+      async update(profileId, commandId, patch) {
+        await wait();
+        const c = catalogOf(profileId).find((x) => x.commandId === commandId);
+        if (!c) throw new IotApiError('not_found', 'Command not found.');
+        Object.assign(c, patch);
+        return structuredClone(c);
+      },
+      async remove(profileId, commandId) { await wait(); store.catalog.set(profileId, catalogOf(profileId).filter((c) => c.commandId !== commandId)); },
+      async exportAll(profileId) {
+        await wait();
+        return catalogOf(profileId).map(({ commandId: _id, sendable: _s, updatedAt: _u, ...rest }): RpcCommandInput => rest);
+      },
+      async importAll(profileId, commands) {
+        await wait();
+        if (commands.some((c) => isRefusedRpcMethod(c.method))) throw new IotApiError('validation', 'A factory reset is never a command.');
+        store.catalog.set(profileId, commands.map((c, i) => ({ ...c, commandId: `${profileId}-imp-${++seq}-${i}` })));
+        return structuredClone(catalogOf(profileId));
+      },
+    },
     devices: {
       async list(q) {
         await wait();
@@ -328,14 +463,15 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
       async methods(deviceId) {
         await wait();
         const d = device(deviceId);
-        if (d.deviceProfileId === 'prof-tb') return { commands: [], canSendRaw: false, supported: false };
-        return { commands: DEMO_RPC_COMMANDS.map((c) => ({ ...c, sendable: true })), canSendRaw: true, supported: true };
+        const p = store.profiles.find((x) => x.profileId === d.deviceProfileId);
+        if (p && !p.topicSchemes.includes('ROLTEK')) return { commands: [], canSendRaw: false, supported: false };
+        return { commands: catalogOf(d.deviceProfileId).map((c) => ({ ...c, sendable: true })), canSendRaw: true, supported: true };
       },
       async send(deviceId, input) {
         await wait();
         const d = device(deviceId);
         if (d.deviceProfileId === 'prof-tb') throw new IotApiError('conflict', 'RPC is not available for this device.');
-        const cmd = DEMO_RPC_COMMANDS.find((c) => c.method === input.method);
+        const cmd: RpcCommand | undefined = catalogOf(d.deviceProfileId).find((c) => c.method === input.method);
         if (cmd?.highImpact && input.confirm !== true) throw new IotApiError('validation', 'This command needs a confirmation.');
         if (cmd?.confirmText && input.confirmText !== cmd.confirmText) throw new IotApiError('validation', 'The typed confirmation does not match.');
         const r: RpcRequest = {
@@ -408,6 +544,12 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     },
   };
   return adapter;
+}
+
+/** The protocol defaults a new demo profile starts from (the online rule comes from the create). */
+function blankFields(): Omit<DeviceProfile, 'profileId' | 'isDefault' | 'onlineRule' | 'name'> {
+  const { onlineRule: _r, name: _n, ...rest } = blankProfileDraft();
+  return rest;
 }
 
 /** The slow simulation (00 §0.5): a device flips every 20 s, an alarm opens every 45 s and the oldest simulated one clears. */

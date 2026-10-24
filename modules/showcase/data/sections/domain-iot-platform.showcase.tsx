@@ -30,7 +30,24 @@ import { RpcSendPanel } from '@/modules/domains/iot/rpc/RpcSendPanel';
 import { RpcRequestList } from '@/modules/domains/iot/rpc/RpcRequestList';
 import { RpcRequestDetail } from '@/modules/domains/iot/rpc/RpcRequestDetail';
 import { RpcConsoleView } from '@/modules/domains/iot/rpc/RpcConsoleView';
-import type { RpcCommand, RpcRequest } from '@/modules/domains/iot/types/rpc';
+import type { RpcCatalogCommand, RpcCommand, RpcRequest } from '@/modules/domains/iot/types/rpc';
+import { DeviceProfileCard } from '@/modules/domains/iot/profile/DeviceProfileCard';
+import { DeviceProfileListView } from '@/modules/domains/iot/profile/DeviceProfileListView';
+import { DeviceProfileEditorView } from '@/modules/domains/iot/profile/DeviceProfileEditorView';
+import { NewDeviceProfileDrawer } from '@/modules/domains/iot/profile/NewDeviceProfileDrawer';
+import { OnlineRuleField, type OnlineRuleValue } from '@/modules/domains/iot/profile/OnlineRuleField';
+import { AuthModeSelector } from '@/modules/domains/iot/profile/AuthModeSelector';
+import { TransportPolicyCard, type TransportPolicyValue } from '@/modules/domains/iot/profile/TransportPolicyCard';
+import { ProtocolMappingCard, type ProtocolMappingValue } from '@/modules/domains/iot/profile/ProtocolMappingCard';
+import { RateLimitEditor } from '@/modules/domains/iot/profile/RateLimitEditor';
+import { TelemetryKeySchemaTable } from '@/modules/domains/iot/profile/TelemetryKeySchemaTable';
+import { CfgSchemaTable } from '@/modules/domains/iot/profile/CfgSchemaTable';
+import { ProvisioningSettingsCard } from '@/modules/domains/iot/profile/ProvisioningSettingsCard';
+import { AlarmRuleSetEditor } from '@/modules/domains/iot/alarm/AlarmRuleSetEditor';
+import { AlarmRuleDrawer } from '@/modules/domains/iot/alarm/AlarmRuleDrawer';
+import { RpcCommandCatalogEditor } from '@/modules/domains/iot/rpc/RpcCommandCatalogEditor';
+import { blankProfileDraft, DEFAULT_RATE_LIMITS, type DeviceProfile, type ProfileAuthMode, type ProfileRateLimits, type TelemetryKeySpec, type CfgKeySpec } from '@/modules/domains/iot/types/profile';
+import { newThresholdRule, type AlarmRuleDefinition } from '@/modules/domains/iot/types/alarm-rule';
 import { IotAdapterProvider } from '@/modules/domains/iot/api/IotAdapterProvider';
 import { IotApiError, type IotAdapter } from '@/modules/domains/iot/api/adapter';
 import type { Alarm, AlarmEvent } from '@/modules/domains/iot/types/alarm';
@@ -111,15 +128,60 @@ const RPC_REQUESTS: RpcRequest[] = [
   { rpcId: 'r3', deviceId: 'd2', deviceName: 'Edge gateway 1', method: 'sys.reboot', oneway: true, persistent: true, status: 'QUEUED', source: 'console', createdAt: ago(MIN) },
 ];
 
+const PROFILES: DeviceProfile[] = [
+  { ...blankProfileDraft(), profileId: 'p1', name: 'Pumps', description: 'Hall pumps on MQTT and HTTP.', isDefault: true, onlineRule: 'LIVE_SOCKET', allowedAuthModes: ['ACCESS_TOKEN', 'MQTT_BASIC'],
+    telemetrySchema: [{ key: 'temperature', type: 'number', unit: '°C', label: 'Temperature', min: -20, max: 120, decimals: 1 }], createdAt: ago(40 * 86_400_000), updatedAt: ago(2 * 86_400_000) },
+  { ...blankProfileDraft(), profileId: 'p2', name: 'Gateways', description: null, isDefault: false, transportType: 'MQTT', allowedAuthModes: ['X509_CERTIFICATE'], onlineRule: 'LIVE_SOCKET',
+    template: { key: 'roltek-m1', version: 3 }, schemaSource: { kind: 'firmware', label: 'roltek-openwrt 24.10.1' }, createdAt: ago(40 * 86_400_000), updatedAt: ago(9 * 86_400_000) },
+  { ...blankProfileDraft(), profileId: 'p3', name: 'LoRaWAN meters', description: 'Last seen only.', isDefault: false, transportType: 'LORAWAN', onlineRule: 'LAST_SEEN_ONLY',
+    createdAt: ago(40 * 86_400_000), updatedAt: ago(20 * 86_400_000) },
+];
+const RULES: AlarmRuleDefinition[] = [
+  { ...newThresholdRule('high_temperature'), severities: [{ severity: 'CRITICAL', condition: { key: 'temperature', op: '>', value: 95 } }, { severity: 'MAJOR', condition: { key: 'temperature', op: '>', value: 80 } }], debounce: { mode: 'count', raise: 3, clear: 3 } },
+  { type: 'device_offline', title: '{{device.name}} is offline', inactivity: { afterSec: 600, severity: 'WARNING' }, enabled: true },
+];
+const CATALOG: RpcCatalogCommand[] = RPC_COMMANDS.map((c, i) => ({ ...c, commandId: `c${i}`, maskedParams: [] }));
+const TELEMETRY_KEYS: TelemetryKeySpec[] = [
+  { key: 'temperature', type: 'number', unit: '°C', label: 'Temperature', min: -20, max: 120, decimals: 1 },
+  { key: 'pressure', type: 'number', unit: 'bar', label: 'Inlet pressure', min: 0, max: 16, decimals: 2 },
+];
+const CFG_KEYS: CfgKeySpec[] = [
+  { key: 'cfg.report_interval_s', type: 'integer', label: 'Report interval', min: 5, max: 3600 },
+  { key: 'cfg.mode', type: 'string', enum: ['eco', 'normal', 'boost'] },
+  { key: 'cfg.wifi.psk', type: 'string', minLength: 8, maxLength: 63, secret: true },
+];
+
 function fixtureAdapter(fail = false): IotAdapter {
   const failing = async () => { await wait(); throw new IotApiError('unavailable', 'The server did not answer.'); };
   const alarms = ALARMS.map((a) => ({ ...a }));
   return {
     name: 'Showcase fixtures',
     async capabilities() {
-      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true };
+      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true, canManageProfiles: !fail, canManageAlarmRules: !fail, canManageRpcCommands: !fail };
     },
-    profiles: { async options() { return [{ id: 'p1', name: 'Pumps' }, { id: 'p2', name: 'Gateways' }, { id: 'p3', name: 'LoRaWAN meters' }]; } },
+    profiles: {
+      transports: ['MQTT', 'HTTP', 'ANY', 'LORAWAN'],
+      async options() { return PROFILES.map((p) => ({ id: p.profileId, name: p.name })); },
+      list: fail ? failing : async (q) => { await wait(); return { items: PROFILES.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: PROFILES.length }; },
+      get: fail ? failing : async (id) => { await wait(); const p = PROFILES.find((x) => x.profileId === id); if (!p) throw new IotApiError('not_found', 'Device profile not found.'); return structuredClone(p); },
+      async create(input) { await wait(); return { ...PROFILES[0], ...input, profileId: 'p-new', isDefault: false } as DeviceProfile; },
+      async update(id, patch) { await wait(); if (patch.transportType === 'HTTP') throw new IotApiError('validation', 'The chosen online rule cannot be used with this transport (online_rule_not_allowed).'); return { ...PROFILES.find((x) => x.profileId === id)!, ...patch } as DeviceProfile; },
+      async setDefault(id) { await wait(); return { ...PROFILES.find((x) => x.profileId === id)!, isDefault: true }; },
+      async remove() { await wait(); throw new IotApiError('conflict', 'The device profile is still in use by 2 devices (iot_device).'); },
+      async usage(ids) { await wait(); return Object.fromEntries(ids.map((id) => [id, { devices: DEVICES.filter((d) => d.deviceProfileId === id).length, references: [{ moduleId: 'iot_device', count: DEVICES.filter((d) => d.deviceProfileId === id).length, label: 'devices' }] }])); },
+    },
+    alarmRules: {
+      list: fail ? failing : async () => { await wait(); return RULES.map((definition, i) => ({ ruleId: `r${i}`, version: 1, definition })); },
+      async replace(_id, rules) { await wait(); return rules.map((definition, i) => ({ ruleId: `r${i}`, version: 1, definition })); },
+    },
+    rpcCatalog: {
+      list: fail ? failing : async () => { await wait(); return { commands: CATALOG, supported: true }; },
+      async create(_p, c) { await wait(); return { ...c, commandId: 'c-new' }; },
+      async update(_p, id, patch) { await wait(); return { ...CATALOG.find((c) => c.commandId === id)!, ...patch }; },
+      async remove() { await wait(); },
+      async exportAll() { await wait(); return CATALOG.map(({ commandId: _id, sendable: _s, ...rest }) => rest); },
+      async importAll(_p, commands) { await wait(); return commands.map((c, i) => ({ ...c, commandId: `i${i}` })); },
+    },
     devices: {
       list: fail ? failing : async (q) => { await wait(); return { items: DEVICES.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: DEVICES.length }; },
       get: fail ? failing : async (id) => { await wait(); const d = DEVICES.find((x) => x.deviceId === id); if (!d) throw new IotApiError('not_found', 'Device not found.'); return d; },
@@ -182,7 +244,54 @@ function RpcDetailDemo({ request }: { request: RpcRequest }) {
   );
 }
 
-const hrefs = { device: (id: string) => `#device-${id}`, alarm: (id: string) => `#alarm-${id}`, alarms: '#alarms' };
+const hrefs = { device: (id: string) => `#device-${id}`, alarm: (id: string) => `#alarm-${id}`, alarms: '#alarms', profile: (id: string) => `#profile-${id}` };
+
+function OnlineRuleDemo({ transport, initial }: { transport: 'MQTT' | 'HTTP' | 'LORAWAN'; initial: OnlineRuleValue }) {
+  const [v, setV] = useState(initial);
+  return <OnlineRuleField value={v} transport={transport} onChange={setV} />;
+}
+function AuthModeDemo({ initial, locked }: { initial: ProfileAuthMode[]; locked?: boolean }) {
+  const [v, setV] = useState(initial);
+  return <AuthModeSelector value={v} locked={locked} onChange={setV} />;
+}
+function TransportPolicyDemo({ initial }: { initial: TransportPolicyValue }) {
+  const [v, setV] = useState(initial);
+  return <TransportPolicyCard value={v} transports={['MQTT', 'HTTP', 'ANY', 'LORAWAN']} onChange={(p) => setV({ ...v, ...p })} />;
+}
+function ProtocolMappingDemo({ initial }: { initial: ProtocolMappingValue }) {
+  const [v, setV] = useState(initial);
+  return <ProtocolMappingCard value={v} onChange={(p) => setV({ ...v, ...p })} />;
+}
+function RateLimitDemo({ initial, errors }: { initial: ProfileRateLimits; errors?: Partial<Record<keyof ProfileRateLimits, string>> }) {
+  const [v, setV] = useState(initial);
+  return <RateLimitEditor value={v} onChange={setV} errors={errors} />;
+}
+function TelemetryKeysDemo() {
+  const [v, setV] = useState(TELEMETRY_KEYS);
+  return <TelemetryKeySchemaTable value={v} onChange={setV} />;
+}
+function CfgKeysDemo() {
+  const [v, setV] = useState(CFG_KEYS);
+  return <CfgSchemaTable value={v} onChange={setV} />;
+}
+function NewProfileDemo() {
+  const [open, setOpen] = useState(false);
+  return (
+    <Fixture>
+      <Button variant="primary" size="sm" onClick={() => setOpen(true)}>New profile</Button>
+      {open && <NewDeviceProfileDrawer open transports={['MQTT', 'HTTP', 'ANY', 'LORAWAN']} onClose={() => setOpen(false)} onCreated={() => setOpen(false)} />}
+    </Fixture>
+  );
+}
+function AlarmRuleDrawerDemo({ rule }: { rule: AlarmRuleDefinition }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>Edit {rule.type}</Button>
+      {open && <AlarmRuleDrawer open rule={rule} others={[]} onApply={() => setOpen(false)} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
 
 // ── entries ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -474,6 +583,187 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       variants: [
         { title: 'Device console', layout: 'stack', preview: <Fixture><RpcConsoleView deviceId="d1" now={NOW} /></Fixture>, code: '<RpcConsoleView deviceId="d1" />' },
         { title: 'Fleet log', layout: 'stack', preview: <Fixture><RpcConsoleView now={NOW} /></Fixture>, code: '<RpcConsoleView />' },
+      ],
+    }),
+    entry({
+      id: 'iot-device-profile-card',
+      title: 'DeviceProfileCard',
+      abbr: 'PE',
+      description: 'One device profile at a glance: name, the default star, the template it was copied from, its transport and online rule, and how many devices use it.',
+      filePath: 'modules/domains/iot/profile/DeviceProfileCard.tsx',
+      usage: `<DeviceProfileCard profile={p} deviceCount={usage.devices} href={profileHref(p.profileId)} />`,
+      variants: [
+        { title: 'Default profile', layout: 'side', preview: <div className="max-w-sm"><DeviceProfileCard profile={PROFILES[0]} deviceCount={12} href="#p1" /></div>, code: '<DeviceProfileCard profile={p} deviceCount={12} />' },
+        { title: 'Template copy, count unknown', layout: 'side', preview: <div className="max-w-sm"><DeviceProfileCard profile={PROFILES[1]} deviceCount={null} /></div>, code: '<DeviceProfileCard profile={copy} deviceCount={null} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-device-profile-list-view',
+      title: 'DeviceProfileListView',
+      abbr: 'PN',
+      description: 'The device profiles through the IoT adapter: search, transport and online-rule filters, the default first, device counts refreshed every 30 s, New profile (explicit online rule, OD-63), Make default and delete (the host refuses the default and a profile in use).',
+      filePath: 'modules/domains/iot/profile/DeviceProfileListView.tsx',
+      usage: `<IotAdapterProvider adapter={adapter}><DeviceProfileListView hrefs={{ profile: (id) => \`/profiles/\${id}\` }} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'Profiles', layout: 'stack', preview: <Fixture><DeviceProfileListView hrefs={hrefs} now={NOW} /></Fixture>, code: '<DeviceProfileListView hrefs={hrefs} />' },
+        { title: 'Read error, read-only', layout: 'stack', preview: <Fixture fail><DeviceProfileListView hrefs={hrefs} /></Fixture>, code: '<DeviceProfileListView hrefs={hrefs} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-device-profile-editor-view',
+      title: 'DeviceProfileEditorView',
+      abbr: 'QE',
+      description: 'One device profile through the IoT adapter: General, Transport & auth, Online status, Limits, Telemetry keys, Configuration keys and Provisioning on one draft with one Save that sends only the changed fields and blocks what the host would refuse; contributed tabs (alarm rules, commands) follow.',
+      filePath: 'modules/domains/iot/profile/DeviceProfileEditorView.tsx',
+      usage: `<DeviceProfileEditorView profileId={id} extraTabs={[{ id: 'alarm-rules', label: 'Alarm rules', content: <AlarmRuleSetEditor profileId={id} /> }]} />`,
+      variants: [
+        { title: 'Editable profile with contributed tabs', layout: 'stack', preview: <Fixture><DeviceProfileEditorView profileId="p1" extraTabs={[{ id: 'alarm-rules', label: 'Alarm rules', content: <AlarmRuleSetEditor profileId="p1" /> }, { id: 'commands', label: 'Commands', content: <RpcCommandCatalogEditor profileId="p1" /> }]} /></Fixture>, code: '<DeviceProfileEditorView profileId="p1" extraTabs={tabs} />' },
+        { title: 'Template copy (schemas from firmware)', layout: 'stack', preview: <Fixture><DeviceProfileEditorView profileId="p2" tab="telemetry" /></Fixture>, code: '<DeviceProfileEditorView profileId="p2" tab="telemetry" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-new-device-profile-drawer',
+      title: 'NewDeviceProfileDrawer',
+      abbr: 'QN',
+      description: 'New device profile: name, description, transport and an explicit online rule (nothing preselected for any transport, Create disabled until one is chosen, OD-63); the rest takes the protocol defaults.',
+      filePath: 'modules/domains/iot/profile/NewDeviceProfileDrawer.tsx',
+      usage: `<NewDeviceProfileDrawer open onClose={close} onCreated={(p) => router.push(href(p.profileId))} />`,
+      variants: [
+        { title: 'Open the drawer', layout: 'side', preview: <NewProfileDemo />, code: '<NewDeviceProfileDrawer open onClose={close} />' },
+        { title: 'With LoRaWAN', layout: 'side', preview: <NewProfileDemo />, code: "<NewDeviceProfileDrawer open transports={['MQTT', 'HTTP', 'ANY', 'LORAWAN']} onClose={close} />" },
+      ],
+    }),
+    entry({
+      id: 'iot-online-rule-field',
+      title: 'OnlineRuleField',
+      abbr: 'OR',
+      description: 'The online rule of a profile (OD-57): live connection, recent message (interval × factor with a live "offline after" hint) or last seen only. Required and empty on a new profile (OD-63); a rule the transport cannot serve is disabled with the reason, and a chosen one that became impossible blocks saving.',
+      filePath: 'modules/domains/iot/profile/OnlineRuleField.tsx',
+      usage: `<OnlineRuleField value={{ onlineRule, expectedIntervalS, onlineWindowFactor }} transport={transportType} onChange={set} />`,
+      variants: [
+        { title: 'New profile: nothing chosen', layout: 'stack', preview: <OnlineRuleDemo transport="MQTT" initial={{ onlineRule: null, expectedIntervalS: null, onlineWindowFactor: 3 }} />, code: '<OnlineRuleField value={{ onlineRule: null, … }} transport="MQTT" />' },
+        { title: 'Recent message on HTTP', layout: 'stack', preview: <OnlineRuleDemo transport="HTTP" initial={{ onlineRule: 'UPLINK_WINDOW', expectedIntervalS: 600, onlineWindowFactor: 3 }} />, code: '<OnlineRuleField value={{ onlineRule: "UPLINK_WINDOW", expectedIntervalS: 600, onlineWindowFactor: 3 }} transport="HTTP" />' },
+        { title: 'Live connection chosen, transport became LoRaWAN', layout: 'stack', preview: <OnlineRuleDemo transport="LORAWAN" initial={{ onlineRule: 'LIVE_SOCKET', expectedIntervalS: null, onlineWindowFactor: 3 }} />, code: '<OnlineRuleField value={{ onlineRule: "LIVE_SOCKET", … }} transport="LORAWAN" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-auth-mode-selector',
+      title: 'AuthModeSelector',
+      abbr: 'AM',
+      description: 'The authentication modes a profile allows: access token, MQTT basic (always a username and a password, OD-163: no client-ID-only mode) and X.509; at least one; locked for an X.509-only template.',
+      filePath: 'modules/domains/iot/profile/AuthModeSelector.tsx',
+      usage: `<AuthModeSelector value={allowedAuthModes} onChange={set} />`,
+      variants: [
+        { title: 'Token and MQTT basic', layout: 'stack', preview: <AuthModeDemo initial={['ACCESS_TOKEN', 'MQTT_BASIC']} />, code: "<AuthModeSelector value={['ACCESS_TOKEN', 'MQTT_BASIC']} />" },
+        { title: 'Locked to X.509', layout: 'stack', preview: <AuthModeDemo initial={['X509_CERTIFICATE']} locked />, code: "<AuthModeSelector value={['X509_CERTIFICATE']} locked />" },
+      ],
+    }),
+    entry({
+      id: 'iot-transport-policy-card',
+      title: 'TransportPolicyCard',
+      abbr: 'TP',
+      description: 'How a profile’s devices reach the platform: transport, TLS only or plain MQTT (OD-160, TLS by default), tokens in the URL for devices without headers (OD-161, HTTP-only) and the networks devices may connect from (invalid entries named).',
+      filePath: 'modules/domains/iot/profile/TransportPolicyCard.tsx',
+      usage: `<TransportPolicyCard value={draft} onChange={(p) => set(p)} />`,
+      variants: [
+        { title: 'TLS only, pinned network', layout: 'stack', preview: <TransportPolicyDemo initial={{ transportType: 'ANY', mqttTransport: 'TLS_REQUIRED', allowTokenInUrl: false, allowedNetworks: ['203.0.113.0/24'] }} />, code: '<TransportPolicyCard value={{ transportType: "ANY", mqttTransport: "TLS_REQUIRED", … }} />' },
+        { title: 'Plain MQTT and URL tokens (warns)', layout: 'stack', preview: <TransportPolicyDemo initial={{ transportType: 'MQTT', mqttTransport: 'PLAINTEXT_ALLOWED', allowTokenInUrl: true, allowedNetworks: [] }} />, code: '<TransportPolicyCard value={{ mqttTransport: "PLAINTEXT_ALLOWED", allowTokenInUrl: true, … }} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-protocol-mapping-card',
+      title: 'ProtocolMappingCard',
+      abbr: 'QM',
+      description: 'Topic schemes (Roltek default and/or ThingsBoard compatible, at least one; ThingsBoard carries telemetry and attributes only, OD-85) and custom topics with the decided limits 8 / 128 / 50 / 4 KB (OD-35, OD-43).',
+      filePath: 'modules/domains/iot/profile/ProtocolMappingCard.tsx',
+      usage: `<ProtocolMappingCard value={draft} onChange={(p) => set(p)} />`,
+      variants: [
+        { title: 'Roltek default', layout: 'stack', preview: <ProtocolMappingDemo initial={{ topicSchemes: ['ROLTEK'], anyTopicEnabled: true, prefixKeysWithTopic: false, maxTopicDepth: 8, maxTopicLength: 128, maxDistinctTopicsPerDevice: 50, rawMaxBytes: 4096 }} />, code: "<ProtocolMappingCard value={{ topicSchemes: ['ROLTEK'], … }} />" },
+        { title: 'Both schemes', layout: 'stack', preview: <ProtocolMappingDemo initial={{ topicSchemes: ['ROLTEK', 'TB'], anyTopicEnabled: false, prefixKeysWithTopic: false, maxTopicDepth: 8, maxTopicLength: 128, maxDistinctTopicsPerDevice: 50, rawMaxBytes: 4096 }} />, code: "<ProtocolMappingCard value={{ topicSchemes: ['ROLTEK', 'TB'], … }} />" },
+      ],
+    }),
+    entry({
+      id: 'iot-rate-limit-editor',
+      title: 'RateLimitEditor',
+      abbr: 'RA',
+      description: 'Per-device rate limits in the protocol notation: each family is up to four windows count : seconds, each longer than the one before; an invalid family is marked, a changed one can go back to the protocol default.',
+      filePath: 'modules/domains/iot/profile/RateLimitEditor.tsx',
+      usage: `<RateLimitEditor value={draft.rateLimits} onChange={(v) => set({ rateLimits: v })} />`,
+      variants: [
+        { title: 'Protocol defaults', layout: 'stack', preview: <RateLimitDemo initial={{ ...DEFAULT_RATE_LIMITS }} />, code: '<RateLimitEditor value={DEFAULT_RATE_LIMITS} />' },
+        { title: 'A family with an error', layout: 'stack', preview: <RateLimitDemo initial={{ ...DEFAULT_RATE_LIMITS, telemetry_msgs: '300:60,10:1' }} errors={{ telemetry_msgs: 'Each window is count:seconds, each longer than the one before.' }} />, code: "<RateLimitEditor value={{ …, telemetry_msgs: '300:60,10:1' }} errors={{ telemetry_msgs: '…' }} />" },
+      ],
+    }),
+    entry({
+      id: 'iot-telemetry-key-schema-table',
+      title: 'TelemetryKeySchemaTable',
+      abbr: 'TK',
+      description: 'A profile’s fallback telemetry keys (key, type, unit, label, range, decimals) for devices without a firmware description; read-only with a "from firmware" badge when profile.json describes them (P-4).',
+      filePath: 'modules/domains/iot/profile/TelemetryKeySchemaTable.tsx',
+      usage: `<TelemetryKeySchemaTable value={draft.telemetrySchema} onChange={(v) => set({ telemetrySchema: v })} />`,
+      variants: [
+        { title: 'Editable', layout: 'stack', preview: <TelemetryKeysDemo />, code: '<TelemetryKeySchemaTable value={keys} onChange={setKeys} />' },
+        { title: 'From firmware (read-only)', layout: 'stack', preview: <TelemetryKeySchemaTable value={TELEMETRY_KEYS} fromFirmware="roltek-esp32 1.8.2" />, code: '<TelemetryKeySchemaTable value={keys} fromFirmware="roltek-esp32 1.8.2" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-cfg-schema-table',
+      title: 'CfgSchemaTable',
+      abbr: 'QC',
+      description: 'A profile’s fallback cfg.* allowlist: integer, boolean or string keys with ranges, lengths, allowed values and the write-only secret flag; read-only when the firmware describes them.',
+      filePath: 'modules/domains/iot/profile/CfgSchemaTable.tsx',
+      usage: `<CfgSchemaTable value={draft.cfgSchema} onChange={(v) => set({ cfgSchema: v })} />`,
+      variants: [
+        { title: 'Editable', layout: 'stack', preview: <CfgKeysDemo />, code: '<CfgSchemaTable value={keys} onChange={setKeys} />' },
+        { title: 'From firmware (read-only)', layout: 'stack', preview: <CfgSchemaTable value={CFG_KEYS} fromFirmware="roltek-openwrt 24.10.1" />, code: '<CfgSchemaTable value={keys} fromFirmware="…" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-provisioning-settings-card',
+      title: 'ProvisioningSettingsCard',
+      abbr: 'QP',
+      description: 'A profile’s provisioning strategy (strategies the host cannot serve yet are marked) and its provisioning keys; without the host’s key management the keys are a clearly disabled placeholder and no secret is ever drawn (OD-1).',
+      filePath: 'modules/domains/iot/profile/ProvisioningSettingsCard.tsx',
+      usage: `<ProvisioningSettingsCard strategy={draft.provisionStrategy} availableStrategies={['DISABLED']} />`,
+      variants: [
+        { title: 'No provisioning yet (placeholder)', layout: 'stack', preview: <ProvisioningSettingsCard strategy="DISABLED" />, code: '<ProvisioningSettingsCard strategy="DISABLED" />' },
+        { title: 'Strategies offered', layout: 'stack', preview: <ProvisioningSettingsCard strategy="CHECK_PRE_PROVISIONED_DEVICES" availableStrategies={['DISABLED', 'ALLOW_CREATE_NEW_DEVICES', 'CHECK_PRE_PROVISIONED_DEVICES']} />, code: "<ProvisioningSettingsCard strategy=\"CHECK_PRE_PROVISIONED_DEVICES\" availableStrategies={[…]} />" },
+      ],
+    }),
+    entry({
+      id: 'iot-alarm-rule-set-editor',
+      title: 'AlarmRuleSetEditor',
+      abbr: 'RG',
+      description: 'The alarm rules of a device profile through the IoT adapter: rule cards with the comparison per severity, add a threshold or the device-offline rule, edit in a drawer (form or JSON), remove; Save rules replaces the whole set. Read-only without canManageAlarmRules.',
+      filePath: 'modules/domains/iot/alarm/AlarmRuleSetEditor.tsx',
+      usage: `<IotAdapterProvider adapter={adapter}><AlarmRuleSetEditor profileId={id} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'Rules', layout: 'stack', preview: <Fixture><AlarmRuleSetEditor profileId="p1" /></Fixture>, code: '<AlarmRuleSetEditor profileId="p1" />' },
+        { title: 'Read error', layout: 'stack', preview: <Fixture fail><AlarmRuleSetEditor profileId="p1" /></Fixture>, code: '<AlarmRuleSetEditor profileId="p1" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-alarm-rule-drawer',
+      title: 'AlarmRuleDrawer',
+      abbr: 'QD',
+      description: 'Edits one alarm rule as a form (one comparison per severity, optional topic, debounce, hysteresis, runbook; or the offline delay) or as JSON for combined conditions; Apply returns it to the set.',
+      filePath: 'modules/domains/iot/alarm/AlarmRuleDrawer.tsx',
+      usage: `<AlarmRuleDrawer open rule={rule} others={otherRules} onApply={apply} onClose={close} />`,
+      variants: [
+        { title: 'Threshold rule', layout: 'side', preview: <AlarmRuleDrawerDemo rule={RULES[0]} />, code: '<AlarmRuleDrawer open rule={threshold} … />' },
+        { title: 'Device offline rule', layout: 'side', preview: <AlarmRuleDrawerDemo rule={RULES[1]} />, code: '<AlarmRuleDrawer open rule={offline} … />' },
+      ],
+    }),
+    entry({
+      id: 'iot-rpc-command-catalog-editor',
+      title: 'RpcCommandCatalogEditor',
+      abbr: 'QR',
+      description: 'The command catalog of a device profile through the IoT adapter: tier, high impact with a typed phrase, one-way, long-running, parameters; add, edit, remove, export and import (replaces the catalog after typing REPLACE). Never a factory reset (OD-8).',
+      filePath: 'modules/domains/iot/rpc/RpcCommandCatalogEditor.tsx',
+      usage: `<IotAdapterProvider adapter={adapter}><RpcCommandCatalogEditor profileId={id} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'Catalog', layout: 'stack', preview: <Fixture><RpcCommandCatalogEditor profileId="p1" /></Fixture>, code: '<RpcCommandCatalogEditor profileId="p1" />' },
+        { title: 'Read error', layout: 'stack', preview: <Fixture fail><RpcCommandCatalogEditor profileId="p1" /></Fixture>, code: '<RpcCommandCatalogEditor profileId="p1" />' },
       ],
     }),
   ];

@@ -1997,6 +1997,96 @@
     "category": "Domain",
     "file": "iot-rpc-console-view.md"
   },
+  "iot-device-profile-card": {
+    "name": "DeviceProfileCard",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-profile-card.md"
+  },
+  "iot-device-profile-list-view": {
+    "name": "DeviceProfileListView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-profile-list-view.md"
+  },
+  "iot-device-profile-editor-view": {
+    "name": "DeviceProfileEditorView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-profile-editor-view.md"
+  },
+  "iot-new-device-profile-drawer": {
+    "name": "NewDeviceProfileDrawer",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-new-device-profile-drawer.md"
+  },
+  "iot-online-rule-field": {
+    "name": "OnlineRuleField",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-online-rule-field.md"
+  },
+  "iot-auth-mode-selector": {
+    "name": "AuthModeSelector",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-auth-mode-selector.md"
+  },
+  "iot-transport-policy-card": {
+    "name": "TransportPolicyCard",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-transport-policy-card.md"
+  },
+  "iot-protocol-mapping-card": {
+    "name": "ProtocolMappingCard",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-protocol-mapping-card.md"
+  },
+  "iot-rate-limit-editor": {
+    "name": "RateLimitEditor",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-rate-limit-editor.md"
+  },
+  "iot-telemetry-key-schema-table": {
+    "name": "TelemetryKeySchemaTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-telemetry-key-schema-table.md"
+  },
+  "iot-cfg-schema-table": {
+    "name": "CfgSchemaTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-cfg-schema-table.md"
+  },
+  "iot-provisioning-settings-card": {
+    "name": "ProvisioningSettingsCard",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-provisioning-settings-card.md"
+  },
+  "iot-alarm-rule-set-editor": {
+    "name": "AlarmRuleSetEditor",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-alarm-rule-set-editor.md"
+  },
+  "iot-alarm-rule-drawer": {
+    "name": "AlarmRuleDrawer",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-alarm-rule-drawer.md"
+  },
+  "iot-rpc-command-catalog-editor": {
+    "name": "RpcCommandCatalogEditor",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-rpc-command-catalog-editor.md"
+  },
   "nft-rarity-badge": {
     "name": "RarityBadge",
     "layer": "domain",

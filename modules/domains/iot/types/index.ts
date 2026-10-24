@@ -2,3 +2,5 @@
 export * from './alarm';
 export * from './device';
 export * from './rpc';
+export * from './profile';
+export * from './alarm-rule';

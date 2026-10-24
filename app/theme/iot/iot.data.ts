@@ -1,5 +1,6 @@
 import type { Device, CloudWorkspace, Alarm, AlarmEvent, TelemetryReading, RuleChain } from '@/modules/domains/iot/types';
 import type { LogLevel } from '@/modules/domains/iot/telemetry/LogStreamRow';
+import { blankProfileDraft, type DeviceProfile } from '@/modules/domains/iot/types/profile';
 
 /* ─── Cloud Workspaces ─── */
 
@@ -543,3 +544,58 @@ export const ALARM_EVENTS: Record<string, AlarmEvent[]> = {
     { eventId: 'evt-2', kind: 'severity_changed', from: 'WARNING', to: 'INFO', by: 'default flow', at: new Date(Date.now() - 3_000_000).toISOString() },
   ],
 };
+
+/* ─── Device profiles (phase 01 §1.4; NB iot_device_profile 03) ─── */
+
+const profileBase = blankProfileDraft();
+const PROFILE_T0 = new Date('2026-09-01T08:00:00Z');
+
+/**
+ * The demo's device profiles: the ids the demo devices point at. One of each shape: a default MQTT + HTTP profile on the live
+ * connection; a Roltek template copy (X.509 only, schemas from the firmware, OD-63 "from template"); a LoRaWAN profile on "last seen
+ * only" (live connection impossible); a ThingsBoard-topics profile with plain MQTT for old meters (OD-160); an HTTP profile on the
+ * recent-message rule with tokens in the URL (OD-161).
+ */
+export const DEVICE_PROFILES: DeviceProfile[] = [
+  {
+    ...profileBase, profileId: 'prof-sensor', name: 'Sensors (live connection)', description: 'Default profile for the hall sensors.', isDefault: true,
+    transportType: 'ANY', allowedAuthModes: ['ACCESS_TOKEN', 'MQTT_BASIC'], onlineRule: 'LIVE_SOCKET', allowedNetworks: ['203.0.113.0/24'],
+    telemetrySchema: [
+      { key: 'temperature', type: 'number', unit: '°C', label: 'Temperature', min: -40, max: 125, decimals: 1 },
+      { key: 'humidity', type: 'number', unit: '%', label: 'Humidity', min: 0, max: 100, decimals: 0 },
+    ],
+    cfgSchema: [
+      { key: 'cfg.report_interval_s', type: 'integer', label: 'Report interval', min: 5, max: 3600 },
+      { key: 'cfg.led', type: 'string', label: 'LED', enum: ['on', 'off', 'blink'] },
+      { key: 'cfg.wifi.psk', type: 'string', label: 'Wi-Fi password', minLength: 8, maxLength: 63, secret: true },
+    ],
+    createdAt: PROFILE_T0, updatedAt: new Date('2026-10-20T09:30:00Z'),
+  },
+  {
+    ...profileBase, profileId: 'prof-gateway', name: 'Gateways (live connection)', description: 'Roltek M1 edge gateways.', isDefault: false,
+    transportType: 'MQTT', allowedAuthModes: ['X509_CERTIFICATE'], onlineRule: 'LIVE_SOCKET', downlinkMaxBytes: 4096,
+    template: { key: 'roltek-m1', version: 3 }, schemaSource: { kind: 'firmware', label: 'roltek-openwrt 24.10.1' },
+    telemetrySchema: [
+      { key: 'cpu_load', type: 'number', unit: '%', label: 'CPU load', min: 0, max: 100, decimals: 0 },
+      { key: 'wan_rx_bps', type: 'integer', unit: 'bit/s', label: 'WAN receive' },
+    ],
+    cfgSchema: [{ key: 'cfg.lte.apn', type: 'string', label: 'LTE APN', maxLength: 64 }],
+    createdAt: PROFILE_T0, updatedAt: new Date('2026-10-01T12:00:00Z'),
+  },
+  {
+    ...profileBase, profileId: 'prof-lorawan', name: 'LoRaWAN meters (last seen only)', description: 'Water meters behind the LoRaWAN network server.', isDefault: false,
+    transportType: 'LORAWAN', onlineRule: 'LAST_SEEN_ONLY', inactivityTimeoutSec: 7_200,
+    createdAt: PROFILE_T0, updatedAt: new Date('2026-09-12T10:00:00Z'),
+  },
+  {
+    ...profileBase, profileId: 'prof-tb', name: 'Legacy meters (ThingsBoard compatible)', description: 'Third-party meters that speak the ThingsBoard topics.', isDefault: false,
+    transportType: 'MQTT', topicSchemes: ['TB'], mqttTransport: 'PLAINTEXT_ALLOWED', onlineRule: 'LIVE_SOCKET', allowedNetworks: ['198.51.100.0/24', '2001:db8::/32'],
+    createdAt: PROFILE_T0, updatedAt: new Date('2026-09-20T15:00:00Z'),
+  },
+  {
+    ...profileBase, profileId: 'prof-http', name: 'HTTP sensors (recent message)', description: 'Battery sensors that post every 10 minutes.', isDefault: false,
+    transportType: 'HTTP', onlineRule: 'UPLINK_WINDOW', expectedIntervalS: 600, onlineWindowFactor: 3, allowTokenInUrl: true,
+    rateLimits: { ...profileBase.rateLimits, telemetry_msgs: '2:1,30:60' },
+    createdAt: PROFILE_T0, updatedAt: new Date('2026-10-10T07:45:00Z'),
+  },
+];
