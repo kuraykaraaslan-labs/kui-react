@@ -17,6 +17,7 @@ import { fill, formatDateTime, formatRelative, toDate } from '../format';
 import type { DeviceRecord, DeviceRegistryStatus, DeviceStatePatch } from '../types/device';
 import { DeviceAddress } from './DeviceAddress';
 import { DeviceConnectionBadge } from './DeviceConnectionBadge';
+import { DeviceQuickView } from './DeviceQuickView';
 import { NewDeviceDrawer } from './NewDeviceDrawer';
 
 /**
@@ -25,11 +26,16 @@ import { NewDeviceDrawer } from './NewDeviceDrawer';
  * profile's online rule, firmware and last seen. A "Quarantined (n)" quick filter (OD-1, counted toward the device limit,
  * OD-75) and, where the host offers activation, bulk "Activate" (at most 100). "New device" opens a drawer that shows the new
  * token once. Rows follow `deviceState('*')` live; without a live source the page re-reads every 30 s.
+ *
+ * A click on a row (not on its name, which links the device page) opens `DeviceQuickView`, a right-side drawer; ↑ / ↓ move it
+ * through the page. The open device is `query.device`: a host keeps it in its URL through `onQueryChange` (`how` is `push` when
+ * the drawer opens, so Back closes it; `replace` for everything else) and hands it back in `initialQuery`, whose `device` the view
+ * follows when it changes (Back, Forward, a pasted link).
  */
 export type DeviceListViewProps = {
   hrefs: { device: (deviceId: string) => string };
   initialQuery?: Partial<DeviceListQuery>;
-  onQueryChange?: (query: DeviceListQuery) => void;
+  onQueryChange?: (query: DeviceListQuery, how?: 'push' | 'replace') => void;
   pageSize?: number;
   now?: number;
   className?: string;
@@ -57,7 +63,20 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
   const notify = useIotNotify();
   const { m, locale } = useIotText();
 
-  const [query, setQuery] = useState<DeviceListQuery>(() => ({ page: 1, pageSize, ...initialQuery }));
+  const [query, setQuery] = useState<DeviceListQuery>(() => {
+    const { device: _open, ...rest } = initialQuery ?? {};
+    return { page: 1, pageSize, ...rest };
+  });
+  // the quick view: which device is open (from the URL too), and a device that is not on this page, read on its own
+  const urlDevice = initialQuery?.device ?? null;
+  const [openId, setOpenId] = useState<string | null>(urlDevice);
+  const [urlSeen, setUrlSeen] = useState<string | null>(urlDevice);
+  if (urlDevice !== urlSeen) {
+    setUrlSeen(urlDevice);
+    setOpenId(urlDevice);
+  }
+  const [loose, setLoose] = useState<{ device: DeviceRecord | null; error: string | null; id: string } | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [items, setItems] = useState<DeviceRecord[]>([]);
   const [total, setTotal] = useState(0);
   // the query the shown rows answer; while it differs from the current one the table shows "loading"
@@ -71,6 +90,8 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
   const [searchText, setSearchText] = useState(query.search ?? '');
   const queryRef = useRef(query);
   useEffect(() => { queryRef.current = query; }, [query]);
+  const openRef = useRef(openId);
+  useEffect(() => { openRef.current = openId; }, [openId]);
 
   const apply = useCallback((q: DeviceListQuery, page: { items: DeviceRecord[]; total: number } | null, e?: unknown) => {
     if (page) {
@@ -108,12 +129,42 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
     return () => ctrl.abort();
   }, [adapter.profiles]);
 
+  // a device opened from the URL that is not on the shown page: read it alone (no neighbours then)
+  const listed = loadedKey === JSON.stringify(query);
+  const onPage = openId ? items.some((d) => d.deviceId === openId) : false;
+  useEffect(() => {
+    if (!api || !openId || !listed || onPage) return;
+    const ctrl = new AbortController();
+    api.get(openId, ctrl.signal).then(
+      (d) => { if (!ctrl.signal.aborted) setLoose({ id: openId, device: d, error: null }); },
+      (e) => { if (!ctrl.signal.aborted) setLoose({ id: openId, device: null, error: errorMessage(e, m.detail.loadError) }); },
+    );
+    return () => ctrl.abort();
+  }, [api, openId, listed, onPage, m.detail.loadError]);
+
   const changeRef = useRef<(patch: Partial<DeviceListQuery>) => void>(() => undefined);
   function change(patch: Partial<DeviceListQuery>) {
     const next = { ...queryRef.current, ...patch, page: patch.page ?? 1 };
     setQuery(next);
     setSelected(new Set());
-    onQueryChange?.(next);
+    onQueryChange?.(openRef.current ? { ...next, device: openRef.current } : next, 'replace');
+  }
+  function openDevice(id: string | null, how: 'push' | 'replace') {
+    openRef.current = id;
+    setOpenId(id);
+    onQueryChange?.(id ? { ...queryRef.current, device: id } : queryRef.current, how);
+  }
+  function closeQuickView() {
+    const id = openRef.current;
+    openDevice(null, 'replace');
+    // the drawer gives focus back to what had it when it opened; after moving through the page, the row of the device last shown
+    // is the one to land on
+    if (id) {
+      setTimeout(() => {
+        const rows = listRef.current?.querySelectorAll<HTMLElement>('tr[data-row-key]') ?? [];
+        Array.from(rows).find((el) => el.dataset.rowKey === id)?.focus();
+      }, 0);
+    }
   }
   useEffect(() => { changeRef.current = change; });
   useEffect(() => {
@@ -130,6 +181,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
         const p = api.parseState?.(payload);
         if (!p) return;
         setItems((cur) => (cur.some((d) => d.deviceId === p.deviceId) ? cur.map((d) => (d.deviceId === p.deviceId ? applyStatePatch(d, p) : d)) : cur));
+        setLoose((l) => (l?.device && l.device.deviceId === p.deviceId ? { ...l, device: applyStatePatch(l.device, p) } : l));
       },
     }) : undefined,
     poll: () => { void load(queryRef.current); void loadQuarantined(); },
@@ -195,8 +247,13 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
 
   if (!api) return null;
 
+  const openIndex = openId ? items.findIndex((d) => d.deviceId === openId) : -1;
+  const openDeviceRecord = openIndex >= 0 ? items[openIndex] : (loose && loose.id === openId ? loose.device : null);
+  const prevId = openIndex > 0 ? items[openIndex - 1].deviceId : null;
+  const nextId = openIndex >= 0 && openIndex < items.length - 1 ? items[openIndex + 1].deviceId : null;
+
   return (
-    <div className={cn('space-y-4', className)}>
+    <div ref={listRef} className={cn('space-y-4', className)}>
       <PageHeader
         title={m.devices.title}
         subtitle={m.devices.subtitle}
@@ -249,6 +306,8 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
         columns={columns}
         rows={items}
         getRowKey={(d) => d.deviceId}
+        onRowClick={(d) => openDevice(d.deviceId, openRef.current ? 'replace' : 'push')}
+        rowClassName={(d) => (d.deviceId === openId ? 'bg-surface-overlay' : undefined)}
         selection={canActivate ? {
           selected,
           onChange: (next) => setSelected(new Set([...next].slice(0, MAX_ACTIVATE))),
@@ -266,6 +325,22 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
         <div className="flex justify-center">
           <Pagination page={query.page} totalPages={pages} onPageChange={(page) => change({ page })} size="sm" />
         </div>
+      )}
+
+      {openId && (
+        <DeviceQuickView
+          open
+          deviceId={openId}
+          device={openDeviceRecord}
+          error={openIndex < 0 && loose && loose.id === openId ? loose.error : null}
+          onClose={closeQuickView}
+          onPrevious={prevId ? () => openDevice(prevId, 'replace') : undefined}
+          onNext={nextId ? () => openDevice(nextId, 'replace') : undefined}
+          position={openIndex >= 0 ? { n: (query.page - 1) * query.pageSize + openIndex + 1, total } : undefined}
+          href={hrefs.device(openId)}
+          profileName={openDeviceRecord ? profileName(openDeviceRecord.deviceProfileId, openDeviceRecord.profileName) : null}
+          now={now}
+        />
       )}
 
       {creating && (

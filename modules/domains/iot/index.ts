@@ -47,6 +47,11 @@ export { DeviceCredentialPanel, IssuedSecretNotice } from './device/DeviceCreden
 export { DeviceAttributeTable } from './device/DeviceAttributeTable';
 export { DesiredReportedBadge } from './device/DesiredReportedBadge';
 export { DeviceConnectionTimeline } from './device/DeviceConnectionTimeline';
+export { DeviceLogTimeline, DEVICE_LOG_ACTIONS, auditSummary } from './device/DeviceLogTimeline';
+export type { DeviceLogTimelineProps } from './device/DeviceLogTimeline';
+export { useDeviceLog, connectionToLogEntry } from './device/useDeviceLog';
+export { DeviceQuickView } from './device/DeviceQuickView';
+export type { DeviceQuickViewProps } from './device/DeviceQuickView';
 export { DeviceTable } from './device/DeviceTable';
 export type { DeviceTableProps, DeviceTableRow, DeviceTableKeyColumn, DeviceTableColumnId } from './device/DeviceTable';
 export { DeviceListView } from './device/DeviceListView';

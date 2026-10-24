@@ -1,7 +1,7 @@
 import { IotApiError, type IotAdapter, type AlarmLiveEvent, type AlarmTransition } from '@/modules/domains/iot/api/adapter';
 import { ALARM_SEVERITIES, type Alarm, type AlarmBulkResult, type AlarmCounts, type AlarmEvent } from '@/modules/domains/iot/types/alarm';
 import type {
-  AttributeEntry, AttributeScope, DeviceConnectionEvent, DeviceCredential, DeviceRecord, DeviceStatePatch, IssuedSecret,
+  AttributeEntry, AttributeScope, DeviceConnectionEvent, DeviceCredential, DeviceLogEntry, DeviceRecord, DeviceStatePatch, IssuedSecret,
 } from '@/modules/domains/iot/types/device';
 import type { Device } from '@/modules/domains/iot/types';
 import { isRefusedRpcMethod, type RpcCatalogCommand, type RpcCommand, type RpcCommandInput, type RpcRequest, type RpcStatus } from '@/modules/domains/iot/types/rpc';
@@ -107,7 +107,35 @@ type Store = {
   attributes: Map<string, Record<AttributeScope, AttributeEntry[]>>;
   alarms: Alarm[];
   events: Map<string, AlarmEvent[]>;
+  /** The audited changes of each device (the Log tab's "Changes"), newest last. */
+  audit: Map<string, DeviceLogEntry[]>;
 };
+
+/** The demo's people: whoever acts in the demo is Alex Müller; the seeded history has a second operator. */
+const ALEX = { id: 'user-alex', name: 'Alex Müller' };
+const ADA = { id: 'user-ada', name: 'Ada Lovelace' };
+
+/** A plausible history of changes for a seeded device (no secrets, no attribute values: what a host's audit log keeps). */
+function seedAudit(d: DeviceRecord): DeviceLogEntry[] {
+  const at = (ms: number) => ago(ms);
+  const created = d.createdAt ? new Date(d.createdAt) : ago(90 * 86_400_000);
+  const rows: DeviceLogEntry[] = [
+    { id: `${d.deviceId}-a0`, at: created, source: 'audit', kind: 'iot_device.device.created', actor: ADA, metadata: { credentialType: 'ACCESS_TOKEN' } },
+  ];
+  if (d.status === 'QUARANTINED') return rows.map((r) => ({ ...r, actor: null }));
+  rows.push(
+    { id: `${d.deviceId}-a1`, at: at(5 * 86_400_000), source: 'audit', kind: 'iot_device.device.updated', actor: ADA, metadata: { fields: ['label'] } },
+    { id: `${d.deviceId}-a2`, at: at(2 * 86_400_000), source: 'audit', kind: 'iot_device.credential.rotated', actor: ALEX, metadata: { credentialType: 'ACCESS_TOKEN' } },
+    { id: `${d.deviceId}-a3`, at: at(26 * 3_600_000 + 5 * MIN), source: 'audit', kind: 'iot_device.attributes.saved', actor: ALEX, metadata: { scope: 'SHARED', keys: ['cfg.report_interval_s'] } },
+  );
+  if (d.online !== null) {
+    rows.push({ id: `${d.deviceId}-a4`, at: at(3 * 3_600_000 + 12 * MIN), source: 'audit', kind: 'iot_rpc.request.created', actor: ALEX, metadata: { method: 'sys.ping', rpcId: `rpc-seed-${d.deviceId}` } });
+  }
+  if (d.status === 'DISABLED') {
+    rows.push({ id: `${d.deviceId}-a5`, at: at(20 * MIN), source: 'audit', kind: 'iot_device.device.disabled', actor: ADA, metadata: { from: 'ACTIVE', to: 'DISABLED' } });
+  }
+  return rows;
+}
 
 function seedAttributes(d: DeviceRecord): Record<AttributeScope, AttributeEntry[]> {
   const t = Date.now() - 3_600_000;
@@ -168,6 +196,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     attributes: new Map(),
     alarms: ALARMS.map((a) => ({ ...a })),
     events: new Map(Object.entries(ALARM_EVENTS).map(([k, v]) => [k, [...v]])),
+    audit: new Map(),
   };
   for (const d of store.devices) {
     store.credentials.set(d.deviceId, d.deviceId === 'dev-002'
@@ -176,8 +205,14 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         ? { type: 'X509_CERTIFICATE', certFingerprint: 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90', certSubject: 'CN=weather-bridge', certExpiresAt: new Date(Date.now() + 200 * 86_400_000), createdAt: ago(165 * 86_400_000) }
         : { type: 'ACCESS_TOKEN', createdAt: ago(30 * 86_400_000) });
     store.attributes.set(d.deviceId, seedAttributes(d));
+    store.audit.set(d.deviceId, seedAudit(d));
   }
   let seq = 100;
+  const audit = (deviceId: string, kind: string, metadata: Record<string, unknown> = {}) => {
+    const list = store.audit.get(deviceId) ?? [];
+    list.push({ id: `${deviceId}-a${++seq}`, at: new Date(), source: 'audit', kind, actor: ALEX, metadata });
+    store.audit.set(deviceId, list);
+  };
   const wait = () => new Promise<void>((r) => setTimeout(r, opts.latencyMs ?? 120));
   const device = (id: string) => {
     const d = store.devices.find((x) => x.deviceId === id);
@@ -254,6 +289,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
       if (action === 'clear' && a.status === 'RESOLVED') return { alarmId: id, ok: false, reason: 'not_active' };
       if (action === 'acknowledge') { a.status = 'ACKNOWLEDGED'; a.acknowledgedAt = new Date(); } else { a.status = 'RESOLVED'; a.resolvedAt = new Date(); }
       addEvent(id, { kind: action === 'acknowledge' ? 'acknowledged' : 'resolved', by: 'Alex Müller', at: new Date(), note });
+      if (a.deviceId) audit(a.deviceId, action === 'acknowledge' ? 'iot_alarm.alarm.acknowledged' : 'iot_alarm.alarm.cleared', { alarmId: id, alarmType: a.type });
       publishAlarm({ ...a }, action === 'acknowledge' ? 'acknowledged' : 'cleared');
       return { alarmId: id, ok: true };
     });
@@ -381,6 +417,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         const credential: DeviceCredential = { type: 'ACCESS_TOKEN', createdAt: new Date() };
         store.credentials.set(d.deviceId, credential);
         store.attributes.set(d.deviceId, { SERVER: [], SHARED: [], CLIENT: [] });
+        audit(d.deviceId, 'iot_device.device.created', { credentialType: 'ACCESS_TOKEN' });
         return { device: { ...d }, credential, secret: { token: randomSecret() } };
       },
       async remove(id) { await wait(); device(id); store.devices = store.devices.filter((d) => d.deviceId !== id); },
@@ -389,7 +426,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         let n = 0;
         for (const id of ids.slice(0, 100)) {
           const d = store.devices.find((x) => x.deviceId === id);
-          if (d && d.status === 'QUARANTINED') { d.status = 'ACTIVE'; n++; publishState(d); }
+          if (d && d.status === 'QUARANTINED') { d.status = 'ACTIVE'; n++; publishState(d); audit(d.deviceId, 'iot_device.device.activated', { from: 'QUARANTINED', to: 'ACTIVE' }); }
         }
         return { activated: n };
       },
@@ -397,6 +434,14 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         await wait();
         const all = seedConnections(device(id));
         return { items: all.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: all.length };
+      },
+      async log(id, q) {
+        await wait();
+        const d = device(id);
+        const connections: DeviceLogEntry[] = seedConnections(d).map((e) => ({ ...e, source: 'connection' as const }));
+        const rows = [...(q.source === 'audit' ? [] : connections), ...(q.source === 'connection' ? [] : (store.audit.get(id) ?? []))]
+          .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+        return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize).map((e) => ({ ...e })), total: rows.length };
       },
       async quarantinedCount() { return store.devices.filter((d) => d.status === 'QUARANTINED').length; },
       parseState(p) { return p && typeof p === 'object' && 'deviceId' in p ? (p as DeviceStatePatch) : null; },
@@ -409,6 +454,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         if (!cur) throw new IotApiError('not_found', 'No active credential.');
         const next = { ...cur, rotatedAt: new Date() };
         store.credentials.set(id, next);
+        audit(id, 'iot_device.credential.rotated', { credentialType: cur.type });
         const secret: IssuedSecret = cur.type === 'MQTT_BASIC' ? { password: randomSecret(24) } : { token: randomSecret() };
         return { credential: next, secret };
       },
@@ -424,11 +470,13 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
           const entry: AttributeEntry = { key, value, updatedAt: Date.now(), ...(scope === 'SHARED' ? { sync: 'pending' as const } : {}) };
           if (i >= 0) list[i] = { ...list[i], ...entry }; else list.push(entry);
         }
+        audit(id, 'iot_device.attributes.saved', { scope, keys: Object.keys(values).sort() });
       },
       async remove(id, scope, keys) {
         await wait();
         const all = store.attributes.get(id)!;
         all[scope] = all[scope].filter((e) => !keys.includes(e.key));
+        audit(id, 'iot_device.attributes.deleted', { scope, keys: [...keys].sort() });
       },
     },
     alarms: {
@@ -480,6 +528,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
           timeoutMs: input.timeoutMs ?? cmd?.defaultTimeoutMs ?? 10_000, highImpact: cmd?.highImpact ?? false,
         };
         store.rpc = [r, ...store.rpc];
+        audit(deviceId, 'iot_rpc.request.created', { method: r.method, rpcId: r.rpcId });
         if (!d.online && !r.persistent) { move(r, 'FAILED', { error: 'device offline' }); return { ...r }; }
         if (d.online) deliver(r);
         return { ...r };
@@ -503,6 +552,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         if (!r) throw new IotApiError('not_found', 'Command not found.');
         if (r.status !== 'QUEUED' && r.status !== 'SENT') throw new IotApiError('conflict', 'Only a queued or sent command can be cancelled.');
         move(r, 'CANCELLED');
+        audit(r.deviceId, 'iot_rpc.request.cancelled', { method: r.method, rpcId: r.rpcId });
         return { ...r };
       },
       parseLive(p) { return p && typeof p === 'object' && 'request' in p ? (p as { request: RpcRequest }) : null; },

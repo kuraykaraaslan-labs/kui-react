@@ -111,7 +111,7 @@ describe('DeviceListView', () => {
     expect(await screen.findByRole('link', { name: /Pump 4/ })).toHaveAttribute('href', '/d/d1');
     await user.selectOptions(screen.getByLabelText('Connection'), 'last_seen');
     await waitFor(() => expect(adapter.devices!.list).toHaveBeenLastCalledWith(expect.objectContaining({ online: 'last_seen', page: 1 }), expect.anything()));
-    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ online: 'last_seen' }));
+    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ online: 'last_seen' }), 'replace');
   });
 
   it('offers the Quarantined (n) filter and bulk Activate only with the capability', async () => {
@@ -173,7 +173,7 @@ describe('DeviceDetailView', () => {
     wrap(<DeviceDetailView deviceId="d1" extraTabs={[{ id: 'alarms', label: 'Alarms', order: 50, content: <p>alarms here</p> }]} />, { caps: { ...ALL, canViewCredentials: false } });
     await screen.findByRole('heading', { name: 'Pump 4' });
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
-    expect(tabs).toEqual(['Overview', 'Attributes', 'Connections', 'Alarms']);
+    expect(tabs).toEqual(['Overview', 'Attributes', 'Log', 'Alarms']);
     expect(screen.queryByText(/factory reset/i)).toBeNull();
   });
 

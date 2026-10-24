@@ -1943,6 +1943,18 @@
     "category": "Domain",
     "file": "iot-device-connection-timeline.md"
   },
+  "iot-device-log-timeline": {
+    "name": "DeviceLogTimeline",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-log-timeline.md"
+  },
+  "iot-device-quick-view": {
+    "name": "DeviceQuickView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-quick-view.md"
+  },
   "iot-device-table": {
     "name": "DeviceTable",
     "layer": "domain",

@@ -2,8 +2,8 @@ import type {
   Alarm, AlarmBulkResult, AlarmCounts, AlarmEvent, AlarmSeverity, AlarmStatus,
 } from '../types/alarm';
 import type {
-  AttributeEntry, AttributeScope, CredentialType, DeviceConnectionEvent, DeviceCredential, DeviceRecord, DeviceRegistryStatus,
-  DeviceStatePatch, IssuedSecret,
+  AttributeEntry, AttributeScope, CredentialType, DeviceConnectionEvent, DeviceCredential, DeviceLogEntry, DeviceLogSource, DeviceRecord,
+  DeviceRegistryStatus, DeviceStatePatch, IssuedSecret,
 } from '../types/device';
 import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
 import type { DeviceProfile, DeviceProfileInput, DeviceProfileUsage, OnlineRule, ProfileTransport } from '../types/profile';
@@ -56,6 +56,8 @@ export type DeviceListQuery = {
   online?: DeviceOnlineFilter;
   status?: DeviceRegistryStatus;
   gateway?: boolean;
+  /** The device open in the quick view (`?device=` in a host's URL). Not a filter: `list` never receives it. */
+  device?: string;
 };
 
 export type NewDeviceInput = {
@@ -72,6 +74,9 @@ export type CreatedDevice = {
   secret: IssuedSecret | null;
 };
 
+/** One page of a device's log, newest first; `source` narrows it to the connection log or to the audited changes. */
+export type DeviceLogQuery = { page: number; pageSize: number; source?: DeviceLogSource };
+
 export interface IotDevicesApi {
   list(query: DeviceListQuery, signal?: AbortSignal): Promise<Page<DeviceRecord>>;
   get(deviceId: string, signal?: AbortSignal): Promise<DeviceRecord>;
@@ -79,7 +84,10 @@ export interface IotDevicesApi {
   remove?(deviceId: string): Promise<void>;
   /** OD-1: quarantined → active (single and bulk, at most 100). Absent when the host has no provisioning. */
   activate?(deviceIds: string[]): Promise<{ activated: number }>;
+  /** The connection log alone. Kept for hosts without `log`: the Log tab then shows connection entries only. */
   connections(deviceId: string, query: { page: number; pageSize: number }, signal?: AbortSignal): Promise<Page<DeviceConnectionEvent>>;
+  /** The device's log: its connection log and its audited changes merged, newest first (the Log tab, the quick view's recent lines). */
+  log?(deviceId: string, query: DeviceLogQuery, signal?: AbortSignal): Promise<Page<DeviceLogEntry>>;
   /** How many devices wait for activation (the "Quarantined (n)" quick filter). */
   quarantinedCount?(signal?: AbortSignal): Promise<number>;
   /** A `deviceState` live payload as a patch, or null when it is not one. */

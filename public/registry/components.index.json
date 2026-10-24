@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-24T18:58:33.394Z",
+  "generatedAt": "2026-10-24T19:16:22.945Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -5618,6 +5618,32 @@
       "variantCount": 2
     },
     {
+      "id": "iot-device-log-timeline",
+      "name": "DeviceLogTimeline",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceLogTimeline.tsx",
+      "abbr": "DG",
+      "description": "Everything that happened to one device, newest first: the connection log (with the client address and transport) and the audited changes with who made them, a chip row All / Connections / Changes, paged; compact for short lists.",
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "iot-device-quick-view",
+      "name": "DeviceQuickView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceQuickView.tsx",
+      "abbr": "DQ",
+      "description": "A device seen from its list in a right-side drawer: connection, IP address, profile, firmware, the five newest log lines, copy ID and the full page; ↑ / ↓ and Previous / Next move through the list page, Esc closes. DeviceListView opens it on a row click and keeps it in the URL.",
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
       "id": "iot-device-table",
       "name": "DeviceTable",
       "layer": "domain",
@@ -5650,7 +5676,7 @@
       "category": "Domain",
       "filePath": "modules/domains/iot/device/DeviceDetailView.tsx",
       "abbr": "DZ",
-      "description": "One device through the adapter: header with copy id, Activate and delete, tabs Overview, Attributes, Credentials (only with the capability) and Connections, plus tabs other modules contribute.",
+      "description": "One device through the adapter: header with copy id, Activate and delete, tabs Overview, Attributes, Credentials (only with the capability) and Log (connections and audited changes), plus tabs other modules contribute.",
       "status": "beta",
       "since": "2026-10",
       "designTokens": [],

@@ -7,7 +7,7 @@
 - **status:** beta
 - **since:** 2026-10
 
-One device through the adapter: header with copy id, Activate and delete, tabs Overview, Attributes, Credentials (only with the capability) and Connections, plus tabs other modules contribute.
+One device through the adapter: header with copy id, Activate and delete, tabs Overview, Attributes, Credentials (only with the capability) and Log (connections and audited changes), plus tabs other modules contribute.
 
 ## Variants
 

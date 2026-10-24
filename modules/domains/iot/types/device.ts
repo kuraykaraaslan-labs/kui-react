@@ -122,3 +122,35 @@ export type DeviceConnectionEvent = {
   transport?: string | null;
   remoteIp?: string | null;
 };
+
+// ── device log (NB iot_device 05 §5.3: the Log tab) ──────────────────────────────────────────────────────────────────
+
+/** Where a log entry comes from: the connection log (the gateway's sessions) or the platform audit log (people's changes). */
+export const DEVICE_LOG_SOURCES = ['connection', 'audit'] as const;
+export type DeviceLogSource = (typeof DEVICE_LOG_SOURCES)[number];
+
+/** Who made an audited change: a display name when the host knows one (never required; a missing name reads "a team member"). */
+export type DeviceLogActor = { id: string; name?: string | null };
+
+/**
+ * One line of a device's log: everything that happened to it, newest first. A `connection` entry carries the transport, the
+ * client address and the protocol reason; an `audit` entry carries the action (`iot_device.device.updated`, …), its actor and
+ * a metadata summary that never holds a secret or an attribute value (only keys, types, method names).
+ */
+export type DeviceLogEntry = {
+  id: string;
+  at: Date | string | number;
+  source: DeviceLogSource;
+  /** `connected`, `disconnected`, … for a connection entry; the audit action for an audit entry. */
+  kind: string;
+  /** Absent or null: the system (a flow, a sweep, provisioning). */
+  actor?: DeviceLogActor | null;
+  remoteIp?: string | null;
+  transport?: string | null;
+  reason?: string | null;
+  detail?: string | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+/** The Log tab's chip row: everything, the connection log, or the audited changes. */
+export type DeviceLogFilter = 'all' | DeviceLogSource;

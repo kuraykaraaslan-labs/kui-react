@@ -21,6 +21,8 @@ import { DeviceCredentialPanel } from '@/modules/domains/iot/device/DeviceCreden
 import { DeviceAttributeTable } from '@/modules/domains/iot/device/DeviceAttributeTable';
 import { DesiredReportedBadge } from '@/modules/domains/iot/device/DesiredReportedBadge';
 import { DeviceConnectionTimeline } from '@/modules/domains/iot/device/DeviceConnectionTimeline';
+import { DeviceLogTimeline } from '@/modules/domains/iot/device/DeviceLogTimeline';
+import { DeviceQuickView } from '@/modules/domains/iot/device/DeviceQuickView';
 import { DeviceTable, type DeviceTableRow } from '@/modules/domains/iot/device/DeviceTable';
 import { DeviceListView } from '@/modules/domains/iot/device/DeviceListView';
 import { DeviceDetailView } from '@/modules/domains/iot/device/DeviceDetailView';
@@ -51,7 +53,7 @@ import { newThresholdRule, type AlarmRuleDefinition } from '@/modules/domains/io
 import { IotAdapterProvider } from '@/modules/domains/iot/api/IotAdapterProvider';
 import { IotApiError, type IotAdapter } from '@/modules/domains/iot/api/adapter';
 import type { Alarm, AlarmEvent } from '@/modules/domains/iot/types/alarm';
-import type { AttributeEntry, DeviceConnectionEvent, DeviceRecord } from '@/modules/domains/iot/types/device';
+import type { AttributeEntry, DeviceConnectionEvent, DeviceLogEntry, DeviceLogFilter, DeviceRecord } from '@/modules/domains/iot/types/device';
 
 const NOW = new Date('2026-10-24T12:00:00Z').getTime();
 const ago = (ms: number) => new Date(NOW - ms);
@@ -106,6 +108,16 @@ const CONNECTIONS: DeviceConnectionEvent[] = [
   { id: 'c2', at: ago(3 * 3_600_000), kind: 'connected', transport: 'mqtts', remoteIp: '203.0.113.7' },
   { id: 'c3', at: ago(3 * 3_600_000 + MIN), kind: 'taken_over', detail: 'session s-81f2' },
 ];
+
+const LOG: DeviceLogEntry[] = [
+  ...CONNECTIONS.map((c) => ({ ...c, source: 'connection' as const })),
+  { id: 'a1', at: ago(20 * MIN), source: 'audit', kind: 'iot_device.attributes.saved', actor: { id: 'u1', name: 'Ada Lovelace' }, metadata: { scope: 'SHARED', keys: ['cfg.report_interval_s'] } },
+  { id: 'a2', at: ago(2 * 3_600_000), source: 'audit', kind: 'iot_rpc.request.created', actor: { id: 'u2', name: 'Alex Müller' }, metadata: { method: 'sys.info', rpcId: 'r1' } },
+  { id: 'a3', at: ago(26 * 3_600_000), source: 'audit', kind: 'iot_device.credential.rotated', actor: { id: 'u1', name: 'Ada Lovelace' }, metadata: { credentialType: 'ACCESS_TOKEN' } },
+  { id: 'a4', at: ago(5 * 86_400_000), source: 'audit', kind: 'iot_device.device.updated', actor: { id: 'u3' }, metadata: { fields: ['label', 'name'] } },
+  { id: 'a5', at: ago(30 * 86_400_000), source: 'audit', kind: 'iot_device.device.created', actor: null, metadata: { credentialType: 'ACCESS_TOKEN' } },
+];
+const LOG_SORTED = [...LOG].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 
 const TABLE_ALARMS: AlarmTableRow[] = ALARMS.map((a) => ({
   id: a.alarmId, severity: a.severity, status: a.status, title: a.title, originator: a.deviceName, deviceId: a.deviceId, openedAt: a.openedAt,
@@ -188,6 +200,11 @@ function fixtureAdapter(fail = false): IotAdapter {
       async create(input) { await wait(); return { device: { ...DEVICES[0], deviceId: 'new', name: input.name }, credential: { type: 'ACCESS_TOKEN' }, secret: { token: 'Xq7Lr2VbN8tKc4Mp9WzH3sJd6Fy1Ag5E' } }; },
       async activate(ids) { await wait(); return { activated: ids.length }; },
       async connections() { await wait(); return { items: CONNECTIONS, total: CONNECTIONS.length }; },
+      log: fail ? failing : async (_id, q) => {
+        await wait();
+        const rows = LOG_SORTED.filter((e) => !q.source || e.source === q.source);
+        return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: rows.length };
+      },
       async quarantinedCount() { return 1; },
     },
     credentials: {
@@ -230,6 +247,34 @@ function NewDeviceDemo() {
     <Fixture>
       <Button variant="primary" size="sm" onClick={() => setOpen(true)}>New device</Button>
       {open && <NewDeviceDrawer open profiles={[{ id: 'p1', name: 'Pumps' }]} deviceHref={(id) => `#device-${id}`} onClose={() => setOpen(false)} />}
+    </Fixture>
+  );
+}
+
+function LogFilterDemo() {
+  const [filter, setFilter] = useState<DeviceLogFilter>('all');
+  return <DeviceLogTimeline entries={LOG_SORTED.filter((e) => filter === 'all' || e.source === filter)} filter={filter} onFilterChange={setFilter} hasMore onLoadMore={() => undefined} locale="en-GB" />;
+}
+
+function QuickViewDemo() {
+  const [index, setIndex] = useState<number | null>(null);
+  const d = index === null ? null : DEVICES[index];
+  return (
+    <Fixture>
+      <Button variant="primary" size="sm" onClick={() => setIndex(0)}>Open the quick view</Button>
+      {d && index !== null && (
+        <DeviceQuickView
+          open
+          deviceId={d.deviceId}
+          device={d}
+          onClose={() => setIndex(null)}
+          onPrevious={index > 0 ? () => setIndex(index - 1) : undefined}
+          onNext={index < DEVICES.length - 1 ? () => setIndex(index + 1) : undefined}
+          position={{ n: index + 1, total: DEVICES.length }}
+          href={`#device-${d.deviceId}`}
+          now={NOW}
+        />
+      )}
     </Fixture>
   );
 }
@@ -478,6 +523,31 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       ],
     }),
     entry({
+      id: 'iot-device-log-timeline',
+      title: 'DeviceLogTimeline',
+      abbr: 'DG',
+      description: 'Everything that happened to one device, newest first: the connection log (with the client address and transport) and the audited changes with who made them, a chip row All / Connections / Changes, paged; compact for short lists.',
+      filePath: 'modules/domains/iot/device/DeviceLogTimeline.tsx',
+      usage: `<DeviceLogTimeline entries={entries} filter={filter} onFilterChange={setFilter} hasMore={more} onLoadMore={next} />`,
+      variants: [
+        { title: 'With the filter', layout: 'stack', preview: <LogFilterDemo />, code: '<DeviceLogTimeline entries={entries} filter={filter} onFilterChange={setFilter} />' },
+        { title: 'Compact (the quick view)', layout: 'stack', preview: <DeviceLogTimeline entries={LOG_SORTED.slice(0, 5)} compact locale="en-GB" />, code: '<DeviceLogTimeline entries={recent} compact />' },
+        { title: 'Empty', layout: 'stack', preview: <DeviceLogTimeline entries={[]} />, code: '<DeviceLogTimeline entries={[]} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-device-quick-view',
+      title: 'DeviceQuickView',
+      abbr: 'DQ',
+      description: 'A device seen from its list in a right-side drawer: connection, IP address, profile, firmware, the five newest log lines, copy ID and the full page; ↑ / ↓ and Previous / Next move through the list page, Esc closes. DeviceListView opens it on a row click and keeps it in the URL.',
+      filePath: 'modules/domains/iot/device/DeviceQuickView.tsx',
+      usage: `<DeviceQuickView open deviceId={id} device={row} onClose={close} onPrevious={prev} onNext={next} href={hrefs.device(id)} />`,
+      variants: [
+        { title: 'Open it', layout: 'side', preview: <QuickViewDemo />, code: '<DeviceQuickView open … />' },
+        { title: 'Inside DeviceListView', layout: 'side', preview: <p className="text-sm text-text-secondary">The list view opens it when a row is clicked (the name still links the page).</p>, code: '<DeviceListView hrefs={hrefs} initialQuery={{ device }} onQueryChange={toUrl} />' },
+      ],
+    }),
+    entry({
       id: 'iot-device-table',
       title: 'DeviceTable',
       abbr: 'DX',
@@ -505,7 +575,7 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       id: 'iot-device-detail-view',
       title: 'DeviceDetailView',
       abbr: 'DZ',
-      description: 'One device through the adapter: header with copy id, Activate and delete, tabs Overview, Attributes, Credentials (only with the capability) and Connections, plus tabs other modules contribute.',
+      description: 'One device through the adapter: header with copy id, Activate and delete, tabs Overview, Attributes, Credentials (only with the capability) and Log (connections and audited changes), plus tabs other modules contribute.',
       filePath: 'modules/domains/iot/device/DeviceDetailView.tsx',
       usage: `<DeviceDetailView deviceId={id} extraTabs={contributedTabs} tab={tab} onTabChange={setTab} />`,
       variants: [

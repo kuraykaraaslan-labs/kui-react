@@ -503,6 +503,8 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'iot-device-attribute-table',       title: 'DeviceAttributeTable',      category: 'Domain', abbr: 'DA', since: '2026-10' },
       { id: 'iot-desired-reported-badge',       title: 'DesiredReportedBadge',      category: 'Domain', abbr: 'DR', since: '2026-10' },
       { id: 'iot-device-connection-timeline',   title: 'DeviceConnectionTimeline',  category: 'Domain', abbr: 'DK', since: '2026-10' },
+      { id: 'iot-device-log-timeline',          title: 'DeviceLogTimeline',         category: 'Domain', abbr: 'DG', since: '2026-10' },
+      { id: 'iot-device-quick-view',            title: 'DeviceQuickView',           category: 'Domain', abbr: 'DQ', since: '2026-10' },
       { id: 'iot-device-table',                 title: 'DeviceTable',               category: 'Domain', abbr: 'DX', since: '2026-10' },
       { id: 'iot-device-list-view',             title: 'DeviceListView',            category: 'Domain', abbr: 'DY', since: '2026-10' },
       { id: 'iot-device-detail-view',           title: 'DeviceDetailView',          category: 'Domain', abbr: 'DZ', since: '2026-10' },

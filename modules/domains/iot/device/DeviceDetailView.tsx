@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faCopy, faPowerOff, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -12,18 +12,20 @@ import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrP
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime } from '../format';
 import type {
-  AttributeEntry, AttributeScope, DeviceConnectionEvent, DeviceCredential, DeviceRecord, IssuedSecret,
+  AttributeEntry, AttributeScope, DeviceCredential, DeviceLogFilter, DeviceRecord, IssuedSecret,
 } from '../types/device';
 import { DeviceAttributeTable } from './DeviceAttributeTable';
-import { DeviceConnectionTimeline } from './DeviceConnectionTimeline';
+import { DeviceLogTimeline } from './DeviceLogTimeline';
 import { DeviceCredentialPanel } from './DeviceCredentialPanel';
 import { DeviceDetailHeader } from './DeviceDetailHeader';
 import { applyStatePatch } from './DeviceListView';
+import { useDeviceLog } from './useDeviceLog';
 
 /**
  * DeviceDetailView — one device (phase 01 §1.2, NB iot_device 05 §5.3), read through the adapter: `DeviceDetailHeader` and the
  * tabs Overview, Attributes (with `canReadAttributes`), Credentials (only with `canViewCredentials`; rotate shows the new
- * secret once) and Connections, plus the host's `extraTabs` (tabs other modules contribute: Alarms, Telemetry, RPC, …, ordered
+ * secret once) and Log (the connection log and the audited changes in one timeline, `DeviceLogTimeline`; a `connections` link opens
+ * it too), plus the host's `extraTabs` (tabs other modules contribute: Alarms, Telemetry, RPC, …, ordered
  * by `order`). The header's actions: copy id, Activate for a quarantined device (`canActivateDevice`, OD-1), delete
  * (`canDeleteDevice`), and the host's `actions`. No factory reset exists (OD-8). The connection follows `deviceState(id)` live;
  * without a live source the device is re-read every 30 s.
@@ -42,7 +44,10 @@ export type DeviceDetailViewProps = {
   className?: string;
 };
 
-const CONNECTIONS_PAGE = 50;
+const LOG_PAGE = 50;
+
+/** Tab ids an older link may still carry, and the tab they open now. */
+const TAB_ALIASES: Record<string, string> = { connections: 'log' };
 
 export function DeviceDetailView({
   deviceId, hrefs = {}, extraTabs = [], tab, onTabChange, actions, onDeleted, now, className,
@@ -127,7 +132,7 @@ export function DeviceDetailView({
     { id: 'overview', label: m.detail.overview, order: 0, content: <Overview device={device} /> },
     ...(caps.canReadAttributes && adapter.attributes ? [{ id: 'attributes', label: m.detail.attributes, order: 10, content: <AttributesTab deviceId={deviceId} now={now} /> }] : []),
     ...(caps.canViewCredentials && adapter.credentials ? [{ id: 'credentials', label: m.detail.credentials, order: 20, content: <CredentialsTab deviceId={deviceId} /> }] : []),
-    { id: 'connections', label: m.detail.connections, order: 30, content: <ConnectionsTab deviceId={deviceId} /> },
+    { id: 'log', label: m.detail.log, order: 30, content: <LogTab deviceId={deviceId} /> },
     ...extraTabs,
   ];
 
@@ -167,7 +172,7 @@ export function DeviceDetailView({
           </>
         )}
       />
-      <TabGroup tabs={tabs} defaultTab={tab} onTabChange={onTabChange} label={m.detail.tabs} lazy isolate retryLabel={m.common.retry} />
+      <TabGroup tabs={tabs} defaultTab={tab ? (TAB_ALIASES[tab] ?? tab) : undefined} onTabChange={onTabChange} label={m.detail.tabs} lazy isolate retryLabel={m.common.retry} />
     </div>
   );
 }
@@ -287,44 +292,29 @@ function CredentialsTab({ deviceId }: { deviceId: string }) {
   );
 }
 
-function ConnectionsTab({ deviceId }: { deviceId: string }) {
+function LogTab({ deviceId }: { deviceId: string }) {
   const api = useIotAdapter().devices!;
   const { m } = useIotText();
-  const [events, setEvents] = useState<DeviceConnectionEvent[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const page = useRef(1);
+  const [filter, setFilter] = useState<DeviceLogFilter>('all');
+  const log = useDeviceLog(api, deviceId, { pageSize: LOG_PAGE, filter, errorText: m.detail.loadError });
 
-  const read = useCallback((pageNo: number, signal?: AbortSignal): Promise<void> => api.connections(deviceId, { page: pageNo, pageSize: CONNECTIONS_PAGE }, signal).then(
-    (res) => {
-      if (signal?.aborted) return;
-      page.current = pageNo;
-      setEvents((cur) => (pageNo === 1 ? res.items : [...cur, ...res.items]));
-      setTotal(res.total);
-      setError(null);
-      setLoading(false);
-    },
-    (e) => {
-      if (signal?.aborted) return;
-      setError(errorMessage(e, m.detail.loadError));
-      setLoading(false);
-    },
-  ), [api, deviceId, m.detail.loadError]);
-
-  useEffect(() => {
-    const ctrl = new AbortController();
-    read(1, ctrl.signal).catch(() => undefined);
-    return () => ctrl.abort();
-  }, [read]);
-
-  function more() {
-    setLoading(true);
-    void read(page.current + 1);
-  }
-
-  if (error && !events.length) return <p role="alert" className="text-sm text-error">{error}</p>;
   return (
-    <DeviceConnectionTimeline events={events} loading={loading} hasMore={events.length < total} onLoadMore={more} />
+    <div className="space-y-3">
+      {log.error && (
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-error">
+          {log.error}
+          <Button variant="outline" size="sm" onClick={log.reload}>{m.common.retry}</Button>
+        </div>
+      )}
+      <DeviceLogTimeline
+        entries={log.entries}
+        loading={log.loading && !log.error}
+        hasMore={log.entries.length < log.total}
+        onLoadMore={log.more}
+        filter={filter}
+        onFilterChange={setFilter}
+        sources={log.sources}
+      />
+    </div>
   );
 }
