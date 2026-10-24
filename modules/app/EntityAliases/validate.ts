@@ -173,8 +173,10 @@ export function validateAliases(aliases: readonly EntityAlias[], { params }: { p
 /**
  * A key derived from a name: camelCase ASCII, starting with a lower-case letter, at most 40 characters, not reserved
  * and not one of `existingKeys` (a number is appended: `pump`, `pump2`, `pump3` …). "Pump station #2" → `pumpStation2`.
+ * `fallback` is the base when the name has no letter or digit, and the prefix when it starts with a digit (`alias`; the
+ * filters dialog passes `filter`).
  */
-export function slugKey(name: string, existingKeys: readonly string[] = []): string {
+export function slugKey(name: string, existingKeys: readonly string[] = [], fallback = 'alias'): string {
   const ascii = name
     .replace(/ı/g, 'i')
     .normalize('NFKD')
@@ -183,8 +185,8 @@ export function slugKey(name: string, existingKeys: readonly string[] = []): str
   let base = words
     .map((w, i) => (i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
     .join('');
-  if (!base) base = 'alias';
-  else if (!/^[a-z]/.test(base)) base = `alias${base.charAt(0).toUpperCase()}${base.slice(1)}`;
+  if (!base) base = fallback;
+  else if (!/^[a-z]/.test(base)) base = `${fallback}${base.charAt(0).toUpperCase()}${base.slice(1)}`;
   base = base.slice(0, ALIAS_KEY_MAX);
 
   const taken = new Set(existingKeys);

@@ -1,6 +1,7 @@
-// Entity aliases (next-boilerplate dashboard phase 36, the ThingsBoard model): the data contract shared with the
-// server. The block between the two markers is the contract and is kept verbatim with next-boilerplate
-// (`modules/dashboard/server/entity-alias.types.ts`); change it only together with the server.
+// Entity aliases and key filters (next-boilerplate dashboard phase 36, the ThingsBoard model): the data contract shared
+// with the server. The blocks between the markers are the contract and are kept verbatim with next-boilerplate
+// (`modules/dashboard/server/entity-alias.types.ts`; the key filter block is phase 36.7's spec); change them only
+// together with the server.
 // Pure: no React, no imports.
 
 // ---- contract (verbatim) ----
@@ -31,8 +32,29 @@ export interface EntityAliasesAccess {
   searchEntities(entityType: string, search: string): Promise<EntityRef[]>
   entitiesByIds(entityType: string, ids: string[]): Promise<EntityRef[]>
   preview(alias: EntityAlias): Promise<AliasPreview>
+  /** The key filter editor's key suggestions for one entity type (fields, attributes, latest telemetry). */
+  entityKeys(entityType: string, search: string): Promise<EntityKeyInfo[]>
 }
 // ---- end of contract ----
+
+// ---- key filter contract (verbatim, next-boilerplate phase 36.7) ----
+export type KeyFilterKeyType = 'field' | 'attribute' | 'telemetry'
+export type AttributeScope = 'client' | 'shared' | 'server' | 'any'
+export type KeyFilterValueType = 'string' | 'number' | 'boolean' | 'datetime'
+export type KeyFilterOp =
+  | 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'between' | 'in' | 'notIn' | 'set' | 'unset' | 'true' | 'false'
+  | 'startsWith' | 'endsWith' | 'contains' | 'notContains'
+export type FilterValue = string | number | boolean | { $param: string }
+export interface KeyFilterPredicate { op: KeyFilterOp; value?: FilterValue; to?: FilterValue; values?: string[]; ignoreCase?: boolean }
+export interface KeyFilter {
+  key: { type: KeyFilterKeyType; name: string; scope?: AttributeScope }
+  valueType: KeyFilterValueType
+  operation: 'and' | 'or'
+  predicates: KeyFilterPredicate[]
+}
+export interface BoardFilter { key: string; name: string; keyFilters: KeyFilter[] }
+export interface EntityKeyInfo { type: KeyFilterKeyType; name: string; label: string; valueType: KeyFilterValueType; scope?: AttributeScope }
+// ---- end of key filter contract ----
 
 /** The filter types that walk a relation graph; offered only when the host has a relation provider. */
 export type RelationFilterType = 'relationsQuery' | 'entitySearchQuery'

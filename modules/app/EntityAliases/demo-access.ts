@@ -1,7 +1,15 @@
-// An in-memory EntityAliasesAccess for the kit's tests and the showcase demo: two entity types, one relation provider and a
-// handful of entities, all in memory. Not exported from the barrel.
+// An in-memory EntityAliasesAccess for the kit's tests and the showcase demo: two entity types, one relation provider, a
+// handful of entities and the keys the key filter editor suggests, all in memory. Not exported from the barrel.
 
-import type { AliasPreview, EntityAlias, EntityAliasesAccess, EntityRef, EntityTypeInfo, RelationProviderInfo } from './types';
+import type {
+  AliasPreview,
+  EntityAlias,
+  EntityAliasesAccess,
+  EntityKeyInfo,
+  EntityRef,
+  EntityTypeInfo,
+  RelationProviderInfo,
+} from './types';
 
 export const DEMO_ENTITY_TYPES: EntityTypeInfo[] = [
   { key: 'iot_device', label: 'Device', labelPlural: 'Devices', subtypeLabel: 'Device profiles', hasSubtypes: true },
@@ -19,6 +27,28 @@ export const DEMO_ENTITIES: EntityRef[] = [
   { type: 'iot_asset', id: 'a1', name: 'Building A', subtype: 'Building' },
   { type: 'iot_asset', id: 'a2', name: 'Site North', subtype: 'Site' },
 ];
+
+/** The keys each demo entity type offers: entity fields, attributes in their scopes and latest telemetry. */
+export const DEMO_KEYS: Record<string, EntityKeyInfo[]> = {
+  iot_device: [
+    { type: 'field', name: 'name', label: 'Name', valueType: 'string' },
+    { type: 'field', name: 'label', label: 'Label', valueType: 'string' },
+    { type: 'field', name: 'createdTime', label: 'Created time', valueType: 'datetime' },
+    { type: 'attribute', name: 'active', label: 'Active', valueType: 'boolean', scope: 'server' },
+    { type: 'attribute', name: 'lastActivityTime', label: 'Last activity', valueType: 'datetime', scope: 'server' },
+    { type: 'attribute', name: 'firmwareVersion', label: 'Firmware version', valueType: 'string', scope: 'client' },
+    { type: 'attribute', name: 'threshold', label: 'Threshold', valueType: 'number', scope: 'shared' },
+    { type: 'telemetry', name: 'temperature', label: 'Temperature', valueType: 'number' },
+    { type: 'telemetry', name: 'pressure', label: 'Pressure', valueType: 'number' },
+    { type: 'telemetry', name: 'status', label: 'Status', valueType: 'string' },
+  ],
+  iot_asset: [
+    { type: 'field', name: 'name', label: 'Name', valueType: 'string' },
+    { type: 'field', name: 'createdTime', label: 'Created time', valueType: 'datetime' },
+    { type: 'attribute', name: 'address', label: 'Address', valueType: 'string', scope: 'server' },
+    { type: 'telemetry', name: 'occupancy', label: 'Occupancy', valueType: 'number' },
+  ],
+};
 
 const SUBTYPES: Record<string, string[]> = { iot_device: ['Pump', 'Tank'], iot_asset: ['Building', 'Site'] };
 
@@ -42,6 +72,10 @@ export function demoAccess(over: Partial<EntityAliasesAccess> = {}): EntityAlias
       else if (f.type === 'relationsQuery') entities = DEMO_ENTITIES.filter((e) => e.type === 'iot_device');
       else entities = DEMO_ENTITIES.filter((e) => e.type === f.entityType);
       return { total: entities.length, entities: entities.slice(0, 20) };
+    },
+    entityKeys: async (type, search) => {
+      const q = search.trim().toLowerCase();
+      return (DEMO_KEYS[type] ?? []).filter((k) => k.name.toLowerCase().includes(q) || k.label.toLowerCase().includes(q));
     },
     ...over,
   };

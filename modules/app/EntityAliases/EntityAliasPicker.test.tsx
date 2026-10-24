@@ -4,7 +4,7 @@ import { EntityAliasPicker, aliasPickerOptions } from './EntityAliasPicker';
 import { AliasEntitySelect } from './AliasEntitySelect';
 import { DEFAULT_ALIAS_MESSAGES } from './messages';
 import { DEMO_ENTITY_TYPES } from './demo-access';
-import type { EntityAlias } from './types';
+import type { BoardFilter, EntityAlias } from './types';
 
 const aliases: EntityAlias[] = [
   { key: 'pumps', name: 'Pumps', resolveMultiple: true, filter: { type: 'entitySubtype', entityType: 'iot_device', subtypes: ['Pump'] } },
@@ -62,6 +62,65 @@ describe('EntityAliasPicker', () => {
     expect(onChange).toHaveBeenCalledWith(undefined);
     fireEvent.click(screen.getByRole('button', { name: 'New alias' }));
     expect(onCreate).toHaveBeenCalled();
+  });
+});
+
+describe('EntityAliasPicker: the filter next to the alias', () => {
+  const filters: BoardFilter[] = [
+    { key: 'hot', name: 'Hot', keyFilters: [{ key: { type: 'telemetry', name: 'temperature' }, valueType: 'number', operation: 'and', predicates: [{ op: 'gt', value: 30 }] }] },
+    { key: 'active', name: 'Active', keyFilters: [{ key: { type: 'attribute', name: 'active', scope: 'server' }, valueType: 'boolean', operation: 'and', predicates: [{ op: 'true' }] }] },
+  ];
+  const slot = { entityTypes: ['iot_device'], multiple: false };
+  const filterSelect = () => screen.queryByLabelText('Filter') as HTMLSelectElement | null;
+
+  it('offers "None" and the board filters once an alias is chosen, with the chosen filter as text', () => {
+    const onFilterChange = vi.fn();
+    render(
+      <EntityAliasPicker value="tank" aliases={aliases} slot={slot} entityTypes={DEMO_ENTITY_TYPES} onChange={() => {}}
+        filters={filters} filterValue="hot" onFilterChange={onFilterChange} />,
+    );
+    const select = filterSelect()!;
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(['None', 'Hot', 'Active']);
+    expect(select.value).toBe('hot');
+    expect(screen.getByText('temperature (latest) > 30')).toBeInTheDocument();
+    fireEvent.change(select, { target: { value: 'active' } });
+    expect(onFilterChange).toHaveBeenLastCalledWith('active');
+    fireEvent.change(select, { target: { value: '' } });
+    expect(onFilterChange).toHaveBeenLastCalledWith(undefined);
+  });
+
+  it('shows no filter select without an alias or without filters', () => {
+    const { rerender } = render(
+      <EntityAliasPicker aliases={aliases} slot={slot} entityTypes={DEMO_ENTITY_TYPES} onChange={() => {}} filters={filters} onFilterChange={() => {}} />,
+    );
+    expect(filterSelect()).toBeNull();
+    rerender(<EntityAliasPicker value="tank" aliases={aliases} slot={slot} entityTypes={DEMO_ENTITY_TYPES} onChange={() => {}} filters={[]} onFilterChange={() => {}} />);
+    expect(filterSelect()).toBeNull();
+    rerender(<EntityAliasPicker value="tank" aliases={aliases} slot={slot} entityTypes={DEMO_ENTITY_TYPES} onChange={() => {}} />);
+    expect(filterSelect()).toBeNull();
+  });
+
+  it('keeps a filter the board no longer has visible by its key, so it can be cleared', () => {
+    render(
+      <EntityAliasPicker value="tank" aliases={aliases} slot={slot} entityTypes={DEMO_ENTITY_TYPES} onChange={() => {}}
+        filters={[]} filterValue="gone" onFilterChange={() => {}} />,
+    );
+    expect(Array.from(filterSelect()!.options).map((o) => o.value)).toEqual(['', 'gone']);
+  });
+
+  it('clearing the alias clears the filter', () => {
+    const onChange = vi.fn();
+    const onFilterChange = vi.fn();
+    render(
+      <EntityAliasPicker value="tank" aliases={aliases} slot={slot} entityTypes={DEMO_ENTITY_TYPES} onChange={onChange}
+        filters={filters} filterValue="hot" onFilterChange={onFilterChange} />,
+    );
+    const input = screen.getByRole('searchbox');
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'None' }));
+    expect(onChange).toHaveBeenCalledWith(undefined);
+    expect(onFilterChange).toHaveBeenCalledWith(undefined);
   });
 });
 
