@@ -3,10 +3,13 @@ import { useMemo, useState } from 'react';
 import { Button } from '@/modules/ui/Button';
 import {
   AliasEntitySelect,
+  BoardFiltersDialog,
   EntityAliasesDialog,
   EntityAliasPicker,
   EntityFilterForm,
+  boardFilterText,
   entityFilterText,
+  type BoardFilter,
   type EntityAlias,
   type EntityAliasFilter,
   type EntityRef,
@@ -14,7 +17,26 @@ import {
 import { DEMO_ENTITIES, DEMO_ENTITY_TYPES, DEMO_PROVIDERS, demoAccess } from '@/modules/app/EntityAliases/demo-access';
 import type { ShowcaseComponent } from '../showcase.types';
 
-const PARAMS = [{ key: 'site', label: 'site', entityType: 'iot_asset' }];
+const PARAMS = [{ key: 'site', label: 'site', entityType: 'iot_asset' }, { key: 'limit', label: 'temperature limit' }];
+
+const SAMPLE_FILTERS: BoardFilter[] = [
+  {
+    key: 'hot',
+    name: 'Hot',
+    keyFilters: [
+      { key: { type: 'telemetry', name: 'temperature' }, valueType: 'number', operation: 'and', predicates: [{ op: 'gt', value: { $param: 'limit' } }] },
+      { key: { type: 'attribute', name: 'active', scope: 'server' }, valueType: 'boolean', operation: 'and', predicates: [{ op: 'true' }] },
+    ],
+  },
+  {
+    key: 'pumpsOutOfRange',
+    name: 'Pumps out of range',
+    keyFilters: [
+      { key: { type: 'field', name: 'name' }, valueType: 'string', operation: 'and', predicates: [{ op: 'startsWith', value: 'Pump', ignoreCase: true }] },
+      { key: { type: 'telemetry', name: 'pressure' }, valueType: 'number', operation: 'or', predicates: [{ op: 'lt', value: 1.5 }, { op: 'gt', value: 6 }] },
+    ],
+  },
+];
 
 const SAMPLE_ALIASES: EntityAlias[] = [
   { key: 'pumps', name: 'Pumps', resolveMultiple: true, filter: { type: 'entitySubtype', entityType: 'iot_device', subtypes: ['Pump'] } },
@@ -89,13 +111,44 @@ function ToolbarSelectDemo() {
   );
 }
 
+function FiltersDialogDemo() {
+  const access = useMemo(() => demoAccess(), []);
+  const [open, setOpen] = useState(false);
+  const [filters, setFilters] = useState<BoardFilter[]>(SAMPLE_FILTERS);
+  return (
+    <div className="w-full max-w-xl">
+      <Button onClick={() => setOpen(true)}>Filters</Button>
+      <ul className="mt-3 space-y-1 text-sm text-text-secondary">
+        {filters.map((f) => (
+          <li key={f.key}>
+            <span className="font-medium text-text-primary">{f.name}:</span> {boardFilterText(f, { params: PARAMS })}
+          </li>
+        ))}
+      </ul>
+      <BoardFiltersDialog
+        open={open}
+        filters={filters}
+        usage={{ hot: ['Hot devices', 'Temperature chart'] }}
+        params={PARAMS}
+        entityType="iot_device"
+        access={access}
+        onSave={(next) => { setFilters(next); setOpen(false); }}
+        onClose={() => setOpen(false)}
+      />
+      <Output value={filters} />
+    </div>
+  );
+}
+
 function PickerDemo() {
   const [single, setSingle] = useState<string | undefined>('mainTank');
+  const [filter, setFilter] = useState<string | undefined>('hot');
   const [many, setMany] = useState<string | undefined>();
   return (
     <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
       <EntityAliasPicker label="Device (one)" value={single} onChange={setSingle} aliases={SAMPLE_ALIASES}
-        slot={{ entityTypes: ['iot_device'], multiple: false }} entityTypes={DEMO_ENTITY_TYPES} params={PARAMS} onCreate={() => {}} />
+        slot={{ entityTypes: ['iot_device'], multiple: false }} entityTypes={DEMO_ENTITY_TYPES} params={PARAMS} onCreate={() => {}}
+        filters={SAMPLE_FILTERS} filterValue={filter} onFilterChange={setFilter} />
       <EntityAliasPicker label="Assets (many)" value={many} onChange={setMany} aliases={SAMPLE_ALIASES}
         slot={{ entityTypes: ['iot_asset'], multiple: true }} entityTypes={DEMO_ENTITY_TYPES} params={PARAMS} />
     </div>
@@ -110,7 +163,7 @@ export function buildAppEntityAliasesData(): ShowcaseComponent[] {
       category: 'App',
       abbr: 'EA',
       description:
-        "Dashboard entity aliases, the ThingsBoard model (next-boilerplate dashboard phase 36.4). EntityAliasesDialog lists a board's aliases (numbered rows, the filter as one readable line, resolve-multiple switch, edit, remove; an alias a widget uses cannot be removed, the widgets are named). EntityAliasDialog adds or edits one alias: name with the key derived on add, resolve-multiple with its hint, the filter form and a debounced preview; a filter that matches no entity blocks the save. EntityFilterForm covers single entity, entity list, name prefix, entity type, the page's entity (a board param), entity subtype, relations query and entity search query (the last two only when the host has a relation provider). AliasEntitySelect is the toolbar's entity select, EntityAliasPicker binds a widget's entity slot. The host supplies every read through EntityAliasesAccess; validateAlias mirrors the server caps. React only.",
+        "Dashboard entity aliases and key filters, the ThingsBoard model (next-boilerplate dashboard phases 36.4 and 36.7). EntityAliasesDialog lists a board's aliases (numbered rows, the filter as one readable line, resolve-multiple switch, edit, remove; an alias a widget uses cannot be removed, the widgets are named). EntityAliasDialog adds or edits one alias: name with the key derived on add, resolve-multiple with its hint, the filter form and a debounced preview; a filter that matches no entity blocks the save. EntityFilterForm covers single entity, entity list, name prefix, entity type, the page's entity (a board param), entity subtype, relations query and entity search query (the last two only when the host has a relation provider). AliasEntitySelect is the toolbar's entity select, EntityAliasPicker binds a widget's entity slot (and, once an alias is chosen, one of the board's filters). Key filters (phase 36.7, ThingsBoard's dashboard filters): BoardFiltersDialog lists the board's filters (a filter a widget uses cannot be removed), BoardFilterDialog edits one, KeyFilterEditor edits one key filter (entity field, attribute or latest telemetry; key names suggested through access.entityKeys; up to 4 conditions with the operations of the value type; a value can read a dashboard parameter), boardFilterText writes it as one line. The host supplies every read through EntityAliasesAccess; validateAlias and validateBoardFilter mirror the server caps. React only.",
       filePath: 'modules/app/EntityAliases/EntityAliasesDialog.tsx',
       sourceCode: `import { EntityAliasesDialog, type EntityAliasesAccess } from '@/modules/app/EntityAliases';
 
@@ -125,7 +178,7 @@ export function buildAppEntityAliasesData(): ShowcaseComponent[] {
 />`,
       since: '2026-10',
       status: 'beta',
-      composes: ['modal', 'select', 'combo-box', 'multi-select', 'toggle', 'checkbox', 'input', 'button', 'popover', 'empty-state', 'spinner'],
+      composes: ['modal', 'select', 'combo-box', 'multi-select', 'tag-input', 'toggle', 'checkbox', 'input', 'button', 'popover', 'empty-state', 'spinner'],
       designTokens: ['--surface-base', '--surface-raised', '--text-primary', '--text-secondary', '--text-disabled', '--border', '--border-focus', '--primary', '--error', '--error-subtle'],
       a11y: {
         wcagLevel: 'AA',
@@ -148,9 +201,14 @@ export function buildAppEntityAliasesData(): ShowcaseComponent[] {
         { title: 'Toolbar entity select (one alias, several aliases)', layout: 'stack' as const, preview: <ToolbarSelectDemo />,
           code: `<AliasEntitySelect items={[{ aliasKey: 'mainTank', aliasName: 'Main tank', current }]}
   loadOptions={(aliasKey, search) => api.aliasEntities(aliasKey, search)} onChange={setAliasEntity} />` },
-        { title: 'Alias picker for a widget entity slot', layout: 'stack' as const, preview: <PickerDemo />,
+        { title: 'Alias picker for a widget entity slot (with the filter select)', layout: 'stack' as const, preview: <PickerDemo />,
           code: `<EntityAliasPicker value={key} onChange={setKey} aliases={aliases}
-  slot={{ entityTypes: ['iot_device'], multiple: false }} entityTypes={entityTypes} onCreate={openAliasDialog} />` },
+  slot={{ entityTypes: ['iot_device'], multiple: false }} entityTypes={entityTypes} onCreate={openAliasDialog}
+  filters={board.filters} filterValue={filterKey} onFilterChange={setFilterKey} />` },
+        { title: 'Key filters dialog (remove "Hot" to see the used-by guard)', layout: 'stack' as const, preview: <FiltersDialogDemo />,
+          code: `<BoardFiltersDialog open={open} filters={board.filters} usage={{ hot: ['Hot devices'] }}
+  params={board.params} entityType="iot_device" access={access} onSave={saveFilters} onClose={close} />
+{boardFilterText(filter, { params })} // "temperature (latest) > the dashboard's temperature limit and active (server attribute) is true"` },
       ],
     },
   ];
