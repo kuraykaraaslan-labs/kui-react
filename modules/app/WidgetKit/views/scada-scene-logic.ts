@@ -5,6 +5,11 @@
 //
 // Coordinates are scene units (the canvas is `width` x `height`). A symbol is drawn at `scale` (the scene's, times its
 // own); every connection has the thickness of a symbol port at that scale, so a pipe leaving a pump matches it.
+//
+// Things (phase 35): a second table, `things`, places one symbol per row where the row says (a room's people, a pen's
+// animals, a yard's vehicles). A thing is drawn, ruled and clickable like an authored symbol and connections may end on
+// it by its id; it is placed by the data, never by hand. A scene patch from a compute script (`scene-patch.ts`) is
+// applied last: authored settings, then the rules, then the patch.
 
 import type { SlotData } from '../kind';
 import { arrow, flowColor, INK, MUTED, pipes, wire, type Paint } from './scada-draw';
@@ -13,7 +18,8 @@ import {
   drawScada, isScadaSymbol, SCADA_SYMBOL_DEFS, scadaPaint, type ScadaSettings, type ScadaSymbol, type SymbolDef,
 } from './scada-logic';
 import { applyStates, isLocked, mergeStates, STATE_COLUMNS, type SymbolStates } from './scada-states';
-import { evaluateRules, type SceneEffects, type RuleState } from './scene-rules-logic';
+import { evaluateRules, parseTurn, type SceneEffects, type RuleState } from './scene-rules-logic';
+import { MAX_PATCH_LINKS, patchId, type ObjectPatch, type ScenePatch } from './scene-patch';
 import { cssColor } from '../settings/style';
 import { el, r2, text, type SvgNode } from './svg-node';
 
@@ -100,6 +106,22 @@ export type SceneSettings = {
   criticalColor?: string;
   /** Data-driven rules (`scene-rules-logic.ts`). */
   rules?: unknown;
+  // Things from the `things` table (phase 35): which column holds what, and how its x and y map onto the canvas.
+  thingsIdColumn?: string;
+  thingsSymbolColumn?: string;
+  /** One symbol for every thing; empty = each row's symbol column. */
+  thingsSymbol?: string;
+  thingsXColumn?: string;
+  thingsYColumn?: string;
+  thingsTurnColumn?: string;
+  thingsLabelColumn?: string;
+  /** What a thing's x and y are: scene units (default), or metres mapped with `thingsScale` from `thingsOriginX/Y`. */
+  thingsUnits?: 'scene' | 'metres';
+  /** Scene units per metre (default 50). */
+  thingsScale?: number;
+  /** Where the site's 0, 0 lies on the canvas, in scene units. */
+  thingsOriginX?: number;
+  thingsOriginY?: number;
 };
 
 /** The height of a label line and the margin around the content, in scene units. */
@@ -108,6 +130,10 @@ const MARGIN = 20;
 
 export const MAX_SCENE_ELEMENTS = 200;
 export const MAX_SCENE_LINKS = 300;
+/** At most this many things from the `things` table (or a patch); past it, the first ones and a problem, never a blank. */
+export const MAX_SCENE_THINGS = 500;
+/** Scene units per metre when a thing's x and y are metres and the scene names no scale. */
+export const DEFAULT_THINGS_SCALE = 50;
 export const SCENE_COLUMNS = ['value', 'value2', 'running', 'status', 'warning', 'critical', 'label', 'capacity', ...STATE_COLUMNS] as const;
 
 type Row = Record<string, unknown>;
@@ -148,6 +174,8 @@ export interface PlacedElement {
   h: number;
   /** The scale it is drawn at (scene scale times its own). */
   k: number;
+  /** Placed by a row of the `things` table (or a patch's things), not by the author. */
+  from?: 'things';
 }
 
 /** `pump1.r`, `tank:b` or `pump1.t:0.26` (a fraction along the edge): an element, a side and where on it. */
@@ -357,6 +385,101 @@ export interface SceneModelInput {
   format?: SceneFormat;
   /** The effective board parameters, for rules that read a parameter. */
   params?: Record<string, unknown>;
+  /**
+   * A compute script's scene patch, already parsed (`parseScenePatch`), applied last: its things replace the things
+   * table's rows, its objects override what the rules decided per id, its links and shapes add to the authored ones,
+   * its view says what to fit and its problems join the problem list.
+   */
+  patch?: ScenePatch | null;
+}
+
+/** A clickable box: a symbol's or a thing's, its name, whether it is locked out, and where it came from. */
+export interface SceneHit {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  locked: boolean;
+  /** Placed by a row of the things table (or a patch); absent for an authored symbol. */
+  from?: 'things';
+}
+
+/** A thing's turn from its row: degrees snapped to the nearest quarter (0, 90, 180, 270), or the words of a turn. */
+export function thingTurn(v: unknown): 0 | 90 | 180 | 270 {
+  const word = parseTurn(v);
+  if (word) return Number(word) as 0 | 90 | 180 | 270;
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
+  if (!Number.isFinite(n)) return 0;
+  return ((Math.round((((n % 360) + 360) % 360) / 90) * 90) % 360) as 0 | 90 | 180 | 270;
+}
+
+const coord = (v: unknown): number | null => {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
+  return Number.isFinite(n) ? n : null;
+};
+
+/** One thing to place: the element it stands for (id, symbol, place, turn, name) and the row it reads. */
+export interface SceneThing { e: SceneElementSetting; row: Row }
+
+/**
+ * The things of a scene: the patch's things when it has them, else the `things` table's rows, read through the
+ * scene's thing columns. A row without a usable id or a place is skipped, as is one whose id an authored symbol (or an
+ * earlier thing) already has: each counts as a problem. Past `MAX_SCENE_THINGS` the rest count as one problem.
+ */
+export function sceneThings(s: SceneSettings, rows: ReadonlyArray<Record<string, unknown>>, authored: ReadonlySet<string>): { things: SceneThing[]; problems: number } {
+  const col = (v: unknown, d: string) => (typeof v === 'string' && v ? v : d);
+  const idCol = col(s.thingsIdColumn, 'id');
+  const symbolCol = col(s.thingsSymbolColumn, 'symbol');
+  const xCol = col(s.thingsXColumn, 'x'); const yCol = col(s.thingsYColumn, 'y');
+  const turnCol = col(s.thingsTurnColumn, 'turn'); const labelCol = col(s.thingsLabelColumn, 'label');
+  const fixed = typeof s.thingsSymbol === 'string' && s.thingsSymbol.trim() ? s.thingsSymbol.trim() : '';
+  const metres = s.thingsUnits === 'metres';
+  const k = finite(s.thingsScale, DEFAULT_THINGS_SCALE) > 0 ? finite(s.thingsScale, DEFAULT_THINGS_SCALE) : DEFAULT_THINGS_SCALE;
+  const ox = finite(s.thingsOriginX, 0); const oy = finite(s.thingsOriginY, 0);
+  const things: SceneThing[] = [];
+  const seen = new Set<string>();
+  let problems = rows.length > MAX_SCENE_THINGS ? 1 : 0;
+  for (const row of rows.slice(0, MAX_SCENE_THINGS)) {
+    if (!row || typeof row !== 'object') { problems += 1; continue; }
+    const id = patchId(row[idCol]);
+    const x = coord(row[xCol]); const y = coord(row[yCol]);
+    if (id === null || x === null || y === null || authored.has(id) || seen.has(id)) { problems += 1; continue; }
+    seen.add(id);
+    const own = typeof row[symbolCol] === 'string' ? (row[symbolCol] as string).trim() : '';
+    const label = row[labelCol];
+    things.push({
+      e: {
+        id,
+        symbol: fixed || own,
+        x: metres ? ox + x * k : x,
+        y: metres ? oy + y * k : y,
+        turn: thingTurn(row[turnCol]),
+        ...(typeof label === 'string' && label ? { label } : typeof label === 'number' && Number.isFinite(label) ? { label: String(label) } : {}),
+      },
+      row,
+    });
+  }
+  return { things, problems };
+}
+
+/** What a thing or a re-skinned symbol draws when its key is not one this registry can draw (unknown or locked). */
+export function placeholderDrawing(): { nodes: SvgNode[]; w: number; h: number } {
+  return {
+    w: 100, h: 100,
+    nodes: [
+      el('rect', { x: 6, y: 6, width: 88, height: 88, rx: 12, fill: 'var(--surface-sunken)', stroke: MUTED, 'stroke-width': 3, 'stroke-dasharray': '8 6' }),
+      text(50, 63, '?', { 'text-anchor': 'middle', 'font-size': 38, 'font-weight': 600, fill: MUTED, 'font-family': 'inherit' }),
+    ],
+  };
+}
+
+/** The 2D effects of a patch's object override (the reading, the 3D effects and the designer params are not effects). */
+function patchEffects(o: ObjectPatch | undefined): SceneEffects | undefined {
+  if (!o) return undefined;
+  const { value: _value, pulse: _pulse, size: _size, dz: _dz, params: _params, ...fx } = o;
+  return fx;
 }
 
 /** Everything the scene draws, decided once. `problems` counts what could not be placed or joined. */
@@ -364,9 +487,12 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
   const width = Math.min(4000, Math.max(200, finite(s.width, 1200)));
   const height = Math.min(4000, Math.max(200, finite(s.height, 700)));
   const scale = Math.min(2, Math.max(0.2, finite(s.scale, 0.6)));
+  const patch = o.patch ?? null;
   const rows = rowsById(data.points, s.idColumn || 'id');
   const list = (Array.isArray(s.elements) ? (s.elements as SceneElementSetting[]) : []).filter((e) => e && typeof e === 'object').slice(0, MAX_SCENE_ELEMENTS);
-  const links = (Array.isArray(s.links) ? (s.links as SceneLinkSetting[]) : []).filter((l) => l && typeof l === 'object').slice(0, MAX_SCENE_LINKS);
+  const authoredLinks = (Array.isArray(s.links) ? (s.links as SceneLinkSetting[]) : []).filter((l) => l && typeof l === 'object').slice(0, MAX_SCENE_LINKS);
+  // A patch's connections come on top of the authored ones, under their own cap.
+  const links: SceneLinkSetting[] = [...authoredLinks, ...(patch?.links ?? []).slice(0, MAX_PATCH_LINKS)];
   const baseFormat: SceneFormat = o.format ?? defaultFormat;
   // A symbol's own unit and decimals, when it has them; every other number follows the host.
   const fmtOf = (e: SceneElementSetting | undefined): ((n: number) => string) => {
@@ -374,14 +500,33 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     const decimals = typeof e?.decimals === 'number' && Number.isFinite(e.decimals) ? Math.min(6, Math.max(0, Math.round(e.decimals))) : undefined;
     return unit === undefined && decimals === undefined ? (n) => baseFormat(n) : (n) => baseFormat(n, { unit, decimals });
   };
-  const ownLinkIds = links.map((l) => (typeof l.id === 'string' ? l.id : '')).filter(Boolean);
+  const ownLinkIds = authoredLinks.map((l) => (typeof l.id === 'string' ? l.id : '')).filter(Boolean);
   const placeable = list.filter((e) => typeof e.id === 'string' && e.id && isScadaSymbol(e.symbol));
   const byId = new Map<string, SceneElementSetting>();
   for (const e of placeable) if (!byId.has(e.id as string)) byId.set(e.id as string, e);
-  // What the rules decided, by symbol id and by connection id.
-  const effects = Array.isArray(s.rules) && s.rules.length
-    ? evaluateRules(s.rules, { rows, params: o.params ?? {}, targets: [...byId.keys(), ...ownLinkIds], format: (id, n) => fmtOf(byId.get(id))(n) })
+  const authoredIds = new Set(list.map((e) => (typeof e.id === 'string' ? e.id : '')).filter(Boolean));
+  // The things: the patch's when it has them, else the table's rows. Their rows are what a rule reads for them.
+  const placed = sceneThings(s, patch?.things ?? data.things?.rows ?? [], authoredIds);
+  const thingRows = new Map(rows);
+  for (const t of placed.things) thingRows.set(t.e.id as string, t.row);
+  // What the rules decided, by symbol id, connection id and thing id; a patch's override wins over a rule.
+  const ruled = Array.isArray(s.rules) && s.rules.length
+    ? evaluateRules(s.rules, {
+      rows: thingRows, params: o.params ?? {}, targets: [...byId.keys(), ...ownLinkIds], thingIds: placed.things.map((t) => t.e.id as string),
+      format: (id, n) => fmtOf(byId.get(id))(n),
+    })
     : new Map<string, SceneEffects>();
+  const objects = patch?.objects ?? {};
+  const effects = new Map(ruled);
+  for (const [id, over] of Object.entries(objects)) {
+    const fx = patchEffects(over);
+    if (fx && Object.keys(fx).length) effects.set(id, { ...effects.get(id), ...fx });
+  }
+  /** A row with a patch's reading laid over it (the table is not changed). */
+  const rowOf = (id: string, base: Row | undefined): Row | undefined => {
+    const over = Object.hasOwn(objects, id) ? objects[id] : undefined;
+    return over && Object.hasOwn(over, 'value') ? { ...(base ?? {}), value: over.value } : base;
+  };
   const boxes = new Map<string, PlacedElement>();
   const settingsOf = new Map<string, SceneElementSetting>();
   // A symbol on a line takes the medium of the first connection that touches it, so a pipe and the valve in it agree.
@@ -402,34 +547,43 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
   const labelNodes: SvgNode[] = [];
   const hidden = new Set<string>();
   const locked = new Set<string>();
-  let problems = 0;
+  const names = new Map<string, string>();
+  let problems = placed.problems;
 
-  for (const e of list) {
-    if (typeof e.id !== 'string' || !e.id || boxes.has(e.id) || !isScadaSymbol(e.symbol)) { problems += 1; continue; }
-    const symbolKey = e.symbol as ScadaSymbol;
-    const def = SCADA_SYMBOL_DEFS[symbolKey] as SymbolDef;
-    const k = scale * (typeof e.scale === 'number' && e.scale > 0 ? e.scale : 1);
-    const row = rows.get(e.id);
-    const own = e.medium && e.medium !== 'none' ? e : { ...e, medium: touching.get(e.id) ?? 'none' };
-    const fx = effects.get(e.id) ?? {};
+  /**
+   * Places one symbol: an authored element (its row from the table) or a thing (its own row). The rules and the patch
+   * may move it (`dx`, `dy`), resize it (`scale`), turn it and draw it as another symbol; a key this registry cannot
+   * draw (a thing's, or a re-skin) draws the placeholder, so data never blanks a symbol.
+   */
+  const place = (e: SceneElementSetting, row: Row | undefined, from?: 'things') => {
+    const id = e.id as string;
+    const fx = effects.get(id) ?? {};
+    const wanted = fx.symbol ?? e.symbol;
+    const drawable = isScadaSymbol(wanted);
+    const symbolKey = (drawable ? wanted : e.symbol) as ScadaSymbol;
+    const def = drawable ? (SCADA_SYMBOL_DEFS[symbolKey] as SymbolDef) : undefined;
+    const k = scale * (typeof e.scale === 'number' && e.scale > 0 ? e.scale : 1) * (fx.scale ?? 1);
+    const own = e.medium && e.medium !== 'none' ? e : { ...e, medium: touching.get(id) ?? 'none' };
     const fmtE = fmtOf(e);
-    const paint = withColors(scadaPaint(symbolSettings(s, own, undefined, fx), fx.state ? withState(rowSlots(row), fx.state) : rowSlots(row), { animate: o.animate, format: fmtE }), fx);
-    if (isLocked(paint.states)) locked.add(e.id);
-    const turn = Number(e.turn);
-    const drawn = drawScada(symbolKey, paint, turn === 90 || turn === 180 || turn === 270 ? turn : 0, e.mirror === true);
+    const slots = rowSlots(rowOf(id, row));
+    const paint = withColors(scadaPaint(symbolSettings(s, { ...own, symbol: drawable ? symbolKey : undefined }, undefined, fx), fx.state ? withState(slots, fx.state) : slots, { animate: o.animate, format: fmtE }), fx);
+    if (isLocked(paint.states)) locked.add(id);
+    const turn = Number(fx.turn ?? e.turn);
+    const drawn = def ? drawScada(symbolKey, paint, turn === 90 || turn === 180 || turn === 270 ? turn : 0, e.mirror === true) : placeholderDrawing();
     const w = r2(drawn.w * k); const h = r2(drawn.h * k);
-    const x = r2(finite(e.x, 0) - (centred ? w / 2 : 0)); const y = r2(finite(e.y, 0) - (centred ? h / 2 : 0));
-    const box: PlacedElement = { id: e.id, symbol: e.symbol, x, y, w, h, k };
-    boxes.set(e.id, box);
-    settingsOf.set(e.id, e);
+    const x = r2(finite(e.x, 0) + (fx.dx ?? 0) - (centred ? w / 2 : 0)); const y = r2(finite(e.y, 0) + (fx.dy ?? 0) - (centred ? h / 2 : 0));
+    const box: PlacedElement = { id, symbol: drawable ? symbolKey : String(wanted ?? ''), x, y, w, h, k, ...(from ? { from } : {}) };
+    boxes.set(id, box);
+    settingsOf.set(id, e);
     const named = s.showLabels !== false && (!!e.label || !!fx.label || typeof row?.label === 'string') && e.labelPos !== 'n';
     grow(x - 2, y - (named && e.labelPos === 't' ? LABEL : 2), x + w + (e.valuePos === 'r' ? 56 : 2), y + h + (s.showLabels !== false && e.labelPos !== 'n' ? LABEL * 2 + 2 : 2));
+    const name = fx.label ?? (typeof row?.label === 'string' && row.label ? row.label : e.label ?? '');
+    names.set(id, name || id);
     // A hidden symbol keeps its box (connections still join it and the view does not jump), but draws nothing.
-    if (fx.hidden === true) { hidden.add(e.id); continue; }
-    elementNodes.push(el('g', { transform: `translate(${x} ${y}) scale(${r2(k * 1000) / 1000})` }, dressed(drawn.nodes, paint, fx)));
+    if (fx.hidden === true) { hidden.add(id); return; }
+    elementNodes.push(el('g', { transform: `translate(${x} ${y}) scale(${r2(k * 1000) / 1000})`, ...(from ? { 'data-from': from } : {}) }, dressed(drawn.nodes, paint, fx)));
     if (s.showLabels !== false) {
-      const name = fx.label ?? (typeof row?.label === 'string' && row.label ? row.label : e.label ?? '');
-      const showValue = def.valueUnder === true && e.showValue !== false && paint.value !== null;
+      const showValue = def?.valueUnder === true && e.showValue !== false && paint.value !== null;
       let ty = y + box.h + 14;
       if (name && e.labelPos !== 'n') {
         const above = e.labelPos === 't';
@@ -442,10 +596,20 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
           { 'text-anchor': beside ? 'start' : 'middle', 'font-size': 14, 'font-weight': 600, fill: INK, 'font-family': 'inherit' }));
       }
     }
+  };
+
+  for (const e of list) {
+    if (typeof e.id !== 'string' || !e.id || boxes.has(e.id) || !isScadaSymbol(e.symbol)) { problems += 1; continue; }
+    place(e, rows.get(e.id));
   }
+  // Things after the authored symbols: they draw on top and never take an authored id.
+  for (const t of placed.things) place(t.e, t.row, 'things');
 
   // Shapes: zones and dividers sit under everything, titles on top. They widen the content box like a symbol does.
-  const shapes = (Array.isArray(s.shapes) ? (s.shapes as SceneShapeSetting[]) : []).filter((h) => h && typeof h === 'object').slice(0, MAX_SCENE_SHAPES);
+  const shapes = [
+    ...(Array.isArray(s.shapes) ? (s.shapes as SceneShapeSetting[]) : []).filter((h) => h && typeof h === 'object').slice(0, MAX_SCENE_SHAPES),
+    ...(patch?.shapes ?? []).slice(0, MAX_SCENE_SHAPES),
+  ];
   const shapeUnder: SvgNode[] = [];
   const shapeOver: SvgNode[] = [];
   for (const h of shapes) {
@@ -485,7 +649,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
       ? { state: fromFx.state, color: fromFx.color, fillColor: fromFx.fillColor, animate: fromFx.animate, speed: fromFx.speed, reverse: fromFx.reverse }
       : {});
     if (fx.hidden === true) continue;
-    const slots = rowSlots(rows.get(stateId));
+    const slots = rowSlots(rowOf(stateId, thingRows.get(stateId)));
     const paint = withColors(scadaPaint(symbolSettings(s, settingsOf.get(a.id) ?? {}, l, fx), fx.state ? withState(slots, fx.state) : slots, { animate: o.animate, format: fmtOf(settingsOf.get(a.id)) }), fx);
     const pa = portPoint(ba, a.side, a.at); const pb = portPoint(bb, b.side, b.at);
     const route = routeLink(pa, a.side, pb, b.side, l.mid ?? null);
@@ -493,9 +657,13 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     linkNodeList.push(...dressed(linkNodes(kind, route, paint, scale), paint, fx));
   }
 
-  // The view: the content with a margin, or the whole canvas.
-  const box = (s.fit === 'canvas' || !bounds) ? { x0: 0, y0: 0, x1: width, y1: height }
-    : { x0: Math.floor((bounds as { x0: number }).x0 - MARGIN), y0: Math.floor((bounds as { y0: number }).y0 - MARGIN), x1: Math.ceil((bounds as { x1: number }).x1 + MARGIN), y1: Math.ceil((bounds as { y1: number }).y1 + MARGIN) };
+  // The view: the content with a margin, or the whole canvas; a patch may name either, or a region of its own.
+  const view = patch?.view;
+  const fit = view === 'content' || view === 'canvas' ? view : s.fit;
+  const region = view && typeof view === 'object' && 'x0' in view ? view : null;
+  const box = region ? { x0: Math.floor(region.x0), y0: Math.floor(region.y0), x1: Math.ceil(region.x1), y1: Math.ceil(region.y1) }
+    : (fit === 'canvas' || !bounds) ? { x0: 0, y0: 0, x1: width, y1: height }
+      : { x0: Math.floor((bounds as { x0: number }).x0 - MARGIN), y0: Math.floor((bounds as { y0: number }).y0 - MARGIN), x1: Math.ceil((bounds as { x1: number }).x1 + MARGIN), y1: Math.ceil((bounds as { y1: number }).y1 + MARGIN) };
   const vw = box.x1 - box.x0; const vh = box.y1 - box.y0;
   const background: SvgNode[] = [];
   if (s.background === 'dots') {
@@ -506,16 +674,19 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
     background.push(el('rect', { x: box.x0, y: box.y0, width: vw, height: vh, rx: 8, fill: 'var(--surface-raised)', stroke: 'var(--border)', 'stroke-width': 2 }));
   }
 
-  // Each symbol's box and name, for a host that makes symbols clickable (the view draws a hit area where a symbol has an action).
-  const hits = [...boxes.values()].filter((b) => !hidden.has(b.id)).map((b) => {
-    const e = settingsOf.get(b.id);
-    const row = rows.get(b.id);
-    const name = effects.get(b.id)?.label ?? (typeof row?.label === 'string' && row.label ? row.label : e?.label || b.id);
-    return { id: b.id, name, x: b.x, y: b.y, w: b.w, h: b.h, locked: locked.has(b.id) };
-  });
+  // Each symbol's and thing's box and name, for a host that makes them clickable (the view draws a hit area where one
+  // has an action); a thing's hit says so (`from: 'things'`), so a host looks its row up in the things table.
+  const hits = [...boxes.values()].filter((b) => !hidden.has(b.id)).map((b): SceneHit => ({
+    id: b.id, name: names.get(b.id) ?? b.id, x: b.x, y: b.y, w: b.w, h: b.h, locked: locked.has(b.id), ...(b.from ? { from: b.from } : {}),
+  }));
+  const patchProblems = patch?.problems ?? [];
 
   return {
-    width: vw, height: vh, scale, problems, hits,
+    width: vw, height: vh, scale, problems: problems + patchProblems.length, hits,
+    /** The patch's own problem lines (plain text), for a problem list. */
+    patchProblems,
+    /** The ids of the things that were placed (hidden ones included). */
+    thingIds: placed.things.map((t) => t.e.id as string),
     viewBox: `${box.x0} ${box.y0} ${vw} ${vh}`,
     empty: boxes.size === 0,
     nodes: [...background, ...shapeUnder, ...linkNodeList, ...elementNodes, ...labelNodes, ...shapeOver],

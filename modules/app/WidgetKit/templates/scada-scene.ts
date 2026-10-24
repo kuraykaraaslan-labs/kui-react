@@ -2,7 +2,10 @@ import { colorField, opt, since } from '../settings/packs';
 import type { SettingsTemplate, Sparse } from '../settings/types';
 import type { BuiltinKindSpec } from '../kind';
 import { isFormKey } from '../views/control-form-logic';
-import { MAX_SCENE_ELEMENTS, MAX_SCENE_LINKS, MAX_SCENE_SHAPES, parsePort, type SceneElementSetting, type SceneLinkSetting, type SceneShapeSetting } from '../views/scada-scene-logic';
+import {
+  DEFAULT_THINGS_SCALE, MAX_SCENE_ELEMENTS, MAX_SCENE_LINKS, MAX_SCENE_SHAPES, MAX_SCENE_THINGS, parsePort,
+  type SceneElementSetting, type SceneLinkSetting, type SceneShapeSetting,
+} from '../views/scada-scene-logic';
 import { MAX_RULE_LABEL, MAX_SCENE_RULES, validateRules } from '../views/scene-rules-logic';
 import { isScadaSymbol, SCADA_SYMBOLS, SCADA_SYMBOL_DEFS, type SymbolDef } from '../views/scada-logic';
 import { MEDIUM_OPTIONS, SYMBOL_OPTIONS } from './scada';
@@ -14,7 +17,8 @@ const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]).filter((r) 
  * `scada.scene`: a process diagram on a canvas. Symbols are placed by coordinates, joined by pipes, hoses, cables, signal
  * wires and strip lines that route themselves between the symbols' sides (`pump1.r`, `tank.b`, `pump1.t:0.26`).
  * One bound table, a row per id, feeds every symbol and link (columns value, value2, running, status, warning, critical,
- * label, capacity).
+ * label, capacity). A second table, `things`, places one symbol per row where the row says (phase 35: added fields
+ * only, so no version step); a connection may end on a thing by its id, and a rule may target it, or `things:*`.
  */
 export const SCADA_SCENE: SettingsTemplate = {
   id: 'builtin:scada.scene',
@@ -34,8 +38,10 @@ export const SCADA_SCENE: SettingsTemplate = {
     { id: 'motion', label: 'Animation', tab: 'Display', since: 1 },
     { id: 'shapes', label: 'Titles and zones', tab: 'Display', since: 2 },
     { id: 'rules', label: 'Rules', tab: 'Data', since: 3 },
+    { id: 'things', label: 'Things', tab: 'Data', since: 5 },
   ],
-  fields: since(1, {
+  fields: {
+    ...since(1, {
     width: { label: 'Canvas width', type: 'number', display: 'input', min: 200, max: 4000, value: 1200, group: 'canvas', description: 'Scene units. The diagram scales to the card and keeps its proportions.' },
     height: { label: 'Canvas height', type: 'number', display: 'input', min: 200, max: 4000, value: 700, group: 'canvas' },
     scale: { label: 'Symbol size', type: 'number', display: 'input', min: 0.2, max: 2, step: 0.05, value: 0.6, group: 'canvas', description: 'A symbol box is 100 units high at 1; connections are drawn at the same size, so a pipe matches the port it leaves.' },
@@ -132,8 +138,8 @@ export const SCADA_SCENE: SettingsTemplate = {
       description: 'Make symbols and connections follow the data. A rule names a target, up to two conditions and what to change while they hold. Rules run top to bottom; every rule that matches applies, a later rule wins for the same change, and "Stop" ends the rules for that target.',
       fields: {
         ...ruleConditionFields({
-          targetPlaceholder: 'pump1, a connection id or *',
-          targetDescription: 'A symbol id, a connection id (its "State from row"), or * for all of them.',
+          targetPlaceholder: 'pump1, a connection id, * or things:*',
+          targetDescription: 'A symbol id, a connection id (its "State from row"), a thing\'s id, * for all of them, or things:* for every thing from data.',
           ownRow: 'This symbol\'s own row',
           otherRow: 'The id of another symbol or connection whose row is read.',
         }),
@@ -154,11 +160,42 @@ export const SCADA_SCENE: SettingsTemplate = {
         position: { label: 'Opening (%)', type: 'number', nullable: true, display: 'input', min: 0, max: 100, placeholder: 'Not shown', description: 'A bar along the bottom of a valve, damper, door or blind.' },
         pending: { label: 'Command pending', type: 'select', options: YES_NO, description: 'A spinner in the bottom right corner.' },
         failed: { label: 'Command failed', type: 'select', options: YES_NO, description: 'A red mark in the bottom right corner.' },
+        // Where and how big (phase 35): connections follow a moved symbol.
+        dx: { label: 'Move right by', type: 'number', nullable: true, display: 'input', min: -4000, max: 4000, placeholder: '0', description: 'Scene units; a negative number moves it left.' },
+        dy: { label: 'Move down by', type: 'number', nullable: true, display: 'input', min: -4000, max: 4000, placeholder: '0', description: 'Scene units; a negative number moves it up.' },
+        scale: { label: 'Size (times its own)', type: 'number', nullable: true, display: 'input', min: 0.2, max: 4, step: 0.05, placeholder: '1' },
+        turn: { label: 'Turn to', type: 'select', options: [opt('', 'No change'), opt('0', '0°'), opt('90', '90°'), opt('180', '180°'), opt('270', '270°')] },
+        symbol: { label: 'Draw as', type: 'select', options: [opt('', 'No change'), ...SYMBOL_OPTIONS], description: 'Another symbol in its place, with the same row.' },
         stop: stopField(),
       },
     },
     }),
-  }),
+    }),
+    // Things from data (phase 35): one row = one symbol placed where the row says. Added fields: no version step.
+    ...since(5, {
+    thingsIdColumn: {
+      label: 'Thing id column', type: 'data-key', slot: 'things', value: 'id', group: 'things',
+      description: `Names the thing for connections, rules and actions; an id a symbol already has is skipped. At most ${MAX_SCENE_THINGS} things are drawn.`,
+    },
+    thingsSymbol: {
+      label: 'Every thing is drawn as', type: 'select', value: '', group: 'things', options: [opt('', 'The symbol column says'), ...SYMBOL_OPTIONS],
+      description: 'One symbol for every row, or each row\'s own from the symbol column. A key the diagram cannot draw shows a placeholder.',
+    },
+    thingsSymbolColumn: { label: 'Symbol column', type: 'data-key', slot: 'things', value: 'symbol', group: 'things', showIf: { thingsSymbol: '' } },
+    thingsXColumn: { label: 'x column', type: 'data-key', slot: 'things', value: 'x', group: 'things' },
+    thingsYColumn: { label: 'y column', type: 'data-key', slot: 'things', value: 'y', group: 'things' },
+    thingsTurnColumn: { label: 'Turn column', type: 'data-key', slot: 'things', value: 'turn', group: 'things', advanced: true, description: 'Degrees, snapped to the nearest quarter turn.' },
+    thingsLabelColumn: { label: 'Name column', type: 'data-key', slot: 'things', value: 'label', group: 'things' },
+    thingsUnits: {
+      label: 'x and y are', type: 'select', display: 'segmented', value: 'scene', group: 'things', required: true,
+      options: [opt('scene', 'Scene units'), opt('metres', 'Metres on the site')],
+      description: 'Metres are mapped onto the canvas from the origin below at the scale below; y grows downward, as on the canvas.',
+    },
+    thingsScale: { label: 'Scene units per metre', type: 'number', display: 'input', min: 0.01, max: 1000, value: DEFAULT_THINGS_SCALE, group: 'things', showIf: { thingsUnits: 'metres' } },
+    thingsOriginX: { label: 'Origin x', type: 'number', display: 'input', value: 0, group: 'things', showIf: { thingsUnits: 'metres' }, description: 'Where the site\'s 0, 0 lies on the canvas.' },
+    thingsOriginY: { label: 'Origin y', type: 'number', display: 'input', value: 0, group: 'things', showIf: { thingsUnits: 'metres' } },
+    }),
+  },
   rules: [
     (v: Sparse) => {
       const issues: Array<{ path: string; message: string }> = [];
@@ -169,15 +206,15 @@ export const SCADA_SCENE: SettingsTemplate = {
         else ids.add(e.id);
         if (!isScadaSymbol(e.symbol)) issues.push({ path: `elements.${i}.symbol`, message: 'Choose a symbol' });
       });
+      // An end or a rule target that names no symbol may name a thing from data (phase 35), which the settings cannot
+      // know: it is accepted, and draws or applies only while a thing has that id (the editor's problems list says so).
       list<SceneLinkSetting>(v.links).forEach((l, i) => {
         for (const end of ['from', 'to'] as const) {
-          const port = parsePort(l[end]);
-          if (!port) issues.push({ path: `links.${i}.${end}`, message: 'Use a symbol id and a side: l, r, t or b (pump1.r)' });
-          else if (!ids.has(port.id)) issues.push({ path: `links.${i}.${end}`, message: 'No symbol has this id' });
+          if (!parsePort(l[end])) issues.push({ path: `links.${i}.${end}`, message: 'Use a symbol id and a side: l, r, t or b (pump1.r)' });
         }
       });
       const linkIds = list<SceneLinkSetting>(v.links).map((l) => (typeof l.id === 'string' ? l.id : '')).filter(Boolean);
-      issues.push(...validateRules(v.rules, { elementIds: ids, linkIds }));
+      issues.push(...validateRules(v.rules, { elementIds: ids, linkIds, things: true }));
       return issues;
     },
   ],
@@ -198,7 +235,10 @@ export const SCADA_SCENE_KIND: BuiltinKindSpec = {
   icon: 'fas fa-diagram-project',
   defaultW: 12,
   defaultH: 8,
-  slots: [{ key: 'points', label: 'Readings (a row per symbol id)', shape: 'table', required: false }],
+  slots: [
+    { key: 'points', label: 'Readings (a row per symbol id)', shape: 'table', required: false },
+    { key: 'things', label: 'Things (a row per object: id, symbol, x, y, state)', shape: 'table', required: false },
+  ],
   template: SCADA_SCENE,
 };
 

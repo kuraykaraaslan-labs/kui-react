@@ -331,8 +331,8 @@ describe('the template', () => {
   it('accepts a good rule and a rule row of every field', () => {
     expect(issues({ rules: [{ target: 'pipe1', key: 'value', op: 'gt', value: '3', state: 'warning', stop: true, enabled: true, dim: 'false', animate: 'false', medium: 'hot', label: '{value}' }] })).toEqual([]);
   });
-  it('reports a rule on a symbol that does not exist, and a value that does not fit', () => {
-    expect(issues({ rules: [{ target: 'ghost' }, { target: 'p', op: 'gt', key: 'v', value: 'x' }] })).toEqual(['rules.0.target', 'rules.1.value']);
+  it('accepts a rule on an id the diagram does not have (it may be a thing from data), and reports a value that does not fit', () => {
+    expect(issues({ rules: [{ target: 'ghost' }, { target: 'p', op: 'gt', key: 'v', value: 'x' }] })).toEqual(['rules.1.value']);
   });
   it('reports a bad colour and a bad choice in a rule row', () => {
     const paths = issues({ rules: [{ target: 'p', color: 'not-a-colour', state: 'dead' }] });

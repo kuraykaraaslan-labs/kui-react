@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { formatValue } from '../settings/style';
 import type { ElementGesture, WidgetKindView, WidgetViewProps } from '../kind';
 import { useKitMessages } from '../WidgetKitContext';
 import { sceneModel, type SceneSettings as S } from './scada-scene-logic';
+import { parseScenePatch } from './scene-patch';
 import { SvgTree } from './SvgTree';
 import { useReducedMotion } from './useReducedMotion';
 
@@ -17,11 +18,17 @@ export const DOUBLE_CLICK_MS = 250;
  * wires and strip lines that route themselves between ports; one bound table (a row per id) feeds every symbol and link.
  * The diagram scales to the card and keeps its proportions. A symbol the host gives an action to answers a click, a
  * double click, a right click and the keyboard (Enter or Space, the context-menu key); the others stay plain pictures.
+ * Things from the `things` table are placed by their rows and answer gestures like symbols (the host knows them by id).
+ * A compute script's `scenePatch` is parsed here (its own caps) and applied after the authored settings and the rules.
  */
-export function ScadaSceneView({ settings, format, data, locale, title, elementActions, params }: WidgetViewProps) {
+export function ScadaSceneView({ settings, format, data, locale, title, elementActions, params, scenePatch }: WidgetViewProps) {
   const m = useKitMessages().scada;
   const reduced = useReducedMotion();
-  const g = sceneModel(settings as S, data, { animate: !reduced, params, format: (n, own) => formatValue(n, format, own ?? {}, locale) });
+  const parsed = useMemo(() => parseScenePatch(scenePatch), [scenePatch]);
+  const g = sceneModel(settings as S, data, { animate: !reduced, params, patch: parsed.patch, format: (n, own) => formatValue(n, format, own ?? {}, locale) });
+  // What the patch itself lists and what its parser dropped: counted on the diagram and read out with it.
+  const problemLines = [...g.patchProblems, ...parsed.problems];
+  const problemCount = g.problems + parsed.problems.length;
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (pending.current) clearTimeout(pending.current); }, []);
 
@@ -41,13 +48,14 @@ export function ScadaSceneView({ settings, format, data, locale, title, elementA
   const live = elementActions ? g.hits.filter((h) => (['click', 'doubleClick', 'contextMenu'] as const).some((k) => elementActions.has(k, h.id))) : [];
 
   return (
-    <svg viewBox={g.viewBox} preserveAspectRatio="xMidYMid meet" className="h-full min-h-0 w-full" role="img" aria-label={title || m.scene} data-problems={g.problems || undefined}>
+    <svg viewBox={g.viewBox} preserveAspectRatio="xMidYMid meet" className="h-full min-h-0 w-full" role="img" aria-label={title || m.scene} data-problems={problemCount || undefined}>
+      {problemLines.length > 0 && <desc data-part="scene-problems">{problemLines.join('. ')}</desc>}
       <SvgTree nodes={g.nodes} />
       {live.map((h) => (
         <rect
           key={h.id}
           x={h.x} y={h.y} width={h.w} height={h.h}
-          role="button" tabIndex={0} aria-label={h.name} data-element={h.id}
+          role="button" tabIndex={0} aria-label={h.name} data-element={h.id} data-from={h.from}
           aria-disabled={h.locked || undefined} data-locked={h.locked || undefined}
           fill="transparent"
           className={h.locked ? 'cursor-not-allowed outline-none focus-visible:stroke-border-focus' : 'cursor-pointer outline-none hover:fill-primary/10 focus-visible:stroke-border-focus'}
@@ -67,8 +75,9 @@ export function ScadaSceneView({ settings, format, data, locale, title, elementA
 
 export const SCADA_SCENE_VIEW: WidgetKindView = {
   View: ScadaSceneView,
-  // Without rows the diagram still draws every symbol idle; only a scene with no symbols is empty.
-  isEmpty: (_data, settings) => !Array.isArray((settings as S).elements) || ((settings as S).elements as unknown[]).length === 0,
+  // Without rows the diagram still draws every symbol idle; only a scene with no symbols and no things is empty.
+  isEmpty: (data, settings) => (!Array.isArray((settings as S).elements) || ((settings as S).elements as unknown[]).length === 0)
+    && !(data.things?.rows?.length),
   emptyShape: false,
   zoomable: true,
 };

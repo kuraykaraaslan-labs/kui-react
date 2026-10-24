@@ -4,8 +4,10 @@ import type { ComponentType, ReactNode } from 'react';
 import type { ValueFormat } from './settings/style';
 import type { SettingsTemplate, Sparse } from './settings/types';
 import type { ColumnMeta } from './settings/source-meta';
+import type { ScenePatch } from './views/scene-patch';
 
 export type { ColumnMeta, ValueMapEntry, MetaLabel } from './settings/source-meta';
+export type { ScenePatch } from './views/scene-patch';
 
 /** One data slot's result: the same shape next-boilerplate's data sources answer with. */
 export interface SlotData {
@@ -130,6 +132,14 @@ export interface WidgetViewProps {
    * placement stored for it) and a way to run them. A symbol with no gesture is not interactive at all.
    */
   elementActions?: ElementActions;
+  /**
+   * `scada.scene` and `viewer.model`: the scene patch a compute script returned beside its slots (next-boilerplate
+   * phase 35, E15; the shape is `views/scene-patch.ts`). Drawing instructions, never an action: things that replace
+   * the things table's rows, per-id overrides of symbols, connections, markers and things, extra connections and
+   * zones, a view and problems. The view parses it again (`parseScenePatch`, its own caps) and applies it after the
+   * authored settings and the rules, so it wins over a rule. Absent = the scene as authored and ruled.
+   */
+  scenePatch?: ScenePatch;
   /** Controls only: the bound command's confirmation policy. */
   confirm?: ControlConfirm;
   /** The card's title (e.g. an iframe's accessible name). */
