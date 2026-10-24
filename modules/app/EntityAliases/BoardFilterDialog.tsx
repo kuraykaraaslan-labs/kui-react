@@ -1,7 +1,8 @@
 'use client';
 // Add or edit one filter (TB's filter dialog): the name (the key is derived from it on add and read-only after), the
-// key filters (each edited in place with KeyFilterEditor; TB opens a third dialog for one) joined by "and", and the
-// filter as text. Saving validates the caps and normalises the filter (only the fields each operation reads).
+// key filters (each edited in place with KeyFilterEditor; TB opens a third dialog for one) joined by "and" or "or"
+// (the select appears from two key filters on), and the filter as text. Saving validates the caps and normalises the
+// filter (only the fields each operation reads).
 
 import { useId, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -10,10 +11,11 @@ import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { Input } from '@/modules/ui/Input';
 import { Modal } from '@/modules/ui/Modal';
+import { Select } from '@/modules/ui/Select';
 import { KeyFilterEditor } from './KeyFilterEditor';
 import { FormPanel } from './RelationFields';
 import { boardFilterText } from './board-filter-text';
-import { emptyKeyFilter, normalizeBoardFilter } from './key-filters';
+import { KEY_FILTER_OPERATIONS, emptyKeyFilter, normalizeBoardFilter } from './key-filters';
 import { mergeAliasMessages, type BoardFilterErrorField, type EntityAliasesMessagesInput } from './messages';
 import { slugKey } from './validate';
 import {
@@ -42,10 +44,11 @@ export interface BoardFilterDialogProps {
   messages?: EntityAliasesMessagesInput;
 }
 
-type Draft = { name: string; keyFilters: KeyFilter[]; submitted: boolean };
+type Draft = { name: string; operation: KeyFilter['operation']; keyFilters: KeyFilter[]; submitted: boolean };
 
 const draftOf = (filter?: BoardFilter): Draft => ({
   name: filter?.name ?? '',
+  operation: filter?.operation === 'or' ? 'or' : 'and',
   // A new filter starts with one key filter to fill in.
   keyFilters: filter ? [...filter.keyFilters] : [emptyKeyFilter()],
   submitted: false,
@@ -76,7 +79,7 @@ export function BoardFilterDialog({
   }
 
   const key = filter ? filter.key : slugKey(draft.name, existingKeys, 'filter');
-  const candidate = normalizeBoardFilter({ key, name: draft.name, keyFilters: draft.keyFilters });
+  const candidate = normalizeBoardFilter({ key, name: draft.name, operation: draft.operation, keyFilters: draft.keyFilters });
   const errors: BoardFilterErrors = draft.submitted ? validateBoardFilter(candidate, { existingKeys, existingNames, params }) : {};
   const err = (field: BoardFilterErrorField) => (errors[field] ? m.filterError(field, errors[field]!) : undefined);
   const setKeyFilters = (keyFilters: KeyFilter[]) => setDraft((d) => ({ ...d, keyFilters }));
@@ -126,8 +129,19 @@ export function BoardFilterDialog({
         <section aria-labelledby={`${idBase}-kf-title`} className="space-y-3">
           <div>
             <h3 id={`${idBase}-kf-title`} className="text-sm font-semibold text-text-primary">{m.keyFilters}</h3>
-            <p className="text-xs text-text-secondary">{m.keyFiltersHint}</p>
+            <p className="text-xs text-text-secondary">{m.keyFiltersHint(draft.keyFilters.length > 1 ? draft.operation : 'and')}</p>
           </div>
+          {draft.keyFilters.length > 1 && (
+            <Select
+              id={`${idBase}-operation`}
+              label={m.keyFiltersOperation}
+              options={KEY_FILTER_OPERATIONS.map((o) => ({ value: o, label: m.operations[o] }))}
+              value={draft.operation}
+              onChange={(e) => setDraft((d) => ({ ...d, operation: e.target.value === 'or' ? 'or' : 'and' }))}
+              error={err('operation')}
+              className="sm:max-w-xs"
+            />
+          )}
           {draft.keyFilters.length === 0 ? (
             <p className="text-sm text-text-secondary">{m.noKeyFilters}</p>
           ) : (
@@ -138,7 +152,7 @@ export function BoardFilterDialog({
                 return (
                   <li key={i} className="space-y-2">
                     {i > 0 && (
-                      <p className="pl-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">{m.textJoin.and}</p>
+                      <p className="pl-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">{m.textJoin[draft.operation]}</p>
                     )}
                     <section
                       aria-labelledby={titleId}

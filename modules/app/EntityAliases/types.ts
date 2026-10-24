@@ -52,7 +52,7 @@ export interface KeyFilter {
   operation: 'and' | 'or'
   predicates: KeyFilterPredicate[]
 }
-export interface BoardFilter { key: string; name: string; keyFilters: KeyFilter[] }
+export interface BoardFilter { key: string; name: string; operation?: 'and' | 'or'; keyFilters: KeyFilter[] }
 export interface EntityKeyInfo { type: KeyFilterKeyType; name: string; label: string; valueType: KeyFilterValueType; scope?: AttributeScope }
 // ---- end of key filter contract ----
 

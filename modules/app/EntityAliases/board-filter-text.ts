@@ -59,10 +59,10 @@ function predicateText(
 }
 
 /**
- * One key filter as text: its conditions joined by its operation. `inGroup` wraps an "or" of several conditions in
- * parentheses, as when it is one of several key filters (they are joined by "and").
+ * One key filter as text: its conditions joined by its operation. `joinedBy` is the operation that joins it to other
+ * key filters: several conditions joined by the other operation are put in parentheses ("(a or b) and c").
  */
-export function keyFilterText(keyFilter: KeyFilter, options: BoardFilterTextOptions & { inGroup?: boolean }): string {
+export function keyFilterText(keyFilter: KeyFilter, options: BoardFilterTextOptions & { joinedBy?: KeyFilter['operation'] }): string {
   const m = mergeAliasMessages(options.messages);
   const predicates = keyFilter.predicates ?? [];
   if (predicates.length === 0) {
@@ -70,14 +70,21 @@ export function keyFilterText(keyFilter: KeyFilter, options: BoardFilterTextOpti
     return m.textKey(name, keyFilter.key?.type, keyFilter.key?.scope);
   }
   const joined = predicates.map((p) => predicateText(keyFilter, p, m, options)).join(` ${m.textJoin[keyFilter.operation] ?? keyFilter.operation} `);
-  return options.inGroup && keyFilter.operation === 'or' && predicates.length > 1 ? `(${joined})` : joined;
+  const bracket = !!options.joinedBy && options.joinedBy !== keyFilter.operation && predicates.length > 1;
+  return bracket ? `(${joined})` : joined;
 }
 
-/** The whole filter as one line: the key filters joined by "and"; "No filter specified" without any. */
-export function boardFilterText(filter: Pick<BoardFilter, 'keyFilters'> | null | undefined, options: BoardFilterTextOptions): string {
+/** The whole filter as one line: the key filters joined by the filter's operation (absent = "and"); "No filter specified" without any. */
+export function boardFilterText(
+  filter: Pick<BoardFilter, 'keyFilters' | 'operation'> | null | undefined,
+  options: BoardFilterTextOptions,
+): string {
   const m = mergeAliasMessages(options.messages);
   const keyFilters = filter?.keyFilters ?? [];
   if (keyFilters.length === 0) return m.noKeyFilterText;
-  const inGroup = keyFilters.length > 1;
-  return keyFilters.map((kf) => keyFilterText(kf, { ...options, messages: m, inGroup })).join(` ${m.textJoin.and} `);
+  if (keyFilters.length === 1) return keyFilterText(keyFilters[0], { ...options, messages: m });
+  const operation = filter?.operation === 'or' ? 'or' : 'and';
+  return keyFilters
+    .map((kf) => keyFilterText(kf, { ...options, messages: m, joinedBy: operation }))
+    .join(` ${m.textJoin[operation]} `);
 }

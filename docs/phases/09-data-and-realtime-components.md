@@ -263,7 +263,7 @@ Seen in: IoT 07 §7.3 control widgets (`iot.button`, `iot.switch`, `iot.slider`,
 - [ ] NB vendors the folder (36.4) and wires it (36.5): board settings, a placement's data tab, the toolbar, the preview route.
 - [~] Key filters editor (NB 36.7), kui-react first, in this folder (2026-10-24, tests written, not run):
   `BoardFiltersDialog` (numbered list, filter text, a filter a widget uses cannot be removed), `BoardFilterDialog` (name,
-  key derived on add, key filters edited in place and joined by "and", preview), `KeyFilterEditor` (key type, key name
+  key derived on add, key filters edited in place and joined by and / or, preview), `KeyFilterEditor` (key type, key name
   suggested through the new `EntityAliasesAccess.entityKeys` or typed, attribute scope, value type preset from the key,
   and / or, up to 4 conditions with only the value type's operations, value / to / value chips, ignore case, a dashboard
   parameter as a value), `boardFilterText`, `validateBoardFilter(s)` / `validateKeyFilter` (16 / 8 / 4 / 50 / 200 caps),

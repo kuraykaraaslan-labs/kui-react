@@ -72,7 +72,13 @@ export type KeyFilterErrorField =
   | `predicates.${number}.${PredicateErrorPart}`;
 
 /** The fields `validateBoardFilter` keys its errors by (`keyFilters.<n>.<field>` for one key filter). */
-export type BoardFilterErrorField = 'key' | 'name' | 'filters' | 'keyFilters' | `keyFilters.${number}.${KeyFilterErrorField}`;
+export type BoardFilterErrorField =
+  | 'key'
+  | 'name'
+  | 'filters'
+  | 'operation'
+  | 'keyFilters'
+  | `keyFilters.${number}.${KeyFilterErrorField}`;
 
 /** What `boardFilterText` hands `textPredicate`: the parts already formatted (values quoted, parameters named). */
 export interface PredicateTextParts {
@@ -220,7 +226,9 @@ export interface EntityAliasesMessages {
   filterName: string;
   filterKeyHint: string;
   keyFilters: string;
-  keyFiltersHint: string;
+  /** The hint under "Key filters", for the filter's operation. */
+  keyFiltersHint: (operation: KeyFilter['operation']) => string;
+  keyFiltersOperation: string;
   keyFilterTitle: (n: number) => string;
   addKeyFilter: string;
   removeKeyFilter: (n: number) => string;
@@ -543,7 +551,11 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   filterName: 'Filter name',
   filterKeyHint: 'Widgets refer to the filter by this key. It is derived from the name and does not change once the filter is added.',
   keyFilters: 'Key filters',
-  keyFiltersHint: 'An entity passes the filter when every key filter matches.',
+  keyFiltersHint: (operation) =>
+    operation === 'or'
+      ? 'An entity passes the filter when any key filter matches.'
+      : 'An entity passes the filter when every key filter matches.',
+  keyFiltersOperation: 'Key filters are joined by',
   keyFilterTitle: (n) => `Key filter ${n}`,
   addKeyFilter: 'Add key filter',
   removeKeyFilter: (n) => `Remove key filter ${n}`,
