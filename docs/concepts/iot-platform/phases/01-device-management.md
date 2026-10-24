@@ -14,30 +14,30 @@ Added by the owner decisions of 2026-10-04: `devices.activate(id)` (OD-1, quaran
 
 ## 1.1 Device list
 
-- [ ] `DeviceListView` on `ServerDataTable` through `adapter.devices.list`: columns name/label, profile, type, status, connectivity (`StatusIndicator` with "since"), last activity, firmware, tags; sort and paging server-side.
+- [~] `DeviceListView` on `ServerDataTable` through `adapter.devices.list`: columns name/label, profile, type, status, connectivity (`StatusIndicator` with "since"), last activity, firmware, tags; sort and paging server-side.
   > **→ DECISION OD-31 / OD-32 (owner, 2026-10-04):** in NB the list, the connectivity/status badges, last seen, firmware and open-alarm count come from the `iot_device_status` view (one query per page; the dashboard query target is p95 < 300 ms). The view never fetches per-row telemetry or alarms to compute a badge; any extra column the adapter cannot serve from that view is opt-in.
-- [ ] `FilterBar`: status, connectivity, profile, type, gateway yes/no, tags; free-text search; filters live in the URL (shareable).
-- [ ] **→ DECISION OD-1 (owner, 2026-10-04):** devices created through a profile provisioning key land unclaimed/quarantined. The list gets a claim-state filter and a `DeviceClaimStateBadge` ("Quarantined — telemetry dropped until activated", "Unclaimed") in the status column; quarantined rows offer "Activate" (`canActivateDevice`), single and bulk.
+- [~] `FilterBar`: status, connectivity, profile, type, gateway yes/no, tags; free-text search; filters live in the URL (shareable).
+- [~] **→ DECISION OD-1 (owner, 2026-10-04):** devices created through a profile provisioning key land unclaimed/quarantined. The list gets a claim-state filter and a `DeviceClaimStateBadge` ("Quarantined — telemetry dropped until activated", "Unclaimed") in the status column; quarantined rows offer "Activate" (`canActivateDevice`), single and bulk.
   > **→ DECISION OD-75 (owner, 2026-10-04):** quarantined devices **count toward `MAX_DEVICES`**. The "n of n devices used" text (here, "Add device", phase 05 and the shared limit message of 10/11) includes them, and the quarantine badge tooltip says "Counts toward your device limit"; no UI text may say quarantined devices are free or uncounted.
 - [ ] (OD-75) The device-limit usage line in the list header counts quarantined devices and offers a filter link "n quarantined" so an admin can review them (activating keeps the count; only deleting frees capacity); the demo seeds a tenant one device below its limit with one quarantined device, so the next "Add device" shows `limit_reached`.
 - [ ] `ViewToggle` between table and the existing `DeviceCard` grid.
-- [ ] Live: rows update their connectivity from `topics.deviceState('*')` without refetching the page.
-- [ ] **→ DECISION OD-57 (owner, 2026-10-04):** "online" follows the device profile's online rule, so the connectivity column has three looks: live connection (online/offline "since", today's `StatusIndicator`), recent message (online/offline with the tooltip "online = a message within <interval × factor>"), and last seen only (`online = null`: a neutral "Last seen 3 h ago", never a red "offline"). The connectivity filter gets a third value "Last seen only". The device detail header follows the same rule.
+- [x] Live: rows update their connectivity from `topics.deviceState('*')` without refetching the page.
+- [x] **→ DECISION OD-57 (owner, 2026-10-04):** "online" follows the device profile's online rule, so the connectivity column has three looks: live connection (online/offline "since", today's `StatusIndicator`), recent message (online/offline with the tooltip "online = a message within <interval × factor>"), and last seen only (`online = null`: a neutral "Last seen 3 h ago", never a red "offline"). The connectivity filter gets a third value "Last seen only". The device detail header follows the same rule.
 - [ ] Bulk actions (`BulkActionTable` pattern): assign profile, add/remove tag, delete (with `Popconfirm`), export CSV (9.14).
-- [ ] "Add device" dialog: name, label, profile, gateway flag, optional pre-set credentials type; on success shows the credentials once (1.3) and links to the detail.
+- [x] "Add device" dialog: name, label, profile, gateway flag, optional pre-set credentials type; on success shows the credentials once (1.3) and links to the detail.
 
 ## 1.2 Device detail
 
-- [ ] `DeviceDetailView`: `DetailHeader` (name, label, profile link, `DeviceStatusBadge`, connectivity `StatusIndicator`, actions: edit, copy id, delete) and `TabGroup` with the tabs listed above. The tab is in the URL.
-- [ ] **→ DECISION OD-1 / OD-24 (owner, 2026-10-04):** the header also shows `DeviceClaimStateBadge` (quarantined/unclaimed) with "Activate" when quarantined, and a "Release device" action (`canReleaseDevice`) that opens the phase 05 §5.4 `ReleaseDeviceDialog` (typed confirmation). There is no factory-reset action (OD-8).
-- [ ] Overview: info list (today's left column), latest values preview (top 6 keys from phase 02's latest-values component), open alarms (phase 03 list filtered to this device), gateway children when `role = GATEWAY`.
-- [ ] Events tab: lifecycle and connectivity events (created, credentials changed, connected, disconnected, profile changed) as a `Timeline`, paged.
-- [ ] Telemetry, Alarms and RPC tabs host the phase 02, 03 and 04 views; until those land they show a link to the old metrics route.
+- [x] `DeviceDetailView`: `DetailHeader` (name, label, profile link, `DeviceStatusBadge`, connectivity `StatusIndicator`, actions: edit, copy id, delete) and `TabGroup` with the tabs listed above. The tab is in the URL.
+- [~] **→ DECISION OD-1 / OD-24 (owner, 2026-10-04):** the header also shows `DeviceClaimStateBadge` (quarantined/unclaimed) with "Activate" when quarantined, and a "Release device" action (`canReleaseDevice`) that opens the phase 05 §5.4 `ReleaseDeviceDialog` (typed confirmation). There is no factory-reset action (OD-8).
+- [~] Overview: info list (today's left column), latest values preview (top 6 keys from phase 02's latest-values component), open alarms (phase 03 list filtered to this device), gateway children when `role = GATEWAY`.
+- [~] Events tab: lifecycle and connectivity events (created, credentials changed, connected, disconnected, profile changed) as a `Timeline`, paged.
+- [~] Telemetry, Alarms and RPC tabs host the phase 02, 03 and 04 views; until those land they show a link to the old metrics route.
 
 ## 1.3 Credentials panel
 
-- [ ] `DeviceCredentialsPanel`: type selector (`ACCESS_TOKEN`, `MQTT_BASIC` with client id/username/password, `X509` showing subject, fingerprint, validity and issuer from `iot_pki`, never a private key).
-- [ ] Secrets masked by default; reveal requires `canViewCredentials` and is announced; copy buttons; regenerate behind `Popconfirm` ("the device disconnects until it is updated").
+- [x] `DeviceCredentialsPanel`: type selector (`ACCESS_TOKEN`, `MQTT_BASIC` with client id/username/password, `X509` showing subject, fingerprint, validity and issuer from `iot_pki`, never a private key).
+- [~] Secrets masked by default; reveal requires `canViewCredentials` and is announced; copy buttons; regenerate behind `Popconfirm` ("the device disconnects until it is updated").
 - [ ] `ConnectionSnippet`: ready-to-paste examples (`mosquitto_pub` to ~~`v1/devices/me/telemetry`~~ `v1/telemetry`, `curl` to the HTTP API) generated from the credentials and the host/port the adapter reports. Topic and endpoint strings come from one constants file mirroring NB `docs/new-iot-platform/_protocol/` so they cannot drift silently.
   > **→ DECISION OD-25 / OD-26 / OD-33 (owner, 2026-10-04):** the snippet follows the device's profile transport: "Roltek default" shows the default topics (`v1/telemetry`, `v1/attributes`, `v1/rpc/req/{id}`, …; no brand name in topics, OD-33) plus one any-topic example (e.g. `sensors/hall-2/temp`, which arrives with `metadata.topic`); "ThingsBoard compatible" (the mapping profile, OD-26) shows the ThingsBoard v1 topics (`v1/devices/me/telemetry`, …) instead. **→ DECISION OD-85 (owner, 2026-10-04):** the ThingsBoard mapping supports **telemetry and attributes only** (`v1/devices/me/telemetry`, `v1/devices/me/attributes` and its attribute request/response topics); the snippet never shows ThingsBoard RPC, claim, provisioning or gateway API topics, because NB does not accept them. Roltek default HTTP paths follow NB `_protocol` 01. The constants file holds both topic sets, keyed by transport.
   > **→ DECISION OD-43 (owner, 2026-10-04):** a profile may enable both schemes; the snippet then shows both sets (Roltek default first). **→ DECISION OD-44 (owner, 2026-10-04):** the `curl` example uses the default HTTP API: `curl -H "Authorization: Bearer <token>" https://<host>/api/v1/telemetry` — the token never in the URL; the TB form `…/api/v1/<token>/telemetry` is shown only when the profile enables ThingsBoard. **→ DECISION OD-34:** the any-topic example's note says the topic is visible live (and in rules/webhooks) but is not stored with history.
@@ -80,9 +80,9 @@ Added by the owner decisions of 2026-10-04: `devices.activate(id)` (OD-1, quaran
 
 ## 1.5 Attributes editor
 
-- [ ] `DeviceAttributesPanel` with three scope tabs: Server (editable), Shared (editable, pushed to the device), Client (read-only, reported by the device).
+- [~] `DeviceAttributesPanel` with three scope tabs: Server (editable), Shared (editable, pushed to the device), Client (read-only, reported by the device).
 - [ ] Rows render through `KeyValueEditor` (9.9) with typed values, "last updated" per row, and the diff sent through `attributes.save(deviceId, scope, diff)`.
-- [ ] Shared attributes show desired vs reported: a sync `StatusIndicator` per key (in sync, pending, device reported a different value) from the `attributes` live topic.
+- [~] Shared attributes show desired vs reported: a sync `StatusIndicator` per key (in sync, pending, device reported a different value) from the `attributes` live topic.
 - [ ] Bulk JSON paste and copy.
 
 ## Showcase
@@ -104,3 +104,32 @@ New Domain entries: `DeviceCredentialsPanel`, `ConnectionSnippet`, `DeviceAttrib
 - (OD-75) On the demo tenant one device below its limit, with one quarantined device: the usage line counts the quarantined device, "Add device" hits `limit_reached`; activating it leaves the count unchanged, deleting it frees one slot.
 - (OD-85) A "ThingsBoard compatible" demo profile shows only telemetry and attribute topics in the topic table and the `ConnectionSnippet` (no `v1/gateway/*`, RPC, claim or provision topic anywhere), and its option hint names what is not supported.
 - (OD-79/OD-88) The alarm-rules section links to the default root flow; with the demo switch "root flow without alarm evaluation" on, it shows the "these rules are not evaluated" warning.
+
+## 2026-10-24 — as built
+
+> Built on branch `feat/iot-p2-screens` (with 00 and 03), the device half of NB IoT P2 slice 6a (`iot-device/05`). `[~]` = built
+> as far as the NB device API goes today. **ED** = engineering decision under the owner's delegation (owner may veto).
+
+**Components** (`modules/domains/iot/device/`): `DeviceOnlineDot`, `DeviceConnectionBadge` (online / offline / last seen only,
+OD-57; Quarantined and Disabled first, OD-1, OD-75 tooltip), `DeviceDetailHeader` (actions slot only; no factory reset, OD-8),
+`DeviceCredentialPanel` + `IssuedSecretNotice` (show-once secret, masked until Show, copy, rotate behind `Popconfirm`, X.509
+fingerprint and expiry), `DeviceAttributeTable` (three scope tabs, lazy; inline JSON edit validated before any request; secret keys
+write-only; the shared tab's sync badge), `DesiredReportedBadge`, `DeviceConnectionTimeline` (on `Timeline`), `DeviceTable` (the
+dashboard body, 07), `DeviceListView`, `DeviceDetailView`, `NewDeviceDrawer`; `DeviceStatusBadge` gained `QUARANTINED`. New generic
+piece `modules/ui/KeyedTable` (stable keys, keyboard row focus, row state new / leaving, selection, loading / error / empty) and
+`TabGroup.onTabChange`. Demo: `/theme/iot/devices` (filters in the URL) and `/theme/iot/devices/[slug]` (tab in `?tab=`; Alarms tab
+real, Telemetry / RPC / OTA / Placement placeholders). Tests: `device.test.tsx`, `views.test.tsx`, `modules/ui/KeyedTable.test.tsx`.
+
+**Decisions (ED).**
+- **ED-K7 `DeviceRecord` beside the demo `Device`.** The adapter shape keeps the registry status (`ACTIVE` / `QUARANTINED` /
+  `DISABLED`) apart from `online` (true / false / null); the demo `DeviceSchema` only gained optional NB fields.
+- **ED-K8 `KeyedTable` instead of `ServerDataTable` for the lists.** `ServerDataTable` has no selection and no keyboard row focus
+  (DataTable M4/M6), both needed here (bulk Activate, bulk acknowledge, dashboard rows); the generic piece is in `modules/ui`.
+- **ED-K9 Attribute values edited as JSON in a `Textarea`.** `CodeEditor` (a large tree with its engines) is not used for a one-value
+  edit; the value is validated as JSON before any request.
+- **ED-K10 "New device" has no credential-type field.** NB's create API issues an access token; MQTT basic and X.509 are set on the
+  Credentials tab (no API change for a UI convenience).
+
+**Left.** Bulk assign / tag / delete and CSV export, the card grid toggle, the device-limit usage line (OD-75), `ConnectionSnippet`,
+the profile list and editor (1.4) and its provisioning keys, transport and online-rule blocks, the Events tab beyond connections,
+the Release device dialog (`TypedConfirmDialog`, phase 05 §5.4), the desired/reported view's server side (NB iot_device 04 §4.3).

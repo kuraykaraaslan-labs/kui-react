@@ -43,14 +43,14 @@ Inventory checked on 2026-10-04 (`grep` over `modules/`, `app/theme/iot/`, `publ
 
 Tasks:
 
-- [ ] Move the three components into `modules/domains/iot/alarm/` under their `Alarm*` names; `modules/domains/iot/index.ts` exports the `Alarm*` names and keeps **deprecated aliases for one release**: `/** @deprecated use AlarmSeverityBadge; removed in the next minor */ export { AlarmSeverityBadge as AlertSeverityBadge }`, the same for `AlertDetailHeader`, `AlertEventTimeline` and the types `AlertEvent`, `AlertEventKind`.
-- [ ] Types: add the `Alarm*` schemas/types (in `types/alarm.ts`, phase 00 §0.1) and keep `AlertSeverityEnum`, `AlertStatusEnum`, `AlertSchema`, `AlertSeverity`, `AlertStatus`, `Alert` as `@deprecated` aliases for one release. `AlarmSeverityEnum` has the five OD-9 levels, so the alias widens the old three-level type (existing `INFO`/`WARNING`/`CRITICAL` values stay valid). ⚠️ Same guard as phase 00 §0.1: do not edit `types.ts` while the RulesetEditor session has uncommitted work there; the rule-engine `ACTION` node text "send alert" belongs to that session and is not renamed here.
-- [ ] `AlarmSeverityBadge` reads tone, icon and label from `alarm-severity.ts` (five levels); `MAJOR` and `MINOR` get seeded demo alarms.
-- [ ] Demo: rename `ALERTS`/`ALERT_EVENTS` and the seed ids; move `app/theme/iot/alerts/**` to `app/theme/iot/alarms/**`; `/theme/iot/alerts` and `/theme/iot/alerts/[id]` become redirect pages (`redirect()` from `next/navigation`) for one release; the `NAV_GROUPS` item (`id: 'alerts'`, label "Alerts", `href: '/theme/iot/alerts'`) becomes `alarms` / "Alarms" / `/theme/iot/alarms`; every internal link (`hrefs.alarm(id)`, dashboard "open alarms" block, device detail Alarms tab) points to `/alarms`.
-- [ ] Showcase and registry: rename the entry and docs pages listed above, add a "Renamed from `Alert*` (OD-9)" note to each, run `npm run registry:snapshot`, update the phase 2 route smoke list (`/alarms`, `/alarms/[id]`, plus the two redirects).
-- [ ] `CHANGELOG.md`: a "Deprecated" entry naming every alias and the release that removes it; a follow-up task in the next minor removes the aliases and the redirects.
-- [ ] Parity: kui-ejs and KUInative were checked on 2026-10-04 and have **no** IoT `Alert*` component (only the generic `AlertBanner`, kui-ejs `modules/domain/modem/AlertItem.ejs` and `modules/app/InlineAlert.ejs`, none IoT). Nothing is renamed or created there.
-- [ ] NB note: NB vendors the `Alarm*` names; its `iot_alarm` and `notification` docs already use "Alarm". The kui-viewer alarm feed (phase 28) maps the five levels onto its `warn | alarm` levels on the host side (phase 09).
+- [x] Move the three components into `modules/domains/iot/alarm/` under their `Alarm*` names; `modules/domains/iot/index.ts` exports the `Alarm*` names and keeps **deprecated aliases for one release**: `/** @deprecated use AlarmSeverityBadge; removed in the next minor */ export { AlarmSeverityBadge as AlertSeverityBadge }`, the same for `AlertDetailHeader`, `AlertEventTimeline` and the types `AlertEvent`, `AlertEventKind`.
+- [x] Types: add the `Alarm*` schemas/types (in `types/alarm.ts`, phase 00 §0.1) and keep `AlertSeverityEnum`, `AlertStatusEnum`, `AlertSchema`, `AlertSeverity`, `AlertStatus`, `Alert` as `@deprecated` aliases for one release. `AlarmSeverityEnum` has the five OD-9 levels, so the alias widens the old three-level type (existing `INFO`/`WARNING`/`CRITICAL` values stay valid). ⚠️ Same guard as phase 00 §0.1: do not edit `types.ts` while the RulesetEditor session has uncommitted work there; the rule-engine `ACTION` node text "send alert" belongs to that session and is not renamed here.
+- [x] `AlarmSeverityBadge` reads tone, icon and label from `alarm-severity.ts` (five levels); `MAJOR` and `MINOR` get seeded demo alarms.
+- [x] Demo: rename `ALERTS`/`ALERT_EVENTS` and the seed ids; move `app/theme/iot/alerts/**` to `app/theme/iot/alarms/**`; `/theme/iot/alerts` and `/theme/iot/alerts/[id]` become redirect pages (`redirect()` from `next/navigation`) for one release; the `NAV_GROUPS` item (`id: 'alerts'`, label "Alerts", `href: '/theme/iot/alerts'`) becomes `alarms` / "Alarms" / `/theme/iot/alarms`; every internal link (`hrefs.alarm(id)`, dashboard "open alarms" block, device detail Alarms tab) points to `/alarms`.
+- [x] Showcase and registry: rename the entry and docs pages listed above, add a "Renamed from `Alert*` (OD-9)" note to each, run `npm run registry:snapshot`, update the phase 2 route smoke list (`/alarms`, `/alarms/[id]`, plus the two redirects).
+- [x] `CHANGELOG.md`: a "Deprecated" entry naming every alias and the release that removes it; a follow-up task in the next minor removes the aliases and the redirects.
+- [x] Parity: kui-ejs and KUInative were checked on 2026-10-04 and have **no** IoT `Alert*` component (only the generic `AlertBanner`, kui-ejs `modules/domain/modem/AlertItem.ejs` and `modules/app/InlineAlert.ejs`, none IoT). Nothing is renamed or created there.
+- [x] NB note: NB vendors the `Alarm*` names; its `iot_alarm` and `notification` docs already use "Alarm". The kui-viewer alarm feed (phase 28) maps the five levels onto its `warn | alarm` levels on the host side (phase 09).
 
 ## Adapter methods added
 
@@ -58,27 +58,27 @@ Tasks:
 
 ## 3.1 Detail actions
 
-- [ ] `AlarmDetailHeader` gets real async actions: `onAcknowledge(note?)` and `onClear(note?)` return promises; buttons show a pending state, are disabled while pending and announce the result. An optional note dialog ("what did you do?") opens from a split button.
-- [ ] Optimistic update through `useResource.mutate` with rollback and an error toast on failure (testable with the demo failure switch).
-- [ ] Runbook: a `Drawer` with the runbook text from the matching alarm rule (profile, phase 01); falls back to the generic steps the demo shows today.
-- [ ] Timeline (`AlarmEventTimeline`) appends acknowledge/clear/comment/re-open events live; a comment box at the bottom.
-- [ ] "Related" panel: device, its telemetry window around the alarm start (phase 02 chart, ±30 min), the rule that raised it.
-- [ ] (OD-79/OD-88) "Raised by" in the "Related" panel and the timeline's "opened" event: either "Profile rule <name> (default flow, alarm evaluation)" linking to the rule card in 01 §1.4, or "Flow <name> → block <name>" linking to that node in the RulesetEditor (vendored in NB, README §Cloud rule engine in the MVP). `Alarm` gains `origin: { kind: 'profileRule', profileId, ruleId } | { kind: 'flow', flowId, nodeId, flowName, nodeName }` (NB `iot_automation` fills it); the runbook drawer falls back to the generic steps for flow-raised alarms without runbook text.
-- [ ] Actions respect `canAcknowledge`.
+- [x] `AlarmDetailHeader` gets real async actions: `onAcknowledge(note?)` and `onClear(note?)` return promises; buttons show a pending state, are disabled while pending and announce the result. An optional note dialog ("what did you do?") opens from a split button.
+- [~] Optimistic update through `useResource.mutate` with rollback and an error toast on failure (testable with the demo failure switch).
+- [x] Runbook: a `Drawer` with the runbook text from the matching alarm rule (profile, phase 01); falls back to the generic steps the demo shows today.
+- [~] Timeline (`AlarmEventTimeline`) appends acknowledge/clear/comment/re-open events live; a comment box at the bottom.
+- [~] "Related" panel: device, its telemetry window around the alarm start (phase 02 chart, ±30 min), the rule that raised it.
+- [~] (OD-79/OD-88) "Raised by" in the "Related" panel and the timeline's "opened" event: either "Profile rule <name> (default flow, alarm evaluation)" linking to the rule card in 01 §1.4, or "Flow <name> → block <name>" linking to that node in the RulesetEditor (vendored in NB, README §Cloud rule engine in the MVP). `Alarm` gains `origin: { kind: 'profileRule', profileId, ruleId } | { kind: 'flow', flowId, nodeId, flowName, nodeName }` (NB `iot_automation` fills it); the runbook drawer falls back to the generic steps for flow-raised alarms without runbook text.
+- [x] Actions respect `canAcknowledge`.
 
 ## 3.2 Alarm list
 
-- [ ] `AlarmListView` on `ServerDataTable`: severity, status, title/message, device, profile, rule, started, acknowledged, cleared, duration. (OD-79: the "rule" column shows the profile rule or "flow / block" from `origin`, and the filter bar gains an origin filter: profile rules / a chosen flow.)
-- [ ] `FilterBar`: status (default "not resolved"), severity, device, profile, time range (`TimeRangePicker` or `DateRangePicker` with the 9.6 presets); filters in the URL. (OD-31) Resolved/all-status views always send a time range (default last 7 days); the UI never asks for an unbounded alarm history.
+- [~] `AlarmListView` on `ServerDataTable`: severity, status, title/message, device, profile, rule, started, acknowledged, cleared, duration. (OD-79: the "rule" column shows the profile rule or "flow / block" from `origin`, and the filter bar gains an origin filter: profile rules / a chosen flow.)
+- [~] `FilterBar`: status (default "not resolved"), severity, device, profile, time range (`TimeRangePicker` or `DateRangePicker` with the 9.6 presets); filters in the URL. (OD-31) Resolved/all-status views always send a time range (default last 7 days); the UI never asks for an unbounded alarm history.
 - [ ] (OD-25) Rule-card topic filter in `AlarmRuleCard` (01 §1.4) and a Topic column (hidden by default) in `AlarmListView` when the alarm carries one; the demo seeds one rule limited to `sensors/hall-2/#`.
-- [ ] Status count chips above the table (`alarms.counts`), clickable as filters.
-- [ ] Bulk acknowledge / clear with one note for all selected rows.
-- [ ] Live: new matching alarms appear at the top with a highlight; a "N new alarms" pill when the user has scrolled or paged away instead of jumping the table.
-- [ ] The same view, filtered, is the device detail Alarms tab.
+- [x] Status count chips above the table (`alarms.counts`), clickable as filters.
+- [x] Bulk acknowledge / clear with one note for all selected rows.
+- [x] Live: new matching alarms appear at the top with a highlight; a "N new alarms" pill when the user has scrolled or paged away instead of jumping the table.
+- [x] The same view, filtered, is the device detail Alarms tab.
 
 ## 3.3 Shell integration
 
-- [ ] Sidebar badge and topbar bell from `alarms.counts` + the live topic (wired in 00, styled here): the bell opens a short dropdown of the latest open alarms with "acknowledge" inline and "view all".
+- [~] Sidebar badge and topbar bell from `alarms.counts` + the live topic (wired in 00, styled here): the bell opens a short dropdown of the latest open alarms with "acknowledge" inline and "view all".
 - [ ] Optional sound/toast for new CRITICAL alarms, off by default, toggled in `/theme/iot/settings`.
 
 ## 3.4 Alarm notification settings (OD-10)
@@ -101,3 +101,29 @@ Renamed and new Domain entries: `AlarmSeverityBadge` (all five severities, OD-9)
 - (OD-25) A rule limited to one topic raises an alarm only for values from that topic in the demo; the alarm detail names the topic.
 - (OD-31) The default alarm list loads with one list query and one counts query; switching to "all statuses" sends a bounded time range.
 - (OD-79/OD-88) The demo seeds one alarm raised by a profile rule through the default flow and one raised by an alarm block of another flow; each detail page names its origin and links to the rule card or the flow node, and the list's origin filter separates them.
+
+## 2026-10-24 — as built
+
+> Built on branch `feat/iot-p2-screens` (with 00 and 01), the alarm half of NB IoT P2 slice 6a (`iot-alarm/03`). **ED** = engineering
+> decision under the owner's delegation (owner may veto).
+
+**Built.** §3.0 rename: `modules/domains/iot/alarm/` (`AlarmSeverityBadge`, `AlarmDetailHeader`, `AlarmEventTimeline`) with
+deprecated `Alert*` aliases in `index.ts` and `types.ts`, `alarm-severity.ts` (the one table: tone, icon, label, rank, row
+border), the seed renamed (`ALARMS`, `ALARM_EVENTS`, `alarm-001…`, every severity, every alarm with a timeline, a profile-rule and a
+flow origin), `/theme/iot/alarms` and `/alarms/[id]`, `/alerts/**` redirects, the showcase entries replaced (not duplicated) and the
+registry regenerated, the CHANGELOG "Deprecated" entry. New: `AlarmStatusPill`, `AlarmTable` (07 body), `AlarmListView`,
+`AlarmDetailView` (runbook `Drawer`, Related panel with "Raised by"), `AlarmBellMenu`. Tests: `alarm.test.tsx`, `views.test.tsx`.
+
+**Decisions (ED).**
+- **ED-K11 Tones.** OD-9 proposed solid amber for MINOR; no text token reads on solid amber in both themes, so MINOR is the subtle
+  warning badge with a warning ring (MAJOR likewise with an error ring); each level keeps its own icon.
+- **ED-K12 Flat header props kept.** `AlarmDetailHeader` keeps the old flat props (and `onResolve` as a deprecated name of
+  `onClear`), so the `AlertDetailHeader` alias keeps working for one release.
+- **ED-K13 Optimistic updates in the views** (no 9.11 `useResource.mutate`): the row or header changes at once, the ids the server
+  skipped roll back with a toast; the per-id results drive "N done, M skipped".
+- **ED-K14 Live list.** A new matching alarm goes to the top of the first page (highlighted 4 s); on another page or while
+  searching a "N new alarms" pill brings the viewer back; a later snapshot (reconnect) re-reads the list.
+
+**Left.** The telemetry window and the rule-card link in the Related panel (phases 01 / 02), the origin filter and the Topic
+column, `TimeRangePicker` presets (OD-31's bounded range is sent as "last 7 days"), the sidebar badge, the CRITICAL sound / toast,
+`AlarmNotificationSettings` (§3.4), `/theme/iot/settings`.
