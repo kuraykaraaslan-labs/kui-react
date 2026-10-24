@@ -2,15 +2,13 @@
 import type { ShowcaseComponent } from '../showcase.types';
 import { DeviceStatusBadge } from '@/modules/domains/iot/device/DeviceStatusBadge';
 import { DeviceTypeBadge } from '@/modules/domains/iot/device/DeviceTypeBadge';
-import { AlertSeverityBadge } from '@/modules/domains/iot/alert/AlertSeverityBadge';
 import { DeviceCard } from '@/modules/domains/iot/device/DeviceCard';
 import { CloudWorkspaceCard } from '@/modules/domains/iot/workspace/CloudWorkspaceCard';
 import { RulesetEditor } from '@/modules/app/RulesetEditor/RulesetEditor';
 import { MetricSparklineCard } from '@/modules/domains/iot/telemetry/MetricSparklineCard';
 import { TelemetryTimeSeriesChart } from '@/modules/domains/iot/telemetry/TelemetryTimeSeriesChart';
 import { LogStreamRow } from '@/modules/domains/iot/telemetry/LogStreamRow';
-import { AlertDetailHeader } from '@/modules/domains/iot/alert/AlertDetailHeader';
-import { AlertEventTimeline } from '@/modules/domains/iot/alert/AlertEventTimeline';
+import { buildIoTPlatformEntries } from './domain-iot-platform.showcase';
 import { DEMO_CATALOG, DEMO_CHOICES, DEMO_FLOW } from '@/modules/app/RulesetEditor/demo';
 import type { Device, CloudWorkspace, RuleNode, RuleEdge } from '@/modules/domains/iot/types';
 
@@ -200,49 +198,6 @@ export function DeviceTypeBadge({ type, size = 'md', className }) {
           ),
           code: `<DeviceTypeBadge type="INTERNAL" size="sm" />
 <DeviceTypeBadge type="INTEGRATION" size="sm" />`,
-        },
-      ],
-    },
-    {
-      id: 'iot-alert-severity-badge',
-      title: 'AlertSeverityBadge',
-      category: 'Domain',
-      abbr: 'AS',
-      description: 'Alert severity indicator — Info, Warning, or Critical.',
-      filePath: 'modules/domains/iot/alert/AlertSeverityBadge.tsx',
-      sourceCode: `'use client';
-import { Badge } from '@/modules/ui/Badge';
-import type { AlertSeverity } from '../types';
-
-export function AlertSeverityBadge({ severity, size = 'md', className }) {
-  // ...
-}`,
-      variants: [
-        {
-          title: 'All severities',
-          layout: 'side',
-          preview: (
-            <div className="flex flex-wrap gap-2">
-              <AlertSeverityBadge severity="INFO" />
-              <AlertSeverityBadge severity="WARNING" />
-              <AlertSeverityBadge severity="CRITICAL" />
-            </div>
-          ),
-          code: `<AlertSeverityBadge severity="INFO" />
-<AlertSeverityBadge severity="WARNING" />
-<AlertSeverityBadge severity="CRITICAL" />`,
-        },
-        {
-          title: 'Small',
-          layout: 'side',
-          preview: (
-            <div className="flex flex-wrap gap-2">
-              <AlertSeverityBadge severity="WARNING" size="sm" />
-              <AlertSeverityBadge severity="CRITICAL" size="sm" />
-            </div>
-          ),
-          code: `<AlertSeverityBadge severity="WARNING" size="sm" />
-<AlertSeverityBadge severity="CRITICAL" size="sm" />`,
         },
       ],
     },
@@ -530,81 +485,6 @@ ref.current?.arrange(); ref.current?.select(['n1']); ref.current?.reveal('n4');`
         },
       ],
     },
-    {
-      id: 'iot-alert-detail-header',
-      title: 'AlertDetailHeader',
-      category: 'Domain',
-      abbr: 'AH',
-      description: 'Header for an alert detail page: severity + status badges, device link, opened timestamp, action buttons.',
-      filePath: 'modules/domains/iot/alert/AlertDetailHeader.tsx',
-      sourceCode: `import { AlertDetailHeader } from '@/modules/domains/iot/alert/AlertDetailHeader';
-<AlertDetailHeader title="..." severity="CRITICAL" status="OPEN" deviceName="..." openedAt={date} onAcknowledge={...} />`,
-      variants: [
-        {
-          title: 'Critical / open',
-          layout: 'stack',
-          preview: (
-            <AlertDetailHeader
-              title="Temperature threshold exceeded"
-              message="Coolant temperature reached 94°C — above the critical threshold of 85°C. Immediate inspection required."
-              severity="CRITICAL"
-              status="OPEN"
-              deviceName="Coolant Temp Monitor"
-              deviceHref="#"
-              openedAt={new Date(DEMO_NOW - 720_000)}
-              onAcknowledge={() => undefined}
-              onResolve={() => undefined}
-              onOpenRunbook={() => undefined}
-            />
-          ),
-          code: `<AlertDetailHeader title="…" severity="CRITICAL" status="OPEN" deviceName="…" openedAt={date} />`,
-        },
-        {
-          title: 'Warning / acknowledged',
-          layout: 'stack',
-          preview: (
-            <AlertDetailHeader
-              title="Vibration spike detected"
-              message="Vibration reading exceeded 8.2 G on axis Z. Sensor A1 may require recalibration."
-              severity="WARNING"
-              status="ACKNOWLEDGED"
-              deviceName="Press Line Sensor A1"
-              openedAt={new Date(DEMO_NOW - 3_600_000)}
-              onResolve={() => undefined}
-              onOpenRunbook={() => undefined}
-            />
-          ),
-          code: `<AlertDetailHeader severity="WARNING" status="ACKNOWLEDGED" />`,
-        },
-      ],
-    },
-    {
-      id: 'iot-alert-event-timeline',
-      title: 'AlertEventTimeline',
-      category: 'Domain',
-      abbr: 'AE',
-      description: 'Chronological event log for an alert: opened → acknowledged → resolved, with operator notes.',
-      filePath: 'modules/domains/iot/alert/AlertEventTimeline.tsx',
-      sourceCode: `import { AlertEventTimeline } from '@/modules/domains/iot/alert/AlertEventTimeline';
-<AlertEventTimeline events={[{ eventId, kind: 'opened', by, at, note }]} />`,
-      variants: [
-        {
-          title: 'Five event kinds',
-          layout: 'stack',
-          preview: (
-            <AlertEventTimeline
-              events={[
-                { eventId: 'e1', kind: 'opened',       by: 'rule-engine', at: new Date(DEMO_NOW - 720_000), note: 'Triggered by rule "Coolant > 85°C".' },
-                { eventId: 'e2', kind: 'automation',   by: 'paging-bot',  at: new Date(DEMO_NOW - 700_000), note: 'On-call paged via SMS + Slack.' },
-                { eventId: 'e3', kind: 'note',         by: 'jane.k',      at: new Date(DEMO_NOW - 540_000), note: 'Investigating — coolant pump pressure normal.' },
-                { eventId: 'e4', kind: 'acknowledged', by: 'mike.t',      at: new Date(DEMO_NOW - 300_000) },
-                { eventId: 'e5', kind: 'resolved',     by: 'mike.t',      at: new Date(DEMO_NOW - 60_000),  note: 'Faulty sensor replaced.' },
-              ]}
-            />
-          ),
-          code: `<AlertEventTimeline events={[{ kind: 'opened', ... }, { kind: 'resolved', ... }]} />`,
-        },
-      ],
-    },
+    ...buildIoTPlatformEntries(),
   ];
 }

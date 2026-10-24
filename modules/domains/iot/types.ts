@@ -1,5 +1,9 @@
 import { z } from 'zod';
 import { IdSchema } from '../common/types';
+import { AlarmSeverityEnum, AlarmStatusEnum, AlarmSchema, type Alarm, type AlarmSeverity, type AlarmStatus } from './types/index';
+
+/* The platform entities, one file per entity (phase 00 §0.1): alarm, device record, credentials, attributes. */
+export * from './types/index';
 
 /* The rule editor's types live with the editor (modules/app/RulesetEditor), which is not tied to IoT; they stay importable from here. */
 export {
@@ -36,8 +40,6 @@ export const CloudStatusEnum = z.enum(['ACTIVE', 'SUSPENDED', 'PENDING']);
 export const CloudPlanEnum = z.enum(['FREE', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE']);
 export const CloudRoleEnum = z.enum(['OWNER', 'ADMIN', 'MEMBER', 'VIEWER']);
 
-export const AlertSeverityEnum = z.enum(['INFO', 'WARNING', 'CRITICAL']);
-export const AlertStatusEnum = z.enum(['OPEN', 'ACKNOWLEDGED', 'RESOLVED']);
 
 /* =========================================================
    DEVICE
@@ -63,6 +65,16 @@ export const DeviceSchema = z.object({
   tags: z.array(z.string()).default([]),
   lastSeenAt: z.coerce.date().nullable().optional(),
   createdAt: z.coerce.date().optional(),
+  // Aligned with the platform's device API (phase 00 §0.1, NB iot_device), additive: the demo keeps its fields.
+  serial: z.string().nullable().optional(),
+  deviceProfileId: z.string().optional(),
+  online: z.boolean().nullable().optional(),
+  lastConnectAt: z.coerce.date().nullable().optional(),
+  lastActivityAt: z.coerce.date().nullable().optional(),
+  fwVersion: z.string().nullable().optional(),
+  protocolMajor: z.number().int().nullable().optional(),
+  isGateway: z.boolean().optional(),
+  gatewayDeviceId: z.string().nullable().optional(),
 });
 
 /* =========================================================
@@ -95,23 +107,6 @@ export const CloudWorkspaceSchema = z.object({
   createdAt: z.coerce.date().optional(),
 });
 
-/* =========================================================
-   ALERT
-========================================================= */
-
-export const AlertSchema = z.object({
-  alertId: IdSchema,
-  deviceId: IdSchema,
-  deviceName: z.string(),
-  cloudId: IdSchema,
-  severity: AlertSeverityEnum,
-  status: AlertStatusEnum,
-  title: z.string(),
-  message: z.string(),
-  createdAt: z.coerce.date().optional(),
-  acknowledgedAt: z.coerce.date().nullable().optional(),
-  resolvedAt: z.coerce.date().nullable().optional(),
-});
 
 /* =========================================================
    TYPES
@@ -124,12 +119,28 @@ export type TelemetryTopic = z.infer<typeof TelemetryTopicEnum>;
 export type CloudStatus = z.infer<typeof CloudStatusEnum>;
 export type CloudPlan = z.infer<typeof CloudPlanEnum>;
 export type CloudRole = z.infer<typeof CloudRoleEnum>;
-export type AlertSeverity = z.infer<typeof AlertSeverityEnum>;
-export type AlertStatus = z.infer<typeof AlertStatusEnum>;
 
 export type DeviceLocation = z.infer<typeof DeviceLocationSchema>;
 export type Device = z.infer<typeof DeviceSchema>;
 export type TelemetryReading = z.infer<typeof TelemetryReadingSchema>;
 export type CloudWorkspace = z.infer<typeof CloudWorkspaceSchema>;
-export type Alert = z.infer<typeof AlertSchema>;
+
+/* =========================================================
+   ALARM (OD-9: the term is Alarm, five severities)
+   The entity files live in ./types/ (phase 00 §0.1); the Alert* names below are
+   deprecated aliases for one release (phase 03 §3.0) and are removed in the next minor.
+========================================================= */
+
+/** @deprecated use AlarmSeverityEnum (five levels, OD-9); removed in the next minor. */
+export const AlertSeverityEnum = AlarmSeverityEnum;
+/** @deprecated use AlarmStatusEnum; removed in the next minor. */
+export const AlertStatusEnum = AlarmStatusEnum;
+/** @deprecated use AlarmSchema (`alarmId` instead of `alertId`); removed in the next minor. */
+export const AlertSchema = AlarmSchema;
+/** @deprecated use AlarmSeverity; removed in the next minor. */
+export type AlertSeverity = AlarmSeverity;
+/** @deprecated use AlarmStatus; removed in the next minor. */
+export type AlertStatus = AlarmStatus;
+/** @deprecated use Alarm; removed in the next minor. */
+export type Alert = Alarm;
 

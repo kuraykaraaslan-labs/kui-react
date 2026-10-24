@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-02
 
-Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default "Breadcrumb"). Last item marked with aria-current="page" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation.
+Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default "Breadcrumb"). Last item marked with aria-current="page" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation. Items take an icon, a chip (pill) style and a status tone dot; `leading` puts a node (a page-menu button) first, never collapsed by maxItems.
 
 ## Design tokens consumed
 
@@ -65,6 +65,20 @@ import Link from 'next/link';
   renderLink={(item, className) => (
     <Link href={item.href} className={className}>{item.label}</Link>
   )}
+/>
+```
+
+### Page path: leading menu, chips, tones
+
+```tsx
+<Breadcrumb
+  ariaLabel="Board pages"
+  leading={<DropdownMenu trigger={<Button variant="ghost" size="xs">Pages ▾</Button>} items={pages} />}
+  items={[
+    { label: 'Overview', href: '/b/overview', chip: true },
+    { label: 'Line 1', href: '/b/line-1', chip: true, tone: 'success' },
+    { label: 'Pump room', chip: true, tone: 'warning' },
+  ]}
 />
 ```
 

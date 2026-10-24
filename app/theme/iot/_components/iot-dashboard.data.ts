@@ -1,5 +1,5 @@
 import type { BoardDocument, SlotData } from '@/modules/app/WidgetKit';
-import { ALERTS, DEVICES, DEVICE_METRICS, WORKSPACES } from '../iot.data';
+import { ALARMS, DEVICES, DEVICE_METRICS, WORKSPACES } from '../iot.data';
 
 /** A named demo data source: what a placement's data slot can be bound to in this theme. */
 export interface DemoSource {
@@ -16,7 +16,7 @@ const series = (name: string, values: number[]) => ({
 });
 const count = (status: string) => DEVICES.filter((d) => d.status === status).length;
 const STATUS_TONE: Record<string, string> = { ONLINE: 'success', OFFLINE: 'neutral', ERROR: 'error', MAINTENANCE: 'warning' };
-const SEVERITY_TONE: Record<string, string> = { CRITICAL: 'error', HIGH: 'error', MEDIUM: 'warning', LOW: 'info', INFO: 'info' };
+const SEVERITY_TONE: Record<string, string> = { CRITICAL: 'error', MAJOR: 'error', MINOR: 'warning', WARNING: 'warning', INFO: 'info' };
 const cloud = WORKSPACES[0];
 
 export const DEMO_SOURCES: DemoSource[] = [
@@ -24,7 +24,7 @@ export const DEMO_SOURCES: DemoSource[] = [
   { key: 'devices.online', label: 'Devices: online', data: { shape: 'scalar', value: cloud.onlineCount, fetchedAt: at(1) } },
   { key: 'devices.online.yesterday', label: 'Devices: online yesterday', data: { shape: 'scalar', value: cloud.onlineCount - 6, fetchedAt: at(1) } },
   { key: 'devices.errors', label: 'Devices: in error', data: { shape: 'scalar', value: count('ERROR'), fetchedAt: at(1) } },
-  { key: 'alerts.open', label: 'Alerts: open', data: { shape: 'scalar', value: ALERTS.filter((a) => a.status === 'OPEN').length, fetchedAt: at(2) } },
+  { key: 'alerts.open', label: 'Alarms: open', data: { shape: 'scalar', value: ALARMS.filter((a) => a.status === 'OPEN').length, fetchedAt: at(2) } },
   { key: 'press.temperature', label: 'Press A1: temperature (°C)', data: { shape: 'scalar', value: press.currentValues.temperatureC, fetchedAt: at(0) } },
   { key: 'press.cpu', label: 'Press A1: CPU (%)', data: { shape: 'scalar', value: press.currentValues.cpuPct, fetchedAt: at(0) } },
   { key: 'press.rpm', label: 'Press A1: RPM', data: { shape: 'scalar', value: press.rpm[press.rpm.length - 1], fetchedAt: at(0) } },
@@ -65,14 +65,14 @@ export const DEMO_SOURCES: DemoSource[] = [
     },
   },
   {
-    key: 'alerts.feed', label: 'Alerts: latest',
+    key: 'alerts.feed', label: 'Alarms: latest',
     data: {
       shape: 'table', fetchedAt: at(2),
       columns: [
-        { key: 'time', label: 'Time', type: 'date' }, { key: 'title', label: 'Alert', type: 'text' },
+        { key: 'time', label: 'Time', type: 'date' }, { key: 'title', label: 'Alarm', type: 'text' },
         { key: 'description', label: 'Device', type: 'text' }, { key: 'tone', label: 'Severity', type: 'badge' },
       ],
-      rows: ALERTS.map((a) => ({ time: a.createdAt ? new Date(a.createdAt).toISOString() : null, title: a.title, description: a.deviceName, tone: SEVERITY_TONE[a.severity] ?? 'neutral' })),
+      rows: ALARMS.map((a) => ({ time: a.openedAt ? new Date(a.openedAt).toISOString() : null, title: a.title, description: a.deviceName, tone: SEVERITY_TONE[a.severity] ?? 'neutral' })),
     },
   },
   {

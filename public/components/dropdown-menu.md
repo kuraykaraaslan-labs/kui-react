@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-03
 
-Accessible dropdown using role="menu" + role="menuitem". Closes on Escape and outside click. Supports left/right alignment, icons, separators, danger and disabled items, and arrow-key navigation. Items take an optional id, href, group, order, hidden and disabledReason so other modules can contribute entries; `portal` escapes clipping parents.
+Accessible dropdown using role="menu" + role="menuitem". Closes on Escape and outside click. Supports left/right alignment, icons, separators, danger and disabled items, and arrow-key navigation. Items take an optional id, href, group, order, hidden and disabledReason so other modules can contribute entries; `portal` escapes clipping parents. Page-menu extras: heading entries (or `groupLabels` per group), `selected` and `trailing` items, a `search` box once the list is long, a `footer`, `menuClassName`, and controlled `open` / `onOpenChange`.
 
 ## Design tokens consumed
 
@@ -60,6 +60,29 @@ Accessible dropdown using role="menu" + role="menuitem". Closes on Escape and ou
 />
 // Merge contributed items into a base list (same id replaces in place):
 const items = mergeMenuItems(baseItems, contributedItems);
+```
+
+### Page menu: group headings, selected, trailing, search, footer
+
+```tsx
+// Headings come from groupLabels; the search box shows from 8 entries (search.minItems).
+// Arrow keys, Home and End move between items; Enter in the box picks the first match.
+const [open, setOpen] = useState(false); // optional: controlled, e.g. for a keyboard shortcut
+<DropdownMenu
+  open={open}
+  onOpenChange={setOpen}
+  trigger={<Button variant="outline" size="sm">Pages ▾</Button>}
+  menuClassName="w-72"
+  groupLabels={{ pages: 'Pages', drill: 'Drill-downs' }}
+  search={{ placeholder: 'Find a page', emptyText: 'No page matches' }}
+  footer={<a href="/pages">Manage pages</a>}
+  items={[
+    { id: 'overview', label: 'Overview', group: 'pages', selected: true, trailing: <Badge size="sm">Home</Badge> },
+    { id: 'energy', label: 'Energy', group: 'pages' },
+    { id: 'line-1', label: 'Line 1', group: 'drill' },
+    // … or plain lists with { type: 'heading', label: 'Pages' } entries
+  ]}
+/>
 ```
 
 ## Full source

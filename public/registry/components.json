@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-22T10:27:07.056Z",
+  "generatedAt": "2026-10-24T17:13:02.086Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2338,7 +2338,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Breadcrumb.tsx",
       "abbr": "Bc",
-      "description": "Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default \"Breadcrumb\"). Last item marked with aria-current=\"page\" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation.",
+      "description": "Hierarchical navigation trail wrapped in a nav landmark (ariaLabel, default \"Breadcrumb\"). Last item marked with aria-current=\"page\" and aria-hidden separators. renderLink renders linked items through a router Link for client-side navigation. Items take an icon, a chip (pill) style and a status tone dot; `leading` puts a node (a page-menu button) first, never collapsed by maxItems.",
       "source": "import { cn } from '@/libs/utils/cn';\n\nexport function Breadcrumb({ items, className, renderLink, ariaLabel = 'Breadcrumb' }) {\n  const linkClass = 'text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded';\n  return (\n    <nav aria-label={ariaLabel} className={className}>\n      <ol className=\"flex flex-wrap items-center gap-1 text-sm\">\n        {items.map((item, i) => {\n          const isLast = i === items.length - 1;\n          return (\n            <li key={i} className=\"flex items-center gap-1\">\n              {!isLast && item.href ? (\n                <>{renderLink ? renderLink({ ...item, href: item.href }, linkClass) : <a href={item.href} className={linkClass}>{item.label}</a>}<span aria-hidden=\"true\" className=\"text-text-disabled\">›</span></>\n              ) : (\n                <span className={isLast ? 'text-text-primary font-medium' : 'text-text-secondary'} aria-current={isLast ? 'page' : undefined}>{item.label}</span>\n              )}\n            </li>\n          );\n        })}\n      </ol>\n    </nav>\n  );\n}",
       "variants": [
         {
@@ -2360,6 +2360,10 @@
         {
           "title": "Router link",
           "code": "import Link from 'next/link';\n\n<Breadcrumb\n  ariaLabel=\"Page trail\"\n  items={[...]}\n  renderLink={(item, className) => (\n    <Link href={item.href} className={className}>{item.label}</Link>\n  )}\n/>"
+        },
+        {
+          "title": "Page path: leading menu, chips, tones",
+          "code": "<Breadcrumb\n  ariaLabel=\"Board pages\"\n  leading={<DropdownMenu trigger={<Button variant=\"ghost\" size=\"xs\">Pages ▾</Button>} items={pages} />}\n  items={[\n    { label: 'Overview', href: '/b/overview', chip: true },\n    { label: 'Line 1', href: '/b/line-1', chip: true, tone: 'success' },\n    { label: 'Pump room', chip: true, tone: 'warning' },\n  ]}\n/>"
         }
       ],
       "status": "stable",
@@ -2701,7 +2705,7 @@
       "category": "Organism",
       "filePath": "modules/ui/DropdownMenu.tsx",
       "abbr": "Dm",
-      "description": "Accessible dropdown using role=\"menu\" + role=\"menuitem\". Closes on Escape and outside click. Supports left/right alignment, icons, separators, danger and disabled items, and arrow-key navigation. Items take an optional id, href, group, order, hidden and disabledReason so other modules can contribute entries; `portal` escapes clipping parents.",
+      "description": "Accessible dropdown using role=\"menu\" + role=\"menuitem\". Closes on Escape and outside click. Supports left/right alignment, icons, separators, danger and disabled items, and arrow-key navigation. Items take an optional id, href, group, order, hidden and disabledReason so other modules can contribute entries; `portal` escapes clipping parents. Page-menu extras: heading entries (or `groupLabels` per group), `selected` and `trailing` items, a `search` box once the list is long, a `footer`, `menuClassName`, and controlled `open` / `onOpenChange`.",
       "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useEffect, useRef, useState } from 'react';\n\nexport function DropdownMenu({ trigger, items, align = 'left', className }) {\n  const [open, setOpen] = useState(false);\n  // outside click + Escape handlers\n  return (\n    <div ref={containerRef} className={cn('relative inline-block', className)}>\n      <div onClick={() => setOpen((p) => !p)} aria-haspopup=\"menu\" aria-expanded={open}>{trigger}</div>\n      {open && (\n        <div role=\"menu\" className={cn('absolute z-50 mt-1 min-w-[10rem] rounded-lg border border-border bg-surface-raised shadow-lg py-1', align === 'right' ? 'right-0' : 'left-0')}>\n          {items.map((item, i) => item.type === 'separator' ? <div key={i} role=\"separator\" className=\"my-1 border-t border-border\" /> : (\n            <button key={i} role=\"menuitem\" type=\"button\" disabled={item.disabled} onClick={() => { item.onClick?.(); setOpen(false); }}\n              className={cn('flex w-full items-center gap-2 px-3 py-2 text-sm text-left transition-colors focus-visible:outline-none focus-visible:bg-surface-overlay', item.danger ? 'text-error hover:bg-error-subtle' : 'text-text-primary hover:bg-surface-overlay', item.disabled && 'opacity-50 cursor-not-allowed')}>\n              {item.icon && <span aria-hidden=\"true\">{item.icon}</span>}{item.label}\n            </button>\n          ))}\n        </div>\n      )}\n    </div>\n  );\n}",
       "variants": [
         {
@@ -2715,6 +2719,10 @@
         {
           "title": "Contributed items: group, order, hidden, href, disabledReason",
           "code": "// Items sort by group (ranked by their lowest order) and order; a separator splits groups.\n<DropdownMenu\n  trigger={<Button variant=\"outline\" size=\"sm\">Contact ▾</Button>}\n  items={[\n    { id: 'edit', label: 'Edit', group: 'record', order: 10 },\n    { id: 'call', label: 'Call', group: 'contact', order: 20, href: '/calls/new?to=…' },\n    { id: 'sign', label: 'Send for signature', group: 'contact', order: 30, disabled: true, disabledReason: 'Add an email address first' },\n    { id: 'campaign', label: 'Add to campaign', group: 'contact', order: 40, hidden: !canMarket },\n    { id: 'delete', label: 'Delete', group: 'danger', order: 1000, danger: true },\n  ]}\n/>\n// Merge contributed items into a base list (same id replaces in place):\nconst items = mergeMenuItems(baseItems, contributedItems);"
+        },
+        {
+          "title": "Page menu: group headings, selected, trailing, search, footer",
+          "code": "// Headings come from groupLabels; the search box shows from 8 entries (search.minItems).\n// Arrow keys, Home and End move between items; Enter in the box picks the first match.\nconst [open, setOpen] = useState(false); // optional: controlled, e.g. for a keyboard shortcut\n<DropdownMenu\n  open={open}\n  onOpenChange={setOpen}\n  trigger={<Button variant=\"outline\" size=\"sm\">Pages ▾</Button>}\n  menuClassName=\"w-72\"\n  groupLabels={{ pages: 'Pages', drill: 'Drill-downs' }}\n  search={{ placeholder: 'Find a page', emptyText: 'No page matches' }}\n  footer={<a href=\"/pages\">Manage pages</a>}\n  items={[\n    { id: 'overview', label: 'Overview', group: 'pages', selected: true, trailing: <Badge size=\"sm\">Home</Badge> },\n    { id: 'energy', label: 'Energy', group: 'pages' },\n    { id: 'line-1', label: 'Line 1', group: 'drill' },\n    // … or plain lists with { type: 'heading', label: 'Pages' } entries\n  ]}\n/>"
         }
       ],
       "status": "stable",
@@ -2935,6 +2943,33 @@
       ],
       "status": "stable",
       "since": "2026-08",
+      "designTokens": []
+    },
+    {
+      "id": "keyed-table",
+      "name": "KeyedTable",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/KeyedTable.tsx",
+      "abbr": "KT",
+      "description": "A rows-in, events-out table for data that changes under the viewer: stable row keys, keyboard row focus (Arrow keys, Home/End, Enter), a per-row state (new = highlighted, leaving = fading), optional selection checkboxes, loading / error (retry) / empty states, and columns that hide below a breakpoint.",
+      "source": "import { KeyedTable } from '@/modules/ui/KeyedTable';\n<KeyedTable caption=\"Devices\" rows={rows} getRowKey={(r) => r.id} columns={columns} onRowClick={open}\n  rowState={(r) => (fresh.has(r.id) ? 'new' : undefined)} selection={{ selected, onChange }} loading={loading} error={error} onRetry={reload} />",
+      "variants": [
+        {
+          "title": "Live rows and row click",
+          "code": "<KeyedTable caption=\"Pumps\" rows={rows} getRowKey={(r) => r.id} columns={columns} rowState={(r) => (r.isNew ? 'new' : undefined)} onRowClick={open} />"
+        },
+        {
+          "title": "Selection with a refused row",
+          "code": "<KeyedTable … selection={{ selected, onChange: setSelected, isSelectable: (r) => r.ok || 'Why not' }} />"
+        },
+        {
+          "title": "Error with retry, and loading",
+          "code": "<KeyedTable … error=\"The pumps could not be read.\" onRetry={reload} />\n<KeyedTable … loading />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
       "designTokens": []
     },
     {
@@ -8953,29 +8988,6 @@
       "designTokens": []
     },
     {
-      "id": "iot-alert-severity-badge",
-      "name": "AlertSeverityBadge",
-      "layer": "domain",
-      "category": "Domain",
-      "filePath": "modules/domains/iot/alert/AlertSeverityBadge.tsx",
-      "abbr": "AS",
-      "description": "Alert severity indicator — Info, Warning, or Critical.",
-      "source": "'use client';\nimport { Badge } from '@/modules/ui/Badge';\nimport type { AlertSeverity } from '../types';\n\nexport function AlertSeverityBadge({ severity, size = 'md', className }) {\n  // ...\n}",
-      "variants": [
-        {
-          "title": "All severities",
-          "code": "<AlertSeverityBadge severity=\"INFO\" />\n<AlertSeverityBadge severity=\"WARNING\" />\n<AlertSeverityBadge severity=\"CRITICAL\" />"
-        },
-        {
-          "title": "Small",
-          "code": "<AlertSeverityBadge severity=\"WARNING\" size=\"sm\" />\n<AlertSeverityBadge severity=\"CRITICAL\" size=\"sm\" />"
-        }
-      ],
-      "status": "stable",
-      "since": "2026-05",
-      "designTokens": []
-    },
-    {
       "id": "iot-device-card",
       "name": "DeviceCard",
       "layer": "domain",
@@ -9118,45 +9130,440 @@
       "designTokens": []
     },
     {
-      "id": "iot-alert-detail-header",
-      "name": "AlertDetailHeader",
+      "id": "iot-alarm-severity-badge",
+      "name": "AlarmSeverityBadge",
       "layer": "domain",
       "category": "Domain",
-      "filePath": "modules/domains/iot/alert/AlertDetailHeader.tsx",
-      "abbr": "AH",
-      "description": "Header for an alert detail page: severity + status badges, device link, opened timestamp, action buttons.",
-      "source": "import { AlertDetailHeader } from '@/modules/domains/iot/alert/AlertDetailHeader';\n<AlertDetailHeader title=\"...\" severity=\"CRITICAL\" status=\"OPEN\" deviceName=\"...\" openedAt={date} onAcknowledge={...} />",
+      "filePath": "modules/domains/iot/alarm/AlarmSeverityBadge.tsx",
+      "abbr": "AS",
+      "description": "The five alarm severities of OD-9 (Critical, Major, Minor, Warning, Info), each with its own icon and tone from alarm-severity.ts. Renamed from AlertSeverityBadge (OD-9).",
+      "source": "import { AlarmSeverityBadge } from '@/modules/domains/iot';\n<AlarmSeverityBadge severity=\"CRITICAL\" />",
       "variants": [
         {
-          "title": "Critical / open",
-          "code": "<AlertDetailHeader title=\"…\" severity=\"CRITICAL\" status=\"OPEN\" deviceName=\"…\" openedAt={date} />"
+          "title": "All five levels",
+          "code": "<AlarmSeverityBadge severity=\"MAJOR\" />"
         },
         {
-          "title": "Warning / acknowledged",
-          "code": "<AlertDetailHeader severity=\"WARNING\" status=\"ACKNOWLEDGED\" />"
+          "title": "Small and icon only",
+          "code": "<AlarmSeverityBadge severity=\"CRITICAL\" iconOnly />"
         }
       ],
-      "status": "stable",
-      "since": "2026-05",
+      "status": "beta",
+      "since": "2026-10",
       "designTokens": []
     },
     {
-      "id": "iot-alert-event-timeline",
-      "name": "AlertEventTimeline",
+      "id": "iot-alarm-status-pill",
+      "name": "AlarmStatusPill",
       "layer": "domain",
       "category": "Domain",
-      "filePath": "modules/domains/iot/alert/AlertEventTimeline.tsx",
-      "abbr": "AE",
-      "description": "Chronological event log for an alert: opened → acknowledged → resolved, with operator notes.",
-      "source": "import { AlertEventTimeline } from '@/modules/domains/iot/alert/AlertEventTimeline';\n<AlertEventTimeline events={[{ eventId, kind: 'opened', by, at, note }]} />",
+      "filePath": "modules/domains/iot/alarm/AlarmStatusPill.tsx",
+      "abbr": "AP",
+      "description": "An alarm status (Open, Acknowledged, Resolved) as a pill.",
+      "source": "<AlarmStatusPill status=\"ACKNOWLEDGED\" />",
       "variants": [
         {
-          "title": "Five event kinds",
-          "code": "<AlertEventTimeline events={[{ kind: 'opened', ... }, { kind: 'resolved', ... }]} />"
+          "title": "Statuses",
+          "code": "<AlarmStatusPill status=\"OPEN\" />"
+        },
+        {
+          "title": "Small, translated",
+          "code": "<AlarmStatusPill status=\"OPEN\" size=\"sm\" labels={{ OPEN: 'Açık' }} />"
         }
       ],
-      "status": "stable",
-      "since": "2026-05",
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-alarm-detail-header",
+      "name": "AlarmDetailHeader",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/alarm/AlarmDetailHeader.tsx",
+      "abbr": "AH",
+      "description": "An alarm page header with real actions: acknowledge and clear return promises (pending state, every action disabled while one runs, result announced), each optionally with a note. Renamed from AlertDetailHeader (OD-9).",
+      "source": "<AlarmDetailHeader title={a.title} severity={a.severity} status={a.status} deviceName={a.deviceName} openedAt={a.openedAt}\n  onAcknowledge={(note) => api.acknowledge([id], note)} onClear={(note) => api.clear([id], note)} onOpenRunbook={openRunbook} />",
+      "variants": [
+        {
+          "title": "Open, with actions (pending for 1 s)",
+          "code": "<AlarmDetailHeader … onAcknowledge={ack} onClear={clear} />"
+        },
+        {
+          "title": "Failing action, flapping with topic",
+          "code": "<AlarmDetailHeader status=\"ACKNOWLEDGED\" flapping topic=\"sensors/hall-2/inlet\" onClear={clear} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-alarm-event-timeline",
+      "name": "AlarmEventTimeline",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/alarm/AlarmEventTimeline.tsx",
+      "abbr": "AE",
+      "description": "An alarm history on the generic Timeline: opened, severity changes, acknowledge and clear with notes, notifications, throttles, mutes, flapping; a note box with onAddNote. Renamed from AlertEventTimeline (OD-9).",
+      "source": "<AlarmEventTimeline events={events} onAddNote={(text) => api.comment(id, text)} />",
+      "variants": [
+        {
+          "title": "With a note box",
+          "code": "<AlarmEventTimeline events={events} onAddNote={addNote} />"
+        },
+        {
+          "title": "Read only, empty",
+          "code": "<AlarmEventTimeline events={[]} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-alarm-table",
+      "name": "AlarmTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/alarm/AlarmTable.tsx",
+      "abbr": "AR",
+      "description": "The body of a dashboard alarm table (iot.alarm-table): the rows a host delivers, viewer-side severity chips (the five levels, no re-query), status pills, relative times, a row cap, keyboard row focus, an optional row action, and rows that fade out once resolved.",
+      "source": "<AlarmTable rows={data.rows.rows} maxRows={settings.maxRows} onRowClick={onRowClick} rowAction={{ label: 'Acknowledge', onRun: ack }} />",
+      "variants": [
+        {
+          "title": "Rows with chips and a row action",
+          "code": "<AlarmTable rows={rows} rowAction={…} />"
+        },
+        {
+          "title": "Loading, error, empty",
+          "code": "<AlarmTable rows={[]} loading />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-alarm-list-view",
+      "name": "AlarmListView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/alarm/AlarmListView.tsx",
+      "abbr": "AL",
+      "description": "The alarm list through the IoT adapter: count chips, status / severity filters and search, server paging, selection with bulk acknowledge / clear sharing one note, live arrivals (\"N new alarms\") and a 30 s re-read without a live source.",
+      "source": "<IotAdapterProvider adapter={adapter} live={live}><AlarmListView hrefs={{ alarm, device }} onQueryChange={toUrl} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "Fixture adapter",
+          "code": "<AlarmListView hrefs={hrefs} />"
+        },
+        {
+          "title": "Failing adapter",
+          "code": "<AlarmListView hrefs={hrefs} embedded />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-alarm-detail-view",
+      "name": "AlarmDetailView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/alarm/AlarmDetailView.tsx",
+      "abbr": "AD",
+      "description": "One alarm through the adapter: header with optimistic acknowledge / clear (rolled back with a toast on refusal), the timeline with a note box, a runbook drawer and a Related panel (device, what raised it, the topic).",
+      "source": "<AlarmDetailView alarmId={id} hrefs={{ device }} />",
+      "variants": [
+        {
+          "title": "Fixture adapter",
+          "code": "<AlarmDetailView alarmId=\"a1\" />"
+        },
+        {
+          "title": "Not readable",
+          "code": "<AlarmDetailView alarmId=\"missing\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-alarm-bell-menu",
+      "name": "AlarmBellMenu",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/alarm/AlarmBellMenu.tsx",
+      "abbr": "BM",
+      "description": "The IoT bell: the count of alarms not resolved (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, and View all.",
+      "source": "<AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => `/alarms/${id}` }} />",
+      "variants": [
+        {
+          "title": "With open alarms",
+          "code": "<AlarmBellMenu hrefs={hrefs} />"
+        },
+        {
+          "title": "Five at most",
+          "code": "<AlarmBellMenu hrefs={hrefs} limit={2} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-online-dot",
+      "name": "DeviceOnlineDot",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceOnlineDot.tsx",
+      "abbr": "DO",
+      "description": "A device connection as a dot and a short text: online, offline with last seen, last seen only (OD-57, never a red offline), and stale after a threshold.",
+      "source": "<DeviceOnlineDot state=\"ONLINE\" lastSeenAt={row.lastSeenAt} staleAfterSeconds={600} />",
+      "variants": [
+        {
+          "title": "States",
+          "code": "<DeviceOnlineDot state=\"LAST_SEEN\" lastSeenAt={t} />"
+        },
+        {
+          "title": "Stale and compact",
+          "code": "<DeviceOnlineDot state=\"ONLINE\" staleAfterSeconds={600} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-connection-badge",
+      "name": "DeviceConnectionBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceConnectionBadge.tsx",
+      "abbr": "DN",
+      "description": "Online / offline with a relative last seen and the last disconnect reason in a tooltip; follows the online rule (null = last seen only) and shows Quarantined (OD-1, counts toward the limit) or Disabled first.",
+      "source": "<DeviceConnectionBadge online={d.online} status={d.status} lastActivityAt={d.lastActivityAt} lastDisconnectReason={d.lastDisconnectReason} />",
+      "variants": [
+        {
+          "title": "Connection",
+          "code": "<DeviceConnectionBadge online={false} lastDisconnectReason=\"keepalive_timeout\" />"
+        },
+        {
+          "title": "Quarantined and disabled",
+          "code": "<DeviceConnectionBadge online status=\"QUARANTINED\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-detail-header",
+      "name": "DeviceDetailHeader",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceDetailHeader.tsx",
+      "abbr": "DE",
+      "description": "A device page header: name, label, connection badge, gateway tag, serial, profile, firmware and protocol, and an actions slot the host fills. There is no factory-reset action (OD-8).",
+      "source": "<DeviceDetailHeader device={device} profileHref={profileHref} actions={<Button>Copy ID</Button>} />",
+      "variants": [
+        {
+          "title": "Online device",
+          "code": "<DeviceDetailHeader device={device} />"
+        },
+        {
+          "title": "Quarantined, with Activate",
+          "code": "<DeviceDetailHeader device={quarantined} actions={<Button>Activate</Button>} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-credential-panel",
+      "name": "DeviceCredentialPanel",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceCredentialPanel.tsx",
+      "abbr": "CD",
+      "description": "A device credential without its secret (type, client id, username, X.509 fingerprint and expiry) with Rotate behind a Popconfirm; a newly issued secret is shown once (masked, copyable) and never stored.",
+      "source": "<DeviceCredentialPanel credential={c} secret={issued} onSecretDismiss={() => setIssued(null)} onRotate={rotate} />",
+      "variants": [
+        {
+          "title": "Token, just rotated",
+          "code": "<DeviceCredentialPanel credential={c} secret={{ token }} />"
+        },
+        {
+          "title": "X.509 and MQTT basic",
+          "code": "<DeviceCredentialPanel credential={{ type: 'X509_CERTIFICATE', certFingerprint }} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-attribute-table",
+      "name": "DeviceAttributeTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceAttributeTable.tsx",
+      "abbr": "DA",
+      "description": "Device attributes in three scope tabs; Server and Shared are edited inline as validated JSON, Shared keys show the desired/reported state, Client is read-only, secret keys are write-only.",
+      "source": "<DeviceAttributeTable entries={entries} canWrite onSave={save} onDelete={remove} onScopeOpen={load} />",
+      "variants": [
+        {
+          "title": "Writable, shared tab",
+          "code": "<DeviceAttributeTable entries={entries} canWrite defaultScope=\"SHARED\" />"
+        },
+        {
+          "title": "Read only, loading client",
+          "code": "<DeviceAttributeTable entries={entries} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-desired-reported-badge",
+      "name": "DesiredReportedBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DesiredReportedBadge.tsx",
+      "abbr": "DR",
+      "description": "The sync state of a shared attribute: in sync, pending, rejected (with the device reason), drifted, unknown key.",
+      "source": "<DesiredReportedBadge state=\"rejected\" reason=\"value_out_of_range\" />",
+      "variants": [
+        {
+          "title": "States",
+          "code": "<DesiredReportedBadge state=\"pending\" />"
+        },
+        {
+          "title": "Rejected with a reason, medium",
+          "code": "<DesiredReportedBadge state=\"rejected\" reason=\"value_out_of_range\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-connection-timeline",
+      "name": "DeviceConnectionTimeline",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceConnectionTimeline.tsx",
+      "abbr": "DK",
+      "description": "A device connection log on the generic Timeline: connects, disconnects with the protocol reason, takeovers and rule switches, paged.",
+      "source": "<DeviceConnectionTimeline events={events} hasMore={more} onLoadMore={next} />",
+      "variants": [
+        {
+          "title": "Events",
+          "code": "<DeviceConnectionTimeline events={events} />"
+        },
+        {
+          "title": "Empty",
+          "code": "<DeviceConnectionTimeline events={[]} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-table",
+      "name": "DeviceTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceTable.tsx",
+      "abbr": "DX",
+      "description": "The body of a dashboard device table (iot.device-table): rows a host delivers, online dot with last seen and a stale threshold, telemetry key columns with unit and decimals, keyboard row focus and a row click.",
+      "source": "<DeviceTable rows={data.rows.rows} keyColumns={[{ key: 'temperature', unit: '°C', decimals: 1 }]} staleAfterSeconds={600} onRowClick={onRowClick} />",
+      "variants": [
+        {
+          "title": "With key columns",
+          "code": "<DeviceTable rows={rows} keyColumns={keys} />"
+        },
+        {
+          "title": "Empty and failing",
+          "code": "<DeviceTable rows={[]} error=\"…\" onRetry={retry} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-list-view",
+      "name": "DeviceListView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceListView.tsx",
+      "abbr": "DY",
+      "description": "The device list through the IoT adapter: search and filters, server paging, connection badge, the Quarantined (n) quick filter with bulk Activate, New device (token shown once), live connection updates and a 30 s re-read without a live source.",
+      "source": "<IotAdapterProvider adapter={adapter} live={live}><DeviceListView hrefs={{ device }} onQueryChange={toUrl} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "Fixture adapter",
+          "code": "<DeviceListView hrefs={hrefs} />"
+        },
+        {
+          "title": "Failing adapter",
+          "code": "<DeviceListView hrefs={hrefs} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-detail-view",
+      "name": "DeviceDetailView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/DeviceDetailView.tsx",
+      "abbr": "DZ",
+      "description": "One device through the adapter: header with copy id, Activate and delete, tabs Overview, Attributes, Credentials (only with the capability) and Connections, plus tabs other modules contribute.",
+      "source": "<DeviceDetailView deviceId={id} extraTabs={contributedTabs} tab={tab} onTabChange={setTab} />",
+      "variants": [
+        {
+          "title": "Fixture adapter",
+          "code": "<DeviceDetailView deviceId=\"d1\" />"
+        },
+        {
+          "title": "Not readable",
+          "code": "<DeviceDetailView deviceId=\"missing\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-new-device-drawer",
+      "name": "NewDeviceDrawer",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/device/NewDeviceDrawer.tsx",
+      "abbr": "NE",
+      "description": "New device: name, label, profile and gateway flag; on success the access token is shown once with a link to the device, and leaves with the drawer.",
+      "source": "<NewDeviceDrawer open profiles={profiles} deviceHref={href} onClose={close} onCreated={reload} />",
+      "variants": [
+        {
+          "title": "Open it",
+          "code": "<NewDeviceDrawer open … />"
+        },
+        {
+          "title": "Inside DeviceListView",
+          "code": "<DeviceListView hrefs={hrefs} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
       "designTokens": []
     },
     {

@@ -1,5 +1,4 @@
-import type { Device, CloudWorkspace, Alert, TelemetryReading, RuleChain } from '@/modules/domains/iot/types';
-import type { AlertEvent } from '@/modules/domains/iot/alert/AlertEventTimeline';
+import type { Device, CloudWorkspace, Alarm, AlarmEvent, TelemetryReading, RuleChain } from '@/modules/domains/iot/types';
 import type { LogLevel } from '@/modules/domains/iot/telemetry/LogStreamRow';
 
 /* ─── Cloud Workspaces ─── */
@@ -164,65 +163,95 @@ export const DEVICES: Device[] = [
   },
 ];
 
-/* ─── Alerts ─── */
+/* ─── Alarms (OD-9: the term is Alarm, five severities; renamed from ALERTS) ─── */
 
-export const ALERTS: Alert[] = [
+export const ALARMS: Alarm[] = [
   {
-    alertId: 'alert-001',
+    alarmId: 'alarm-001',
+    type: 'coolant_high',
     deviceId: 'dev-003',
     deviceName: 'Coolant Temp Monitor',
-    cloudId: 'cloud-001',
     severity: 'CRITICAL',
     status: 'OPEN',
     title: 'Temperature threshold exceeded',
     message: 'Coolant temperature reached 94°C — above the critical threshold of 85°C. Immediate inspection required.',
-    createdAt: new Date(Date.now() - 720_000),
+    origin: { kind: 'profileRule', profileId: 'prof-sensor', ruleId: 'rule-coolant', ruleName: 'Coolant > 85 °C' },
+    openedAt: new Date(Date.now() - 720_000),
+    occurrences: 14,
+    flapping: false,
+    runbook: '1. Check the coolant pump pressure on the HMI.\n2. If the pressure is normal, compare with the backup probe.\n3. Replace the probe if the two differ by more than 3 °C.\n4. Clear the alarm with a note.',
   },
   {
-    alertId: 'alert-002',
+    alarmId: 'alarm-002',
+    type: 'vibration_spike',
     deviceId: 'dev-001',
     deviceName: 'Press Line Sensor A1',
-    cloudId: 'cloud-001',
-    severity: 'WARNING',
+    severity: 'MAJOR',
     status: 'ACKNOWLEDGED',
     title: 'Vibration spike detected',
     message: 'Vibration reading exceeded 8.2 G on axis Z. Sensor A1 may require recalibration.',
-    createdAt: new Date(Date.now() - 3_600_000),
+    origin: { kind: 'flow', flowId: 'flow-press', nodeId: 'node-vib', flowName: 'Press line', nodeName: 'Vibration alarm' },
+    topic: 'sensors/hall-2/vibration',
+    openedAt: new Date(Date.now() - 3_600_000),
     acknowledgedAt: new Date(Date.now() - 1_800_000),
+    occurrences: 3,
+    flapping: false,
   },
   {
-    alertId: 'alert-003',
+    alarmId: 'alarm-003',
+    type: 'maintenance',
     deviceId: 'dev-005',
     deviceName: 'Loading Dock Scale',
-    cloudId: 'cloud-002',
     severity: 'INFO',
     status: 'RESOLVED',
     title: 'Scheduled maintenance started',
     message: 'Device entered maintenance mode at 06:00 UTC for firmware upgrade to v2.1.0.',
-    createdAt: new Date(Date.now() - 3_600_000),
+    origin: { kind: 'operator' },
+    openedAt: new Date(Date.now() - 3_600_000),
     resolvedAt: new Date(Date.now() - 900_000),
+    occurrences: 1,
+    flapping: false,
   },
   {
-    alertId: 'alert-004',
+    alarmId: 'alarm-004',
+    type: 'queue_depth',
     deviceId: 'dev-002',
     deviceName: 'Assembly Robot Gateway',
-    cloudId: 'cloud-001',
-    severity: 'WARNING',
+    severity: 'MINOR',
     status: 'OPEN',
     title: 'High message queue depth',
     message: 'MQTT queue depth at 4,800 messages. Downstream consumer may be falling behind.',
-    createdAt: new Date(Date.now() - 900_000),
+    origin: { kind: 'profileRule', profileId: 'prof-gateway', ruleId: 'rule-queue', ruleName: 'Queue depth > 4 000' },
+    openedAt: new Date(Date.now() - 900_000),
+    occurrences: 2,
+    flapping: true,
   },
   {
-    alertId: 'alert-005',
+    alarmId: 'alarm-005',
+    type: 'device_offline',
     deviceId: 'dev-007',
     deviceName: 'Dev Prototype X',
-    cloudId: 'cloud-003',
-    severity: 'INFO',
+    severity: 'WARNING',
     status: 'OPEN',
     title: 'Device went offline',
     message: 'Device has not published telemetry for 48 hours. Expected during lab shutdown.',
-    createdAt: new Date(Date.now() - 86_400_000 * 2),
+    origin: { kind: 'profileRule', profileId: 'prof-sensor', ruleId: 'rule-offline', ruleName: 'Inactivity 30 min' },
+    openedAt: new Date(Date.now() - 86_400_000 * 2),
+    occurrences: 1,
+    flapping: false,
+  },
+  {
+    alarmId: 'alarm-006',
+    type: 'battery_low',
+    deviceId: 'dev-001',
+    deviceName: 'Press Line Sensor A1',
+    severity: 'INFO',
+    status: 'OPEN',
+    title: 'Backup battery below 30 %',
+    origin: { kind: 'profileRule', profileId: 'prof-sensor', ruleId: 'rule-battery', ruleName: 'Battery < 30 %' },
+    openedAt: new Date(Date.now() - 5_400_000),
+    occurrences: 1,
+    flapping: false,
   },
 ];
 
@@ -455,10 +484,10 @@ export const DEVICE_METRICS: Record<string, DeviceMetricsBundle> = {
   },
 };
 
-/* ─── Alert detail event log (for /alerts/[id]) ─── */
+/* ─── Alarm timelines (for /alarms/[id]); every seeded alarm has one ─── */
 
-export const ALERT_EVENTS: Record<string, AlertEvent[]> = {
-  'alert-001': [
+export const ALARM_EVENTS: Record<string, AlarmEvent[]> = {
+  'alarm-001': [
     {
       eventId: 'evt-1',
       kind: 'opened',
@@ -481,7 +510,7 @@ export const ALERT_EVENTS: Record<string, AlertEvent[]> = {
       note: 'Investigating — coolant pump pressure looks normal. Possible sensor fault.',
     },
   ],
-  'alert-002': [
+  'alarm-002': [
     {
       eventId: 'evt-1',
       kind: 'opened',
@@ -496,5 +525,21 @@ export const ALERT_EVENTS: Record<string, AlertEvent[]> = {
       at: new Date(Date.now() - 1_800_000).toISOString(),
       note: 'Investigating; checking recalibration log.',
     },
+  ],
+  'alarm-003': [
+    { eventId: 'evt-1', kind: 'opened', by: 'operator anna.s', at: new Date(Date.now() - 3_600_000).toISOString(), note: 'Maintenance window opened by hand.' },
+    { eventId: 'evt-2', kind: 'resolved', by: 'anna.s', at: new Date(Date.now() - 900_000).toISOString(), note: 'Firmware v2.1.0 installed, scale back in service.' },
+  ],
+  'alarm-004': [
+    { eventId: 'evt-1', kind: 'opened', by: 'default flow', at: new Date(Date.now() - 900_000).toISOString() },
+    { eventId: 'evt-2', kind: 'flapping', by: 'default flow', at: new Date(Date.now() - 600_000).toISOString(), note: 'Cleared and re-opened 4 times in 10 minutes; clears are held back.' },
+  ],
+  'alarm-005': [
+    { eventId: 'evt-1', kind: 'opened', by: 'default flow', at: new Date(Date.now() - 86_400_000 * 2).toISOString() },
+    { eventId: 'evt-2', kind: 'notified', by: 'platform', at: new Date(Date.now() - 86_400_000 * 2 + 5_000).toISOString() },
+  ],
+  'alarm-006': [
+    { eventId: 'evt-1', kind: 'opened', by: 'default flow', at: new Date(Date.now() - 5_400_000).toISOString() },
+    { eventId: 'evt-2', kind: 'severity_changed', from: 'WARNING', to: 'INFO', by: 'default flow', at: new Date(Date.now() - 3_000_000).toISOString() },
   ],
 };

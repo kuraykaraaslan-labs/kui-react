@@ -4,6 +4,16 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+### Deprecated
+
+- IoT (OD-9, the term is Alarm): `AlertSeverityBadge`, `AlertDetailHeader`, `AlertEventTimeline`, the types `AlertEvent`,
+  `AlertEventKind`, `AlertSeverity`, `AlertStatus`, `Alert` and the schemas `AlertSeverityEnum`, `AlertStatusEnum`, `AlertSchema`
+  are aliases of their `Alarm*` names (`modules/domains/iot/alarm/`, `types/alarm.ts`), and `/theme/iot/alerts/**` redirects to
+  `/theme/iot/alarms/**`. The aliases and the redirects are removed in the next minor. `AlarmSeverityBadge` has five levels
+  (CRITICAL, MAJOR, MINOR, WARNING, INFO); the old three values stay valid. `AlarmDetailHeader`'s `onResolve` is now `onClear`
+  (the old name still works for one release). The demo seed `ALERTS` / `ALERT_EVENTS` / `alert-00n` is `ALARMS` / `ALARM_EVENTS` /
+  `alarm-00n`.
+
 ### Removed
 
 - WidgetKit: the process symbol library is reduced to four home symbols, drawn as before: `home.tv` (television),
@@ -18,6 +28,17 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `KeyedTable` (`modules/ui/`): a rows-in, events-out table for live data: stable row keys, keyboard row focus (Arrow keys,
+  Home / End, Enter / Space), per-row state (`new` highlighted, `leaving` fading), optional selection, loading / error (retry) /
+  empty states and columns that hide below a breakpoint.
+- `TabGroup`: `onTabChange(tabId)`, called when the user activates another tab (to keep it in the URL).
+- IoT platform screens (docs/concepts/iot-platform phases 00, 01, 03, 07): the adapter contract (`IotAdapter`,
+  `IotAdapterProvider`, `IotLive`, `useLiveOrPoll`, `IOT_MESSAGES`), the alarm components (`AlarmSeverityBadge`,
+  `AlarmStatusPill`, `AlarmDetailHeader` with async actions and notes, `AlarmEventTimeline` with a note box, `AlarmTable`,
+  `AlarmListView`, `AlarmDetailView`, `AlarmBellMenu`) and the device components (`DeviceOnlineDot`, `DeviceConnectionBadge`,
+  `DeviceDetailHeader`, `DeviceCredentialPanel` with `IssuedSecretNotice`, `DeviceAttributeTable`, `DesiredReportedBadge`,
+  `DeviceConnectionTimeline`, `DeviceTable`, `DeviceListView`, `DeviceDetailView`, `NewDeviceDrawer`); `DeviceStatusBadge` gained
+  `QUARANTINED` (OD-1). The IoT demo runs them on an in-memory adapter and live source.
 - Page navigation building blocks (next-boilerplate phase 07-dashboard 29, the board title's page menu and
   drill-down path), all optional so current menus and trails render as before:
   - `DropdownMenu`: `{ type: 'heading', label }` entries (`DropdownHeading`, a muted uppercase label that is

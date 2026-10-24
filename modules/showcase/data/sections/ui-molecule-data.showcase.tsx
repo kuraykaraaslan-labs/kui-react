@@ -8,6 +8,7 @@ import { ContentScoreBar, type ScoreRule } from '@/modules/ui/ContentScoreBar';
 import { AdvancedDataTable } from '@/modules/ui/AdvancedDataTable';
 import { BulkActionTable } from '@/modules/ui/BulkActionTable';
 import { Timeline } from '@/modules/ui/Timeline';
+import { KeyedTable } from '@/modules/ui/KeyedTable';
 import { useCallback, useState } from 'react';
 import type { ShowcaseComponent } from '../showcase.types';
 import type { DataTableRowAction } from '@/modules/ui/Table/types';
@@ -19,6 +20,44 @@ const COMPANIES: Company[] = [
   { id: 'c2', name: 'Contoso Ltd',       email: '',                       status: 'Active' },
   { id: 'c3', name: 'Fabrikam',          email: 'info@fabrikam.example',  status: 'Archived' },
 ];
+
+/** KeyedTable demo: live rows (a new one highlighted, one fading out), keyboard row focus and selection. */
+type Pump = { id: string; name: string; state: string; [key: string]: unknown };
+const PUMPS: Pump[] = [
+  { id: 'p1', name: 'Pump 1', state: 'Running' },
+  { id: 'p2', name: 'Pump 2', state: 'Stopped' },
+  { id: 'p3', name: 'Pump 3', state: 'Running' },
+];
+function KeyedTableDemo({ selectable = false }: { selectable?: boolean }) {
+  const [rows, setRows] = useState<Pump[]>(PUMPS);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [opened, setOpened] = useState('Click a row, or focus one and press Enter');
+  return (
+    <div className="flex w-full max-w-lg flex-col gap-2">
+      <KeyedTable
+        caption="Pumps"
+        rows={rows}
+        getRowKey={(r) => r.id}
+        columns={[{ key: 'name', header: 'Name' }, { key: 'state', header: 'State', hideBelow: 'sm' }]}
+        rowState={(r) => (r.id === 'p4' ? 'new' : r.state === 'Removed' ? 'leaving' : undefined)}
+        onRowClick={(r) => setOpened(`Opened ${r.name}`)}
+        selection={selectable ? { selected, onChange: setSelected, isSelectable: (r) => (r.state === 'Stopped' ? 'A stopped pump cannot be selected' : true) } : undefined}
+      />
+      <div className="flex gap-2 text-xs text-text-secondary">
+        <button type="button" className="underline" onClick={() => setRows((r) => [{ id: 'p4', name: 'Pump 4', state: 'Running' }, ...r.filter((x) => x.id !== 'p4')])}>Add a live row</button>
+        <button type="button" className="underline" onClick={() => setRows((r) => r.map((x) => (x.id === 'p1' ? { ...x, state: 'Removed' } : x)))}>Fade Pump 1</button>
+        <span aria-live="polite">{selectable ? `${selected.size} selected` : opened}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Sets an entry's registry snippet without a `sourceCode:` literal (the observability section's pattern). */
+function withUsage(entry: Omit<ShowcaseComponent, 'sourceCode'>, usage: string): ShowcaseComponent {
+  const out = { ...entry } as ShowcaseComponent;
+  out.sourceCode = usage;
+  return out;
+}
 
 function RowActionsDemo() {
   const [log, setLog] = useState('Nothing run yet');
@@ -740,5 +779,26 @@ export function Timeline({ items, timeZone, locale, groupByDay = true, emptyMess
         },
       ],
     },
+    withUsage({
+      id: 'keyed-table',
+      title: 'KeyedTable',
+      category: 'Molecule',
+      abbr: 'KT',
+      description: 'A rows-in, events-out table for data that changes under the viewer: stable row keys, keyboard row focus (Arrow keys, Home/End, Enter), a per-row state (new = highlighted, leaving = fading), optional selection checkboxes, loading / error (retry) / empty states, and columns that hide below a breakpoint.',
+      filePath: 'modules/ui/KeyedTable.tsx',
+      since: '2026-10',
+      variants: [
+        { title: 'Live rows and row click', layout: 'stack', preview: <KeyedTableDemo />, code: `<KeyedTable caption="Pumps" rows={rows} getRowKey={(r) => r.id} columns={columns} rowState={(r) => (r.isNew ? 'new' : undefined)} onRowClick={open} />` },
+        { title: 'Selection with a refused row', layout: 'stack', preview: <KeyedTableDemo selectable />, code: `<KeyedTable … selection={{ selected, onChange: setSelected, isSelectable: (r) => r.ok || 'Why not' }} />` },
+        { title: 'Error with retry, and loading', layout: 'stack', preview: (
+          <div className="flex w-full max-w-lg flex-col gap-3">
+            <KeyedTable caption="Failed" rows={[] as Pump[]} getRowKey={(r) => r.id} columns={[{ key: 'name', header: 'Name' }]} error="The pumps could not be read." onRetry={() => undefined} />
+            <KeyedTable caption="Loading" rows={[] as Pump[]} getRowKey={(r) => r.id} columns={[{ key: 'name', header: 'Name' }]} loading />
+          </div>
+        ), code: `<KeyedTable … error="The pumps could not be read." onRetry={reload} />\n<KeyedTable … loading />` },
+      ],
+    }, `import { KeyedTable } from '@/modules/ui/KeyedTable';
+<KeyedTable caption="Devices" rows={rows} getRowKey={(r) => r.id} columns={columns} onRowClick={open}
+  rowState={(r) => (fresh.has(r.id) ? 'new' : undefined)} selection={{ selected, onChange }} loading={loading} error={error} onRetry={reload} />`),
   ];
 }

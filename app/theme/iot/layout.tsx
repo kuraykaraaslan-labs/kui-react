@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { AppShell } from '@/modules/app/AppShell';
 import { AppSidebar, type AppSidebarNavGroup } from '@/modules/app/AppSidebar';
-import { Button } from '@/modules/ui/Button';
 import { Avatar } from '@/modules/ui/Avatar';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -17,7 +16,14 @@ import {
   faDiagramProject,
   faTableCells,
 } from '@fortawesome/free-solid-svg-icons';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { IotAdapterProvider } from '@/modules/domains/iot/api/IotAdapterProvider';
+import type { IotNotify } from '@/modules/domains/iot/api/IotAdapterProvider';
+import { AlarmBellMenu } from '@/modules/domains/iot/alarm/AlarmBellMenu';
+import { Toaster, toast } from '@/modules/ui/Toast';
+import { createDemoAdapter, startDemoSimulation } from './_demo/demo-adapter';
+import { createDemoLive } from './_demo/demo-live';
 
 const NAV_GROUPS: AppSidebarNavGroup[] = [
   {
@@ -25,7 +31,7 @@ const NAV_GROUPS: AppSidebarNavGroup[] = [
       { id: 'dashboard',  label: 'Dashboard',   icon: <FontAwesomeIcon icon={faServer}    className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot' },
       { id: 'widgets',    label: 'Widget gallery', icon: <FontAwesomeIcon icon={faTableCells} className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/widgets' },
       { id: 'devices',    label: 'Devices',      icon: <FontAwesomeIcon icon={faMicrochip}       className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/devices',   badge: 7 },
-      { id: 'alerts',     label: 'Alerts',       icon: <FontAwesomeIcon icon={faBell}           className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/alerts',    badge: 3 },
+      { id: 'alarms',     label: 'Alarms',       icon: <FontAwesomeIcon icon={faBell}           className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/alarms' },
       { id: 'workspaces', label: 'Workspaces',   icon: <FontAwesomeIcon icon={faCloud}          className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/workspaces' },
       { id: 'rulesets',   label: 'Rulesets',     icon: <FontAwesomeIcon icon={faDiagramProject} className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/rulesets'   },
       { id: 'settings',   label: 'Settings',     icon: <FontAwesomeIcon icon={faGear}           className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot'            },
@@ -73,8 +79,27 @@ function SidebarFooter({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+const notify: IotNotify = ({ tone, message }) => {
+  if (tone === 'success') toast.success(message);
+  else if (tone === 'error') toast.error(message);
+  else toast.info(message);
+};
+
+/** The sidebar entry of the current route (the social theme's `resolveActiveId` precedent). */
+function activeIdOf(pathname: string | null): string {
+  const seg = (pathname ?? '').replace(/^\/theme\/iot\/?/, '').split('/')[0];
+  if (!seg) return 'dashboard';
+  return seg === 'alerts' ? 'alarms' : seg;
+}
+
 export default function IoTThemeLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  // One demo store and live source for the whole demo session (phase 00 §0.5).
+  const live = useMemo(() => createDemoLive(), []);
+  const adapter = useMemo(() => createDemoAdapter(live), [live]);
+  useEffect(() => startDemoSimulation(adapter), [adapter]);
   return (
+    <IotAdapterProvider adapter={adapter} live={live} notify={notify} locale="en-GB">
     <AppShell
       mobileSidebarTitle="Nexus"
       logo={
@@ -88,7 +113,7 @@ export default function IoTThemeLayout({ children }: { children: React.ReactNode
       sidebar={
         <AppSidebar
           navGroups={NAV_GROUPS}
-          activeId="dashboard"
+          activeId={activeIdOf(pathname)}
           searchable
           footer={({ collapsed }) => <SidebarFooter collapsed={collapsed} />}
         />
@@ -97,12 +122,7 @@ export default function IoTThemeLayout({ children }: { children: React.ReactNode
         <div className="flex w-full items-center justify-between">
           <span className="text-sm font-semibold text-text-primary">Smart Factory Alpha</span>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="xs" iconOnly aria-label="Notifications" as="a" href="/theme/iot/alerts">
-              <span className="relative">
-                <FontAwesomeIcon icon={faBell} className="w-4 h-4" aria-hidden="true" />
-                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-error ring-2 ring-surface-raised" />
-              </span>
-            </Button>
+            <AlarmBellMenu hrefs={{ alarms: '/theme/iot/alarms', alarm: (id) => `/theme/iot/alarms/${id}` }} />
             <Avatar src="" name="Alex Müller" size="xs" />
           </div>
         </div>
@@ -112,6 +132,8 @@ export default function IoTThemeLayout({ children }: { children: React.ReactNode
       <main id="main-content" className="h-full overflow-y-auto">
         {children}
       </main>
+      <Toaster position="bottom-right" />
     </AppShell>
+    </IotAdapterProvider>
   );
 }

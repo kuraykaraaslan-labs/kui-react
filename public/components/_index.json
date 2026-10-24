@@ -431,6 +431,12 @@
     "category": "Organism",
     "file": "timeline.md"
   },
+  "keyed-table": {
+    "name": "KeyedTable",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "keyed-table.md"
+  },
   "video-player": {
     "name": "VideoPlayer",
     "layer": "ui",
@@ -1805,12 +1811,6 @@
     "category": "Domain",
     "file": "iot-device-type-badge.md"
   },
-  "iot-alert-severity-badge": {
-    "name": "AlertSeverityBadge",
-    "layer": "domain",
-    "category": "Domain",
-    "file": "iot-alert-severity-badge.md"
-  },
   "iot-device-card": {
     "name": "DeviceCard",
     "layer": "domain",
@@ -1847,17 +1847,119 @@
     "category": "Domain",
     "file": "iot-log-stream-row.md"
   },
-  "iot-alert-detail-header": {
-    "name": "AlertDetailHeader",
+  "iot-alarm-severity-badge": {
+    "name": "AlarmSeverityBadge",
     "layer": "domain",
     "category": "Domain",
-    "file": "iot-alert-detail-header.md"
+    "file": "iot-alarm-severity-badge.md"
   },
-  "iot-alert-event-timeline": {
-    "name": "AlertEventTimeline",
+  "iot-alarm-status-pill": {
+    "name": "AlarmStatusPill",
     "layer": "domain",
     "category": "Domain",
-    "file": "iot-alert-event-timeline.md"
+    "file": "iot-alarm-status-pill.md"
+  },
+  "iot-alarm-detail-header": {
+    "name": "AlarmDetailHeader",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-alarm-detail-header.md"
+  },
+  "iot-alarm-event-timeline": {
+    "name": "AlarmEventTimeline",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-alarm-event-timeline.md"
+  },
+  "iot-alarm-table": {
+    "name": "AlarmTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-alarm-table.md"
+  },
+  "iot-alarm-list-view": {
+    "name": "AlarmListView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-alarm-list-view.md"
+  },
+  "iot-alarm-detail-view": {
+    "name": "AlarmDetailView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-alarm-detail-view.md"
+  },
+  "iot-alarm-bell-menu": {
+    "name": "AlarmBellMenu",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-alarm-bell-menu.md"
+  },
+  "iot-device-online-dot": {
+    "name": "DeviceOnlineDot",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-online-dot.md"
+  },
+  "iot-device-connection-badge": {
+    "name": "DeviceConnectionBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-connection-badge.md"
+  },
+  "iot-device-detail-header": {
+    "name": "DeviceDetailHeader",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-detail-header.md"
+  },
+  "iot-device-credential-panel": {
+    "name": "DeviceCredentialPanel",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-credential-panel.md"
+  },
+  "iot-device-attribute-table": {
+    "name": "DeviceAttributeTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-attribute-table.md"
+  },
+  "iot-desired-reported-badge": {
+    "name": "DesiredReportedBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-desired-reported-badge.md"
+  },
+  "iot-device-connection-timeline": {
+    "name": "DeviceConnectionTimeline",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-connection-timeline.md"
+  },
+  "iot-device-table": {
+    "name": "DeviceTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-table.md"
+  },
+  "iot-device-list-view": {
+    "name": "DeviceListView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-list-view.md"
+  },
+  "iot-device-detail-view": {
+    "name": "DeviceDetailView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-detail-view.md"
+  },
+  "iot-new-device-drawer": {
+    "name": "NewDeviceDrawer",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-new-device-drawer.md"
   },
   "nft-rarity-badge": {
     "name": "RarityBadge",

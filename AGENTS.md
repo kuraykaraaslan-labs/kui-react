@@ -121,7 +121,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Toast | `Toast.tsx` | `variant`, `message`, `duration` |
 | Pagination | `Pagination.tsx` | `page`, `total`, `pageSize`, `onChange` |
 | Stepper | `Stepper.tsx` | `steps`, `currentStep` |
-| TabGroup | `TabGroup.tsx` | `tabs` (`order`, `lazy`, `isolate` per tab), `defaultTab`, `lazy`, `isolate` (error boundary + Suspense per panel), `renderError`, `onTabError` |
+| TabGroup | `TabGroup.tsx` | `tabs` (`order`, `lazy`, `isolate` per tab), `defaultTab`, `onTabChange`, `lazy`, `isolate` (error boundary + Suspense per panel), `renderError`, `onTabError` |
 | Breadcrumb | `Breadcrumb.tsx` | `items` (label + href, optional `icon`, `chip`, `tone`), `leading` (first crumb, never collapsed), `maxItems`, `separator`, `renderLink` |
 | Callout | `Callout.tsx` | `variant` (note\|tip\|info\|warning\|danger), `title` (null hides), `icon` (null hides) — docs admonition, `<aside>` not `role="alert"` |
 | TableOfContents | `TableOfContents.tsx` | `items` (`{id,text,depth}`), `minDepth`, `maxDepth`, `activeId` (else scroll-spy via `libs/hooks/useScrollSpy`), `offset` |
@@ -151,6 +151,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Popconfirm | `Popconfirm.tsx` | `trigger`, `title`, `description`, `danger`, `onConfirm`, `onCancel` |
 | RangeSlider | `RangeSlider.tsx` | `value`/`onChange`, `range` (single or `[min,max]`), `min`, `max`, `step` |
 | BulkActionTable | `BulkActionTable.tsx` | `columns`, `rows`, `rowId`, `selected`, `onSelectedChange`, `actions` |
+| KeyedTable | `KeyedTable.tsx` | `columns`, `rows`, `getRowKey`, `caption`, `onRowClick` (keyboard row focus), `rowState` (new / leaving), `selection`, `loading`, `error` + `onRetry`, `emptyText`, `messages` |
 | ServerDataTable | `ServerDataTable.tsx` | `columns`, server-driven `rows`/`total`/`loading`, `onQueryChange` |
 | StatCard | `StatCard.tsx` | `label`, `value`, `accent` |
 | TabButton | `TabButton.tsx` | `active`, `onClick`, `count` |
@@ -288,7 +289,7 @@ Before adding a component to only one repo, check whether it belongs in the othe
 | Fintech | `fintech/` | `WalletCard`, `TransactionRow`, `CryptoPriceCard`, `PortfolioDonutChart` |
 | Food | `food/` | `RestaurantCard`, `MenuItemCard`, `DeliveryStatusBadge` |
 | Forum | `forum/` | `ForumCategoryCard`, `TopicRow`, `ReactionTypeBadge` |
-| IoT | `iot/` | `DeviceCard`, `CloudWorkspaceCard`, `RulesetEditor`, `AlertSeverityBadge` |
+| IoT | `iot/` | `DeviceCard`, `CloudWorkspaceCard`, `RulesetEditor`, `AlarmSeverityBadge`, `DeviceListView`, `AlarmListView` |
 | Jobs | `jobs/` | `JobCard`, `CompanyCard`, `JobMeta`, `ApplicationStatusBadge` |
 | Landing | `landing/` | `HeroSection`, `PricingGrid`, `FeatureCard`, `FaqAccordion` |
 | Media | `media/` | `VideoCard`, `ChannelCard`, `VideoStatusBadge` |

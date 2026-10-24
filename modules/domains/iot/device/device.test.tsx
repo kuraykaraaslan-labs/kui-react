@@ -1,0 +1,226 @@
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { DeviceOnlineDot } from './DeviceOnlineDot';
+import { DeviceConnectionBadge } from './DeviceConnectionBadge';
+import { DeviceDetailHeader } from './DeviceDetailHeader';
+import { DeviceCredentialPanel, IssuedSecretNotice } from './DeviceCredentialPanel';
+import { DeviceAttributeTable, parseValue, valueToText } from './DeviceAttributeTable';
+import { DesiredReportedBadge } from './DesiredReportedBadge';
+import { DeviceConnectionTimeline } from './DeviceConnectionTimeline';
+import { DeviceTable, formatKeyValue } from './DeviceTable';
+import { DeviceStatusBadge } from './DeviceStatusBadge';
+import { onlineStateOf, type DeviceRecord } from '../types/device';
+import { formatRelative, fill } from '../format';
+
+const NOW = new Date('2026-10-24T12:00:00Z').getTime();
+const ago = (ms: number) => new Date(NOW - ms);
+const MIN = 60_000;
+
+const DEVICE: DeviceRecord = {
+  deviceId: 'd1', name: 'Pump 4', label: 'Hall 2', serial: 'RT-1', deviceProfileId: 'p1', profileName: 'Pumps', status: 'ACTIVE',
+  isGateway: true, fwTitle: 'esp32', fwVersion: '1.8.2', protocolMajor: 1, online: false, lastActivityAt: ago(5 * MIN), lastDisconnectReason: 'keepalive_timeout',
+};
+
+describe('format helpers', () => {
+  it('formats relative times and fills placeholders', () => {
+    expect(formatRelative(ago(5 * MIN), { locale: 'en', now: NOW })).toMatch(/5 min/);
+    expect(formatRelative(null, { fallback: 'never' })).toBe('never');
+    expect(fill('{n} of {m} {x}', { n: 1, m: 2 })).toBe('1 of 2 {x}');
+    expect(onlineStateOf(true)).toBe('ONLINE');
+    expect(onlineStateOf(false)).toBe('OFFLINE');
+    expect(onlineStateOf(null)).toBe('LAST_SEEN');
+  });
+});
+
+describe('DeviceOnlineDot', () => {
+  it('draws online, offline with last seen, never connected, last seen only, and stale', () => {
+    const { rerender, container } = render(<DeviceOnlineDot state="ONLINE" lastSeenAt={ago(MIN)} now={NOW} />);
+    expect(screen.getByText('Online')).toBeInTheDocument();
+    rerender(<DeviceOnlineDot state="OFFLINE" lastSeenAt={ago(5 * MIN)} now={NOW} locale="en" />);
+    expect(screen.getByText(/Offline · Last seen 5 min/)).toBeInTheDocument();
+    rerender(<DeviceOnlineDot state="OFFLINE" now={NOW} />);
+    expect(screen.getByText('Offline · Never connected')).toBeInTheDocument();
+    rerender(<DeviceOnlineDot state="LAST_SEEN" lastSeenAt={ago(3 * 3_600_000)} now={NOW} locale="en" />);
+    expect(container.querySelector('[data-look="lastSeen"]')).not.toBeNull();
+    expect(screen.queryByText(/Offline/)).toBeNull();
+    rerender(<DeviceOnlineDot state="ONLINE" lastSeenAt={ago(20 * MIN)} staleAfterSeconds={600} now={NOW} locale="en" />);
+    expect(container.querySelector('[data-look="stale"]')).not.toBeNull();
+    expect(screen.getByText(/Stale/)).toBeInTheDocument();
+  });
+});
+
+describe('DeviceConnectionBadge and DeviceStatusBadge (OD-1)', () => {
+  it('puts the registry status first and follows the online rule', () => {
+    const { rerender, container } = render(<DeviceConnectionBadge online status="QUARANTINED" />);
+    expect(screen.getByText('Quarantined')).toBeInTheDocument();
+    rerender(<DeviceConnectionBadge online={false} status="DISABLED" />);
+    expect(screen.getByText('Disabled')).toBeInTheDocument();
+    rerender(<DeviceConnectionBadge online={null} lastActivityAt={ago(MIN)} now={NOW} locale="en" />);
+    expect(container.querySelector('[data-state="LAST_SEEN"]')).not.toBeNull();
+    rerender(<DeviceConnectionBadge online={false} lastActivityAt={ago(MIN)} lastDisconnectReason="keepalive_timeout" now={NOW} />);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Last disconnect: keepalive_timeout');
+  });
+
+  it('has a Quarantined state on the demo badge', () => {
+    render(<DeviceStatusBadge status="QUARANTINED" />);
+    expect(screen.getByText('Quarantined')).toHaveAttribute('title', expect.stringContaining('not stored'));
+  });
+});
+
+describe('DeviceDetailHeader (OD-8)', () => {
+  it('shows the device facts and only the host actions: no factory reset anywhere', () => {
+    render(<DeviceDetailHeader device={DEVICE} profileHref="/p/p1" now={NOW} actions={<button type="button">Copy ID</button>} />);
+    expect(screen.getByRole('heading', { name: 'Pump 4' })).toBeInTheDocument();
+    expect(screen.getByText('Gateway')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Pumps' })).toHaveAttribute('href', '/p/p1');
+    expect(screen.getByText('esp32 1.8.2')).toBeInTheDocument();
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Copy ID']);
+    expect(screen.queryByText(/factory reset/i)).toBeNull();
+  });
+});
+
+describe('DeviceCredentialPanel', () => {
+  it('shows a new secret masked, reveals and copies it, and lets it go', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const onDismiss = vi.fn();
+    render(<IssuedSecretNotice secret={{ token: 'SECRET-TOKEN-123' }} onDismiss={onDismiss} />);
+    expect(screen.getByTestId('issued-secret')).not.toHaveTextContent('SECRET-TOKEN-123');
+    await user.click(screen.getByRole('button', { name: 'Show' }));
+    expect(screen.getByTestId('issued-secret')).toHaveTextContent('SECRET-TOKEN-123');
+    await user.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalledWith('SECRET-TOKEN-123');
+    await user.click(screen.getByRole('button', { name: 'I have stored it' }));
+    expect(onDismiss).toHaveBeenCalled();
+  });
+
+  it('lists non-secret fields and rotates behind a confirmation; X.509 has no rotate', async () => {
+    const user = userEvent.setup();
+    const onRotate = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(<DeviceCredentialPanel credential={{ type: 'MQTT_BASIC', username: 'pump-4', clientId: 'c-1' }} onRotate={onRotate} />);
+    expect(screen.getByText('pump-4')).toBeInTheDocument();
+    expect(screen.getByText('c-1')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Rotate secret' }));
+    const confirm = screen.getByRole('alertdialog');
+    await user.click(within(confirm).getByRole('button', { name: 'Rotate secret' }));
+    expect(onRotate).toHaveBeenCalledOnce();
+    rerender(<DeviceCredentialPanel credential={{ type: 'X509_CERTIFICATE', certFingerprint: 'ab'.repeat(32) }} onRotate={onRotate} />);
+    expect(screen.queryByRole('button', { name: 'Rotate secret' })).toBeNull();
+    expect(screen.getByText(/private key stays on the device/)).toBeInTheDocument();
+    rerender(<DeviceCredentialPanel credential={null} />);
+    expect(screen.getByText('The device has no active credential.')).toBeInTheDocument();
+  });
+});
+
+describe('DeviceAttributeTable', () => {
+  it('parses and prints JSON values', () => {
+    expect(parseValue('42')).toEqual({ ok: true, value: 42 });
+    expect(parseValue('"on"')).toEqual({ ok: true, value: 'on' });
+    expect(parseValue('on')).toEqual({ ok: false });
+    expect(parseValue('null')).toEqual({ ok: false });
+    expect(valueToText({ a: 1 })).toContain('"a": 1');
+  });
+
+  it('opens a scope lazily, refuses invalid JSON before any request, saves a valid value, hides secrets', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onScopeOpen = vi.fn();
+    render(
+      <DeviceAttributeTable
+        defaultScope="SHARED"
+        canWrite
+        onSave={onSave}
+        onScopeOpen={onScopeOpen}
+        entries={{ SHARED: [{ key: 'cfg.speed', value: 10, sync: 'pending' }, { key: 'cfg.psk', value: null, secret: true }] }}
+        now={NOW}
+      />,
+    );
+    expect(onScopeOpen).toHaveBeenCalledWith('SHARED');
+    expect(onScopeOpen).not.toHaveBeenCalledWith('CLIENT');
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText('Write-only')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Edit cfg.speed' }));
+    const box = screen.getByLabelText('Value');
+    await user.clear(box);
+    await user.type(box, 'fast');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText(/Not valid JSON/)).toBeInTheDocument();
+    await user.clear(box);
+    await user.type(box, '20');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('SHARED', 'cfg.speed', 20));
+  });
+
+  it('keeps the client scope read-only', async () => {
+    const user = userEvent.setup();
+    render(<DeviceAttributeTable canWrite onSave={vi.fn()} entries={{ CLIENT: [{ key: 'fw', value: '1.0' }] }} />);
+    await user.click(screen.getByRole('tab', { name: /Client/ }));
+    expect(screen.getByText(/reported by the device/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Edit/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Add attribute' })).toBeNull();
+  });
+});
+
+describe('DesiredReportedBadge and DeviceConnectionTimeline', () => {
+  it('names the sync states', () => {
+    render(<><DesiredReportedBadge state="in_sync" /><DesiredReportedBadge state="rejected" reason="out_of_range" /></>);
+    expect(screen.getByText('In sync')).toBeInTheDocument();
+    expect(screen.getByText('Reason: out_of_range')).toBeInTheDocument();
+  });
+
+  it('lists connection events with reasons and pages', async () => {
+    const user = userEvent.setup();
+    const onLoadMore = vi.fn();
+    render(
+      <DeviceConnectionTimeline
+        hasMore
+        onLoadMore={onLoadMore}
+        events={[
+          { id: '1', at: ago(MIN), kind: 'disconnected', reason: 'keepalive_timeout', transport: 'mqtts', remoteIp: '203.0.113.7' },
+          { id: '2', at: ago(2 * MIN), kind: 'connected' },
+          { id: '3', at: ago(3 * MIN), kind: 'brand_new_kind' },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Disconnected')).toBeInTheDocument();
+    expect(screen.getByText(/Reason: keepalive_timeout · via mqtts · from 203.0.113.7/)).toBeInTheDocument();
+    expect(screen.getByText('Connection event')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Load more' }));
+    expect(onLoadMore).toHaveBeenCalled();
+  });
+});
+
+describe('DeviceTable', () => {
+  it('formats key values with unit and decimals', () => {
+    expect(formatKeyValue(61.376, { key: 't', unit: '°C', decimals: 1 }, 'en')).toBe('61.4 °C');
+    expect(formatKeyValue(null, { key: 't' })).toBe('—');
+    expect(formatKeyValue(true, { key: 'on' })).toBe('1');
+    expect(formatKeyValue({ a: 1 }, { key: 'x' })).toBe('{"a":1}');
+  });
+
+  it('draws the connection, the key columns, the quarantined badge, and reports a row click', async () => {
+    const user = userEvent.setup();
+    const onRowClick = vi.fn();
+    render(
+      <DeviceTable
+        now={NOW}
+        locale="en"
+        onRowClick={onRowClick}
+        keyColumns={[{ key: 'temperature', label: 'Temp', unit: '°C', decimals: 1 }]}
+        staleAfterSeconds={600}
+        rows={[
+          { id: 'd1', name: 'Pump 4', online: true, lastSeenAt: ago(20 * MIN), values: { temperature: 61.37 } },
+          { id: 'd2', name: 'Probe', status: 'QUARANTINED', online: true },
+        ]}
+      />,
+    );
+    expect(screen.getByText('61.4 °C')).toBeInTheDocument();
+    expect(screen.getByText(/Stale/)).toBeInTheDocument();
+    expect(screen.getByText('Quarantined')).toBeInTheDocument();
+    await user.click(screen.getByText('Pump 4'));
+    expect(onRowClick).toHaveBeenCalledWith(expect.objectContaining({ id: 'd1' }));
+  });
+});

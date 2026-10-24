@@ -1,0 +1,187 @@
+import type {
+  Alarm, AlarmBulkResult, AlarmCounts, AlarmEvent, AlarmSeverity, AlarmStatus,
+} from '../types/alarm';
+import type {
+  AttributeEntry, AttributeScope, CredentialType, DeviceConnectionEvent, DeviceCredential, DeviceRecord, DeviceRegistryStatus,
+  DeviceStatePatch, IssuedSecret,
+} from '../types/device';
+
+/*
+ * The IoT adapter contract (docs/concepts/iot-platform/phases/00-api-adapter-layer.md §0.2): every IoT view reads and writes
+ * through it, so a host (NB) injects real fetchers and the demo runs on an in-memory store. Only the methods the device and
+ * alarm screens need are here (phases 01 and 03); later phases add theirs.
+ *
+ * Every sub-interface is optional: a host provides the parts its modules own (NB's `iot_device` the devices, `iot_alarm`
+ * the alarms) and nested `IotAdapterProvider`s merge them. Naming between the host and these types (NB "resolve" =
+ * kui-react "clear", NB payloads → `Alarm`) is mapped inside the adapter, never in a component.
+ */
+
+export type Page<T> = { items: T[]; total: number };
+
+export type IotApiErrorCode =
+  | 'not_found' | 'forbidden' | 'conflict' | 'validation' | 'rate_limited' | 'timeout' | 'unavailable' | 'unknown';
+
+/** What an adapter throws; views map the code to an error state, a field error or a toast. */
+export class IotApiError extends Error {
+  readonly code: IotApiErrorCode;
+  readonly fieldErrors?: Record<string, string>;
+  readonly retryAfterMs?: number;
+  constructor(code: IotApiErrorCode, message: string, extra: { fieldErrors?: Record<string, string>; retryAfterMs?: number } = {}) {
+    super(message);
+    this.name = 'IotApiError';
+    this.code = code;
+    this.fieldErrors = extra.fieldErrors;
+    this.retryAfterMs = extra.retryAfterMs;
+  }
+}
+
+/** The message of anything an adapter threw (an `IotApiError`, an `Error`, else the fallback). */
+export function errorMessage(e: unknown, fallback: string): string {
+  if (e instanceof Error && e.message) return e.message;
+  return fallback;
+}
+
+// ── devices ──────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+export type DeviceOnlineFilter = 'online' | 'offline' | 'last_seen';
+
+export type DeviceListQuery = {
+  page: number;
+  pageSize: number;
+  search?: string;
+  profileId?: string;
+  online?: DeviceOnlineFilter;
+  status?: DeviceRegistryStatus;
+  gateway?: boolean;
+};
+
+export type NewDeviceInput = {
+  name: string;
+  label?: string | null;
+  profileId?: string;
+  isGateway?: boolean;
+};
+
+export type CreatedDevice = {
+  device: DeviceRecord;
+  credential: DeviceCredential | null;
+  /** Shown once: the view never stores it (no storage, no state outside the open dialog). */
+  secret: IssuedSecret | null;
+};
+
+export interface IotDevicesApi {
+  list(query: DeviceListQuery, signal?: AbortSignal): Promise<Page<DeviceRecord>>;
+  get(deviceId: string, signal?: AbortSignal): Promise<DeviceRecord>;
+  create?(input: NewDeviceInput): Promise<CreatedDevice>;
+  remove?(deviceId: string): Promise<void>;
+  /** OD-1: quarantined → active (single and bulk, at most 100). Absent when the host has no provisioning. */
+  activate?(deviceIds: string[]): Promise<{ activated: number }>;
+  connections(deviceId: string, query: { page: number; pageSize: number }, signal?: AbortSignal): Promise<Page<DeviceConnectionEvent>>;
+  /** How many devices wait for activation (the "Quarantined (n)" quick filter). */
+  quarantinedCount?(signal?: AbortSignal): Promise<number>;
+  /** A `deviceState` live payload as a patch, or null when it is not one. */
+  parseState?(payload: unknown): DeviceStatePatch | null;
+}
+
+export interface IotProfilesApi {
+  /** The profiles a filter or a form offers (id and name). */
+  options(signal?: AbortSignal): Promise<Array<{ id: string; name: string }>>;
+}
+
+export interface IotCredentialsApi {
+  get(deviceId: string, signal?: AbortSignal): Promise<DeviceCredential | null>;
+  /** A new secret of the same type, returned once; the old one stops working at once. */
+  rotate(deviceId: string): Promise<{ credential: DeviceCredential | null; secret: IssuedSecret | null }>;
+}
+
+export interface IotAttributesApi {
+  list(deviceId: string, scope: AttributeScope, signal?: AbortSignal): Promise<AttributeEntry[]>;
+  save(deviceId: string, scope: Exclude<AttributeScope, 'CLIENT'>, values: Record<string, unknown>): Promise<void>;
+  remove(deviceId: string, scope: Exclude<AttributeScope, 'CLIENT'>, keys: string[]): Promise<void>;
+}
+
+// ── alarms (phase 03) ────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** `active` = not resolved (the default list); `any` needs a bounded time range (OD-31). */
+export type AlarmStatusFilter = 'active' | AlarmStatus | 'any';
+
+export type AlarmListQuery = {
+  page: number;
+  pageSize: number;
+  status?: AlarmStatusFilter;
+  severity?: AlarmSeverity[];
+  deviceId?: string;
+  search?: string;
+  /** ISO times; a resolved or all-status list always sends a range (default last 7 days). */
+  from?: string;
+  to?: string;
+};
+
+export type AlarmTransition = 'created' | 'updated' | 'acknowledged' | 'cleared';
+
+export type AlarmLiveEvent = { alarm: Alarm; transition: AlarmTransition };
+
+export interface IotAlarmsApi {
+  list(query: AlarmListQuery, signal?: AbortSignal): Promise<Page<Alarm>>;
+  get(alarmId: string, signal?: AbortSignal): Promise<Alarm>;
+  events(alarmId: string, signal?: AbortSignal): Promise<AlarmEvent[]>;
+  /** Per-id results: an alarm that changed meanwhile is reported, not thrown. */
+  acknowledge(alarmIds: string[], note?: string): Promise<AlarmBulkResult[]>;
+  /** "Clear" here = "resolve" in NB. */
+  clear(alarmIds: string[], note?: string): Promise<AlarmBulkResult[]>;
+  comment(alarmId: string, text: string): Promise<void>;
+  counts(scope?: { deviceId?: string }, signal?: AbortSignal): Promise<AlarmCounts>;
+  /** An `alarms` live payload as an event, or null when it is not one. */
+  parseLive?(payload: unknown): AlarmLiveEvent | null;
+}
+
+// ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What the viewer may do (00 §0.2): views hide or disable actions from it; the server still judges every call. There is no
+ * capability for a remote factory reset (OD-8).
+ */
+export type IotCapabilities = {
+  canCreateDevice: boolean;
+  canEditDevice: boolean;
+  canDeleteDevice: boolean;
+  canViewCredentials: boolean;
+  canReadAttributes: boolean;
+  canWriteAttributes: boolean;
+  canActivateDevice: boolean;
+  canReleaseDevice: boolean;
+  canReadAlarms: boolean;
+  canAcknowledge: boolean;
+  canClear: boolean;
+  canComment: boolean;
+};
+
+/** Fail closed: nothing until the host says so. */
+export const NO_CAPABILITIES: IotCapabilities = {
+  canCreateDevice: false,
+  canEditDevice: false,
+  canDeleteDevice: false,
+  canViewCredentials: false,
+  canReadAttributes: false,
+  canWriteAttributes: false,
+  canActivateDevice: false,
+  canReleaseDevice: false,
+  canReadAlarms: false,
+  canAcknowledge: false,
+  canClear: false,
+  canComment: false,
+};
+
+export interface IotAdapter {
+  /** Shown in the demo settings ("Demo, in memory"). */
+  name?: string;
+  devices?: IotDevicesApi;
+  profiles?: IotProfilesApi;
+  credentials?: IotCredentialsApi;
+  attributes?: IotAttributesApi;
+  alarms?: IotAlarmsApi;
+  capabilities?(signal?: AbortSignal): Promise<Partial<IotCapabilities>>;
+}
+
+/** The credential types a "New device" form can offer (01 §1.1). */
+export type NewDeviceCredentialType = CredentialType;
