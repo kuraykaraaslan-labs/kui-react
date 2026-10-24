@@ -187,3 +187,50 @@ on the recent-message rule with URL tokens. Showcase: 15 entries (free abbreviat
 **Left.** Image, default dashboard, template update banner with `DiffViewer`, the OTA metered toggle (no host fields yet); the
 `SchemaForm`-driven settings blocks; a field-level diff before save; `ConnectionSnippet`; the topic table per scheme; the provisioning
 key list, rotation and revocation (OD-1) with the host's service.
+
+## 2026-10-24 — as built: the device Log tab and the quick view (1.1, 1.2)
+
+> Owner request, 2026-10-24 (through next-boilerplate `iot-device/05`): the Connections tab becomes **Log**, one timeline of everything
+> that happened to the device; and a device opens as a drawer from the list so moving between devices is faster. Commit `b12233f`
+> on `feat/iot-p2-screens`, vendored by next-boilerplate the same day.
+
+**Adapter.** `IotDevicesApi.log?(deviceId, { page, pageSize, source? })` answers `Page<DeviceLogEntry>` (`types/device.ts`:
+`{ id, at, source: 'connection' | 'audit', kind, actor?, remoteIp?, transport?, reason?, detail?, metadata? }`; an audit entry's
+`kind` is the host's action, e.g. `iot_device.device.updated`). Optional: `connections()` stays required and a host without `log` shows
+connection lines only (no Changes chip). `DeviceListQuery.device` is the quick view's device; `list` never receives it.
+
+**Components.** `device/DeviceLogTimeline.tsx`: connection lines (icon per kind, `DeviceAddress` for the IP and transport, the reason) and
+changes (an icon and title per known action in `DEVICE_LOG_ACTIONS`, any other drawn neutral as "Change: <action>"; "by <name>",
+"by a team member" without a name, "by the system" without an actor; `auditSummary` makes one line of names only: changed fields,
+status from → to, scope and keys, credential type, command, alarm type). A chip row All / Connections / Changes (`aria-pressed`), paging
+by the host, `compact` for short lists. `device/useDeviceLog.ts` reads page by page, shows nothing of a previous device or filter while
+the first page loads, and drops an id it already shows when pages shift. `DeviceDetailView`: tab id `log`, label "Log" (order 30);
+`tab="connections"` opens it.
+
+`device/DeviceQuickView.tsx`: the existing `modules/ui/Drawer` (unchanged; widened through `className`), its header with the name, the
+position ("2 of 20") and Previous / Next; the body with the connection badge, IP, profile, firmware, last activity and the five newest
+log lines (re-read when the live state reports a new connect or disconnect); footer Copy ID and Open full page, and Open the log
+(`?tab=log`). `DeviceListView` opens it on a row click (`KeyedTable.onRowClick`; the name link still goes to the page, Enter on a row
+opens it too), highlights the open row, and moves with ↑ / ↓ (a document listener while open; ignored in form fields) and the buttons
+through the current page. Esc closes (the Drawer's focus trap); focus returns to the row of the device last shown. Live `deviceState`
+patches the drawer like the row. `onQueryChange(query, how)`: `push` when the drawer opens, `replace` otherwise; a changed
+`initialQuery.device` (Back, Forward, a link) opens or closes it; a device not on the page is read alone (`get`), without neighbours.
+
+**Not drawn: latest telemetry values.** The adapter has no latest-values call; the section is left out of the quick view until one
+exists (the device page's Telemetry tab has them).
+
+**Demo and showcase.** The demo adapter keeps an audit history per device (Ada Lovelace and Alex Müller) and adds rows for its own
+changes (create, activate, rotate, attribute save and delete, command send and cancel, alarm acknowledge and clear); `/theme/iot/devices`
+keeps `?device=` in the URL (push on open). Showcase entries `iot-device-log-timeline` (DG) and `iot-device-quick-view` (DQ); registry
+snapshot 382 components.
+
+**Decisions (ED).**
+- **ED-K24 `log` optional, `connections` kept.** A host that has only the connection log keeps working; the Log tab narrows to it.
+- **ED-K25 Drawer unchanged.** Width through `className`, arrow keys through a document listener in the quick view; no change in
+  `modules/ui` (no kui-ejs / KUInative parity work).
+- **ED-K26 Back closes the drawer.** Opening is the only history step; moving between devices and filtering replace the URL.
+
+**Tests.** `device/device-log.test.tsx` (12): the timeline, its summary and chips, compact; the Log tab through the adapter and its
+filter, the `connections` alias, a host without `log`; the quick view's row click (not the name link), header and recent lines, push of
+`?device`, ↑ / ↓ and Previous / Next with replace, Esc with focus on the row last shown, `initialQuery.device` opening and closing it and
+a device off the page, live updates. `npx vitest run modules/domains/iot`: 8 files, 102 passed.
