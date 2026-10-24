@@ -19,7 +19,7 @@ import type { IotMessagesInput } from '../messages';
  * AlarmEventTimeline — an alarm's history on the generic `Timeline` (newest first, grouped by day): opened, severity changes,
  * acknowledge and clear with their notes, notifications, throttles, mutes, flapping, automation and operator notes. With
  * `onAddNote` a comment box appends a note (the timeline updates when the host re-reads or a live event arrives). Unknown kinds
- * render as a neutral line. Renamed from `AlertEventTimeline` (OD-9); old `AlertEvent` values still render.
+ * render as a neutral line. Renamed under OD-9 (the old names are deprecated aliases in `index.ts`); events of the old shape still render.
  */
 export type { AlarmEvent };
 

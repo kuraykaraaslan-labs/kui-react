@@ -7,7 +7,7 @@ import { useIotText } from '../api/IotAdapterProvider';
 
 /**
  * AlarmSeverityBadge — one of the five OD-9 levels (CRITICAL, MAJOR, MINOR, WARNING, INFO) with its own icon and tone from
- * `alarm-severity.ts`. Renamed from `AlertSeverityBadge` (OD-9); the old three-level values stay valid.
+ * `alarm-severity.ts`. Renamed under OD-9 (the old name is a deprecated alias in `index.ts`); the old three-level values stay valid.
  */
 export type AlarmSeverityBadgeProps = {
   severity: AlarmSeverity;

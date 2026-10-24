@@ -22,7 +22,7 @@ import { AlarmStatusPill } from './AlarmStatusPill';
  * time, occurrences, flapping and the triggering topic, and the actions. `onAcknowledge(note?)` / `onClear(note?)` may return
  * a promise: the buttons show a pending state, every action is disabled while one runs, and the result is announced. "…with a
  * note" opens a note dialog first. Acknowledge shows only while OPEN, Clear unless RESOLVED, each only with its handler (pass
- * none for a viewer without the capability). Renamed from `AlertDetailHeader` (OD-9); `onResolve` is its old name for
+ * none for a viewer without the capability). Renamed under OD-9 (the old name is a deprecated alias in `index.ts`); `onResolve` is its old name for
  * `onClear`.
  */
 export type AlarmDetailHeaderProps = {
