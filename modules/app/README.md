@@ -10,6 +10,7 @@ Top-level `.tsx` files cover shell, navigation, forms, content, states, notifica
 
 - [Calendar/](Calendar/) — multi-view scheduler (see [PLAN.md](Calendar/PLAN.md))
 - [CommandPalette/](CommandPalette/) — ⌘K palette (exposed as `AppCommandBar`)
+- [EntityAliases/](EntityAliases/) — dashboard entity alias editor, the ThingsBoard model (see its [README](EntityAliases/README.md))
 - [FileUploadSection/](FileUploadSection/) — drag-drop uploader + parts
 - [FormBuilder/](FormBuilder/) — schema-driven form editor + renderer
 - [Gantt/](Gantt/) — WBS + timeline + dependencies (see [PLAN.MD](Gantt/PLAN.MD))
