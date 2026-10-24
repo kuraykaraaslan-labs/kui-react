@@ -162,7 +162,8 @@ quarter, `thingsLabelColumn`) and how x and y map (`thingsUnits` scene units, or
 is skipped, and a key the diagram cannot draw shows a placeholder. The settings cannot know the rows, so the
 template accepts a connection end or a rule target that names no symbol (it may be a thing's); the editor's problems
 list, which sees the data, says when no thing has it. In the editor the things are a locked layer: dimmed, never
-selected, moved, joined or aligned; a click shows one read-only in the inspector ("placed by data"); the what-if panel
+selected, moved, joined or aligned (a connection the author drew to one still is: its box is a read-only end for the
+canvas's link geometry); a click shows one read-only in the inspector ("placed by data"); the what-if panel
 lists the table's ids and adds sample things (never stored).
 
 Rule effects now also move, resize, turn and re-skin a target: `dx`, `dy` (scene units, ±4000), `scale` (0.2 to 4),
@@ -171,8 +172,14 @@ Rule effects now also move, resize, turn and re-skin a target: `dx`, `dy` (scene
 `scenePatch` (`WidgetViewProps`, the shape in `views/scene-patch.ts`) is what a compute script returns beside its
 slots: drawing instructions, never an action. Both `scada.scene` and `viewer.model` parse it again with
 `parseScenePatch` (caps: 500 things in 2D, the viewer's own 2 000 in 3D, 3 000 overrides, 300 extra connections, 100
-extra titles and zones, plain texts of at most 80 characters, ids of the scene's grammar; an unknown field is dropped
-with a problem) and apply it after the authored settings and the rules, so it wins over a rule:
+extra titles and zones, plain texts of at most 80 characters; an unknown field is dropped with a problem) and apply it
+after the authored settings and the rules, merged per id and per effect, so it wins over a rule for the same effect
+(in 3D too: its `hidden: false` shows what a rule hid, its `dz` replaces the rule's lift). An object or thing id is a
+short plain text or a number: nothing unseen (control, direction or zero-width characters) and never a `*` (the rule
+and gesture wildcards). It is looser than the port grammar on purpose, so a thing with a numeric id is placed, ruled
+and clickable, but a connection can end only on one whose id starts with a letter or `_`. A thing placed more than
+10 000 scene units from the canvas origin (after the metres mapping) is skipped with a problem. A lockout is one-way:
+a rule or a patch may impose `mode: 'lockout'`, never lift the one a row reports, so its gestures stay off:
 
 | Part | `scada.scene` | `viewer.model` |
 |---|---|---|
