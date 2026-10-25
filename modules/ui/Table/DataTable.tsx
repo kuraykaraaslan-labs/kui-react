@@ -686,6 +686,7 @@ function TableFrame<T extends Record<string, unknown>>({
       searchable={searchable}
       searchValue={model.search}
       searchPlaceholder={searchPlaceholder ?? msgs.searchPlaceholder}
+      searchLabel={msgs.search ?? 'Search'}
       onSearchChange={model.setSearch}
       searchDebounceMs={model.searchDebounceMs}
       pageSize={model.paginated ? model.pageSize : undefined}

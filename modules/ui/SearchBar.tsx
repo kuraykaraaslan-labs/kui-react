@@ -7,6 +7,7 @@ import { faMagnifyingGlass, faXmark } from '@fortawesome/free-solid-svg-icons';
 export function SearchBar({
   id = 'search',
   placeholder = 'Search…',
+  label,
   value,
   onChange,
   onClear,
@@ -14,6 +15,8 @@ export function SearchBar({
 }: {
   id?: string;
   placeholder?: string;
+  /** Accessible name of the input (a placeholder is not one); without it the input is named by nothing but its context. */
+  label?: string;
   value?: string;
   onChange?: (value: string) => void;
   onClear?: () => void;
@@ -46,6 +49,7 @@ export function SearchBar({
         id={id}
         type="text"
         role="searchbox"
+        aria-label={label}
         value={currentValue}
         onChange={handleChange}
         placeholder={placeholder}

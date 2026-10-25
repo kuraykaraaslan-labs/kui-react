@@ -47,6 +47,7 @@ export function Toolbar({
   searchable,
   searchValue,
   searchPlaceholder,
+  searchLabel,
   onSearchChange,
   searchDebounceMs = 0,
   pageSize,
@@ -63,6 +64,8 @@ export function Toolbar({
   searchable: boolean;
   searchValue: string;
   searchPlaceholder: string;
+  /** Accessible name of the search input (`messages.search`). */
+  searchLabel?: string;
   onSearchChange: (v: string) => void;
   /** Wait this long after the last keystroke before searching (server and manual modes). */
   searchDebounceMs?: number;
@@ -93,6 +96,7 @@ export function Toolbar({
           value={text}
           onChange={change}
           placeholder={searchPlaceholder}
+          label={searchLabel}
           className="flex-1 min-w-40"
         />
       )}

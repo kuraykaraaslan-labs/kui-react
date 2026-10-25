@@ -232,6 +232,8 @@ export type DataTableMessages = {
   loading: string;
   error: string;
   searchPlaceholder: string;
+  /** Accessible name of the toolbar search input (the placeholder is a hint, not a name). */
+  search?: string;
   rowsPerPage: string;
   filter: string;
   clearFilter: string;
@@ -316,6 +318,7 @@ export const DEFAULT_MESSAGES: DataTableMessages = {
   loading: 'Loading…',
   error: 'Something went wrong.',
   searchPlaceholder: 'Search…',
+  search: 'Search',
   rowsPerPage: 'Rows per page:',
   filter: 'Filter',
   clearFilter: 'Clear',
