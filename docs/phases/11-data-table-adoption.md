@@ -153,7 +153,7 @@ who is typing; `daySeparators`, `emptyMessage`, `loading`, a `composer` slot, `r
 every string from `messages` (`DEFAULT_CHAT_THREAD_MESSAGES`). The list prop is `items` because `messages` holds the
 strings, as on `DataTable`. `ChatBubble` / `ChatTypingIndicator` are its parts: the social `MessageBubble` and
 `TypingIndicator` are now adapters over them, and `domains/common/chat/ChatBox` draws its list with `ChatThread`.
-Mirrors: KUInative 26f706e (with 11.13); kui-ejs (`domain/common/chat`) is open.
+Mirrors: KUInative 26f706e (with 11.13); kui-ejs 02667c8 (`ui/ChatThread`, and `domain/common/chat/ChatBox` draws with it).
 
 ### 11.16 Gaps NB's migration hit `[both] +native` (2026-10-26)
 
@@ -189,4 +189,4 @@ kui-react only (kui-ejs / KUInative have no board and no IoT vertical).
 - [x] 11.10–11.12 in all three (kui-react 06a2314; kui-ejs afe06ff, KUInative 5d35d2f); 11.13 in KUInative (SectionCard / DetailHeader / FilterBar a10043b, KanbanBoard 9bff596, ImageGallery + ContextMenu aad00f7, LogViewer 9d84396, chat as ChatThread 26f706e).
 - [ ] 11.14 as NB needs them (KanbanBoard ea65f6a, Timeline load more; ImageGallery: the media library uses DataTable `layout="cards"`, no change needed).
 - [ ] `KeyedTable` deprecated, IoT views on `DataTable`.
-- [ ] 11.15 `ChatThread` in kui-react (8a20a5b) and KUInative (26f706e); kui-ejs mirror open.
+- [x] 11.15 `ChatThread` in kui-react (8a20a5b), kui-ejs (02667c8, ChatBox draws with it) and KUInative (26f706e).
