@@ -88,12 +88,14 @@ export function RadioGroup({
                 checked={isSelected}
                 disabled={isDisabled}
                 aria-describedby={describedBy}
+                // The native radio takes its colours from accent-color (app/globals.css);
+                // aria-invalid switches it to the error accent and outline.
+                aria-invalid={error ? true : undefined}
                 onChange={() => { if (!isDisabled) onChange?.(opt.value); }}
                 data-testid={`radio-${name}-${opt.value}`}
                 className={cn(
-                  'mt-0.5 h-4 w-4 border-border text-primary',
-                  'focus-visible:ring-2 focus-visible:ring-border-focus',
-                  error && 'border-error'
+                  'mt-0.5 h-4 w-4',
+                  'focus-visible:ring-2 focus-visible:ring-border-focus'
                 )}
               />
 
