@@ -33,6 +33,7 @@ Path keys resolve through `internal-ai-rules/LOCAL_PATHS.json`. Never hardcode a
 | 8 | [08-product.md](08-product.md) | `kui` CLI, registry props schema, MCP as a product, scope decisions recorded as ADRs | L | 4, 6, 7 |
 | 9 | [09-data-and-realtime-components.md](09-data-and-realtime-components.md) | Generic data and realtime components: chart time axis, brush/zoom, gauge, heatmap, dashboard time-range picker, live map markers + clustering, key/value editor, schema form, live-data hooks, status indicator, QR, CSV export (first consumer: [docs/concepts/iot-platform/](../concepts/iot-platform/README.md)) | L | none hard (1, 2 recommended) |
 | 10 | [10-ecosystem-gap-closure.md](10-ecosystem-gap-closure.md) | Gaps found against five reference libraries: palette presets, primitives (carousel, OTP, list, marquee, sortable, kbd, link), landing/commerce blocks, portfolio and agency themes, cross-repo drift (placement per use case, mirrors pixel-perfect, everything in the demo shell) | L | none hard (4.2, 4.4 help) |
+| 11 | [11-data-table-adoption.md](11-data-table-adoption.md) | `DataTable` carries every next-boilerplate data page: host-owned (manual) mode, server mode for real APIs, live rows from `KeyedTable`, responsive/footer columns, filter chips and date presets, card layout, full messages; new `OrgChart`, `DescriptionList`, `BarList`; KUInative mirrors of board, gallery, chat, log viewer | L | none hard (4.4 helps) |
 
 Effort: **S** under a day, **M** a few days, **L** a week or more of focused work.
 
