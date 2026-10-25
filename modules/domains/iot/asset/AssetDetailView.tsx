@@ -145,7 +145,7 @@ export function AssetDetailView({
             </p>
           </div>
           {caps.canManageAssets && (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setAddingChild(true)} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>{m.asset.addChild}</Button>
               <Button variant="ghost" size="sm" onClick={() => setEditing(true)} iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>{m.asset.edit}</Button>
               <Button variant="ghost" size="sm" onClick={() => setMoving(true)} iconLeft={<FontAwesomeIcon icon={faArrowsUpDownLeftRight} className="h-3 w-3" aria-hidden="true" />}>{m.asset.move}</Button>

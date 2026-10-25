@@ -52,7 +52,7 @@ export function DeviceDetailHeader({ device, profileHref, actions, locale, now, 
           </div>
           {device.label && <p className="mt-1 text-sm text-text-secondary">{device.label}</p>}
         </div>
-        {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">{actions}</div>}
       </div>
 
       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-xs text-text-secondary sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">

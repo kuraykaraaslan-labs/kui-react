@@ -40,8 +40,10 @@ export function AppShell({
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const logoContent = sidebarCollapsed && compactLogo ? compactLogo : (logo ?? compactLogo);
 
+  // `relative`: an absolutely placed element with no positioned ancestor (an sr-only label in a scrolling table) is
+  // clipped here instead of widening the page, which on a phone shifted every fixed menu.
   return (
-    <div className={cn('flex h-screen overflow-hidden bg-surface-base', className)} {...rest}>
+    <div className={cn('relative flex h-screen overflow-hidden bg-surface-base', className)} {...rest}>
       {sidebar && (
         <aside className={cn('relative hidden lg:flex flex-col h-full min-h-0 shrink-0 border-r border-border bg-surface-raised', asideClassName)}>
           {logoContent && (
