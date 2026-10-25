@@ -26,6 +26,7 @@ export function KanbanBoard<T = unknown>({
   cards,
   onCardMove,
   canMove,
+  reorderWithinColumn = true,
   renderCard,
   onCardClick,
   collapsible = true,
@@ -44,7 +45,7 @@ export function KanbanBoard<T = unknown>({
     onColumnDragOver,
     onColumnDragLeave,
     onColumnDrop,
-  } = useDnD<T>({ cards, onCardMove, canMove });
+  } = useDnD<T>({ cards, onCardMove, canMove, reorderWithinColumn });
 
   // Folded columns: each column's `collapsed` is the starting state; the header toggles it.
   const [folded, setFolded] = useState<Record<ColumnId, boolean>>({});
@@ -79,11 +80,14 @@ export function KanbanBoard<T = unknown>({
       to = columns[i].id;
       index = cardsByColumn.get(to)?.length ?? 0;
     } else {
+      if (!reorderWithinColumn) return;
       index = key === 'up' ? at - 1 : at + 1;
       if (index < 0 || index >= inColumn.length) return;
     }
     if (canMove && !canMove(card, from, to)) return;
-    void performMove(card, from, to, index).then(() => {
+    void performMove(card, from, to, index).then((moved) => {
+      // A refused move was reverted: nothing to announce.
+      if (!moved) return;
       const title = (id: ColumnId) => columns.find((c) => c.id === id)?.title ?? id;
       setAnnouncement(msgs.moveAnnouncement(card.title, title(from), title(to)));
       requestAnimationFrame(() => {

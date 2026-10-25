@@ -17,11 +17,13 @@ export type UseDnDOptions<T> = {
     from: ColumnId,
     to: ColumnId,
     index: number,
-  ) => Promise<void> | void;
+  ) => Promise<void | boolean> | void | boolean;
   canMove?: (card: KanbanCard<T>, from: ColumnId, to: ColumnId) => boolean;
+  /** `false`: no move inside a column (no drop indicator there, a drop back is a no-op). */
+  reorderWithinColumn?: boolean;
 };
 
-export function useDnD<T>({ cards, onCardMove, canMove }: UseDnDOptions<T>) {
+export function useDnD<T>({ cards, onCardMove, canMove, reorderWithinColumn = true }: UseDnDOptions<T>) {
   // Optimistic local override — when set, overrides the prop-derived list.
   const [localCards, setLocalCards] = useState<KanbanCard<T>[] | null>(null);
   const [draggingId, setDraggingId] = useState<CardId | null>(null);
@@ -68,6 +70,14 @@ export function useDnD<T>({ cards, onCardMove, canMove }: UseDnDOptions<T>) {
       columnId: ColumnId,
       computeIndex: (clientY: number) => number,
     ) => {
+      // Its own column is no target when cards only move between columns.
+      if (!reorderWithinColumn && draggingId !== null) {
+        const dragged = effectiveCards.find((c) => c.id === draggingId);
+        if (dragged && dragged.columnId === columnId) {
+          setDropTarget(null);
+          return;
+        }
+      }
       // Must preventDefault to allow drop.
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
@@ -77,7 +87,7 @@ export function useDnD<T>({ cards, onCardMove, canMove }: UseDnDOptions<T>) {
         return { columnId, index: idx };
       });
     },
-    [],
+    [reorderWithinColumn, draggingId, effectiveCards],
   );
 
   const onColumnDragLeave = useCallback(
@@ -98,8 +108,9 @@ export function useDnD<T>({ cards, onCardMove, canMove }: UseDnDOptions<T>) {
       fromColumnId: ColumnId,
       toColumnId: ColumnId,
       destIndex: number,
-    ) => {
-      if (canMove && !canMove(card, fromColumnId, toColumnId)) return;
+    ): Promise<boolean> => {
+      if (fromColumnId === toColumnId && !reorderWithinColumn) return false;
+      if (canMove && !canMove(card, fromColumnId, toColumnId)) return false;
 
       // Snapshot for rollback.
       const snapshot = effectiveCards;
@@ -130,16 +141,23 @@ export function useDnD<T>({ cards, onCardMove, canMove }: UseDnDOptions<T>) {
       ];
       setLocalCards(next);
 
-      if (!onCardMove) return;
+      if (!onCardMove) return true;
       try {
-        await onCardMove(movedCard, fromColumnId, toColumnId, clampedIndex);
+        const result = await onCardMove(movedCard, fromColumnId, toColumnId, clampedIndex);
+        if (result === false) {
+          // The host said no without throwing: revert.
+          setLocalCards(snapshotRef.current);
+          return false;
+        }
         // Success: keep optimistic state; let parent re-sync via props if desired.
+        return true;
       } catch {
         // Revert.
         setLocalCards(snapshotRef.current);
+        return false;
       }
     },
-    [canMove, effectiveCards, onCardMove],
+    [canMove, effectiveCards, onCardMove, reorderWithinColumn],
   );
 
   const onColumnDrop = useCallback(

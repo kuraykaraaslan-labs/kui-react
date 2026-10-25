@@ -94,4 +94,31 @@ describe('KanbanBoard', () => {
     expect(onCardClick).toHaveBeenCalledTimes(2);
     expect(screen.getByRole('region', { name: 'Sütun A' })).toBeInTheDocument();
   });
+
+  it('onCardMove returning false (or resolving false) reverts the move without announcing it (phase 11.16)', async () => {
+    const user = userEvent.setup();
+    const onCardMove = vi.fn().mockResolvedValueOnce(false).mockReturnValueOnce(false);
+    render(<KanbanBoard columns={COLUMNS} cards={CARDS} onCardMove={onCardMove} />);
+    const card = () => screen.getByText('Acme renewal').closest('[data-card-id]') as HTMLElement;
+    card().focus();
+    await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    await waitFor(() => expect(within(column('Lead')).getByText('Acme renewal')).toBeInTheDocument());
+    card().focus();
+    await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    await waitFor(() => expect(within(column('Lead')).getByText('Acme renewal')).toBeInTheDocument());
+    expect(onCardMove).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/moved from/)).toBeNull();
+  });
+
+  it('reorderWithinColumn={false}: Alt + Down does nothing, Alt + Right still moves', async () => {
+    const user = userEvent.setup();
+    const onCardMove = vi.fn();
+    render(<KanbanBoard columns={COLUMNS} cards={CARDS} onCardMove={onCardMove} reorderWithinColumn={false} />);
+    const card = screen.getByText('Acme renewal').closest('[data-card-id]') as HTMLElement;
+    card.focus();
+    await user.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    expect(onCardMove).not.toHaveBeenCalled();
+    await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+    expect(onCardMove).toHaveBeenCalledWith(expect.objectContaining({ id: 'c1' }), 'lead', 'won', 2);
+  });
 });

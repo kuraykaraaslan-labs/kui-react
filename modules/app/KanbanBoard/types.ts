@@ -100,15 +100,24 @@ export type KanbanTelemetry =
 export type KanbanBoardProps<T = unknown> = {
   columns: KanbanColumn<T>[];
   cards: KanbanCard<T>[];
-  /** Async move callback. Reject (throw) to revert the optimistic update. */
+  /**
+   * Runs after the board has moved the card (optimistically). The move is reverted when it returns `false`, resolves
+   * to `false`, throws or rejects; anything else (`undefined`, `true`) keeps it. The host may also send new `cards`,
+   * which replace the board's copy either way.
+   */
   onCardMove?: (
     card: KanbanCard<T>,
     from: ColumnId,
     to: ColumnId,
     index: number,
-  ) => Promise<void> | void;
+  ) => Promise<void | boolean> | void | boolean;
   /** Validation hook — return false to block the drop entirely. */
   canMove?: (card: KanbanCard<T>, from: ColumnId, to: ColumnId) => boolean;
+  /**
+   * `false`: a card only moves between columns (for an API with no order inside a column): dropping it back into its
+   * own column does nothing and Alt + Up / Down do not reorder. Default `true`.
+   */
+  reorderWithinColumn?: boolean;
   /** Custom card renderer — receives the card; return JSX. */
   renderCard?: (card: KanbanCard<T>) => React.ReactNode;
   /** Click (or Enter on a focused card). */

@@ -80,6 +80,24 @@ function AsyncRevertDemo() {
   );
 }
 
+/** Phase 11.16: an API with stages but no order inside a stage, and a refusal by returning false. */
+function StagesOnlyDemo() {
+  const [cards, setCards] = useState<KanbanCard[]>(INITIAL_CARDS_3);
+  return (
+    <div className="w-full">
+      <KanbanBoard
+        columns={COLUMNS_3}
+        cards={cards}
+        ariaLabel="Stages only: cards move between columns; a move back to To Do is refused"
+        reorderWithinColumn={false}
+        onCardMove={(card, _from, to) => {
+          if (to === 'todo') return false; // refused: the card goes back
+          setCards((prev) => prev.map((c) => (c.id === card.id ? { ...c, columnId: to } : c)));
+        }}
+      />
+    </div>
+  );
+}
 
 /** Phase 11.14: a sales pipeline — column totals, won/lost badges, a WIP limit, a folded column, keyboard moves. */
 function PipelineDemo() {
@@ -121,7 +139,7 @@ export function buildAppKanbanBoardData(): ShowcaseComponent[] {
       category: 'App',
       abbr: 'KB',
       description:
-        'Trello / Linear-style kanban board. M1 ships HTML5-native drag and drop between columns with an inline drop-position indicator (thin line between cards) and full optimistic-UI rewind on rejected onCardMove. Use the canMove hook to gate transitions client-side, or throw from onCardMove to revert. Future milestones: column reorder + collapse + WIP limits (M2), swimlanes + filters + search (M3), inline edit + bulk select + card detail panel (M4), keyboard nav + ARIA announcements (M5), virtualization + auto-archive + dependencies (M6). Pixel-identical EJS sibling at modules/app/KanbanBoard/KanbanBoard.ejs.',
+        'Trello / Linear-style kanban board. M1 ships HTML5-native drag and drop between columns with an inline drop-position indicator (thin line between cards) and full optimistic-UI rewind on rejected onCardMove. Use the canMove hook to gate transitions client-side, or return false (or a promise of false) or throw from onCardMove to revert; `reorderWithinColumn={false}` limits moves to between columns. Future milestones: column reorder + collapse + WIP limits (M2), swimlanes + filters + search (M3), inline edit + bulk select + card detail panel (M4), keyboard nav + ARIA announcements (M5), virtualization + auto-archive + dependencies (M6). Pixel-identical EJS sibling at modules/app/KanbanBoard/KanbanBoard.ejs.',
       filePath: 'modules/app/KanbanBoard/index.tsx',
       sourceCode: `import { useState } from 'react';
 import { KanbanBoard, type KanbanCard, type KanbanColumn } from '@/modules/app/KanbanBoard';
@@ -247,9 +265,23 @@ const [cards, setCards] = useState(initialCards);
   cards={cards}
   onCardMove={async (card, from, to) => {
     const res = await fetch('/api/move', { method: 'POST', body: JSON.stringify({ card, to }) });
-    // Throw to revert the optimistic update.
+    // Throw (or return false) to revert the optimistic update.
     if (!res.ok) throw new Error('Server rejected');
     setCards(next);
+  }}
+/>`,
+        },
+        {
+          title: 'Stages only, refused by returning false (reorderWithinColumn)',
+          layout: 'stack' as const,
+          preview: <StagesOnlyDemo />,
+          code: `<KanbanBoard
+  columns={stages}
+  cards={applicants}
+  reorderWithinColumn={false}   // the API has no order inside a stage: no drop back, no Alt + Up / Down
+  onCardMove={(card, from, to) => {
+    if (!allowed(from, to)) return false;   // false, a promise of false, or a throw reverts the card
+    return api.setStage(card.id, to);
   }}
 />`,
         },
