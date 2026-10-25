@@ -2,6 +2,7 @@
 
 import { Fragment, type ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
+import { Button } from './Button';
 
 /**
  * A chronological activity feed.
@@ -50,6 +51,12 @@ export type TimelineProps = {
   /** Hide the sticky day headings. */
   groupByDay?: boolean;
   emptyMessage?: string;
+  /** Older entries exist: a "Load more" button under the last entry calls `onLoadMore`. */
+  hasMore?: boolean;
+  onLoadMore?: () => void;
+  /** The next batch is loading (the button shows a spinner and is disabled). */
+  loadingMore?: boolean;
+  loadMoreLabel?: string;
   className?: string;
 };
 
@@ -71,6 +78,10 @@ export function Timeline({
   locale,
   groupByDay = true,
   emptyMessage = 'Nothing here yet.',
+  hasMore = false,
+  onLoadMore,
+  loadingMore = false,
+  loadMoreLabel = 'Load more',
   className,
 }: TimelineProps) {
   if (items.length === 0) {
@@ -169,6 +180,13 @@ export function Timeline({
           </Fragment>
         );
       })}
+      {hasMore && onLoadMore && (
+        <li className="pl-12" data-part="load-more">
+          <Button variant="outline" size="sm" loading={loadingMore} disabled={loadingMore} onClick={onLoadMore}>
+            {loadMoreLabel}
+          </Button>
+        </li>
+      )}
     </ol>
   );
 }

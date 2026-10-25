@@ -143,7 +143,7 @@ panel), `Timeline` (grouping by day, load more).
 
 ## Done when
 
-- [ ] 11.1–11.9 in kui-react with tests and showcase sections; `npm run registry:snapshot` run.
-- [ ] 11.1–11.9 mirrored in kui-ejs and KUInative; parity checks green against kui-react.
-- [ ] 11.10–11.12 in all three; 11.13 in KUInative; 11.14 as NB needs them.
+- [x] 11.1–11.9 in kui-react with tests and showcase sections; `npm run registry:snapshot` run. 280c17d
+- [ ] 11.1–11.9 mirrored in kui-ejs (031e3a5, branch) and KUInative (in progress); parity exceptions recorded 1d93042.
+- [ ] 11.10–11.12 in all three (kui-react 06a2314; kui-ejs, KUInative open); 11.13 in KUInative; 11.14 as NB needs them (KanbanBoard ea65f6a, Timeline load more; ImageGallery: the media library uses DataTable `layout="cards"`, no change needed).
 - [ ] `KeyedTable` deprecated, IoT views on `DataTable`.
