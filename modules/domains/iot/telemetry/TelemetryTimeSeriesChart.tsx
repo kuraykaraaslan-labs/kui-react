@@ -17,7 +17,8 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, 
 export type TelemetrySeries = {
   label: string;
   color: string;
-  data: number[];
+  /** One value per label; `null` where the series has no point at that label (the line skips across it). */
+  data: Array<number | null>;
 };
 
 type TelemetryTimeSeriesChartProps = {
@@ -48,6 +49,7 @@ export function TelemetryTimeSeriesChart({
       pointHoverRadius: 4,
       tension: 0.3,
       borderWidth: 1.75,
+      spanGaps: true,
     })),
   };
 

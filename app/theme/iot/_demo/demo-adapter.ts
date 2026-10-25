@@ -10,6 +10,7 @@ import { newInactivityRule, type AlarmRuleDefinition } from '@/modules/domains/i
 import { ALARMS, ALARM_EVENTS, DEVICES, DEVICE_PROFILES } from '../iot.data';
 import type { DemoLive } from './demo-live';
 import { createDemoAssets } from './demo-assets';
+import { createDemoTelemetry, demoLivePoint } from './demo-telemetry';
 
 /*
  * The demo adapter (docs/concepts/iot-platform/phases/00 §0.5): an in-memory store seeded from `iot.data.ts` that implements
@@ -183,6 +184,8 @@ export type DemoAdapter = IotAdapter & {
     clearOldest(): void;
     flip(deviceId: string): void;
     deviceIds(): string[];
+    /** Publishes one live telemetry point of the device (the `i`-th of its keys, in turn). */
+    telemetry(deviceId: string, i: number): void;
   };
 };
 
@@ -301,12 +304,13 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
   const adapter: DemoAdapter = {
     name: 'Demo, in memory',
     assets,
+    telemetry: createDemoTelemetry(wait),
     async capabilities() {
       return {
         canCreateDevice: true, canEditDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true,
         canWriteAttributes: true, canActivateDevice: true, canReleaseDevice: false, canReadAlarms: true, canAcknowledge: true,
         canClear: true, canComment: true, canSendRpc: true, canManageProfiles: true, canManageAlarmRules: true, canManageRpcCommands: true,
-        canManageAssets: true, canPlaceDevices: true,
+        canManageAssets: true, canPlaceDevices: true, canReadTelemetry: true,
       };
     },
     profiles: {
@@ -602,6 +606,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         if (d.online) for (const r of store.rpc) if (r.deviceId === d.deviceId && r.status === 'QUEUED') deliver(r);
       },
       deviceIds() { return store.devices.map((d) => d.deviceId); },
+      telemetry(deviceId, i) { live.publish('telemetry', { deviceId }, demoLivePoint(deviceId, i)); },
     },
   };
   return adapter;
@@ -625,5 +630,11 @@ export function startDemoSimulation(adapter: DemoAdapter): () => void {
     adapter.sim.raise(ids[i % ids.length]);
     setTimeout(() => adapter.sim.clearOldest(), 60_000);
   }, 45_000);
-  return () => { clearInterval(flip); clearInterval(alarm); };
+  // every device sends one of its keys every 2 s, in turn
+  let k = 0;
+  const telemetry = setInterval(() => {
+    for (const id of adapter.sim.deviceIds()) adapter.sim.telemetry(id, k);
+    k++;
+  }, 2_000);
+  return () => { clearInterval(flip); clearInterval(alarm); clearInterval(telemetry); };
 }

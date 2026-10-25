@@ -46,6 +46,7 @@ export { DeviceConnectionBadge } from './device/DeviceConnectionBadge';
 export { DeviceDetailHeader } from './device/DeviceDetailHeader';
 export { DeviceCredentialPanel, IssuedSecretNotice } from './device/DeviceCredentialPanel';
 export { DeviceAttributeTable } from './device/DeviceAttributeTable';
+export { DeviceTelemetryView, alignSeries, kindOf, showValue, type DeviceTelemetryViewProps } from './device/DeviceTelemetryView';
 export { DesiredReportedBadge } from './device/DesiredReportedBadge';
 export { DeviceConnectionTimeline } from './device/DeviceConnectionTimeline';
 export { DeviceLogTimeline, DEVICE_LOG_ACTIONS, auditSummary } from './device/DeviceLogTimeline';

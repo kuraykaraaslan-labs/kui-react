@@ -2,18 +2,19 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowLeft, faChartLine, faClockRotateLeft, faLocationDot } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faClockRotateLeft, faLocationDot } from '@fortawesome/free-solid-svg-icons';
 import { DeviceDetailView } from '@/modules/domains/iot/device/DeviceDetailView';
+import { DeviceTelemetryView } from '@/modules/domains/iot/device/DeviceTelemetryView';
 import { AlarmListView } from '@/modules/domains/iot/alarm/AlarmListView';
 import { RpcConsoleView } from '@/modules/domains/iot/rpc/RpcConsoleView';
 import { DevicePlacementPanel } from '@/modules/domains/iot/asset/DevicePlacementPanel';
 import { EmptyState } from '@/modules/ui/EmptyState';
-import { Button } from '@/modules/ui/Button';
 import { demoHrefs, deviceIdOfSlug } from '../../_demo/demo-hrefs';
 
 /**
  * The client half of /theme/iot/devices/[slug]: `DeviceDetailView` with the tabs other modules contribute in NB (Alarms here
- * Commands (RPC) and Placement (sites and assets, phase 08) for real; Telemetry and OTA as placeholders until their phases). The open tab lives in `?tab=`.
+ * Commands (RPC), Placement (sites and assets, phase 08) and Telemetry (`DeviceTelemetryView`) for real; OTA as a placeholder until its phase). The open tab
+ * lives in `?tab=`.
  */
 export function DeviceDetailScreen({ slug }: { slug: string }) {
   const router = useRouter();
@@ -35,17 +36,7 @@ export function DeviceDetailScreen({ slug }: { slug: string }) {
         onTabChange={(tab) => router.replace(`?tab=${tab}`, { scroll: false })}
         onDeleted={() => router.push(demoHrefs.devices)}
         extraTabs={[
-          {
-            id: 'telemetry', label: 'Telemetry', order: 40,
-            content: (
-              <EmptyState
-                icon={<FontAwesomeIcon icon={faChartLine} aria-hidden="true" />}
-                title="Telemetry explorer"
-                description="Phase 02 replaces this tab; the metrics page shows the device's charts today."
-                action={<Button as="a" href={`/theme/iot/devices/${slug}/metrics`} variant="outline" size="sm">Open metrics</Button>}
-              />
-            ),
-          },
+          { id: 'telemetry', label: 'Telemetry', order: 40, content: <DeviceTelemetryView deviceId={deviceId} /> },
           { id: 'alarms', label: 'Alarms', order: 50, content: <AlarmListView hrefs={demoHrefs} deviceId={deviceId} embedded /> },
           { id: 'rpc', label: 'Commands', order: 60, content: <RpcConsoleView deviceId={deviceId} /> },
           { id: 'ota', label: 'OTA', order: 70, content: placeholder(faClockRotateLeft, 'Firmware updates', 'Contributed by the OTA module (phase 06).') },

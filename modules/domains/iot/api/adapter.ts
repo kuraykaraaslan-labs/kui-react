@@ -257,6 +257,27 @@ export interface IotAssetsApi {
   removeRelation?(relationId: string): Promise<void>;
 }
 
+// ── telemetry (the device page's Telemetry tab) ───────────────────────────────────────────────────────────────────────
+
+/** A value a device sends for one key: a number, a flag, a word, or a JSON object or list. */
+export type TelemetryValue = number | boolean | string | Record<string, unknown> | unknown[];
+/** One key's latest value and when it was sent (epoch ms). */
+export type TelemetryLatest = { key: string; ts: number; value: TelemetryValue };
+/** One point of a numeric series (a bucket's value when the host aggregates). */
+export type TelemetryPoint = { ts: number; value: number };
+export type TelemetrySeriesQuery = { keys: string[]; from: number; to: number };
+
+/**
+ * A device's telemetry (NB `telemetry` + `iot_telemetry`): every key's latest value, and numeric series over a window. A host
+ * aggregates a long window into buckets (its choice of resolution); a key that is not numeric answers an empty series.
+ */
+export interface IotTelemetryApi {
+  /** Every key the device has a latest value for. */
+  latest(deviceId: string, signal?: AbortSignal): Promise<TelemetryLatest[]>;
+  /** One series per key over `[from, to)`, oldest first. */
+  series(deviceId: string, query: TelemetrySeriesQuery, signal?: AbortSignal): Promise<Record<string, TelemetryPoint[]>>;
+}
+
 // ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -288,6 +309,8 @@ export type IotCapabilities = {
   canManageAssets: boolean;
   /** Place devices on assets and manage relations. */
   canPlaceDevices: boolean;
+  /** Read a device's telemetry (its latest values and series). */
+  canReadTelemetry: boolean;
 };
 
 /** Fail closed: nothing until the host says so. */
@@ -310,6 +333,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canManageRpcCommands: false,
   canManageAssets: false,
   canPlaceDevices: false,
+  canReadTelemetry: false,
 };
 
 export interface IotAdapter {
@@ -324,6 +348,7 @@ export interface IotAdapter {
   alarmRules?: IotAlarmRulesApi;
   rpcCatalog?: IotRpcCatalogApi;
   assets?: IotAssetsApi;
+  telemetry?: IotTelemetryApi;
   capabilities?(signal?: AbortSignal): Promise<Partial<IotCapabilities>>;
 }
 
