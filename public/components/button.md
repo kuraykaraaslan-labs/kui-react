@@ -13,6 +13,7 @@ Core interactive element. Supports 5 visual styles (variants) and 5 sizes. disab
 
 - `color-picker`
 - `comment-thread`
+- `confirm-dialog`
 - `control-tile`
 - `entity-aliases`
 - `form-builder`

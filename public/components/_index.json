@@ -197,6 +197,12 @@
     "category": "Molecule",
     "file": "popconfirm.md"
   },
+  "confirm-dialog": {
+    "name": "ConfirmDialog",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "confirm-dialog.md"
+  },
   "time-picker": {
     "name": "TimePicker",
     "layer": "ui",

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T06:32:36.396Z",
+  "generatedAt": "2026-10-25T06:41:14.314Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -229,6 +229,7 @@
       "usedBy": [
         "color-picker",
         "comment-thread",
+        "confirm-dialog",
         "control-tile",
         "entity-aliases",
         "form-builder",
@@ -1536,6 +1537,85 @@
       "designTokens": []
     },
     {
+      "id": "confirm-dialog",
+      "name": "ConfirmDialog",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/ConfirmDialog.tsx",
+      "abbr": "Cf",
+      "description": "The one confirmation of the design system: a question, its consequence and two buttons, plus optional gates in any combination: an input (a reason, a name, a date), a responsibility text to tick, and a phrase to type. Controlled, or imperative through confirmDialog() with one ConfirmHost. Never use window.confirm / window.prompt.",
+      "source": "'use client';\nimport { ConfirmHost, confirmDialog } from '@/modules/ui/ConfirmDialog';\n\n// Once, at the app root:\n<ConfirmHost />\n\n// Anywhere on the client:\nconst ok = await confirmDialog({\n  title: 'Delete user',\n  message: 'Ada Lovelace and all her data are deleted. This cannot be undone.',\n  tone: 'danger',\n  confirmLabel: 'Delete',\n});\nif (!ok) return;\n\n// With a reason the call gets back:\nconst r = await confirmDialog({ title: 'Reject leave', confirmLabel: 'Reject', input: { kind: 'textarea', label: 'Reason', required: true } });\nif (r) await reject(id, r.value);",
+      "variants": [
+        {
+          "title": "Plain",
+          "code": "await confirmDialog({ title: 'Publish the catalogue', message: 'Every node picks up the new plans within a minute.', confirmLabel: 'Publish' });"
+        },
+        {
+          "title": "Danger",
+          "code": "await confirmDialog({ title: 'Delete user', message: 'Ada Lovelace and all her data are deleted. This cannot be undone.', tone: 'danger', confirmLabel: 'Delete' });"
+        },
+        {
+          "title": "With a reason",
+          "code": "const r = await confirmDialog({\n  title: 'Reject leave request', tone: 'warning', confirmLabel: 'Reject',\n  input: { kind: 'textarea', label: 'Reason', required: true, minLength: 3 },\n});\nif (r) await reject(id, r.value);"
+        },
+        {
+          "title": "With a date",
+          "code": "await confirmDialog({ title: 'Withdraw consent', confirmLabel: 'Withdraw', input: { kind: 'date', label: 'Effective date', required: true } });"
+        },
+        {
+          "title": "Responsibility text",
+          "code": "await confirmDialog({\n  title: 'Verify payroll parameters', confirmLabel: 'Verify',\n  acknowledgement: 'I checked these values against the official gazette and take responsibility for them.',\n});"
+        },
+        {
+          "title": "Type to confirm",
+          "code": "await confirmDialog({ title: 'Reboot gateway', tone: 'danger', confirmLabel: 'Reboot', phrase: 'REBOOT' });"
+        },
+        {
+          "title": "Every gate",
+          "code": "await confirmDialog({\n  title: 'Delete tenant', tone: 'danger', confirmLabel: 'Delete tenant',\n  input: { kind: 'textarea', label: 'Reason', required: true },\n  acknowledgement: 'I understand this cannot be undone.',\n  phrase: tenant.slug,\n});"
+        },
+        {
+          "title": "Two ways forward",
+          "code": "const r = await confirmDialog({ title: 'Someone else saved this page', tone: 'warning', confirmLabel: 'Keep mine', secondaryLabel: 'Load theirs' });\nif (r?.choice === 'confirm') await save({ force: true });\nelse if (r?.choice === 'secondary') await reload();"
+        },
+        {
+          "title": "Action inside the dialog",
+          "code": "await confirmDialog({\n  title: 'Revoke API key', tone: 'danger', confirmLabel: 'Revoke',\n  input: { kind: 'text', label: 'Reason', required: true },\n  action: ({ value }) => api.revoke(key.id, value), // a throw keeps the dialog open with the error\n});"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "composes": [
+        "modal",
+        "button"
+      ],
+      "relatedTo": [
+        "typed-confirm-dialog",
+        "popconfirm"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "dialog"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Tab",
+            "action": "Move between the fields, Cancel and the confirm button"
+          },
+          {
+            "keys": "Enter",
+            "action": "Confirm from a single-line field once every gate is met"
+          },
+          {
+            "keys": "Escape",
+            "action": "Cancel"
+          }
+        ]
+      },
+      "designTokens": []
+    },
+    {
       "id": "time-picker",
       "name": "TimePicker",
       "layer": "ui",
@@ -2640,6 +2720,7 @@
         "--text-primary"
       ],
       "usedBy": [
+        "confirm-dialog",
         "entity-aliases",
         "onboarding-wizard",
         "rich-text-editor",

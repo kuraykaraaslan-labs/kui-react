@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T06:32:36.396Z",
+  "generatedAt": "2026-10-25T06:41:14.314Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -178,6 +178,7 @@
       "usedBy": [
         "color-picker",
         "comment-thread",
+        "confirm-dialog",
         "control-tile",
         "entity-aliases",
         "form-builder",
@@ -922,6 +923,47 @@
       "variantCount": 2
     },
     {
+      "id": "confirm-dialog",
+      "name": "ConfirmDialog",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/ConfirmDialog.tsx",
+      "abbr": "Cf",
+      "description": "The one confirmation of the design system: a question, its consequence and two buttons, plus optional gates in any combination: an input (a reason, a name, a date), a responsibility text to tick, and a phrase to type. Controlled, or imperative through confirmDialog() with one ConfirmHost. Never use window.confirm / window.prompt.",
+      "status": "stable",
+      "since": "2026-10",
+      "composes": [
+        "modal",
+        "button"
+      ],
+      "relatedTo": [
+        "typed-confirm-dialog",
+        "popconfirm"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "dialog"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Tab",
+            "action": "Move between the fields, Cancel and the confirm button"
+          },
+          {
+            "keys": "Enter",
+            "action": "Confirm from a single-line field once every gate is met"
+          },
+          {
+            "keys": "Escape",
+            "action": "Cancel"
+          }
+        ]
+      },
+      "designTokens": [],
+      "variantCount": 9
+    },
+    {
       "id": "time-picker",
       "name": "TimePicker",
       "layer": "ui",
@@ -1559,6 +1601,7 @@
         "--text-primary"
       ],
       "usedBy": [
+        "confirm-dialog",
         "entity-aliases",
         "onboarding-wizard",
         "rich-text-editor",
