@@ -15,6 +15,7 @@ import type { ShowcaseComponent } from '../showcase.types';
 import type {
   DataTableFilterField,
   DataTableFilterValues,
+  DataTableQuery,
   DataTableRowAction,
   DataTableRowId,
 } from '@/modules/ui/Table/types';
@@ -86,6 +87,166 @@ function withUsage(entry: Omit<ShowcaseComponent, 'sourceCode'>, usage: string):
   const out = { ...entry } as ShowcaseComponent;
   out.sourceCode = usage;
   return out;
+}
+
+/** Phase 11 demos: manual mode, live rows, filter chips / presets / number range, card shell, card layout. */
+type Invoice = { id: string; customer: string; amount: number; status: string; issued: string; [key: string]: unknown };
+const INVOICES: Invoice[] = Array.from({ length: 23 }, (_, i) => ({
+  id: `INV-${1001 + i}`,
+  customer: ['Northwind', 'Contoso', 'Fabrikam', 'Adatum', 'Tailspin'][i % 5],
+  amount: 120 + ((i * 377) % 2400),
+  status: ['Paid', 'Open', 'Overdue'][i % 3],
+  issued: `2026-10-${String(1 + (i % 25)).padStart(2, '0')}`,
+}));
+const INVOICE_STATUS = [
+  { label: 'Paid', value: 'Paid' },
+  { label: 'Open', value: 'Open' },
+  { label: 'Overdue', value: 'Overdue' },
+];
+const INVOICE_FIELDS: DataTableFilterField<Invoice>[] = [
+  { id: 'status', label: 'Status', type: 'multiselect', options: INVOICE_STATUS },
+  { id: 'amount', label: 'Amount', type: 'numberrange', min: 0 },
+  { id: 'issued', label: 'Issued', type: 'daterange', presets: true },
+];
+const INVOICE_COLUMNS = [
+  { key: 'id', header: 'Invoice', sortable: true },
+  { key: 'customer', header: 'Customer', sortable: true },
+  { key: 'status', header: 'Status', hideBelow: 'sm' as const, render: (r: Invoice) => <Badge variant={r.status === 'Paid' ? 'success' : r.status === 'Overdue' ? 'error' : 'warning'}>{r.status}</Badge> },
+  { key: 'amount', header: 'Amount', sortable: true, align: 'right' as const, render: (r: Invoice) => r.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) },
+];
+
+/** The host owns the rows: it fetches (here: slices an array) from every reported query. */
+function ManualModeDemo() {
+  const [page, setPage] = useState<{ rows: Invoice[]; total: number }>({ rows: [], total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [last, setLast] = useState<DataTableQuery | null>(null);
+  const load = useCallback((q: DataTableQuery) => {
+    setLast(q);
+    setLoading(true);
+    setTimeout(() => {
+      let rows = INVOICES.filter((r) => !q.search || r.customer.toLowerCase().includes(q.search.toLowerCase()));
+      const status = q.filterValues.status as string[] | undefined;
+      if (status?.length) rows = rows.filter((r) => status.includes(r.status));
+      const s = q.sort[0];
+      if (s) rows = [...rows].sort((a, b) => String(a[s.key]).localeCompare(String(b[s.key]), undefined, { numeric: true }) * (s.dir === 'asc' ? 1 : -1));
+      setPage({ rows: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: rows.length });
+      setLoading(false);
+    }, 400);
+  }, []);
+  return (
+    <div className="w-full space-y-2">
+      <DataTable<Invoice>
+        mode="manual"
+        caption="Invoices"
+        rows={page.rows}
+        total={page.total}
+        loading={loading}
+        pageSize={5}
+        multiSort={false}
+        filterFields={[INVOICE_FIELDS[0]]}
+        onQueryChange={load}
+        columns={INVOICE_COLUMNS}
+      />
+      <p className="text-xs text-text-secondary font-mono break-all">{last ? JSON.stringify(last) : '…'}</p>
+    </div>
+  );
+}
+
+/** Live rows: a new row highlighted, a leaving row fading, keyboard row focus, a refused selection. */
+function LiveRowsDemo() {
+  const [rows, setRows] = useState<Pump[]>(PUMPS);
+  const [opened, setOpened] = useState('Focus a row and press Enter');
+  return (
+    <div className="w-full space-y-2">
+      <DataTable<Pump>
+        mode="manual"
+        caption="Pumps"
+        searchable={false}
+        rows={rows}
+        keyboardNavigation
+        selectable
+        isRowSelectable={(r) => (r.state === 'Stopped' ? 'A stopped pump cannot be selected' : true)}
+        rowSelectLabel={(r) => `Select ${r.name}`}
+        rowState={(r) => (r.id === 'p4' ? 'new' : r.state === 'Removed' ? 'leaving' : undefined)}
+        onRowClick={(r) => setOpened(`Opened ${r.name}`)}
+        columns={[{ key: 'name', header: 'Name' }, { key: 'state', header: 'State', hideBelow: 'sm' }]}
+      />
+      <div className="flex flex-wrap gap-3 text-xs text-text-secondary">
+        <button type="button" className="underline" onClick={() => setRows((r) => [{ id: 'p4', name: 'Pump 4', state: 'Running' }, ...r.filter((x) => x.id !== 'p4')])}>Add a live row</button>
+        <button type="button" className="underline" onClick={() => setRows((r) => r.map((x) => (x.id === 'p1' ? { ...x, state: 'Removed' } : x)))}>Fade Pump 1</button>
+        <span aria-live="polite">{opened}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Filter chips, date-range presets, a number range and a field that starts set. */
+function FilterChipsDemo() {
+  return (
+    <div className="w-full">
+      <DataTable<Invoice>
+        mode="paginated"
+        caption="Invoices"
+        pageSize={5}
+        rows={INVOICES}
+        filterFields={[{ ...INVOICE_FIELDS[0], defaultValue: ['Open', 'Overdue'] }, INVOICE_FIELDS[1], INVOICE_FIELDS[2]]}
+        columns={INVOICE_COLUMNS}
+      />
+    </div>
+  );
+}
+
+/** Card shell: title, subtitle, header actions, toolbar slots, compact rows, a totals footer. */
+function CardShellDemo() {
+  const rows = INVOICES.slice(0, 6);
+  const sum = rows.reduce((n, r) => n + r.amount, 0);
+  return (
+    <div className="w-full">
+      <DataTable<Invoice>
+        mode="static"
+        variant="card"
+        density="compact"
+        title="Latest invoices"
+        subtitle={`${rows.length} invoices`}
+        headerActions={<button type="button" className="rounded-md border border-border px-3 py-1.5 text-sm">New invoice</button>}
+        toolbarEnd={<button type="button" className="rounded-md border border-border px-3 py-1.5 text-sm">Export</button>}
+        rows={rows}
+        columns={[
+          { key: 'id', header: 'Invoice', sortable: true, footer: 'Total' },
+          { key: 'customer', header: 'Customer', sortable: true, hideBelow: 'sm' },
+          { key: 'amount', header: 'Amount', sortable: true, align: 'right', render: (r) => r.amount.toLocaleString('en-US'), footer: sum.toLocaleString('en-US') },
+        ]}
+      />
+    </div>
+  );
+}
+
+/** Card layout: the same toolbar, filters, sort and paging over a grid of cards. */
+function CardLayoutDemo() {
+  return (
+    <div className="w-full">
+      <DataTable<Invoice>
+        mode="paginated"
+        layout="cards"
+        caption="Invoices"
+        pageSize={6}
+        cardMinWidth="12rem"
+        rows={INVOICES}
+        filterFields={[INVOICE_FIELDS[0]]}
+        columns={INVOICE_COLUMNS}
+        renderCard={(r) => (
+          <article className="h-full rounded-lg border border-border bg-surface-raised p-3 space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-mono text-xs text-text-secondary">{r.id}</span>
+              <Badge variant={r.status === 'Paid' ? 'success' : r.status === 'Overdue' ? 'error' : 'warning'}>{r.status}</Badge>
+            </div>
+            <p className="text-sm font-medium text-text-primary">{r.customer}</p>
+            <p className="text-sm tabular-nums text-text-secondary">{r.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</p>
+          </article>
+        )}
+      />
+    </div>
+  );
 }
 
 function RowActionsDemo() {
@@ -420,7 +581,7 @@ export function Table({ columns, rows, caption, emptyMessage = 'No results found
       title: 'DataTable',
       category: 'Organism',
       abbr: 'Dt',
-      description: 'Unified table with `mode="static" | "paginated" | "server"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).',
+      description: 'Unified table with `mode="static" | "paginated" | "server" | "manual"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant="card"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout="cards"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).',
       filePath: 'modules/ui/Table/DataTable.tsx',
       sourceCode: `'use client';
 import { cn } from '@/libs/utils/cn';
@@ -594,6 +755,87 @@ const [selected, setSelected] = useState<DataTableRowId[]>([]);
   ]}
   // Optional: filterValues / onFilterValuesChange (controlled), filtersLive, defaultFiltersOpen
   columns={columns}
+/>`,
+        },
+        {
+          title: 'Manual mode (mode="manual")',
+          layout: 'stack' as const,
+          preview: <ManualModeDemo />,
+          code: `// The host owns the rows and fetches from every reported query (also the first, on mount).
+<DataTable<Invoice>
+  mode="manual"
+  rows={page.rows}
+  total={page.total}
+  loading={loading}
+  error={error}
+  onRetry={reload}
+  multiSort={false}
+  onQueryChange={(q) => load(q)} // { page, pageSize, sort, search, filters, filterValues }
+  columns={[{ key: 'amount', header: 'Amount', sortable: true, sortKey: 'total_amount' }]}
+/>`,
+        },
+        {
+          title: 'Live rows (rowState, keyboard rows, isRowSelectable)',
+          layout: 'stack' as const,
+          preview: <LiveRowsDemo />,
+          code: `<DataTable<Pump>
+  mode="manual"
+  rows={pumps}
+  rowId={(r) => r.id}
+  keyboardNavigation
+  rowState={(r) => (r.isNew ? 'new' : r.removing ? 'leaving' : undefined)}
+  selectable
+  isRowSelectable={(r) => (r.state === 'Stopped' ? 'A stopped pump cannot be selected' : true)}
+  rowSelectLabel={(r) => \`Select \${r.name}\`}
+  columns={[{ key: 'name', header: 'Name' }, { key: 'state', header: 'State', hideBelow: 'sm' }]}
+/>`,
+        },
+        {
+          title: 'Filter chips, date presets, number range',
+          layout: 'stack' as const,
+          preview: <FilterChipsDemo />,
+          code: `<DataTable<Invoice>
+  rows={invoices}
+  filterFields={[
+    { id: 'status', label: 'Status', type: 'multiselect', options, defaultValue: ['Open', 'Overdue'] },
+    { id: 'amount', label: 'Amount', type: 'numberrange', min: 0 },
+    { id: 'issued', label: 'Issued', type: 'daterange', presets: true },
+  ]}
+  // Applied filters show as removable chips under the toolbar, with "Clear all".
+  columns={columns}
+/>`,
+        },
+        {
+          title: 'Card shell, footer, responsive columns',
+          layout: 'stack' as const,
+          preview: <CardShellDemo />,
+          code: `<DataTable<Invoice>
+  mode="static"
+  variant="card"
+  density="compact"
+  title="Latest invoices"
+  subtitle="6 invoices"
+  headerActions={<Button>New invoice</Button>}
+  toolbarEnd={<Button variant="outline">Export</Button>}
+  rows={rows}
+  columns={[
+    { key: 'id', header: 'Invoice', footer: 'Total' },
+    { key: 'customer', header: 'Customer', hideBelow: 'sm' },
+    { key: 'amount', header: 'Amount', align: 'right', footer: total },
+  ]}
+/>`,
+        },
+        {
+          title: 'Card layout (layout="cards")',
+          layout: 'stack' as const,
+          preview: <CardLayoutDemo />,
+          code: `<DataTable<Invoice>
+  layout="cards"
+  cardMinWidth="12rem"
+  rows={invoices}
+  columns={columns} // the sortable columns feed the "Sort by" select
+  filterFields={[{ id: 'status', label: 'Status', type: 'multiselect', options }]}
+  renderCard={(r, { actions, selected, toggleSelected }) => <InvoiceCard invoice={r} menu={actions} />}
 />`,
         },
         {

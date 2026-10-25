@@ -3,7 +3,7 @@
 //
 // Exposes:
 // - <Table />              — low-level "dumb" table primitive (named export from ./Table)
-// - <DataTable />          — unified rich table (modes: static | paginated | server)
+// - <DataTable />          — unified rich table (modes: static | paginated | server | manual)
 // - <AdvancedDataTable />  — @deprecated thin wrapper over <DataTable selectable renderExpanded />
 // - <ServerDataTable />    — @deprecated thin wrapper rendering the legacy server-controlled card
 //
@@ -35,20 +35,35 @@ export type {
   DataTableFilterOption,
   DataTableFilterValue,
   DataTableFilterValues,
+  DataTableQuery,
+  DataTableRowState,
+  DataTableLayout,
+  DataTableVariant,
+  DataTableDensity,
+  DataTableCardContext,
+  DataTableNumberRange,
+  DataTableDatePreset,
+  ColumnBreakpoint,
 } from './types';
-export { DEFAULT_MESSAGES } from './types';
+export { DEFAULT_MESSAGES, formatMessage } from './types';
 export { resolveRowActions } from './parts/RowActionsCell';
 
 // Core hooks — exposed for advanced consumers building bespoke layouts.
 export { useTable } from './core/useTable';
 export type { UseTableArgs, UseTableReturn } from './core/useTable';
 export { useServerTable } from './core/useServerTable';
+export { useManualTable } from './core/useManualTable';
+export type { UseManualTableArgs, UseManualTableReturn } from './core/useManualTable';
 export { useRowSelection, useRowExpansion } from './core/useRowState';
 export {
   useFilterPanel,
   activeFilterValues,
   isFilterValueActive,
   matchFilterField,
+  defaultFilterValues,
+  builtInDatePresets,
+  filterChipText,
+  filterValueText,
 } from './core/filterPanel';
 export type { UseFilterPanelArgs, UseFilterPanelReturn } from './core/filterPanel';
 export type {

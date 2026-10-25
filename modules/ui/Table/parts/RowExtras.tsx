@@ -43,10 +43,13 @@ export function SelectCell({
   checked,
   label,
   onChange,
+  disabledReason,
 }: {
   checked: boolean;
   label: string;
   onChange: () => void;
+  /** Set when the row cannot be selected: the checkbox is disabled and this is its tooltip. */
+  disabledReason?: string;
 }) {
   return (
     <td className="w-10 px-4 py-3" onClick={(e) => e.stopPropagation()} data-part="select">
@@ -54,6 +57,8 @@ export function SelectCell({
         type="checkbox"
         aria-label={label}
         checked={checked}
+        disabled={disabledReason !== undefined}
+        title={disabledReason}
         onChange={onChange}
         className={checkboxClass}
       />

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T07:43:17.849Z",
+  "generatedAt": "2026-10-25T09:34:57.530Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2912,7 +2912,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Table/DataTable.tsx",
       "abbr": "Dt",
-      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).",
+      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\" | \"manual\"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant=\"card\"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout=\"cards\"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).",
       "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useMemo, useState } from 'react';\nimport { SearchBar } from './SearchBar';\nimport { Pagination } from './Pagination';\n\nexport function DataTable({ columns, rows, caption, searchable = true, searchPlaceholder = 'Search…', pageSize: defaultPageSize = 10, pageSizeOptions = [5,10,25,50], emptyMessage = 'No results found.', className }) {\n  const [search, setSearch] = useState('');\n  const [page, setPage] = useState(1);\n  const [pageSize, setPageSize] = useState(defaultPageSize);\n\n  const filtered = useMemo(() => {\n    if (!search.trim()) return rows;\n    const q = search.toLowerCase();\n    return rows.filter((row) => columns.some((col) => !col.render && String(row[col.key] ?? '').toLowerCase().includes(q)));\n  }, [rows, search, columns]);\n\n  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));\n  const paginated  = filtered.slice((page - 1) * pageSize, page * pageSize);\n\n  return (\n    <div className={cn('space-y-3', className)}>\n      {searchable && (\n        <div className=\"flex items-center gap-2 flex-wrap\">\n          <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={searchPlaceholder} className=\"flex-1 min-w-40\" />\n          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className=\"rounded-md border border-border bg-surface-base px-2 py-1.5 text-sm\">\n            {pageSizeOptions.map((s) => <option key={s} value={s}>{s}</option>)}\n          </select>\n        </div>\n      )}\n      {/* table body ... */}\n      <div className=\"flex items-center justify-between gap-4 flex-wrap\">\n        <p className=\"text-xs text-text-secondary\">Showing {(page-1)*pageSize+1}–{Math.min(page*pageSize, filtered.length)} of {filtered.length}</p>\n        {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}\n      </div>\n    </div>\n  );\n}",
       "variants": [
         {
@@ -2938,6 +2938,26 @@
         {
           "title": "Filter panel (filterFields)",
           "code": "// A \"Filters\" button next to the search opens a panel of any mix of controls.\n// Server mode sends the set fields to fetchPage as `filterValues` (JSON-safe:\n// dates are YYYY-MM-DD, a date range is { from, to }, a range is [min, max]).\n// Static / paginated modes match rows by row[field.id], or by the field's `match`.\n<DataTable<Modem>\n  mode=\"server\"\n  fetchPage={(args) => api.modems({ ...args.filterValues, page: args.page })}\n  filterFields={[\n    { id: 'profile',    label: 'Profile',    type: 'select',      options: profiles },\n    { id: 'connection', label: 'Connection', type: 'multiselect', options: connections },\n    { id: 'status',     label: 'Status',     type: 'checkboxes',  options: statuses },\n    { id: 'gateway',    label: 'Gateway',    type: 'radio',       options: gateways },\n    { id: 'signal',     label: 'Signal (%)', type: 'range', min: 0, max: 100 },\n    { id: 'seen',       label: 'Last seen',  type: 'daterange' },\n    { id: 'name',       label: 'Name contains', type: 'text' },\n    { id: 'roaming',    label: 'Roaming only',  type: 'checkbox' },\n    { id: 'site', label: 'Site', type: 'custom',\n      render: ({ id, value, onChange }) => <SitePicker id={id} value={value} onChange={onChange} /> },\n  ]}\n  // Optional: filterValues / onFilterValuesChange (controlled), filtersLive, defaultFiltersOpen\n  columns={columns}\n/>"
+        },
+        {
+          "title": "Manual mode (mode=\"manual\")",
+          "code": "// The host owns the rows and fetches from every reported query (also the first, on mount).\n<DataTable<Invoice>\n  mode=\"manual\"\n  rows={page.rows}\n  total={page.total}\n  loading={loading}\n  error={error}\n  onRetry={reload}\n  multiSort={false}\n  onQueryChange={(q) => load(q)} // { page, pageSize, sort, search, filters, filterValues }\n  columns={[{ key: 'amount', header: 'Amount', sortable: true, sortKey: 'total_amount' }]}\n/>"
+        },
+        {
+          "title": "Live rows (rowState, keyboard rows, isRowSelectable)",
+          "code": "<DataTable<Pump>\n  mode=\"manual\"\n  rows={pumps}\n  rowId={(r) => r.id}\n  keyboardNavigation\n  rowState={(r) => (r.isNew ? 'new' : r.removing ? 'leaving' : undefined)}\n  selectable\n  isRowSelectable={(r) => (r.state === 'Stopped' ? 'A stopped pump cannot be selected' : true)}\n  rowSelectLabel={(r) => `Select ${r.name}`}\n  columns={[{ key: 'name', header: 'Name' }, { key: 'state', header: 'State', hideBelow: 'sm' }]}\n/>"
+        },
+        {
+          "title": "Filter chips, date presets, number range",
+          "code": "<DataTable<Invoice>\n  rows={invoices}\n  filterFields={[\n    { id: 'status', label: 'Status', type: 'multiselect', options, defaultValue: ['Open', 'Overdue'] },\n    { id: 'amount', label: 'Amount', type: 'numberrange', min: 0 },\n    { id: 'issued', label: 'Issued', type: 'daterange', presets: true },\n  ]}\n  // Applied filters show as removable chips under the toolbar, with \"Clear all\".\n  columns={columns}\n/>"
+        },
+        {
+          "title": "Card shell, footer, responsive columns",
+          "code": "<DataTable<Invoice>\n  mode=\"static\"\n  variant=\"card\"\n  density=\"compact\"\n  title=\"Latest invoices\"\n  subtitle=\"6 invoices\"\n  headerActions={<Button>New invoice</Button>}\n  toolbarEnd={<Button variant=\"outline\">Export</Button>}\n  rows={rows}\n  columns={[\n    { key: 'id', header: 'Invoice', footer: 'Total' },\n    { key: 'customer', header: 'Customer', hideBelow: 'sm' },\n    { key: 'amount', header: 'Amount', align: 'right', footer: total },\n  ]}\n/>"
+        },
+        {
+          "title": "Card layout (layout=\"cards\")",
+          "code": "<DataTable<Invoice>\n  layout=\"cards\"\n  cardMinWidth=\"12rem\"\n  rows={invoices}\n  columns={columns} // the sortable columns feed the \"Sort by\" select\n  filterFields={[{ id: 'status', label: 'Status', type: 'multiselect', options }]}\n  renderCard={(r, { actions, selected, toggleSelected }) => <InvoiceCard invoice={r} menu={actions} />}\n/>"
         },
         {
           "title": "Sticky header (stickyHeader)",

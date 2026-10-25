@@ -13,22 +13,17 @@ import { RadioGroup } from '../../RadioGroup';
 import { Checkbox } from '../../Checkbox';
 import { RangeSlider } from '../../RangeSlider';
 import { DatePicker, DateRangePicker } from '../../DatePicker';
+import { builtInDatePresets, defaultFilterValues, toDay } from '../core/filterPanel';
 import type {
   DataTableFilterField,
   DataTableFilterValue,
   DataTableFilterValues,
   DataTableMessages,
+  DataTableNumberRange,
 } from '../types';
 
 // The `filterFields` panel: a toolbar toggle and a grid of controls. Edits stay
 // in a draft until Apply (or apply at once with `live`).
-
-/** `YYYY-MM-DD` in local time, the wire format of date filters. */
-function toDay(d: Date | null): string | null {
-  if (!d) return null;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function fromDay(s: string | null | undefined): Date | null {
   if (!s) return null;
@@ -67,6 +62,45 @@ export function FilterToggle({
         </Badge>
       )}
     </Button>
+  );
+}
+
+function NumberRangeControl({
+  id,
+  label,
+  hint,
+  min,
+  max,
+  step,
+  value,
+  msgs,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  value: DataTableNumberRange | undefined;
+  msgs: DataTableMessages;
+  onChange: (value: DataTableNumberRange) => void;
+}) {
+  const current = value ?? { min: null, max: null };
+  const read = (raw: string) => (raw === '' ? null : Number(raw));
+  const minLabel = msgs.rangeMin ?? 'Min';
+  const maxLabel = msgs.rangeMax ?? 'Max';
+  return (
+    <fieldset className="min-w-0" data-part="number-range">
+      <legend className="mb-1.5 block text-sm font-medium text-text-primary">{label}</legend>
+      <div className="grid grid-cols-2 gap-2">
+        <Input id={`${id}-min`} type="number" label={minLabel} min={min} max={max} step={step}
+          value={current.min ?? ''} onChange={(e) => onChange({ ...current, min: read(e.target.value) })} />
+        <Input id={`${id}-max`} type="number" label={maxLabel} min={min} max={max} step={step}
+          value={current.max ?? ''} onChange={(e) => onChange({ ...current, max: read(e.target.value) })} />
+      </div>
+      {hint && <p className="mt-1.5 text-xs text-text-secondary">{hint}</p>}
+    </fieldset>
   );
 }
 
@@ -132,10 +166,26 @@ function FilterControl<T>({
       );
     case 'daterange': {
       const range = value as { from: string | null; to: string | null } | null | undefined;
+      const presets = field.presets === true ? builtInDatePresets(msgs) : field.presets || [];
       return (
-        <DateRangePicker id={id} label={field.label} hint={field.hint} locale={field.locale}
-          value={{ start: fromDay(range?.from), end: fromDay(range?.to) }}
-          onChange={(r) => onChange({ from: toDay(r.start), to: toDay(r.end) })} />
+        <div className="min-w-0 space-y-2">
+          <DateRangePicker id={id} label={field.label} hint={field.hint} locale={field.locale}
+            value={{ start: fromDay(range?.from), end: fromDay(range?.to) }}
+            onChange={(r) => onChange({ from: toDay(r.start), to: toDay(r.end) })} />
+          {presets.length > 0 && (
+            <div className="flex flex-wrap gap-1" data-part="date-presets">
+              {presets.map((p) => {
+                const on = range?.from === p.from && range?.to === p.to;
+                return (
+                  <Button key={p.label} size="xs" variant={on ? 'primary' : 'ghost'} aria-pressed={on}
+                    onClick={() => onChange({ from: p.from, to: p.to })}>
+                    {p.label}
+                  </Button>
+                );
+              })}
+            </div>
+          )}
+        </div>
       );
     }
     case 'range':
@@ -143,6 +193,12 @@ function FilterControl<T>({
         <RangeSlider range label={field.label} hint={field.hint}
           min={field.min} max={field.max} step={field.step}
           value={(value as [number, number] | undefined) ?? [field.min, field.max]} onChange={onChange} />
+      );
+    case 'numberrange':
+      return (
+        <NumberRangeControl id={id} label={field.label} hint={field.hint}
+          min={field.min} max={field.max} step={field.step}
+          value={value as DataTableNumberRange | undefined} msgs={msgs} onChange={onChange} />
       );
     case 'custom':
       return <>{field.render({ id, value, onChange })}</>;
@@ -206,7 +262,8 @@ export function FilterPanel<T>({
         ))}
       </div>
       <div className="mt-4 flex justify-end gap-2">
-        <Button variant="ghost" size="sm" onClick={() => onApply({})}>
+        {/* Reset goes back to each field's defaultValue, not to nothing. */}
+        <Button variant="ghost" size="sm" onClick={() => onApply(defaultFilterValues(fields))}>
           {msgs.resetFilters ?? 'Reset'}
         </Button>
         {!live && (

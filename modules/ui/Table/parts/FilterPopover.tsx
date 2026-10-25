@@ -3,7 +3,7 @@ import { cn } from '@/libs/utils/cn';
 import { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFilter } from '@fortawesome/free-solid-svg-icons';
-import type { Column } from '../types';
+import { DEFAULT_MESSAGES, formatMessage, type Column, type DataTableMessages } from '../types';
 
 // TODO M2: date and range filter kinds, multi-value select, filter chain.
 
@@ -11,11 +11,17 @@ export function FilterPopover<T extends Record<string, unknown>>({
   column,
   value,
   onChange,
+  msgs = DEFAULT_MESSAGES,
 }: {
   column: Column<T>;
   value: string;
   onChange: (next: string) => void;
+  msgs?: DataTableMessages;
 }) {
+  const heading =
+    typeof column.header === 'string' || typeof column.header === 'number'
+      ? String(column.header)
+      : String(column.key);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const [draft, setDraft] = useState(value);
@@ -65,7 +71,10 @@ export function FilterPopover<T extends Record<string, unknown>>({
     <span ref={wrapperRef} className="relative inline-flex">
       <button
         type="button"
-        aria-label={active ? `Edit filter on ${column.header}` : `Filter ${column.header}`}
+        aria-label={formatMessage(
+          active ? (msgs.editColumnFilter ?? 'Edit filter on {column}') : (msgs.columnFilter ?? 'Filter {column}'),
+          { column: heading },
+        )}
         aria-expanded={open}
         onClick={(e) => {
           e.stopPropagation();
@@ -84,7 +93,7 @@ export function FilterPopover<T extends Record<string, unknown>>({
       {open && (
         <div
           role="dialog"
-          aria-label={`Filter ${column.header}`}
+          aria-label={formatMessage(msgs.columnFilter ?? 'Filter {column}', { column: heading })}
           onClick={(e) => e.stopPropagation()}
           className={cn(
             'absolute top-full left-0 mt-1 z-[70] min-w-[12rem] rounded-lg border border-border bg-surface-raised shadow-xl p-3',
@@ -100,7 +109,7 @@ export function FilterPopover<T extends Record<string, unknown>>({
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
               )}
             >
-              <option value="">All</option>
+              <option value="">{msgs.columnFilterAll ?? 'All'}</option>
               {(column.filter?.options ?? []).map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
@@ -112,7 +121,7 @@ export function FilterPopover<T extends Record<string, unknown>>({
               autoFocus
               type="text"
               value={draft}
-              placeholder={column.filter?.placeholder ?? 'Contains…'}
+              placeholder={column.filter?.placeholder ?? msgs.columnFilterContains ?? 'Contains…'}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') apply();
@@ -132,7 +141,7 @@ export function FilterPopover<T extends Record<string, unknown>>({
                 'hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
               )}
             >
-              Clear
+              {msgs.clearFilter}
             </button>
             <button
               type="button"
@@ -142,7 +151,7 @@ export function FilterPopover<T extends Record<string, unknown>>({
                 'hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
               )}
             >
-              Apply
+              {msgs.apply}
             </button>
           </div>
         </div>

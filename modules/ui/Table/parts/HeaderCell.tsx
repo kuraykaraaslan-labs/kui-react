@@ -6,11 +6,16 @@ import {
   faChevronDown,
   faSort,
 } from '@fortawesome/free-solid-svg-icons';
-import type { Column, SortDirection, SortState } from '../types';
+import type { Column, DataTableDensity, DataTableMessages, SortDirection, SortState } from '../types';
 import { headerClassFor } from '../core/columnHelpers';
 import { FilterPopover } from './FilterPopover';
 
 // TODO M2: column resize handle, drag-reorder handle, pin toggle, hide menu.
+
+const HEADER_PAD: Record<DataTableDensity, string> = {
+  comfortable: 'px-4 py-3',
+  compact: 'px-3 py-2',
+};
 
 export function HeaderCell<T extends Record<string, unknown>>({
   column,
@@ -18,12 +23,16 @@ export function HeaderCell<T extends Record<string, unknown>>({
   filterValue,
   onToggleSort,
   onSetFilter,
+  density = 'comfortable',
+  msgs,
 }: {
   column: Column<T>;
   sort: SortState[];
   filterValue: string;
   onToggleSort: (key: string, shiftKey: boolean) => void;
   onSetFilter: (key: string, value: string) => void;
+  density?: DataTableDensity;
+  msgs?: DataTableMessages;
 }) {
   const key = String(column.key);
   const sortEntry = sort.find((s) => s.key === key);
@@ -41,48 +50,61 @@ export function HeaderCell<T extends Record<string, unknown>>({
 
   const headerClass = headerClassFor(
     column,
-    'px-4 py-3 text-xs font-semibold text-text-secondary uppercase tracking-wider',
+    cn(HEADER_PAD[density], 'text-xs font-semibold text-text-secondary uppercase tracking-wider'),
+  );
+
+  const indicators = (
+    <>
+      {sortOrder !== null && (
+        <span
+          aria-hidden="true"
+          className="ml-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-fg px-1"
+        >
+          {sortOrder}
+        </span>
+      )}
+      {column.filter && (
+        <FilterPopover
+          column={column}
+          value={filterValue}
+          onChange={(v) => onSetFilter(key, v)}
+          msgs={msgs}
+        />
+      )}
+    </>
   );
 
   return (
     <th
       scope="col"
       aria-sort={ariaSort}
-      className={cn(
-        headerClass,
-        column.sortable &&
-          'cursor-pointer select-none hover:text-text-primary transition-colors',
-      )}
-      onClick={
-        column.sortable
-          ? (e) => onToggleSort(key, e.shiftKey)
-          : undefined
-      }
+      className={headerClass}
+      style={column.width ? { width: column.width } : undefined}
     >
       <span className="inline-flex items-center gap-1">
-        {column.header}
-        {column.sortable && (
-          <FontAwesomeIcon
-            icon={dir === 'asc' ? faChevronUp : dir === 'desc' ? faChevronDown : faSort}
-            className="w-2.5 h-2.5"
-            aria-hidden="true"
-          />
-        )}
-        {sortOrder !== null && (
-          <span
-            aria-hidden="true"
-            className="ml-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-fg px-1"
+        {column.sortable ? (
+          // A real button, so the sort is reachable and operable from the keyboard.
+          <button
+            type="button"
+            onClick={(e) => onToggleSort(key, e.shiftKey)}
+            className={cn(
+              'inline-flex items-center gap-1 rounded uppercase tracking-wider select-none transition-colors',
+              'hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+              dir && 'text-text-primary',
+            )}
+            data-part="sort"
           >
-            {sortOrder}
-          </span>
+            {column.header}
+            <FontAwesomeIcon
+              icon={dir === 'asc' ? faChevronUp : dir === 'desc' ? faChevronDown : faSort}
+              className={cn('w-2.5 h-2.5', !dir && 'opacity-50')}
+              aria-hidden="true"
+            />
+          </button>
+        ) : (
+          column.header
         )}
-        {column.filter && (
-          <FilterPopover
-            column={column}
-            value={filterValue}
-            onChange={(v) => onSetFilter(key, v)}
-          />
-        )}
+        {indicators}
       </span>
     </th>
   );

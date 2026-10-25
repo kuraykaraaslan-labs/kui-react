@@ -130,6 +130,8 @@ export type UseTableArgs<T extends Record<string, unknown>> = {
   initialSearch?: string;
   /** Extra row filter (the filter panel); keep it stable between renders. */
   predicate?: (row: T) => boolean;
+  /** `false` (default `true`): a click on another column replaces the sort even with shift held. */
+  multiSort?: boolean;
 };
 
 /**
@@ -144,6 +146,7 @@ export function useTable<T extends Record<string, unknown>>({
   initialFilters = {},
   initialSearch = '',
   predicate,
+  multiSort = true,
 }: UseTableArgs<T>) {
   const [sort, setSort] = useState<SortState[]>(initialSort);
   const [page, setPage] = useState(1);
@@ -163,10 +166,10 @@ export function useTable<T extends Record<string, unknown>>({
 
   const toggleSort = useCallback(
     (key: string, shiftKey: boolean) => {
-      setSort((curr) => nextSortState(curr, key, shiftKey));
+      setSort((curr) => nextSortState(curr, key, multiSort && shiftKey));
       setPage(1);
     },
-    [],
+    [multiSort],
   );
 
   const setColumnFilter = useCallback(

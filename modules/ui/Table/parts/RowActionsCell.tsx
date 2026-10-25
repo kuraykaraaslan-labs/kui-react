@@ -32,15 +32,23 @@ export function RowActionsCell<T>({
   row,
   actions,
   label,
+  as = 'td',
 }: {
   row: T;
   actions: readonly DataTableRowAction<T>[];
   label: string;
+  /** `div`: the menu alone, for a card of the card layout. */
+  as?: 'td' | 'div';
 }) {
   const items = arrangeMenuItems(resolveRowActions(actions, row));
+  const Cell = as;
   return (
     // The menu's clicks must not reach the row's own onClick (React bubbles through portals).
-    <td className="w-12 px-2 py-2 text-right" onClick={(e) => e.stopPropagation()} data-part="row-actions">
+    <Cell
+      className={as === 'td' ? 'w-12 px-2 py-2 text-right' : 'inline-flex'}
+      onClick={(e) => e.stopPropagation()}
+      data-part="row-actions"
+    >
       {items.length > 0 && (
         <DropdownMenu
           portal
@@ -53,6 +61,6 @@ export function RowActionsCell<T>({
           }
         />
       )}
-    </td>
+    </Cell>
   );
 }

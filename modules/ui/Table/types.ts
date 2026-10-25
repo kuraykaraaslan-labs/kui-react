@@ -56,7 +56,23 @@ export type Column<T> = {
   thClass?: string;
   /** Optional CSS class for the `<td>`. */
   tdClass?: string;
+  /**
+   * Hide the column below this breakpoint, so a phone width needs no horizontal scroll.
+   * Header, cells and footer all hide.
+   */
+  hideBelow?: ColumnBreakpoint;
+  /**
+   * The sort key the table reports outward (`fetchPage` args, `onQueryChange`) when it differs from `key`,
+   * for example the API field `created_at` behind the column `createdAt`.
+   */
+  sortKey?: string;
+  /** Footer cell (a total, a count). A `<tfoot>` row appears when any column has one. */
+  footer?: ReactNode;
+  /** CSS width of the column (`'8rem'`, `'20%'`). */
+  width?: string;
 };
+
+export type ColumnBreakpoint = 'sm' | 'md' | 'lg';
 
 /**
  * Backwards-compatible alias preserved so legacy `TableColumn<T>` imports
@@ -64,7 +80,49 @@ export type Column<T> = {
  */
 export type TableColumn<T> = Column<T>;
 
-export type DataTableMode = 'static' | 'paginated' | 'server';
+/**
+ * - `static`: every row shown, sorted and filtered in the browser.
+ * - `paginated`: the same, a page at a time.
+ * - `server`: `fetchPage` loads each page.
+ * - `manual`: the host passes `rows` and `total` and fetches itself; the table reports its query
+ *   (`onQueryChange`) and owns no data. For live lists and hosts with their own data hooks.
+ */
+export type DataTableMode = 'static' | 'paginated' | 'server' | 'manual';
+
+/** Everything that decides which rows a page shows. Sort keys are the outward ones (`Column.sortKey`). */
+export type DataTableQuery = {
+  /** 1-based. */
+  page: number;
+  pageSize: number;
+  sort: SortState[];
+  search: string;
+  /** Per-column header filters (`Column.filter`). */
+  filters: FilterState;
+  /** Applied filter-panel values that are set (`filterFields`). */
+  filterValues: DataTableFilterValues;
+};
+
+/** Live state of a row (`rowState`): `new` highlights it, `leaving` fades it before the host drops it. */
+export type DataTableRowState = 'new' | 'leaving' | undefined;
+
+/** How rows are laid out: a table, or a grid of cards drawn by `renderCard`. */
+export type DataTableLayout = 'table' | 'cards';
+
+export type DataTableVariant = 'plain' | 'card';
+
+export type DataTableDensity = 'comfortable' | 'compact';
+
+/** What `renderCard` gets besides the row. */
+export type DataTableCardContext = {
+  id: DataTableRowId;
+  /** Whether the row is selected (`selectable`). */
+  selected: boolean;
+  toggleSelected: () => void;
+  /** Whether the row can be selected; a string is the reason it cannot. */
+  selectable: true | string;
+  /** The row's actions menu (`rowActions`), to place inside the card; null without actions. */
+  actions: ReactNode;
+};
 
 export type DataTableStateValue = 'empty' | 'loading' | 'error' | 'ready';
 
@@ -77,14 +135,19 @@ export type DataTableFetchArgs = {
   filters: FilterState;
   /** Active values of the filter panel (`filterFields`), keyed by field id. Empty fields are left out. */
   filterValues: DataTableFilterValues;
+  /** Aborted when a newer query replaces this one (or the table unmounts); pass it to `fetch`/axios. */
+  signal?: AbortSignal;
 };
 
 export type DataTableFilterOption = { label: string; value: string };
 
+/** A bounded-or-not numeric range (`numberrange` field); either end may be empty. */
+export type DataTableNumberRange = { min: number | null; max: number | null };
+
 /**
  * A value of the filter panel. Every value serialises as-is, so it can go to a
  * server untouched: dates are `YYYY-MM-DD` strings, a date range is
- * `{ from, to }`, a numeric range is `[min, max]`.
+ * `{ from, to }`, a slider range is `[min, max]`, a number range is `{ min, max }`.
  */
 export type DataTableFilterValue =
   | string
@@ -93,15 +156,23 @@ export type DataTableFilterValue =
   | boolean
   | [number, number]
   | { from: string | null; to: string | null }
+  | DataTableNumberRange
   | null;
 
 export type DataTableFilterValues = Record<string, DataTableFilterValue>;
+
+/** A quick choice under a date-range field; `from` / `to` are `YYYY-MM-DD`. */
+export type DataTableDatePreset = { label: string; from: string | null; to: string | null };
 
 type DataTableFilterFieldBase<T> = {
   /** Key of the value; also the row key the default client-side match reads. */
   id: string;
   label: string;
   hint?: string;
+  /** The field's value before anyone changes it (also what Reset returns to). */
+  defaultValue?: DataTableFilterValue;
+  /** Text of the field's active-filter chip; defaults to a readable form of the value. */
+  formatChip?: (value: DataTableFilterValue) => string;
   /**
    * Static and paginated modes: whether a row passes this field's value.
    * Defaults to comparing `row[id]` by field type. Server mode ignores it.
@@ -124,9 +195,15 @@ export type DataTableFilterField<T = Record<string, unknown>> = DataTableFilterF
     /** One checkbox; `label` sits next to it and the value is `true` while ticked. */
     | { type: 'checkbox' }
     | { type: 'date'; locale?: 'tr' | 'en' }
-    | { type: 'daterange'; locale?: 'tr' | 'en' }
+    /**
+     * `presets: true` adds Today, Last 7 days, Last 30 days, This month and Last month under the
+     * picker; a list gives your own.
+     */
+    | { type: 'daterange'; locale?: 'tr' | 'en'; presets?: boolean | DataTableDatePreset[] }
     /** A two-thumb slider; inactive while it spans the whole `min`–`max`. */
     | { type: 'range'; min: number; max: number; step?: number }
+    /** Two number inputs (min, max) for values without known bounds (amounts, counts). */
+    | { type: 'numberrange'; min?: number; max?: number; step?: number }
     /** Anything else: render your own control and report its value. */
     | {
         type: 'custom';
@@ -177,6 +254,55 @@ export type DataTableMessages = {
   any?: string;
   /** Clears every filter-panel field. */
   resetFilters?: string;
+  /** Column header filter button; `{column}` is the column heading. */
+  columnFilter?: string;
+  editColumnFilter?: string;
+  /** "Any value" option of a select header filter. */
+  columnFilterAll?: string;
+  /** Placeholder of a text header filter. */
+  columnFilterContains?: string;
+  /** Accessible name of the scrolling table region when there is no `caption`. */
+  tableLabel?: string;
+  /** Range under the table; `{start}`, `{end}` and `{total}` are filled in. */
+  showingRange?: string;
+  /** Range under the table when it holds no rows. */
+  noResults?: string;
+  /** Empty state while a search finds nothing; `{search}` is the query. */
+  noResultsFor?: string;
+  /** Appended to the range while the browser-side search narrows the rows; `{total}` is the unfiltered count. */
+  filteredFrom?: string;
+  /** Retry button of the error state. */
+  retry?: string;
+  /** Label of the "Sort by" select of the card layout. */
+  sortBy?: string;
+  /** The "Sort by" option that turns sorting off. */
+  sortNone?: string;
+  /** "Sort by" option text; `{column}` is the column heading. */
+  sortAscending?: string;
+  sortDescending?: string;
+  /** Accessible name of the active-filter chips. */
+  activeFilters?: string;
+  /** Accessible label of a chip's remove button; `{filter}` is the chip text. */
+  removeFilter?: string;
+  /** Clears every filter, the chips and the column filters. */
+  clearAllFilters?: string;
+  /** Number-range inputs. */
+  rangeMin?: string;
+  rangeMax?: string;
+  /** Date-range presets (`presets: true`). */
+  presetToday?: string;
+  presetLast7Days?: string;
+  presetLast30Days?: string;
+  presetThisMonth?: string;
+  presetLastMonth?: string;
+  /** Pagination labels (`Pagination` `labels`); `{page}` is a page number. */
+  previousPage?: string;
+  nextPage?: string;
+  firstPage?: string;
+  lastPage?: string;
+  pageNumber?: string;
+  /** Accessible name of the pagination landmark. */
+  pagination?: string;
 };
 
 export const DEFAULT_MESSAGES: DataTableMessages = {
@@ -200,7 +326,44 @@ export const DEFAULT_MESSAGES: DataTableMessages = {
   filters: 'Filters',
   any: 'Any',
   resetFilters: 'Reset',
+  columnFilter: 'Filter {column}',
+  editColumnFilter: 'Edit filter on {column}',
+  columnFilterAll: 'All',
+  columnFilterContains: 'Contains…',
+  tableLabel: 'Data table',
+  showingRange: 'Showing {start}–{end} of {total}',
+  noResults: 'No results',
+  noResultsFor: 'No results for “{search}”',
+  filteredFrom: '(filtered from {total})',
+  retry: 'Retry',
+  sortBy: 'Sort by',
+  sortNone: 'Default order',
+  sortAscending: '{column}, ascending',
+  sortDescending: '{column}, descending',
+  activeFilters: 'Active filters',
+  removeFilter: 'Remove filter {filter}',
+  clearAllFilters: 'Clear all',
+  rangeMin: 'Min',
+  rangeMax: 'Max',
+  presetToday: 'Today',
+  presetLast7Days: 'Last 7 days',
+  presetLast30Days: 'Last 30 days',
+  presetThisMonth: 'This month',
+  presetLastMonth: 'Last month',
+  previousPage: 'Previous page',
+  nextPage: 'Next page',
+  firstPage: 'First page',
+  lastPage: 'Last page',
+  pageNumber: 'Page {page}',
+  pagination: 'Pagination',
 };
+
+/** Fills `{name}` placeholders of a message. */
+export function formatMessage(template: string, values: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (all, name: string) =>
+    name in values ? String(values[name]) : all,
+  );
+}
 
 /**
  * Stable identity of a row, used by selection and expandable rows

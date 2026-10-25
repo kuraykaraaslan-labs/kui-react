@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-03
 
-Unified table with `mode="static" | "paginated" | "server"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).
+Unified table with `mode="static" | "paginated" | "server" | "manual"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant="card"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout="cards"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).
 
 ## Design tokens consumed
 
@@ -134,6 +134,87 @@ const [selected, setSelected] = useState<DataTableRowId[]>([]);
   ]}
   // Optional: filterValues / onFilterValuesChange (controlled), filtersLive, defaultFiltersOpen
   columns={columns}
+/>
+```
+
+### Manual mode (mode="manual")
+
+```tsx
+// The host owns the rows and fetches from every reported query (also the first, on mount).
+<DataTable<Invoice>
+  mode="manual"
+  rows={page.rows}
+  total={page.total}
+  loading={loading}
+  error={error}
+  onRetry={reload}
+  multiSort={false}
+  onQueryChange={(q) => load(q)} // { page, pageSize, sort, search, filters, filterValues }
+  columns={[{ key: 'amount', header: 'Amount', sortable: true, sortKey: 'total_amount' }]}
+/>
+```
+
+### Live rows (rowState, keyboard rows, isRowSelectable)
+
+```tsx
+<DataTable<Pump>
+  mode="manual"
+  rows={pumps}
+  rowId={(r) => r.id}
+  keyboardNavigation
+  rowState={(r) => (r.isNew ? 'new' : r.removing ? 'leaving' : undefined)}
+  selectable
+  isRowSelectable={(r) => (r.state === 'Stopped' ? 'A stopped pump cannot be selected' : true)}
+  rowSelectLabel={(r) => `Select ${r.name}`}
+  columns={[{ key: 'name', header: 'Name' }, { key: 'state', header: 'State', hideBelow: 'sm' }]}
+/>
+```
+
+### Filter chips, date presets, number range
+
+```tsx
+<DataTable<Invoice>
+  rows={invoices}
+  filterFields={[
+    { id: 'status', label: 'Status', type: 'multiselect', options, defaultValue: ['Open', 'Overdue'] },
+    { id: 'amount', label: 'Amount', type: 'numberrange', min: 0 },
+    { id: 'issued', label: 'Issued', type: 'daterange', presets: true },
+  ]}
+  // Applied filters show as removable chips under the toolbar, with "Clear all".
+  columns={columns}
+/>
+```
+
+### Card shell, footer, responsive columns
+
+```tsx
+<DataTable<Invoice>
+  mode="static"
+  variant="card"
+  density="compact"
+  title="Latest invoices"
+  subtitle="6 invoices"
+  headerActions={<Button>New invoice</Button>}
+  toolbarEnd={<Button variant="outline">Export</Button>}
+  rows={rows}
+  columns={[
+    { key: 'id', header: 'Invoice', footer: 'Total' },
+    { key: 'customer', header: 'Customer', hideBelow: 'sm' },
+    { key: 'amount', header: 'Amount', align: 'right', footer: total },
+  ]}
+/>
+```
+
+### Card layout (layout="cards")
+
+```tsx
+<DataTable<Invoice>
+  layout="cards"
+  cardMinWidth="12rem"
+  rows={invoices}
+  columns={columns} // the sortable columns feed the "Sort by" select
+  filterFields={[{ id: 'status', label: 'Status', type: 'multiselect', options }]}
+  renderCard={(r, { actions, selected, toggleSelected }) => <InvoiceCard invoice={r} menu={actions} />}
 />
 ```
 

@@ -1,15 +1,14 @@
 'use client';
-import { useMemo, useRef, useState } from 'react';
-import { cn } from '@/libs/utils/cn';
+import { DataTable } from './Table/DataTable';
+import type { Column, DataTableRowId } from './Table/types';
 
 /**
  * KeyedTable — a rows-in, events-out table for data that changes under the viewer (live lists, dashboard tables).
  *
- * What the other tables do not give (DataTable's M4/M6 plans): rows keyed by a stable id (a live upsert keeps focus and
- * selection on the right row), keyboard row focus (one row in the tab order, Arrow Up/Down, Home/End, Enter or Space runs
- * `onRowClick`), a per-row state (`new` highlights, `leaving` fades out before the host drops the row), optional selection
- * checkboxes for bulk actions across server pages, and loading / error (with retry) / empty states. Paging, sorting and
- * fetching stay with the host. Columns can hide below a breakpoint so a phone width needs no horizontal scroll.
+ * @deprecated Use `<DataTable mode="manual" rowId={…} rowState={…} keyboardNavigation />`: `DataTable` now has
+ * everything this table was made for (rows keyed by a stable id, keyboard rows, `new` / `leaving` row states,
+ * selection with refused rows, loading / error with retry / empty states, `hideBelow` columns), and adds sorting,
+ * filters and paging reported to the host. Kept as a thin wrapper so existing consumers keep working.
  */
 export type KeyedTableColumn<T> = {
   key: string;
@@ -66,13 +65,7 @@ export type KeyedTableProps<T> = {
   className?: string;
 };
 
-const HIDE: Record<NonNullable<KeyedTableColumn<unknown>['hideBelow']>, string> = {
-  sm: 'hidden sm:table-cell',
-  md: 'hidden md:table-cell',
-  lg: 'hidden lg:table-cell',
-};
-
-const ALIGN = { left: 'text-left', center: 'text-center', right: 'text-right' } as const;
+type AnyRow = Record<string, unknown>;
 
 export function KeyedTable<T>({
   columns,
@@ -92,191 +85,46 @@ export function KeyedTable<T>({
   className,
 }: KeyedTableProps<T>) {
   const m = { ...DEFAULT_MESSAGES, ...messages };
-  const bodyRef = useRef<HTMLTableSectionElement>(null);
-  const [focusKey, setFocusKey] = useState<string | null>(null);
-  const keys = useMemo(() => rows.map(getRowKey), [rows, getRowKey]);
-  // The one row in the tab order: the focused one while it exists, else the first.
-  const tabKey = focusKey !== null && keys.includes(focusKey) ? focusKey : (keys[0] ?? null);
-  const cellPad = dense ? 'px-3 py-1.5' : 'px-4 py-2.5';
-  const colCount = columns.length + (selection ? 1 : 0);
-
-  const selectable = selection
-    ? rows.filter((r) => (selection.isSelectable ? selection.isSelectable(r) === true : true)).map(getRowKey)
-    : [];
-  const selectedVisible = selection ? selectable.filter((k) => selection.selected.has(k)).length : 0;
-  const allSelected = selectable.length > 0 && selectedVisible === selectable.length;
-
-  function focusRow(index: number) {
-    const key = keys[Math.max(0, Math.min(keys.length - 1, index))];
-    if (key === undefined) return;
-    setFocusKey(key);
-    const rowsEl = bodyRef.current?.querySelectorAll<HTMLTableRowElement>('tr[data-row-key]') ?? [];
-    Array.from(rowsEl).find((el) => el.dataset.rowKey === key)?.focus();
-  }
-
-  function onRowKeyDown(e: React.KeyboardEvent<HTMLTableRowElement>, row: T, index: number) {
-    if (e.target !== e.currentTarget) return; // a control inside the row handles its own keys
-    switch (e.key) {
-      case 'ArrowDown': e.preventDefault(); focusRow(index + 1); break;
-      case 'ArrowUp': e.preventDefault(); focusRow(index - 1); break;
-      case 'Home': e.preventDefault(); focusRow(0); break;
-      case 'End': e.preventDefault(); focusRow(keys.length - 1); break;
-      case 'Enter':
-      case ' ':
-        if (onRowClick) { e.preventDefault(); onRowClick(row); }
-        break;
-      default:
-    }
-  }
-
-  function toggleAll() {
-    if (!selection) return;
-    const next = new Set(selection.selected);
-    for (const k of selectable) {
-      if (allSelected) next.delete(k);
-      else next.add(k);
-    }
-    selection.onChange(next);
-  }
-
-  function toggleOne(key: string) {
-    if (!selection) return;
-    const next = new Set(selection.selected);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    selection.onChange(next);
-  }
-
-  let body: React.ReactNode;
-  if (error) {
-    body = (
-      <tr>
-        <td colSpan={colCount} className="px-4 py-8 text-center text-sm text-error" role="alert">
-          <div className="flex flex-col items-center gap-2">
-            <span>{error}</span>
-            {onRetry && (
-              <button
-                type="button"
-                onClick={onRetry}
-                className="rounded-md border border-border px-3 py-1 text-xs font-medium text-text-primary hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
-              >
-                {m.retry}
-              </button>
-            )}
-          </div>
-        </td>
-      </tr>
-    );
-  } else if (rows.length === 0) {
-    body = (
-      <tr>
-        <td colSpan={colCount} className="px-4 py-8 text-center text-sm text-text-secondary">
-          {loading ? (
-            <span className="inline-flex items-center gap-2">
-              {/* not <Spinner>: its screen-reader text is fixed English; the visible text here is the translated one */}
-              <span aria-hidden="true" className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-border border-t-primary" />
-              {m.loading}
-            </span>
-          ) : emptyText}
-        </td>
-      </tr>
-    );
-  } else {
-    body = rows.map((row, index) => {
-      const key = keys[index];
-      const state = rowState?.(row);
-      const canSelect = selection ? (selection.isSelectable ? selection.isSelectable(row) : true) : true;
-      return (
-        <tr
-          key={key}
-          data-row-key={key}
-          data-state={state}
-          tabIndex={key === tabKey ? 0 : -1}
-          aria-selected={selection ? selection.selected.has(key) : undefined}
-          onFocus={(e) => { if (e.target === e.currentTarget) setFocusKey(key); }}
-          onKeyDown={(e) => onRowKeyDown(e, row, index)}
-          onClick={onRowClick ? (e) => {
-            // a click on a control inside the row (a checkbox, a link, a button) is that control's
-            if ((e.target as HTMLElement).closest('a,button,input,select,textarea,label')) return;
-            onRowClick(row);
-          } : undefined}
-          className={cn(
-            'transition-[background-color,opacity] duration-500 hover:bg-surface-overlay',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus',
-            onRowClick && 'cursor-pointer',
-            state === 'new' && 'bg-primary-subtle',
-            state === 'leaving' && 'opacity-40',
-            rowClassName?.(row),
-          )}
-        >
-          {selection && (
-            <td className={cn(cellPad, 'w-10')}>
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-border-strong accent-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-40"
-                checked={selection.selected.has(key)}
-                disabled={canSelect !== true}
-                title={canSelect === true ? undefined : canSelect}
-                aria-label={selection.rowLabel?.(row) ?? `${m.selectRow} ${key}`}
-                onChange={() => toggleOne(key)}
-              />
-            </td>
-          )}
-          {columns.map((col) => (
-            <td
-              key={col.key}
-              className={cn(cellPad, 'text-text-primary', ALIGN[col.align ?? 'left'], col.hideBelow && HIDE[col.hideBelow], col.className)}
-            >
-              {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '—')}
-            </td>
-          ))}
-        </tr>
-      );
-    });
-  }
+  // DataTable rows are records; KeyedTable never constrained T, so the row type is widened here only.
+  const asT = (row: AnyRow) => row as unknown as T;
+  const dataColumns: Column<AnyRow>[] = columns.map((col) => ({
+    key: col.key,
+    header: col.header,
+    align: col.align,
+    hideBelow: col.hideBelow,
+    tdClass: col.className,
+    render: col.render ? (row) => col.render?.(asT(row)) : undefined,
+  }));
 
   return (
-    <div
-      className={cn('w-full overflow-x-auto rounded-lg border border-border', className)}
-      aria-busy={loading || undefined}
-    >
-      <table className="w-full text-sm">
-        <caption className="sr-only">{caption}</caption>
-        <thead className="border-b border-border bg-surface-sunken">
-          <tr>
-            {selection && (
-              <th scope="col" className={cn(cellPad, 'w-10')}>
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-border-strong accent-[var(--primary)] disabled:opacity-40"
-                  checked={allSelected}
-                  ref={(el) => { if (el) el.indeterminate = selectedVisible > 0 && !allSelected; }}
-                  disabled={selectable.length === 0}
-                  aria-label={m.selectAll}
-                  onChange={toggleAll}
-                />
-              </th>
-            )}
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                scope="col"
-                className={cn(
-                  cellPad,
-                  'text-xs font-semibold uppercase tracking-wider text-text-secondary',
-                  ALIGN[col.align ?? 'left'],
-                  col.hideBelow && HIDE[col.hideBelow],
-                )}
-              >
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody ref={bodyRef} className="divide-y divide-border bg-surface-base">
-          {body}
-        </tbody>
-      </table>
-    </div>
+    <DataTable<AnyRow>
+      mode="manual"
+      columns={dataColumns}
+      rows={rows as unknown as AnyRow[]}
+      rowId={(row) => getRowKey(asT(row))}
+      caption={caption}
+      searchable={false}
+      pageSizeOptions={[]}
+      keyboardNavigation
+      onRowClick={onRowClick ? (row) => onRowClick(asT(row)) : undefined}
+      rowState={rowState ? (row) => rowState(asT(row)) : undefined}
+      rowClassName={rowClassName ? (row) => rowClassName(asT(row)) : undefined}
+      selectable={selection !== undefined}
+      selectedRowIds={selection ? [...selection.selected] : undefined}
+      onSelectionChange={
+        selection ? (ids: DataTableRowId[]) => selection.onChange(new Set(ids.map(String))) : undefined
+      }
+      isRowSelectable={selection?.isSelectable ? (row) => selection.isSelectable!(asT(row)) : undefined}
+      rowSelectLabel={(row) => selection?.rowLabel?.(asT(row)) ?? `${m.selectRow} ${getRowKey(asT(row))}`}
+      loading={loading}
+      error={error || undefined}
+      onRetry={onRetry}
+      emptyMessage={emptyText}
+      density={dense ? 'compact' : 'comfortable'}
+      // KeyedTable's className landed on the bordered box; `border-0` there meant "no frame".
+      bordered={!/(^|\s)border-0(\s|$)/.test(className ?? '')}
+      messages={{ loading: m.loading, retry: m.retry, selectAllRows: m.selectAll }}
+      className={className}
+    />
   );
 }

@@ -4,6 +4,33 @@ import { useState } from 'react';
 
 type PaginationSize = 'sm' | 'md' | 'lg';
 
+/** Visible and accessible strings; `{page}` and `{total}` are filled in. */
+export type PaginationLabels = {
+  navigation: string;
+  first: string;
+  previous: string;
+  next: string;
+  last: string;
+  page: string;
+  goTo: string;
+  go: string;
+  jumpTo: string;
+};
+
+export const DEFAULT_PAGINATION_LABELS: PaginationLabels = {
+  navigation: 'Pagination',
+  first: 'First page',
+  previous: 'Previous page',
+  next: 'Next page',
+  last: 'Last page',
+  page: 'Page {page}',
+  goTo: 'Go to',
+  go: 'Go',
+  jumpTo: 'Jump to page, 1–{total}',
+};
+
+const fill = (t: string, v: Record<string, number>) => t.replace(/\{(\w+)\}/g, (a, k: string) => (k in v ? String(v[k]) : a));
+
 const sizeMap: Record<PaginationSize, { page: string; nav: string }> = {
   sm: { page: 'w-7 h-7 text-xs',    nav: 'px-2 py-1 text-xs'    },
   md: { page: 'w-9 h-9 text-sm',    nav: 'px-3 py-1.5 text-sm'  },
@@ -17,6 +44,7 @@ export function Pagination({
   size = 'md',
   showFirstLast = false,
   showJumpTo = false,
+  labels,
   className,
 }: {
   page: number;
@@ -25,8 +53,11 @@ export function Pagination({
   size?: PaginationSize;
   showFirstLast?: boolean;
   showJumpTo?: boolean;
+  /** Translated strings; any left out keep their English default. */
+  labels?: Partial<PaginationLabels>;
   className?: string;
 }) {
+  const l = { ...DEFAULT_PAGINATION_LABELS, ...labels };
   const [jumpValue, setJumpValue] = useState('');
   const s = sizeMap[size];
 
@@ -63,13 +94,13 @@ export function Pagination({
   }
 
   return (
-    <nav aria-label="Pagination" className={cn('flex items-center gap-1 flex-wrap', className)}>
+    <nav aria-label={l.navigation} className={cn('flex items-center gap-1 flex-wrap', className)}>
       {showFirstLast && (
         <button
           type="button"
           onClick={() => onPageChange(1)}
           disabled={page <= 1}
-          aria-label="First page"
+          aria-label={l.first}
           className={navBtnClass(page <= 1)}
         >
           «
@@ -80,7 +111,7 @@ export function Pagination({
         type="button"
         onClick={() => onPageChange(page - 1)}
         disabled={page <= 1}
-        aria-label="Previous page"
+        aria-label={l.previous}
         className={navBtnClass(page <= 1)}
       >
         ‹
@@ -94,7 +125,7 @@ export function Pagination({
             key={item}
             type="button"
             onClick={() => onPageChange(item)}
-            aria-label={`Page ${item}`}
+            aria-label={fill(l.page, { page: item })}
             aria-current={item === page ? 'page' : undefined}
             className={cn(
               'rounded-md font-medium border transition-colors',
@@ -114,7 +145,7 @@ export function Pagination({
         type="button"
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages}
-        aria-label="Next page"
+        aria-label={l.next}
         className={navBtnClass(page >= totalPages)}
       >
         ›
@@ -125,7 +156,7 @@ export function Pagination({
           type="button"
           onClick={() => onPageChange(totalPages)}
           disabled={page >= totalPages}
-          aria-label="Last page"
+          aria-label={l.last}
           className={navBtnClass(page >= totalPages)}
         >
           »
@@ -135,7 +166,7 @@ export function Pagination({
       {showJumpTo && (
         <form onSubmit={handleJump} className="flex items-center gap-1.5 ml-2">
           <label htmlFor="pagination-jump" className="text-xs text-text-secondary whitespace-nowrap">
-            Go to
+            {l.goTo}
           </label>
           <input
             id="pagination-jump"
@@ -144,7 +175,7 @@ export function Pagination({
             max={totalPages}
             value={jumpValue}
             onChange={(e) => setJumpValue(e.target.value)}
-            aria-label={`Jump to page, 1–${totalPages}`}
+            aria-label={fill(l.jumpTo, { total: totalPages })}
             className={cn(
               'w-14 rounded-md border border-border bg-surface-base text-center text-sm text-text-primary',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
@@ -159,7 +190,7 @@ export function Pagination({
               'px-2 py-1 text-text-secondary hover:bg-surface-overlay hover:text-text-primary'
             )}
           >
-            Go
+            {l.go}
           </button>
         </form>
       )}

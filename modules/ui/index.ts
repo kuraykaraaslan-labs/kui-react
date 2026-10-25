@@ -56,7 +56,17 @@ export { ContentScoreBar } from './ContentScoreBar';
 export type { ScoreRule } from './ContentScoreBar';
 export { DataTable } from './DataTable';
 export type { DataTableProps } from './DataTable';
-export type { DataTableRowAction } from './Table/types';
+export type {
+  DataTableRowAction,
+  DataTableQuery,
+  DataTableFetchArgs,
+  DataTableFetchResult,
+  DataTableFilterField,
+  DataTableFilterValues,
+  DataTableRowState,
+  DataTableCardContext,
+  DataTableMessages,
+} from './Table/types';
 export { resolveRowActions } from './Table/parts/RowActionsCell';
 export { DateRangePicker, TimePicker } from './DateRangePicker';
 export type { DateRange } from './DateRangePicker';
