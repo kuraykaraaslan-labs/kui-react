@@ -1,7 +1,7 @@
 'use client';
 import { useRef } from 'react';
 import { cn } from '@/libs/utils/cn';
-import type { CardId, ColumnId, DropTarget, KanbanCard, KanbanColumn } from '../types';
+import type { CardId, ColumnId, DropTarget, KanbanCard, KanbanColumn, KanbanMessages } from '../types';
 import { Card } from './Card';
 import { ColumnDropIndicator } from './ColumnDropIndicator';
 import { ColumnHeader } from './ColumnHeader';
@@ -22,7 +22,14 @@ type ColumnProps<T> = {
   onColumnDragLeave: (e: React.DragEvent<HTMLElement>, columnId: ColumnId) => void;
   onColumnDrop: (e: React.DragEvent<HTMLElement>, columnId: ColumnId) => void;
   renderCard?: (card: KanbanCard<T>) => React.ReactNode;
+  onCardClick?: (card: KanbanCard<T>) => void;
+  onCardKeyMove?: (card: KanbanCard<T>, key: 'left' | 'right' | 'up' | 'down') => void;
+  msgs: KanbanMessages;
+  collapsed: boolean;
+  onToggle?: () => void;
 };
+
+const fill = (t: string, v: Record<string, string | number>) => t.replace(/\{(\w+)\}/g, (a, k: string) => (k in v ? String(v[k]) : a));
 
 export function Column<T>({
   column,
@@ -36,6 +43,11 @@ export function Column<T>({
   onColumnDragLeave,
   onColumnDrop,
   renderCard,
+  onCardClick,
+  onCardKeyMove,
+  msgs,
+  collapsed,
+  onToggle,
 }: ColumnProps<T>) {
   const listRef = useRef<HTMLUListElement | null>(null);
 
@@ -57,24 +69,29 @@ export function Column<T>({
   return (
     <section
       role="region"
-      aria-label={`Column ${column.title}`}
+      aria-label={fill(msgs.column, { title: column.title })}
       aria-dropeffect={isDragActive ? 'move' : undefined}
       data-column-id={column.id}
       className={cn(
-        'flex flex-col min-w-[16rem] w-72 max-w-xs shrink-0',
+        'flex flex-col shrink-0',
+        collapsed ? 'w-12' : 'min-w-[16rem] w-72 max-w-xs',
         'rounded-lg border border-border bg-surface-overlay',
         'transition-colors',
+        column.wipLimit !== undefined && cards.length > column.wipLimit && 'border-error/40',
         dropTarget?.columnId === column.id && 'bg-primary-subtle border-primary/40',
       )}
+      style={column.color ? { borderTopColor: column.color, borderTopWidth: 3 } : undefined}
+      data-collapsed={collapsed || undefined}
       onDragOver={(e) => onColumnDragOver(e, column.id, computeIndex)}
       onDragLeave={(e) => onColumnDragLeave(e, column.id)}
       onDrop={(e) => onColumnDrop(e, column.id)}
     >
-      <ColumnHeader column={column} count={cards.length} />
+      <ColumnHeader column={column} count={cards.length} msgs={msgs} collapsed={collapsed} onToggle={onToggle} />
+      {!collapsed && (
       <ul
         ref={listRef}
         role="list"
-        aria-label={`${column.title} cards`}
+        aria-label={fill(msgs.columnCards, { title: column.title })}
         className="flex-1 flex flex-col gap-1 p-2 min-h-[4rem] overflow-y-auto"
       >
         <ColumnDropIndicator active={indicatorActive(0)} />
@@ -84,6 +101,9 @@ export function Column<T>({
               card={card}
               isDragging={draggingId === card.id}
               renderCard={renderCard}
+              onClick={onCardClick}
+              onKeyMove={onCardKeyMove}
+              keyboardHint={msgs.cardKeyboardHint}
               onDragStart={onCardDragStart}
               onDragEnd={onCardDragEnd}
             />
@@ -98,10 +118,11 @@ export function Column<T>({
               'border border-dashed border-border rounded-md',
             )}
           >
-            Drop cards here
+            {msgs.emptyColumn}
           </li>
         )}
       </ul>
+      )}
       {/* TODO M4: <AddCardInline columnId={column.id} onCreate={…} /> */}
     </section>
   );

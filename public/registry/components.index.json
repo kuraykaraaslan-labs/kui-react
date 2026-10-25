@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T10:10:23.133Z",
+  "generatedAt": "2026-10-25T10:13:18.007Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2607,7 +2607,7 @@
         "--error-subtle",
         "--success-subtle"
       ],
-      "variantCount": 3
+      "variantCount": 4
     },
     {
       "id": "calendar",

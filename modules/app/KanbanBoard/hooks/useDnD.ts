@@ -30,6 +30,12 @@ export function useDnD<T>({ cards, onCardMove, canMove }: UseDnDOptions<T>) {
   // Pre-move snapshot for rollback when onCardMove rejects.
   const snapshotRef = useRef<KanbanCard<T>[] | null>(null);
 
+  // New cards from the host (a refetch, a socket update) replace the optimistic copy.
+  const [seenCards, setSeenCards] = useState(cards);
+  if (seenCards !== cards) {
+    setSeenCards(cards);
+    setLocalCards(null);
+  }
   const effectiveCards = localCards ?? cards;
 
   const onCardDragStart = useCallback(
@@ -167,6 +173,7 @@ export function useDnD<T>({ cards, onCardMove, canMove }: UseDnDOptions<T>) {
 
   return {
     cards: effectiveCards,
+    performMove,
     draggingId,
     dropTarget,
     onCardDragStart,

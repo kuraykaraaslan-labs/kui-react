@@ -75,6 +75,23 @@ const [cards, setCards] = useState(initialCards);
 />
 ```
 
+### Pipeline: totals, badges, WIP limit, folding, keyboard
+
+```tsx
+<KanbanBoard
+  columns={[
+    { id: 'lead', title: 'Lead', summary: '$18,400 · 3 deals', color: '#2457c5' },
+    { id: 'proposal', title: 'Proposal', wipLimit: 2 },
+    { id: 'won', title: 'Won', badge: <Badge variant="success">Won</Badge> },
+    { id: 'lost', title: 'Lost', collapsed: true },
+  ]}
+  cards={cards}
+  onCardClick={open}        // click or Enter
+  onCardMove={persist}      // drag, or Alt + arrow keys
+  messages={{ column: 'Sütun {title}', emptyColumn: 'Kart yok' }}
+/>
+```
+
 ### Async onCardMove with rollback
 
 ```tsx

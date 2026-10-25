@@ -34,12 +34,16 @@ export type KanbanCard<T = unknown> = {
 export type KanbanColumn<T = unknown> = {
   id: ColumnId;
   title: string;
-  /** TODO M2: WIP limit + over-limit visual. */
+  /** Work-in-progress limit: the count shows "3/5" and the column tints once it is over. */
   wipLimit?: number;
-  /** TODO M2: column color/icon. */
+  /** A CSS colour for the stripe on top of the column. */
   color?: string;
-  /** TODO M2: collapsed state. */
+  /** Starts folded (a narrow strip with the title and the count). */
   collapsed?: boolean;
+  /** A line under the header: totals, an amount per currency, a hint. */
+  summary?: React.ReactNode;
+  /** Next to the title (a "Won" / "Lost" badge). */
+  badge?: React.ReactNode;
   // Phantom type parameter to keep generics aligned with KanbanCard<T>.
   _t?: T;
 };
@@ -58,12 +62,34 @@ export type KanbanFilters = {
   priorities?: KanbanPriority[];
 };
 
-// TODO M5: i18n messages prop.
 export type KanbanMessages = {
   emptyColumn: string;
   addCard: string;
   wipExceeded: (current: number, limit: number) => string;
   moveAnnouncement: (cardTitle: string, fromTitle: string, toTitle: string) => string;
+  /** Accessible name of a column; `{title}`. */
+  column: string;
+  /** Accessible name of a column's card list; `{title}`. */
+  columnCards: string;
+  /** Accessible count; `{count}`. */
+  cardCount: string;
+  collapseColumn: string;
+  expandColumn: string;
+  /** Screen-reader hint on every card. */
+  cardKeyboardHint: string;
+};
+
+export const DEFAULT_KANBAN_MESSAGES: KanbanMessages = {
+  emptyColumn: 'Drop cards here',
+  addCard: 'Add card',
+  wipExceeded: (current, limit) => `${current} of ${limit}: over the limit`,
+  moveAnnouncement: (card, from, to) => `${card} moved from ${from} to ${to}`,
+  column: 'Column {title}',
+  columnCards: '{title} cards',
+  cardCount: '{count} cards',
+  collapseColumn: 'Fold column',
+  expandColumn: 'Unfold column',
+  cardKeyboardHint: 'Alt + arrow keys move the card',
 };
 
 // TODO M6: telemetry hook.
@@ -85,6 +111,12 @@ export type KanbanBoardProps<T = unknown> = {
   canMove?: (card: KanbanCard<T>, from: ColumnId, to: ColumnId) => boolean;
   /** Custom card renderer — receives the card; return JSX. */
   renderCard?: (card: KanbanCard<T>) => React.ReactNode;
+  /** Click (or Enter on a focused card). */
+  onCardClick?: (card: KanbanCard<T>) => void;
+  /** Columns fold to a strip from their header. Default `true`. */
+  collapsible?: boolean;
+  /** Translated strings; any left out keep their English default. */
+  messages?: Partial<KanbanMessages>;
   /** Board-level ARIA label for the wrapping region. */
   ariaLabel?: string;
   className?: string;

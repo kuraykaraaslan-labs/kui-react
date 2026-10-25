@@ -8,6 +8,10 @@ type CardProps<T> = {
   card: KanbanCard<T>;
   isDragging: boolean;
   renderCard?: (card: KanbanCard<T>) => React.ReactNode;
+  onClick?: (card: KanbanCard<T>) => void;
+  /** Alt + arrow keys: move to the neighbouring column or one slot up / down. */
+  onKeyMove?: (card: KanbanCard<T>, key: 'left' | 'right' | 'up' | 'down') => void;
+  keyboardHint?: string;
   onDragStart: (e: React.DragEvent<HTMLElement>, card: KanbanCard<T>) => void;
   onDragEnd: () => void;
 };
@@ -32,9 +36,13 @@ export function Card<T>({
   card,
   isDragging,
   renderCard,
+  onClick,
+  onKeyMove,
+  keyboardHint,
   onDragStart,
   onDragEnd,
 }: CardProps<T>) {
+  const KEYS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' } as const;
   return (
     <li
       role="listitem"
@@ -45,6 +53,21 @@ export function Card<T>({
       // alongside the live region announcement (M5).
       aria-grabbed={isDragging || undefined}
       data-card-id={card.id}
+      aria-description={onKeyMove ? keyboardHint : undefined}
+      onClick={onClick ? (e) => {
+        if ((e.target as HTMLElement).closest('a,button,input,select,textarea')) return;
+        onClick(card);
+      } : undefined}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.altKey && e.key in KEYS && onKeyMove) {
+          e.preventDefault();
+          onKeyMove(card, KEYS[e.key as keyof typeof KEYS]);
+        } else if ((e.key === 'Enter' || e.key === ' ') && onClick) {
+          e.preventDefault();
+          onClick(card);
+        }
+      }}
       className={cn(
         'group select-none cursor-grab active:cursor-grabbing',
         'rounded-md border border-border bg-surface-base shadow-sm',

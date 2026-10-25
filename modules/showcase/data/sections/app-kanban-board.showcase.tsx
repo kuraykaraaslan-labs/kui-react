@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { KanbanBoard, type KanbanCard, type KanbanColumn } from '@/modules/app/KanbanBoard';
+import { Badge } from '@/modules/ui/Badge';
 import type { ShowcaseComponent } from '../showcase.types';
 
 const COLUMNS_3: KanbanColumn[] = [
@@ -75,6 +76,39 @@ function AsyncRevertDemo() {
           );
         }}
       />
+    </div>
+  );
+}
+
+
+/** Phase 11.14: a sales pipeline — column totals, won/lost badges, a WIP limit, a folded column, keyboard moves. */
+function PipelineDemo() {
+  const columns: KanbanColumn[] = [
+    { id: 'lead', title: 'Lead', summary: '$18,400 · 3 deals', color: '#2457c5' },
+    { id: 'proposal', title: 'Proposal', summary: '$42,000 · 2 deals', wipLimit: 2 },
+    { id: 'won', title: 'Won', badge: <Badge variant="success" size="sm">Won</Badge>, summary: '$9,900' },
+    { id: 'lost', title: 'Lost', badge: <Badge variant="error" size="sm">Lost</Badge>, collapsed: true },
+  ];
+  const [cards, setCards] = useState<KanbanCard[]>([
+    { id: 'p1', columnId: 'lead', title: 'Northwind renewal', description: '$8,000' },
+    { id: 'p2', columnId: 'lead', title: 'Contoso pilot', description: '$6,400' },
+    { id: 'p3', columnId: 'lead', title: 'Fabrikam add-on', description: '$4,000' },
+    { id: 'p4', columnId: 'proposal', title: 'Adatum rollout', description: '$30,000' },
+    { id: 'p5', columnId: 'proposal', title: 'Tailspin support', description: '$12,000' },
+    { id: 'p6', columnId: 'won', title: 'Wingtip licence', description: '$9,900' },
+    { id: 'p7', columnId: 'lost', title: 'Litware trial', description: '$2,000' },
+  ]);
+  const [opened, setOpened] = useState('Focus a card: Alt + arrows move it, Enter opens it');
+  return (
+    <div className="w-full space-y-2">
+      <KanbanBoard
+        ariaLabel="Sales pipeline"
+        columns={columns}
+        cards={cards}
+        onCardClick={(c) => setOpened(`Opened ${c.title}`)}
+        onCardMove={(card, _from, to) => setCards((all) => all.map((c) => (c.id === card.id ? { ...c, columnId: to } : c)))}
+      />
+      <p className="text-xs text-text-secondary" aria-live="polite">{opened}</p>
     </div>
   );
 }
@@ -185,6 +219,23 @@ const [cards, setCards] = useState(initialCards);
   cards={cards}
   canMove={(card, from, to) => from !== 'done' || to === 'done'}
   onCardMove={persist}
+/>`,
+        },
+        {
+          title: 'Pipeline: totals, badges, WIP limit, folding, keyboard',
+          layout: 'stack' as const,
+          preview: <PipelineDemo />,
+          code: `<KanbanBoard
+  columns={[
+    { id: 'lead', title: 'Lead', summary: '$18,400 · 3 deals', color: '#2457c5' },
+    { id: 'proposal', title: 'Proposal', wipLimit: 2 },
+    { id: 'won', title: 'Won', badge: <Badge variant="success">Won</Badge> },
+    { id: 'lost', title: 'Lost', collapsed: true },
+  ]}
+  cards={cards}
+  onCardClick={open}        // click or Enter
+  onCardMove={persist}      // drag, or Alt + arrow keys
+  messages={{ column: 'Sütun {title}', emptyColumn: 'Kart yok' }}
 />`,
         },
         {
