@@ -269,6 +269,9 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- `Select`: the native (non-searchable, icon-free) mode draws the chevron the custom Select and `MultiSelect` show
+  (`faChevronDown`, `w-3 h-3 text-text-disabled`, `right-3`; the select is `pr-8`). `appearance-none` had removed the
+  browser arrow, so a plain Select did not read as a dropdown.
 - **Licence: Apache-2.0** in place of 0BSD (`LICENSE`), with a `NOTICE` file a copy keeps (section 4(d)); the License
   grants no right to the KUI names (section 6). `package.json` says `Apache-2.0` and publishes `NOTICE`; the showcase home
   panel says "Licensed under Apache-2.0", as kui-ejs and KUInative do.

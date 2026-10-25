@@ -239,28 +239,36 @@ export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select
           </>
         )}
       </label>
-      <select
-        ref={ref}
-        id={id}
-        disabled={disabled}
-        required={required}
-        aria-describedby={describedBy}
-        aria-invalid={!!error}
-        data-testid={`select-${id}`}
-        className={cn(
-          'block w-full rounded-md border px-3 py-2 text-sm transition-colors appearance-none',
-          'bg-surface-base text-text-primary',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:border-border-focus',
-          'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-sunken',
-          error ? 'border-error ring-1 ring-error bg-error-subtle' : 'border-border'
-        )}
-        {...props}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
+      {/* `appearance-none` drops the native arrow, so draw the chevron CustomSelect and MultiSelect use. */}
+      <div className="relative">
+        <select
+          ref={ref}
+          id={id}
+          disabled={disabled}
+          required={required}
+          aria-describedby={describedBy}
+          aria-invalid={!!error}
+          data-testid={`select-${id}`}
+          className={cn(
+            'block w-full rounded-md border pl-3 pr-8 py-2 text-sm transition-colors appearance-none',
+            'bg-surface-base text-text-primary',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:border-border-focus',
+            'disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-surface-sunken',
+            error ? 'border-error ring-1 ring-error bg-error-subtle' : 'border-border'
+          )}
+          {...props}
+        >
+          {placeholder && <option value="">{placeholder}</option>}
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        <FontAwesomeIcon
+          icon={faChevronDown}
+          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-text-disabled"
+          aria-hidden="true"
+        />
+      </div>
       {hint && !error && <p id={hintId} className="text-xs text-text-secondary">{hint}</p>}
       {error && <p id={errorId} className="text-xs text-error" role="alert">{error}</p>}
     </div>
