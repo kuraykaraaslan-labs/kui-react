@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T10:14:07.986Z",
+  "generatedAt": "2026-10-25T18:03:24.949Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -3251,6 +3251,29 @@
         {
           "title": "With search",
           "code": "<OrgChart roots={roots} getId={…} getChildren={…} highlight={match} renderNode={(n) => <EmployeeCard … />} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "chat-thread",
+      "name": "ChatThread",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/ChatThread/index.tsx",
+      "abbr": "Th",
+      "description": "A controlled chat thread: messages oldest first (own / other / system), sticks to the bottom while the reader is there and offers a \"New messages\" button once they scroll up, \"Load older\" that keeps the reading position, a streamed last message, who is typing, day separators, status badges, attachments, keyboard-reachable per-message actions, a composer slot and every string from `messages`. role=\"log\", each message an article named by author and time.",
+      "source": "<ChatThread\n  className=\"h-[32rem]\"\n  items={messages.map((m) => ({\n    id: m.id,\n    side: m.senderId === me ? 'own' : 'other',\n    author: { name: m.senderName, avatarUrl: m.avatarUrl },\n    body: m.body,\n    at: m.createdAt,\n    status: m.held ? <Badge variant=\"warning\" size=\"sm\">Held for review</Badge> : undefined,\n    actions: m.senderId === me ? [] : [{ id: 'report', label: 'Report', onClick: () => report(m) }],\n  }))}\n  hasOlder={hasMore}\n  loadingOlder={loading}\n  onLoadOlder={loadOlder}\n  typing={typers}\n  pending={streaming}\n  daySeparators\n  messages={{ empty: t('chat.empty'), loadOlder: t('chat.loadOlder') }}\n  composer={<MyComposer onSend={send} />}\n/>",
+      "variants": [
+        {
+          "title": "Team conversation (load older, day separators, actions, typing)",
+          "code": "<ChatThread items={items} daySeparators hasOlder={hasOlder} loadingOlder={loading} onLoadOlder={loadOlder} typing={[{ name: 'Grace Hopper' }]} composer={<Composer … />} />"
+        },
+        {
+          "title": "Assistant with a streamed reply",
+          "code": "<ChatThread items={items} pending={streaming} typing={waiting ? [{ name: 'Assistant', avatar: <BotIcon /> }] : undefined} emptyMessage={…} composer={…} />"
         }
       ],
       "status": "stable",

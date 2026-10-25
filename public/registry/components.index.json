@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T10:14:07.986Z",
+  "generatedAt": "2026-10-25T18:03:24.949Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1888,6 +1888,19 @@
       "since": "2026-10",
       "designTokens": [],
       "variantCount": 1
+    },
+    {
+      "id": "chat-thread",
+      "name": "ChatThread",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/ChatThread/index.tsx",
+      "abbr": "Th",
+      "description": "A controlled chat thread: messages oldest first (own / other / system), sticks to the bottom while the reader is there and offers a \"New messages\" button once they scroll up, \"Load older\" that keeps the reading position, a streamed last message, who is typing, day separators, status badges, attachments, keyboard-reachable per-message actions, a composer slot and every string from `messages`. role=\"log\", each message an article named by author and time.",
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": [],
+      "variantCount": 2
     },
     {
       "id": "app-shell",

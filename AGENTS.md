@@ -158,6 +158,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | StatCard | `StatCard.tsx` | `label`, `value`, `accent` |
 | TabButton | `TabButton.tsx` | `active`, `onClick`, `count` |
 | Timeline | `Timeline.tsx` | `items`, `groupByDay`, `timeZone`, `locale` |
+| ChatThread | `ChatThread/` | Controlled chat thread: `items` (`author`, `side` own\|other\|system, `body`, `at`, `status`, `attachments`, `actions`), oldest first, sticks to the bottom + "New messages" jump, `hasOlder`/`loadingOlder`/`onLoadOlder` (keeps position), `pending` (streamed last message), `typing`, `daySeparators`, `composer` slot, `messages`. Parts: `ChatBubble`, `ChatTypingIndicator` |
 | ViewToggle | `ViewToggle.tsx` | `value` (horizontal\|vertical), `onChange`, `labels` |
 
 ---

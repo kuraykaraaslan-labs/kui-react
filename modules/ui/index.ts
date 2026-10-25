@@ -160,3 +160,5 @@ export { InlineEditList, DEFAULT_INLINE_EDIT_LIST_MESSAGES } from './InlineEditL
 export type { InlineEditListProps, InlineEditListMessages, InlineEditItem, InlineEditChange, InlineEditorContext } from './InlineEditList';
 export { LocaleSwitcher, localeDirection, DEFAULT_LOCALE_SWITCHER_MESSAGES } from './LocaleSwitcher';
 export type { LocaleSwitcherProps, LocaleSwitcherMessages, LocaleOption } from './LocaleSwitcher';
+export { ChatThread, ChatBubble, ChatTypingIndicator, TypingDots, formatAttachmentSize, DEFAULT_CHAT_THREAD_MESSAGES } from './ChatThread';
+export type { ChatThreadProps, ChatThreadMessages, ChatThreadMessage, ChatThreadAuthor, ChatThreadTyper, ChatBubbleProps, ChatTypingIndicatorProps, ChatAttachment, ChatDeliveryStatus, ChatMessageAction, ChatSide } from './ChatThread';

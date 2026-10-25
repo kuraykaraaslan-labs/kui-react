@@ -106,6 +106,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'org-chart',           title: 'OrgChart',          category: 'Organism', abbr: 'Oc', since: '2026-10' },
       { id: 'description-list',    title: 'DescriptionList',   category: 'Molecule', abbr: 'Dl', since: '2026-10' },
       { id: 'bar-list',            title: 'BarList',           category: 'Molecule', abbr: 'Bl', since: '2026-10' },
+      { id: 'chat-thread',         title: 'ChatThread',        category: 'Organism', abbr: 'Th', since: '2026-10' },
       { id: 'content-score-bar',   title: 'ContentScoreBar',   category: 'Organism', abbr: 'Cs', since: '2025-03' },
       { id: 'page-header',         title: 'PageHeader',        category: 'Organism', abbr: 'Ph', since: '2025-02' },
       { id: 'slider',              title: 'Slider',            category: 'Organism', abbr: 'Sd', since: '2025-03' },

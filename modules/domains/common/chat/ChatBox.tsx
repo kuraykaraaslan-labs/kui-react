@@ -10,12 +10,16 @@ import {
   faMinus,
 } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
+import { ChatThread } from '@/modules/ui/ChatThread';
 
 export type ChatMessage = {
   id: string;
   role: 'user' | 'agent';
   text: string;
+  /** The time as shown under the bubble. */
   timestamp?: string;
+  /** When it was sent: orders the thread (messages without one keep their place at the top). */
+  at?: Date | string | number;
 };
 
 type ChatBoxProps = {
@@ -24,8 +28,24 @@ type ChatBoxProps = {
   placeholder?: string;
   initialMessages?: ChatMessage[];
   onSend?: (text: string) => Promise<string> | string;
+  /** Author name of the visitor's own messages (read by screen readers). */
+  youLabel?: string;
   className?: string;
 };
+
+function BoxAvatar({ role }: { role: ChatMessage['role'] }) {
+  return (
+    <div
+      className={cn(
+        'flex h-6 w-6 items-center justify-center rounded-full text-xs',
+        role === 'user' ? 'bg-primary text-primary-fg' : 'bg-surface-overlay text-text-secondary',
+      )}
+      aria-hidden="true"
+    >
+      <FontAwesomeIcon icon={role === 'user' ? faUser : faRobot} className="w-3 h-3" />
+    </div>
+  );
+}
 
 function formatTime(date: Date) {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -37,6 +57,7 @@ export function ChatBox({
   placeholder = 'Type a message…',
   initialMessages = [],
   onSend,
+  youLabel = 'You',
   className,
 }: ChatBoxProps) {
   const [open, setOpen] = useState(false);
@@ -45,7 +66,6 @@ export function ChatBox({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [unread, setUnread] = useState(0);
-  const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Opening the chat marks everything as read.
@@ -61,12 +81,6 @@ export function ChatBox({
     }
   }, [open]);
 
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-  }, [messages, open]);
-
   async function handleSend() {
     const text = input.trim();
     if (!text || loading) return;
@@ -77,6 +91,7 @@ export function ChatBox({
       role: 'user',
       text,
       timestamp: formatTime(new Date()),
+      at: new Date(),
     };
     setMessages((prev) => [...prev, userMsg]);
     setLoading(true);
@@ -91,6 +106,7 @@ export function ChatBox({
         role: 'agent',
         text: reply,
         timestamp: formatTime(new Date()),
+        at: new Date(),
       };
       setMessages((prev) => [...prev, agentMsg]);
       if (!open) setUnread((n) => n + 1);
@@ -125,7 +141,6 @@ export function ChatBox({
             'bg-surface-base flex flex-col transition-all duration-200',
             minimised ? 'h-14' : 'h-[480px]',
           )}
-          aria-live="polite"
         >
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 bg-primary text-primary-fg flex-shrink-0">
@@ -157,75 +172,28 @@ export function ChatBox({
           {!minimised && (
             <>
               {/* Messages */}
-              <div
-                ref={listRef}
-                className="flex-1 overflow-y-auto px-4 py-3 flex flex-col gap-3 scroll-smooth"
-              >
-                {messages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full gap-2 text-text-secondary">
-                    <FontAwesomeIcon icon={faCommentDots} className="w-8 h-8 opacity-30" />
+              <ChatThread
+                className="flex-1"
+                items={messages.map((msg) => ({
+                  id: msg.id,
+                  side: msg.role === 'user' ? 'own' : 'other',
+                  author: {
+                    name: msg.role === 'user' ? youLabel : title,
+                    avatar: <BoxAvatar role={msg.role} />,
+                  },
+                  body: msg.text,
+                  at: msg.at ?? 0,
+                  time: msg.timestamp ?? '',
+                }))}
+                typing={loading ? [{ name: title, avatar: <BoxAvatar role="agent" /> }] : undefined}
+                showOwnAuthor={false}
+                emptyMessage={
+                  <div className="flex h-full flex-col items-center justify-center gap-2 py-16 text-text-secondary">
+                    <FontAwesomeIcon icon={faCommentDots} className="w-8 h-8 opacity-30" aria-hidden="true" />
                     <p className="text-sm">Start the conversation</p>
                   </div>
-                )}
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      'flex gap-2 items-end',
-                      msg.role === 'user' ? 'flex-row-reverse' : 'flex-row',
-                    )}
-                  >
-                    <div
-                      className={cn(
-                        'flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-xs',
-                        msg.role === 'user'
-                          ? 'bg-primary text-primary-fg'
-                          : 'bg-surface-overlay text-text-secondary',
-                      )}
-                      aria-hidden="true"
-                    >
-                      <FontAwesomeIcon
-                        icon={msg.role === 'user' ? faUser : faRobot}
-                        className="w-3 h-3"
-                      />
-                    </div>
-                    <div
-                      className={cn(
-                        'max-w-[75%] flex flex-col gap-0.5',
-                        msg.role === 'user' ? 'items-end' : 'items-start',
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          'px-3 py-2 rounded-2xl text-sm leading-snug',
-                          msg.role === 'user'
-                            ? 'bg-primary text-primary-fg rounded-br-sm'
-                            : 'bg-surface-raised border border-border text-text-primary rounded-bl-sm',
-                        )}
-                      >
-                        {msg.text}
-                      </div>
-                      {msg.timestamp && (
-                        <span className="text-[10px] text-text-disabled px-1">{msg.timestamp}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {loading && (
-                  <div className="flex gap-2 items-end">
-                    <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-surface-overlay text-text-secondary">
-                      <FontAwesomeIcon icon={faRobot} className="w-3 h-3" />
-                    </div>
-                    <div className="bg-surface-raised border border-border rounded-2xl rounded-bl-sm px-3 py-2">
-                      <span className="flex gap-1 items-center">
-                        <span className="w-1.5 h-1.5 rounded-full bg-text-disabled animate-bounce [animation-delay:0ms]" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-text-disabled animate-bounce [animation-delay:150ms]" />
-                        <span className="w-1.5 h-1.5 rounded-full bg-text-disabled animate-bounce [animation-delay:300ms]" />
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
+                }
+              />
 
               {/* Input */}
               <div className="flex-shrink-0 border-t border-border bg-surface-base px-3 py-2 flex gap-2 items-end">

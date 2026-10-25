@@ -479,6 +479,12 @@
     "category": "Organism",
     "file": "org-chart.md"
   },
+  "chat-thread": {
+    "name": "ChatThread",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "chat-thread.md"
+  },
   "app-shell": {
     "name": "AppShell",
     "layer": "app",

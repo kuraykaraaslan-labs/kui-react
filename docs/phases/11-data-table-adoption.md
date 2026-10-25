@@ -141,9 +141,24 @@ Checked while moving NB and improved here, not in NB: `KanbanBoard` (server-driv
 column, move callback that can be rejected), `ImageGallery` (selection, filters and sort through the 11.6 filter
 panel), `Timeline` (grouping by day, load more).
 
+### 11.15 `ChatThread` `[react] ejs, native open`
+
+NB had three home-made threads (AI chat box, support ticket replies, team messaging) and no kit piece that fit:
+`ConversationTimeline` is an AI investigation trace and `Timeline` runs newest first. `ui/ChatThread` is a controlled
+thread: `items` (`id`, `author { name, avatarUrl?, avatar? }`, `side` own/other/system, `body`, `at`, `time?`, `status?`,
+`delivery?`, `attachments?`, `actions?`) shown oldest first; it sticks to the bottom while the reader is there and shows a
+"New messages" button once they scroll up (their own message always scrolls down); `hasOlder` + `loadingOlder` +
+`onLoadOlder` keep the reading position when the older page lands; `pending` streams the last message; `typing` says
+who is typing; `daySeparators`, `emptyMessage`, `loading`, a `composer` slot, `role="log"` with one article per message;
+every string from `messages` (`DEFAULT_CHAT_THREAD_MESSAGES`). The list prop is `items` because `messages` holds the
+strings, as on `DataTable`. `ChatBubble` / `ChatTypingIndicator` are its parts: the social `MessageBubble` and
+`TypingIndicator` are now adapters over them, and `domains/common/chat/ChatBox` draws its list with `ChatThread`.
+Mirrors: kui-ejs (`domain/common/chat`) and KUInative (with 11.13) are open.
+
 ## Done when
 
 - [x] 11.1–11.9 in kui-react with tests and showcase sections; `npm run registry:snapshot` run. 280c17d
 - [ ] 11.1–11.9 mirrored in kui-ejs (031e3a5, branch) and KUInative (in progress); parity exceptions recorded 1d93042.
 - [ ] 11.10–11.12 in all three (kui-react 06a2314; kui-ejs, KUInative open); 11.13 in KUInative; 11.14 as NB needs them (KanbanBoard ea65f6a, Timeline load more; ImageGallery: the media library uses DataTable `layout="cards"`, no change needed).
 - [ ] `KeyedTable` deprecated, IoT views on `DataTable`.
+- [ ] 11.15 `ChatThread` in kui-react (this commit); kui-ejs and KUInative mirrors open.
