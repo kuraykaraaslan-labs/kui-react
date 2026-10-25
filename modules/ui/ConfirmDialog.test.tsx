@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ConfirmDialog, cancelAllConfirms, confirmDialog, confirmReady } from './ConfirmDialog';
+import { ConfirmDialog, ConfirmHost, cancelAllConfirms, confirmDialog, confirmReady } from './ConfirmDialog';
 
 const base = { open: true, title: 'Delete user', confirmLabel: 'Delete', onConfirm: () => {}, onCancel: () => {} };
 
@@ -120,6 +120,13 @@ describe('ConfirmDialog', () => {
 
 // vitest.setup.ts mounts one ConfirmHost per test.
 describe('confirmDialog + ConfirmHost', () => {
+  it('a second host (another copy of the kit) does not draw the question twice', async () => {
+    render(<ConfirmHost />);
+    act(() => { void confirmDialog({ title: 'Only once', confirmLabel: 'Yes' }); });
+    expect(await screen.findByText('Only once')).toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
   it('cancelAllConfirms answers every waiting request with null', async () => {
     let a!: Promise<unknown>;
     let b!: Promise<unknown>;

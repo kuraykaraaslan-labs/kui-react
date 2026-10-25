@@ -253,15 +253,25 @@ export type ConfirmOptions = Omit<ConfirmDialogProps, 'open' | 'onConfirm' | 'on
 };
 
 type Pending = { key: number; options: ConfirmOptions; resolve: (r: ConfirmResult | null) => void };
+type State = { queue: Pending[]; hosts: number[] };
+type Store = { state: State; nextKey: number; nextHost: number; listeners: Set<() => void> };
 
-let queue: Pending[] = [];
-let nextKey = 1;
-const listeners = new Set<() => void>();
-const emit = () => { for (const l of listeners) l(); };
-const subscribe = (l: () => void) => { listeners.add(l); return () => { listeners.delete(l); }; };
-const snapshot = () => queue;
-const serverSnapshot = (): Pending[] => [];
-let hosts = 0;
+// One store per page, shared through globalThis: an app that carries several copies of the kit (vendored trees) still
+// has one queue, and the first mounted host draws it.
+const STORE_KEY = Symbol.for('kui.confirmDialog');
+function store(): Store {
+  const g = globalThis as typeof globalThis & { [STORE_KEY]?: Store };
+  return (g[STORE_KEY] ??= { state: { queue: [], hosts: [] }, nextKey: 1, nextHost: 1, listeners: new Set() });
+}
+function update(next: Partial<State>) {
+  const s = store();
+  s.state = { ...s.state, ...next };
+  for (const l of s.listeners) l();
+}
+const subscribe = (l: () => void) => { const s = store(); s.listeners.add(l); return () => { s.listeners.delete(l); }; };
+const snapshot = () => store().state;
+const EMPTY: State = { queue: [], hosts: [] };
+const serverSnapshot = () => EMPTY;
 
 /**
  * Ask for a confirmation from anywhere on the client (a component, a hook, a store action). Needs one `<ConfirmHost />`
@@ -269,20 +279,19 @@ let hosts = 0;
  */
 export function confirmDialog(options: ConfirmOptions): Promise<ConfirmResult | null> {
   if (typeof window === 'undefined') return Promise.resolve(null);
-  if (hosts === 0 && process.env.NODE_ENV !== 'production') {
+  const s = store();
+  if (s.state.hosts.length === 0 && process.env.NODE_ENV !== 'production') {
     console.error('confirmDialog: no <ConfirmHost /> is mounted, so the question can never be answered.');
   }
   return new Promise((resolve) => {
-    queue = [...queue, { key: nextKey++, options, resolve }];
-    emit();
+    update({ queue: [...s.state.queue, { key: s.nextKey++, options, resolve }] });
   });
 }
 
 /** Answers every open and waiting request with `null` (cancel): on sign-out, a route change, or between tests. */
 export function cancelAllConfirms() {
-  const all = queue;
-  queue = [];
-  emit();
+  const all = store().state.queue;
+  update({ queue: [] });
   for (const p of all) p.resolve(null);
 }
 
@@ -292,19 +301,30 @@ export function useConfirm(): typeof confirmDialog {
 }
 
 function settle(key: number, result: ConfirmResult | null) {
+  const { queue } = store().state;
   const item = queue.find((p) => p.key === key);
   if (!item) return;
-  queue = queue.filter((p) => p.key !== key);
-  emit();
+  update({ queue: queue.filter((p) => p.key !== key) });
   item.resolve(result);
 }
 
 const defaultErrorMessage = (e: unknown) => (e instanceof Error && e.message) || String(e);
 
-/** Renders the request at the head of the `confirmDialog` queue. Mount exactly one, at the app root. */
+/**
+ * Renders the request at the head of the `confirmDialog` queue. Mount one at the app root; when several are mounted
+ * (several copies of the kit), only the first draws.
+ */
 export function ConfirmHost() {
-  const pending = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
-  const head = pending[0];
+  const { queue, hosts } = useSyncExternalStore(subscribe, snapshot, serverSnapshot);
+  const id = useRef(0);
+  if (!id.current) id.current = store().nextHost++;
+  useEffect(() => {
+    const me = id.current;
+    update({ hosts: [...store().state.hosts, me] });
+    return () => update({ hosts: store().state.hosts.filter((h) => h !== me) });
+  }, []);
+  const active = hosts[0] === id.current;
+  const head = active ? queue[0] : undefined;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [shownKey, setShownKey] = useState<number | undefined>();
@@ -312,8 +332,8 @@ export function ConfirmHost() {
   // The last request stays rendered (closed) so its text does not vanish while the dialog fades out.
   const last = useRef<Pending | undefined>(undefined);
   if (head) last.current = head;
-  useEffect(() => { hosts += 1; return () => { hosts -= 1; }; }, []);
   if (!head) {
+    if (!active) return null;
     if (!last.current) return null;
     const { action: _a, errorMessage: _e, ...closed } = last.current.options;
     return <ConfirmDialog key={last.current.key} {...closed} open={false} onConfirm={() => {}} onCancel={() => {}} />;
