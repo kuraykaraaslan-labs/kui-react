@@ -152,7 +152,23 @@ describe('layouts and parts', () => {
     expect(screen.getByText('20!')).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Target' })).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Increase' }));
-    expect(onCommit).toHaveBeenCalledWith(22);
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(22));
+  });
+  it('ControlSetpoint: presses in a row show at once and are written as one value once they settle', async () => {
+    const onCommit = vi.fn().mockResolvedValue(undefined);
+    render(<ControlSetpoint value={20} min={0} max={40} step={2} layout="stepper" ariaLabel="Target" settleMs={200} onCommit={onCommit} />);
+    const user = userEvent.setup();
+    for (let i = 0; i < 3; i++) await user.click(screen.getByRole('button', { name: 'Increase' }));
+    expect(screen.getByRole('group', { name: 'Target' })).toHaveTextContent('26');
+    expect(onCommit).not.toHaveBeenCalled();
+    await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
+    expect(onCommit).toHaveBeenCalledWith(26);
+  });
+  it('ControlSetpoint: settleMs 0 writes every press', async () => {
+    const onCommit = vi.fn().mockResolvedValue(undefined);
+    render(<ControlSetpoint value={20} min={0} max={40} step={2} layout="stepper" ariaLabel="Target" settleMs={0} onCommit={onCommit} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Decrease' }));
+    expect(onCommit).toHaveBeenCalledWith(18);
   });
   it('ControlTile: a host failure text leads and keeps the reason; unframed can put the control at the bottom', () => {
     const { container, rerender } = render(<ControlTile state="failed" error="Offline" messages={{ failed: 'Could not switch' }}>x</ControlTile>);

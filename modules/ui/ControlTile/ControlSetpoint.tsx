@@ -1,5 +1,5 @@
 'use client';
-import { useId, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '../Button';
 import { useAsyncControl } from '@/libs/hooks/useAsyncControl';
@@ -40,10 +40,13 @@ export type ControlSetpointProps = {
   /** Formats the numbers shown (current value, stepper value). Overrides `unit` / `decimals`. */
   format?: (value: number) => string;
   /**
-   * `input` (default): type a number and apply. `stepper`: minus / plus buttons, each press is written.
+   * `input` (default): type a number and apply. `stepper`: minus / plus buttons; presses in a row move the value at once and are
+   * written as one, `settleMs` after the last (a device takes one command for five presses, not five).
    * `dial`: the stepper around an arc showing where the value sits between min and max.
    */
   layout?: 'input' | 'stepper' | 'dial';
+  /** Stepper and dial: how long after the last press the value is written (ms, default 700; 0 writes every press). */
+  settleMs?: number;
   /** Renders the stepper / dial number (default: the formatted text in `valueStyle`). */
   renderValue?: (text: string, value: number | null) => ReactNode;
   /** Text colour of the Apply / stepper buttons. */
@@ -100,11 +103,14 @@ const DEFAULTS: ControlSetpointMessages = {
   increase: 'Increase',
 };
 
+/** How long a stepper waits after the last press before it writes the value (ms). */
+export const STEP_SETTLE_MS = 700;
+
 /** ControlSetpoint — type a number, press Apply or Enter (or step it). A bad entry is a field error and sends nothing. */
 export function ControlSetpoint({
   title, ariaLabel, value, reported, onCommit, min, max, step, unit, decimals = 0, format, layout = 'input', showValue = true,
   valueStyle, buttonColor, buttonTextColor, borderColor, renderValue, dialColor, dialTrackColor, readOnly = false, disabled = false, disabledReason, framed = true, timeoutMs, messages, className,
-  confirm = 'none', confirmText,
+  confirm = 'none', confirmText, settleMs = STEP_SETTLE_MS,
 }: ControlSetpointProps) {
   const id = useId();
   const m = { ...DEFAULTS, ...messages };
@@ -143,10 +149,22 @@ export function ControlSetpoint({
     write(ask.request(checked.value));
   };
 
-  const current = ctl.displayValue ?? bound;
+  // Presses in a row move a draft at once; the draft is written once they settle (one command, not one per press).
+  const [draft, setDraft] = useState<number | null>(null);
+  const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (settle.current) clearTimeout(settle.current); }, []);
+  const current = draft ?? ctl.displayValue ?? bound;
   const stepBy = (dir: -1 | 1) => {
     const base = current ?? range.min;
-    write(ask.request(snapToStep(base + dir * range.step, range)));
+    const next = snapToStep(base + dir * range.step, range);
+    if (settleMs <= 0) { write(ask.request(next)); return; }
+    setDraft(next);
+    if (settle.current) clearTimeout(settle.current);
+    settle.current = setTimeout(() => {
+      settle.current = null;
+      setDraft(null);
+      write(ask.request(next));
+    }, settleMs);
   };
 
   const currentLine = showValue && bound !== null && (layout === 'input' || (current !== null && current !== bound)) ? (
