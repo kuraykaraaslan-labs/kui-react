@@ -38,8 +38,9 @@ export function BusiestTab({ nodeStats, nodeNames, onReveal, selectedNodeId }: B
       .sort((a, b) => (b[key] - a[key]) || (b.in - a.in))
       .slice(0, TOP)
       .map((r): Row => { const root = rootNode(r.id); return { ...r, root, name: nodeNames?.[root] ?? root }; });
+    // a counter is picked biggest first, the names come A to Z: the other direction is the reverse
     if (sort.key === 'block') picked.sort((a, b) => a.name.localeCompare(b.name));
-    return sort.dir === 'asc' ? picked.reverse() : picked;
+    return sort.dir === (sort.key === 'block' ? 'desc' : 'asc') ? picked.reverse() : picked;
   }, [nodeStats, nodeNames, key, sort.key, sort.dir]);
   const top = Math.max(1, ...rows.map((r) => r[key]));
 
@@ -61,10 +62,11 @@ export function BusiestTab({ nodeStats, nodeNames, onReveal, selectedNodeId }: B
     { key: 'errors', header: m.insColErrors, sortable: true, align: 'right', tdClass: num, render: (r) => (r.errors ? <span className="font-semibold text-error">{r.errors}</span> : '0') },
     { key: 'ms', header: m.insColMs, sortable: true, align: 'right', tdClass: num, render: (r) => (r.ms ? r.ms.toFixed(1) : '–') },
   ];
-  /** the table reports its sort: a new heading (or the same one turned around) orders the rows; a cleared sort goes back to `in` */
+  /** the table reports its sort: a new heading orders the rows; the rows are always ordered, so where the kit's cycle would
+   *  turn the sort off, it turns it around instead */
   const onQueryChange = (q: DataTableQuery) => {
     const next = q.sort[0];
-    const want = next ? { key: next.key as SortKey, dir: next.dir } : { key: 'in' as const, dir: 'desc' as const };
+    const want = next ? { key: next.key as SortKey, dir: next.dir } : { key: sort.key, dir: sort.dir === 'desc' ? 'asc' as const : 'desc' as const };
     if (want.key !== sort.key || want.dir !== sort.dir) setSort(want);
   };
 
