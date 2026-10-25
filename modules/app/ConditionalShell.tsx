@@ -1,4 +1,5 @@
 'use client';
+import '@/libs/config/fontawesome';
 import { usePathname } from 'next/navigation';
 import { ShowcaseShell } from '@/modules/showcase/ui/ShowcaseShell';
 

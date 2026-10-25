@@ -294,6 +294,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Fixed
 
+- Icons: size classes on `FontAwesomeIcon` (`w-3 h-3`, `w-4 h-4`, …) now take effect. Font Awesome injected its CSS
+  unlayered at runtime, which beat Tailwind's layered utilities, so every icon rendered as a 1.25em × 1em box. Its
+  stylesheet is now imported into the `base` layer and `config.autoAddCss` is off (`libs/config/fontawesome.ts`, a
+  `sideEffects` entry). Icons render at their declared size across the library.
+- Native checkboxes and radios follow the theme: `accent-color: var(--primary)`, `color-scheme` light / dark per theme,
+  and an error outline plus error accent on `aria-invalid`. Their `border-*` / `text-*` classes never reached the
+  native control, so they showed Chrome's light default in both themes and never turned red.
 - Escape in an open `ComboBox`, `Select` or `MultiSelect` list inside a `Modal` (or `Drawer` / `Popover`) closed the
   overlay too. The open list now handles Escape (closes, `preventDefault` + `stopPropagation`, focus back on the
   trigger) and `useFocusTrap` / `useDismiss` ignore an Escape whose `defaultPrevented` is set. With the list closed,

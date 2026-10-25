@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
+/* Font Awesome's icon CSS sits in the base layer so utilities such as `w-3 h-3`
+   size an icon; its own unlayered runtime <style> is off (libs/config/fontawesome.ts). */
+@import "@fortawesome/fontawesome-svg-core/styles.css" layer(base);
 
 :root {
   --primary:         #3b82f6;
@@ -210,3 +213,21 @@
 .ql-editor .ql-code-block-container { background: var(--surface-sunken); color: var(--text-primary); border-radius: 0.375rem; padding: 0.75rem 1rem; font-family: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 0.85em; margin: 0.5em 0; overflow-x: auto; }
 .kui-rte-content img,
 .ql-editor img { max-width: 100%; height: auto; border-radius: 0.375rem; margin: 0.5em 0; }
+
+/* Native checkboxes and radios: their border and fill cannot take `border-*` /
+   `text-*` classes, so they follow the theme through accent-color and
+   color-scheme, and an invalid one gets an error outline. */
+@layer base {
+  :root { color-scheme: light; }
+  .dark { color-scheme: dark; }
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--primary);
+  }
+  input[type="checkbox"][aria-invalid="true"],
+  input[type="radio"][aria-invalid="true"] {
+    accent-color: var(--error);
+    outline: 1px solid var(--error);
+    outline-offset: 1px;
+  }
+}

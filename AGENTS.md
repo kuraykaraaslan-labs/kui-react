@@ -506,7 +506,7 @@ import { faGithub } from '@fortawesome/free-brands-svg-icons';
 ### Rules
 
 1. **Named imports only** — import the specific icon variable, never the whole set.
-2. **`className` for styling** — use Tailwind classes (`text-primary`, `w-4 h-4`, etc.) on the `<FontAwesomeIcon>` element; do not use the `size` prop with raw strings like `"lg"`.
+2. **`className` for styling** — use Tailwind classes (`text-primary`, `w-4 h-4`, etc.) on the `<FontAwesomeIcon>` element; do not use the `size` prop with raw strings like `"lg"`. Size classes take effect because Font Awesome's CSS is imported into the `base` layer (`app/globals.css`) and its unlayered runtime `<style>` is off (`libs/config/fontawesome.ts`, listed in `package.json` `sideEffects`). An app built on kui-react needs the same two pieces, or every `w-*`/`h-*` on an icon is ignored.
 3. **`aria-hidden="true"`** on decorative icons; supply `aria-label` when the icon is the only content of a clickable element.
 4. **No inline SVG** — if an icon is unavailable in Font Awesome Free, raise the requirement with the team rather than embedding custom SVG.
 5. **No other icon libraries** — do not install or import `lucide-react`, `heroicons`, `react-icons`, or similar packages.
