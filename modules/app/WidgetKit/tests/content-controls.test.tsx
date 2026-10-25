@@ -241,7 +241,8 @@ describe('controls', () => {
     onControl.mockClear();
     render(<CONTROL_SETPOINT_VIEW.View {...props(CONTROL_SETPOINT, { settings: { layout: 'stepper', step: 5 }, data: { value: { shape: 'scalar', value: 20 } }, onControl })} />);
     await user.click(screen.getByRole('button', { name: 'Increase' }));
-    expect(onControl).toHaveBeenCalledWith({ kind: 'set', value: 25 });
+    // a stepper writes once its presses settle (ControlSetpoint settleMs, 700 ms)
+    await waitFor(() => expect(onControl).toHaveBeenCalledWith({ kind: 'set', value: 25 }));
   });
   it('a slider shows the formatted value and is disabled when the value is unknown and disableWhen has it', () => {
     const { rerender } = render(<CONTROL_SLIDER_VIEW.View {...props(CONTROL_SLIDER, {
@@ -705,6 +706,6 @@ describe('setpoint settings', () => {
     const up = screen.getByRole('button', { name: 'Increase' });
     expect(up.style.color).toBe('rgb(0, 255, 0)');
     await userEvent.setup().click(up);
-    expect(onControl).toHaveBeenCalledWith({ kind: 'set', value: 24 });
+    await waitFor(() => expect(onControl).toHaveBeenCalledWith({ kind: 'set', value: 24 }));
   });
 });
