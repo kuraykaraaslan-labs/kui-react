@@ -1036,7 +1036,7 @@ function ServerView<T extends Record<string, unknown>>(
 
   const status: DataTableStateValue =
     stateOverride ??
-    (table.error
+    (table.error !== null
       ? 'error'
       : !table.everLoaded
         ? 'loading'
@@ -1067,7 +1067,8 @@ function ServerView<T extends Record<string, unknown>>(
     setPage: table.setPage,
     status,
     busy: table.loading,
-    errorMessage: table.error ?? undefined,
+    // an error without text falls back to `messages.error`
+    errorMessage: table.error || undefined,
     retry: table.retry,
   };
 
@@ -1141,7 +1142,7 @@ function ManualView<T extends Record<string, unknown>>(
     setPage: table.setPage,
     status,
     busy: loading,
-    errorMessage: props.error ?? undefined,
+    errorMessage: props.error || undefined,
     retry: props.onRetry,
   };
 

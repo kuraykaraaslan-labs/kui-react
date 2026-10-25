@@ -120,7 +120,8 @@ export function useServerTable<T>({
       })
       .catch((err: unknown) => {
         if (controller.signal.aborted) return;
-        setError(err instanceof Error ? err.message : 'Fetch failed');
+        // an empty message is still an error (null is none): the table then shows its own, translated `messages.error`
+        setError(err instanceof Error ? err.message : '');
         setLoading(false);
       });
     return () => controller.abort();
