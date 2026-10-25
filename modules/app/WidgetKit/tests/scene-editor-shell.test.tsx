@@ -502,43 +502,34 @@ describe('Apply and Close', () => {
     expect(confirm).not.toHaveBeenCalled();
   });
 
-  it('asks inside the page before it throws changes away (no window.confirm)', () => {
+  it('asks with the kit ConfirmDialog before it throws changes away (no window.confirm)', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { svg, onClose } = mount();
     click(svg, { x: B.valve1.cx, y: B.valve1.cy });
     key(screen.getByTestId('scene-canvas'), 'Delete');
     fireEvent.click(screen.getByTestId('editor-close'));
-    const dialog = screen.getByRole('alertdialog', { name: 'Discard your changes?' });
+    const dialog = screen.getByRole('dialog', { name: 'Discard your changes?' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(within(dialog).getByText('The diagram has changes that were not applied.')).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
-    expect(within(dialog).getByTestId('dirty-keep')).toHaveFocus();
-    // Escape and "Keep editing" both stay.
-    key(dialog, 'Escape');
-    expect(screen.queryByRole('alertdialog')).toBeNull();
-    fireEvent.click(screen.getByTestId('editor-close'));
-    fireEvent.click(screen.getByTestId('dirty-keep'));
-    expect(screen.queryByRole('alertdialog')).toBeNull();
+    // "Keep editing" stays.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Discard your changes?' })).toBeNull());
     expect(onClose).not.toHaveBeenCalled();
     // Discard closes.
     fireEvent.click(screen.getByTestId('editor-close'));
-    fireEvent.click(screen.getByTestId('dirty-discard'));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Discard your changes?' })).getByRole('button', { name: 'Discard changes' }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(confirm).not.toHaveBeenCalled();
   });
 
-  it('keeps the focus inside the dialog with Tab', () => {
+  it('the discard question is a danger confirmation', () => {
     const { svg } = mount();
     click(svg, { x: B.valve1.cx, y: B.valve1.cy });
     key(screen.getByTestId('scene-canvas'), 'Delete');
     fireEvent.click(screen.getByTestId('editor-close'));
-    const dialog = screen.getByRole('alertdialog');
-    expect(within(dialog).getByTestId('dirty-keep')).toHaveFocus();
-    key(dialog, 'Tab');
-    expect(within(dialog).getByTestId('dirty-discard')).toHaveFocus();
-    key(dialog, 'Tab');
-    expect(within(dialog).getByTestId('dirty-keep')).toHaveFocus();
-    key(dialog, 'Tab', { shiftKey: true });
-    expect(within(dialog).getByTestId('dirty-discard')).toHaveFocus();
+    const dialog = screen.getByRole('dialog', { name: 'Discard your changes?' });
+    expect(within(dialog).getByRole('button', { name: 'Discard changes' })).toHaveClass('bg-error');
   });
 
   it('applies the draft, then calls the host so it can close; the draft is then clean', async () => {
@@ -576,7 +567,7 @@ describe('Apply and Close', () => {
     expect(screen.getByTestId('editor-apply')).not.toBeDisabled();
     // The edits are still there: closing still asks.
     fireEvent.click(screen.getByTestId('editor-close'));
-    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Discard your changes?' })).toBeInTheDocument();
     expect(m.onClose).not.toHaveBeenCalled();
   });
 

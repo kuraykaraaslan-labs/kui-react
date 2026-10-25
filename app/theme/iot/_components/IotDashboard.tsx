@@ -2,6 +2,7 @@
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import type { CSSProperties } from 'react';
 import { cn } from '@/libs/utils/cn';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import {
@@ -115,7 +116,7 @@ export function IotDashboard() {
     <WidgetKitProvider value={{ renderIcon }}>
       <div className="flex h-full flex-col gap-3 overflow-y-auto p-6">
         <div className="flex justify-end">
-          <button type="button" onClick={() => { if (window.confirm('Reset the dashboard to the demo layout?')) save(DEFAULT_IOT_BOARD); }}
+          <button type="button" onClick={() => { void confirmDialog({ title: 'Reset dashboard', message: 'The dashboard goes back to the demo layout; your changes to it are lost.', tone: 'warning', confirmLabel: 'Reset' }).then((ok) => { if (ok) save(DEFAULT_IOT_BOARD); }); }}
             className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-text-secondary hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
             <FontAwesomeIcon icon={faRotateLeft} className="h-3 w-3" aria-hidden="true" /> Reset demo
           </button>

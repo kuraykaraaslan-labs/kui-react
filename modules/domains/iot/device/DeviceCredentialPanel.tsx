@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faCopy, faEye, faEyeSlash, faKey, faRotate, faTriangleExclamation } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
-import { Popconfirm } from '@/modules/ui/Popconfirm';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { useIotText } from '../api/IotAdapterProvider';
 import { formatDateTime } from '../format';
@@ -13,7 +13,7 @@ import type { IotMessagesInput } from '../messages';
 
 /**
  * DeviceCredentialPanel — a device's credential without its secret: the type, the non-secret identifiers (client id,
- * username, X.509 fingerprint, subject and expiry), and "Rotate secret" behind a `Popconfirm`. A secret the server has just
+ * username, X.509 fingerprint, subject and expiry), and "Rotate secret" behind a `ConfirmDialog`. A secret the server has just
  * issued (`secret`) is shown once in `IssuedSecretNotice`: masked until "Show", copyable, gone for good when dismissed. The
  * component never stores a secret anywhere but in the host's prop (no storage, no logging).
  */
@@ -63,20 +63,9 @@ export function DeviceCredentialPanel({
           {m.credential.title}
         </h2>
         {canRotate && (
-          <Popconfirm
-            trigger={(
-              <Button variant="outline" size="sm" loading={rotating} iconLeft={<FontAwesomeIcon icon={faRotate} className="h-3 w-3" aria-hidden="true" />}>
+          <Button onClick={() => { void confirmDialog({ title: m.credential.rotateConfirm, message: m.credential.rotateHint, tone: 'danger', confirmLabel: m.credential.rotate, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void rotate(); }); }} variant="outline" size="sm" loading={rotating} iconLeft={<FontAwesomeIcon icon={faRotate} className="h-3 w-3" aria-hidden="true" />}>
                 {m.credential.rotate}
               </Button>
-            )}
-            title={m.credential.rotateConfirm}
-            description={m.credential.rotateHint}
-            confirmLabel={m.credential.rotate}
-            cancelLabel={m.common.cancel}
-            danger
-            placement="bottom"
-            onConfirm={() => void rotate()}
-          />
         )}
       </div>
 

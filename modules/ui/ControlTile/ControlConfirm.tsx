@@ -1,6 +1,6 @@
 'use client';
-import { useId, useRef, useState } from 'react';
-import { Button } from '../Button';
+import { useRef, useState } from 'react';
+import { ConfirmDialog } from '../ConfirmDialog';
 
 /** What a confirmed write carries to `onCommit`, so the other side can check it again. */
 export type ControlConfirmation = { confirmed: true; typed?: string };
@@ -55,28 +55,22 @@ export type ControlConfirmPromptProps = {
   messages?: Partial<ControlConfirmMessages>;
 };
 
-/** The "Are you sure?" step every control shares; `typed` enables Confirm only on the exact text. */
+/** The "Are you sure?" step every control shares: the kit's ConfirmDialog; `typed` unlocks Confirm only on the exact text. */
 export function ControlConfirmPrompt({ mode, confirmText = '', onConfirm, onCancel, messages }: ControlConfirmPromptProps) {
-  const id = useId();
   const m = { ...DEFAULT_CONFIRM_MESSAGES, ...messages };
-  const [typed, setTyped] = useState('');
-  const ok = mode !== 'typed' || typed.trim() === confirmText;
+  const typed = mode === 'typed';
   return (
-    <div className="space-y-2" role="group" aria-labelledby={`${id}-prompt`}>
-      <p id={`${id}-prompt`} className="text-sm text-text-primary">{m.confirmPrompt}</p>
-      {mode === 'typed' && (
-        <input
-          aria-label={m.typeToConfirm.replace('{text}', confirmText)}
-          placeholder={confirmText}
-          value={typed}
-          onChange={(e) => setTyped(e.target.value)}
-          className="h-9 w-full rounded-md border border-border bg-surface-base px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
-        />
-      )}
-      <div className="flex gap-2">
-        <Button onClick={() => onConfirm(mode === 'typed' ? typed.trim() : undefined)} disabled={!ok}>{m.confirm}</Button>
-        <Button variant="secondary" onClick={onCancel}>{m.cancel}</Button>
-      </div>
-    </div>
+    <ConfirmDialog
+      open
+      title={m.confirmPrompt}
+      tone="warning"
+      confirmLabel={m.confirm}
+      cancelLabel={m.cancel}
+      phrase={typed ? confirmText : undefined}
+      phraseLabel={typed ? m.typeToConfirm.replace('{text}', confirmText) : undefined}
+      // The phrase gate passed only on the exact (trimmed) text, so that is what was typed.
+      onConfirm={() => onConfirm(typed ? confirmText : undefined)}
+      onCancel={onCancel}
+    />
   );
 }

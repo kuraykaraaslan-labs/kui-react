@@ -7,7 +7,7 @@ import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { Callout } from '@/modules/ui/Callout';
 import { Input } from '@/modules/ui/Input';
-import { Popconfirm } from '@/modules/ui/Popconfirm';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Select } from '@/modules/ui/Select';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { TabGroup, type Tab } from '@/modules/ui/TabGroup';
@@ -353,16 +353,7 @@ export function DeviceProfileEditorView({
               <Button variant="ghost" size="sm" disabled iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.profile.delete}</Button>
             </span>
           ) : (
-            <Popconfirm
-              trigger={<Button variant="ghost" size="sm" iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.profile.delete}</Button>}
-              title={fill(m.profiles.deleteConfirm, { name: profile.name })}
-              description={inUse ? fill(m.profiles.deleteInUse, { list: inUse }) : m.profiles.deleteHint}
-              confirmLabel={m.profiles.delete}
-              cancelLabel={m.common.cancel}
-              danger
-              placement="bottom"
-              onConfirm={() => void remove()}
-            />
+            <Button onClick={() => { void confirmDialog({ title: fill(m.profiles.deleteConfirm, { name: profile.name }), message: inUse ? fill(m.profiles.deleteInUse, { list: inUse }) : m.profiles.deleteHint, tone: 'danger', confirmLabel: m.profiles.delete, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void remove(); }); }} variant="ghost" size="sm" iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.profile.delete}</Button>
           ))}
         </div>
       </header>

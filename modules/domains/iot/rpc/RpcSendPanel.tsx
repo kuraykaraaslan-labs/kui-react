@@ -6,10 +6,9 @@ import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { Checkbox } from '@/modules/ui/Checkbox';
 import { Input } from '@/modules/ui/Input';
-import { Modal } from '@/modules/ui/Modal';
 import { Select } from '@/modules/ui/Select';
 import { Textarea } from '@/modules/ui/Textarea';
-import { TypedConfirmDialog } from '@/modules/ui/TypedConfirmDialog';
+import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SchemaForm } from '@/modules/app/SchemaForm/SchemaForm';
 import { validateSchemaValues } from '@/modules/app/SchemaForm/validate';
 import { useIotText } from '../api/IotAdapterProvider';
@@ -195,36 +194,20 @@ export function RpcSendPanel({
         </>
       )}
 
-      {command?.highImpact && command.confirmText ? (
-        <TypedConfirmDialog
-          open={confirming}
-          title={fill(m.rpc.confirmTitle, { method: command.method })}
-          description={m.rpc.confirmHint}
-          phrase={command.confirmText}
-          label={fill(m.rpc.typeToConfirm, { phrase: command.confirmText })}
-          confirmLabel={m.rpc.send}
-          cancelLabel={m.common.cancel}
-          closeLabel={m.common.close}
-          busy={busy}
-          onCancel={() => setConfirming(false)}
-          onConfirm={() => void send({ confirm: true, confirmText: command.confirmText ?? undefined })}
-        />
-      ) : (
-        <Modal
-          open={confirming}
-          onClose={() => setConfirming(false)}
-          title={fill(m.rpc.confirmTitle, { method: command?.method ?? '' })}
-          closeLabel={m.common.close}
-          footer={(
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>{m.common.cancel}</Button>
-              <Button variant="danger" size="sm" loading={busy} onClick={() => void send({ confirm: true })}>{m.rpc.send}</Button>
-            </div>
-          )}
-        >
-          <p className="text-sm text-text-secondary">{m.rpc.confirmHint}</p>
-        </Modal>
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title={fill(m.rpc.confirmTitle, { method: command?.method ?? '' })}
+        message={m.rpc.confirmHint}
+        tone="danger"
+        phrase={command?.highImpact && command.confirmText ? command.confirmText : undefined}
+        phraseLabel={command?.confirmText ? fill(m.rpc.typeToConfirm, { phrase: command.confirmText }) : undefined}
+        confirmLabel={m.rpc.send}
+        cancelLabel={m.common.cancel}
+        closeLabel={m.common.close}
+        busy={busy}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => void send(command?.highImpact && command.confirmText ? { confirm: true, confirmText: command.confirmText } : { confirm: true })}
+      />
     </section>
   );
 }

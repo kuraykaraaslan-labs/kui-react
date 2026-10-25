@@ -7,7 +7,7 @@ import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { Callout } from '@/modules/ui/Callout';
 import { EmptyState } from '@/modules/ui/EmptyState';
-import { Popconfirm } from '@/modules/ui/Popconfirm';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { Toggle } from '@/modules/ui/Toggle';
 import { errorMessage } from '../api/adapter';
@@ -146,16 +146,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
                       onChange={(v) => setRules(rules.map((x, j) => (j === i ? { ...x, enabled: v } : x)))} />
                     <Button variant="ghost" size="xs" aria-label={`${m.alarmRules.edit} ${r.type}`} onClick={() => setEditing({ index: i, rule: r })}
                       iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>{m.alarmRules.edit}</Button>
-                    <Popconfirm
-                      trigger={<Button variant="ghost" size="xs" aria-label={`${m.alarmRules.remove} ${r.type}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}><span className="sr-only">{m.alarmRules.remove}</span></Button>}
-                      title={fill(m.alarmRules.removeConfirm, { type: r.type })}
-                      description={m.alarmRules.removeHint}
-                      confirmLabel={m.alarmRules.remove}
-                      cancelLabel={m.common.cancel}
-                      danger
-                      placement="bottom"
-                      onConfirm={() => setRules(rules.filter((_, j) => j !== i))}
-                    />
+                    <Button onClick={() => { void confirmDialog({ title: fill(m.alarmRules.removeConfirm, { type: r.type }), message: m.alarmRules.removeHint, tone: 'danger', confirmLabel: m.alarmRules.remove, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void setRules(rules.filter((_, j) => j !== i)); }); }} variant="ghost" size="xs" aria-label={`${m.alarmRules.remove} ${r.type}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}><span className="sr-only">{m.alarmRules.remove}</span></Button>
                   </div>
                 )}
               </div>

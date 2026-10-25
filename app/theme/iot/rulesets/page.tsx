@@ -24,6 +24,7 @@ import {
 import { DataTable } from '@/modules/ui/DataTable';
 import type { TableColumn } from '@/modules/ui/DataTable';
 import { Modal } from '@/modules/ui/Modal';
+import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { cn } from '@/libs/utils/cn';
@@ -440,30 +441,23 @@ export default function RulesetsPage() {
         </div>
       </Modal>
 
-      {/* ── Delete confirm modal ── */}
-      <Modal
+      {/* ── Delete confirm ── */}
+      <ConfirmDialog
         open={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title="Delete Ruleset"
+        title="Delete ruleset"
+        message={(
+          <>
+            Delete <strong>{deleteChain?.name}</strong> with its{' '}
+            {deleteChain?.nodes.length ?? 0} nodes and {deleteChain?.edges.length ?? 0} connections?
+            You can restore it from <strong>Recently deleted</strong> for 7 days.
+          </>
+        )}
+        tone="danger"
         size="sm"
-        footer={
-          <div className="flex items-center justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(null)}>
-              Cancel
-            </Button>
-            <Button variant="danger" size="sm" onClick={() => deleteTarget && handleDelete(deleteTarget)}>
-              <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" aria-hidden="true" />
-              Delete
-            </Button>
-          </div>
-        }
-      >
-        <p className="text-sm text-text-primary">
-          Delete <strong>{deleteChain?.name}</strong> with its{' '}
-          {deleteChain?.nodes.length ?? 0} nodes and {deleteChain?.edges.length ?? 0} connections?
-          You can restore it from <strong>Recently deleted</strong> for 7 days.
-        </p>
-      </Modal>
+        confirmLabel="Delete"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => { if (deleteTarget) handleDelete(deleteTarget); }}
+      />
       </div>
     </>
   );

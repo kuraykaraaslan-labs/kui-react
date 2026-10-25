@@ -21,6 +21,9 @@ type PopconfirmProps = {
   className?: string;
 };
 
+/**
+ * @deprecated Every confirmation uses `ConfirmDialog` (or `confirmDialog()`); kept only for existing callers.
+ */
 export function Popconfirm({
   trigger,
   title,

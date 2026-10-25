@@ -11,10 +11,9 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { EmptyState } from '@/modules/ui/EmptyState';
 import { Input } from '@/modules/ui/Input';
 import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
-import { Popconfirm } from '@/modules/ui/Popconfirm';
+import { ConfirmDialog, confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Select } from '@/modules/ui/Select';
 import { Textarea } from '@/modules/ui/Textarea';
-import { TypedConfirmDialog } from '@/modules/ui/TypedConfirmDialog';
 import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill } from '../format';
@@ -135,15 +134,7 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
         <span className="inline-flex items-center justify-end gap-1">
           <Button variant="ghost" size="xs" aria-label={`${m.rpcCatalog.edit} ${c.method}`} onClick={() => setEditing({ command: c })}
             iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>{m.rpcCatalog.edit}</Button>
-          <Popconfirm
-            trigger={<Button variant="ghost" size="xs" aria-label={`${m.rpcCatalog.remove} ${c.method}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}><span className="sr-only">{m.rpcCatalog.remove}</span></Button>}
-            title={fill(m.rpcCatalog.removeConfirm, { method: c.method })}
-            confirmLabel={m.rpcCatalog.remove}
-            cancelLabel={m.common.cancel}
-            danger
-            placement="bottom"
-            onConfirm={() => void remove(c)}
-          />
+          <Button onClick={() => { void confirmDialog({ title: fill(m.rpcCatalog.removeConfirm, { method: c.method }), tone: 'danger', confirmLabel: m.rpcCatalog.remove, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void remove(c); }); }} variant="ghost" size="xs" aria-label={`${m.rpcCatalog.remove} ${c.method}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}><span className="sr-only">{m.rpcCatalog.remove}</span></Button>
         </span>
       ),
     }] : []),
@@ -352,15 +343,15 @@ function ImportDrawer({ profileId, onClose, onDone }: { profileId: string; onClo
             onChange={(e) => { setText(e.target.value); setError(null); }} />
         </div>
       </Drawer>
-      <TypedConfirmDialog
+      <ConfirmDialog
         open={parsed !== null}
         title={m.rpcCatalog.importConfirm}
-        description={m.rpcCatalog.importHint}
+        message={m.rpcCatalog.importHint}
         phrase="REPLACE"
-        label={fill(m.rpc.typeToConfirm, { phrase: 'REPLACE' })}
+        phraseLabel={fill(m.rpc.typeToConfirm, { phrase: 'REPLACE' })}
         confirmLabel={m.rpcCatalog.importConfirm}
         cancelLabel={m.common.cancel}
-        danger
+        tone="danger"
         busy={busy}
         onConfirm={() => void replace()}
         onCancel={() => setParsed(null)}

@@ -180,6 +180,7 @@ describe('AssetDetailView', () => {
     expect(confirm.length).toBeGreaterThan(1);
     await user.click(confirm[confirm.length - 1]);
     await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'error', message: 'This asset cannot be deleted: This asset still has child assets: move or delete them first.' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     unmount();
     wrap(<AssetDetailView assetId="press-line" nodes={TREE} />, fakeAssets(), {});
     await screen.findByRole('heading', { name: 'Press line' });

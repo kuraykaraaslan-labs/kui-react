@@ -145,4 +145,14 @@ describe('Modal', () => {
     );
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
   });
+
+  it('a closing modal leaves the accessibility tree and takes no clicks while it fades out', () => {
+    const { rerender } = render(<Modal open onClose={() => {}} title="Dialog" footer={<button>Confirm</button>}>content</Modal>);
+    rerender(<Modal open={false} onClose={() => {}} title="Dialog" footer={<button>Confirm</button>}>content</Modal>);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Confirm' })).toBeNull();
+    const root = document.querySelector('[role="dialog"]') as HTMLElement;
+    expect(root).toHaveAttribute('aria-hidden', 'true');
+    expect(root).toHaveClass('pointer-events-none');
+  });
 });

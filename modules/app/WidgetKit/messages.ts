@@ -77,6 +77,10 @@ export interface WidgetBoardMessages {
   searchWidgets: string;
   searchWidgetsPlaceholder: string;
   replaceConfirm: (title: string, count: number) => string;
+  /** The import confirmation's title, confirm and cancel buttons. */
+  replaceTitle: string;
+  replaceAction: string;
+  replaceCancel: string;
   /** `types` is already joined ("chart.x, chart.y"). */
   skippedTypes: (types: string) => string;
   invalidJson: string;
@@ -391,6 +395,9 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     searchWidgets: 'Search widgets',
     searchWidgetsPlaceholder: 'Search widgets…',
     replaceConfirm: (title, count) => `Replace this dashboard with "${title}" (${count} widgets)?`,
+    replaceTitle: 'Replace dashboard',
+    replaceAction: 'Replace',
+    replaceCancel: 'Cancel',
     skippedTypes: (types) => `Skipped unknown widget types: ${types}`,
     invalidJson: 'This file is not valid JSON.',
     notBoard: 'This file is not a dashboard export.',

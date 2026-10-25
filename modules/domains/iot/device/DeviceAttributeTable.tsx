@@ -6,7 +6,7 @@ import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { Input } from '@/modules/ui/Input';
 import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
-import { Popconfirm } from '@/modules/ui/Popconfirm';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { TabGroup } from '@/modules/ui/TabGroup';
 import { Textarea } from '@/modules/ui/Textarea';
 import { useIotText } from '../api/IotAdapterProvider';
@@ -196,19 +196,9 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
             <FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />
           </Button>
           {onDelete && writable && (
-            <Popconfirm
-              trigger={(
-                <Button variant="ghost" size="xs" iconOnly aria-label={`${m.attribute.delete} ${e.key}`}>
+            <Button onClick={() => { void confirmDialog({ title: fill(m.attribute.deleteConfirm, { key: e.key }), tone: 'danger', confirmLabel: m.attribute.delete, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void onDelete(writable, e.key); }); }} variant="ghost" size="xs" iconOnly aria-label={`${m.attribute.delete} ${e.key}`}>
                   <FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />
                 </Button>
-              )}
-              title={fill(m.attribute.deleteConfirm, { key: e.key })}
-              confirmLabel={m.attribute.delete}
-              cancelLabel={m.common.cancel}
-              danger
-              placement="bottom"
-              onConfirm={() => void onDelete(writable, e.key)}
-            />
           )}
         </div>
       )),

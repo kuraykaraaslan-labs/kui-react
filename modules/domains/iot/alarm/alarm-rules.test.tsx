@@ -72,7 +72,7 @@ describe('AlarmRuleSetEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Apply' }));
     expect(screen.getByRole('button', { name: 'Device offline rule' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Remove battery' }));
-    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Remove' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }));
     await user.click(screen.getByRole('button', { name: 'Save rules' }));
     await waitFor(() => expect(replace).toHaveBeenCalledWith('p1', [newInactivityRule()]));
   });
