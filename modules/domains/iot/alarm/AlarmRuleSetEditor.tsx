@@ -189,6 +189,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
       ) : (
         <DataTable<RuleRow>
           mode="manual"
+          variant="plain"
           caption={m.alarmRules.title}
           columns={columns}
           rows={rules.map((r, i) => ({ i, r }))}

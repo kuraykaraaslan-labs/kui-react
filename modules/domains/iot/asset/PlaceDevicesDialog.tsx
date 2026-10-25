@@ -126,6 +126,7 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
         {error && <p role="alert" className="text-sm text-error">{error}</p>}
         <DataTable<DeviceRecord>
           mode="manual"
+          variant="plain"
           caption={m.asset.devices}
           columns={columns}
           rows={devices ?? []}

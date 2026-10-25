@@ -149,6 +149,7 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
       )}
       <DataTable<CfgRow>
         mode="manual"
+        variant="plain"
         caption={m.schema.cfgTitle}
         columns={columns}
         rows={rows}

@@ -112,6 +112,7 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
       )}
       <DataTable<TelemetryRow>
         mode="manual"
+        variant="plain"
         caption={m.schema.telemetryTitle}
         columns={columns}
         rows={rows}

@@ -208,6 +208,7 @@ function Overview({ asset }: { asset: AssetRecord }) {
         <h2 className="mb-2 text-sm font-semibold text-text-primary">{m.asset.attributes}</h2>
         <DataTable<{ key: string; value: unknown }>
           mode="manual"
+          variant="plain"
           caption={m.asset.attributes}
           columns={[
             { key: 'key', header: m.attribute.key, render: (a) => <code className="font-mono text-xs text-text-secondary">{a.key}</code> },
@@ -324,6 +325,7 @@ function ChildrenList({ rows, known, count, hrefs, onOpenAsset }: {
   return (
     <DataTable<AssetNode>
       mode="manual"
+      variant="plain"
       caption={m.asset.children}
       columns={columns}
       rows={rows}
