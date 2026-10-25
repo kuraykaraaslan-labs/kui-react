@@ -1,7 +1,7 @@
 // Shared types for the unified Table / DataTable family.
 // All public type names live here so consumers can import a single namespace.
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -56,6 +56,12 @@ export type Column<T> = {
   thClass?: string;
   /** Optional CSS class for the `<td>`. */
   tdClass?: string;
+  /** Inline style of the `<th>` (merged over `width`). */
+  thStyle?: CSSProperties;
+  /** Classes of one row's cell in this column, after `tdClass` (a value-driven colour, a sticky first column). */
+  cellClassName?: (row: T) => string | undefined;
+  /** Inline style of one row's cell in this column. */
+  cellStyle?: (row: T) => CSSProperties | undefined;
   /**
    * Hide the column below this breakpoint, so a phone width needs no horizontal scroll.
    * Header, cells and footer all hide.

@@ -1,5 +1,6 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
+import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
 import type { Column, DataTableDensity, DataTableRowState } from '../types';
 import { cellClassFor, densityCellClass } from '../core/columnHelpers';
 
@@ -8,10 +9,16 @@ import { cellClassFor, densityCellClass } from '../core/columnHelpers';
 /** Controls whose own click and keys a row must leave alone. */
 const INTERACTIVE = 'a,button,input,select,textarea,label,summary,[role="button"],[role="menuitem"],[role="checkbox"],[contenteditable="true"]';
 
+/** A plain join (no class merging), like `cellClassFor`: the host's per-row classes come last. */
+function withExtra(base: string, extra: string | undefined): string {
+  return extra ? `${base} ${extra}` : base;
+}
+
 export function BodyRow<T extends Record<string, unknown>>({
   row,
   columns,
   onClick,
+  onDoubleClick,
   leading,
   actions,
   selected = false,
@@ -19,6 +26,8 @@ export function BodyRow<T extends Record<string, unknown>>({
   rowKey,
   state,
   className,
+  style,
+  unstyled = false,
   density = 'comfortable',
   focusable = false,
   tabbable = false,
@@ -27,7 +36,9 @@ export function BodyRow<T extends Record<string, unknown>>({
 }: {
   row: T;
   columns: Column<T>[];
-  onClick?: (row: T) => void;
+  onClick?: (row: T, event: MouseEvent<HTMLTableRowElement> | KeyboardEvent<HTMLTableRowElement>) => void;
+  /** Double click on the row (not on a control inside it); Enter / Space run it when there is no `onClick`. */
+  onDoubleClick?: (row: T, event: MouseEvent<HTMLTableRowElement>) => void;
   /** Cells before the data columns (selection checkbox, expand toggle). */
   leading?: React.ReactNode;
   /** A trailing cell (the row-actions menu). */
@@ -40,6 +51,9 @@ export function BodyRow<T extends Record<string, unknown>>({
   /** Live state: `new` highlights the row, `leaving` fades it. */
   state?: DataTableRowState;
   className?: string;
+  style?: CSSProperties;
+  /** The host draws the look: no row hover, no cell padding or colour of the table's own. */
+  unstyled?: boolean;
   density?: DataTableDensity;
   /** Keyboard rows: the row takes focus (roving tab index). */
   focusable?: boolean;
@@ -68,7 +82,11 @@ export function BodyRow<T extends Record<string, unknown>>({
                   onKeyNav?.(e.key);
                 } else if ((e.key === 'Enter' || e.key === ' ') && onClick) {
                   e.preventDefault();
-                  onClick(row);
+                  onClick(row, e);
+                } else if ((e.key === 'Enter' || e.key === ' ') && onDoubleClick) {
+                  // A row whose only action is a double click still runs it from the keyboard.
+                  e.preventDefault();
+                  onDoubleClick(row, e as unknown as MouseEvent<HTMLTableRowElement>);
                 }
               }
             : undefined
@@ -81,16 +99,28 @@ export function BodyRow<T extends Record<string, unknown>>({
                 if (!e.currentTarget.contains(target)) return;
                 const control = target.closest(INTERACTIVE);
                 if (control && e.currentTarget.contains(control)) return;
-                onClick(row);
+                onClick(row, e);
               }
             : undefined
         }
+        onDoubleClick={
+          onDoubleClick
+            ? (e) => {
+                const target = e.target as Element;
+                if (!e.currentTarget.contains(target)) return;
+                const control = target.closest(INTERACTIVE);
+                if (control && e.currentTarget.contains(control)) return;
+                onDoubleClick(row, e);
+              }
+            : undefined
+        }
+        style={style}
         className={cn(
-          'hover:bg-surface-overlay transition-[background-color,opacity] duration-500',
+          !unstyled && 'hover:bg-surface-overlay transition-[background-color,opacity] duration-500',
           selected && 'bg-primary-subtle',
           state === 'new' && 'bg-primary-subtle',
           state === 'leaving' && 'opacity-40',
-          onClick && 'cursor-pointer',
+          (onClick || onDoubleClick) && 'cursor-pointer',
           focusable && 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus',
           className,
         )}
@@ -99,7 +129,8 @@ export function BodyRow<T extends Record<string, unknown>>({
         {columns.map((col) => (
           <td
             key={String(col.key)}
-            className={cellClassFor(col, cn(densityCellClass[density], 'text-text-primary'))}
+            className={withExtra(cellClassFor(col, unstyled ? '' : cn(densityCellClass[density], 'text-text-primary')), col.cellClassName?.(row))}
+            style={col.cellStyle?.(row)}
           >
             {col.render
               ? col.render(row)

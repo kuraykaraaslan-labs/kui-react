@@ -189,6 +189,8 @@ export interface TableMessages {
   next: string;
   pager: string;
   rowNumber: string;
+  /** Accessible name of the table's scrolling region. */
+  table: string;
 }
 
 export interface FeedMessages { unknownDay: string }
@@ -479,6 +481,7 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     next: 'Next',
     pager: 'Table pages',
     rowNumber: 'Row',
+    table: 'Table',
   },
   feed: { unknownDay: 'Time unknown' },
   map: {

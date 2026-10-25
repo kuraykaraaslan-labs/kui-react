@@ -1,16 +1,23 @@
 'use client';
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import type { PagedEcho, WidgetKindView, WidgetViewProps } from '../kind';
 import { SettingIcon, useKitMessages, useWidgetKit } from '../WidgetKitContext';
 import type { TableMessages } from '../messages';
 import { useNow } from '../useNow';
 import { Meta, Pill } from './ui';
 import {
-  FOCUS, ICON_COLUMNS, ICON_NEXT, ICON_PREV, ICON_SEARCH, ICON_SORT_DOWN, ICON_SORT_UP, LINK_CLASS, PAGE_BUTTON, ROW_BUTTON, TOOL_BUTTON,
+  FOCUS, ICON_COLUMNS, ICON_NEXT, ICON_PREV, ICON_SEARCH, LINK_CLASS, PAGE_BUTTON, ROW_BUTTON, TOOL_BUTTON,
   csvCell, csvHeader, tableColumns, tableModel,
-  type CellContent, type Row, type TableSettings as S,
+  type CellContent, type Row, type TableColumn, type TableRowModel, type TableSettings as S,
 } from './table-logic';
+
+/** One body row of the kit table: the model's row, keyed by its position. */
+type ViewRow = { id: number; m: TableRowModel };
+
+const ALIGN_OF: Record<TableColumn['align'], Column<ViewRow>['align']> = { start: 'left', center: 'center', end: 'right' };
 
 export * from './table-logic';
 
@@ -157,9 +164,11 @@ export function DataTableView({
   const { allColumns, head, rows } = model;
   const buttons = rowActions?.buttons ?? [];
 
-  const toggleSort = (key: string) => {
-    const dir = head.find((h) => h.key === key)?.dir ?? null;
-    const next = dir === 'asc' ? { key, dir: 'desc' as const } : dir === 'desc' ? undefined : { key, dir: 'asc' as const };
+  // The sort the header shows: the server's echo for a paged slot, else the viewer's own.
+  const currentSort = paged ? echo!.sort : sort ?? undefined;
+  /** The table's reported sort (the first report, on mount, is the sort it was given). */
+  const onSortChange = (next: { key: string; dir: 'asc' | 'desc' } | undefined) => {
+    if ((next?.key ?? null) === (currentSort?.key ?? null) && (next?.dir ?? null) === (currentSort?.dir ?? null)) return;
     if (paged) paging!.set({ sort: next });
     else { setSort(next ?? null); setPage(1); }
   };
@@ -215,6 +224,64 @@ export function DataTableView({
     }
   };
 
+  const cell = (r: ViewRow, ci: number): ReactNode => {
+    const c = r.m.cells[ci];
+    const content = renderContent(c.content);
+    return c.clickable && rowActions ? (
+      <button
+        type="button"
+        className={cn('cursor-pointer rounded-sm text-left underline-offset-2 hover:underline', FOCUS)}
+        onClick={(e) => { e.stopPropagation(); rowActions.cellClick(c.key, r.m.raw); }}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        {content}
+      </button>
+    ) : content;
+  };
+  const viewRows: ViewRow[] = rows.map((r) => ({ id: r.index, m: r }));
+  const columns: Column<ViewRow>[] = [
+    ...(model.rowNumberHead ? [{
+      key: '__rowNumber',
+      header: <><span aria-hidden="true">#</span><span className="sr-only">{model.rowNumberHead.label}</span></>,
+      thClass: model.rowNumberHead.className,
+      thStyle: model.rowNumberHead.style as CSSProperties,
+      cellClassName: (r: ViewRow) => r.m.numberCell?.className,
+      cellStyle: (r: ViewRow) => r.m.numberCell?.style as CSSProperties | undefined,
+      render: (r: ViewRow) => r.m.numberCell?.text,
+    }] : []),
+    ...head.map((h, ci): Column<ViewRow> => ({
+      key: h.key,
+      header: h.label,
+      // The model's own alignment classes are in `className`; this only keeps the kit's defaults in step with them.
+      align: ALIGN_OF[model.columns[ci].align],
+      sortable: h.sortable,
+      thClass: h.className,
+      thStyle: h.style as CSSProperties,
+      cellClassName: (r) => r.m.cells[ci].className,
+      cellStyle: (r) => r.m.cells[ci].style as CSSProperties,
+      render: (r) => cell(r, ci),
+    })),
+    ...(model.buttonsHead ? [{
+      key: '__buttons',
+      header: <span className="sr-only">{model.buttonsHead.label}</span>,
+      thClass: model.buttonsHead.className,
+      thStyle: model.buttonsHead.style as CSSProperties,
+      cellClassName: (r: ViewRow) => r.m.buttonsCell?.className,
+      cellStyle: (r: ViewRow) => r.m.buttonsCell?.style as CSSProperties | undefined,
+      render: (r: ViewRow) => buttons.map((b) => (
+        <button
+          key={b.id}
+          type="button"
+          className={cn(ROW_BUTTON, 'ml-1')}
+          onClick={(e) => { e.stopPropagation(); rowActions?.runButton(b.id, r.m.raw); }}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          {b.label}
+        </button>
+      )),
+    }] : []),
+  ];
+
   return (
     <div className="flex h-full min-h-0 flex-col gap-1.5">
       {model.showToolbar && (
@@ -262,102 +329,41 @@ export function DataTableView({
         </div>
       )}
 
-      {/* Its own scroller: a wide result must not widen the board's grid cell. */}
-      <div className="min-h-0 flex-1 overflow-auto">
-        {model.empty ? (
+      {/* The kit's DataTable, in manual mode: the rows arrive sorted, searched and paged (by the model, or by the server
+          for a paged slot), the table draws them in the model's look and reports a header sort as its query. Its
+          scrolling region fills the rest of the widget and is what the sticky header sticks to; a wide result
+          scrolls there instead of widening the board's grid cell. */}
+      {model.empty ? (
+        <div className="min-h-0 flex-1 overflow-auto">
           <p className="py-6 text-center text-[13px] text-text-secondary">{model.emptyText}</p>
-        ) : (
-          <table className="w-full border-separate border-spacing-0 text-[13px] text-text-primary" style={model.tableStyle as CSSProperties}>
-            <thead>
-              <tr>
-                {model.rowNumberHead && (
-                  <th scope="col" className={model.rowNumberHead.className} style={model.rowNumberHead.style as CSSProperties}>
-                    <span aria-hidden="true">#</span><span className="sr-only">{model.rowNumberHead.label}</span>
-                  </th>
-                )}
-                {head.map((h) => (
-                  <th key={h.key} scope="col" aria-sort={h.ariaSort} className={h.className} style={h.style as CSSProperties}>
-                    {h.sortable ? (
-                      <button
-                        type="button"
-                        className={cn('group/sort inline-flex cursor-pointer items-center gap-1 rounded-sm hover:text-text-primary', h.alignEnd && 'flex-row-reverse', FOCUS)}
-                        onClick={() => toggleSort(h.key)}
-                      >
-                        {h.label}
-                        <Svg
-                          d={h.dir === 'asc' ? ICON_SORT_UP : ICON_SORT_DOWN}
-                          className={cn('h-3 w-3', h.dir ? 'text-text-primary' : 'opacity-0 group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60')}
-                        />
-                      </button>
-                    ) : h.label}
-                  </th>
-                ))}
-                {model.buttonsHead && (
-                  <th scope="col" className={model.buttonsHead.className} style={model.buttonsHead.style as CSSProperties}>
-                    <span className="sr-only">{model.buttonsHead.label}</span>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr
-                  key={r.index}
-                  className={model.rowClass}
-                  style={r.style as CSSProperties}
-                  {...(interactive ? {
-                    tabIndex: 0,
-                    onClick: (e: React.MouseEvent) => { e.stopPropagation(); onRow?.(r.raw); },
-                    onDoubleClick: onDouble ? (e: React.MouseEvent) => { e.stopPropagation(); onDouble(r.raw); } : undefined,
-                    onKeyDown: (e: React.KeyboardEvent) => {
-                      // Only the row's own Enter/Space: a key press on an inner button belongs to that button.
-                      if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-                        e.preventDefault(); e.stopPropagation(); (onRow ?? onDouble)?.(r.raw);
-                      }
-                    },
-                  } : {})}
-                >
-                  {r.numberCell && (
-                    <td className={r.numberCell.className} style={r.numberCell.style as CSSProperties}>{r.numberCell.text}</td>
-                  )}
-                  {r.cells.map((cell) => {
-                    const content = renderContent(cell.content);
-                    return (
-                      <td key={cell.key} className={cell.className} style={cell.style as CSSProperties}>
-                        {cell.clickable && rowActions ? (
-                          <button
-                            type="button"
-                            className={cn('cursor-pointer rounded-sm text-left underline-offset-2 hover:underline', FOCUS)}
-                            onClick={(e) => { e.stopPropagation(); rowActions.cellClick(cell.key, r.raw); }}
-                            onDoubleClick={(e) => e.stopPropagation()}
-                          >
-                            {content}
-                          </button>
-                        ) : content}
-                      </td>
-                    );
-                  })}
-                  {r.buttonsCell && (
-                    <td className={r.buttonsCell.className} style={r.buttonsCell.style as CSSProperties}>
-                      {buttons.map((b) => (
-                        <button
-                          key={b.id}
-                          type="button"
-                          className={cn(ROW_BUTTON, 'ml-1')}
-                          onClick={(e) => { e.stopPropagation(); rowActions?.runButton(b.id, r.raw); }}
-                          onDoubleClick={(e) => e.stopPropagation()}
-                        >
-                          {b.label}
-                        </button>
-                      ))}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <DataTable<ViewRow>
+          // A fixed id: the table renders no element ids of its own here (no search, filters or detail rows), and a
+          // generated one would differ between the kits that draw this widget.
+          id="wk-table"
+          mode="manual"
+          unstyled
+          rows={viewRows}
+          columns={columns}
+          rowId={(r) => r.id}
+          state="ready"
+          searchable={false}
+          multiSort={false}
+          query={{ sort: currentSort ? [currentSort] : [] }}
+          onQueryChange={(q) => onSortChange(q.sort[0])}
+          onRowClick={onRow ? (r, e) => { e.stopPropagation(); onRow(r.m.raw); } : undefined}
+          onRowDoubleClick={onDouble ? (r, e) => { e.stopPropagation(); onDouble(r.m.raw); } : undefined}
+          keyboardNavigation={interactive}
+          rowClassName={() => model.rowClass}
+          rowStyle={(r) => r.m.style as CSSProperties}
+          className="flex min-h-0 flex-1 flex-col"
+          scrollClassName="min-h-0 flex-1 overflow-auto"
+          tableClassName="border-separate border-spacing-0 text-[13px] text-text-primary"
+          tableStyle={model.tableStyle as CSSProperties}
+          messages={{ tableLabel: m.table }}
+        />
+      )}
 
       {model.footer.kind === 'rowsShown' && (
         <div className="flex min-h-8 items-center px-2"><Meta>{model.footer.text}</Meta></div>

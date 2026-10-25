@@ -25,6 +25,7 @@ export function HeaderCell<T extends Record<string, unknown>>({
   onSetFilter,
   density = 'comfortable',
   msgs,
+  unstyled = false,
 }: {
   column: Column<T>;
   sort: SortState[];
@@ -33,6 +34,8 @@ export function HeaderCell<T extends Record<string, unknown>>({
   onSetFilter: (key: string, value: string) => void;
   density?: DataTableDensity;
   msgs?: DataTableMessages;
+  /** The host draws the look (`DataTable` `unstyled`): only the column's own classes and style. */
+  unstyled?: boolean;
 }) {
   const key = String(column.key);
   const sortEntry = sort.find((s) => s.key === key);
@@ -50,7 +53,7 @@ export function HeaderCell<T extends Record<string, unknown>>({
 
   const headerClass = headerClassFor(
     column,
-    cn(HEADER_PAD[density], 'text-xs font-semibold text-text-secondary uppercase tracking-wider'),
+    unstyled ? '' : cn(HEADER_PAD[density], 'text-xs font-semibold text-text-secondary uppercase tracking-wider'),
   );
 
   const indicators = (
@@ -79,7 +82,7 @@ export function HeaderCell<T extends Record<string, unknown>>({
       scope="col"
       aria-sort={ariaSort}
       className={headerClass}
-      style={column.width ? { width: column.width } : undefined}
+      style={column.width || column.thStyle ? { ...(column.width ? { width: column.width } : {}), ...column.thStyle } : undefined}
     >
       <span className="inline-flex items-center gap-1">
         {column.sortable ? (
@@ -88,7 +91,10 @@ export function HeaderCell<T extends Record<string, unknown>>({
             type="button"
             onClick={(e) => onToggleSort(key, e.shiftKey)}
             className={cn(
-              'inline-flex items-center gap-1 rounded uppercase tracking-wider select-none transition-colors',
+              'inline-flex items-center gap-1 select-none transition-colors',
+              unstyled ? 'cursor-pointer rounded-sm' : 'rounded uppercase tracking-wider',
+              // An end-aligned heading keeps its text flush right, the arrow before it.
+              unstyled && column.align === 'right' && 'flex-row-reverse',
               'hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
               dir && 'text-text-primary',
             )}

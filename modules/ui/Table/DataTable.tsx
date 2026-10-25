@@ -108,17 +108,21 @@ export type DataTableProps<T extends Record<string, unknown>> = {
    * fetch lifecycle and wants to show loading/error skeletons.
    */
   state?: DataTableStateValue;
-  /** Click handler for individual rows (and Enter / Space on a focused row). */
-  onRowClick?: (row: T) => void;
+  /** Click handler for individual rows (and Enter / Space on a focused row); the event lets a host stop it there. */
+  onRowClick?: (row: T, event: React.MouseEvent<HTMLTableRowElement> | React.KeyboardEvent<HTMLTableRowElement>) => void;
+  /** Double click on a row (not on a control inside it). Enter / Space run it when there is no `onRowClick`. */
+  onRowDoubleClick?: (row: T, event: React.MouseEvent<HTMLTableRowElement>) => void;
   /**
    * Keyboard rows: one row in the tab order, Arrow Up/Down, Home/End move between rows.
-   * Defaults to on when `onRowClick` is set.
+   * Defaults to on when `onRowClick` or `onRowDoubleClick` is set.
    */
   keyboardNavigation?: boolean;
   /** Live state of a row: `new` highlights it, `leaving` fades it before the host drops it. */
   rowState?: (row: T) => DataTableRowState;
   /** Extra classes per row. */
   rowClassName?: (row: T) => string | undefined;
+  /** Inline style per row (a row colour rule). */
+  rowStyle?: (row: T) => CSSProperties | undefined;
   /**
    * Per-row actions, shown as a menu in a trailing column (static, paginated and server modes).
    * Hidden actions are left out per row; a row with none left gets an empty cell.
@@ -199,6 +203,23 @@ export type DataTableProps<T extends Record<string, unknown>> = {
   density?: DataTableDensity;
   /** Plain variant: draw the table's own rounded border. `false` when it sits inside a card already. Default `true`. */
   bordered?: boolean;
+  /**
+   * The host draws the look: the table, its header and body rows get only the host's classes and styles
+   * (`tableClassName`, `Column.thClass` / `thStyle` / `tdClass` / `cellClassName` / `cellStyle`, `rowClassName`,
+   * `rowStyle`): no density padding, header band, uppercase headings, row dividers or row hover, and no border
+   * around the table. Sorting, keyboard rows, row clicks, selection and states work as always. For a widget with
+   * its own styling settings (the dashboard table).
+   */
+  unstyled?: boolean;
+  /** Classes of the `<table>` element. */
+  tableClassName?: string;
+  /** Inline style of the `<table>` element (a font the host sets). */
+  tableStyle?: CSSProperties;
+  /**
+   * Classes of the scrolling region around the table, e.g. `min-h-0 flex-1` so it fills a flex column and a sticky
+   * header (`position: sticky` on the host's header cells) sticks to it.
+   */
+  scrollClassName?: string;
   /** `cards`: a responsive grid of `renderCard` with the same toolbar, filters, sort and paging. */
   layout?: DataTableLayout;
   /** Card layout: one card per row. */
@@ -567,8 +588,14 @@ function TableFrame<T extends Record<string, unknown>>({
     loadingMessage,
     errorMessage,
     onRowClick,
+    onRowDoubleClick,
     rowState,
     rowClassName,
+    rowStyle,
+    unstyled = false,
+    tableClassName,
+    tableStyle,
+    scrollClassName,
     stickyHeader = false,
     showFilterChips = true,
     title,
@@ -594,7 +621,7 @@ function TableFrame<T extends Record<string, unknown>>({
   const cards = layout === 'cards' && renderCard !== undefined;
 
   // Keyboard rows: the focused row while it exists, else the first, is the one in the tab order.
-  const keyboard = props.keyboardNavigation ?? onRowClick !== undefined;
+  const keyboard = props.keyboardNavigation ?? (onRowClick !== undefined || onRowDoubleClick !== undefined);
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const keys = model.shown.map((s) => String(s.id));
@@ -725,8 +752,9 @@ function TableFrame<T extends Record<string, unknown>>({
       className={cn(
         'relative w-full',
         stickyHeader ? 'overflow-auto max-h-80' : 'overflow-x-auto',
-        !isCard && bordered && 'rounded-lg border border-border',
+        !isCard && bordered && !unstyled && 'rounded-lg border border-border',
         isCard && 'border-t border-border',
+        scrollClassName,
       )}
       tabIndex={0}
       role="region"
@@ -734,9 +762,9 @@ function TableFrame<T extends Record<string, unknown>>({
       aria-busy={model.busy || undefined}
     >
       {overlay}
-      <table className="w-full text-sm">
+      <table className={cn('w-full', !unstyled && 'text-sm', tableClassName)} style={tableStyle}>
         {caption && <caption className="sr-only">{caption}</caption>}
-        <thead className={cn('bg-surface-sunken border-b border-border', stickyHeader && 'sticky top-0 z-10')}>
+        <thead className={cn(!unstyled && 'bg-surface-sunken border-b border-border', stickyHeader && 'sticky top-0 z-10') || undefined}>
           <tr>
             {extras.header}
             {columns.map((col) => (
@@ -749,12 +777,13 @@ function TableFrame<T extends Record<string, unknown>>({
                 onSetFilter={model.setColumnFilter}
                 density={density}
                 msgs={msgs}
+                unstyled={unstyled}
               />
             ))}
             {actions.header}
           </tr>
         </thead>
-        <tbody ref={bodyRef} className="divide-y divide-border bg-surface-base">
+        <tbody ref={bodyRef} className={unstyled ? undefined : 'divide-y divide-border bg-surface-base'}>
           {model.status !== 'ready' ? (
             <StateRow
               state={model.status as 'empty' | 'loading' | 'error'}
@@ -771,9 +800,12 @@ function TableFrame<T extends Record<string, unknown>>({
                 row={s.row}
                 columns={columns}
                 onClick={onRowClick}
+                onDoubleClick={onRowDoubleClick}
                 actions={actions.cell(s.row)}
                 state={rowState?.(s.row)}
                 className={rowClassName?.(s.row)}
+                style={rowStyle?.(s.row)}
+                unstyled={unstyled}
                 density={density}
                 focusable={keyboard}
                 tabbable={String(s.id) === tabKey}
@@ -1232,7 +1264,7 @@ function LegacyServerView<T extends Record<string, unknown>>(
                 rows.map((row) => (
                   <tr
                     key={getRowKey(row)}
-                    onClick={() => onRowClick?.(row)}
+                    onClick={(e) => onRowClick?.(row, e)}
                     className={cn(
                       'hover:bg-surface-overlay transition-colors',
                       onRowClick && 'cursor-pointer',

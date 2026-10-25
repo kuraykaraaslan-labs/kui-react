@@ -124,7 +124,7 @@ describe('live rows', () => {
     await user.keyboard('{End}');
     expect(screen.getByText('Initech').closest('tr')).toHaveFocus();
     await user.keyboard('{Enter}');
-    expect(onRowClick).toHaveBeenLastCalledWith(ORDERS[2]);
+    expect(onRowClick).toHaveBeenLastCalledWith(ORDERS[2], expect.anything());
   });
 
   it('a refused row keeps its checkbox disabled with the reason, and select-all skips it', async () => {
