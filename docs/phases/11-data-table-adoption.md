@@ -186,6 +186,6 @@ kui-react only (kui-ejs / KUInative have no board and no IoT vertical).
 
 - [x] 11.1–11.9 in kui-react with tests and showcase sections; `npm run registry:snapshot` run. 280c17d
 - [ ] 11.1–11.9 mirrored in kui-ejs (031e3a5, branch) and KUInative (in progress); parity exceptions recorded 1d93042.
-- [ ] 11.10–11.12 in all three (kui-react 06a2314; kui-ejs, KUInative open); 11.13 in KUInative; 11.14 as NB needs them (KanbanBoard ea65f6a, Timeline load more; ImageGallery: the media library uses DataTable `layout="cards"`, no change needed).
+- [ ] 11.10–11.12 in all three (kui-react 06a2314; kui-ejs afe06ff, KUInative 5d35d2f); 11.13 in KUInative (open); 11.14 as NB needs them (KanbanBoard ea65f6a, Timeline load more; ImageGallery: the media library uses DataTable `layout="cards"`, no change needed).
 - [ ] `KeyedTable` deprecated, IoT views on `DataTable`.
 - [ ] 11.15 `ChatThread` in kui-react (this commit); kui-ejs and KUInative mirrors open.
