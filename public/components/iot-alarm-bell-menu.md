@@ -7,7 +7,7 @@
 - **status:** beta
 - **since:** 2026-10
 
-The IoT bell: the count of alarms not resolved (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, and View all.
+The IoT bell: the count of OPEN alarms (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, Acknowledge all, and View all. In a host that already has a bell, AlarmBellSection goes inside its NotificationMenu (sections + extraCount) so there is one bell.
 
 ## Variants
 
@@ -21,6 +21,13 @@ The IoT bell: the count of alarms not resolved (its dot in the colour of the wor
 
 ```tsx
 <AlarmBellMenu hrefs={hrefs} limit={2} />
+```
+
+### One bell: a section of the notification menu
+
+```tsx
+const [alarms, setAlarms] = useState(0);
+<NotificationMenu items={items} extraCount={alarms} sections={<AlarmBellSection hrefs={hrefs} onCount={setAlarms} />} />
 ```
 
 ## Full source

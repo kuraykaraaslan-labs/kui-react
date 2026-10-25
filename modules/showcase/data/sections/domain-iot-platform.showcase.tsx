@@ -13,7 +13,8 @@ import { AlarmEventTimeline } from '@/modules/domains/iot/alarm/AlarmEventTimeli
 import { AlarmTable, type AlarmTableRow } from '@/modules/domains/iot/alarm/AlarmTable';
 import { AlarmListView } from '@/modules/domains/iot/alarm/AlarmListView';
 import { AlarmDetailView } from '@/modules/domains/iot/alarm/AlarmDetailView';
-import { AlarmBellMenu } from '@/modules/domains/iot/alarm/AlarmBellMenu';
+import { AlarmBellMenu, AlarmBellSection } from '@/modules/domains/iot/alarm/AlarmBellMenu';
+import { NotificationMenu } from '@/modules/domains/common/notification/NotificationMenu';
 import { DeviceOnlineDot } from '@/modules/domains/iot/device/DeviceOnlineDot';
 import { DeviceConnectionBadge } from '@/modules/domains/iot/device/DeviceConnectionBadge';
 import { DeviceDetailHeader } from '@/modules/domains/iot/device/DeviceDetailHeader';
@@ -307,6 +308,20 @@ function fixtureAdapter(fail = false): IotAdapter {
   };
 }
 
+/** The host's notification bell with the alarms as one of its sections: one bell, one badge. */
+function OneBell() {
+  const [alarms, setAlarms] = useState(0);
+  return (
+    <div className="flex justify-end">
+      <NotificationMenu
+        items={[{ id: 'n1', title: 'Backup finished', timestamp: '5 min ago', read: false, variant: 'success' }]}
+        extraCount={alarms}
+        sections={<AlarmBellSection hrefs={hrefs} now={NOW} onCount={setAlarms} />}
+      />
+    </div>
+  );
+}
+
 function Fixture({ fail = false, children }: { fail?: boolean; children: React.ReactNode }) {
   const [adapter] = useState(() => fixtureAdapter(fail));
   return <IotAdapterProvider adapter={adapter} locale="en-GB">{children}</IotAdapterProvider>;
@@ -526,12 +541,13 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       id: 'iot-alarm-bell-menu',
       title: 'AlarmBellMenu',
       abbr: 'BM',
-      description: 'The IoT bell: the count of alarms not resolved (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, and View all.',
+      description: 'The IoT bell: the count of OPEN alarms (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, Acknowledge all, and View all. In a host that already has a bell, AlarmBellSection goes inside its NotificationMenu (sections + extraCount) so there is one bell.',
       filePath: 'modules/domains/iot/alarm/AlarmBellMenu.tsx',
       usage: `<AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => \`/alarms/\${id}\` }} />`,
       variants: [
         { title: 'With open alarms', layout: 'side', preview: <Fixture><div className="flex justify-end"><AlarmBellMenu hrefs={hrefs} now={NOW} /></div></Fixture>, code: '<AlarmBellMenu hrefs={hrefs} />' },
         { title: 'Five at most', layout: 'side', preview: <Fixture><div className="flex justify-end"><AlarmBellMenu hrefs={hrefs} limit={2} now={NOW} /></div></Fixture>, code: '<AlarmBellMenu hrefs={hrefs} limit={2} />' },
+        { title: 'One bell: a section of the notification menu', layout: 'side', preview: <Fixture><OneBell /></Fixture>, code: 'const [alarms, setAlarms] = useState(0);\n<NotificationMenu items={items} extraCount={alarms} sections={<AlarmBellSection hrefs={hrefs} onCount={setAlarms} />} />' },
       ],
     }),
     entry({

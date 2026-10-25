@@ -34,7 +34,8 @@ export { AlarmTable, sortAlarmRows } from './alarm/AlarmTable';
 export type { AlarmTableProps, AlarmTableRow, AlarmTableColumnId, AlarmTableRowAction } from './alarm/AlarmTable';
 export { AlarmListView } from './alarm/AlarmListView';
 export { AlarmDetailView } from './alarm/AlarmDetailView';
-export { AlarmBellMenu } from './alarm/AlarmBellMenu';
+export { AlarmBellMenu, AlarmBellPanel, AlarmBellSection, useAlarmBell, type AlarmBell, type AlarmBellMenuProps } from './alarm/AlarmBellMenu';
+export { acknowledgeAllOpen } from './alarm/acknowledgeAll';
 export { ALARM_SEVERITY_META, ALARM_STATUS_META, SEVERITY_ORDER, compareSeverity, worstSeverity, isAlarmSeverity } from './alarm/alarm-severity';
 
 // ── Devices (phase 01; NB iot_device 05) ─────────────────────────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef,
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from './Overlays/shared/useFocusTrap';
 import { usePortal } from './Overlays/shared/usePortal';
+import { useKeepInViewport } from './Overlays/shared/useKeepInViewport';
 
 export type DropdownMenuItem = {
   type?: 'item';
@@ -215,6 +216,9 @@ export function DropdownMenu({
   );
 
   useFocusTrap(menuRef, { active: open, onEscape: () => setOpen(false) });
+  // A portalled menu renders in place for the frame before its trigger is measured, then moves
+  // into the portal: the panel kept on screen is the one finally shown.
+  useKeepInViewport(menuRef, open && (!portal || portalTarget === null || anchor !== null));
 
   // Runs after the focus trap's own first focus (same tick, scheduled later): the search box,
   // else the selected item, else the first enabled item.

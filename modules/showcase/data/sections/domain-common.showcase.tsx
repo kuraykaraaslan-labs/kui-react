@@ -1363,7 +1363,7 @@ import { ChatBox } from '@/modules/domains/common/chat/ChatBox';
       title: 'NotificationMenu',
       category: 'Domain',
       abbr: 'NM',
-      description: 'Bell icon button with unread count badge. Opens a dropdown panel showing notification items grouped by read/unread state with variant color dots, timestamps, and mark-all-read / view-all actions.',
+      description: 'Bell icon button with unread count badge. Opens a dropdown panel showing notification items grouped by read/unread state with variant color dots, timestamps, and mark-all-read / view-all actions. `sections` puts more of the same bell above the list (an alarm section, say) and `extraCount` adds its count to the badge, so a host shows one bell. The panel stays inside the visible screen on a phone.',
       filePath: 'modules/domains/common/notification/NotificationMenu.tsx',
       sourceCode: `'use client';
 import { NotificationMenu } from '@/modules/domains/common/notification/NotificationMenu';

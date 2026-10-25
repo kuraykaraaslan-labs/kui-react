@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowUp, faCheck, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faArrowUp, faCheck, faCheckDouble, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
@@ -18,11 +18,12 @@ import { fill, formatDateTime, formatRelative } from '../format';
 import { ALARM_SEVERITIES, type Alarm, type AlarmCounts, type AlarmSeverity } from '../types/alarm';
 import { AlarmSeverityBadge } from './AlarmSeverityBadge';
 import { AlarmStatusPill } from './AlarmStatusPill';
+import { acknowledgeAllOpen } from './acknowledgeAll';
 
 /**
  * AlarmListView — the alarm list (phase 03 §3.2), read through the adapter: status count chips (clickable), status and
  * severity filters (the five OD-9 levels) and search, server paging, selection with bulk acknowledge / clear sharing one note
- * (per-id results: "47 done, 3 skipped"), and live arrivals: on the first page a new matching alarm appears at the top,
+ * (per-id results: "47 done, 3 skipped"), "Acknowledge all" for every OPEN alarm of the list's scope (same note), and live arrivals: on the first page a new matching alarm appears at the top,
  * highlighted; elsewhere a "N new alarms" pill brings the viewer back. Without a live source it re-reads every 30 s. A
  * resolved or all-status list always asks for a bounded range (last 7 days, OD-31). With `deviceId` it is a device's
  * Alarms tab.
@@ -79,7 +80,8 @@ export function AlarmListView({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
   const [pendingNew, setPendingNew] = useState(0);
-  const [bulk, setBulk] = useState<'acknowledge' | 'clear' | null>(null);
+  /** `acknowledgeAll` = every OPEN alarm of the list's scope, not only the selected rows. */
+  const [bulk, setBulk] = useState<'acknowledge' | 'acknowledgeAll' | 'clear' | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [searchText, setSearchText] = useState(query.search ?? '');
@@ -187,6 +189,22 @@ export function AlarmListView({
 
   async function runBulk() {
     if (!api || !bulk) return;
+    if (bulk === 'acknowledgeAll') {
+      setBusy(true);
+      try {
+        const n = await acknowledgeAllOpen(api, deviceId ? { deviceId } : undefined, note || undefined);
+        notify({ tone: 'success', message: fill(m.alarms.acknowledgeAllDone, { n }) });
+        setSelected(new Set());
+        setBulk(null);
+        setNote('');
+      } catch (e) {
+        notify({ tone: 'error', message: fill(m.alarm.failed, { message: errorMessage(e, m.alarms.loadError) }) });
+      } finally {
+        setBusy(false);
+        await Promise.all([load(queryRef.current), loadCounts()]);
+      }
+      return;
+    }
     const ids = [...selected];
     const action = bulk;
     setBusy(true);
@@ -260,6 +278,11 @@ export function AlarmListView({
               {fill(m.alarms.acknowledgedCount, { n: counts.acknowledged })}
             </ChipButton>
           </>
+        )}
+        {caps.canAcknowledge && counts && counts.open > 0 && (
+          <Button variant="outline" size="xs" onClick={() => setBulk('acknowledgeAll')} iconLeft={<FontAwesomeIcon icon={faCheckDouble} className="h-3 w-3" aria-hidden="true" />}>
+            {fill(m.alarms.acknowledgeAll, { n: counts.open })}
+          </Button>
         )}
         <span className="ml-auto text-xs text-text-secondary" aria-live="polite">{state === 'live' ? m.common.live : m.common.polling}</span>
       </div>
@@ -354,7 +377,11 @@ export function AlarmListView({
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => setBulk(null)}>{m.common.cancel}</Button>
             <Button variant="primary" size="sm" loading={busy} onClick={() => void runBulk()}>
-              {bulk === 'clear' ? fill(m.alarms.bulkClear, { n: selected.size }) : fill(m.alarms.bulkAcknowledge, { n: selected.size })}
+              {bulk === 'clear'
+                ? fill(m.alarms.bulkClear, { n: selected.size })
+                : bulk === 'acknowledgeAll'
+                  ? fill(m.alarms.acknowledgeAll, { n: counts?.open ?? 0 })
+                  : fill(m.alarms.bulkAcknowledge, { n: selected.size })}
             </Button>
           </div>
         )}

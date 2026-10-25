@@ -3,6 +3,7 @@ import { cn } from '@/libs/utils/cn';
 import { useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell } from '@fortawesome/free-solid-svg-icons';
+import { useKeepInViewport } from '@/modules/ui/Overlays/shared/useKeepInViewport';
 
 export type NotificationItem = {
   id: string;
@@ -19,6 +20,14 @@ type NotificationMenuProps = {
   onMarkAllRead?: () => void;
   onViewAll?: () => void;
   align?: 'left' | 'right';
+  /**
+   * More content of the same bell, above the notifications (an alarm list, say), so a host shows
+   * one bell rather than one per source. With sections the panel stays mounted while closed
+   * (hidden), so a section keeps its own counts live.
+   */
+  sections?: React.ReactNode;
+  /** Added to the unread count on the badge: what the sections still want the viewer to see. */
+  extraCount?: number;
   className?: string;
 };
 
@@ -34,11 +43,16 @@ export function NotificationMenu({
   onMarkAllRead,
   onViewAll,
   align = 'right',
+  sections,
+  extraCount = 0,
   className,
 }: NotificationMenuProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const unreadCount = items.filter((n) => !n.read).length;
+  const badgeCount = unreadCount + extraCount;
+  useKeepInViewport(panelRef, open);
 
   useEffect(() => {
     if (!open) return;
@@ -60,22 +74,24 @@ export function NotificationMenu({
     <div ref={containerRef} className={cn('relative', className)}>
       <button
         type="button"
-        aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+        aria-label={`Notifications${badgeCount > 0 ? `, ${badgeCount} unread` : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((p) => !p)}
         className="relative flex items-center justify-center w-8 h-8 rounded-md text-text-secondary hover:bg-surface-overlay hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
       >
         <FontAwesomeIcon icon={faBell} className="w-4 h-4" aria-hidden="true" />
-        {unreadCount > 0 && (
+        {badgeCount > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[1rem] h-4 px-1 rounded-full bg-error text-primary-fg text-[10px] font-bold leading-none pointer-events-none">
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {badgeCount > 9 ? '9+' : badgeCount}
           </span>
         )}
       </button>
 
-      {open && (
+      {(open || sections !== undefined) && (
         <div
+          ref={panelRef}
+          hidden={!open}
           role="dialog"
           aria-label="Notifications"
           className={cn(
@@ -102,6 +118,8 @@ export function NotificationMenu({
               </button>
             )}
           </div>
+
+          {sections}
 
           <div className="max-h-80 overflow-y-auto divide-y divide-border">
             {items.length === 0 ? (

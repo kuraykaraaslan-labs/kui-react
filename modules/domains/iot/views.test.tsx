@@ -8,7 +8,7 @@ import { DeviceListView } from './device/DeviceListView';
 import { DeviceDetailView } from './device/DeviceDetailView';
 import { AlarmListView } from './alarm/AlarmListView';
 import { AlarmDetailView } from './alarm/AlarmDetailView';
-import { AlarmBellMenu } from './alarm/AlarmBellMenu';
+import { AlarmBellMenu, AlarmBellSection } from './alarm/AlarmBellMenu';
 import type { Alarm } from './types/alarm';
 import type { DeviceRecord } from './types/device';
 
@@ -233,6 +233,18 @@ describe('AlarmListView', () => {
     await waitFor(() => expect(adapter.alarms!.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'any', from: expect.any(String) }), expect.anything()));
   });
 
+  it('acknowledges every open alarm of its device with one note', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    adapter.alarms!.acknowledge = vi.fn().mockImplementation(async (ids: string[]) => ids.map((alarmId) => ({ alarmId, ok: true })));
+    wrap(<AlarmListView hrefs={{ alarm: (id) => id }} deviceId="d1" now={NOW} />, { adapter });
+    await user.click(await screen.findByRole('button', { name: 'Acknowledge all (1)' }));
+    await user.type(screen.getByLabelText(/note/i), 'night shift');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Acknowledge all (1)' }));
+    await waitFor(() => expect(adapter.alarms!.list).toHaveBeenCalledWith(expect.objectContaining({ status: 'OPEN', deviceId: 'd1', pageSize: 100 })));
+    expect(adapter.alarms!.acknowledge).toHaveBeenCalledWith(expect.any(Array), 'night shift');
+  });
+
   it('puts a new live alarm on top of the first page and counts it elsewhere', async () => {
     const user = userEvent.setup();
     const live = createFakeLive();
@@ -304,12 +316,37 @@ describe('AlarmBellMenu', () => {
     const user = userEvent.setup();
     const adapter = createFakeAdapter();
     const { unmount } = wrap(<AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => `/a/${id}` }} now={NOW} />, { adapter });
-    await user.click(await screen.findByRole('button', { name: 'Alarms: 2 alarms not resolved' }));
+    await user.click(await screen.findByRole('button', { name: 'Alarms: Open (1)' }));
     expect(screen.getByRole('link', { name: 'Alarm a1' })).toHaveAttribute('href', '/a/a1');
     await user.click(screen.getAllByRole('button', { name: 'Acknowledge' })[0]);
     expect(adapter.alarms!.acknowledge).toHaveBeenCalledWith(['a1']);
     unmount();
     const { container } = wrap(<AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => id }} />, { caps: {} });
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('acknowledges every open alarm page by page from the panel', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const open = [alarm('a1'), alarm('a2')];
+    adapter.alarms!.list = vi.fn().mockImplementation(async (q: { status?: string }) => (q.status === 'OPEN'
+      ? { items: open.splice(0), total: 2 }
+      : { items: [alarm('a1')], total: 1 }));
+    adapter.alarms!.acknowledge = vi.fn().mockImplementation(async (ids: string[]) => ids.map((alarmId) => ({ alarmId, ok: true })));
+    wrap(<AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => id }} now={NOW} />, { adapter });
+    await user.click(await screen.findByRole('button', { name: 'Alarms: Open (1)' }));
+    await user.click(screen.getByRole('button', { name: 'Acknowledge all (1)' }));
+    await waitFor(() => expect(adapter.alarms!.acknowledge).toHaveBeenCalledWith(['a1', 'a2'], undefined));
+    expect(adapter.alarms!.acknowledge).toHaveBeenCalledTimes(1);
+  });
+
+  it('as a section of another bell, reports its open count and shows its panel', async () => {
+    const adapter = createFakeAdapter();
+    const onCount = vi.fn();
+    const { unmount } = wrap(<AlarmBellSection hrefs={{ alarms: '/alarms', alarm: (id) => `/a/${id}` }} now={NOW} onCount={onCount} />, { adapter });
+    expect(await screen.findByRole('link', { name: 'Alarm a1' })).toBeInTheDocument();
+    await waitFor(() => expect(onCount).toHaveBeenLastCalledWith(1));
+    unmount();
+    expect(onCount).toHaveBeenLastCalledWith(0);
   });
 });

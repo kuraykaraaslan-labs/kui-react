@@ -3,6 +3,7 @@ import { cn } from '@/libs/utils/cn';
 import { useRef, useState } from 'react';
 import { useFocusTrap } from '../shared/useFocusTrap';
 import { useDismiss } from '../shared/useDismiss';
+import { useKeepInViewport } from '../shared/useKeepInViewport';
 import { type Placement, placementClasses } from '../shared/positioning';
 
 export type PopoverProps = {
@@ -59,6 +60,8 @@ export function Popover({
     // useDismiss already handles Escape — avoid double handling.
     handleEscape: false,
   });
+
+  useKeepInViewport(panelRef, open);
 
   return (
     <div ref={containerRef} className="relative inline-block">

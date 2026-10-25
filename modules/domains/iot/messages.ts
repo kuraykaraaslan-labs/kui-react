@@ -277,6 +277,8 @@ export const IOT_MESSAGES = {
     bulkAcknowledge: 'Acknowledge ({n})',
     bulkClear: 'Clear ({n})',
     bulkDone: '{done} done, {skipped} skipped',
+    acknowledgeAll: 'Acknowledge all ({n})',
+    acknowledgeAllDone: '{n} alarms acknowledged',
     newPill: '{n} new alarms: show',
     empty: 'No alarms match these filters.',
     loadError: 'The alarms could not be read.',
