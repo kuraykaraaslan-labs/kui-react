@@ -136,9 +136,9 @@ export function ConfirmDialog({
       footer={(
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
           {error && <p role="alert" className="mr-auto min-w-0 text-sm text-error">{error}</p>}
-          <Button variant="ghost" size="sm" onClick={cancel} disabled={busy}>{cancelLabel}</Button>
+          <Button variant="ghost" size="sm" onClick={cancel} disabled={busy} data-confirm-cancel="">{cancelLabel}</Button>
           {secondaryLabel && (
-            <Button variant="outline" size="sm" disabled={!ready || busy} onClick={() => submit('secondary')}>{secondaryLabel}</Button>
+            <Button variant="outline" size="sm" disabled={!ready || busy} onClick={() => submit('secondary')} data-confirm-secondary="">{secondaryLabel}</Button>
           )}
           <Button
             variant={tone === 'danger' ? 'danger' : 'primary'}
