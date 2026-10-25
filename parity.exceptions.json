@@ -260,6 +260,39 @@
       "kinds": [
         "viewer.model"
       ]
+    },
+    {
+      "id": "keyed-table",
+      "name": "KeyedTable",
+      "layer": "ui",
+      "path": "modules/ui/KeyedTable.tsx",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "Deprecated in phase 11.3: a wrapper over DataTable mode=\"manual\" kept for existing React imports. kui-ejs never had KeyedTable; its DataTable mode 'manual' (live rows, keyboard rows, Retry) covers the same pages, so no wrapper is created there. KUInative likewise has only DataTable mode \"manual\"."
+    },
+    {
+      "id": "data-table-ejs-adaptations",
+      "name": "DataTable: server-rendered forms of React callbacks",
+      "layer": "ui",
+      "path": "modules/ui/Table",
+      "presentIn": [
+        "kui-react",
+        "kui-ejs"
+      ],
+      "absentIn": [],
+      "reason": "Same DOM and classes; what is a render-time callback in React is drawn once on the server in kui-ejs: renderCard and bulkActions return HTML (a card's own selected look does not repaint when the selection changes; li[data-selected] does), ctx.toggleSelected is the attribute data-dt-card-select, onRowClick receives the row id, title / subtitle / column footer are text, the built-in date presets are dated by the server, and a field's formatChip (a global function name) applies once the browser script runs.",
+      "features": [
+        "renderCard ctx.toggleSelected",
+        "bulkActions",
+        "onRowClick(row)",
+        "ReactNode title / subtitle / footer",
+        "date presets relative to the client clock"
+      ]
     }
   ]
 }
