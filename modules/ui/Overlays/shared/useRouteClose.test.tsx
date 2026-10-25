@@ -4,6 +4,9 @@ import { renderHook } from '@testing-library/react';
 let pathname: string | null = '/a';
 vi.mock('next/navigation', () => ({ usePathname: () => pathname }));
 
+// vitest.setup mounts a ConfirmHost (Modal -> useRouteClose), so the hook is already loaded with the real
+// next/navigation; load it again so it picks up the mock above.
+vi.resetModules();
 const { useRouteClose } = await import('./useRouteClose');
 
 describe('useRouteClose', () => {
