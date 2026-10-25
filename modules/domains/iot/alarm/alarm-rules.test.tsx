@@ -46,6 +46,7 @@ describe('AlarmRuleSetEditor', () => {
     const user = userEvent.setup();
     const { replace } = setup([THRESHOLD]);
     expect(await screen.findByText('temperature > 95')).toBeInTheDocument();
+    expect(within(screen.getByRole('table', { name: 'Alarm rules' })).getByText('temperature > 95')).toBeInTheDocument();
     expect(screen.getByText('temperature > 80 on sensors/hall-2')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Edit high_temperature' }));
     const value = screen.getAllByLabelText('Value')[1];

@@ -172,6 +172,40 @@ describe('transport and auth pieces', () => {
     expect(screen.getByLabelText('Key 1')).toHaveAttribute('aria-invalid', 'true');
   });
 
+  it('schema tables are the kit DataTable: typed keys keep their row, rows are added and removed, empty says so', async () => {
+    const user = userEvent.setup();
+    const seen: unknown[] = [];
+    function Cfg() {
+      const [v, setV] = useState<Parameters<typeof CfgSchemaTable>[0]['value']>([{ key: 'cfg.a', type: 'integer' }]);
+      return <CfgSchemaTable value={v} onChange={(n) => { seen.push(n); setV(n); }} />;
+    }
+    const { unmount } = render(<Cfg />);
+    const table = screen.getByRole('table', { name: 'Configuration keys' });
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Key', 'Type', 'Label', 'Min / Max', 'Allowed values', 'Secret (write-only)', 'Actions']);
+    const key = screen.getByLabelText('Key 1');
+    await user.clear(key);
+    await user.type(key, 'cfg.speed');
+    expect(screen.getByLabelText('Key 1')).toBe(key);
+    expect(key).toHaveFocus();
+    expect(seen.at(-1)).toEqual([{ key: 'cfg.speed', type: 'integer' }]);
+    await user.type(screen.getByLabelText('Allowed values cfg.speed'), '1, 2,');
+    expect(screen.getByLabelText('Allowed values cfg.speed')).toHaveValue('1, 2,');
+    expect(seen.at(-1)).toEqual([{ key: 'cfg.speed', type: 'integer', enum: [1, 2] }]);
+    await user.click(screen.getByRole('button', { name: 'Add key' }));
+    expect(screen.getByLabelText('Key 2')).toHaveValue('cfg.');
+    await user.click(screen.getByRole('button', { name: 'Remove cfg.speed' }));
+    expect(seen.at(-1)).toEqual([{ key: 'cfg.', type: 'integer' }]);
+    expect(screen.getByLabelText('Key 1')).toHaveValue('cfg.');
+    unmount();
+
+    const onChange = vi.fn();
+    render(<TelemetryKeySchemaTable value={[]} onChange={onChange} />);
+    const tele = screen.getByRole('table', { name: 'Telemetry keys' });
+    expect(within(tele).getByText('No keys yet.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Add key' }));
+    expect(onChange).toHaveBeenLastCalledWith([{ key: '' }]);
+  });
+
   it('provisioning keys are a disabled placeholder without the host: no key, no secret, no button', () => {
     render(<ProvisioningSettingsCard strategy="DISABLED" />);
     const box = screen.getByTestId('provisioning-keys-placeholder');

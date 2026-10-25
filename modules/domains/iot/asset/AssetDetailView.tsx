@@ -5,6 +5,8 @@ import { faArrowsUpDownLeftRight, faPen, faPlus, faTrash } from '@fortawesome/fr
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { Pagination } from '@/modules/ui/Pagination';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { TabGroup, type Tab } from '@/modules/ui/TabGroup';
@@ -26,7 +28,7 @@ import { PlacedDeviceTable } from './PlacedDeviceTable';
  * its kind, code and actions (add a child, edit, "Move to…", delete: refused by the host while children remain or another module
  * points at it, and the refusal's reason is shown), the path from the materialised path, and the tabs Overview (description,
  * time zone (inherited when empty), location, counts, attributes), Devices (placed here or below, with the online state and address,
- * "Place devices", remove a placement), Child assets and Relations.
+ * "Place devices", remove a placement), Child assets and Relations. Attributes, devices, child assets and relations are DataTables.
  *
  * `nodes` is the tree the host already holds (the Move dialog offers it, minus the asset's own subtree); `onChanged` asks the host
  * to read the tree again after a write.
@@ -204,16 +206,21 @@ function Overview({ asset }: { asset: AssetRecord }) {
       </dl>
       <section aria-label={m.asset.attributes} className="rounded-xl border border-border bg-surface-raised p-4 sm:p-5">
         <h2 className="mb-2 text-sm font-semibold text-text-primary">{m.asset.attributes}</h2>
-        {attrs.length ? (
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            {attrs.map(([k, v]) => (
-              <div key={k} className="flex min-w-0 items-baseline justify-between gap-3 border-b border-border py-1 last:border-b-0">
-                <dt className="truncate font-mono text-xs text-text-secondary">{k}</dt>
-                <dd className="truncate text-text-primary">{typeof v === 'string' ? v : JSON.stringify(v)}</dd>
-              </div>
-            ))}
-          </dl>
-        ) : <p className="text-sm text-text-secondary">{m.asset.noAttributes}</p>}
+        <DataTable<{ key: string; value: unknown }>
+          mode="manual"
+          caption={m.asset.attributes}
+          columns={[
+            { key: 'key', header: m.attribute.key, render: (a) => <code className="font-mono text-xs text-text-secondary">{a.key}</code> },
+            { key: 'value', header: m.attribute.value, render: (a) => <span className="break-words">{typeof a.value === 'string' ? a.value : JSON.stringify(a.value)}</span> },
+          ]}
+          rows={attrs.map(([key, value]) => ({ key, value }))}
+          rowId={(a) => a.key}
+          emptyMessage={m.asset.noAttributes}
+          messages={{ loading: m.common.loading, retry: m.common.retry }}
+          searchable={false}
+          pageSizeOptions={[]}
+          density="compact"
+        />
       </section>
     </div>
   );
@@ -294,29 +301,39 @@ function ChildrenList({ rows, known, count, hrefs, onOpenAsset }: {
   rows: AssetNode[]; known: boolean; count: number; hrefs: AssetDetailViewProps['hrefs'] & object; onOpenAsset?: (id: string) => void;
 }) {
   const { m } = useIotText();
-  if (!rows.length) return <p className="py-4 text-sm text-text-secondary">{known || count === 0 ? m.asset.noChildren : fill(m.asset.childCount, { n: count })}</p>;
-  return (
-    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label={m.asset.children}>
-      {rows.map((c) => {
+  const link = 'inline-flex min-w-0 max-w-full items-center gap-2 rounded text-left font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
+  const columns: Column<AssetNode>[] = [
+    {
+      key: 'name',
+      header: m.asset.name,
+      render: (c) => {
         const body = (
           <>
             <AssetKindBadge kind={c.kind} iconOnly className="text-base" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-text-primary">{c.name}</span>
-              <span className="block truncate text-xs text-text-secondary">{fill(m.asset.childCount, { n: c.childCount })} · {fill(m.assets.devicesBadge, { n: c.deviceCount })}</span>
-            </span>
+            <span className="truncate">{c.name}</span>
           </>
         );
-        const cls = 'flex w-full items-center gap-3 rounded-lg border border-border bg-surface-raised px-3 py-2 text-left transition-colors hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
-        return (
-          <li key={c.assetId}>
-            {onOpenAsset
-              ? <button type="button" className={cls} onClick={() => onOpenAsset(c.assetId)}>{body}</button>
-              : hrefs.asset ? <a href={hrefs.asset(c.assetId)} className={cls}>{body}</a> : <span className={cls}>{body}</span>}
-          </li>
-        );
-      })}
-    </ul>
+        return onOpenAsset
+          ? <button type="button" className={link} onClick={() => onOpenAsset(c.assetId)}>{body}</button>
+          : hrefs.asset ? <a href={hrefs.asset(c.assetId)} className={link}>{body}</a> : <span className={link}>{body}</span>;
+      },
+    },
+    { key: 'childCount', header: m.asset.children, align: 'right', render: (c) => String(c.childCount) },
+    { key: 'deviceCount', header: m.asset.devices, align: 'right', render: (c) => String(c.deviceCount) },
+  ];
+  return (
+    <DataTable<AssetNode>
+      mode="manual"
+      caption={m.asset.children}
+      columns={columns}
+      rows={rows}
+      rowId={(c) => c.assetId}
+      emptyMessage={known || count === 0 ? m.asset.noChildren : fill(m.asset.childCount, { n: count })}
+      messages={{ loading: m.common.loading, retry: m.common.retry }}
+      searchable={false}
+      pageSizeOptions={[]}
+      density="compact"
+    />
   );
 }
 

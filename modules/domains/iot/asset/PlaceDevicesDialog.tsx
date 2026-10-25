@@ -4,7 +4,8 @@ import { Button } from '@/modules/ui/Button';
 import { Checkbox } from '@/modules/ui/Checkbox';
 import { Modal } from '@/modules/ui/Modal';
 import { SearchBar } from '@/modules/ui/SearchBar';
-import { Spinner } from '@/modules/ui/Spinner';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { errorMessage } from '../api/adapter';
 import { useIotAdapter, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { DeviceOnlineDot } from '../device/DeviceOnlineDot';
@@ -14,7 +15,7 @@ import { onlineStateOf, type DeviceRecord } from '../types/device';
 /**
  * PlaceDevicesDialog — "Place devices" on an asset (phase 08 §8.2): search the tenant's devices (the device list of the adapter),
  * tick several, place them in one call (at most 100). A device has one place (NB A-3): placing it here moves it from where it was.
- * Devices already placed here are shown ticked and locked.
+ * Devices already placed here are shown ticked and locked. The devices are a DataTable (manual mode) whose name cell is the tick.
  */
 export type PlaceDevicesDialogProps = {
   open: boolean;
@@ -76,6 +77,33 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
     }
   }
 
+  // the tick is the row's own Checkbox (name and label as its text), so a device already here stays ticked and locked
+  const columns: Column<DeviceRecord>[] = [
+    {
+      key: 'name',
+      header: m.devices.name,
+      render: (d) => {
+        const here = placedIds?.has(d.deviceId) ?? false;
+        return (
+          <Checkbox
+            id={`place-${d.deviceId}`}
+            label={d.name}
+            hint={d.label ?? undefined}
+            checked={here || selected.has(d.deviceId)}
+            disabled={here}
+            onChange={(e) => toggle(d.deviceId, e.target.checked)}
+          />
+        );
+      },
+    },
+    {
+      key: 'online',
+      header: m.devices.connection,
+      align: 'right',
+      render: (d) => <DeviceOnlineDot state={onlineStateOf(d.online)} lastSeenAt={d.lastActivityAt} compact />,
+    },
+  ];
+
   return (
     <Modal
       open={open}
@@ -96,30 +124,20 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
       <div className="space-y-3">
         <SearchBar placeholder={m.asset.placeSearch} value={search} onChange={setSearch} onClear={() => setSearch('')} />
         {error && <p role="alert" className="text-sm text-error">{error}</p>}
-        {devices === null ? (
-          <div className="flex justify-center py-6"><Spinner size="sm" /></div>
-        ) : devices.length === 0 ? (
-          <p className="py-4 text-sm text-text-secondary">{m.devices.empty}</p>
-        ) : (
-          <ul className="max-h-80 divide-y divide-border overflow-auto rounded-lg border border-border" aria-label={m.asset.devices}>
-            {devices.map((d) => {
-              const here = placedIds?.has(d.deviceId) ?? false;
-              return (
-                <li key={d.deviceId} className="flex items-center justify-between gap-3 px-3 py-2">
-                  <Checkbox
-                    id={`place-${d.deviceId}`}
-                    label={d.name}
-                    hint={d.label ?? undefined}
-                    checked={here || selected.has(d.deviceId)}
-                    disabled={here}
-                    onChange={(e) => toggle(d.deviceId, e.target.checked)}
-                  />
-                  <DeviceOnlineDot state={onlineStateOf(d.online)} lastSeenAt={d.lastActivityAt} compact />
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        <DataTable<DeviceRecord>
+          mode="manual"
+          caption={m.asset.devices}
+          columns={columns}
+          rows={devices ?? []}
+          rowId={(d) => d.deviceId}
+          loading={devices === null}
+          emptyMessage={m.devices.empty}
+          messages={{ loading: m.common.loading, retry: m.common.retry }}
+          searchable={false}
+          pageSizeOptions={[]}
+          density="compact"
+          stickyHeader
+        />
       </div>
     </Modal>
   );

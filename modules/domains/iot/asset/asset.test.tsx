@@ -159,7 +159,8 @@ describe('AssetDetailView', () => {
     const crumbs = screen.getByRole('navigation', { name: 'Asset path' });
     expect(within(crumbs).getByRole('link', { name: /Berlin plant/ })).toHaveAttribute('href', '/a/plant');
     expect(screen.getByText('Europe/Berlin (from Hall A)')).toBeInTheDocument();
-    expect(screen.getByText('tonnage')).toBeInTheDocument();
+    expect(within(screen.getByRole('table', { name: 'Attributes' })).getByText('tonnage')).toBeInTheDocument();
+    expect(screen.getByText('800')).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: 'Devices' }));
     expect(await screen.findByRole('link', { name: /Press sensor/ })).toHaveAttribute('href', '/d/d1');
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
@@ -168,6 +169,24 @@ describe('AssetDetailView', () => {
     expect(assets.devices).toHaveBeenCalledWith('press-line', { page: 1, pageSize: 20, recursive: true }, expect.anything());
     await user.click(screen.getByRole('button', { name: 'Remove placement: Press sensor' }));
     await waitFor(() => expect(assets.setPlacement).toHaveBeenCalledWith('d1', null));
+  });
+
+  it('lists the child assets in a DataTable that opens a child, and says when there are none', async () => {
+    const user = userEvent.setup();
+    const onOpenAsset = vi.fn();
+    const { unmount } = wrap(<AssetDetailView assetId="press-line" nodes={TREE} onOpenAsset={onOpenAsset} />, fakeAssets());
+    await screen.findByRole('heading', { name: 'Press line' });
+    await user.click(screen.getByRole('tab', { name: 'Child assets' }));
+    const table = await screen.findByRole('table', { name: 'Child assets' });
+    const row = within(table).getAllByRole('row')[1];
+    expect(within(row).getAllByRole('cell').map((c) => c.textContent)).toEqual(['MachinePress 3', '0', '2']);
+    await user.click(within(row).getByRole('button', { name: /Press 3/ }));
+    expect(onOpenAsset).toHaveBeenCalledWith('press-3');
+    unmount();
+    wrap(<AssetDetailView assetId="hub" nodes={TREE} />, fakeAssets({ get: vi.fn().mockResolvedValue({ ...RECORD, assetId: 'hub', name: 'Logistics hub', ancestors: [], childCount: 0 }) }));
+    await screen.findByRole('heading', { name: 'Logistics hub' });
+    await user.click(screen.getByRole('tab', { name: 'Child assets' }));
+    expect(within(await screen.findByRole('table', { name: 'Child assets' })).getByText('No child assets.')).toBeInTheDocument();
   });
 
   it('says why a delete was refused, and hides every action without the capabilities', async () => {
@@ -220,6 +239,7 @@ describe('PlaceDevicesDialog', () => {
     const onPlaced = vi.fn();
     wrap(<PlaceDevicesDialog open asset={{ assetId: 'press-3', name: 'Press 3' }} placedIds={new Set(['d1'])} onClose={() => undefined} onPlaced={onPlaced} />, assets, undefined, { devices });
     expect(await screen.findByLabelText('Coolant probe')).not.toBeChecked();
+    expect(within(screen.getByRole('table', { name: 'Devices' })).getAllByRole('row')).toHaveLength(3);
     expect(screen.getByLabelText('Press sensor')).toBeDisabled();
     await user.click(screen.getByLabelText('Coolant probe'));
     await user.click(screen.getByRole('button', { name: 'Place 1 devices' }));

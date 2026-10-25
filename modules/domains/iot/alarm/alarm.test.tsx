@@ -180,7 +180,7 @@ describe('AlarmTable', () => {
 
   it('shows loading, error and empty states', () => {
     const { rerender } = render(<AlarmTable rows={[]} loading />);
-    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.getAllByText('Loading…').length).toBeGreaterThan(0);
     rerender(<AlarmTable rows={[]} error="No source" />);
     expect(screen.getByRole('alert')).toHaveTextContent('No source');
     rerender(<AlarmTable rows={[]} emptyText="Quiet" />);

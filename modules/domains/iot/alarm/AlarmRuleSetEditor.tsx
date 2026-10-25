@@ -9,6 +9,8 @@ import { Callout } from '@/modules/ui/Callout';
 import { EmptyState } from '@/modules/ui/EmptyState';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SkeletonText } from '@/modules/ui/Skeleton';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { Toggle } from '@/modules/ui/Toggle';
 import { errorMessage } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
@@ -21,10 +23,13 @@ import { AlarmSeverityBadge } from './AlarmSeverityBadge';
 
 /**
  * AlarmRuleSetEditor — the alarm rules of one device profile (phase 01 §1.4, NB iot_alarm 01 §1.1, the profile's "Alarm rules" tab
- * contributed by the alarm module, P-3). Rule cards (kind, type, title, the comparison per severity, debounce, enabled), add a threshold
+ * contributed by the alarm module, P-3). A DataTable of the rules (kind, type, title, the comparison per severity, debounce, enabled), add a threshold
  * rule or the device-offline rule, edit one in a drawer (form or JSON), remove one. Changes collect in the page and "Save rules"
  * replaces the profile's whole set (a removed rule's open alarms are resolved by the host). Read-only without `canManageAlarmRules`.
  */
+/** A row of the rules table: the rule and its position in the set (edits and removals go by position). */
+type RuleRow = { i: number; r: AlarmRuleDefinition };
+
 export type AlarmRuleSetEditorProps = {
   profileId: string;
   className?: string;
@@ -104,6 +109,60 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
   if (base === null) return <SkeletonText lines={4} className={className} />;
 
   const words = { and: m.alarmRules.and, or: m.alarmRules.or, attribute: m.alarmRules.attribute, topic: m.alarmRules.onTopic };
+  const columns: Column<RuleRow>[] = [
+    {
+      key: 'type',
+      header: m.alarmRules.type,
+      render: ({ r }) => (
+        <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-primary">
+          <Badge variant="neutral" size="sm">{isInactivityRule(r) ? m.alarmRules.offlineKind : m.alarmRules.thresholdKind}</Badge>
+          <code className="font-mono text-xs text-text-secondary">{r.type}</code>
+          {!r.enabled && <Badge variant="warning" size="sm">{m.alarmRules.disabledRule}</Badge>}
+        </span>
+      ),
+    },
+    { key: 'title', header: m.alarmRules.titleField, render: ({ r }) => <span className="text-sm text-text-primary">{r.title}</span> },
+    {
+      key: 'when',
+      header: m.alarmRules.when,
+      render: ({ r }) => (
+        <ul className="space-y-1 text-xs text-text-secondary">
+          {isInactivityRule(r) ? (
+            <li className="flex items-center gap-2">
+              <AlarmSeverityBadge severity={r.inactivity.severity} size="sm" />
+              <span>{`${m.alarmRules.afterSec}: ${r.inactivity.afterSec}`}</span>
+            </li>
+          ) : (
+            <>
+              {r.severities.map((s) => (
+                <li key={s.severity} className="flex items-center gap-2">
+                  <AlarmSeverityBadge severity={s.severity} size="sm" />
+                  <code className="font-mono">{describeCondition(s.condition, words)}</code>
+                </li>
+              ))}
+              {r.debounce && (r.debounce.raise > 1 || r.debounce.clear > 1) && (
+                <li>{`${m.alarmRules.debounce}: ${r.debounce.raise} / ${r.debounce.clear} (${r.debounce.mode === 'count' ? m.alarmRules.debounceCount : m.alarmRules.debounceDuration})`}</li>
+              )}
+            </>
+          )}
+        </ul>
+      ),
+    },
+    ...(canEdit ? [{
+      key: 'actions',
+      header: <span className="sr-only">{m.profiles.actions}</span>,
+      align: 'right' as const,
+      render: ({ i, r }: RuleRow) => (
+        <span className="inline-flex items-center justify-end gap-1">
+          <Toggle id={`rule-enabled-${i}`} size="sm" label={m.alarmRules.enabled} checked={r.enabled}
+            onChange={(v) => setRules(rules.map((x, j) => (j === i ? { ...x, enabled: v } : x)))} />
+          <Button variant="ghost" size="xs" aria-label={`${m.alarmRules.edit} ${r.type}`} onClick={() => setEditing({ index: i, rule: r })}
+            iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>{m.alarmRules.edit}</Button>
+          <Button onClick={() => { void confirmDialog({ title: fill(m.alarmRules.removeConfirm, { type: r.type }), message: m.alarmRules.removeHint, tone: 'danger', confirmLabel: m.alarmRules.remove, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void setRules(rules.filter((_, j) => j !== i)); }); }} variant="ghost" size="xs" aria-label={`${m.alarmRules.remove} ${r.type}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}><span className="sr-only">{m.alarmRules.remove}</span></Button>
+        </span>
+      ),
+    }] : []),
+  ];
   return (
     <div className={cn('space-y-4', className)}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -128,51 +187,17 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
       {rules.length === 0 ? (
         <EmptyState icon={<FontAwesomeIcon icon={faBolt} aria-hidden="true" />} title={m.alarmRules.title} description={m.alarmRules.empty} />
       ) : (
-        <ul className="space-y-3" aria-label={m.alarmRules.title}>
-          {rules.map((r, i) => (
-            <li key={`${r.type}-${i}`} className={cn('rounded-xl border border-border bg-surface-raised p-4', !r.enabled && 'opacity-70')}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-primary">
-                    <Badge variant="neutral" size="sm">{isInactivityRule(r) ? m.alarmRules.offlineKind : m.alarmRules.thresholdKind}</Badge>
-                    <code className="font-mono text-xs text-text-secondary">{r.type}</code>
-                    {!r.enabled && <Badge variant="warning" size="sm">{m.alarmRules.disabledRule}</Badge>}
-                  </p>
-                  <p className="mt-1 truncate text-sm text-text-primary">{r.title}</p>
-                </div>
-                {canEdit && (
-                  <div className="flex items-center gap-1">
-                    <Toggle id={`rule-enabled-${i}`} size="sm" label={m.alarmRules.enabled} checked={r.enabled}
-                      onChange={(v) => setRules(rules.map((x, j) => (j === i ? { ...x, enabled: v } : x)))} />
-                    <Button variant="ghost" size="xs" aria-label={`${m.alarmRules.edit} ${r.type}`} onClick={() => setEditing({ index: i, rule: r })}
-                      iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>{m.alarmRules.edit}</Button>
-                    <Button onClick={() => { void confirmDialog({ title: fill(m.alarmRules.removeConfirm, { type: r.type }), message: m.alarmRules.removeHint, tone: 'danger', confirmLabel: m.alarmRules.remove, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void setRules(rules.filter((_, j) => j !== i)); }); }} variant="ghost" size="xs" aria-label={`${m.alarmRules.remove} ${r.type}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}><span className="sr-only">{m.alarmRules.remove}</span></Button>
-                  </div>
-                )}
-              </div>
-              <ul className="mt-2 space-y-1 text-xs text-text-secondary">
-                {isInactivityRule(r) ? (
-                  <li className="flex items-center gap-2">
-                    <AlarmSeverityBadge severity={r.inactivity.severity} size="sm" />
-                    <span>{`${m.alarmRules.afterSec}: ${r.inactivity.afterSec}`}</span>
-                  </li>
-                ) : (
-                  <>
-                    {r.severities.map((s) => (
-                      <li key={s.severity} className="flex items-center gap-2">
-                        <AlarmSeverityBadge severity={s.severity} size="sm" />
-                        <code className="font-mono">{describeCondition(s.condition, words)}</code>
-                      </li>
-                    ))}
-                    {r.debounce && (r.debounce.raise > 1 || r.debounce.clear > 1) && (
-                      <li>{`${m.alarmRules.debounce}: ${r.debounce.raise} / ${r.debounce.clear} (${r.debounce.mode === 'count' ? m.alarmRules.debounceCount : m.alarmRules.debounceDuration})`}</li>
-                    )}
-                  </>
-                )}
-              </ul>
-            </li>
-          ))}
-        </ul>
+        <DataTable<RuleRow>
+          mode="manual"
+          caption={m.alarmRules.title}
+          columns={columns}
+          rows={rules.map((r, i) => ({ i, r }))}
+          rowId={(x) => `${x.r.type}-${x.i}`}
+          rowClassName={(x) => (x.r.enabled ? undefined : 'opacity-70')}
+          messages={{ loading: m.common.loading, retry: m.common.retry }}
+          searchable={false}
+          pageSizeOptions={[]}
+        />
       )}
 
       {dirty && canEdit && (
