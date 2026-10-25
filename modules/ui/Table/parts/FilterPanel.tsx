@@ -11,6 +11,7 @@ import { MultiSelect } from '../../MultiSelect';
 import { CheckboxGroup } from '../../CheckboxGroup';
 import { RadioGroup } from '../../RadioGroup';
 import { Checkbox } from '../../Checkbox';
+import { ButtonGroup } from '../../ButtonGroup';
 import { RangeSlider } from '../../RangeSlider';
 import { DatePicker, DateRangePicker } from '../../DatePicker';
 import { builtInDatePresets, defaultFilterValues, toDay } from '../core/filterPanel';
@@ -134,7 +135,7 @@ function FilterControl<T>({
     case 'select':
       return (
         <Select id={id} label={field.label} hint={field.hint} options={field.options}
-          placeholder={field.placeholder ?? any}
+          placeholder={field.required ? undefined : (field.placeholder ?? any)}
           value={(value as string | undefined) ?? ''} onChange={(e) => onChange(e.target.value)} />
       );
     case 'multiselect':
@@ -151,7 +152,7 @@ function FilterControl<T>({
     case 'radio':
       return (
         <RadioGroup name={id} legend={field.label}
-          options={[{ value: '', label: field.anyLabel ?? any }, ...field.options]}
+          options={field.required ? field.options : [{ value: '', label: field.anyLabel ?? any }, ...field.options]}
           value={(value as string | undefined) ?? ''} onChange={onChange} />
       );
     case 'checkbox':
@@ -203,6 +204,43 @@ function FilterControl<T>({
     case 'custom':
       return <>{field.render({ id, value, onChange })}</>;
   }
+}
+
+/**
+ * A `placement: 'toolbar'` field, applied at once: a radio field as a segmented button group, a select field as a
+ * dropdown whose label is read by screen readers only.
+ */
+export function ToolbarFilterControl<T>({
+  field,
+  id,
+  value,
+  msgs,
+  onChange,
+}: {
+  field: DataTableFilterField<T>;
+  id: string;
+  value: DataTableFilterValue | undefined;
+  msgs: DataTableMessages;
+  onChange: (value: DataTableFilterValue) => void;
+}) {
+  const any = msgs.any ?? 'Any';
+  if (field.type === 'radio') {
+    const items = field.required ? field.options : [{ value: '', label: field.anyLabel ?? any }, ...field.options];
+    return (
+      <div role="group" aria-label={field.label} className="shrink-0" data-part="toolbar-filter">
+        <ButtonGroup size="sm" items={items} value={(value as string | undefined) ?? ''} onChange={onChange} />
+      </div>
+    );
+  }
+  if (field.type === 'select') {
+    return (
+      <Select id={id} label={field.label} hideLabel options={field.options} className="shrink-0 min-w-40"
+        placeholder={field.required ? undefined : (field.placeholder ?? any)}
+        value={(value as string | undefined) ?? ''} onChange={(e) => onChange(e.target.value)}
+        data-part="toolbar-filter" />
+    );
+  }
+  return null;
 }
 
 export function FilterPanel<T>({

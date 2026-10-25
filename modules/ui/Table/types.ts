@@ -47,7 +47,18 @@ export type Column<T> = {
    * header keeps working unchanged.
    */
   header: ReactNode;
-  render?: (row: T) => ReactNode;
+  /**
+   * Cell content. The second argument (`index`: the row's position in the `rows` the host passed, in server mode in the
+   * fetched page; `id`: its row id) lets an editable cell write back to its source row without wrapping rows.
+   */
+  render?: (row: T, ctx: CellContext) => ReactNode;
+  /**
+   * Static and paginated modes: the text the toolbar search matches for this column (a computed or rendered cell, a
+   * name plus its key). Defaults to `row[key]`.
+   */
+  searchValue?: (row: T) => string;
+  /** `false`: the toolbar search skips this column (static and paginated modes). Default `true`. */
+  searchable?: boolean;
   align?: 'left' | 'center' | 'right';
   sortable?: boolean;
   /** M1: per-column filter popover config. Set to truthy to enable. */
@@ -79,6 +90,14 @@ export type Column<T> = {
 };
 
 export type ColumnBreakpoint = 'sm' | 'md' | 'lg';
+
+/** What `Column.render` gets besides the row. */
+export type CellContext = {
+  /** Position of the row in the `rows` prop (server mode: in the fetched page); sorting and filtering leave it alone. */
+  index: number;
+  /** The row's id (`rowId`, else `row.id`, else its position). */
+  id: DataTableRowId;
+};
 
 /**
  * Backwards-compatible alias preserved so legacy `TableColumn<T>` imports
@@ -126,6 +145,8 @@ export type DataTableCardContext = {
   toggleSelected: () => void;
   /** Whether the row can be selected; a string is the reason it cannot. */
   selectable: true | string;
+  /** Ticked and locked (`isRowSelectionLocked`): shown selected, cannot be changed, not in the selection. */
+  locked: boolean;
   /** The row's actions menu (`rowActions`), to place inside the card; null without actions. */
   actions: ReactNode;
 };
@@ -179,6 +200,17 @@ type DataTableFilterFieldBase<T> = {
   defaultValue?: DataTableFilterValue;
   /** Text of the field's active-filter chip; defaults to a readable form of the value. */
   formatChip?: (value: DataTableFilterValue) => string;
+  /**
+   * `select` and `radio`: a single choice that is always set (a status a server needs): no "Any" option, never
+   * cleared by a chip or "Clear all", Reset and Clear all return it to `defaultValue` (else the first option). It has
+   * no chip and is not counted on the Filters button.
+   */
+  required?: boolean;
+  /**
+   * `select` and `radio`: `toolbar` draws the field in the toolbar instead of the panel (radio as a segmented button
+   * group, select as a labelled dropdown), applied at once. Default `panel`.
+   */
+  placement?: 'panel' | 'toolbar';
   /**
    * Static and paginated modes: whether a row passes this field's value.
    * Defaults to comparing `row[id]` by field type. Server mode ignores it.

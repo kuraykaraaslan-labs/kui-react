@@ -2,7 +2,8 @@
 import { Spinner } from '../../Spinner';
 import { Button } from '../../Button';
 
-// Loading / Empty / Error single-row state for the table body.
+// Loading / Empty / Error single-row state for the table body. The loading message is the visible text, so the
+// spinner beside it carries no screen-reader label of its own (the words would be found twice).
 
 export function StateRow({
   state,
@@ -26,7 +27,7 @@ export function StateRow({
           className="px-4 py-10 text-center text-sm text-text-secondary"
         >
           <span className="inline-flex items-center gap-2">
-            <Spinner size="sm" />
+            <Spinner size="sm" label={null} />
             {message}
           </span>
         </td>
@@ -90,7 +91,7 @@ export function StateBlock({
       <span className="inline-flex flex-col items-center gap-2">
         {state === 'loading' ? (
           <span className="inline-flex items-center gap-2">
-            <Spinner size="sm" />
+            <Spinner size="sm" label={null} />
             {message}
           </span>
         ) : (

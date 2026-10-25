@@ -20,6 +20,7 @@ const HEADER_PAD: Record<DataTableDensity, string> = {
 export function HeaderCell<T extends Record<string, unknown>>({
   column,
   sort,
+  showSortOrder = true,
   filterValue,
   onToggleSort,
   onSetFilter,
@@ -29,6 +30,11 @@ export function HeaderCell<T extends Record<string, unknown>>({
 }: {
   column: Column<T>;
   sort: SortState[];
+  /**
+   * Show the priority number of a multi-column sort. The table turns it on once the user has sorted, so a default
+   * multi-column order shows plain headings.
+   */
+  showSortOrder?: boolean;
   filterValue: string;
   onToggleSort: (key: string, shiftKey: boolean) => void;
   onSetFilter: (key: string, value: string) => void;
@@ -49,7 +55,7 @@ export function HeaderCell<T extends Record<string, unknown>>({
     : undefined;
 
   const sortOrder =
-    sortEntry && sort.length > 1 ? sort.findIndex((s) => s.key === key) + 1 : null;
+    showSortOrder && sortEntry && sort.length > 1 ? sort.findIndex((s) => s.key === key) + 1 : null;
 
   const headerClass = headerClassFor(
     column,
@@ -61,6 +67,7 @@ export function HeaderCell<T extends Record<string, unknown>>({
       {sortOrder !== null && (
         <span
           aria-hidden="true"
+          data-part="sort-order"
           className="ml-0.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-fg px-1"
         >
           {sortOrder}

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronUp, faChevronDown, faSort } from '@fortawesome/free-solid-svg-icons';
 import { headerClassFor, cellClassFor } from './core/columnHelpers';
+import { applySort } from './core/useTable';
 import type { Column, SortDirection } from './types';
 
 // Low-level "dumb" table primitive. Identical surface to the legacy
@@ -46,17 +47,9 @@ export function Table<T extends Record<string, unknown>>({
     setSortKey('');
   }
 
-  const sorted =
-    sortKey && sortDir
-      ? [...rows].sort((a, b) => {
-          const av = a[sortKey as keyof T] ?? '';
-          const bv = b[sortKey as keyof T] ?? '';
-          const cmp = String(av).localeCompare(String(bv), undefined, {
-            numeric: true,
-          });
-          return sortDir === 'asc' ? cmp : -cmp;
-        })
-      : rows;
+  // The DataTable's sort: numbers and dates by value, empty cells last in both directions.
+  const sorted = sortKey && sortDir ? applySort(rows, [{ key: sortKey, dir: sortDir }]) : rows;
+  const sourceIndex = new Map(rows.map((r, i) => [r, i]));
 
   return (
     <div
@@ -143,7 +136,7 @@ export function Table<T extends Record<string, unknown>>({
                     className={cellClassFor(col, 'px-4 py-3 text-text-primary')}
                   >
                     {col.render
-                      ? col.render(row)
+                      ? col.render(row, { index: sourceIndex.get(row) ?? i, id: sourceIndex.get(row) ?? i })
                       : String(row[col.key as keyof T] ?? '')}
                   </td>
                 ))}

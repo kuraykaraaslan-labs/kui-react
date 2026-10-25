@@ -44,11 +44,27 @@ export function activeFilterValues<T>(
   return out;
 }
 
-/** Every field's `defaultValue`, keyed by field id. */
+/** Whether the field is a single choice that is always set (`required` on a select or radio field). */
+export function isRequiredChoice<T>(field: DataTableFilterField<T>): boolean {
+  return field.required === true && (field.type === 'select' || field.type === 'radio');
+}
+
+/** Every field's `defaultValue`, keyed by field id; a required choice without one starts on its first option. */
 export function defaultFilterValues<T>(fields: readonly DataTableFilterField<T>[]): DataTableFilterValues {
   const out: DataTableFilterValues = {};
   for (const field of fields) {
     if (field.defaultValue !== undefined) out[field.id] = field.defaultValue;
+    else if (isRequiredChoice(field) && 'options' in field && field.options.length > 0) out[field.id] = field.options[0].value;
+  }
+  return out;
+}
+
+/** The values "Clear all" keeps: every required choice, back on its default. */
+export function requiredFilterDefaults<T>(fields: readonly DataTableFilterField<T>[]): DataTableFilterValues {
+  const defaults = defaultFilterValues(fields);
+  const out: DataTableFilterValues = {};
+  for (const field of fields) {
+    if (isRequiredChoice(field) && field.id in defaults) out[field.id] = defaults[field.id];
   }
   return out;
 }

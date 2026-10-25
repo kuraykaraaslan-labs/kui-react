@@ -1,7 +1,7 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
 import type { CSSProperties, KeyboardEvent, MouseEvent } from 'react';
-import type { Column, DataTableDensity, DataTableRowState } from '../types';
+import type { CellContext, Column, DataTableDensity, DataTableRowState } from '../types';
 import { cellClassFor, densityCellClass } from '../core/columnHelpers';
 
 // TODO M5: inline edit.
@@ -33,8 +33,11 @@ export function BodyRow<T extends Record<string, unknown>>({
   tabbable = false,
   onFocusRow,
   onKeyNav,
+  cell,
 }: {
   row: T;
+  /** What `Column.render` gets besides the row (its source index and id). */
+  cell?: CellContext;
   columns: Column<T>[];
   onClick?: (row: T, event: MouseEvent<HTMLTableRowElement> | KeyboardEvent<HTMLTableRowElement>) => void;
   /** Double click on the row (not on a control inside it); Enter / Space run it when there is no `onClick`. */
@@ -133,7 +136,7 @@ export function BodyRow<T extends Record<string, unknown>>({
             style={col.cellStyle?.(row)}
           >
             {col.render
-              ? col.render(row)
+              ? col.render(row, cell ?? { index: 0, id: rowKey ?? '' })
               : String(row[col.key as keyof T] ?? '')}
           </td>
         ))}

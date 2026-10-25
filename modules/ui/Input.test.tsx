@@ -5,6 +5,13 @@ import { createRef } from 'react';
 import { Input } from './Input';
 
 describe('Input', () => {
+  it('hideLabel keeps the label as the accessible name, visually hidden (phase 11.16)', () => {
+    render(<Input id="qty" label="Quantity" hideLabel />);
+    const input = screen.getByLabelText('Quantity');
+    expect(input.tagName).toBe('INPUT');
+    expect(document.querySelector('label[for="qty"]')).toHaveClass('sr-only');
+  });
+
   it('renders with a label linked via htmlFor/id', () => {
     render(<Input id="email" label="Email" />);
     expect(screen.getByLabelText('Email')).toBeInTheDocument();

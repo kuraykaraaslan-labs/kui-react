@@ -1,6 +1,6 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
-import { useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Button } from '../Button';
 import { Pagination } from '../Pagination';
@@ -17,13 +17,19 @@ import {
   SelectAllHeaderCell,
   SelectCell,
 } from './parts/RowExtras';
-import { useTable } from './core/useTable';
+import { applyGrouping, useTable } from './core/useTable';
 import { useServerTable } from './core/useServerTable';
 import { useManualTable } from './core/useManualTable';
 import { useRowExpansion, useRowSelection } from './core/useRowState';
-import { filterChipText, matchFilterField, useFilterPanel } from './core/filterPanel';
+import {
+  filterChipText,
+  isRequiredChoice,
+  matchFilterField,
+  requiredFilterDefaults,
+  useFilterPanel,
+} from './core/filterPanel';
 import { cellClassFor, densityCellClass, sortMappers } from './core/columnHelpers';
-import { FilterPanel, FilterToggle } from './parts/FilterPanel';
+import { FilterPanel, FilterToggle, ToolbarFilterControl } from './parts/FilterPanel';
 import type {
   Column,
   DataTableCardContext,
@@ -50,7 +56,7 @@ import { DEFAULT_MESSAGES, formatMessage } from './types';
 // TODO M3: virtualize prop (TanStack Virtual).
 // TODO M4: single / range selection.
 // TODO M4: exportFormats prop, onTelemetry hook.
-// TODO M5: groupBy, editable, onCellEdit props.
+// TODO M5: editable, onCellEdit props.
 
 export type DataTableProps<T extends Record<string, unknown>> = {
   /** Column descriptors. */
@@ -91,6 +97,19 @@ export type DataTableProps<T extends Record<string, unknown>> = {
   caption?: string;
   /** Render a search bar above the table. */
   searchable?: boolean;
+  /**
+   * Static and paginated modes: extra text the search matches per row, beside the searchable columns (a key, a
+   * description, a module no column shows). No hidden helper column needed.
+   */
+  searchText?: (row: T) => string;
+  /**
+   * Group rows: a full-width header row (card layout: a heading) before each group. Static and paginated modes keep
+   * each group's rows together, groups in the order they first appear in `rows`, the sort applied within each group;
+   * manual and server modes group the page they have, in the same way.
+   */
+  groupBy?: (row: T) => string;
+  /** Content of a group's header; defaults to the group key. `rows` are the group's rows on this page. */
+  renderGroupHeader?: (group: string, rows: T[]) => ReactNode;
   /** Placeholder for the search bar. */
   searchPlaceholder?: string;
   /** Default rows-per-page. */
@@ -144,6 +163,12 @@ export type DataTableProps<T extends Record<string, unknown>> = {
   selectable?: boolean;
   /** Whether a row can be selected; a string is the reason it cannot (the checkbox's tooltip). */
   isRowSelectable?: (row: T) => true | string;
+  /**
+   * Ticked and locked: the row shows selected with a disabled checkbox (already placed, always included). It is not
+   * part of the selection: left out of the "n selected" count and the ids `bulkActions` gets, and the header
+   * checkbox's select-all never toggles it.
+   */
+  isRowSelectionLocked?: (row: T) => boolean;
   /** Accessible name of a row's checkbox ("Select Pump 4"); defaults to "Select row N". */
   rowSelectLabel?: (row: T) => string;
   /** Controlled selection, as row ids. */
@@ -287,6 +312,8 @@ type ShownRow<T> = {
   id: DataTableRowId;
   /** 1-based position in the whole result, used in the checkbox label. */
   number: number;
+  /** Position in the `rows` prop (server mode: in the fetched page), for `Column.render`. */
+  index: number;
 };
 
 type TableModel<T> = {
@@ -327,6 +354,24 @@ function resolveRowId<T extends Record<string, unknown>>(
   if (rowId) return rowId(row);
   const own = row.id;
   return typeof own === 'string' || typeof own === 'number' ? own : fallback;
+}
+
+/** Manual and server modes: the page's rows of one group together, in the order the groups first appear. */
+function groupShown<T>(groupBy: ((row: T) => string) | undefined, shown: ShownRow<T>[]): ShownRow<T>[] {
+  if (!groupBy) return shown;
+  return applyGrouping(shown, (s) => groupBy(s.row), shown);
+}
+
+/** The shown rows split at every change of group (`groupBy`); one run without it. */
+function groupRuns<T>(groupBy: ((row: T) => string) | undefined, shown: ShownRow<T>[]) {
+  const runs: { key: string | null; rows: ShownRow<T>[] }[] = [];
+  for (const s of shown) {
+    const key = groupBy ? groupBy(s.row) : null;
+    const last = runs[runs.length - 1];
+    if (last && last.key === key) last.rows.push(s);
+    else runs.push({ key, rows: [s] });
+  }
+  return runs;
 }
 
 function messagesOf<T extends Record<string, unknown>>(props: DataTableProps<T>): DataTableMessages {
@@ -390,10 +435,16 @@ function useFilterParts<T extends Record<string, unknown>>(
 
   const panelId = `${tableId}-filters`;
   const enabled = fields.length > 0;
+  const inToolbar = (f: DataTableFilterField<T>) =>
+    f.placement === 'toolbar' && (f.type === 'radio' || f.type === 'select');
+  const panelFields = fields.filter((f) => !inToolbar(f));
+  const toolbarFields = fields.filter(inToolbar);
+  /** Set panel fields that narrow the rows by choice (a required choice is always set, so it is not counted). */
+  const panelActiveCount = panelFields.filter((f) => f.id in active && !isRequiredChoice(f)).length;
 
-  /** Chips of the set panel fields; removing one re-applies the rest. */
-  const chips: FilterChip[] = fields
-    .filter((f) => f.id in active)
+  /** Chips of the set panel fields; removing one re-applies the rest. Toolbar fields and required choices show as themselves. */
+  const chips: FilterChip[] = panelFields
+    .filter((f) => f.id in active && !isRequiredChoice(f))
     .map((f) => ({
       id: `field:${f.id}`,
       text: filterChipText(f, active[f.id]),
@@ -406,13 +457,33 @@ function useFilterParts<T extends Record<string, unknown>>(
 
   /** Toolbar toggle and panel; `onApplied` runs after the values change (back to page 1). */
   function parts(onApplied: () => void) {
-    if (!enabled) return { toggle: undefined, panel: null };
+    if (!enabled) return { toggle: undefined, panel: null, toolbar: null };
+    const toolbar =
+      toolbarFields.length > 0 ? (
+        <>
+          {toolbarFields.map((f) => (
+            <ToolbarFilterControl<T>
+              key={f.id}
+              field={f}
+              id={`${panelId}-${f.id}`}
+              value={filter.applied[f.id]}
+              msgs={msgs}
+              onChange={(v) => {
+                filter.commit({ ...filter.applied, [f.id]: v });
+                onApplied();
+              }}
+            />
+          ))}
+        </>
+      ) : null;
+    if (panelFields.length === 0) return { toggle: undefined, panel: null, toolbar };
     return {
+      toolbar,
       toggle: (
         <FilterToggle
           controls={open ? panelId : undefined}
           open={open}
-          activeCount={filter.activeCount}
+          activeCount={panelActiveCount}
           label={msgs.filters ?? 'Filters'}
           onToggle={() => setOpen((o) => !o)}
         />
@@ -420,12 +491,17 @@ function useFilterParts<T extends Record<string, unknown>>(
       panel: open ? (
         <FilterPanel<T>
           id={panelId}
-          fields={fields}
+          fields={panelFields}
           applied={filter.applied}
           live={props.filtersLive ?? false}
           msgs={msgs}
           onApply={(values) => {
-            filter.commit(values);
+            // Reset only knows the panel's fields: the toolbar's keep their values.
+            const next = { ...values };
+            for (const f of toolbarFields) {
+              if (f.id in filter.applied) next[f.id] = filter.applied[f.id];
+            }
+            filter.commit(next);
             onApplied();
           }}
         />
@@ -433,7 +509,16 @@ function useFilterParts<T extends Record<string, unknown>>(
     };
   }
 
-  return { enabled, active, predicate, parts, chips, clear: () => filter.commit({}) };
+  /** "Clear all": every panel field goes and its required choices return to their default; toolbar fields keep their value. */
+  function clear() {
+    const next: DataTableFilterValues = { ...requiredFilterDefaults(panelFields) };
+    for (const f of toolbarFields) {
+      if (f.id in filter.applied) next[f.id] = filter.applied[f.id];
+    }
+    filter.commit(next);
+  }
+
+  return { enabled, active, predicate, parts, chips, clear };
 }
 
 type FilterUi<T extends Record<string, unknown>> = ReturnType<typeof useFilterParts<T>>;
@@ -448,7 +533,7 @@ function useRowExtras<T extends Record<string, unknown>>(
   tableId: string,
   shown: ShownRow<T>[],
 ) {
-  const { selectable = false, renderExpanded, isRowSelectable, rowSelectLabel } = props;
+  const { selectable = false, renderExpanded, isRowSelectable, isRowSelectionLocked, rowSelectLabel } = props;
   const selection = useRowSelection({
     selectedRowIds: props.selectedRowIds,
     defaultSelectedRowIds: props.defaultSelectedRowIds,
@@ -457,8 +542,18 @@ function useRowExtras<T extends Record<string, unknown>>(
   const expansion = useRowExpansion();
   const expandable = renderExpanded !== undefined;
 
+  const isLocked = (row: T) => (selectable && isRowSelectionLocked ? isRowSelectionLocked(row) : false);
   const canSelect = (row: T): true | string => (isRowSelectable ? isRowSelectable(row) : true);
-  const selectableIds = shown.filter((s) => canSelect(s.row) === true).map((s) => s.id);
+  const selectableIds = shown.filter((s) => !isLocked(s.row) && canSelect(s.row) === true).map((s) => s.id);
+  // Locked rows are never part of the selection, even when the host lists their ids.
+  const lockedIds = new Set<DataTableRowId>();
+  const known = props.mode === 'server' || props.mode === 'manual' ? shown.map((s) => s.row) : (props.rows ?? []);
+  if (isRowSelectionLocked && selectable) {
+    known.forEach((row, i) => {
+      if (isRowSelectionLocked(row)) lockedIds.add(resolveRowId(props.rowId, row, i));
+    });
+    for (const s of shown) if (isLocked(s.row)) lockedIds.add(s.id);
+  }
   const shownSelected = selectableIds.filter((rid) => selection.selected.has(rid)).length;
   const allShownSelected = selectableIds.length > 0 && shownSelected === selectableIds.length;
 
@@ -482,7 +577,8 @@ function useRowExtras<T extends Record<string, unknown>>(
   }
 
   function row(s: ShownRow<T>, totalCols: number) {
-    const isSelected = selectable && selection.selected.has(s.id);
+    const locked = isLocked(s.row);
+    const isSelected = selectable && (locked || selection.selected.has(s.id));
     const allowed = canSelect(s.row);
     const content = renderExpanded?.(s.row);
     const hasDetail = content !== null && content !== undefined && content !== false;
@@ -498,6 +594,7 @@ function useRowExtras<T extends Record<string, unknown>>(
                 checked={isSelected}
                 label={selectLabel(s)}
                 disabledReason={allowed === true ? undefined : allowed}
+                locked={locked}
                 onChange={() => selection.toggle(s.id)}
               />
             )}
@@ -518,21 +615,23 @@ function useRowExtras<T extends Record<string, unknown>>(
 
   function card(s: ShownRow<T>) {
     const allowed = canSelect(s.row);
+    const locked = isLocked(s.row);
     return {
-      selected: selectable && selection.selected.has(s.id),
+      selected: selectable && (locked || selection.selected.has(s.id)),
       selectable: selectable ? allowed : ('not selectable' as const),
+      locked,
       toggle: () => {
-        if (selectable && allowed === true) selection.toggle(s.id);
+        if (selectable && !locked && allowed === true) selection.toggle(s.id);
       },
     };
   }
 
-  const selectedIds = [...selection.selected];
+  const selectedIds = [...selection.selected].filter((rid) => !lockedIds.has(rid));
   const summary =
-    selectable && selection.count > 0 ? (
+    selectable && selectedIds.length > 0 ? (
       <div className="flex flex-wrap items-center gap-2" data-part="selection-summary">
         <p className="text-xs text-text-secondary">
-          {formatMessage(msgs.selectedCount ?? '{count} selected', { count: selection.count })}
+          {formatMessage(msgs.selectedCount ?? '{count} selected', { count: selectedIds.length })}
         </p>
         <Button variant="ghost" size="xs" onClick={selection.clear}>
           {msgs.clearSelection ?? 'Clear selection'}
@@ -613,6 +712,15 @@ function TableFrame<T extends Record<string, unknown>>({
   } = props;
 
   const searchable = searchableProp ?? true;
+  // Sort priority numbers show only once the user has built a multi-column sort, never for a default one.
+  const [userSorted, setUserSorted] = useState(false);
+  const toggleSort = (key: string, shiftKey: boolean) => {
+    setUserSorted(true);
+    model.toggleSort(key, shiftKey);
+  };
+  const runs = groupRuns(props.groupBy, model.shown);
+  const groupHeader = (key: string, rows: ShownRow<T>[]) =>
+    props.renderGroupHeader ? props.renderGroupHeader(key, rows.map((r) => r.row)) : key;
   const actions = rowActionsParts(props, msgs);
   const extras = useRowExtras(props, msgs, id, model.shown);
   const filterParts = filterUi.parts(onFiltersApplied);
@@ -625,6 +733,7 @@ function TableFrame<T extends Record<string, unknown>>({
   const bodyRef = useRef<HTMLTableSectionElement>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const keys = model.shown.map((s) => String(s.id));
+  const position = new Map(keys.map((k, i) => [k, i]));
   const tabKey = focusKey !== null && keys.includes(focusKey) ? focusKey : (keys[0] ?? null);
   function focusRow(index: number) {
     const key = keys[Math.max(0, Math.min(keys.length - 1, index))];
@@ -681,7 +790,14 @@ function TableFrame<T extends Record<string, unknown>>({
       id={id}
       start={toolbarStart}
       end={toolbarEnd}
-      extra={filterParts.toggle}
+      extra={
+        filterParts.toolbar || filterParts.toggle ? (
+          <>
+            {filterParts.toolbar}
+            {filterParts.toggle}
+          </>
+        ) : undefined
+      }
       sortBy={sortBy}
       searchable={searchable}
       searchValue={model.search}
@@ -724,28 +840,48 @@ function TableFrame<T extends Record<string, unknown>>({
           retryLabel={msgs.retry}
         />
       ) : (
-        <ul
-          className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(var(--dt-card-min),100%),1fr))]"
-          style={{ '--dt-card-min': cardMinWidth } as CSSProperties}
-          aria-label={caption ?? msgs.tableLabel ?? 'Data table'}
-          data-part="cards"
-        >
-          {model.shown.map((s) => {
-            const c = extras.card(s);
-            return (
-              <li key={String(s.id)} data-row-key={String(s.id)} data-state={rowState?.(s.row)} data-selected={c.selected || undefined}
-                className={cn('min-w-0', rowState?.(s.row) === 'leaving' && 'opacity-40 transition-opacity duration-500', rowClassName?.(s.row))}>
-                {renderCard?.(s.row, {
-                  id: s.id,
-                  selected: c.selected,
-                  toggleSelected: c.toggle,
-                  selectable: c.selectable,
-                  actions: actions.menu(s.row),
-                })}
-              </li>
-            );
-          })}
-        </ul>
+        (() => {
+          const cardList = (list: ShownRow<T>[], label: string) => (
+            <ul
+              className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(min(var(--dt-card-min),100%),1fr))]"
+              style={{ '--dt-card-min': cardMinWidth } as CSSProperties}
+              aria-label={label}
+              data-part="cards"
+            >
+              {list.map((s) => {
+                const c = extras.card(s);
+                return (
+                  <li key={String(s.id)} data-row-key={String(s.id)} data-state={rowState?.(s.row)} data-selected={c.selected || undefined}
+                    className={cn('min-w-0', rowState?.(s.row) === 'leaving' && 'opacity-40 transition-opacity duration-500', rowClassName?.(s.row))}>
+                    {renderCard?.(s.row, {
+                      id: s.id,
+                      selected: c.selected,
+                      toggleSelected: c.toggle,
+                      selectable: c.selectable,
+                      locked: c.locked,
+                      actions: actions.menu(s.row),
+                    })}
+                  </li>
+                );
+              })}
+            </ul>
+          );
+          const tableLabel = caption ?? msgs.tableLabel ?? 'Data table';
+          if (!props.groupBy) return cardList(model.shown, tableLabel);
+          // A heading before each group's cards; each group is its own list named by its key.
+          return (
+            <div className="space-y-4" data-part="card-groups">
+              {runs.map((run, r) => (
+                <section key={run.key ?? r} data-part="card-group">
+                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-text-secondary" data-part="group-header">
+                    {groupHeader(run.key ?? '', run.rows)}
+                  </h4>
+                  {cardList(run.rows, run.key ?? tableLabel)}
+                </section>
+              ))}
+            </div>
+          );
+        })()
       )}
     </div>
   ) : (
@@ -773,8 +909,9 @@ function TableFrame<T extends Record<string, unknown>>({
                 key={String(col.key)}
                 column={col}
                 sort={model.sort}
+                showSortOrder={userSorted}
                 filterValue={model.columnFilters[String(col.key)] ?? ''}
-                onToggleSort={model.toggleSort}
+                onToggleSort={toggleSort}
                 onSetFilter={model.setColumnFilter}
                 density={density}
                 msgs={msgs}
@@ -794,28 +931,47 @@ function TableFrame<T extends Record<string, unknown>>({
               retryLabel={msgs.retry}
             />
           ) : (
-            model.shown.map((s, index) => (
-              <BodyRow
-                key={String(s.id)}
-                rowKey={String(s.id)}
-                row={s.row}
-                columns={columns}
-                onClick={onRowClick}
-                onDoubleClick={onRowDoubleClick}
-                actions={actions.cell(s.row)}
-                state={rowState?.(s.row)}
-                className={rowClassName?.(s.row)}
-                style={rowStyle?.(s.row)}
-                unstyled={unstyled}
-                density={density}
-                focusable={keyboard}
-                tabbable={String(s.id) === tabKey}
-                onFocusRow={() => setFocusKey(String(s.id))}
-                onKeyNav={(k) =>
-                  focusRow(k === 'ArrowDown' ? index + 1 : k === 'ArrowUp' ? index - 1 : k === 'Home' ? 0 : keys.length - 1)
-                }
-                {...extras.row(s, totalCols)}
-              />
+            runs.map((run, r) => (
+              <Fragment key={run.key ?? `run-${r}`}>
+                {run.key !== null && (
+                  <tr data-part="group-header" className={unstyled ? undefined : 'bg-surface-raised'}>
+                    <th
+                      scope="rowgroup"
+                      colSpan={totalCols}
+                      className={unstyled ? undefined : cn(densityCellClass[density], 'text-left text-xs font-semibold uppercase tracking-wider text-text-secondary')}
+                    >
+                      {groupHeader(run.key, run.rows)}
+                    </th>
+                  </tr>
+                )}
+                {run.rows.map((s) => {
+                  const index = position.get(String(s.id)) ?? 0;
+                  return (
+                    <BodyRow
+                      key={String(s.id)}
+                      rowKey={String(s.id)}
+                      row={s.row}
+                      columns={columns}
+                      onClick={onRowClick}
+                      onDoubleClick={onRowDoubleClick}
+                      actions={actions.cell(s.row)}
+                      state={rowState?.(s.row)}
+                      className={rowClassName?.(s.row)}
+                      style={rowStyle?.(s.row)}
+                      unstyled={unstyled}
+                      density={density}
+                      focusable={keyboard}
+                      tabbable={String(s.id) === tabKey}
+                      onFocusRow={() => setFocusKey(String(s.id))}
+                      onKeyNav={(k) =>
+                        focusRow(k === 'ArrowDown' ? index + 1 : k === 'ArrowUp' ? index - 1 : k === 'Home' ? 0 : keys.length - 1)
+                      }
+                      cell={{ index: s.index, id: s.id }}
+                      {...extras.row(s, totalCols)}
+                    />
+                  );
+                })}
+              </Fragment>
             ))
           )}
         </tbody>
@@ -942,6 +1098,8 @@ function ClientView<T extends Record<string, unknown>>(
     initialPageSize: isStatic ? Math.max(rows.length, defaultPageSize) : defaultPageSize,
     predicate: filterUi.predicate,
     multiSort: props.multiSort,
+    searchText: props.searchText,
+    groupBy: props.groupBy,
   });
 
   const pageRows = isStatic
@@ -956,6 +1114,7 @@ function ClientView<T extends Record<string, unknown>>(
     row,
     id: resolveRowId(props.rowId, row, sourceIndex.get(row) ?? i),
     number: start + i,
+    index: sourceIndex.get(row) ?? i,
   }));
 
   const model: TableModel<T> = {
@@ -1028,11 +1187,12 @@ function ServerView<T extends Record<string, unknown>>(
   });
 
   const offset = (table.page - 1) * table.pageSize;
-  const shown = table.rows.map((row, i) => ({
+  const shown = groupShown(props.groupBy, table.rows.map((row, i) => ({
     row,
     id: resolveRowId(props.rowId, row, offset + i),
     number: offset + i + 1,
-  }));
+    index: i,
+  })));
 
   const status: DataTableStateValue =
     stateOverride ??
@@ -1111,11 +1271,12 @@ function ManualView<T extends Record<string, unknown>>(
 
   const paginated = props.total !== undefined;
   const offset = paginated ? (table.page - 1) * table.pageSize : 0;
-  const shown = rows.map((row, i) => ({
+  const shown = groupShown(props.groupBy, rows.map((row, i) => ({
     row,
     id: resolveRowId(props.rowId, row, offset + i),
     number: offset + i + 1,
-  }));
+    index: i,
+  })));
 
   const loading = props.loading ?? false;
   const status: DataTableStateValue =
@@ -1263,7 +1424,7 @@ function LegacyServerView<T extends Record<string, unknown>>(
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
+                rows.map((row, index) => (
                   <tr
                     key={getRowKey(row)}
                     onClick={(e) => onRowClick?.(row, e)}
@@ -1282,7 +1443,7 @@ function LegacyServerView<T extends Record<string, unknown>>(
                         )}
                       >
                         {col.render
-                          ? col.render(row)
+                          ? col.render(row, { index, id: getRowKey(row) })
                           : String(row[col.key as keyof T] ?? '—')}
                       </td>
                     ))}

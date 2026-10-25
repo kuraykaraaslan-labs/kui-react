@@ -9,6 +9,11 @@ type InputState = 'default' | 'error' | 'success';
 type InputProps = {
   id: string;
   label: string;
+  /**
+   * Keep the label for screen readers only (it stays the input's accessible name): an editable table cell, a
+   * toolbar control whose column heading or placeholder already says what it is.
+   */
+  hideLabel?: boolean;
   hint?: string;
   error?: string;
   success?: string;
@@ -25,6 +30,7 @@ type InputProps = {
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({
   id,
   label,
+  hideLabel = false,
   hint,
   error,
   success,
@@ -97,7 +103,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input({
 
   return (
     <div className={cn('space-y-1', className)}>
-      <label htmlFor={id} className="block text-sm font-medium text-text-primary">
+      <label htmlFor={id} className={cn(hideLabel ? 'sr-only' : 'block text-sm font-medium text-text-primary')}>
         {label}
         {required && (
           <>

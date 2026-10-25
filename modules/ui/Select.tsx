@@ -28,6 +28,11 @@ export const DEFAULT_SELECT_MESSAGES: SelectMessages = {
 type BaseProps = {
   id: string;
   label: string;
+  /**
+   * Keep the label for screen readers only (it stays the control's accessible name): an editable table cell, a
+   * toolbar control whose column heading or neighbours already say what it is.
+   */
+  hideLabel?: boolean;
   options: SelectOption[];
   placeholder?: string;
   hint?: string;
@@ -43,7 +48,7 @@ type BaseProps = {
 type NativeProps = BaseProps & Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'id'>;
 
 function CustomSelect({
-  id, label, options, placeholder, hint, error, disabled, required, searchable, className, messages,
+  id, label, hideLabel, options, placeholder, hint, error, disabled, required, searchable, className, messages,
   value, onChange,
 }: BaseProps & { value?: string; onChange?: (v: string) => void }) {
   const m = { ...DEFAULT_SELECT_MESSAGES, ...messages };
@@ -101,7 +106,7 @@ function CustomSelect({
 
   return (
     <div ref={containerRef} className={cn('space-y-1', className)} onKeyDown={onRootKeyDown}>
-      <label id={`${id}-label`} className="block text-sm font-medium text-text-primary">
+      <label id={`${id}-label`} className={cn(hideLabel ? 'sr-only' : 'block text-sm font-medium text-text-primary')}>
         {label}
         {required && <><span className="text-error ml-1" aria-hidden="true">*</span><span className="sr-only">{m.required}</span></>}
       </label>
@@ -207,14 +212,14 @@ function CustomSelect({
   );
 }
 
-export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select({ id, label, options, placeholder, hint, error, disabled, required, searchable, className, messages, ...props }, ref) {
+export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select({ id, label, hideLabel, options, placeholder, hint, error, disabled, required, searchable, className, messages, ...props }, ref) {
   const hasIcons = options.some((o) => o.icon);
 
   if (hasIcons || searchable) {
     const { value, onChange, ...rest } = props as { value?: string; onChange?: React.ChangeEventHandler<HTMLSelectElement> };
     return (
       <CustomSelect
-        id={id} label={label} options={options} placeholder={placeholder}
+        id={id} label={label} hideLabel={hideLabel} options={options} placeholder={placeholder}
         hint={hint} error={error} disabled={disabled} required={required}
         searchable={searchable} className={className} messages={messages}
         value={value as string | undefined}
@@ -230,7 +235,7 @@ export const Select = forwardRef<HTMLSelectElement, NativeProps>(function Select
 
   return (
     <div className={cn('space-y-1', className)}>
-      <label htmlFor={id} className="block text-sm font-medium text-text-primary">
+      <label htmlFor={id} className={cn(hideLabel ? 'sr-only' : 'block text-sm font-medium text-text-primary')}>
         {label}
         {required && (
           <>

@@ -156,3 +156,17 @@ describe('Select (custom combobox path — has icons or searchable)', () => {
     expect(screen.queryByRole('option', { name: 'Turkey' })).not.toBeInTheDocument();
   });
 });
+
+describe('Select hideLabel (phase 11.16)', () => {
+  it('native: the label stays the accessible name, visually hidden', () => {
+    render(<Select id="tier" label="Tier" hideLabel options={PLAIN_OPTIONS} value="us" onChange={() => {}} />);
+    expect(screen.getByLabelText('Tier').tagName).toBe('SELECT');
+    expect(document.querySelector('label[for="tier"]')).toHaveClass('sr-only');
+  });
+
+  it('custom: the combobox keeps its name from the hidden label', () => {
+    render(<Select id="tier2" label="Tier" hideLabel searchable options={PLAIN_OPTIONS} value="us" onChange={() => {}} />);
+    expect(screen.getByRole('combobox', { name: 'Tier' })).toBeInTheDocument();
+    expect(document.getElementById('tier2-label')).toHaveClass('sr-only');
+  });
+});

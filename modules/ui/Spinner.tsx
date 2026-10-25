@@ -11,9 +11,15 @@ const sizeMap = {
 
 export function Spinner({
   size = 'md',
+  label = 'Loading…',
   className,
 }: {
   size?: keyof typeof sizeMap;
+  /**
+   * Screen-reader text. `null` leaves it out, for a spinner whose visible text next to it already says it
+   * (a "Loading…" message), so the words are not read or found twice.
+   */
+  label?: string | null;
   className?: string;
 }) {
   return (
@@ -26,7 +32,7 @@ export function Spinner({
           className
         )}
       />
-      <span className="sr-only">Loading…</span>
+      {label !== null && <span className="sr-only">{label}</span>}
     </>
   );
 }

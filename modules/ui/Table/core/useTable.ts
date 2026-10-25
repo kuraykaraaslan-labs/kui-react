@@ -9,21 +9,26 @@ import type {
 
 // TODO M2: column show/hide, pinning, resize, reorder state
 // TODO M4: single / range selection (multi-select and expansion live in useRowState)
-// TODO M5: row grouping, inline-edit state
+// TODO M5: inline-edit state
+
+/** Empty cells (`null`, `undefined`, `''`) sort last in both directions, like a server's NULLS LAST. */
+function isEmptyValue(v: unknown): boolean {
+  return v === undefined || v === null || v === '';
+}
 
 /**
- * Compare two values using a localeCompare with numeric awareness.
+ * Compare two set values using a localeCompare with numeric awareness.
  * Returns negative if a<b, positive if a>b, 0 if equal.
  */
 function compareValues(a: unknown, b: unknown): number {
-  const av = a === undefined || a === null ? '' : a;
-  const bv = b === undefined || b === null ? '' : b;
-  return String(av).localeCompare(String(bv), undefined, { numeric: true });
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
+  return String(a).localeCompare(String(b), undefined, { numeric: true });
 }
 
 /**
  * Apply multi-column sort. Sort entries are evaluated in order; the first
- * one that returns a non-zero comparison wins.
+ * one that returns a non-zero comparison wins. Empty values go last whatever the direction.
  */
 export function applySort<T extends Record<string, unknown>>(
   rows: T[],
@@ -32,7 +37,15 @@ export function applySort<T extends Record<string, unknown>>(
   if (!sort.length) return rows;
   return [...rows].sort((a, b) => {
     for (const s of sort) {
-      const cmp = compareValues(a[s.key as keyof T], b[s.key as keyof T]);
+      const av = a[s.key as keyof T];
+      const bv = b[s.key as keyof T];
+      const ae = isEmptyValue(av);
+      const be = isEmptyValue(bv);
+      if (ae || be) {
+        if (ae && be) continue;
+        return ae ? 1 : -1;
+      }
+      const cmp = compareValues(av, bv);
       if (cmp !== 0) return s.dir === 'asc' ? cmp : -cmp;
     }
     return 0;
@@ -41,28 +54,49 @@ export function applySort<T extends Record<string, unknown>>(
 
 /**
  * Filter rows by a global search query — case-insensitive substring match
- * across the stringified value of every column on every row.
+ * across every searchable column (`Column.searchValue`, else `row[key]`) and the
+ * table's extra `searchText`.
  */
 export function applySearch<T extends Record<string, unknown>>(
   rows: T[],
   columns: Column<T>[],
   query: string,
+  searchText?: (row: T) => string,
 ): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return rows;
-  return rows.filter((row) =>
-    columns.some((col) => {
-      if (col.render) {
-        // Custom-render columns: fall back to raw key lookup if available.
-        const raw = row[col.key as keyof T];
-        if (raw === undefined || raw === null) return false;
-        return String(raw).toLowerCase().includes(q);
-      }
-      return String(row[col.key as keyof T] ?? '')
-        .toLowerCase()
-        .includes(q);
-    }),
-  );
+  const searched = columns.filter((col) => col.searchable !== false);
+  return rows.filter((row) => {
+    if (searchText && searchText(row).toLowerCase().includes(q)) return true;
+    return searched.some((col) => {
+      const raw = col.searchValue ? col.searchValue(row) : row[col.key as keyof T];
+      if (raw === undefined || raw === null) return false;
+      return String(raw).toLowerCase().includes(q);
+    });
+  });
+}
+
+/**
+ * Rows of one group together (`groupBy`), groups in the order they first appear in `order`
+ * (the unsorted rows), each group keeping the order `rows` gave it (the sort).
+ */
+export function applyGrouping<T>(rows: T[], groupBy: (row: T) => string, order: readonly T[]): T[] {
+  const rank = new Map<string, number>();
+  for (const row of order) {
+    const g = groupBy(row);
+    if (!rank.has(g)) rank.set(g, rank.size);
+  }
+  const buckets = new Map<string, T[]>();
+  for (const row of rows) {
+    const g = groupBy(row);
+    if (!rank.has(g)) rank.set(g, rank.size);
+    const list = buckets.get(g);
+    if (list) list.push(row);
+    else buckets.set(g, [row]);
+  }
+  return [...buckets.entries()]
+    .sort((a, b) => (rank.get(a[0]) ?? 0) - (rank.get(b[0]) ?? 0))
+    .flatMap(([, list]) => list);
 }
 
 /**
@@ -132,6 +166,10 @@ export type UseTableArgs<T extends Record<string, unknown>> = {
   predicate?: (row: T) => boolean;
   /** `false` (default `true`): a click on another column replaces the sort even with shift held. */
   multiSort?: boolean;
+  /** Extra text the search matches per row (keep it stable between renders). */
+  searchText?: (row: T) => string;
+  /** Keeps each group's rows together, sorted within the group (keep it stable between renders). */
+  groupBy?: (row: T) => string;
 };
 
 /**
@@ -147,6 +185,8 @@ export function useTable<T extends Record<string, unknown>>({
   initialSearch = '',
   predicate,
   multiSort = true,
+  searchText,
+  groupBy,
 }: UseTableArgs<T>) {
   const [sort, setSort] = useState<SortState[]>(initialSort);
   const [page, setPage] = useState(1);
@@ -155,10 +195,13 @@ export function useTable<T extends Record<string, unknown>>({
   const [filters, setFilters] = useState<FilterState>(initialFilters);
 
   const filtered = useMemo(() => {
-    const narrowed = applyColumnFilters(applySearch(rows, columns, search), columns, filters);
+    const narrowed = applyColumnFilters(applySearch(rows, columns, search, searchText), columns, filters);
     return predicate ? narrowed.filter(predicate) : narrowed;
-  }, [rows, columns, search, filters, predicate]);
-  const sorted = useMemo(() => applySort(filtered, sort), [filtered, sort]);
+  }, [rows, columns, search, filters, predicate, searchText]);
+  const sorted = useMemo(() => {
+    const ordered = applySort(filtered, sort);
+    return groupBy ? applyGrouping(ordered, groupBy, rows) : ordered;
+  }, [filtered, sort, groupBy, rows]);
 
   const total = sorted.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

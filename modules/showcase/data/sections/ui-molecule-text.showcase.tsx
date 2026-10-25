@@ -93,6 +93,11 @@ export function Input({ id, label, hint, error, required, className, ...props })
           code: `<Input id="email" label="Email" type="email" placeholder="you@example.com" hint="We'll never share your email." />`,
         },
         {
+          title: 'Hidden label (hideLabel)',
+          preview: <div className="w-full max-w-xs"><Input id="sc-in-hidden" label="Quantity of Widget A" hideLabel type="number" placeholder="Qty" /></div>,
+          code: `// An editable table cell: the column heading shows what it is; the label stays the accessible name.\n<Input id="qty-a" label="Quantity of Widget A" hideLabel type="number" />`,
+        },
+        {
           title: 'Error',
           preview: <div className="w-full max-w-xs"><Input id="sc-in-error" label="Email" type="email" error="A valid email address is required." required /></div>,
           code: `<Input id="email" label="Email" type="email" error="A valid email address is required." required />`,
