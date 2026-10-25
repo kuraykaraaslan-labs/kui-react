@@ -10,6 +10,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronLeft, faChevronRight, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
+import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { sceneModel } from './scada-scene-logic';
 import {
   addElement, align, apply as historyApply, canRedo, canUndo, captureAssembly, createHistory, deleteSelection, distribute, duplicate, insertAssembly,
@@ -597,16 +598,16 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
         </Overlay>
       )}
 
-      {confirming && (
-        <Overlay label={m.dirtyTitle} alert onEscape={() => setConfirming(false)}>
-          <h3 className="text-sm font-semibold">{m.dirtyTitle}</h3>
-          <p className="mt-1 text-sm text-text-secondary">{m.dirtyBody}</p>
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="ghost" size="sm" data-testid="dirty-keep" onClick={() => setConfirming(false)}>{m.dirtyKeep}</Button>
-            <Button variant="danger" size="sm" data-testid="dirty-discard" onClick={() => { setConfirming(false); onClose(); }}>{m.dirtyDiscard}</Button>
-          </div>
-        </Overlay>
-      )}
+      <ConfirmDialog
+        open={confirming}
+        title={m.dirtyTitle}
+        message={m.dirtyBody}
+        tone="danger"
+        confirmLabel={m.dirtyDiscard}
+        cancelLabel={m.dirtyKeep}
+        onCancel={() => setConfirming(false)}
+        onConfirm={() => { setConfirming(false); onClose(); }}
+      />
     </div>
   );
 }
@@ -635,7 +636,7 @@ function Panel({ title, side, open, onToggle, m, className, children, testId, wi
 }
 
 /** A dialog drawn inside the editor (no `window.confirm`, no portal): it covers the page, takes the focus and keeps it. */
-function Overlay({ label, alert, onEscape, children }: { label: string; alert?: boolean; onEscape: () => void; children: ReactNode }) {
+function Overlay({ label, onEscape, children }: { label: string; onEscape: () => void; children: ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -655,7 +656,7 @@ function Overlay({ label, alert, onEscape, children }: { label: string; alert?: 
   };
   return (
     <div className="absolute inset-0 z-40 flex items-center justify-center bg-text-primary/30 p-4" onKeyDown={key}>
-      <div ref={box} role={alert ? 'alertdialog' : 'dialog'} aria-modal="true" aria-label={label} className="w-full max-w-md rounded-lg border border-border bg-surface-raised p-4 shadow-xl">
+      <div ref={box} role="dialog" aria-modal="true" aria-label={label} className="w-full max-w-md rounded-lg border border-border bg-surface-raised p-4 shadow-xl">
         {children}
       </div>
     </div>

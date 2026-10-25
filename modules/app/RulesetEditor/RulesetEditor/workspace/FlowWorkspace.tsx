@@ -109,11 +109,11 @@ function WorkspaceBody({
   const catalogProp = editorProps.catalog;
   const normalize = useCallback((g: RulesetGraph) => ensureFlowInput(g, catalogProp), [catalogProp]);
   const draft = useDraft({ id: flow.id, initial: flow.graph, readOnly, getGraph, replaceGraph, store: draftStore, secretTest, onDirtyChange, normalize });
-  const guard = useLeaveGuard(typeof leaveGuard === 'function' ? leaveGuard(draft.dirty) : !!leaveGuard && draft.dirty, m.wsLeaveConfirm);
+  const guard = useLeaveGuard(typeof leaveGuard === 'function' ? leaveGuard(draft.dirty) : !!leaveGuard && draft.dirty, m.wsLeaveConfirm, { title: m.wsLeaveTitle, leave: m.wsLeaveAction, stay: m.wsLeaveStay });
 
   /** leaving this flow: the draft keeps what is unsaved; if the browser cannot keep it, stay and say so */
-  function leave(): boolean {
-    if (!guard.confirmLeave()) return false;
+  async function leave(): Promise<boolean> {
+    if (!(await guard.confirmLeave())) return false;
     if (draft.keep()) return true;
     say(m.wsKeepDraftFail, 'warning');
     return false;
@@ -130,7 +130,7 @@ function WorkspaceBody({
   const choices = useMemo(() => ({ ...editorProps.choices, [FLOWS_SOURCE]: editorProps.choices?.[FLOWS_SOURCE] ?? callable }), [editorProps.choices, callable]);
   const links = useFlowLinks({
     here, getGraph, otherIds, loadFlows, reveal: revealNode, notify: say,
-    jump: (hit) => { if (leave()) onOpen({ id: hit.flow }, { nodeId: hit.node }); },
+    jump: (hit) => { void leave().then((ok) => { if (ok) onOpen({ id: hit.flow }, { nodeId: hit.node }); }); },
   });
   const menuItems = useCallback((ctx: NodeMenuContext): ContextMenuItem[] => [...links.menuItems(ctx), ...(nodeMenuItems?.(ctx) ?? [])], [links, nodeMenuItems]);
 

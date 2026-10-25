@@ -148,8 +148,9 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Slider | `Slider.tsx` | `slides`, `autoPlay`, `autoPlayInterval`, `showDots`, `showArrows`, `loop` — accessible carousel |
 | Accordion | `Accordion.tsx` | `items`, `openIds`, `onChange`, `allowMultiple` |
 | ColorPicker | `ColorPicker/` | `value`, `onChange`, `format` (hex\|rgb\|hsl) |
-| Popconfirm | `Popconfirm.tsx` | `trigger`, `title`, `description`, `danger`, `onConfirm`, `onCancel` |
-| TypedConfirmDialog | `TypedConfirmDialog.tsx` | `open`, `title`, `phrase` (typed exactly to unlock), `label`, `confirmLabel`, `danger`, `busy`, `onConfirm`, `onCancel` |
+| ConfirmDialog | `ConfirmDialog.tsx` | **The** confirmation: `open`, `title`, `message`, `tone` (default\|warning\|danger), `confirmLabel`, `cancelLabel`, `secondaryLabel`, `details`, gates `input` (text\|textarea\|date, `required`, `minLength`), `acknowledgement` (responsibility text to tick), `phrase` (typed exactly), `busy`, `error`, `onConfirm({ value, choice })`, `onCancel`. Imperative: `confirmDialog(options)` / `useConfirm()` + one `<ConfirmHost />` at the root; `action` runs inside the dialog. Never `window.confirm` / `window.prompt` |
+| Popconfirm | `Popconfirm.tsx` | **Deprecated for confirmations** (use ConfirmDialog): `trigger`, `title`, `description`, `danger`, `onConfirm`, `onCancel` |
+| TypedConfirmDialog | `TypedConfirmDialog.tsx` | **Deprecated**: thin wrapper over ConfirmDialog `phrase`. `open`, `title`, `phrase`, `label`, `confirmLabel`, `danger`, `busy`, `onConfirm`, `onCancel` |
 | RangeSlider | `RangeSlider.tsx` | `value`/`onChange`, `range` (single or `[min,max]`), `min`, `max`, `step` |
 | BulkActionTable | `BulkActionTable.tsx` | `columns`, `rows`, `rowId`, `selected`, `onSelectedChange`, `actions` |
 | KeyedTable | `KeyedTable.tsx` | `columns`, `rows`, `getRowKey`, `caption`, `onRowClick` (keyboard row focus), `rowState` (new / leaving), `selection`, `loading`, `error` + `onRetry`, `emptyText`, `messages` |

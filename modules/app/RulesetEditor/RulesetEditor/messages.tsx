@@ -59,7 +59,7 @@ export type EditorMessages = {
   wsMergedTitle: string; wsOk: string; wsBothSides: string; wsYouDeleted: string; wsNoBothSides: string; wsMergedHint: string;
   wsClose: string; wsLinkInTitle: string; wsLinkOutTitle: string; wsLinkShowCallers: string; wsLinkGoTo: string; wsNoCaller: string;
   wsFlowRunnersTitle: string; wsFlowTargetTitle: string; wsFlowShowRunners: string; wsFlowGoTo: string; wsNoRunner: string; wsNoFlowInput: string;
-  wsLeaveConfirm: string; wsKeepDraftFail: string;
+  wsLeaveConfirm: string; wsLeaveTitle: string; wsLeaveAction: string; wsLeaveStay: string; wsKeepDraftFail: string;
   wsDraftFound: (time: string) => string;
   wsConflictNewer: (whoWhen: string) => string;
   wsMergedSummary: (whoWhen: string, taken: number) => string;
@@ -197,6 +197,7 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   wsFlowRunnersTitle: 'Blocks that run this flow', wsFlowTargetTitle: 'The flow this block runs', wsFlowShowRunners: 'Show the blocks that run this flow',
   wsFlowGoTo: 'Go to the Flow input of that flow', wsNoRunner: 'No Run flow block runs this flow.', wsNoFlowInput: 'The flow this block runs has no Flow input block.',
   wsLeaveConfirm: 'You have changes that are not saved. Leave without saving them?',
+  wsLeaveTitle: 'Leave without saving', wsLeaveAction: 'Leave', wsLeaveStay: 'Stay',
   wsKeepDraftFail: 'Save or undo your changes first: this browser cannot keep a draft.',
   wsDraftFound: (time) => `Unsaved changes from ${time} were kept in this browser.`,
   wsConflictNewer: (who) => `The version of ${who} is newer than the one you started from.`,

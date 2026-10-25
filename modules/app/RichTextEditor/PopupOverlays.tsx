@@ -1,4 +1,5 @@
 'use client';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { ImageInsertModal } from './ImageInsertModal';
 import { TableInsertModal } from './TableInsertModal';
 import { EmojiPicker } from './EmojiPicker';
@@ -70,7 +71,7 @@ export function PopupOverlays({
         position={bubble.position}
         active={active as { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean }}
         onToggle={(fmt) => onApplyFormat(fmt, !active[fmt])}
-        onLink={() => { const url = window.prompt('Link URL'); if (url) onApplyFormat('link', url); }}
+        onLink={() => { void confirmDialog({ title: 'Add link', confirmLabel: 'Add link', input: { kind: 'text', label: 'Link URL', placeholder: 'https://', required: true } }).then((r) => { if (r) onApplyFormat('link', r.value); }); }}
       />
       <SuggestionPopup
         open={mention.open && filteredMentions.length > 0}

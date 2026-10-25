@@ -182,7 +182,7 @@ describe('DeviceDetailView', () => {
     const adapter = createFakeAdapter();
     wrap(<DeviceDetailView deviceId="d1" tab="credentials" />, { adapter });
     await user.click(await screen.findByRole('button', { name: 'Rotate secret' }));
-    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Rotate secret' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Rotate secret' }));
     await user.click(await screen.findByRole('button', { name: 'Show' }));
     expect(screen.getByTestId('issued-secret')).toHaveTextContent('NEW-ONE');
     await user.click(screen.getByRole('button', { name: 'I have stored it' }));

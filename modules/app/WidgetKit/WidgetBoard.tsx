@@ -8,6 +8,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Drawer } from '@/modules/ui/Drawer';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { PlacementCard } from './PlacementCard';
 import { WidgetSettingsEditor } from './WidgetSettingsEditor';
 import { CORE_BOARD } from './settings/core';
@@ -141,7 +142,11 @@ export function WidgetBoard({
     const res = importBoard(await file.text(), kinds, { defaultTitle: m.defaultTitle });
     if ('error' in res) { setImportError(importRefusalText(res, m)); return; }
     setImportError(res.unknownTypes.length ? m.skippedTypes(res.unknownTypes.join(', ')) : null);
-    if (window.confirm(m.replaceConfirm(res.doc.board.title, res.doc.placements.length))) onChange?.(res.doc);
+    const ok = await confirmDialog({
+      title: m.replaceTitle, message: m.replaceConfirm(res.doc.board.title, res.doc.placements.length),
+      tone: 'warning', confirmLabel: m.replaceAction, cancelLabel: m.replaceCancel,
+    });
+    if (ok) onChange?.(res.doc);
   };
 
   return (

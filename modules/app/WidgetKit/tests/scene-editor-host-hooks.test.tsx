@@ -60,7 +60,7 @@ describe('host.dirty', () => {
     const m = mount({ host: { dirty: true } });
     expect(screen.getByTestId('editor-apply')).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /^Close/ }));
-    expect(screen.getByTestId('dirty-keep')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Discard your changes?' })).toBeInTheDocument();
     expect(m.onClose).not.toHaveBeenCalled();
   });
   it('leaves Apply disabled when neither the diagram nor the host has edits', () => {

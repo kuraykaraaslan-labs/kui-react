@@ -85,7 +85,10 @@ export function Modal({
         'fixed inset-0 z-[100] flex p-4 transition-opacity duration-200',
         fullscreen ? 'items-stretch justify-stretch' : 'items-center justify-center',
         state === 'open' ? 'opacity-100' : 'opacity-0',
+        // A closing dialog is only a fading picture: it takes no clicks and is out of the accessibility tree.
+        state === 'closing' && 'pointer-events-none',
       )}
+      aria-hidden={state === 'closing' || undefined}
       aria-modal="true"
       role="dialog"
       aria-labelledby={titleId}

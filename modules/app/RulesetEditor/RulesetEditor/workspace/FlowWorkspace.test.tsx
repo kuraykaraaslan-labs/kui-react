@@ -1,6 +1,7 @@
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { FlowWorkspace, type FlowWorkspaceProps, type FlowWorkspaceRef } from './FlowWorkspace';
 import { catalogFromBlocks, FLOW_BLOCKS } from '../../catalog';
 import { createDraftStore, draftKey, type DraftStorage, type DraftStore } from '../../graph/draft';
@@ -225,7 +226,7 @@ describe('FlowWorkspace: link jumps', () => {
     const hits = await screen.findAllByTestId('flow-link-hit');
     expect(hits.map((h) => h.textContent)).toEqual(['Name of night › Alarm in', 'Name of calc › Alarm in too']);
     fireEvent.click(hits[1]);
-    expect(onOpen).toHaveBeenCalledWith({ id: 'calc' }, { nodeId: 'a2' });
+    await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ id: 'calc' }, { nodeId: 'a2' }));
     expect(screen.queryByTestId('flow-link-hits')).not.toBeInTheDocument();
   });
 
@@ -452,53 +453,53 @@ describe('FlowWorkspace: leave guard', () => {
   const unload = () => { const e = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(e); return e.defaultPrevented; };
   const change = (ref: React.RefObject<FlowWorkspaceRef | null>) => edit(ref, LEAVER(340));
 
+  // The question is the kit's ConfirmDialog (vitest.setup.ts mounts its host): "Stay" keeps the flow, "Leave" goes.
+  const leaveDialog = () => screen.queryByRole('dialog', { name: 'Leave without saving' });
   it('does nothing unless the host switches it on', async () => {
-    const confirm = vi.spyOn(window, 'confirm');
     const { ref, onOpen } = setup(leaverProps());
     change(ref);
     expect(unload()).toBe(false);
     await jumpAway();
     await waitFor(() => expect(onOpen).toHaveBeenCalled());
-    expect(confirm).not.toHaveBeenCalled();
-    confirm.mockRestore();
+    expect(leaveDialog()).toBeNull();
   });
   it('guards a reload and a jump that leaves, while the flow is dirty', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
     const { ref, onOpen } = setup({ ...leaverProps(), leaveGuard: true });
     expect(unload()).toBe(false); // clean
     change(ref);
     expect(unload()).toBe(true);
     await jumpAway();
-    await waitFor(() => expect(confirm).toHaveBeenCalledWith('You have changes that are not saved. Leave without saving them?'));
+    expect(await screen.findByText('You have changes that are not saved. Leave without saving them?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
     expect(onOpen).not.toHaveBeenCalled();
-    confirm.mockReturnValue(true);
+    await waitFor(() => expect(leaveDialog()).toBeNull());
     await jumpAway();
+    await user.click(await screen.findByRole('button', { name: 'Leave' }));
     await waitFor(() => expect(onOpen).toHaveBeenCalledWith({ id: 'night' }, { nodeId: 'a1' }));
-    confirm.mockRestore();
   });
   it('lets the host decide with a function of dirty (a change already in the server draft is not guarded)', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     let kept = true;
     const { ref, onOpen } = setup({ ...leaverProps(), leaveGuard: (dirty) => dirty && !kept });
     change(ref);
     expect(unload()).toBe(false);
     await jumpAway();
     await waitFor(() => expect(onOpen).toHaveBeenCalled());
-    expect(confirm).not.toHaveBeenCalled();
+    expect(leaveDialog()).toBeNull();
     kept = false;
     cleanup();
     const second = setup({ leaveGuard: (dirty) => dirty && !kept });
     change(second.ref);
     expect(unload()).toBe(true);
-    confirm.mockRestore();
   });
   it('says it in the host words', async () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    const { ref } = setup({ ...leaverProps(), leaveGuard: true, messages: { wsLeaveConfirm: 'Ungespeicherte Änderungen verwerfen?' } });
+    const { ref } = setup({ ...leaverProps(), leaveGuard: true, messages: { wsLeaveConfirm: 'Ungespeicherte Änderungen verwerfen?', wsLeaveTitle: 'Ohne Speichern verlassen', wsLeaveAction: 'Verlassen', wsLeaveStay: 'Bleiben' } });
     change(ref);
     await jumpAway();
-    await waitFor(() => expect(confirm).toHaveBeenCalledWith('Ungespeicherte Änderungen verwerfen?'));
-    confirm.mockRestore();
+    expect(await screen.findByText('Ungespeicherte Änderungen verwerfen?')).toBeInTheDocument();
+    expect(screen.getByText('Ohne Speichern verlassen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Verlassen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Bleiben' })).toBeInTheDocument();
   });
 });
 

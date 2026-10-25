@@ -8,7 +8,7 @@ import { Button } from '@/modules/ui/Button';
 import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
 import { PageHeader } from '@/modules/ui/PageHeader';
 import { Pagination } from '@/modules/ui/Pagination';
-import { Popconfirm } from '@/modules/ui/Popconfirm';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SearchBar } from '@/modules/ui/SearchBar';
 import { Select } from '@/modules/ui/Select';
 import { errorMessage, type ProfileListQuery } from '../api/adapter';
@@ -183,20 +183,9 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
                 </Button>
               </span>
             ) : (
-              <Popconfirm
-                trigger={(
-                  <Button variant="ghost" size="xs" aria-label={`${m.profiles.delete} ${p.name}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>
+              <Button onClick={() => { void confirmDialog({ title: fill(m.profiles.deleteConfirm, { name: p.name }), message: inUse ? fill(m.profiles.deleteInUse, { list: inUse }) : m.profiles.deleteHint, tone: 'danger', confirmLabel: m.profiles.delete, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void remove(p); }); }} variant="ghost" size="xs" aria-label={`${m.profiles.delete} ${p.name}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>
                     <span className="sr-only">{m.profiles.delete}</span>
                   </Button>
-                )}
-                title={fill(m.profiles.deleteConfirm, { name: p.name })}
-                description={inUse ? fill(m.profiles.deleteInUse, { list: inUse }) : m.profiles.deleteHint}
-                confirmLabel={m.profiles.delete}
-                cancelLabel={m.common.cancel}
-                danger
-                placement="bottom"
-                onConfirm={() => void remove(p)}
-              />
             ))}
           </span>
         );

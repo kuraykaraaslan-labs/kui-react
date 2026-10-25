@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faCopy, faPowerOff, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
-import { Popconfirm } from '@/modules/ui/Popconfirm';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { TabGroup, type Tab } from '@/modules/ui/TabGroup';
 import { errorMessage } from '../api/adapter';
@@ -154,20 +154,9 @@ export function DeviceDetailView({
             )}
             {actions}
             {caps.canDeleteDevice && api.remove && (
-              <Popconfirm
-                trigger={(
-                  <Button variant="ghost" size="sm" iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>
+              <Button onClick={() => { void confirmDialog({ title: m.device.deleteConfirm, message: m.device.deleteHint, tone: 'danger', confirmLabel: m.device.delete, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void remove(); }); }} variant="ghost" size="sm" iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>
                     {m.device.delete}
                   </Button>
-                )}
-                title={m.device.deleteConfirm}
-                description={m.device.deleteHint}
-                confirmLabel={m.device.delete}
-                cancelLabel={m.common.cancel}
-                danger
-                placement="bottom"
-                onConfirm={() => void remove()}
-              />
             )}
           </>
         )}

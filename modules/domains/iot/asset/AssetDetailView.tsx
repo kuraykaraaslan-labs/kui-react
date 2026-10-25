@@ -5,7 +5,7 @@ import { faArrowsUpDownLeftRight, faPen, faPlus, faTrash } from '@fortawesome/fr
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { Pagination } from '@/modules/ui/Pagination';
-import { Popconfirm } from '@/modules/ui/Popconfirm';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { TabGroup, type Tab } from '@/modules/ui/TabGroup';
 import { Toggle } from '@/modules/ui/Toggle';
@@ -149,18 +149,7 @@ export function AssetDetailView({
               <Button variant="outline" size="sm" onClick={() => setAddingChild(true)} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>{m.asset.addChild}</Button>
               <Button variant="ghost" size="sm" onClick={() => setEditing(true)} iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>{m.asset.edit}</Button>
               <Button variant="ghost" size="sm" onClick={() => setMoving(true)} iconLeft={<FontAwesomeIcon icon={faArrowsUpDownLeftRight} className="h-3 w-3" aria-hidden="true" />}>{m.asset.move}</Button>
-              <Popconfirm
-                trigger={(
-                  <Button variant="ghost" size="sm" loading={deleting} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.asset.delete}</Button>
-                )}
-                title={fill(m.asset.deleteConfirm, { name: a.name })}
-                description={m.asset.deleteHint}
-                confirmLabel={m.asset.delete}
-                cancelLabel={m.common.cancel}
-                danger
-                placement="bottom"
-                onConfirm={() => void remove()}
-              />
+              <Button onClick={() => { void confirmDialog({ title: fill(m.asset.deleteConfirm, { name: a.name }), message: m.asset.deleteHint, tone: 'danger', confirmLabel: m.asset.delete, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void remove(); }); }} variant="ghost" size="sm" loading={deleting} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.asset.delete}</Button>
             </div>
           )}
         </div>

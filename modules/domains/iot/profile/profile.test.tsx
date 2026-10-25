@@ -271,7 +271,7 @@ describe('DeviceProfileListView', () => {
     await user.click(within(row).getByRole('button', { name: 'Make default' }));
     await waitFor(() => expect(adapter.profiles!.setDefault).toHaveBeenCalledWith('p2'));
     await user.click(within(row).getByRole('button', { name: 'Delete Meters' }));
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'error', message: 'The device profile is still in use by 2 devices (iot_device).' }));
     expect(within(screen.getByText('Pumps').closest('tr')!).getByRole('button', { name: /Delete Pumps/ })).toBeDisabled();
     await user.selectOptions(screen.getByLabelText('Transport'), 'HTTP');

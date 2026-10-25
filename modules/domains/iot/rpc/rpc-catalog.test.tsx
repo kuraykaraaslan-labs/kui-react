@@ -59,7 +59,7 @@ describe('RpcCommandCatalogEditor', () => {
     expect(patch).not.toHaveProperty('method');
     expect(patch).toMatchObject({ label: 'Restart the router', confirmText: 'REBOOT', highImpact: true });
     await user.click(screen.getByRole('button', { name: 'Remove sys.info' }));
-    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Remove' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(api.remove).toHaveBeenCalledWith('p1', 'c1'));
   });
 

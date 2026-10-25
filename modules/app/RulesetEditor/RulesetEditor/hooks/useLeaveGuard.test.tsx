@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { useLeaveGuard } from './useLeaveGuard';
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -24,16 +25,20 @@ describe('useLeaveGuard', () => {
     unmount();
     expect(unload().defaultPrevented).toBe(false);
   });
-  it('confirmLeave asks only while active, and says what the user answered', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('confirmLeave asks (the kit ConfirmDialog) only while active, and says what the user answered', async () => {
+    const user = userEvent.setup();
     let guard!: ReturnType<typeof useLeaveGuard>;
     const { rerender } = render(<Probe active={false} onGuard={(g) => { guard = g; }} />);
-    expect(guard.confirmLeave()).toBe(true);
-    expect(confirm).not.toHaveBeenCalled();
+    expect(await guard.confirmLeave()).toBe(true);
+    expect(screen.queryByRole('dialog')).toBeNull();
     rerender(<Probe active onGuard={(g) => { guard = g; }} />);
-    expect(guard.confirmLeave()).toBe(false);
-    expect(confirm).toHaveBeenCalledWith('Leave without saving?');
-    confirm.mockReturnValue(true);
-    expect(guard.confirmLeave()).toBe(true);
+    let answer!: Promise<boolean>;
+    act(() => { answer = guard.confirmLeave(); });
+    expect(await screen.findByText('Leave without saving?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
+    expect(await answer).toBe(false);
+    act(() => { answer = guard.confirmLeave(); });
+    await user.click(await screen.findByRole('button', { name: 'Leave' }));
+    expect(await answer).toBe(true);
   });
 });

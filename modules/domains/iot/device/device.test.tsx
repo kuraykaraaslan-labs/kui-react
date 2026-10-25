@@ -105,9 +105,10 @@ describe('DeviceCredentialPanel', () => {
     expect(screen.getByText('pump-4')).toBeInTheDocument();
     expect(screen.getByText('c-1')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Rotate secret' }));
-    const confirm = screen.getByRole('alertdialog');
+    const confirm = await screen.findByRole('dialog');
     await user.click(within(confirm).getByRole('button', { name: 'Rotate secret' }));
-    expect(onRotate).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onRotate).toHaveBeenCalledOnce());
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     rerender(<DeviceCredentialPanel credential={{ type: 'X509_CERTIFICATE', certFingerprint: 'ab'.repeat(32) }} onRotate={onRotate} />);
     expect(screen.queryByRole('button', { name: 'Rotate secret' })).toBeNull();
     expect(screen.getByText(/private key stays on the device/)).toBeInTheDocument();
