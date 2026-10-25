@@ -1,11 +1,15 @@
 'use client';
+import { useEffect, useRef } from 'react';
+import { usePathname } from 'next/navigation';
+
 /**
- * Route-aware auto-close hook.
- *
- * TODO M6: Wire up to Next.js `usePathname()` / `useSearchParams()` so
- * overlays with `closeOnRouteChange` opt-in dismiss themselves when the
- * route changes. For M1 this is a no-op stub so the prop is accepted
- * but does nothing — keeps the public API stable across milestones.
+ * Route-aware auto-close: an overlay with `closeOnRouteChange` calls `onClose`
+ * when the Next.js pathname changes while it is open — the nav-drawer case,
+ * where a link inside the drawer navigates client-side and the drawer would
+ * otherwise stay over the new page. Query-string changes do not close it:
+ * reading them (useSearchParams) would force every statically rendered page
+ * that shows an overlay into a Suspense boundary. Outside the App Router
+ * usePathname returns null, so nothing ever closes.
  */
 
 type Options = {
@@ -14,7 +18,13 @@ type Options = {
   onClose: () => void;
 };
 
-export function useRouteClose(_opts: Options): void {
-  // TODO M6: subscribe to pathname / searchParams and call onClose
-  // when they change while `active && closeOnRouteChange`.
+export function useRouteClose({ active, closeOnRouteChange, onClose }: Options): void {
+  const pathname = usePathname();
+  const last = useRef(pathname);
+
+  useEffect(() => {
+    if (last.current === pathname) return;
+    last.current = pathname;
+    if (active && closeOnRouteChange) onClose();
+  }, [pathname, active, closeOnRouteChange, onClose]);
 }

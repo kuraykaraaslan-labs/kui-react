@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T07:42:38.625Z",
+  "generatedAt": "2026-10-25T07:43:03.141Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1574,7 +1574,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Overlays/Drawer/index.tsx",
       "abbr": "Dr",
-      "description": "Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). Accepts closeOnRouteChange (M6 stub).",
+      "description": "Side panel sliding in from the screen edge. Left / right placement with focus management and Escape close. Body scroll is locked while open via the shared Overlays useScrollLock hook (iOS rubber-band safe). closeOnRouteChange closes it when the Next.js pathname changes while open, as the AppShell mobile sidebar does.",
       "status": "stable",
       "since": "2025-02",
       "designTokens": [
@@ -1829,7 +1829,7 @@
       "category": "App",
       "filePath": "modules/app/AppSidebar.tsx",
       "abbr": "Ab",
-      "description": "Collapsible side navigation. Accepts navGroups or navItems with a built-in collapse toggle. The searchable prop adds an inline filter; a header slot (above the nav groups) and a footer slot can host a workspace switcher, a user block or any content. Item badges take a count or any node. The active item, link or button, is marked aria-current=\"page\"; collapsed, the nav reserves no scrollbar gutter, so the icons stay centered.",
+      "description": "Collapsible side navigation. Accepts navGroups or navItems with a built-in collapse toggle. The searchable prop adds an inline filter; a header slot (above the nav groups) and a footer slot can host a workspace switcher, a user block or any content. Item badges take a count or any node. Items nest through children, indented behind a disclosure toggle; the branch holding the active item opens, also when activeId changes after client-side navigation, and search keeps the branch down to a match. renderLink swaps the plain anchors for a router Link. headerClassName / footerClassName style the slot wrappers, e.g. to hide the whole strip at a breakpoint. The active item, link or button, is marked aria-current=\"page\"; collapsed, the nav shows top-level items only and reserves no scrollbar gutter, so the icons stay centered.",
       "status": "stable",
       "since": "2025-03",
       "designTokens": [
@@ -1843,7 +1843,7 @@
         "--text-primary",
         "--text-secondary"
       ],
-      "variantCount": 4
+      "variantCount": 5
     },
     {
       "id": "app-top-bar",

@@ -30,6 +30,23 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- AppSidebar nested items: `AppSidebarNavItem.children` (any depth) render indented behind a disclosure toggle;
+  a parent with an `href` keeps its link and gets a separate chevron button, a parent without one toggles from its
+  whole row. `defaultExpanded` opens a branch; the branch holding the active item always starts open, a collapsible
+  group counts a nested active item as its own, and search keeps the branch down to a match (a matching parent keeps
+  its subtree). Icon-only mode shows top-level items only and gives the one holding the active page the active look.
+- AppSidebar `renderLink(item, props)` renders linked items yourself, e.g. `<Link {...props} />` from next/link, as
+  `Breadcrumb` and `DocPager` already allow. Because the sidebar then survives a page change, a new `activeId` opens
+  its group and branch.
+- AppSidebar `headerClassName` / `footerClassName` style the slots' bordered wrappers, e.g. `md:hidden` to drop the
+  whole strip at a breakpoint. A `false` or `''` slot no longer draws an empty strip. Found while building
+  @kuraykaraaslan/docs, whose phone-only navbar links in the sidebar header left a bordered strip on desktop.
+  Same nesting and slot classes in kui-ejs's AppSidebar.ejs; KUInative has no AppSidebar.
+- Overlays `closeOnRouteChange` works: `useRouteClose` (a no-op stub until now, "TODO M6") calls `onClose` when the
+  Next.js pathname changes while a Drawer or Modal is open. Query-string changes do not count, so no static page needs a
+  Suspense boundary for it. AppShell's mobile sidebar drawer opts in, so a client-side link inside it (AppSidebar
+  `renderLink`) closes the drawer instead of leaving it over the new page. Server-rendered kui-ejs has no counterpart:
+  its links reload the page.
 - `DataTable`: row selection in every mode (`selectable`, `rowId`, `selectedRowIds`, `defaultSelectedRowIds`,
   `onSelectionChange`), keyed by row id so sorting, search and paging never select the wrong row; the header checkbox
   selects the rows shown and a "{count} selected" line offers Clear selection. Expandable detail rows (`renderExpanded`)

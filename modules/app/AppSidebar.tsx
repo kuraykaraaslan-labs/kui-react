@@ -13,6 +13,10 @@ export type AppSidebarNavItem = {
   /** A count (shown when above 0) or any node, e.g. a status `Badge` or a dot. */
   badge?: number | React.ReactNode;
   href?: string;
+  /** Nested items, shown indented under this one behind a disclosure toggle. */
+  children?: AppSidebarNavItem[];
+  /** Start this item's children expanded. A branch holding the active item always starts expanded. */
+  defaultExpanded?: boolean;
 };
 
 export type AppSidebarNavGroup = {
@@ -31,6 +35,15 @@ export type AppSidebarFooterRenderContext = AppSidebarSlotRenderContext;
 
 type AppSidebarSlot = React.ReactNode | ((context: AppSidebarSlotRenderContext) => React.ReactNode);
 
+/** What `renderLink` must put on the element it renders. */
+export type AppSidebarLinkProps = {
+  href: string;
+  className: string;
+  title?: string;
+  'aria-current'?: 'page';
+  children: React.ReactNode;
+};
+
 type AppSidebarProps = {
   navGroups?: AppSidebarNavGroup[];
   navItems?: AppSidebarNavItem[];
@@ -42,9 +55,58 @@ type AppSidebarProps = {
   /** Rendered above the nav groups (below the collapse toggle), e.g. a workspace switcher. */
   header?: AppSidebarSlot;
   footer?: AppSidebarSlot;
+  /** Classes on the header slot's bordered wrapper, e.g. `md:hidden` to drop the whole strip at a breakpoint. */
+  headerClassName?: string;
+  /** Classes on the footer slot's bordered wrapper. */
+  footerClassName?: string;
+  /** Render a linked item yourself (a router `Link` for client-side navigation); defaults to a plain anchor. */
+  renderLink?: (item: AppSidebarNavItem & { href: string }, props: AppSidebarLinkProps) => React.ReactNode;
   searchable?: boolean;
   className?: string;
 };
+
+function containsId(item: AppSidebarNavItem, id: string | undefined): boolean {
+  if (id === undefined) return false;
+  return item.id === id || (item.children ?? []).some((c) => containsId(c, id));
+}
+
+/** Ids of the items whose branch holds `id` (the item itself excluded). */
+function ancestorIds(items: AppSidebarNavItem[], id: string | undefined, trail: string[] = []): string[] {
+  if (id === undefined) return [];
+  for (const item of items) {
+    if (item.id === id) return trail;
+    if (item.children?.length) {
+      const found = ancestorIds(item.children, id, [...trail, item.id]);
+      if (found.length) return found;
+    }
+  }
+  return [];
+}
+
+function collectDefaultExpanded(items: AppSidebarNavItem[], into: Set<string>) {
+  for (const item of items) {
+    if (item.defaultExpanded && item.children?.length) into.add(item.id);
+    if (item.children) collectDefaultExpanded(item.children, into);
+  }
+}
+
+/** Keeps an item whose label matches (with its whole subtree), or the branch down to a matching descendant. */
+function filterItems(items: AppSidebarNavItem[], q: string): AppSidebarNavItem[] {
+  const out: AppSidebarNavItem[] = [];
+  for (const item of items) {
+    if (item.label.toLowerCase().includes(q)) out.push(item);
+    else if (item.children?.length) {
+      const children = filterItems(item.children, q);
+      if (children.length) out.push({ ...item, children });
+    }
+  }
+  return out;
+}
+
+/** A slot counts as empty for null, undefined, false and '' — none of them get a bordered wrapper. */
+function hasContent(node: React.ReactNode): boolean {
+  return node !== null && node !== undefined && node !== false && node !== '';
+}
 
 export function AppSidebar({
   navGroups,
@@ -56,6 +118,9 @@ export function AppSidebar({
   onCollapsedChange,
   header,
   footer,
+  headerClassName,
+  footerClassName,
+  renderLink,
   searchable = true,
   className,
 }: AppSidebarProps) {
@@ -67,11 +132,29 @@ export function AppSidebar({
     for (const g of resolvedGroups) {
       if (!g.collapsible) continue;
       const key = g.label ?? '';
-      const containsActive = g.items.some((i) => i.id === activeId);
+      const containsActive = g.items.some((i) => containsId(i, activeId));
       if (containsActive || g.defaultExpanded) initial.add(key);
     }
     return initial;
   });
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
+    const allItems = (navGroups ?? (navItems ? [{ items: navItems }] : [])).flatMap((g) => g.items);
+    const initial = new Set<string>(ancestorIds(allItems, activeId));
+    collectDefaultExpanded(allItems, initial);
+    return initial;
+  });
+  // With client-side navigation (renderLink) the sidebar outlives a page change, so
+  // a newly active item's group and branch are opened when activeId moves —
+  // adjusted during render, React's pattern for state derived from a prop.
+  const [seenActiveId, setSeenActiveId] = useState(activeId);
+  if (activeId !== seenActiveId) {
+    setSeenActiveId(activeId);
+    const allGroups = navGroups ?? (navItems ? [{ items: navItems }] : []);
+    const owner = allGroups.find((g) => g.collapsible && g.items.some((i) => containsId(i, activeId)));
+    if (owner) setExpandedGroups((prev) => new Set(prev).add(owner.label ?? ''));
+    const trail = ancestorIds(allGroups.flatMap((g) => g.items), activeId);
+    if (trail.length) setExpandedItems((prev) => new Set([...prev, ...trail]));
+  }
   const [isDesktop, setIsDesktop] = useState(() => {
     if (!isBrowser) {
       return true;
@@ -100,7 +183,7 @@ export function AppSidebar({
   const rawGroups: AppSidebarNavGroup[] = navGroups ?? (navItems ? [{ items: navItems }] : []);
   const groups: AppSidebarNavGroup[] = q
     ? rawGroups
-        .map((g) => ({ ...g, items: g.items.filter((i) => i.label.toLowerCase().includes(q)) }))
+        .map((g) => ({ ...g, items: filterItems(g.items, q) }))
         .filter((g) => g.items.length > 0)
     : rawGroups;
   const footerContent = typeof footer === 'function'
@@ -124,6 +207,101 @@ export function AppSidebar({
       else next.add(key);
       return next;
     });
+  }
+
+  function toggleItem(id: string) {
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function renderItem(item: AppSidebarNavItem, depth: number): React.ReactNode {
+    const hasChildren = !effectiveCollapsed && Boolean(item.children?.length);
+    // A search shows every surviving branch open; otherwise the reader's toggles rule.
+    const expanded = hasChildren && (q !== '' || expandedItems.has(item.id));
+    const isActive = item.id === activeId;
+    // Icon-only mode shows top-level items only, so the one holding the active page lights up.
+    const holdsActive = effectiveCollapsed && !isActive && containsId(item, activeId);
+    const itemClassName = cn(
+      'w-full flex items-center gap-2.5 rounded-lg text-sm transition-colors',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+      effectiveCollapsed ? 'justify-center px-2 py-2' : cn('px-3 text-left', depth > 0 ? 'py-1.5' : 'py-2'),
+      isActive || holdsActive
+        ? 'bg-primary-subtle text-primary font-medium'
+        : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay'
+    );
+    const chevron = (
+      <FontAwesomeIcon
+        icon={faChevronDown}
+        className={cn('w-3 h-3 transition-transform duration-200', expanded ? 'rotate-0' : '-rotate-90')}
+        aria-hidden="true"
+      />
+    );
+    const itemContent = (
+      <>
+        {item.icon && <span aria-hidden="true" className="shrink-0 w-5 text-center text-[15px] leading-none">{item.icon}</span>}
+        {!effectiveCollapsed && <span className="flex-1 truncate">{item.label}</span>}
+        {!effectiveCollapsed && (typeof item.badge === 'number'
+          ? item.badge > 0 && <Badge variant="primary" size="sm">{item.badge}</Badge>
+          : item.badge != null && item.badge !== false && <span className="shrink-0">{item.badge}</span>
+        )}
+        {/* A parent with no page of its own: the whole row is its disclosure toggle. */}
+        {hasChildren && !item.href && chevron}
+      </>
+    );
+    const current = isActive ? ('page' as const) : undefined;
+    const title = effectiveCollapsed ? item.label : undefined;
+
+    let row: React.ReactNode;
+    if (item.href) {
+      const props: AppSidebarLinkProps = { href: item.href, className: itemClassName, title, 'aria-current': current, children: itemContent };
+      row = renderLink ? renderLink({ ...item, href: item.href }, props) : <a {...props} />;
+    } else {
+      row = (
+        <button
+          type="button"
+          aria-current={current}
+          aria-expanded={hasChildren ? expanded : undefined}
+          title={title}
+          onClick={() => (hasChildren ? toggleItem(item.id) : onSelect?.(item.id))}
+          className={itemClassName}
+        >
+          {itemContent}
+        </button>
+      );
+    }
+
+    if (!hasChildren) return <div key={item.id}>{row}</div>;
+
+    return (
+      <div key={item.id}>
+        {item.href ? (
+          // A parent page keeps its link; the chevron beside it opens and closes the branch.
+          <div className="flex items-center gap-0.5">
+            <div className="min-w-0 flex-1">{row}</div>
+            <button
+              type="button"
+              onClick={() => toggleItem(item.id)}
+              aria-expanded={expanded}
+              aria-label={`${expanded ? 'Collapse' : 'Expand'} ${item.label}`}
+              className="shrink-0 rounded-md p-2 text-text-disabled hover:text-text-primary hover:bg-surface-overlay transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+            >
+              {chevron}
+            </button>
+          </div>
+        ) : (
+          row
+        )}
+        {expanded && (
+          <div role="group" aria-label={item.label} className="ml-3 mt-0.5 space-y-0.5 border-l border-border pl-2">
+            {item.children!.map((child) => renderItem(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
   }
 
   function isGroupExpanded(group: AppSidebarNavGroup): boolean {
@@ -151,8 +329,8 @@ export function AppSidebar({
         </button>
       </div>
 
-      {headerContent != null && (
-        <div className={cn('shrink-0 border-b border-border px-2 py-2', effectiveCollapsed && 'flex justify-center')}>
+      {hasContent(headerContent) && (
+        <div className={cn('shrink-0 border-b border-border px-2 py-2', effectiveCollapsed && 'flex justify-center', headerClassName)}>
           {headerContent}
         </div>
       )}
@@ -186,7 +364,7 @@ export function AppSidebar({
         {groups.map((group, gi) => {
           const groupKey = group.label ?? String(gi);
           const expanded = isGroupExpanded(group);
-          const hasActive = group.items.some((i) => i.id === activeId);
+          const hasActive = group.items.some((i) => containsId(i, activeId));
           return (
           <div key={groupKey}>
             {group.label && !effectiveCollapsed && (
@@ -216,48 +394,7 @@ export function AppSidebar({
             )}
             {expanded && (
             <div className="space-y-0.5">
-              {group.items.map((item) => {
-                const itemClassName = cn(
-                  'w-full flex items-center gap-2.5 rounded-lg text-sm transition-colors',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-                  effectiveCollapsed ? 'justify-center px-2 py-2' : 'px-3 py-2 text-left',
-                  item.id === activeId
-                    ? 'bg-primary-subtle text-primary font-medium'
-                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-overlay'
-                );
-                const itemContent = (
-                  <>
-                    {item.icon && <span aria-hidden="true" className="shrink-0 w-5 text-center text-[15px] leading-none">{item.icon}</span>}
-                    {!effectiveCollapsed && <span className="flex-1 truncate">{item.label}</span>}
-                    {!effectiveCollapsed && (typeof item.badge === 'number'
-                      ? item.badge > 0 && <Badge variant="primary" size="sm">{item.badge}</Badge>
-                      : item.badge != null && item.badge !== false && <span className="shrink-0">{item.badge}</span>
-                    )}
-                  </>
-                );
-                return item.href ? (
-                  <a
-                    key={item.id}
-                    href={item.href}
-                    aria-current={item.id === activeId ? 'page' : undefined}
-                    title={effectiveCollapsed ? item.label : undefined}
-                    className={itemClassName}
-                  >
-                    {itemContent}
-                  </a>
-                ) : (
-                  <button
-                    key={item.id}
-                    type="button"
-                    aria-current={item.id === activeId ? 'page' : undefined}
-                    title={effectiveCollapsed ? item.label : undefined}
-                    onClick={() => onSelect?.(item.id)}
-                    className={itemClassName}
-                  >
-                    {itemContent}
-                  </button>
-                );
-              })}
+              {group.items.map((item) => renderItem(item, 0))}
             </div>
             )}
           </div>
@@ -265,8 +402,8 @@ export function AppSidebar({
         })}
       </nav>
 
-      {footerContent != null && (
-        <div className={cn('border-t border-border shrink-0', effectiveCollapsed ? 'flex justify-center px-2 py-3' : '')}>
+      {hasContent(footerContent) && (
+        <div className={cn('border-t border-border shrink-0', effectiveCollapsed ? 'flex justify-center px-2 py-3' : '', footerClassName)}>
           {footerContent}
         </div>
       )}

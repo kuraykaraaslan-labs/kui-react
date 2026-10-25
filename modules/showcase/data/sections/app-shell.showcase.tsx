@@ -162,6 +162,41 @@ function AppSidebarExpandedDemo() {
   );
 }
 
+function AppSidebarNestedDemo() {
+  const [activeId, setActiveId] = useState('plugins');
+  const items = [
+    { id: 'intro', label: 'Introduction', href: '#intro' },
+    {
+      id: 'guides', label: 'Guides', href: '#guides',
+      children: [
+        { id: 'writing', label: 'Writing pages', href: '#writing' },
+        { id: 'advanced', label: 'Advanced', children: [
+          { id: 'plugins', label: 'Fence plugins', href: '#plugins' },
+          { id: 'theming', label: 'Theming', href: '#theming' },
+        ] },
+      ],
+    },
+    { id: 'reference', label: 'Reference', children: [
+      { id: 'config', label: 'Configuration', href: '#config' },
+      { id: 'api', label: 'API', href: '#api' },
+    ] },
+  ];
+  return (
+    <div className="flex justify-center py-4">
+      <div className="border border-border rounded-xl overflow-hidden bg-surface-raised flex" style={{ height: 360 }}>
+        <AppSidebar
+          navItems={items}
+          activeId={activeId}
+          // A router Link goes here in an app; the demo stays on the page.
+          renderLink={(item, props) => (
+            <a {...props} onClick={(e) => { e.preventDefault(); setActiveId(item.id); }} />
+          )}
+        />
+      </div>
+    </div>
+  );
+}
+
 function AppSidebarHeaderDemo() {
   const [activeId, setActiveId] = useState('dashboard');
   const groups = [
@@ -379,7 +414,7 @@ export function AppShell({ logo, compactLogo, sidebarCollapsed = false, sidebar,
       title: 'AppSidebar',
       category: 'App',
       abbr: 'Ab',
-      description: 'Collapsible side navigation. Accepts navGroups or navItems with a built-in collapse toggle. The searchable prop adds an inline filter; a header slot (above the nav groups) and a footer slot can host a workspace switcher, a user block or any content. Item badges take a count or any node. The active item, link or button, is marked aria-current="page"; collapsed, the nav reserves no scrollbar gutter, so the icons stay centered.',
+      description: 'Collapsible side navigation. Accepts navGroups or navItems with a built-in collapse toggle. The searchable prop adds an inline filter; a header slot (above the nav groups) and a footer slot can host a workspace switcher, a user block or any content. Item badges take a count or any node. Items nest through children, indented behind a disclosure toggle; the branch holding the active item opens, also when activeId changes after client-side navigation, and search keeps the branch down to a match. renderLink swaps the plain anchors for a router Link. headerClassName / footerClassName style the slot wrappers, e.g. to hide the whole strip at a breakpoint. The active item, link or button, is marked aria-current="page"; collapsed, the nav shows top-level items only and reserves no scrollbar gutter, so the icons stay centered.',
       filePath: 'modules/app/AppSidebar.tsx',
       sourceCode: `'use client';
 import { cn } from '@/libs/utils/cn';
@@ -489,6 +524,24 @@ export function AppSidebar({ navGroups, navItems, activeId, onSelect, collapsed,
     { id: 'team', label: 'Team', badge: <Badge variant="warning" size="sm" dot>Beta</Badge> }, // any node
   ] }]}
   header={({ collapsed }) => <WorkspaceSwitcher compact={collapsed} />}   // above the nav groups
+/>`,
+        },
+        {
+          title: 'Nested items + router links',
+          layout: 'stack' as const,
+          preview: <AppSidebarNestedDemo />,
+          code: `<AppSidebar
+  navItems={[
+    { id: 'intro', label: 'Introduction', href: '/docs' },
+    { id: 'guides', label: 'Guides', href: '/docs/guides', children: [   // a page with children: link + chevron
+      { id: 'writing', label: 'Writing pages', href: '/docs/guides/writing' },
+      { id: 'advanced', label: 'Advanced', children: [ /* ... */ ] },    // no page: the row toggles
+    ] },
+  ]}
+  activeId={pathname}                                // its branch opens, also after client-side navigation
+  renderLink={(item, props) => <Link {...props} />}  // next/link instead of full page loads
+  header={<SiteLinks />}
+  headerClassName="md:hidden"                        // drop the whole bordered strip at md and up
 />`,
         },
       ],

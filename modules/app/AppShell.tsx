@@ -89,6 +89,9 @@ export function AppShell({
             header={mobileSidebarHeader}
             side="left"
             className="w-72"
+            // A sidebar link that navigates client-side (AppSidebar renderLink) leaves the page
+            // mounted, so the drawer closes on the route change instead of a reload.
+            closeOnRouteChange
           >
             <div className="-mx-4 -my-4 h-[calc(100%+2rem)] flex flex-col">{sidebar}</div>
           </Drawer>
