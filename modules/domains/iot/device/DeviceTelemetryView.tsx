@@ -13,7 +13,8 @@ import type { IotAdapter, TelemetryLatest, TelemetryPoint, TelemetryValue } from
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime, formatRelative } from '../format';
 import type { IotMessagesInput } from '../messages';
-import { TelemetryTimeSeriesChart, type TelemetrySeries } from '../telemetry/TelemetryTimeSeriesChart';
+import { LineChart } from '@/modules/ui/Chart/charts/LineChart';
+import type { Series } from '@/modules/ui/Chart/types';
 
 /**
  * DeviceTelemetryView — the device page's Telemetry tab: every key the device sends with its latest value and when it came, live (a
@@ -37,9 +38,6 @@ type Row = TelemetryLatest & { kind: Kind };
 type WindowKey = '1h' | '6h' | '24h' | '7d';
 
 const WINDOW_MS: Record<WindowKey, number> = { '1h': 3_600_000, '6h': 6 * 3_600_000, '24h': 24 * 3_600_000, '7d': 7 * 24 * 3_600_000 };
-/** Series colours: distinct in light and dark, never the state colours of a lamp. */
-const PALETTE = ['#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2', '#db2777'];
-
 export function kindOf(v: TelemetryValue): Kind {
   if (typeof v === 'number') return 'number';
   if (typeof v === 'boolean') return 'flag';
@@ -54,19 +52,6 @@ export function showValue(v: TelemetryValue, m: { on: string; off: string }, loc
   if (typeof v === 'string') return v;
   const text = JSON.stringify(v);
   return text.length > 120 ? `${text.slice(0, 117)}…` : text;
-}
-
-/** Series on one time axis: the labels are every point's time, each series `null` where it has no point. */
-export function alignSeries(series: Record<string, TelemetryPoint[]>, keys: readonly string[]): { times: number[]; data: Record<string, Array<number | null>> } {
-  const times = [...new Set(keys.flatMap((k) => (series[k] ?? []).map((p) => p.ts)))].sort((a, b) => a - b);
-  const index = new Map(times.map((t, i) => [t, i] as const));
-  const data: Record<string, Array<number | null>> = {};
-  for (const k of keys) {
-    const row: Array<number | null> = times.map(() => null);
-    for (const p of series[k] ?? []) row[index.get(p.ts)!] = p.value;
-    data[k] = row;
-  }
-  return { times, data };
 }
 
 /** The series of `want` (`<window>|<key,key>`) up to now. */
@@ -172,11 +157,14 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
     if (charted.length === 0) return <p className="text-sm text-text-secondary">{fill(t.chartPick, { max: maxCharted })}</p>;
     if (seriesError) return <p role="alert" className="text-sm text-error">{seriesError}</p>;
     if (!series) return <div className="h-48 animate-pulse rounded-lg bg-surface-sunken" aria-busy="true" />;
-    const { times, data } = alignSeries(series, charted);
-    if (times.length === 0) return <p className="text-sm text-text-secondary">{t.chartEmpty}</p>;
-    const fmt = new Intl.DateTimeFormat(lc, win === '7d' ? { month: 'short', day: 'numeric', hour: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
-    const lines: TelemetrySeries[] = charted.map((k, i) => ({ label: k, color: PALETTE[i % PALETTE.length]!, data: data[k]! }));
-    return <TelemetryTimeSeriesChart title={t.chartTitle} subtitle={charted.join(' · ')} labels={times.map((x) => fmt.format(x))} series={lines} />;
+    const lines: Series[] = charted.map((k) => ({ id: k, name: k, data: (series[k] ?? []).map((p) => ({ x: p.ts, y: p.value })) }));
+    if (lines.every((l) => l.data.length === 0)) return <p className="text-sm text-text-secondary">{t.chartEmpty}</p>;
+    return (
+      <section className="rounded-xl border border-border bg-surface-raised p-4" aria-label={t.chartTitle}>
+        <h3 className="mb-2 text-sm font-semibold text-text-primary">{t.chartTitle}</h3>
+        <LineChart series={lines} xAxis="time" locale={lc} height={240} curve="linear" showLegend ariaLabel={`${t.chartTitle}: ${charted.join(', ')}`} />
+      </section>
+    );
   })();
 
   return (

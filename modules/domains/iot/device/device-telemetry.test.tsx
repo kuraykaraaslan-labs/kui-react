@@ -4,11 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import type { IotAdapter, IotTelemetryApi, TelemetryLatest, TelemetryPoint } from '../api/adapter';
 import type { IotLive, IotLiveSubscription } from '../api/live';
-import { DeviceTelemetryView, alignSeries, kindOf, showValue } from './DeviceTelemetryView';
+import { DeviceTelemetryView, kindOf, showValue } from './DeviceTelemetryView';
 
-vi.mock('react-chartjs-2', () => ({
-  Line: (p: { data: { labels: string[]; datasets: Array<{ label: string; data: Array<number | null> }> } }) => (
-    <div data-testid="chart">{p.data.datasets.map((d) => `${d.label}:${d.data.length}`).join(' ')}</div>
+vi.mock('@/modules/ui/Chart/charts/LineChart', () => ({
+  LineChart: (p: { series: Array<{ name: string; data: unknown[] }>; xAxis?: string }) => (
+    <div data-testid="chart" data-axis={p.xAxis}>{p.series.map((d) => `${d.name}:${d.data.length}`).join(' ')}</div>
   ),
 }));
 
@@ -54,12 +54,6 @@ describe('telemetry helpers', () => {
     expect(showValue(false, m)).toBe('Off');
     expect(showValue({ a: 'x'.repeat(200) }, m)).toMatch(/…$/);
   });
-
-  it('puts series on one time axis, null where a key has no point', () => {
-    const { times, data } = alignSeries({ a: [{ ts: 1, value: 10 }, { ts: 3, value: 30 }], b: [{ ts: 2, value: 20 }] }, ['a', 'b']);
-    expect(times).toEqual([1, 2, 3]);
-    expect(data).toEqual({ a: [10, null, 30], b: [null, 20, null] });
-  });
 });
 
 describe('DeviceTelemetryView', () => {
@@ -76,7 +70,9 @@ describe('DeviceTelemetryView', () => {
     const [, q] = series.mock.calls[0]!;
     expect(q.keys).toEqual(['humidity']);
     expect(q.to - q.from).toBe(6 * 3_600_000);
-    expect(await screen.findByTestId('chart')).toHaveTextContent('humidity:2');
+    const chart = await screen.findByTestId('chart');
+    expect(chart).toHaveTextContent('humidity:2');
+    expect(chart).toHaveAttribute('data-axis', 'time');
   });
 
   it('charts the numeric keys ticked in the table; a word or a flag cannot be ticked', async () => {
