@@ -31,6 +31,6 @@ describe('side bar parts, as the router draws them', () => {
   it('Busiest: the bar is the router\'s 3 px line and the sort buttons keep the 40 px height', () => {
     render(<InsightPanel defaultTab="busiest" nodeNames={{ n1: 'A' }} nodeStats={{ n1: { in: 2, out: 2, errors: 0, avgMs: 1 } }} />);
     expect(screen.getByTestId('insight-perf-in').className).toContain('min-h-10');
-    expect(screen.getByTestId('insight-perf-rows').querySelector('[aria-hidden=true]')?.className).toContain('h-[3px]');
+    expect(screen.getByTestId('insight-perf-rows').querySelector('td [aria-hidden=true]')?.className).toContain('h-[3px]');
   });
 });

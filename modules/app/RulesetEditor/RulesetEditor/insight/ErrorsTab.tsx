@@ -1,12 +1,13 @@
 'use client';
 import { useMemo } from 'react';
-import { cn } from '@/libs/utils/cn';
 import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { useMessages } from '../messages';
 import { Ic } from './Ic';
 import { Badge, Caps, NodeLink } from './parts';
 import { aggregateErrors, caughtRows, clock, rootNode } from './stats';
-import type { DebugMessage, NodeStats, RunRecord } from './types';
+import type { CaughtError, DebugMessage, ErrorRow, NodeStats, RunRecord } from './types';
 
 /** A problem that stops a deploy (the editor's own checks, the host's pre-flight): shown first in the Errors tab, with a link to its block. */
 export type DeployProblem = { message: string; nodeId?: string; code?: string; severity?: 'error' | 'warning' };
@@ -20,7 +21,11 @@ export type ErrorsTabProps = {
   onReveal?: (nodeId: string) => void;
 };
 
-const Th = ({ children, last }: { children: string; last?: boolean }) => <th className={cn('py-1 font-medium', last && 'text-right')}>{children}</th>;
+/* the error tables are the kit DataTable (static: the rows are here), sortable by time, block and count; the router's
+   LuCI editor draws the same tables (roltek-automation-flow, `kui-flow-dt`) */
+type RunRow = ErrorRow & { block: string; key: string };
+type CaughtRow = CaughtError & { block: string; key: string };
+const TABLE = { mode: 'static', multiSort: false, searchable: false, density: 'compact', bordered: false, tableClassName: 'text-xs leading-normal', rowClassName: () => 'align-top' } as const;
 
 export function ErrorsTab({ deployProblems, messages, runs, nodeStats, nodeNames, onReveal }: ErrorsTabProps) {
   const m = useMessages();
@@ -31,6 +36,27 @@ export function ErrorsTab({ deployProblems, messages, runs, nodeStats, nodeNames
   const Link = ({ id, title, testid, children }: { id: string; title: string; testid?: string; children?: React.ReactNode }) => (
     <NodeLink title={title} testid={testid} onClick={() => onReveal?.(rootNode(id))}>{children ?? name(id)}</NodeLink>
   );
+  const runRows = rows.map((r): RunRow => ({ ...r, block: name(r.node), key: `${r.node}|${r.text}` }));
+  const caughtRowsShown = caught.map((r): CaughtRow => ({ ...r, block: name(r.node), key: `${r.node}|${r.text}|${r.caught}` }));
+  const num = 'tabular-nums';
+  const runColumns: Column<RunRow>[] = [
+    { key: 'last', header: m.insErrLast, sortable: true, tdClass: num, render: (r) => clock(r.last) },
+    { key: 'block', header: m.insErrBlock, sortable: true, render: (r) => <Link id={r.node} title={m.insShowBlock} /> },
+    { key: 'text', header: m.insErrError, render: (r) => <>{r.text} <Badge tone="warning">{m.insNotCaught}</Badge></> },
+    { key: 'count', header: m.insErrCount, sortable: true, align: 'right', tdClass: num },
+  ];
+  const caughtColumns: Column<CaughtRow>[] = [
+    { key: 'last', header: m.insErrLast, sortable: true, tdClass: num, render: (r) => clock(r.last) },
+    { key: 'block', header: m.insErrBlock, sortable: true, render: (r) => <Link id={r.node} title={m.insShowBlock} /> },
+    { key: 'text', header: m.insErrError },
+    {
+      key: 'caught', header: m.insCaughtBy,
+      render: (r) => (r.caught === r.node
+        ? <Badge tone="success" dot>{m.insErrPort}</Badge>
+        : <Link id={r.caught} title={m.insShowCatcher} testid="insight-caught-link"><Ic icon={faArrowRight} size="1rem" />{name(r.caught)}</Link>),
+    },
+    { key: 'count', header: m.insErrCount, sortable: true, align: 'right', tdClass: num },
+  ];
   return (
     <div className="text-xs leading-normal">
       {(deployProblems?.length ?? 0) > 0 && (
@@ -49,43 +75,18 @@ export function ErrorsTab({ deployProblems, messages, runs, nodeStats, nodeNames
         </>
       )}
       <Caps>{m.insErrRunning}</Caps>
-      {rows.length ? (
-        <table data-testid="insight-error-rows" className="w-full">
-          <thead><tr className="text-left text-text-secondary"><Th>{m.insErrLast}</Th><Th>{m.insErrBlock}</Th><Th>{m.insErrError}</Th><Th last>{m.insErrCount}</Th></tr></thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={`${r.node}|${r.text}`} className="border-t border-border align-top">
-                <td className="py-1 pr-2 tabular-nums">{clock(r.last)}</td>
-                <td className="py-1 pr-2"><Link id={r.node} title={m.insShowBlock} /></td>
-                <td className="py-1 pr-2">{r.text} <Badge tone="warning">{m.insNotCaught}</Badge></td>
-                <td className="py-1 text-right tabular-nums">{r.count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {runRows.length ? (
+        <div data-testid="insight-error-rows">
+          <DataTable<RunRow> {...TABLE} rows={runRows} columns={runColumns} rowId={(r) => r.key} messages={{ tableLabel: m.insErrRunning }} />
+        </div>
       ) : <p className="text-text-secondary">{m.insNoErrors}</p>}
 
-      {caught.length > 0 && (
+      {caughtRowsShown.length > 0 && (
         <>
           <Caps>{m.insCaughtRecent}</Caps>
-          <table data-testid="insight-caught-rows" className="w-full">
-            <thead><tr className="text-left text-text-secondary"><Th>{m.insErrLast}</Th><Th>{m.insErrBlock}</Th><Th>{m.insErrError}</Th><Th>{m.insCaughtBy}</Th><Th last>{m.insErrCount}</Th></tr></thead>
-            <tbody>
-              {caught.map((r) => (
-                <tr key={`${r.node}|${r.text}|${r.caught}`} className="border-t border-border align-top">
-                  <td className="py-1 pr-2 tabular-nums">{clock(r.last)}</td>
-                  <td className="py-1 pr-2"><Link id={r.node} title={m.insShowBlock} /></td>
-                  <td className="py-1 pr-2">{r.text}</td>
-                  <td className="py-1 pr-2">
-                    {r.caught === r.node
-                      ? <Badge tone="success" dot>{m.insErrPort}</Badge>
-                      : <Link id={r.caught} title={m.insShowCatcher} testid="insight-caught-link"><Ic icon={faArrowRight} size="1rem" />{name(r.caught)}</Link>}
-                  </td>
-                  <td className="py-1 text-right tabular-nums">{r.count}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div data-testid="insight-caught-rows">
+            <DataTable<CaughtRow> {...TABLE} rows={caughtRowsShown} columns={caughtColumns} rowId={(r) => r.key} messages={{ tableLabel: m.insCaughtRecent }} />
+          </div>
         </>
       )}
 
