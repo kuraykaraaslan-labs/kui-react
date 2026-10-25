@@ -21,7 +21,7 @@ import { Modal } from './Modal';
 export type ConfirmTone = 'default' | 'warning' | 'danger';
 
 export type ConfirmInput = {
-  kind: 'text' | 'textarea' | 'date';
+  kind: 'text' | 'textarea' | 'date' | 'number';
   label: string;
   placeholder?: string;
   defaultValue?: string;
@@ -30,9 +30,11 @@ export type ConfirmInput = {
   /** Minimum trimmed length; implies `required`. */
   minLength?: number;
   maxLength?: number;
-  /** `date` only: ISO `YYYY-MM-DD` bounds. */
+  /** `date`: ISO `YYYY-MM-DD` bounds; `number`: numeric bounds (as strings, like the input's own attributes). */
   min?: string;
   max?: string;
+  /** `number` only: the step (default 1; 'any' for decimals). */
+  step?: string;
   hint?: string;
 };
 
@@ -95,6 +97,12 @@ export function confirmReady(
     const min = input.minLength ?? (input.required ? 1 : 0);
     if (v.length < min) return false;
     if (input.kind === 'date' && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+    if (input.kind === 'number' && v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return false;
+      if (input.min !== undefined && n < Number(input.min)) return false;
+      if (input.max !== undefined && n > Number(input.max)) return false;
+    }
   }
   if (acknowledgement && !state.acknowledged) return false;
   if (phrase !== undefined && state.typed.trim() !== phrase) return false;
@@ -157,7 +165,7 @@ export function ConfirmDialog({
         {message && (
           <div className="flex gap-3">
             <FontAwesomeIcon icon={toneIcon[tone]} aria-hidden="true" className={cn('mt-0.5 h-4 w-4 shrink-0', toneIconClass[tone])} />
-            <div className="min-w-0 flex-1 text-sm text-text-secondary whitespace-pre-line">{message}</div>
+            <div className="min-w-0 flex-1 text-sm text-text-secondary whitespace-pre-line" data-confirm-message="">{message}</div>
           </div>
         )}
         {details && <div className="text-sm text-text-primary">{details}</div>}
@@ -183,7 +191,9 @@ export function ConfirmDialog({
             ) : (
               <input
                 id={`${id}-input`}
-                type={input.kind === 'date' ? 'date' : 'text'}
+                type={input.kind === 'text' ? 'text' : input.kind}
+                inputMode={input.kind === 'number' ? 'decimal' : undefined}
+                step={input.kind === 'number' ? input.step : undefined}
                 value={value}
                 placeholder={input.placeholder}
                 maxLength={input.maxLength}

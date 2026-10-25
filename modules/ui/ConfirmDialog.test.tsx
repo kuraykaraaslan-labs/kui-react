@@ -55,6 +55,15 @@ describe('ConfirmDialog', () => {
     expect(confirmReady({ input }, { value: '2026-10-25', acknowledged: false, typed: '' })).toBe(true);
   });
 
+  it('a number input keeps to its bounds', () => {
+    const input = { kind: 'number' as const, label: 'Days', required: true, min: '0', max: '90' };
+    expect(confirmReady({ input }, { value: '7', acknowledged: false, typed: '' })).toBe(true);
+    expect(confirmReady({ input }, { value: '0', acknowledged: false, typed: '' })).toBe(true);
+    expect(confirmReady({ input }, { value: '-1', acknowledged: false, typed: '' })).toBe(false);
+    expect(confirmReady({ input }, { value: '91', acknowledged: false, typed: '' })).toBe(false);
+    expect(confirmReady({ input }, { value: 'abc', acknowledged: false, typed: '' })).toBe(false);
+  });
+
   it('the acknowledgement must be ticked before confirming', async () => {
     const user = userEvent.setup();
     render(<ConfirmDialog {...base} acknowledgement="I understand this cannot be undone." />);
