@@ -171,9 +171,15 @@ export function ConfirmDialog({
         {details && <div className="text-sm text-text-primary">{details}</div>}
         {input && (
           <div className="space-y-1.5">
-            <label htmlFor={`${id}-input`} className="block text-sm font-medium text-text-primary">
+            {/* The required star is CSS content, so the label's text (its accessible name) stays the label. */}
+            <label
+              htmlFor={`${id}-input`}
+              className={cn(
+                'block text-sm font-medium text-text-primary',
+                (input.required || (input.minLength ?? 0) > 0) && "after:ml-0.5 after:text-error after:content-['*']",
+              )}
+            >
               {input.label}
-              {(input.required || (input.minLength ?? 0) > 0) && <span aria-hidden="true" className="ml-0.5 text-error">*</span>}
             </label>
             {input.kind === 'textarea' ? (
               <textarea
