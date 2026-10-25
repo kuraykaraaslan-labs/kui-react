@@ -7,7 +7,7 @@
 // Critical path highlight, error spans (icon + text, not only colour), a detail slot for the selected span.
 // Pure model in ./model.ts. No chart library.
 
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronRight, faCircleExclamation } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -15,12 +15,12 @@ import { useVirtualList } from '../Virtual/useVirtualList';
 import { formatDurationMs, fillMessage } from '../_shared/format';
 import { hashIndex, isRtlElement } from '../_shared/dom';
 import {
-  buildTraceTree, criticalPathIds, expandableIds, rulerTicks, selfTime, barBox, visibleRows,
+  buildTraceTree, criticalPathIds, expandableIds, selfTime, barBox, visibleRows, rulerLabels, durationLabelSide,
   type TraceNode, type TraceRow, type TraceSpan,
 } from './model';
 
 export type { TraceSpan, SpanStatus } from './model';
-export { buildTraceTree, criticalPathIds, rulerTicks, visibleRows, selfTime, barBox } from './model';
+export { buildTraceTree, criticalPathIds, rulerTicks, visibleRows, selfTime, barBox, rulerLabels, durationLabelSide, labelPx } from './model';
 
 export type TraceWaterfallMessages = {
   label: string;
@@ -236,7 +236,21 @@ export function TraceWaterfall({
     e.preventDefault();
   };
 
-  const ticks = useMemo(() => rulerTicks(tree.duration), [tree.duration]);
+  // The width of the time track, measured: the ruler keeps the ticks whose labels fit and the duration labels stay
+  // inside the track (rulerLabels / durationLabelSide). 0 until measured: the ruler and labels are placed as if wide.
+  const [trackEl, setTrackEl] = useState<HTMLDivElement | null>(null);
+  const [trackW, setTrackW] = useState(0);
+  useEffect(() => {
+    if (!trackEl) return;
+    const read = () => setTrackW(Math.max(0, Math.floor(trackEl.getBoundingClientRect().width)));
+    read();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(read);
+    ro.observe(trackEl);
+    return () => ro.disconnect();
+  }, [trackEl]);
+  const ruler = useMemo(() => rulerLabels(tree.duration, trackW, formatDurationMs), [tree.duration, trackW]);
+  const pct = (t: number) => (tree.duration > 0 ? (t / tree.duration) * 100 : 0);
   const colorOf = (span: TraceSpan) => {
     if (span.status === 'error') return 'var(--error)';
     if (colorBy === 'none' || !span.service) return 'var(--primary)';
@@ -301,14 +315,16 @@ export function TraceWaterfall({
           style={{ height: HEADER_H }}
         >
           <div className="shrink-0 truncate px-3 leading-7" style={{ width: labelWidth }}>{msg.spanColumn}</div>
-          <div className="relative min-w-0 flex-1">
-            {ticks.map((t) => (
+          <div ref={setTrackEl} className="relative min-w-0 flex-1">
+            {ruler.map(({ t, text, side }) => side && (
               <span
                 key={t}
                 className="absolute top-0 whitespace-nowrap leading-7"
-                style={{ insetInlineStart: `${tree.duration > 0 ? (t / tree.duration) * 100 : 0}%`, paddingInlineStart: 4 }}
+                style={side === 'after'
+                  ? { insetInlineStart: `${pct(t)}%`, paddingInlineStart: 4 }
+                  : { insetInlineEnd: `${100 - pct(t)}%`, paddingInlineEnd: 4 }}
               >
-                {formatDurationMs(t)}
+                {text}
               </span>
             ))}
           </div>
@@ -317,11 +333,11 @@ export function TraceWaterfall({
         <div className="relative">
           {/* Vertical grid lines for the ticks, behind the rows. */}
           <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 end-0" style={{ insetInlineStart: labelWidth }}>
-            {ticks.map((t) => (
+            {ruler.map(({ t }) => (
               <span
                 key={t}
                 className="absolute inset-y-0 border-s border-border"
-                style={{ insetInlineStart: `${tree.duration > 0 ? (t / tree.duration) * 100 : 0}%` }}
+                style={{ insetInlineStart: `${pct(t)}%` }}
               />
             ))}
           </div>
@@ -338,6 +354,7 @@ export function TraceWaterfall({
               critical={criticalOn && critical.has(row.node.span.id)}
               color={colorOf(row.node.span)}
               labelWidth={labelWidth}
+              trackWidth={trackW}
               height={rowHeight}
               msg={msg}
               onSelect={() => { setActiveId(row.node.span.id); select(selected === row.node.span.id ? null : row.node.span.id); }}
@@ -372,21 +389,24 @@ type RowProps = {
   critical: boolean;
   color: string;
   labelWidth: number;
+  /** Measured width of the time track, px (0 until measured). */
+  trackWidth: number;
   height: number;
   msg: TraceWaterfallMessages;
   onSelect: () => void;
   onToggle: () => void;
 };
 
-function WaterfallRow({ row, id, tree, selected, active, collapsed, critical, color, labelWidth, height, msg, onSelect, onToggle }: RowProps) {
+function WaterfallRow({ row, id, tree, selected, active, collapsed, critical, color, labelWidth, trackWidth, height, msg, onSelect, onToggle }: RowProps) {
   const { node } = row;
   const span = node.span;
   const hasKids = node.children.length > 0;
   const box = barBox(span, tree);
   const isError = span.status === 'error';
   const durationText = formatDurationMs(Math.max(0, span.duration));
-  // The label sits after the bar unless the bar ends in the last third; then it sits before the bar.
-  const labelAfter = box.left + box.width < 66;
+  // The label sits after the bar unless the bar ends in the last third; then it sits before the bar. A label that
+  // would run past the end of the track goes before the bar instead (durationLabelSide).
+  const labelAfter = durationLabelSide(box, durationText, trackWidth) === 'after';
   const name = span.service ? `${span.name} (${span.service})` : span.name;
   return (
     <div

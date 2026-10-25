@@ -281,6 +281,8 @@ export function TimeWindowSelect({
       onOpenChange={onOpenChange}
       placement="bottom"
       className="w-[26rem] max-w-[calc(100vw-2rem)] p-3"
+      // The trigger is max-w-full with a truncating summary: in a narrow container it shrinks instead of overflowing.
+      shrinkTrigger
       trigger={
         <button
           id={`${idPrefix}-trigger`}

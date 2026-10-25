@@ -62,7 +62,7 @@ import { cn } from '@/libs/utils/cn';
 
 export function AppTopBar({ logo, children, className, ...rest }) {
   return (
-    <div className={cn('flex items-center gap-3 flex-1', className)} {...rest}>
+    <div className={cn('flex min-w-0 items-center gap-3 flex-1', className)} {...rest}>
       {logo && <div className="shrink-0">{logo}</div>}
       {children}
     </div>

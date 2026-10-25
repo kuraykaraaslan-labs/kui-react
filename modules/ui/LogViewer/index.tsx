@@ -366,7 +366,9 @@ export function LogViewer({
   const showToolbarCount = filtered || searchMode === 'highlight';
 
   return (
-    <div className={cn('flex flex-col gap-2 text-sm', className)}>
+    // w-full min-w-0: the viewer takes its container's width, never its longest line's. Long lines stay inside the
+    // list (truncated, or wrapped with `wrap`), so a flex or centred parent does not widen to the longest line.
+    <div className={cn('flex w-full min-w-0 flex-col gap-2 text-sm', className)}>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         {!hideSearch && (

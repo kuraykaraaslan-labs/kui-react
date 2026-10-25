@@ -58,7 +58,9 @@ export function AppTopBar({
   ...rest
 }: AppTopBarProps) {
   return (
-    <div className={cn('flex items-center gap-3 flex-1', className)} {...rest}>
+    // min-w-0: in a narrow header the bar shrinks with it instead of keeping its content's width, so a
+    // flex-1 child (a search box) gives up its room before the end controls are pushed out of view.
+    <div className={cn('flex min-w-0 items-center gap-3 flex-1', className)} {...rest}>
       {logo && <div className="shrink-0">{logo}</div>}
       <Region name="start" region={start} />
       {children}

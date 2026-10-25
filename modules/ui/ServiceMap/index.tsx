@@ -173,7 +173,9 @@ export function ServiceMap({
   const outgoing = useMemo(() => (selected ? edges.filter((e) => e.from === selected) : []), [edges, selected]);
 
   return (
-    <div ref={wrapRef} className={cn('flex flex-col gap-3', className)}>
+    // w-full min-w-0: the map takes its container's width. The canvas draws at the measured width of its box, so
+    // a root sized by its content (a flex or centred parent) measured 0 and drew nothing.
+    <div ref={wrapRef} className={cn('flex w-full min-w-0 flex-col gap-3', className)}>
       <ResponsiveContainer height={height}>
         {({ width, height: h }) => (
           <MapCanvas
@@ -388,6 +390,9 @@ function MapCanvas({ width, height, layout, nodeById, edgeData, selected, onSele
         aria-describedby={`${uid}-hint`}
         width={width}
         height={height}
+        // The text direction of the drawing follows the layout, not the page, so the node captions anchor inside
+        // their boxes in both directions (NodeView mirrors them on a right-to-left map).
+        direction={rtl ? 'rtl' : 'ltr'}
         className="block touch-none select-none"
         onKeyDown={onKeyDown}
         onPointerDown={onPointerDown}
@@ -434,6 +439,7 @@ function MapCanvas({ width, height, layout, nodeById, edgeData, selected, onSele
                 focusable={active === n.id}
                 dim={selected !== null && selected !== n.id && !layout.edges.some((e) => (e.from === selected && e.to === n.id) || (e.to === selected && e.from === n.id))}
                 healthText={msg.status[health]}
+                rtl={rtl}
                 label={fillMessage(msg.nodeLabel, {
                   name: n.name,
                   status: msg.status[health],
@@ -493,6 +499,8 @@ type NodeViewProps = {
   focusable: boolean;
   dim: boolean;
   healthText: string;
+  /** A mirrored map: the captions start at the right edge, the warning icon and the error badge sit on the left. */
+  rtl: boolean;
   label: string;
   onActivate: () => void;
   onFocus: () => void;
@@ -510,9 +518,17 @@ function clip(text: string, max: number) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
-function NodeView({ placed, node, health, line, selected, focusable, dim, healthText, label, onActivate, onFocus }: NodeViewProps) {
+/** Size of the warning icon, px. Set as width / height attributes: a nested <svg> takes its size from them. */
+const ICON = 14;
+
+function NodeView({ placed, node, health, line, selected, focusable, dim, healthText, rtl, label, onActivate, onFocus }: NodeViewProps) {
   const failing = health === 'error';
   const degraded = health === 'warn';
+  // Mirrored for a right-to-left map. The svg's `direction` makes `start` the right edge there, so the captions keep
+  // the default anchor and the badge keeps `end`: only the x positions move.
+  const captionX = rtl ? placed.width - 12 : 12;
+  const badgeX = rtl ? 12 : placed.width - 12;
+  const iconX = rtl ? 24 - ICON : placed.width - 24;
   return (
     <g
       data-node-id={node.id}
@@ -536,16 +552,18 @@ function NodeView({ placed, node, health, line, selected, focusable, dim, health
         strokeWidth={selected ? 3 : failing ? 2.5 : degraded ? 2 : 1.25}
         strokeDasharray={health === 'unknown' ? '4 3' : undefined}
       />
-      <text x={12} y={22} fontSize={13} fontWeight={600} fill="var(--text-primary)">{clip(node.name, 20)}</text>
-      <text x={12} y={38} fontSize={10.5} fill="var(--text-secondary)">{clip([node.kind, healthText].filter(Boolean).join(' · '), 28)}</text>
-      <text x={12} y={54} fontSize={10.5} fill="var(--text-secondary)">{clip(line.join(' · '), 32)}</text>
+      <text x={captionX} y={22} fontSize={13} fontWeight={600} fill="var(--text-primary)">{clip(node.name, 20)}</text>
+      <text x={captionX} y={38} fontSize={10.5} fill="var(--text-secondary)">{clip([node.kind, healthText].filter(Boolean).join(' · '), 28)}</text>
+      <text x={captionX} y={54} fontSize={10.5} fill="var(--text-secondary)">{clip(line.join(' · '), 32)}</text>
       {(failing || degraded) && (
-        <g transform={`translate(${placed.width - 24} 8)`} aria-hidden="true">
-          <FontAwesomeIcon icon={faTriangleExclamation} style={{ width: 14, height: 14, color: failing ? 'var(--error)' : 'var(--warning)' }} />
+        <g transform={`translate(${iconX} 8)`} aria-hidden="true">
+          {/* width / height attributes: Chromium sizes a nested <svg> from them and ignores the CSS size, so without
+              them the icon fills the whole map. */}
+          <FontAwesomeIcon icon={faTriangleExclamation} width={ICON} height={ICON} style={{ width: ICON, height: ICON, color: failing ? 'var(--error)' : 'var(--warning)' }} />
         </g>
       )}
       {node.errorRate !== undefined && (failing || degraded) && (
-        <text x={placed.width - 12} y={54} textAnchor="end" fontSize={10.5} fontWeight={700} fill={failing ? 'var(--error)' : 'var(--warning-fg, var(--warning))'}>
+        <text x={badgeX} y={54} textAnchor="end" fontSize={10.5} fontWeight={700} fill={failing ? 'var(--error)' : 'var(--warning-fg, var(--warning))'}>
           {formatPercent(node.errorRate * 100, 1)}
         </text>
       )}

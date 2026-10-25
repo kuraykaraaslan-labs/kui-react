@@ -20,7 +20,7 @@ Full-screen layout wrapper with logo, sidebar and topbar slots. Sidebar renders 
 ### Sidebar + topbar + content
 
 ```tsx
-const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
 <AppShell
   logo={<span className="font-black text-primary">Acme</span>}
@@ -42,7 +42,7 @@ const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
       <GlobalSearch onSearch={handleSearch} onSelect={handleSelect} className="flex-1 max-w-sm hidden sm:block" />
       <div className="ml-auto flex items-center gap-1">
         <Button variant="ghost" size="sm" iconOnly>🔔</Button>
-        <UserMenu user={currentUser} />
+        <UserMenu user={currentUser} onlyAvatar />
       </div>
     </AppTopBar>
   }

@@ -93,17 +93,18 @@ function SelectDemo({ history = false }: { history?: boolean }) {
     ? { mode: 'absolute', from: '2026-10-16T05:00:00.000Z', to: '2026-10-16T17:00:00.000Z', timezone: 'Europe/Istanbul', interval: '1h' }
     : { mode: 'relative', last: '24h', interval: '5m', aggregation: 'avg' });
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 max-w-full space-y-2">
       <TimeWindowSelect value={w} onChange={setW} idPrefix={history ? 'tws-history' : 'tws-demo'} {...(history ? { calendarPeriods: [] } : {})} />
-      <pre className="text-xs text-text-secondary">{JSON.stringify(w)}</pre>
+      <pre className="whitespace-pre-wrap break-all text-xs text-text-secondary">{JSON.stringify(w)}</pre>
     </div>
   );
 }
 
 function WindowDemo({ compact = false, full = false }: { compact?: boolean; full?: boolean }) {
   const [w, setW] = useState<TimeWindowValue | null>(full ? { mode: 'calendar', period: 'current.day', soFar: true } : { mode: 'relative', last: '24h' });
+  // min-w-0 max-w-full and a wrapping readout: a wide value stays inside the centred preview pane.
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 max-w-full space-y-2">
       <TimeWindowPicker
         value={w}
         onChange={setW}
@@ -111,7 +112,7 @@ function WindowDemo({ compact = false, full = false }: { compact?: boolean; full
         {...(compact ? { presets: ['1h', '24h', '7d'], allowAbsolute: false, showInterval: false, showAggregation: false } : {})}
         {...(full ? { calendarPeriods: DEFAULT_CALENDAR_PERIODS, allowDuration: true, showTimezone: true } : {})}
       />
-      <pre className="text-xs text-text-secondary">{JSON.stringify(w)}</pre>
+      <pre className="whitespace-pre-wrap break-all text-xs text-text-secondary">{JSON.stringify(w)}</pre>
     </div>
   );
 }

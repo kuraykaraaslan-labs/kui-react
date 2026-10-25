@@ -172,8 +172,8 @@ const LOCALES: LocaleOption[] = [
   { code: 'de', name: 'Deutsch', englishName: 'German', href: '#de' },
   { code: 'ar', name: 'العربية', englishName: 'Arabic', href: '#ar' },
 ];
-function LocaleDemo({ variant, buttons }: { variant?: 'menu' | 'inline'; buttons?: boolean }) {
-  const [current, setCurrent] = useState('en');
+function LocaleDemo({ variant, buttons, initial = 'en' }: { variant?: 'menu' | 'inline'; buttons?: boolean; initial?: string }) {
+  const [current, setCurrent] = useState(initial);
   const options = buttons ? LOCALES.map(({ href: _h, ...o }) => { void _h; return o; }) : LOCALES;
   return <LocaleSwitcher locales={options} current={current} variant={variant} onChange={(code, _o, e) => { e.preventDefault(); setCurrent(code); }} />;
 }
@@ -251,7 +251,7 @@ const stream = useLogStream({ maxLines: 10_000 });   // stream.push(lines) from 
       variants: [
         { title: 'Default', layout: 'stack', preview: <ServiceMap nodes={MAP_NODES} edges={MAP_EDGES} />, code: `<ServiceMap nodes={nodes} edges={edges} />` },
         { title: 'With a selection and a custom panel', layout: 'stack', preview: <ServiceMap nodes={MAP_NODES} edges={MAP_EDGES} defaultSelectedId="pay" renderSelection={(n, { incoming, outgoing }) => <p className="text-sm">{n.name}: called by {incoming.length}, calls {outgoing.length}.</p>} />, code: `<ServiceMap nodes={nodes} edges={edges} renderSelection={(node, { incoming, outgoing }) => <Panel node={node} />} />` },
-        { title: 'Right to left', layout: 'stack', preview: <div dir="rtl"><ServiceMap nodes={MAP_NODES.slice(0, 5)} edges={MAP_EDGES.slice(0, 5)} height={300} /></div>, code: `<div dir="rtl"><ServiceMap nodes={nodes} edges={edges} /></div>` },
+        { title: 'Right to left', layout: 'stack', preview: <div dir="rtl" className="w-full"><ServiceMap nodes={MAP_NODES.slice(0, 5)} edges={MAP_EDGES.slice(0, 5)} height={300} /></div>, code: `<div dir="rtl"><ServiceMap nodes={nodes} edges={edges} /></div>` },
       ],
     }),
     entry({
@@ -367,7 +367,7 @@ const [text, setText] = useState(humanText);
       variants: [
         { title: 'Menu of links', layout: 'stack', previewClassName: 'min-h-64', preview: <LocaleDemo />, code: `<LocaleSwitcher locales={locales} current="en" />` },
         { title: 'Inline buttons', layout: 'stack', preview: <LocaleDemo variant="inline" buttons />, code: `<LocaleSwitcher variant="inline" locales={localesWithoutHref} current="en" onChange={(code) => setLocale(code)} />` },
-        { title: 'Right to left', layout: 'stack', previewClassName: 'min-h-64', preview: <div dir="rtl"><LocaleDemo /></div>, code: `<div dir="rtl"><LocaleSwitcher locales={locales} current="ar" /></div>` },
+        { title: 'Right to left', layout: 'stack', previewClassName: 'min-h-64', preview: <div dir="rtl"><LocaleDemo initial="ar" /></div>, code: `<div dir="rtl"><LocaleSwitcher locales={locales} current="ar" /></div>` },
       ],
     }),
     entry({

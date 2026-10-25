@@ -109,7 +109,7 @@ export const DEFAULT_TIME_WINDOW_MESSAGES: TimeWindowMessages = {
 
 const field = 'h-8 rounded-md border border-border bg-surface-base px-2 text-sm text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
 const segment = (active: boolean) => cn(
-  'h-8 px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus',
+  'h-8 shrink-0 px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus',
   active ? 'bg-primary text-primary-fg' : 'bg-surface-base text-text-secondary hover:bg-surface-sunken',
 );
 
@@ -173,7 +173,8 @@ export function TimeWindowPicker({
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)} role="group" aria-label={m.label}>
-      <div className="inline-flex overflow-hidden rounded-md border border-border" role="radiogroup" aria-label={m.presets}>
+      {/* max-w-full overflow-x-auto: in a container narrower than the segments, they scroll inside the control. */}
+      <div className="inline-flex max-w-full overflow-x-auto rounded-md border border-border [scrollbar-width:thin]" role="radiogroup" aria-label={m.presets}>
         {presets.map((p) => {
           const active = panel === 'preset' && value?.mode === 'relative' && value.last === p;
           return (

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T06:32:36.396Z",
+  "generatedAt": "2026-10-25T07:42:38.625Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1639,7 +1639,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Overlays/Popover/index.tsx",
       "abbr": "Po",
-      "description": "Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel.",
+      "description": "Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel. `shrinkTrigger` caps the trigger wrapper at its container's width, so a `max-w-full` / `truncate` trigger shrinks instead of overflowing.",
       "status": "stable",
       "since": "2025-03",
       "designTokens": [],

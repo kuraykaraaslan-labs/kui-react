@@ -156,6 +156,68 @@ export function rulerTicks(duration: number, target = 5): number[] {
   return out;
 }
 
+// ── Labels that fit the track ───────────────────────────────────────────────────────────────────
+// The ruler and duration labels are placed for the measured width of the time track. Their width is an estimate
+// from the number of characters (text-xs, a little wide on purpose) rather than a measurement, so kui-react and
+// kui-ejs's browser script place them the same way without measuring text.
+
+/** Advance of one label character, px (an estimate for text-xs). */
+export const LABEL_CHAR_PX = 7.5;
+/** Space between a label and its tick line or bar, px. */
+export const LABEL_PAD = 4;
+/** Least space between two ruler labels, px. */
+export const LABEL_GAP = 8;
+
+/** Estimated width of a label, px. */
+export function labelPx(text: string): number {
+  return Math.ceil(text.length * LABEL_CHAR_PX);
+}
+
+/** A ruler tick and where its label goes: after the line, before it, or nowhere (`null`, the line only). */
+export type RulerLabel = { t: number; text: string; side: 'after' | 'before' | null };
+
+/**
+ * The ruler of a time track `width` px wide. The ticks are the densest of `rulerTicks(duration, 5..1)` whose labels
+ * do not touch; each label sits after its line, the last one before it when it would run past the end of the track
+ * (left out when it would then touch the label before it). Without a width (not measured yet) the ruler is
+ * `rulerTicks(duration)` with every label after its line.
+ */
+export function rulerLabels(duration: number, width: number, format: (ms: number) => string): RulerLabel[] {
+  if (!(width > 0) || !(duration > 0)) return rulerTicks(duration).map((t) => ({ t, text: format(t), side: 'after' }));
+  let ticks = [0];
+  for (let target = 5; target >= 1; target--) {
+    const candidate = rulerTicks(duration, target);
+    if (candidate.length < 2) { ticks = candidate; break; }
+    const stepPx = ((candidate[1] - candidate[0]) / duration) * width;
+    const widest = Math.max(...candidate.map((t) => labelPx(format(t))));
+    if (stepPx >= widest + LABEL_PAD + LABEL_GAP) { ticks = candidate; break; }
+  }
+  const out: RulerLabel[] = ticks.map((t) => ({ t, text: format(t), side: 'after' }));
+  const last = out[out.length - 1];
+  const x = (last.t / duration) * width;
+  if (last.t > 0 && x + LABEL_PAD + labelPx(last.text) > width) {
+    const prev = out[out.length - 2];
+    const prevEnd = prev ? (prev.t / duration) * width + LABEL_PAD + labelPx(prev.text) : -Infinity;
+    last.side = x - LABEL_PAD - labelPx(last.text) >= prevEnd + LABEL_GAP ? 'before' : null;
+  }
+  return out;
+}
+
+/**
+ * Which side of its bar a duration label goes, for a time track `width` px wide. After the bar unless the bar ends in
+ * the last third, as before; but a label that would run past the end of the track goes before the bar, and one that
+ * has no room before the bar goes after it when it fits there. Without a width (not measured yet): the thirds rule.
+ */
+export function durationLabelSide(box: { left: number; width: number }, text: string, width: number): 'after' | 'before' {
+  const preferAfter = box.left + box.width < 66;
+  if (!(width > 0)) return preferAfter ? 'after' : 'before';
+  const w = labelPx(text);
+  const afterFits = ((box.left + box.width) / 100) * width + LABEL_PAD + w <= width;
+  const beforeFits = (box.left / 100) * width - LABEL_PAD - w >= 0;
+  if (preferAfter) return afterFits ? 'after' : 'before';
+  return !beforeFits && afterFits ? 'after' : 'before';
+}
+
 /** Position and width of a span's bar as percentages of the trace duration (a minimum width keeps tiny spans visible). */
 export function barBox(span: TraceSpan, tree: TraceTree, minWidthPct = 0.4): { left: number; width: number } {
   if (!(tree.duration > 0)) return { left: 0, width: 100 };

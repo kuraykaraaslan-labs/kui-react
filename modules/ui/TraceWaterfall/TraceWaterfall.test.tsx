@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TraceWaterfall, buildTraceTree, criticalPathIds, rulerTicks, visibleRows, selfTime, barBox, type TraceSpan } from './index';
+import { TraceWaterfall, buildTraceTree, criticalPathIds, rulerTicks, visibleRows, selfTime, barBox, rulerLabels, durationLabelSide, type TraceSpan } from './index';
+import { formatDurationMs } from '../_shared/format';
 
 const spans: TraceSpan[] = [
   { id: 'root', name: 'GET /checkout', service: 'web', start: 1000, duration: 100 },
@@ -60,6 +61,31 @@ describe('trace model', () => {
     expect(rulerTicks(100, 5)).toEqual([0, 20, 40, 60, 80, 100]);
     expect(rulerTicks(0)).toEqual([0]);
     expect(rulerTicks(1.2, 4).at(-1)).toBeLessThanOrEqual(1.2 + 1e-9);
+  });
+
+  it('fits the ruler to the measured track: fewer ticks when narrow, the last label before its line at the end', () => {
+    const sides = (w: number) => rulerLabels(412, w, formatDurationMs).map((r) => `${r.text}:${r.side}`);
+    // Not measured yet: every tick, every label after its line.
+    expect(sides(0)).toEqual(['0 ms:after', '100 ms:after', '200 ms:after', '300 ms:after', '400 ms:after']);
+    // 72 px: one label fits.
+    expect(sides(72)).toEqual(['0 ms:after']);
+    // 675 px: every tick; "400 ms" would run past the end, so it sits before its line.
+    expect(sides(675)).toEqual(['0 ms:after', '100 ms:after', '200 ms:after', '300 ms:after', '400 ms:before']);
+    expect(sides(2000).at(-1)).toBe('400 ms:after');
+    // A last label that would touch the one before it once moved is left out (its line stays).
+    expect(rulerLabels(100, 130, formatDurationMs).map((r) => `${r.text}:${r.side}`)).toEqual(['0 ms:after', '50 ms:after', '100 ms:null']);
+  });
+
+  it('keeps duration labels inside the track when it can', () => {
+    // Not measured: after the bar unless the bar ends in the last third.
+    expect(durationLabelSide({ left: 35, width: 29 }, '120 ms', 0)).toBe('after');
+    // 72 px: no room after, so before.
+    expect(durationLabelSide({ left: 35, width: 29 }, '120 ms', 72)).toBe('before');
+    expect(durationLabelSide({ left: 1, width: 9 }, '38 ms', 72)).toBe('after');
+    expect(durationLabelSide({ left: 0, width: 100 }, '412 ms', 72)).toBe('before');
+    // Ends in the last third but has no room before it, and room after: after.
+    expect(durationLabelSide({ left: 2, width: 66 }, '5 ms', 1000)).toBe('after');
+    expect(durationLabelSide({ left: 2, width: 66 }, '5 ms', 0)).toBe('before');
   });
 
   it('computes bar boxes and self time', () => {

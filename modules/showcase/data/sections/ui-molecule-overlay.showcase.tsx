@@ -558,7 +558,7 @@ const [open, setOpen] = useState(false); // optional: controlled, e.g. for a key
       title: 'Popover',
       category: 'Organism',
       abbr: 'Po',
-      description: 'Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel.',
+      description: 'Anchor-based contextual panel. Closes on outside click (capture-phase pointerdown) and Escape, layered with sibling overlays. Supports top/bottom/left/right placement. Built-in focus trap (focusTrap prop) keeps Tab cycling inside the panel. `shrinkTrigger` caps the trigger wrapper at its container\'s width, so a `max-w-full` / `truncate` trigger shrinks instead of overflowing.',
       filePath: 'modules/ui/Overlays/Popover/index.tsx',
       sourceCode: `'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useEffect, useRef, useState } from 'react';\n\nexport function Popover({ trigger, children, placement = 'bottom' }) {\n  // manages open state, outside-click + Escape close, focus management\n}`,
       variants: [

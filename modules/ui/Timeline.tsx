@@ -114,7 +114,8 @@ export function Timeline({
 
   return (
     <ol className={cn('flex flex-col', className)}>
-      {rendered.map(({ item, at, day, showDay }) => {
+      {rendered.map(({ item, at, day, showDay }, index) => {
+        const last = index === rendered.length - 1;
         return (
           <Fragment key={item.id}>
             {showDay && (
@@ -127,12 +128,16 @@ export function Timeline({
               {/*
                 The connector is drawn on the item rather than the list so the
                 last one can stop short — a line running past the final event
-                reads as "more below" and there is nothing below.
+                reads as "more below" and there is nothing below. It is left out
+                in code: a `last:` variant on the span would test the span (the
+                li's first child), never the li.
               */}
-              <span
-                aria-hidden="true"
-                className="absolute left-[1.0625rem] top-8 bottom-0 w-px bg-border last:hidden"
-              />
+              {!last && (
+                <span
+                  aria-hidden="true"
+                  className="absolute left-[1.0625rem] top-8 bottom-0 w-px bg-border"
+                />
+              )}
 
               <span
                 aria-hidden="true"

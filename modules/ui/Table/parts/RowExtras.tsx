@@ -6,7 +6,7 @@ import { faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons
 // propagation so ticking a box or opening a row never fires the row's onClick.
 
 const checkboxClass =
-  'h-4 w-4 rounded border-border text-primary accent-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:opacity-50 disabled:cursor-not-allowed';
+  'h-4 w-4 accent-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:opacity-50 disabled:cursor-not-allowed';
 
 export function SelectAllHeaderCell({
   checked,

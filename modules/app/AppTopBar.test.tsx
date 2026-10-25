@@ -8,6 +8,8 @@ describe('AppTopBar', () => {
     expect(screen.getByText('Logo')).toBeInTheDocument();
     expect(screen.getByText('child')).toBeInTheDocument();
     expect(container.querySelector('[data-region]')).toBeNull();
+    // min-w-0: in a narrow header the bar shrinks with it.
+    expect(container.firstChild).toHaveClass('min-w-0', 'flex-1');
   });
 
   it('orders region items by order and leaves hidden ones out', () => {

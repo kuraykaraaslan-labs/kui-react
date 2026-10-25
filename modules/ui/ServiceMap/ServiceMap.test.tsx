@@ -119,6 +119,26 @@ describe('ServiceMap', () => {
     expect(node(/^api,/)).toHaveAttribute('tabindex', '0');
   });
 
+  it('takes its container width and keeps the node captions inside the boxes in both directions', () => {
+    const { container, unmount } = render(<ServiceMap nodes={nodes} edges={edges} />);
+    expect(container.firstChild).toHaveClass('w-full', 'min-w-0');
+    const svg = () => document.querySelector('svg[role="group"]')!;
+    const pay = () => document.querySelector('[data-node-id="pay"]')!;
+    expect(svg()).toHaveAttribute('direction', 'ltr');
+    expect(pay().querySelector('text')).toHaveAttribute('x', '12');
+    // The warning icon is sized by attributes: a nested <svg> ignores its CSS size in Chromium.
+    const icon = pay().querySelector('g[aria-hidden="true"] > svg')!;
+    expect(icon).toHaveAttribute('width', '14');
+    expect(icon).toHaveAttribute('height', '14');
+    unmount();
+    render(<ServiceMap nodes={nodes} edges={edges} direction="rtl" />);
+    expect(svg()).toHaveAttribute('direction', 'rtl');
+    const width = Number(pay().querySelector('rect')!.getAttribute('width'));
+    expect(pay().querySelector('text')).toHaveAttribute('x', String(width - 12));
+    expect(pay().querySelector('g[aria-hidden="true"]')).toHaveAttribute('transform', 'translate(10 8)');
+    expect(pay().querySelector('text[text-anchor="end"]')).toHaveAttribute('x', '12');
+  });
+
   it('zooms with the buttons and keys and fits again', () => {
     render(<ServiceMap nodes={nodes} edges={edges} />);
     const fitted = transformOf();
