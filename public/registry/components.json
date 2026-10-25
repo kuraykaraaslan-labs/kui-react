@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T09:34:57.530Z",
+  "generatedAt": "2026-10-25T10:10:23.133Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -3188,6 +3188,73 @@
       ],
       "status": "stable",
       "since": "2026-05",
+      "designTokens": []
+    },
+    {
+      "id": "description-list",
+      "name": "DescriptionList",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/DescriptionList.tsx",
+      "abbr": "Dl",
+      "description": "Label/value pairs of one record for detail pages: inline (label left, value right) or stacked, 1–3 columns that collapse on a phone, a dash for empty values, monospace values and a copy button for ids and keys, wide items that span the grid.",
+      "source": "<DescriptionList\n  columns={2}\n  items={[\n    { label: 'Invoice', value: 'INV-1001', mono: true, copyValue: 'INV-1001' },\n    { label: 'Status', value: <Badge variant=\"success\">Paid</Badge> },\n    { label: 'Customer', value: 'Northwind Traders' },\n    { label: 'Due', value: '' }, // shows —\n    { label: 'Notes', value: longText, wide: true },\n  ]}\n/>",
+      "variants": [
+        {
+          "title": "Inline (key/value sheet)",
+          "code": "<DescriptionList items={[{ label: 'API key', value: key, mono: true, copyValue: key }, …]} />"
+        },
+        {
+          "title": "Stacked, two columns",
+          "code": "<DescriptionList layout=\"stacked\" columns={2} items={items} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "bar-list",
+      "name": "BarList",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/BarList.tsx",
+      "abbr": "Bl",
+      "description": "A ranked breakdown for report pages: label, a bar to scale and the value, sorted by value (or label, or as given), optional share of the total, a row limit, links per row and an empty message.",
+      "source": "<BarList\n  showPercent\n  valueFormatter={(v) => v.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}\n  items={[\n    { label: 'Web', value: 48210, href: '/reports/channel/web' },\n    { label: 'Mobile', value: 31950 },\n    { label: 'Marketplace', value: 12400, barClassName: 'bg-warning' },\n  ]}\n/>",
+      "variants": [
+        {
+          "title": "Revenue by channel",
+          "code": "<BarList showPercent valueFormatter={money} items={rows} />"
+        },
+        {
+          "title": "With counts and a limit",
+          "code": "<BarList limit={3} items={rows.map((r) => ({ label: r.status, value: r.value, meta: `${r.count} carts` }))} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "designTokens": [
+        "--warning"
+      ]
+    },
+    {
+      "id": "org-chart",
+      "name": "OrgChart",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/OrgChart.tsx",
+      "abbr": "Oc",
+      "description": "A top-down tree of the host's own cards joined by connector lines: nested or flat data (buildOrgTree), collapsible subtrees, highlight that opens the path to every match (search), zoom, and a keyboard tree (Up parent, Down first child, Left/Right siblings, Enter clicks, * opens all children).",
+      "source": "const roots = buildOrgTree(employees, (e) => e.id, (e) => e.managerId);\n\n<OrgChart\n  roots={roots}\n  getId={(n) => n.node.id}\n  getChildren={(n) => n.children}\n  defaultExpandedDepth={2}\n  highlight={query ? (n) => n.node.name.toLowerCase().includes(query) : undefined}\n  onNodeClick={(n) => router.push(`/employees/${n.node.id}`)}\n  renderNode={(n) => <EmployeeCard employee={n.node} />}\n/>",
+      "variants": [
+        {
+          "title": "With search",
+          "code": "<OrgChart roots={roots} getId={…} getChildren={…} highlight={match} renderNode={(n) => <EmployeeCard … />} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
       "designTokens": []
     },
     {

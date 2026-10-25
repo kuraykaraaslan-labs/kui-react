@@ -55,6 +55,12 @@ export type { ComboBoxOption, ComboBoxMessages } from './ComboBox';
 export { ContentScoreBar } from './ContentScoreBar';
 export type { ScoreRule } from './ContentScoreBar';
 export { DataTable } from './DataTable';
+export { DescriptionList } from './DescriptionList';
+export type { DescriptionItem, DescriptionListMessages } from './DescriptionList';
+export { BarList } from './BarList';
+export type { BarListItem } from './BarList';
+export { OrgChart, buildOrgTree } from './OrgChart';
+export type { OrgTreeNode, OrgChartMessages } from './OrgChart';
 export type { DataTableProps } from './DataTable';
 export type {
   DataTableRowAction,

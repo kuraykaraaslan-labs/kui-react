@@ -461,6 +461,24 @@
     "category": "Organism",
     "file": "image-gallery.md"
   },
+  "description-list": {
+    "name": "DescriptionList",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "description-list.md"
+  },
+  "bar-list": {
+    "name": "BarList",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "bar-list.md"
+  },
+  "org-chart": {
+    "name": "OrgChart",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "org-chart.md"
+  },
   "app-shell": {
     "name": "AppShell",
     "layer": "app",
