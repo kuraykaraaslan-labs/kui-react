@@ -285,13 +285,14 @@
         "kui-ejs"
       ],
       "absentIn": [],
-      "reason": "Same DOM and classes; what is a render-time callback in React is drawn once on the server in kui-ejs: renderCard and bulkActions return HTML (a card's own selected look does not repaint when the selection changes; li[data-selected] does), ctx.toggleSelected is the attribute data-dt-card-select, onRowClick receives the row id, title / subtitle / column footer are text, the built-in date presets are dated by the server, and a field's formatChip (a global function name) applies once the browser script runs.",
+      "reason": "Same DOM and classes; what is a render-time callback in React is drawn once on the server in kui-ejs: renderCard and bulkActions return HTML (a card's own selected look does not repaint when the selection changes; li[data-selected] does), ctx.toggleSelected is the attribute data-dt-card-select, onRowClick receives the row id, title / subtitle / column footer are text, the built-in date presets are dated by the server, and a field's formatChip (a global function name) applies once the browser script runs. groupBy in the card layout (11.16) is a heading item spanning the one card grid in kui-ejs (spacing matched with -mb-1 / mt-1), where kui-react draws a section and its own list per group; renderGroupHeader returns HTML.",
       "features": [
         "renderCard ctx.toggleSelected",
         "bulkActions",
         "onRowClick(row)",
         "ReactNode title / subtitle / footer",
-        "date presets relative to the client clock"
+        "date presets relative to the client clock",
+        "groupBy card headings"
       ]
     }
   ]

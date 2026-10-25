@@ -180,6 +180,7 @@ kui-react only (kui-ejs / KUInative have no board and no IoT vertical).
 - [x] 17. (with 3) a column can opt out of search; `searchText` needs no hidden helper column.
 - [x] 18. Filter fields: `required` select / radio (no "Any", no chip, not counted, kept by Clear all, Reset returns to
   its default) and `placement: 'toolbar'` (radio as a segmented group, select with a hidden label, applied at once).
+- Mirrors: kui-ejs 986f3d6 (1–10, 15–18; Kanban and IoT have no kui-ejs counterpart); KUInative see its phase 11 file.
 
 ## Done when
 

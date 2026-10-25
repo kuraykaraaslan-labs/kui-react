@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T18:11:11.517Z",
+  "generatedAt": "2026-10-25T18:30:34.639Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -708,10 +708,6 @@
           "code": "<Input id=\"email\" label=\"Email\" type=\"email\" placeholder=\"you@example.com\" hint=\"We'll never share your email.\" />"
         },
         {
-          "title": "Hidden label (hideLabel)",
-          "code": "// An editable table cell: the column heading shows what it is; the label stays the accessible name.\n<Input id=\"qty-a\" label=\"Quantity of Widget A\" hideLabel type=\"number\" />"
-        },
-        {
           "title": "Error",
           "code": "<Input id=\"email\" label=\"Email\" type=\"email\" error=\"A valid email address is required.\" required />"
         },
@@ -754,6 +750,10 @@
         {
           "title": "Loading state",
           "code": "<Input id=\"username\" label=\"Username\" value={v} onChange={setV}\n  suffixIcon={<Spinner size=\"xs\" />}\n  hint=\"Checking availability…\" />"
+        },
+        {
+          "title": "Hidden label (hideLabel)",
+          "code": "// An editable table cell: the column heading shows what it is; the label stays the accessible name.\n<Input id=\"qty-a\" label=\"Quantity of Widget A\" hideLabel type=\"number\" />"
         }
       ],
       "status": "stable",
