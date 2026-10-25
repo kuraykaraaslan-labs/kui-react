@@ -110,6 +110,12 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).toHaveBeenCalledWith({ value: '', choice: 'secondary' });
   });
 
+  it('confirmDisabled keeps the confirm button locked whatever the gates say', () => {
+    render(<ConfirmDialog {...base} confirmDisabled />);
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
+  });
+
   it('busy disables both buttons and an error shows in the footer', () => {
     render(<ConfirmDialog {...base} busy error="The user could not be deleted." />);
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();

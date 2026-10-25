@@ -68,6 +68,8 @@ export type ConfirmDialogProps = {
   /** The phrase field's label. Default = `Type "<phrase>" to confirm`. */
   phraseLabel?: string;
   busy?: boolean;
+  /** A gate of the caller's own (a preview still loading, a blocker in `details`): keeps the confirm button locked. */
+  confirmDisabled?: boolean;
   /** An error from the action, shown in the footer while the dialog stays open. */
   error?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -111,7 +113,7 @@ export function confirmReady(
 
 export function ConfirmDialog({
   open, title, message, tone = 'default', confirmLabel = 'Confirm', cancelLabel = 'Cancel', closeLabel, secondaryLabel,
-  details, input, acknowledgement, phrase, phraseLabel, busy = false, error, size = 'md', portalTarget, onConfirm, onCancel, className,
+  details, input, acknowledgement, phrase, phraseLabel, busy = false, confirmDisabled = false, error, size = 'md', portalTarget, onConfirm, onCancel, className,
 }: ConfirmDialogProps) {
   const id = useId();
   const [value, setValue] = useState(input?.defaultValue ?? '');
@@ -122,7 +124,7 @@ export function ConfirmDialog({
     setWasOpen(open);
     if (open) { setValue(input?.defaultValue ?? ''); setAcknowledged(false); setTyped(''); }
   }
-  const ready = confirmReady({ input, acknowledgement, phrase }, { value, acknowledged, typed });
+  const ready = !confirmDisabled && confirmReady({ input, acknowledgement, phrase }, { value, acknowledged, typed });
   const phraseWrong = phrase !== undefined && typed !== '' && typed.trim() !== phrase;
   const submit = (choice: ConfirmChoice) => { if (ready && !busy) onConfirm({ value: value.trim(), choice }); };
   const cancel = () => { if (!busy) onCancel(); };
