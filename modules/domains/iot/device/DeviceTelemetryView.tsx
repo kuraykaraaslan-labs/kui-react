@@ -6,7 +6,7 @@ import { cn } from '@/libs/utils/cn';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column } from '@/modules/ui/Table/types';
 import { EmptyState } from '@/modules/ui/EmptyState';
-import { AlertBanner } from '@/modules/ui/AlertBanner';
+import { Callout } from '@/modules/ui/Callout';
 import { Select } from '@/modules/ui/Select';
 import { useIotAdapter, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import type { IotAdapter, TelemetryLatest, TelemetryPoint, TelemetryValue } from '../api/adapter';
@@ -187,7 +187,7 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
         <EmptyState icon={<FontAwesomeIcon icon={faChartLine} aria-hidden="true" />} title={t.empty} description={t.emptyHint} />
       ) : (
         <>
-          {error && <AlertBanner variant="error" message={error} />}
+          {error && <Callout variant="danger" title={null} role="alert">{error}</Callout>}
           {chart}
           <DataTable<Row>
             mode="static"
