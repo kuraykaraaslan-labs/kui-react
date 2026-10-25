@@ -4,7 +4,7 @@
 // Exposes:
 // - <Table />              — low-level "dumb" table primitive (named export from ./Table)
 // - <DataTable />          — unified rich table (modes: static | paginated | server)
-// - <AdvancedDataTable />  — @deprecated thin wrapper rendering the legacy advanced view
+// - <AdvancedDataTable />  — @deprecated thin wrapper over <DataTable selectable renderExpanded />
 // - <ServerDataTable />    — @deprecated thin wrapper rendering the legacy server-controlled card
 //
 // Older `modules/ui/{DataTable,AdvancedDataTable,ServerDataTable}.tsx` re-export
@@ -30,6 +30,11 @@ export type {
   DataTableFetchResult,
   DataTableMessages,
   DataTableRowAction,
+  DataTableRowId,
+  DataTableFilterField,
+  DataTableFilterOption,
+  DataTableFilterValue,
+  DataTableFilterValues,
 } from './types';
 export { DEFAULT_MESSAGES } from './types';
 export { resolveRowActions } from './parts/RowActionsCell';
@@ -38,6 +43,19 @@ export { resolveRowActions } from './parts/RowActionsCell';
 export { useTable } from './core/useTable';
 export type { UseTableArgs, UseTableReturn } from './core/useTable';
 export { useServerTable } from './core/useServerTable';
+export { useRowSelection, useRowExpansion } from './core/useRowState';
+export {
+  useFilterPanel,
+  activeFilterValues,
+  isFilterValueActive,
+  matchFilterField,
+} from './core/filterPanel';
+export type { UseFilterPanelArgs, UseFilterPanelReturn } from './core/filterPanel';
+export type {
+  UseRowSelectionArgs,
+  UseRowSelectionReturn,
+  UseRowExpansionReturn,
+} from './core/useRowState';
 export type {
   UseServerTableArgs,
   UseServerTableReturn,
@@ -53,9 +71,9 @@ import type { Column } from './types';
 import type { ReactNode } from 'react';
 
 /**
- * @deprecated Use `<DataTable />` with selection / expandable props (coming in M4/M5).
- * Will be removed in a future major. Kept as a thin re-export over the unified
- * implementation so existing consumers keep working.
+ * @deprecated Use `<DataTable mode="static" searchable={false} />` with `selectable`,
+ * `renderExpanded` and `stickyHeader`. Kept as a thin wrapper so existing consumers
+ * keep working; `onSelectionChange` still reports positions in `rows`.
  */
 export function AdvancedDataTable<T extends Record<string, unknown>>(props: {
   columns: Column<T>[];
@@ -67,15 +85,26 @@ export function AdvancedDataTable<T extends Record<string, unknown>>(props: {
   onSelectionChange?: (selected: number[]) => void;
   className?: string;
 }) {
+  const { onSelectionChange } = props;
   return (
     <UnifiedDataTable<T>
+      mode="static"
+      searchable={false}
       columns={props.columns}
-      legacyAdvancedRows={props.rows}
+      rows={props.rows}
+      rowId={(row) => props.rows.indexOf(row as AdvancedDataTableRow<T>)}
+      renderExpanded={
+        props.rows.some((row) => row._expanded !== undefined)
+          ? (row) => (row as AdvancedDataTableRow<T>)._expanded
+          : undefined
+      }
       caption={props.caption}
       selectable={props.selectable}
       stickyHeader={props.stickyHeader}
       emptyMessage={props.emptyMessage}
-      onSelectionChange={props.onSelectionChange}
+      onSelectionChange={
+        onSelectionChange && ((ids) => onSelectionChange(ids as number[]))
+      }
       className={props.className}
     />
   );

@@ -132,8 +132,8 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | UnavailableContribution | `UnavailableContribution.tsx` | `reason` (disabled\|unentitled\|blocked\|retired\|banned\|quarantined\|failed\|missing\|no-access), `size` (inline\|card\|tab\|node), `title`, `label`, `detail`, `action` |
 | Skeleton | `Skeleton.tsx` | Exports `SkeletonLine`, `SkeletonAvatar`, `SkeletonText`, `SkeletonCard` |
 | Table | `Table.tsx` | `columns`, `rows` |
-| DataTable | `DataTable.tsx` | `columns`, `rows`, `searchable`, `sortable`, `rowActions` (per-row menu: `id`, `label`, `onClick`/`href`, `hidden`, `disabled`, `disabledReason`, `destructive`, `group`, `order`) |
-| AdvancedDataTable | `AdvancedDataTable.tsx` | Extends DataTable with `selectable`, row actions |
+| DataTable | `DataTable.tsx` | `columns`, `rows`, `searchable`, `sortable`, `rowActions` (per-row menu: `id`, `label`, `onClick`/`href`, `hidden`, `disabled`, `disabledReason`, `destructive`, `group`, `order`), `selectable` + `rowId` / `selectedRowIds` / `onSelectionChange` (keyed by row id, header selects the rows shown), `renderExpanded` (detail rows), `stickyHeader` |
+| AdvancedDataTable | `AdvancedDataTable.tsx` | **Deprecated**, to be removed: thin wrapper over DataTable `selectable` / `renderExpanded` (`_expanded` row field) / `stickyHeader`. Use DataTable |
 | TreeView | `TreeView.tsx` | `nodes` (recursive), `onSelect` |
 | ButtonGroup | `ButtonGroup.tsx` | `options`, `selected`, `onChange` |
 | CheckboxGroup | `CheckboxGroup.tsx` | `options`, `values`, `onChange` |

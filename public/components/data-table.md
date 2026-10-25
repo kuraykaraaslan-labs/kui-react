@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-03
 
-Unified table with `mode="static" | "paginated" | "server"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).
+Unified table with `mode="static" | "paginated" | "server"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).
 
 ## Design tokens consumed
 
@@ -90,6 +90,57 @@ Unified table with `mode="static" | "paginated" | "server"`. Multi-column sort (
     { id: 'delete', label: 'Delete', group: 'danger', order: 1000, destructive: true, onClick: remove },
   ]}
 />
+```
+
+### Selection + expandable rows
+
+```tsx
+// Selection is keyed by row id (rowId, else row.id), so it survives sorting, search and paging.
+// The header checkbox selects the rows shown; rows on other pages keep their state.
+const [selected, setSelected] = useState<DataTableRowId[]>([]);
+
+<DataTable<Member>
+  rows={members}
+  columns={columns}
+  selectable
+  selectedRowIds={selected}
+  onSelectionChange={setSelected}
+  // Rows that return null get no expand toggle.
+  renderExpanded={(r) => (r.lastActive ? `Last active ${r.lastActive}` : null)}
+/>
+```
+
+### Filter panel (filterFields)
+
+```tsx
+// A "Filters" button next to the search opens a panel of any mix of controls.
+// Server mode sends the set fields to fetchPage as `filterValues` (JSON-safe:
+// dates are YYYY-MM-DD, a date range is { from, to }, a range is [min, max]).
+// Static / paginated modes match rows by row[field.id], or by the field's `match`.
+<DataTable<Modem>
+  mode="server"
+  fetchPage={(args) => api.modems({ ...args.filterValues, page: args.page })}
+  filterFields={[
+    { id: 'profile',    label: 'Profile',    type: 'select',      options: profiles },
+    { id: 'connection', label: 'Connection', type: 'multiselect', options: connections },
+    { id: 'status',     label: 'Status',     type: 'checkboxes',  options: statuses },
+    { id: 'gateway',    label: 'Gateway',    type: 'radio',       options: gateways },
+    { id: 'signal',     label: 'Signal (%)', type: 'range', min: 0, max: 100 },
+    { id: 'seen',       label: 'Last seen',  type: 'daterange' },
+    { id: 'name',       label: 'Name contains', type: 'text' },
+    { id: 'roaming',    label: 'Roaming only',  type: 'checkbox' },
+    { id: 'site', label: 'Site', type: 'custom',
+      render: ({ id, value, onChange }) => <SitePicker id={id} value={value} onChange={onChange} /> },
+  ]}
+  // Optional: filterValues / onFilterValuesChange (controlled), filtersLive, defaultFiltersOpen
+  columns={columns}
+/>
+```
+
+### Sticky header (stickyHeader)
+
+```tsx
+<DataTable mode="static" searchable={false} stickyHeader columns={columns} rows={rows} />
 ```
 
 ## Full source

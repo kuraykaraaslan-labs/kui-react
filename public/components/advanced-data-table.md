@@ -4,10 +4,10 @@
 - **layer:** ui
 - **category:** Organism
 - **filePath:** `modules/ui/Table/index.tsx`
-- **status:** beta
+- **status:** deprecated
 - **since:** 2025-03
 
-Enhanced table with row selection (with indeterminate header), expandable rows, and optional sticky header.
+Deprecated: use DataTable with `selectable`, `renderExpanded` and `stickyHeader`. Thin wrapper kept until removal; row selection (with indeterminate header), expandable rows, and optional sticky header.
 
 ## Variants
 

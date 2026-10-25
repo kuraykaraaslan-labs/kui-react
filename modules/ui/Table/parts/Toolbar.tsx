@@ -14,6 +14,7 @@ export function Toolbar({
   pageSizeOptions,
   onPageSizeChange,
   rowsPerPageLabel,
+  extra,
   className,
   id,
 }: {
@@ -25,10 +26,12 @@ export function Toolbar({
   pageSizeOptions?: number[];
   onPageSizeChange?: (n: number) => void;
   rowsPerPageLabel?: string;
+  /** Controls after the search bar (the filter-panel toggle). */
+  extra?: React.ReactNode;
   className?: string;
   id?: string;
 }) {
-  if (!searchable && !pageSizeOptions) return null;
+  if (!searchable && !pageSizeOptions && !extra) return null;
   return (
     <div className={cn('flex items-center gap-2 flex-wrap', className)}>
       {searchable && (
@@ -40,6 +43,7 @@ export function Toolbar({
           className="flex-1 min-w-40"
         />
       )}
+      {extra}
       {pageSizeOptions && onPageSizeChange && pageSize !== undefined && (
         <div className="flex items-center gap-2 shrink-0">
           <label

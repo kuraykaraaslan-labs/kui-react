@@ -12,7 +12,12 @@ import { KeyedTable } from '@/modules/ui/KeyedTable';
 import { TypedConfirmDialog } from '@/modules/ui/TypedConfirmDialog';
 import { useCallback, useState } from 'react';
 import type { ShowcaseComponent } from '../showcase.types';
-import type { DataTableRowAction } from '@/modules/ui/Table/types';
+import type {
+  DataTableFilterField,
+  DataTableFilterValues,
+  DataTableRowAction,
+  DataTableRowId,
+} from '@/modules/ui/Table/types';
 
 type Company = { id: string; name: string; email: string; status: string; [key: string]: unknown };
 
@@ -123,6 +128,7 @@ import type {
   DataTableFetchArgs,
   DataTableFetchResult,
 } from '@/modules/ui/Table';
+import { matchFilterField } from '@/modules/ui/Table/index';
 
 type ServerUser = { id: string; name: string; email: string; team: string; joined: string; [key: string]: unknown };
 
@@ -192,6 +198,108 @@ function ServerModeDemo() {
           { key: 'joined', header: 'Joined', sortable: true },
         ]}
       />
+    </div>
+  );
+}
+
+type Modem = {
+  id: string; name: string; profile: string; connection: string; status: string;
+  gateway: string; signal: number; roaming: boolean; seen: string; [key: string]: unknown;
+};
+
+const MODEMS: Modem[] = Array.from({ length: 24 }, (_, i) => ({
+  id:         `m-${i + 1}`,
+  name:       `Modem ${String(i + 1).padStart(2, '0')}`,
+  profile:    ['Home', 'Office', 'Industrial'][i % 3],
+  connection: ['LTE', '5G', 'Ethernet', 'Wi-Fi'][i % 4],
+  status:     ['Online', 'Offline', 'Degraded'][i % 3 === 2 ? 2 : i % 5 === 0 ? 1 : 0],
+  gateway:    `gw-${(i % 3) + 1}`,
+  signal:     (i * 37) % 100,
+  roaming:    i % 6 === 0,
+  seen:       `2026-10-${String((i % 24) + 1).padStart(2, '0')}`,
+}));
+
+const MODEM_FILTERS: DataTableFilterField<Modem>[] = [
+  { id: 'profile',    label: 'Profile',    type: 'select', options: ['Home', 'Office', 'Industrial'].map((v) => ({ label: v, value: v })) },
+  { id: 'connection', label: 'Connection', type: 'multiselect', options: ['LTE', '5G', 'Ethernet', 'Wi-Fi'].map((v) => ({ label: v, value: v })) },
+  { id: 'status',     label: 'Status',     type: 'checkboxes', options: ['Online', 'Offline', 'Degraded'].map((v) => ({ label: v, value: v })) },
+  { id: 'gateway',    label: 'Gateway',    type: 'radio', options: [1, 2, 3].map((n) => ({ label: `GW ${n}`, value: `gw-${n}` })) },
+  { id: 'signal',     label: 'Signal (%)', type: 'range', min: 0, max: 100, step: 5 },
+  { id: 'seen',       label: 'Last seen',  type: 'daterange', locale: 'en' },
+  { id: 'name',       label: 'Name contains', type: 'text', placeholder: 'e.g. 07' },
+  { id: 'roaming',    label: 'Roaming only',  type: 'checkbox' },
+];
+
+function FilterPanelDemo() {
+  const [sent, setSent] = useState<DataTableFilterValues>({});
+  const fetchPage = useCallback(
+    (args: DataTableFetchArgs): Promise<DataTableFetchResult<Modem>> => {
+      setSent(args.filterValues);
+      // A real backend gets `args.filterValues` as-is; the demo filters locally.
+      const rows = MODEMS.filter((m) => MODEM_FILTERS.every((f) =>
+        !(f.id in args.filterValues) || matchFilterField(f, m, args.filterValues[f.id])));
+      const start = (args.page - 1) * args.pageSize;
+      return new Promise((resolve) =>
+        setTimeout(() => resolve({ rows: rows.slice(start, start + args.pageSize), total: rows.length }), 200));
+    },
+    [],
+  );
+  return (
+    <div className="w-full space-y-2">
+      <DataTable<Modem>
+        mode="server"
+        fetchPage={fetchPage}
+        caption="Modems"
+        pageSize={5}
+        searchPlaceholder="Search modems…"
+        filterFields={MODEM_FILTERS}
+        defaultFiltersOpen
+        columns={[
+          { key: 'name',       header: 'Name' },
+          { key: 'profile',    header: 'Profile' },
+          { key: 'connection', header: 'Connection' },
+          { key: 'status',     header: 'Status', render: (r) => <Badge variant={r.status === 'Online' ? 'success' : r.status === 'Degraded' ? 'warning' : 'neutral'}>{r.status}</Badge> },
+          { key: 'gateway',    header: 'Gateway' },
+          { key: 'signal',     header: 'Signal', align: 'right' },
+        ]}
+      />
+      <pre className="overflow-x-auto rounded-md bg-surface-sunken p-3 text-xs text-text-secondary">
+        filterValues sent to fetchPage: {JSON.stringify(sent)}
+      </pre>
+    </div>
+  );
+}
+
+type Member = { id: string; name: string; role: string; status: string; joined: string; lastActive?: string; [key: string]: unknown };
+
+const MEMBERS: Member[] = [
+  { id: 'm1', name: 'Alice', role: 'Admin',  status: 'Active',   joined: '2023-01-15', lastActive: '2 days ago' },
+  { id: 'm2', name: 'Bob',   role: 'Editor', status: 'Inactive', joined: '2022-06-10', lastActive: '30 days ago' },
+  { id: 'm3', name: 'Carol', role: 'Viewer', status: 'Active',   joined: '2023-09-02' },
+  { id: 'm4', name: 'Dave',  role: 'Editor', status: 'Active',   joined: '2024-03-01', lastActive: 'today' },
+  { id: 'm5', name: 'Eve',   role: 'Viewer', status: 'Active',   joined: '2024-05-18', lastActive: 'yesterday' },
+  { id: 'm6', name: 'Frank', role: 'Admin',  status: 'Pending',  joined: '2024-06-22' },
+];
+
+function SelectionDemo() {
+  const [selected, setSelected] = useState<DataTableRowId[]>(['m2']);
+  return (
+    <div className="w-full space-y-2">
+      <DataTable<Member>
+        caption="Team members"
+        pageSize={5}
+        rows={MEMBERS}
+        selectable
+        selectedRowIds={selected}
+        onSelectionChange={setSelected}
+        renderExpanded={(r) => (r.lastActive ? `Joined ${r.joined} · Last active ${r.lastActive}` : null)}
+        columns={[
+          { key: 'name', header: 'Name', sortable: true },
+          { key: 'role', header: 'Role', sortable: true },
+          { key: 'status', header: 'Status', render: (r) => <Badge variant={r.status === 'Active' ? 'success' : r.status === 'Pending' ? 'warning' : 'neutral'}>{r.status}</Badge> },
+        ]}
+      />
+      <p className="text-xs text-text-secondary">Selected ids: {selected.length ? selected.join(', ') : 'none'}</p>
     </div>
   );
 }
@@ -312,7 +420,7 @@ export function Table({ columns, rows, caption, emptyMessage = 'No results found
       title: 'DataTable',
       category: 'Organism',
       abbr: 'Dt',
-      description: 'Unified table with `mode="static" | "paginated" | "server"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).',
+      description: 'Unified table with `mode="static" | "paginated" | "server"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).',
       filePath: 'modules/ui/Table/DataTable.tsx',
       sourceCode: `'use client';
 import { cn } from '@/libs/utils/cn';
@@ -443,6 +551,68 @@ export function DataTable({ columns, rows, caption, searchable = true, searchPla
   ]}
 />`,
         },
+        {
+          title: 'Selection + expandable rows',
+          layout: 'stack' as const,
+          preview: <SelectionDemo />,
+          code: `// Selection is keyed by row id (rowId, else row.id), so it survives sorting, search and paging.
+// The header checkbox selects the rows shown; rows on other pages keep their state.
+const [selected, setSelected] = useState<DataTableRowId[]>([]);
+
+<DataTable<Member>
+  rows={members}
+  columns={columns}
+  selectable
+  selectedRowIds={selected}
+  onSelectionChange={setSelected}
+  // Rows that return null get no expand toggle.
+  renderExpanded={(r) => (r.lastActive ? \`Last active \${r.lastActive}\` : null)}
+/>`,
+        },
+        {
+          title: 'Filter panel (filterFields)',
+          layout: 'stack' as const,
+          preview: <FilterPanelDemo />,
+          code: `// A "Filters" button next to the search opens a panel of any mix of controls.
+// Server mode sends the set fields to fetchPage as \`filterValues\` (JSON-safe:
+// dates are YYYY-MM-DD, a date range is { from, to }, a range is [min, max]).
+// Static / paginated modes match rows by row[field.id], or by the field's \`match\`.
+<DataTable<Modem>
+  mode="server"
+  fetchPage={(args) => api.modems({ ...args.filterValues, page: args.page })}
+  filterFields={[
+    { id: 'profile',    label: 'Profile',    type: 'select',      options: profiles },
+    { id: 'connection', label: 'Connection', type: 'multiselect', options: connections },
+    { id: 'status',     label: 'Status',     type: 'checkboxes',  options: statuses },
+    { id: 'gateway',    label: 'Gateway',    type: 'radio',       options: gateways },
+    { id: 'signal',     label: 'Signal (%)', type: 'range', min: 0, max: 100 },
+    { id: 'seen',       label: 'Last seen',  type: 'daterange' },
+    { id: 'name',       label: 'Name contains', type: 'text' },
+    { id: 'roaming',    label: 'Roaming only',  type: 'checkbox' },
+    { id: 'site', label: 'Site', type: 'custom',
+      render: ({ id, value, onChange }) => <SitePicker id={id} value={value} onChange={onChange} /> },
+  ]}
+  // Optional: filterValues / onFilterValuesChange (controlled), filtersLive, defaultFiltersOpen
+  columns={columns}
+/>`,
+        },
+        {
+          title: 'Sticky header (stickyHeader)',
+          layout: 'stack' as const,
+          preview: (
+            <div className="w-full">
+              <DataTable
+                caption="Sticky header table"
+                mode="static"
+                searchable={false}
+                stickyHeader
+                columns={[{ key: 'n', header: 'Name' }, { key: 'v', header: 'Value', align: 'right' }]}
+                rows={Array.from({ length: 12 }, (_, i) => ({ n: `Row ${i + 1}`, v: i * 10 }))}
+              />
+            </div>
+          ),
+          code: `<DataTable mode="static" searchable={false} stickyHeader columns={columns} rows={rows} />`,
+        },
       ],
     },
     {
@@ -450,7 +620,7 @@ export function DataTable({ columns, rows, caption, searchable = true, searchPla
       title: 'AdvancedDataTable',
       category: 'Organism',
       abbr: 'At',
-      description: 'Enhanced table with row selection (with indeterminate header), expandable rows, and optional sticky header.',
+      description: 'Deprecated: use DataTable with `selectable`, `renderExpanded` and `stickyHeader`. Thin wrapper kept until removal; row selection (with indeterminate header), expandable rows, and optional sticky header.',
       filePath: 'modules/ui/Table/index.tsx',
       sourceCode: `'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useState } from 'react';\n\nexport function AdvancedDataTable({ columns, rows, selectable, stickyHeader, onSelectionChange }) {\n  // row selection with indeterminate header, expandable rows, sticky header\n}`,
       variants: [

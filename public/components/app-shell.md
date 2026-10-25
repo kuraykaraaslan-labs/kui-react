@@ -78,7 +78,7 @@ export function AppShell({ logo, compactLogo, sidebarCollapsed = false, sidebar,
   const logoContent = sidebarCollapsed && compactLogo ? compactLogo : (logo ?? compactLogo);
 
   return (
-    <div className={cn('flex h-screen overflow-hidden bg-surface-base', className)} {...rest}>
+    <div className={cn('relative flex h-screen overflow-hidden bg-surface-base', className)} {...rest}>
       {sidebar && (
         <aside className="relative hidden lg:flex flex-col h-full min-h-0 shrink-0 border-r border-border bg-surface-raised">
           {logoContent && (

@@ -8,8 +8,8 @@ import type {
 } from '../types';
 
 // TODO M2: column show/hide, pinning, resize, reorder state
-// TODO M4: row selection state (single/multi/range)
-// TODO M5: row grouping, expansion, inline-edit state
+// TODO M4: single / range selection (multi-select and expansion live in useRowState)
+// TODO M5: row grouping, inline-edit state
 
 /**
  * Compare two values using a localeCompare with numeric awareness.
@@ -128,6 +128,8 @@ export type UseTableArgs<T extends Record<string, unknown>> = {
   initialPageSize?: number;
   initialFilters?: FilterState;
   initialSearch?: string;
+  /** Extra row filter (the filter panel); keep it stable between renders. */
+  predicate?: (row: T) => boolean;
 };
 
 /**
@@ -141,6 +143,7 @@ export function useTable<T extends Record<string, unknown>>({
   initialPageSize = 10,
   initialFilters = {},
   initialSearch = '',
+  predicate,
 }: UseTableArgs<T>) {
   const [sort, setSort] = useState<SortState[]>(initialSort);
   const [page, setPage] = useState(1);
@@ -148,10 +151,10 @@ export function useTable<T extends Record<string, unknown>>({
   const [search, setSearch] = useState(initialSearch);
   const [filters, setFilters] = useState<FilterState>(initialFilters);
 
-  const filtered = useMemo(
-    () => applyColumnFilters(applySearch(rows, columns, search), columns, filters),
-    [rows, columns, search, filters],
-  );
+  const filtered = useMemo(() => {
+    const narrowed = applyColumnFilters(applySearch(rows, columns, search), columns, filters);
+    return predicate ? narrowed.filter(predicate) : narrowed;
+  }, [rows, columns, search, filters, predicate]);
   const sorted = useMemo(() => applySort(filtered, sort), [filtered, sort]);
 
   const total = sorted.length;

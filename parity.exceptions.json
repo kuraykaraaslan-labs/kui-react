@@ -225,14 +225,11 @@
       "absentIn": [
         "KUInative"
       ],
-      "reason": "Not created in KUInative until a native screen needs them (the rule of docs/phases/09 and 10: a component absent from a sibling is not created there, and gets a record here). The table family (DataTable, AdvancedDataTable, ServerDataTable), CodeEditor, TimeWindowPicker / TimeWindowSelect, DateRangePicker are web interaction surfaces; the observability and AI pieces (LogViewer, TraceWaterfall, ServiceMap, ConversationTimeline, DayBarChart, Evidence, AiHumanDraftEditor, InlineEditList, LocaleSwitcher) were added to kui-react on 2026-10-18 for the next-boilerplate observability platform. Virtual, lazy and Toast.store are React modules, not components.",
+      "reason": "Not created in KUInative until a native screen needs them (the rule of docs/phases/09 and 10: a component absent from a sibling is not created there, and gets a record here). ServerDataTable (KUInative has DataTable with mode=\"server\" and AdvancedDataTable), CodeEditor and TimeWindowPicker / TimeWindowSelect are web interaction surfaces; the observability and AI pieces (LogViewer, TraceWaterfall, ServiceMap, ConversationTimeline, DayBarChart, Evidence, AiHumanDraftEditor, InlineEditList, LocaleSwitcher) were added to kui-react on 2026-10-18 for the next-boilerplate observability platform. Virtual, lazy and Toast.store are React modules, not components.",
       "components": [
-        "AdvancedDataTable",
         "AiHumanDraftEditor",
         "CodeEditor",
         "ConversationTimeline",
-        "DataTable",
-        "DateRangePicker",
         "DayBarChart",
         "Evidence",
         "InlineEditList",

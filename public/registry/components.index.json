@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-24T20:48:53.079Z",
+  "generatedAt": "2026-10-25T05:36:54.401Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1677,7 +1677,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Table/DataTable.tsx",
       "abbr": "Dt",
-      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).",
+      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).",
       "status": "stable",
       "since": "2025-03",
       "designTokens": [
@@ -1686,7 +1686,7 @@
         "--surface-base",
         "--text-secondary"
       ],
-      "variantCount": 4
+      "variantCount": 7
     },
     {
       "id": "advanced-data-table",
@@ -1695,8 +1695,8 @@
       "category": "Organism",
       "filePath": "modules/ui/Table/index.tsx",
       "abbr": "At",
-      "description": "Enhanced table with row selection (with indeterminate header), expandable rows, and optional sticky header.",
-      "status": "beta",
+      "description": "Deprecated: use DataTable with `selectable`, `renderExpanded` and `stickyHeader`. Thin wrapper kept until removal; row selection (with indeterminate header), expandable rows, and optional sticky header.",
+      "status": "deprecated",
       "since": "2025-03",
       "designTokens": [],
       "variantCount": 2
@@ -3447,7 +3447,7 @@
       "category": "Domain",
       "filePath": "modules/domains/common/notification/NotificationMenu.tsx",
       "abbr": "NM",
-      "description": "Bell icon button with unread count badge. Opens a dropdown panel showing notification items grouped by read/unread state with variant color dots, timestamps, and mark-all-read / view-all actions.",
+      "description": "Bell icon button with unread count badge. Opens a dropdown panel showing notification items grouped by read/unread state with variant color dots, timestamps, and mark-all-read / view-all actions. `sections` puts more of the same bell above the list (an alarm section, say) and `extraCount` adds its count to the badge, so a host shows one bell. The panel stays inside the visible screen on a phone.",
       "status": "stable",
       "since": "2025-05",
       "designTokens": [],
@@ -5607,11 +5607,11 @@
       "category": "Domain",
       "filePath": "modules/domains/iot/alarm/AlarmBellMenu.tsx",
       "abbr": "BM",
-      "description": "The IoT bell: the count of alarms not resolved (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, and View all.",
+      "description": "The IoT bell: the count of OPEN alarms (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, Acknowledge all, and View all. In a host that already has a bell, AlarmBellSection goes inside its NotificationMenu (sections + extraCount) so there is one bell.",
       "status": "beta",
       "since": "2026-10",
       "designTokens": [],
-      "variantCount": 2
+      "variantCount": 3
     },
     {
       "id": "iot-device-online-dot",

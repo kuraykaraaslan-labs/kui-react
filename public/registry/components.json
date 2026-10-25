@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-24T20:48:53.079Z",
+  "generatedAt": "2026-10-25T05:36:54.401Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2831,7 +2831,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Table/DataTable.tsx",
       "abbr": "Dt",
-      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).",
+      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\"`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).",
       "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useMemo, useState } from 'react';\nimport { SearchBar } from './SearchBar';\nimport { Pagination } from './Pagination';\n\nexport function DataTable({ columns, rows, caption, searchable = true, searchPlaceholder = 'Search…', pageSize: defaultPageSize = 10, pageSizeOptions = [5,10,25,50], emptyMessage = 'No results found.', className }) {\n  const [search, setSearch] = useState('');\n  const [page, setPage] = useState(1);\n  const [pageSize, setPageSize] = useState(defaultPageSize);\n\n  const filtered = useMemo(() => {\n    if (!search.trim()) return rows;\n    const q = search.toLowerCase();\n    return rows.filter((row) => columns.some((col) => !col.render && String(row[col.key] ?? '').toLowerCase().includes(q)));\n  }, [rows, search, columns]);\n\n  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));\n  const paginated  = filtered.slice((page - 1) * pageSize, page * pageSize);\n\n  return (\n    <div className={cn('space-y-3', className)}>\n      {searchable && (\n        <div className=\"flex items-center gap-2 flex-wrap\">\n          <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={searchPlaceholder} className=\"flex-1 min-w-40\" />\n          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className=\"rounded-md border border-border bg-surface-base px-2 py-1.5 text-sm\">\n            {pageSizeOptions.map((s) => <option key={s} value={s}>{s}</option>)}\n          </select>\n        </div>\n      )}\n      {/* table body ... */}\n      <div className=\"flex items-center justify-between gap-4 flex-wrap\">\n        <p className=\"text-xs text-text-secondary\">Showing {(page-1)*pageSize+1}–{Math.min(page*pageSize, filtered.length)} of {filtered.length}</p>\n        {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}\n      </div>\n    </div>\n  );\n}",
       "variants": [
         {
@@ -2849,6 +2849,18 @@
         {
           "title": "Row actions (rowActions)",
           "code": "// A trailing column with one menu per row. Every per-row field takes a function of the row.\n<DataTable<Company>\n  rows={companies}\n  columns={columns}\n  rowActionsLabel={(row) => `Actions for ${row.name}`}\n  rowActions={[\n    { id: 'open', label: 'Open', href: (row) => `/companies/${row.id}` },\n    { id: 'call', label: 'Call', group: 'contact', order: 10, onClick: (row) => call(row) },\n    { id: 'sign', label: 'Send for signature', group: 'contact', order: 20,\n      disabled: (row) => !row.email, disabledReason: (row) => (row.email ? undefined : 'Add an email address first') },\n    { id: 'restore', label: 'Restore', hidden: (row) => row.status !== 'Archived' },\n    { id: 'delete', label: 'Delete', group: 'danger', order: 1000, destructive: true, onClick: remove },\n  ]}\n/>"
+        },
+        {
+          "title": "Selection + expandable rows",
+          "code": "// Selection is keyed by row id (rowId, else row.id), so it survives sorting, search and paging.\n// The header checkbox selects the rows shown; rows on other pages keep their state.\nconst [selected, setSelected] = useState<DataTableRowId[]>([]);\n\n<DataTable<Member>\n  rows={members}\n  columns={columns}\n  selectable\n  selectedRowIds={selected}\n  onSelectionChange={setSelected}\n  // Rows that return null get no expand toggle.\n  renderExpanded={(r) => (r.lastActive ? `Last active ${r.lastActive}` : null)}\n/>"
+        },
+        {
+          "title": "Filter panel (filterFields)",
+          "code": "// A \"Filters\" button next to the search opens a panel of any mix of controls.\n// Server mode sends the set fields to fetchPage as `filterValues` (JSON-safe:\n// dates are YYYY-MM-DD, a date range is { from, to }, a range is [min, max]).\n// Static / paginated modes match rows by row[field.id], or by the field's `match`.\n<DataTable<Modem>\n  mode=\"server\"\n  fetchPage={(args) => api.modems({ ...args.filterValues, page: args.page })}\n  filterFields={[\n    { id: 'profile',    label: 'Profile',    type: 'select',      options: profiles },\n    { id: 'connection', label: 'Connection', type: 'multiselect', options: connections },\n    { id: 'status',     label: 'Status',     type: 'checkboxes',  options: statuses },\n    { id: 'gateway',    label: 'Gateway',    type: 'radio',       options: gateways },\n    { id: 'signal',     label: 'Signal (%)', type: 'range', min: 0, max: 100 },\n    { id: 'seen',       label: 'Last seen',  type: 'daterange' },\n    { id: 'name',       label: 'Name contains', type: 'text' },\n    { id: 'roaming',    label: 'Roaming only',  type: 'checkbox' },\n    { id: 'site', label: 'Site', type: 'custom',\n      render: ({ id, value, onChange }) => <SitePicker id={id} value={value} onChange={onChange} /> },\n  ]}\n  // Optional: filterValues / onFilterValuesChange (controlled), filtersLive, defaultFiltersOpen\n  columns={columns}\n/>"
+        },
+        {
+          "title": "Sticky header (stickyHeader)",
+          "code": "<DataTable mode=\"static\" searchable={false} stickyHeader columns={columns} rows={rows} />"
         }
       ],
       "status": "stable",
@@ -2867,7 +2879,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Table/index.tsx",
       "abbr": "At",
-      "description": "Enhanced table with row selection (with indeterminate header), expandable rows, and optional sticky header.",
+      "description": "Deprecated: use DataTable with `selectable`, `renderExpanded` and `stickyHeader`. Thin wrapper kept until removal; row selection (with indeterminate header), expandable rows, and optional sticky header.",
       "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useState } from 'react';\n\nexport function AdvancedDataTable({ columns, rows, selectable, stickyHeader, onSelectionChange }) {\n  // row selection with indeterminate header, expandable rows, sticky header\n}",
       "variants": [
         {
@@ -2879,7 +2891,7 @@
           "code": "<AdvancedDataTable columns={columns} rows={rows} stickyHeader />"
         }
       ],
-      "status": "beta",
+      "status": "deprecated",
       "since": "2025-03",
       "designTokens": []
     },
@@ -3085,7 +3097,7 @@
       "filePath": "modules/app/AppShell.tsx",
       "abbr": "AS",
       "description": "Full-screen layout wrapper with logo, sidebar and topbar slots. Sidebar renders as an aside on desktop and opens via a drawer on mobile.",
-      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\n\nexport function AppShell({ logo, compactLogo, sidebarCollapsed = false, sidebar, topbar, children, className, ...rest }) {\n  const logoContent = sidebarCollapsed && compactLogo ? compactLogo : (logo ?? compactLogo);\n\n  return (\n    <div className={cn('flex h-screen overflow-hidden bg-surface-base', className)} {...rest}>\n      {sidebar && (\n        <aside className=\"relative hidden lg:flex flex-col h-full min-h-0 shrink-0 border-r border-border bg-surface-raised\">\n          {logoContent && (\n            <div className={cn(\n              'absolute inset-x-0 top-0 z-10 flex items-center h-14 border-b border-border bg-surface-raised overflow-hidden',\n              sidebarCollapsed && compactLogo ? 'justify-center px-2' : 'px-4'\n            )}>{logoContent}</div>\n          )}\n          <div className={cn('flex min-h-0 flex-1', logoContent && 'pt-14')}>\n            {sidebar}\n          </div>\n        </aside>\n      )}\n      <div className=\"flex flex-1 flex-col min-w-0 min-h-0\">\n        {topbar && (\n          <header className=\"sticky top-0 z-30 flex items-center h-14 px-4 border-b border-border bg-surface-raised/90 backdrop-blur shrink-0\">\n            {topbar}\n          </header>\n        )}\n        <main id=\"main-content\" className=\"flex-1 overflow-y-auto p-4 sm:p-6\">\n          {children}\n        </main>\n      </div>\n    </div>\n  );\n}",
+      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\n\nexport function AppShell({ logo, compactLogo, sidebarCollapsed = false, sidebar, topbar, children, className, ...rest }) {\n  const logoContent = sidebarCollapsed && compactLogo ? compactLogo : (logo ?? compactLogo);\n\n  return (\n    <div className={cn('relative flex h-screen overflow-hidden bg-surface-base', className)} {...rest}>\n      {sidebar && (\n        <aside className=\"relative hidden lg:flex flex-col h-full min-h-0 shrink-0 border-r border-border bg-surface-raised\">\n          {logoContent && (\n            <div className={cn(\n              'absolute inset-x-0 top-0 z-10 flex items-center h-14 border-b border-border bg-surface-raised overflow-hidden',\n              sidebarCollapsed && compactLogo ? 'justify-center px-2' : 'px-4'\n            )}>{logoContent}</div>\n          )}\n          <div className={cn('flex min-h-0 flex-1', logoContent && 'pt-14')}>\n            {sidebar}\n          </div>\n        </aside>\n      )}\n      <div className=\"flex flex-1 flex-col min-w-0 min-h-0\">\n        {topbar && (\n          <header className=\"sticky top-0 z-30 flex items-center h-14 px-4 border-b border-border bg-surface-raised/90 backdrop-blur shrink-0\">\n            {topbar}\n          </header>\n        )}\n        <main id=\"main-content\" className=\"flex-1 overflow-y-auto p-4 sm:p-6\">\n          {children}\n        </main>\n      </div>\n    </div>\n  );\n}",
       "variants": [
         {
           "title": "Sidebar + topbar + content",
@@ -5639,7 +5651,7 @@
       "category": "Domain",
       "filePath": "modules/domains/common/notification/NotificationMenu.tsx",
       "abbr": "NM",
-      "description": "Bell icon button with unread count badge. Opens a dropdown panel showing notification items grouped by read/unread state with variant color dots, timestamps, and mark-all-read / view-all actions.",
+      "description": "Bell icon button with unread count badge. Opens a dropdown panel showing notification items grouped by read/unread state with variant color dots, timestamps, and mark-all-read / view-all actions. `sections` puts more of the same bell above the list (an alarm section, say) and `extraCount` adds its count to the badge, so a host shows one bell. The panel stays inside the visible screen on a phone.",
       "source": "'use client';\nimport { NotificationMenu } from '@/modules/domains/common/notification/NotificationMenu';\n\nconst [items, setItems] = useState(initialNotifications);\n\n<NotificationMenu\n  items={items}\n  onMarkAllRead={() => setItems((prev) => prev.map((n) => ({ ...n, read: true })))}\n  onViewAll={() => router.push('/notifications')}\n/>",
       "variants": [
         {
@@ -9429,7 +9441,7 @@
       "category": "Domain",
       "filePath": "modules/domains/iot/alarm/AlarmBellMenu.tsx",
       "abbr": "BM",
-      "description": "The IoT bell: the count of alarms not resolved (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, and View all.",
+      "description": "The IoT bell: the count of OPEN alarms (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, Acknowledge all, and View all. In a host that already has a bell, AlarmBellSection goes inside its NotificationMenu (sections + extraCount) so there is one bell.",
       "source": "<AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => `/alarms/${id}` }} />",
       "variants": [
         {
@@ -9439,6 +9451,10 @@
         {
           "title": "Five at most",
           "code": "<AlarmBellMenu hrefs={hrefs} limit={2} />"
+        },
+        {
+          "title": "One bell: a section of the notification menu",
+          "code": "const [alarms, setAlarms] = useState(0);\n<NotificationMenu items={items} extraCount={alarms} sections={<AlarmBellSection hrefs={hrefs} onCount={setAlarms} />} />"
         }
       ],
       "status": "beta",

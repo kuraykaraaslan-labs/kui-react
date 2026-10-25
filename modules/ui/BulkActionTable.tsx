@@ -8,11 +8,9 @@ import type { Column } from './Table/types';
 /**
  * A table with row selection and a bulk-action bar.
  *
- * `DataTable` accepts a `selectable` prop, but it is only read inside the
- * deprecated `LegacyAdvancedView` and keys selection **by array index** — which
- * silently selects the wrong rows the moment anything sorts, filters or
- * paginates. This component is the id-keyed replacement; `Table/`'s own
- * `TODO M4` remains for whoever retrofits the full DataTable.
+ * `DataTable` has id-keyed selection too (`selectable` + `rowId`). Use this
+ * component when you need the bulk-action bar and "select all N matching";
+ * DataTable's own bulk-action toolbar is still a `TODO M4`.
  *
  * ## Selection is by id, and "select all" is honest
  *

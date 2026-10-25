@@ -6,6 +6,8 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Deprecated
 
+- `AdvancedDataTable`: a thin wrapper over `DataTable` (`selectable`, `renderExpanded`, `stickyHeader`) and marked
+  deprecated in the showcase; it is removed next. `onSelectionChange` still reports positions in `rows`.
 - IoT (OD-9, the term is Alarm): `AlertSeverityBadge`, `AlertDetailHeader`, `AlertEventTimeline`, the types `AlertEvent`,
   `AlertEventKind`, `AlertSeverity`, `AlertStatus`, `Alert` and the schemas `AlertSeverityEnum`, `AlertStatusEnum`, `AlertSchema`
   are aliases of their `Alarm*` names (`modules/domains/iot/alarm/`, `types/alarm.ts`), and `/theme/iot/alerts/**` redirects to
@@ -28,6 +30,14 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `DataTable`: row selection in every mode (`selectable`, `rowId`, `selectedRowIds`, `defaultSelectedRowIds`,
+  `onSelectionChange`), keyed by row id so sorting, search and paging never select the wrong row; the header checkbox
+  selects the rows shown and a "{count} selected" line offers Clear selection. Expandable detail rows (`renderExpanded`)
+  and `stickyHeader`, both formerly only in `AdvancedDataTable`.
+- `DataTable`: a filter panel (`filterFields`) behind a Filters toolbar button with an active-count badge: select,
+  multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range and custom fields, applied on Apply
+  (or at once with `filtersLive`), controlled through `filterValues` / `onFilterValuesChange`. Server mode sends the set
+  values to `fetchPage` as `filterValues` (JSON-safe); the other modes match rows. The field list can change at runtime.
 - `ComboBox`: `messages` overrides its built-in English strings (`DEFAULT_COMBOBOX_MESSAGES`: placeholder, no results,
   the clear button's name `Clear selection`, `Loading more…`, and `loading`, a new screen-reader status while the
   skeleton rows of an async search show). The `placeholder` and `noResultsText` props still win.
