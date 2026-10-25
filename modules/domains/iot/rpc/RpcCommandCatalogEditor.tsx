@@ -10,7 +10,8 @@ import { Checkbox } from '@/modules/ui/Checkbox';
 import { Drawer } from '@/modules/ui/Drawer';
 import { EmptyState } from '@/modules/ui/EmptyState';
 import { Input } from '@/modules/ui/Input';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { ConfirmDialog, confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Select } from '@/modules/ui/Select';
 import { Textarea } from '@/modules/ui/Textarea';
@@ -98,7 +99,7 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
     );
   }
 
-  const columns: KeyedTableColumn<RpcCatalogCommand>[] = [
+  const columns: Column<RpcCatalogCommand>[] = [
     {
       key: 'command',
       header: m.rpcCatalog.method,
@@ -162,13 +163,17 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
       {commands !== null && commands.length === 0 ? (
         <EmptyState icon={<FontAwesomeIcon icon={faTerminal} aria-hidden="true" />} title={m.rpcCatalog.title} description={m.rpcCatalog.empty} />
       ) : (
-        <KeyedTable
+        <DataTable<RpcCatalogCommand>
+          mode="manual"
           caption={m.rpcCatalog.title}
           columns={columns}
           rows={commands ?? []}
-          getRowKey={(c) => c.commandId}
+          rowId={(c) => c.commandId}
           loading={commands === null}
-          messages={{ loading: m.common.loading, retry: m.common.retry, selectAll: m.common.selectAll }}
+          messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
+          searchable={false}
+          pageSizeOptions={[]}
+          keyboardNavigation
         />
       )}
 

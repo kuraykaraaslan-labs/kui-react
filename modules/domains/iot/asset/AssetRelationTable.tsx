@@ -3,7 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMicrochip, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
 import type { AssetRelation, RelationEntityType } from '../types/asset';
@@ -40,7 +41,7 @@ export function AssetRelationTable({ rows, hrefs = {}, onRemove, loading, error,
       </span>
     );
   };
-  const columns: KeyedTableColumn<AssetRelation>[] = [
+  const columns: Column<AssetRelation>[] = [
     { key: 'from', header: m.asset.relationFrom, render: (r) => end(r.fromType, r.fromId, r.fromName) },
     { key: 'type', header: m.asset.relationType, render: (r) => <Badge variant={r.type === 'CONTAINS' ? 'primary' : 'neutral'} size="sm">{r.type}</Badge> },
     { key: 'to', header: m.asset.relationTo, render: (r) => end(r.toType, r.toId, r.toName) },
@@ -56,17 +57,21 @@ export function AssetRelationTable({ rows, hrefs = {}, onRemove, loading, error,
     }] : []),
   ];
   return (
-    <KeyedTable
+    <DataTable<AssetRelation>
+      mode="manual"
       className={className}
       caption={m.asset.relations}
       columns={columns}
       rows={rows}
-      getRowKey={(r) => r.relationId}
+      rowId={(r) => r.relationId}
       loading={loading}
-      error={error}
+      error={error || undefined}
       onRetry={onRetry}
-      emptyText={m.asset.noRelations}
-      messages={{ loading: m.common.loading, retry: m.common.retry, selectAll: m.common.selectAll }}
+      emptyMessage={m.asset.noRelations}
+      messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
+      searchable={false}
+      pageSizeOptions={[]}
+      keyboardNavigation
     />
   );
 }

@@ -5,7 +5,8 @@ import { faLock, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icon
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { Input } from '@/modules/ui/Input';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { TabGroup } from '@/modules/ui/TabGroup';
 import { Textarea } from '@/modules/ui/Textarea';
@@ -167,7 +168,7 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
     </div>
   );
 
-  const columns: KeyedTableColumn<AttributeEntry>[] = [
+  const columns: Column<AttributeEntry>[] = [
     { key: 'key', header: m.attribute.key, render: (e) => <code className="break-all font-mono text-xs">{e.key}</code> },
     {
       key: 'value',
@@ -210,17 +211,21 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
       <p className="text-xs text-text-secondary">
         {scope === 'CLIENT' ? m.attribute.clientReadOnly : scope === 'SHARED' ? m.attribute.sharedHint : m.attribute.serverHint}
       </p>
-      <KeyedTable
+      <DataTable<AttributeEntry>
+        mode="manual"
         caption={m.attribute[scope]}
         columns={columns}
-        rows={rows}
-        getRowKey={(e) => e.key}
+        rows={rows as AttributeEntry[]}
+        rowId={(e) => e.key}
         loading={loading}
-        error={error}
+        error={error || undefined}
         onRetry={onRetry ? () => onRetry(scope) : undefined}
-        emptyText={m.attribute.empty}
+        emptyMessage={m.attribute.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
-        dense
+        density="compact"
+        searchable={false}
+        pageSizeOptions={[]}
+        keyboardNavigation
       />
       {canWrite && (editing === '' ? (
         <div className="rounded-lg border border-border p-3">{editor(null)}</div>

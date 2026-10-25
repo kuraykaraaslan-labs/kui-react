@@ -1,5 +1,6 @@
 'use client';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { Button } from '@/modules/ui/Button';
 import { useIotText } from '../api/IotAdapterProvider';
 import { formatDateTime, formatRelative, toDate } from '../format';
@@ -44,7 +45,7 @@ export function RpcRequestList({
 }: RpcRequestListProps) {
   const { m, locale: lang } = useIotText(messages, locale);
   const sourceLabel = (s: string) => (m.rpc as Record<string, string>)[`source_${s}`] ?? s;
-  const columns: KeyedTableColumn<RpcRequest>[] = [
+  const columns: Column<RpcRequest>[] = [
     { key: 'method', header: m.rpc.method, render: (r) => <code className="font-mono text-xs">{r.method}</code> },
     ...(showDevice ? [{ key: 'device', header: m.rpc.device, hideBelow: 'md' as const, render: (r: RpcRequest) => r.deviceName ?? r.deviceId }] : []),
     { key: 'status', header: m.rpc.status, render: (r) => <RpcStatusBadge status={r.status} outcome={r.outcome} /> },
@@ -57,19 +58,23 @@ export function RpcRequestList({
   ];
   return (
     <div className={className}>
-      <KeyedTable
+      <DataTable<RpcRequest>
+        mode="manual"
         caption={m.rpc.history}
         columns={columns}
-        rows={requests}
-        getRowKey={(r) => r.rpcId}
-        onRowClick={onOpen}
+        rows={requests as RpcRequest[]}
+        rowId={(r) => r.rpcId}
+        onRowClick={onOpen ? (r) => onOpen(r) : undefined}
         rowState={(r) => (fresh?.has(r.rpcId) ? 'new' : undefined)}
         loading={loading}
-        error={error}
+        error={error || undefined}
         onRetry={onRetry}
-        emptyText={m.rpc.empty}
+        emptyMessage={m.rpc.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
-        dense
+        density="compact"
+        searchable={false}
+        pageSizeOptions={[]}
+        keyboardNavigation
       />
       {hasMore && onLoadMore && (
         <div className="mt-2 flex justify-center"><Button variant="outline" size="sm" loading={loading} onClick={onLoadMore}>{m.rpc.loadMore}</Button></div>

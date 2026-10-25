@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { cn } from '@/libs/utils/cn';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
 import { formatRelative } from '../format';
 import type { DeviceOnlineState, DeviceRegistryStatus } from '../types/device';
@@ -91,7 +91,7 @@ export function DeviceTable({
   }, [tickMs, now]);
   const at = now;
 
-  const defs: Record<DeviceTableColumnId, KeyedTableColumn<DeviceTableRow>> = {
+  const defs: Record<DeviceTableColumnId, Column<DeviceTableRow>> = {
     name: {
       key: 'name',
       header: m.devices.name,
@@ -120,9 +120,9 @@ export function DeviceTable({
     address: { key: 'address', header: m.devices.address, hideBelow: 'md', render: (r) => <DeviceAddress ip={r.remoteIp} compact locale={lang} messages={messages} /> },
   };
 
-  const cols: KeyedTableColumn<DeviceTableRow>[] = [
+  const cols: Column<DeviceTableRow>[] = [
     ...columns.map((id) => defs[id]).filter(Boolean),
-    ...keyColumns.map((kc): KeyedTableColumn<DeviceTableRow> => ({
+    ...keyColumns.map((kc): Column<DeviceTableRow> => ({
       key: `value:${kc.key}`,
       header: kc.label ?? kc.key,
       align: 'right',
@@ -131,19 +131,24 @@ export function DeviceTable({
   ];
 
   return (
-    <KeyedTable
-      className={cn('border-0', className)}
+    <DataTable<DeviceTableRow>
+      mode="manual"
+      bordered={false}
+      className={className}
       caption={m.deviceTable.caption}
       columns={cols}
-      rows={rows}
-      getRowKey={(r) => r.id}
-      onRowClick={onRowClick}
+      rows={rows as DeviceTableRow[]}
+      rowId={(r) => r.id}
+      onRowClick={onRowClick ? (r) => onRowClick(r) : undefined}
       loading={loading}
-      error={error}
+      error={error || undefined}
       onRetry={onRetry}
-      emptyText={emptyText ?? m.deviceTable.empty}
+      emptyMessage={emptyText ?? m.deviceTable.empty}
       messages={{ loading: m.common.loading, retry: m.common.retry }}
-      dense
+      density="compact"
+      searchable={false}
+      pageSizeOptions={[]}
+      keyboardNavigation
     />
   );
 }

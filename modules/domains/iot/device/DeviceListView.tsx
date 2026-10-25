@@ -5,7 +5,8 @@ import { faPlus, faPowerOff } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column, DataTableRowId } from '@/modules/ui/Table/types';
 import { PageHeader } from '@/modules/ui/PageHeader';
 import { Pagination } from '@/modules/ui/Pagination';
 import { SearchBar } from '@/modules/ui/SearchBar';
@@ -208,7 +209,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
   const pages = Math.max(1, Math.ceil(total / query.pageSize));
   const any = { value: '', label: m.common.any };
 
-  const columns: KeyedTableColumn<DeviceRecord>[] = [
+  const columns: Column<DeviceRecord>[] = [
     {
       key: 'name',
       header: m.devices.name,
@@ -301,24 +302,27 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
         </div>
       )}
 
-      <KeyedTable
+      <DataTable<DeviceRecord>
+        mode="manual"
         caption={m.devices.title}
         columns={columns}
         rows={items}
-        getRowKey={(d) => d.deviceId}
+        rowId={(d) => d.deviceId}
         onRowClick={(d) => openDevice(d.deviceId, openRef.current ? 'replace' : 'push')}
         rowClassName={(d) => (d.deviceId === openId ? 'bg-surface-overlay' : undefined)}
-        selection={canActivate ? {
-          selected,
-          onChange: (next) => setSelected(new Set([...next].slice(0, MAX_ACTIVATE))),
-          isSelectable: (d) => (d.status === 'QUARANTINED' ? true : m.devices.active),
-          rowLabel: (d) => fill(m.common.selectRow, { name: d.name }),
-        } : undefined}
+        selectable={canActivate}
+        selectedRowIds={canActivate ? [...selected] : undefined}
+        onSelectionChange={canActivate ? (ids: DataTableRowId[]) => { const next = new Set(ids.map(String)); setSelected(new Set([...next].slice(0, MAX_ACTIVATE))); } : undefined}
+        isRowSelectable={(d) => (d.status === 'QUARANTINED' ? true : m.devices.active)}
+        rowSelectLabel={(d) => fill(m.common.selectRow, { name: d.name })}
         loading={loadedKey !== JSON.stringify(query)}
-        error={error}
+        error={error || undefined}
         onRetry={() => void load(queryRef.current)}
-        emptyText={m.devices.empty}
-        messages={{ loading: m.common.loading, retry: m.common.retry, selectAll: m.common.selectAll }}
+        emptyMessage={m.devices.empty}
+        messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
+        searchable={false}
+        pageSizeOptions={[]}
+        keyboardNavigation
       />
 
       {pages > 1 && (

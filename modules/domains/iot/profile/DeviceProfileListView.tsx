@@ -5,7 +5,8 @@ import { faPlus, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { PageHeader } from '@/modules/ui/PageHeader';
 import { Pagination } from '@/modules/ui/Pagination';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
@@ -133,7 +134,7 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
   }
 
   const canManage = caps.canManageProfiles;
-  const columns: KeyedTableColumn<DeviceProfile>[] = [
+  const columns: Column<DeviceProfile>[] = [
     {
       key: 'name',
       header: m.profiles.name,
@@ -216,16 +217,20 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
           onChange={(e) => change({ onlineRule: (e.target.value || undefined) as OnlineRule | undefined })}
           options={[any, ...ONLINE_RULES.map((r) => ({ value: r, label: m.online[r] }))]} />
       </div>
-      <KeyedTable
+      <DataTable<DeviceProfile>
+        mode="manual"
         caption={m.profiles.title}
         columns={columns}
         rows={items}
-        getRowKey={(p) => p.profileId}
+        rowId={(p) => p.profileId}
         loading={loadedKey !== JSON.stringify(query)}
-        error={error}
+        error={error || undefined}
         onRetry={() => void load(queryRef.current)}
-        emptyText={m.profiles.empty}
-        messages={{ loading: m.common.loading, retry: m.common.retry, selectAll: m.common.selectAll }}
+        emptyMessage={m.profiles.empty}
+        messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
+        searchable={false}
+        pageSizeOptions={[]}
+        keyboardNavigation
       />
       {api.usage && <p className="text-xs text-text-secondary">{m.profiles.countsHint}</p>}
       {pages > 1 && (

@@ -4,7 +4,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowUp, faCheck, faCheckDouble, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column, DataTableRowId } from '@/modules/ui/Table/types';
 import { Modal } from '@/modules/ui/Modal';
 import { PageHeader } from '@/modules/ui/PageHeader';
 import { Pagination } from '@/modules/ui/Pagination';
@@ -233,7 +234,7 @@ export function AlarmListView({
   const pages = Math.max(1, Math.ceil(total / query.pageSize));
   const sevSet = useMemo(() => new Set(query.severity ?? []), [query.severity]);
 
-  const columns: KeyedTableColumn<Alarm>[] = [
+  const columns: Column<Alarm>[] = [
     { key: 'severity', header: m.alarms.severity, render: (a) => <AlarmSeverityBadge severity={a.severity} size="sm" /> },
     {
       key: 'title',
@@ -343,23 +344,26 @@ export function AlarmListView({
         </div>
       )}
 
-      <KeyedTable
+      <DataTable<Alarm>
+        mode="manual"
         caption={m.alarms.title}
         columns={columns}
         rows={items}
-        getRowKey={(a) => a.alarmId}
+        rowId={(a) => a.alarmId}
         rowState={(a) => (fresh.has(a.alarmId) ? 'new' : undefined)}
-        selection={selectable ? {
-          selected,
-          onChange: setSelected,
-          isSelectable: (a) => (a.status === 'RESOLVED' ? m.status.RESOLVED : true),
-          rowLabel: (a) => fill(m.common.selectRow, { name: a.title }),
-        } : undefined}
+        selectable={selectable}
+        selectedRowIds={selectable ? [...selected] : undefined}
+        onSelectionChange={selectable ? (ids: DataTableRowId[]) => setSelected(new Set(ids.map(String))) : undefined}
+        isRowSelectable={(a) => (a.status === 'RESOLVED' ? m.status.RESOLVED : true)}
+        rowSelectLabel={(a) => fill(m.common.selectRow, { name: a.title })}
         loading={loadedKey !== JSON.stringify(query)}
-        error={error}
+        error={error || undefined}
         onRetry={() => void load(queryRef.current)}
-        emptyText={m.alarms.empty}
-        messages={{ loading: m.common.loading, retry: m.common.retry, selectAll: m.common.selectAll }}
+        emptyMessage={m.alarms.empty}
+        messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
+        searchable={false}
+        pageSizeOptions={[]}
+        keyboardNavigation
       />
 
       {pages > 1 && (

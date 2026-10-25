@@ -4,7 +4,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowsRotate } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
 import { fill, formatDateTime, formatRelative } from '../format';
 import { ALARM_SEVERITIES, type AlarmSeverity, type AlarmStatus } from '../types/alarm';
@@ -141,7 +142,7 @@ export function AlarmTable({
     try { await rowAction.onRun(row); } finally { setRunning(null); }
   }
 
-  const defs: Record<AlarmTableColumnId, KeyedTableColumn<AlarmTableRow>> = {
+  const defs: Record<AlarmTableColumnId, Column<AlarmTableRow>> = {
     severity: { key: 'severity', header: m.alarms.severity, render: (r) => <AlarmSeverityBadge severity={r.severity} size="sm" /> },
     status: { key: 'status', header: m.alarms.status, hideBelow: 'sm', render: (r) => <AlarmStatusPill status={r.status} size="sm" /> },
     title: {
@@ -218,20 +219,24 @@ export function AlarmTable({
           )}
         </div>
       )}
-      <KeyedTable
+      <DataTable<AlarmTableRow>
+        mode="manual"
         caption={m.alarmTable.caption}
         columns={cols}
         rows={visible}
-        getRowKey={(r) => r.id}
-        onRowClick={onRowClick}
+        rowId={(r) => r.id}
+        onRowClick={onRowClick ? (r) => onRowClick(r) : undefined}
         rowState={(r) => (leaving.has(r.id) ? 'leaving' : undefined)}
         rowClassName={(r) => cn('border-l-2', r.status === 'RESOLVED' ? 'border-l-transparent' : ALARM_SEVERITY_META[r.severity].rowBorderClass)}
         loading={loading}
-        error={error}
+        error={error || undefined}
         onRetry={onRetry}
-        emptyText={emptyText ?? m.alarmTable.empty}
+        emptyMessage={emptyText ?? m.alarmTable.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
-        dense
+        density="compact"
+        searchable={false}
+        pageSizeOptions={[]}
+        keyboardNavigation
       />
     </div>
   );

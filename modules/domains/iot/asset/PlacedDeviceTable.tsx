@@ -3,7 +3,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLinkSlash } from '@fortawesome/free-solid-svg-icons';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
-import { KeyedTable, type KeyedTableColumn } from '@/modules/ui/KeyedTable';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
 import { DeviceAddress } from '../device/DeviceAddress';
 import { DeviceOnlineDot } from '../device/DeviceOnlineDot';
@@ -38,7 +39,7 @@ export function PlacedDeviceTable({
   rows, assetId, deviceHref, assetHref, onUnplace, busyId, loading, error, onRetry, now, locale, messages, className,
 }: PlacedDeviceTableProps) {
   const { m } = useIotText(messages, locale);
-  const columns: KeyedTableColumn<PlacedDevice>[] = [
+  const columns: Column<PlacedDevice>[] = [
     {
       key: 'name',
       header: m.devices.name,
@@ -96,17 +97,21 @@ export function PlacedDeviceTable({
     }] : []),
   ];
   return (
-    <KeyedTable
+    <DataTable<PlacedDevice>
+      mode="manual"
       className={className}
       caption={m.asset.devices}
       columns={columns}
       rows={rows}
-      getRowKey={(r) => r.device.deviceId}
+      rowId={(r) => r.device.deviceId}
       loading={loading}
-      error={error}
+      error={error || undefined}
       onRetry={onRetry}
-      emptyText={m.asset.noDevices}
-      messages={{ loading: m.common.loading, retry: m.common.retry, selectAll: m.common.selectAll }}
+      emptyMessage={m.asset.noDevices}
+      messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
+      searchable={false}
+      pageSizeOptions={[]}
+      keyboardNavigation
     />
   );
 }
