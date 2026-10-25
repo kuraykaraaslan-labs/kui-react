@@ -25,8 +25,11 @@ import { Button } from './Button';
 export type TimelineItem = {
   /** Stable identity. Never the array index. */
   id: string;
-  /** When it happened. A Date, or anything `new Date()` accepts. */
-  at: Date | string | number;
+  /**
+   * When it happened. A Date, or anything `new Date()` accepts. Missing or invalid: the entry is undated, drawn after
+   * every dated one (whatever `order` says) without a time.
+   */
+  at?: Date | string | number | null;
   /** Short label — the verb. */
   title: ReactNode;
   /** The detail, if there is any worth showing inline. */
@@ -37,7 +40,14 @@ export type TimelineItem = {
   tone?: 'default' | 'success' | 'warning' | 'error' | 'info';
   /** Rendered at the right of the header row — a status chip, a menu. */
   meta?: ReactNode;
+  /**
+   * A step of a process: `done` (the default look), `current` (ringed, `aria-current="step"`) or `upcoming` (not
+   * reached yet: a hollow, dashed marker and muted text).
+   */
+  status?: TimelineStatus;
 };
+
+export type TimelineStatus = 'done' | 'current' | 'upcoming';
 
 export type TimelineProps = {
   items: TimelineItem[];
@@ -50,6 +60,10 @@ export type TimelineProps = {
   locale?: string;
   /** Hide the sticky day headings. */
   groupByDay?: boolean;
+  /** `newest` first (a feed, the default) or `oldest` first (a process from its start). */
+  order?: 'newest' | 'oldest';
+  /** Day heading of the undated entries (with `groupByDay`); without it they follow the last day unheaded. */
+  undatedLabel?: string;
   emptyMessage?: string;
   /** Older entries exist: a "Load more" button under the last entry calls `onLoadMore`. */
   hasMore?: boolean;
@@ -68,8 +82,11 @@ const TONE_CLASS: Record<NonNullable<TimelineItem['tone']>, string> = {
   info: 'bg-info-subtle text-info-fg',
 };
 
-function toDate(value: Date | string | number): Date {
-  return value instanceof Date ? value : new Date(value);
+/** The entry's date, or null when it has none or it is not a real date (formatting one would throw a RangeError). */
+function toDate(value: TimelineItem['at']): Date | null {
+  if (value === undefined || value === null || value === '') return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 export function Timeline({
@@ -77,6 +94,8 @@ export function Timeline({
   timeZone,
   locale,
   groupByDay = true,
+  order = 'newest',
+  undatedLabel,
   emptyMessage = 'Nothing here yet.',
   hasMore = false,
   onLoadMore,
@@ -113,14 +132,20 @@ export function Timeline({
   // inside the map. React 19 may restart a render, and a closure variable that
   // survives the restart puts the day headings in the wrong places — a bug that
   // appears only under concurrent rendering and looks like data corruption.
-  const sorted = [...items]
-    .sort((a, b) => toDate(b.at).getTime() - toDate(a.at).getTime())
-    .map((item) => ({ item, at: toDate(item.at) }));
+  // Undated entries go last in either order, keeping the order they came in.
+  const dir = order === 'oldest' ? 1 : -1;
+  const sorted = items
+    .map((item) => ({ item, at: toDate(item.at) }))
+    .sort((a, b) => {
+      if (!a.at || !b.at) return a.at ? -1 : b.at ? 1 : 0;
+      return dir * (a.at.getTime() - b.at.getTime());
+    });
 
+  const dayOf = (at: Date | null) => (at ? dayFormat.format(at) : (undatedLabel ?? null));
   const rendered = sorted.map((entry, index) => {
-    const day = dayFormat.format(entry.at);
-    const previousDay = index === 0 ? null : dayFormat.format(sorted[index - 1].at);
-    return { ...entry, day, showDay: groupByDay && day !== previousDay };
+    const day = dayOf(entry.at);
+    const previousDay = index === 0 ? undefined : dayOf(sorted[index - 1].at);
+    return { ...entry, day, showDay: groupByDay && day !== null && day !== previousDay };
   });
 
   return (
@@ -135,7 +160,11 @@ export function Timeline({
               </li>
             )}
 
-            <li className="relative flex gap-3 pb-5 pl-1">
+            <li
+              className="relative flex gap-3 pb-5 pl-1"
+              aria-current={item.status === 'current' ? 'step' : undefined}
+              data-status={item.status}
+            >
               {/*
                 The connector is drawn on the item rather than the list so the
                 last one can stop short — a line running past the final event
@@ -146,7 +175,11 @@ export function Timeline({
               {!last && (
                 <span
                   aria-hidden="true"
-                  className="absolute left-[1.0625rem] top-8 bottom-0 w-px bg-border"
+                  className={cn(
+                    'absolute left-[1.0625rem] top-8 bottom-0',
+                    // The way to a step not reached yet is dashed.
+                    rendered[index + 1]?.item.status === 'upcoming' ? 'border-l border-dashed border-border' : 'w-px bg-border',
+                  )}
                 />
               )}
 
@@ -154,7 +187,10 @@ export function Timeline({
                 aria-hidden="true"
                 className={cn(
                   'relative z-[1] flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full',
-                  TONE_CLASS[item.tone ?? 'default'],
+                  item.status === 'upcoming'
+                    ? 'border-2 border-dashed border-border-strong bg-surface-base text-text-disabled'
+                    : TONE_CLASS[item.tone ?? 'default'],
+                  item.status === 'current' && 'ring-2 ring-primary ring-offset-2 ring-offset-surface-base',
                 )}
               >
                 {item.icon}
@@ -162,13 +198,17 @@ export function Timeline({
 
               <div className="min-w-0 flex-1 pt-1.5">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  <span className="text-sm text-text-primary">{item.title}</span>
-                  <time
-                    dateTime={at.toISOString()}
-                    className="text-xs text-text-secondary tabular-nums"
-                  >
-                    {timeFormat.format(at)}
-                  </time>
+                  <span className={cn('text-sm', item.status === 'upcoming' ? 'text-text-secondary' : 'text-text-primary', item.status === 'current' && 'font-medium')}>
+                    {item.title}
+                  </span>
+                  {at && (
+                    <time
+                      dateTime={at.toISOString()}
+                      className="text-xs text-text-secondary tabular-nums"
+                    >
+                      {timeFormat.format(at)}
+                    </time>
+                  )}
                   {item.meta && <span className="ml-auto">{item.meta}</span>}
                 </div>
 
