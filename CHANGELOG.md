@@ -4,6 +4,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- Package consumers: `@kuraykaraaslan/kui-react/styles` now carries Font Awesome's icon CSS in Tailwind's `base` layer
+  (as the showcase's `app/globals.css` does since the icon size fix), so a host that turns Font Awesome's unlayered
+  runtime CSS off still has icon styles and a size class on an icon applies. README "Styling setup" says how.
+
 ### Deprecated
 
 - `AdvancedDataTable`: a thin wrapper over `DataTable` (`selectable`, `renderExpanded`, `stickyHeader`) and marked

@@ -1,5 +1,12 @@
 /* KUI React — design tokens */
 
+/* Font Awesome's icon CSS in Tailwind's `base` layer, as in app/globals.css: a size class on an icon (`w-4 h-4`)
+   is a utility and beats it. The layer order is Tailwind v4's own, stated here so it holds wherever this file is
+   imported. Font Awesome's runtime copy has no layer and beats every utility: switch it off in the app
+   (`config.autoAddCss = false`, README "Styling setup"). */
+@layer properties, theme, base, components, utilities;
+@import "@fortawesome/fontawesome-svg-core/styles.css" layer(base);
+
 :root {
   --primary:         #3b82f6;
   --primary-hover:   #2563eb;

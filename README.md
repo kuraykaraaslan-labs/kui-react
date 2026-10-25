@@ -96,6 +96,25 @@ import { Commerce, Blog } from '@/modules/domains';           // namespace barre
 import { cn } from '@/libs/utils/cn';
 ```
 
+## Styling setup
+
+The package stylesheet carries the design tokens and Font Awesome's icon CSS. Import it after Tailwind:
+
+```css
+@import "tailwindcss";
+@import "@kuraykaraaslan/kui-react/styles";
+```
+
+Font Awesome's CSS sits in Tailwind's `base` layer, so a size class on an icon (`w-4 h-4`, `size-5`) beats Font
+Awesome's default `1em` box. Font Awesome also injects the same CSS at runtime, without a layer, and that copy beats
+every Tailwind utility. Turn it off once, in client code that runs before the first icon renders (this repo does it in
+`libs/config/fontawesome.ts`, imported by the root layout and `ConditionalShell`):
+
+```ts
+import { config } from '@fortawesome/fontawesome-svg-core';
+config.autoAddCss = false;
+```
+
 ## AI agent quick reference
 
 This library ships a first-class machine-readable surface for AI tools — HTTP endpoints, static snapshots, an MCP server, and editor rule files for every major AI coding assistant.
