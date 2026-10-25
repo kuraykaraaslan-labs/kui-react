@@ -8,6 +8,7 @@ import { ContentScoreBar, type ScoreRule } from '@/modules/ui/ContentScoreBar';
 import { AdvancedDataTable } from '@/modules/ui/AdvancedDataTable';
 import { BulkActionTable } from '@/modules/ui/BulkActionTable';
 import { Timeline } from '@/modules/ui/Timeline';
+import { Input } from '@/modules/ui/Input';
 import { KeyedTable } from '@/modules/ui/KeyedTable';
 import { TypedConfirmDialog } from '@/modules/ui/TypedConfirmDialog';
 import { useCallback, useState } from 'react';
@@ -176,6 +177,70 @@ function LiveRowsDemo() {
         <button type="button" className="underline" onClick={() => setRows((r) => r.map((x) => (x.id === 'p1' ? { ...x, state: 'Removed' } : x)))}>Fade Pump 1</button>
         <span aria-live="polite">{opened}</span>
       </div>
+    </div>
+  );
+}
+
+/** Phase 11.16: group rows, a ticked-and-locked selection, search beyond the columns, an editable cell by index. */
+type Permission = { id: string; name: string; group: string; module: string; note: string; [key: string]: unknown };
+const PERMISSIONS: Permission[] = [
+  { id: 'billing.read', name: 'Read invoices', group: 'Billing', module: 'invoice', note: 'list and open' },
+  { id: 'users.invite', name: 'Invite users', group: 'Users', module: 'tenant_member', note: 'send an email invite' },
+  { id: 'billing.refund', name: 'Refund', group: 'Billing', module: 'payment', note: 'money back to the card' },
+  { id: 'users.remove', name: 'Remove users', group: 'Users', module: 'tenant_member', note: '' },
+];
+function GroupedLockedDemo() {
+  const [limits, setLimits] = useState(['10', '5', '', '2']);
+  const [selected, setSelected] = useState<DataTableRowId[]>([]);
+  return (
+    <div className="w-full">
+      <DataTable<Permission>
+        mode="static"
+        caption="Permissions"
+        rows={PERMISSIONS}
+        rowId={(p) => p.id}
+        groupBy={(p) => p.group}
+        renderGroupHeader={(g, rows) => `${g} · ${rows.length}`}
+        searchText={(p) => `${p.id} ${p.module} ${p.note}`}
+        searchPlaceholder="Name, key, module or note…"
+        selectable
+        selectedRowIds={selected}
+        onSelectionChange={setSelected}
+        isRowSelectionLocked={(p) => p.id === 'billing.read'}
+        rowSelectLabel={(p) => p.name}
+        columns={[
+          { key: 'name', header: 'Permission', sortable: true },
+          { key: 'module', header: 'Module', sortable: true, hideBelow: 'sm' },
+          {
+            key: 'limit',
+            header: 'Daily limit',
+            searchable: false,
+            render: (p, { index }) => (
+              <Input id={`limit-${p.id}`} label={`Daily limit of ${p.name}`} hideLabel type="number"
+                value={limits[index]} onChange={(e) => setLimits((l) => l.map((v, i) => (i === index ? e.target.value : v)))} />
+            ),
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+/** A required status choice in the toolbar (a server needs one status, never "any"). */
+function RequiredToolbarFilterDemo() {
+  return (
+    <div className="w-full">
+      <DataTable<Invoice>
+        mode="static"
+        caption="Invoices"
+        rows={INVOICES}
+        columns={INVOICE_COLUMNS}
+        filterFields={[
+          { id: 'status', label: 'Status', type: 'radio', required: true, placement: 'toolbar', defaultValue: 'Open',
+            options: [{ value: 'Open', label: 'Open' }, { value: 'Paid', label: 'Paid' }, { value: 'Overdue', label: 'Overdue' }] },
+          INVOICE_FIELDS[1],
+        ]}
+      />
     </div>
   );
 }
@@ -581,7 +646,7 @@ export function Table({ columns, rows, caption, emptyMessage = 'No results found
       title: 'DataTable',
       category: 'Organism',
       abbr: 'Dt',
-      description: 'Unified table with `mode="static" | "paginated" | "server" | "manual"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant="card"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout="cards"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).',
+      description: 'Unified table with `mode="static" | "paginated" | "server" | "manual"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant="card"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout="cards"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order). Phase 11.16: `groupBy` + `renderGroupHeader` (a header row, or a heading before each group of cards), `isRowSelectionLocked` (ticked, disabled, not counted), `searchText` and per-column `searchValue` / `searchable: false`, `render(row, { index, id })`, empty cells sorted last, priority numbers only for a user-built multi-sort, and `required` / `placement: \'toolbar\'` select and radio filter fields.',
       filePath: 'modules/ui/Table/DataTable.tsx',
       sourceCode: `'use client';
 import { cn } from '@/libs/utils/cn';
@@ -837,6 +902,36 @@ const [selected, setSelected] = useState<DataTableRowId[]>([]);
   filterFields={[{ id: 'status', label: 'Status', type: 'multiselect', options }]}
   renderCard={(r, { actions, selected, toggleSelected }) => <InvoiceCard invoice={r} menu={actions} />}
 />`,
+        },
+        {
+          title: 'Groups, locked selection, search beyond columns (groupBy, isRowSelectionLocked, searchText)',
+          layout: 'stack' as const,
+          preview: <GroupedLockedDemo />,
+          code: `<DataTable<Permission>
+  mode="static"
+  rows={permissions}
+  groupBy={(p) => p.group}                       // a header row per group, sorted within it
+  renderGroupHeader={(g, rows) => \`\${g} · \${rows.length}\`}
+  searchText={(p) => \`\${p.id} \${p.module} \${p.note}\`} // matched without a hidden column
+  selectable
+  isRowSelectionLocked={(p) => granted.has(p.id)} // ticked, disabled, not counted
+  columns={[
+    { key: 'name', header: 'Permission', sortable: true },
+    { key: 'limit', header: 'Daily limit', searchable: false,
+      render: (p, { index }) => <Input id={\`limit-\${p.id}\`} label="Daily limit" hideLabel value={limits[index]} … /> },
+  ]}
+/>
+// Empty cells sort last in both directions; a default multi-column sort shows no priority numbers.`,
+        },
+        {
+          title: 'Required choice in the toolbar (required, placement)',
+          layout: 'stack' as const,
+          preview: <RequiredToolbarFilterDemo />,
+          code: `filterFields={[
+  // no "Any", no chip, not counted on Filters, applied at once, kept by Clear all and Reset
+  { id: 'status', label: 'Status', type: 'radio', required: true, placement: 'toolbar', defaultValue: 'Open', options },
+  { id: 'amount', label: 'Amount', type: 'numberrange' },
+]}`,
         },
         {
           title: 'Sticky header (stickyHeader)',
@@ -1138,7 +1233,7 @@ export function BulkActionTable({ columns, rows, rowId, selected, onSelectedChan
       category: 'Organism',
       abbr: 'Tl',
       description:
-        'Chronological activity feed with sticky day headings. Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.',
+        'Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.',
       filePath: 'modules/ui/Timeline.tsx',
       sourceCode: `'use client';
 // Chronological feed with sticky day headings.
@@ -1212,6 +1307,33 @@ export function Timeline({ items, timeZone, locale, groupByDay = true, emptyMess
             </div>
           ),
           code: `<Timeline items={[]} emptyMessage="No activity yet." />\n<Timeline items={items} groupByDay={false} />`,
+        },
+        {
+          title: 'Process steps: oldest first, current and upcoming, undated',
+          layout: 'stack' as const,
+          preview: (
+            <div className="w-full max-w-lg">
+              <Timeline
+                order="oldest"
+                groupByDay={false}
+                items={[
+                  { id: 'sent', at: '2026-08-24T10:00:00Z', title: 'Invitation sent', status: 'done', tone: 'info' },
+                  { id: 'opened', at: '2026-08-25T09:30:00Z', title: 'Opened', status: 'current', tone: 'success' },
+                  { id: 'expires', at: '2026-08-31T10:00:00Z', title: 'Expires', status: 'upcoming' },
+                  { id: 'accepted', at: null, title: 'Accepted', status: 'upcoming', body: 'Not yet' },
+                ]}
+              />
+            </div>
+          ),
+          code: `<Timeline
+  order="oldest"                 // default "newest"
+  items={[
+    { id: 'sent', at: sentAt, title: 'Invitation sent', status: 'done' },
+    { id: 'opened', at: openedAt, title: 'Opened', status: 'current' },  // aria-current="step"
+    { id: 'expires', at: expiresAt, title: 'Expires', status: 'upcoming' }, // hollow, muted
+    { id: 'accepted', at: null, title: 'Accepted', status: 'upcoming' },   // undated: last, no time
+  ]}
+/>`,
         },
       ],
     },

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T18:03:24.949Z",
+  "generatedAt": "2026-10-25T18:11:11.517Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -706,6 +706,10 @@
         {
           "title": "Default",
           "code": "<Input id=\"email\" label=\"Email\" type=\"email\" placeholder=\"you@example.com\" hint=\"We'll never share your email.\" />"
+        },
+        {
+          "title": "Hidden label (hideLabel)",
+          "code": "// An editable table cell: the column heading shows what it is; the label stays the accessible name.\n<Input id=\"qty-a\" label=\"Quantity of Widget A\" hideLabel type=\"number\" />"
         },
         {
           "title": "Error",
@@ -2912,7 +2916,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Table/DataTable.tsx",
       "abbr": "Dt",
-      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\" | \"manual\"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant=\"card\"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout=\"cards\"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).",
+      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\" | \"manual\"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant=\"card\"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout=\"cards\"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order). Phase 11.16: `groupBy` + `renderGroupHeader` (a header row, or a heading before each group of cards), `isRowSelectionLocked` (ticked, disabled, not counted), `searchText` and per-column `searchValue` / `searchable: false`, `render(row, { index, id })`, empty cells sorted last, priority numbers only for a user-built multi-sort, and `required` / `placement: 'toolbar'` select and radio filter fields.",
       "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\nimport { useMemo, useState } from 'react';\nimport { SearchBar } from './SearchBar';\nimport { Pagination } from './Pagination';\n\nexport function DataTable({ columns, rows, caption, searchable = true, searchPlaceholder = 'Search…', pageSize: defaultPageSize = 10, pageSizeOptions = [5,10,25,50], emptyMessage = 'No results found.', className }) {\n  const [search, setSearch] = useState('');\n  const [page, setPage] = useState(1);\n  const [pageSize, setPageSize] = useState(defaultPageSize);\n\n  const filtered = useMemo(() => {\n    if (!search.trim()) return rows;\n    const q = search.toLowerCase();\n    return rows.filter((row) => columns.some((col) => !col.render && String(row[col.key] ?? '').toLowerCase().includes(q)));\n  }, [rows, search, columns]);\n\n  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));\n  const paginated  = filtered.slice((page - 1) * pageSize, page * pageSize);\n\n  return (\n    <div className={cn('space-y-3', className)}>\n      {searchable && (\n        <div className=\"flex items-center gap-2 flex-wrap\">\n          <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={searchPlaceholder} className=\"flex-1 min-w-40\" />\n          <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className=\"rounded-md border border-border bg-surface-base px-2 py-1.5 text-sm\">\n            {pageSizeOptions.map((s) => <option key={s} value={s}>{s}</option>)}\n          </select>\n        </div>\n      )}\n      {/* table body ... */}\n      <div className=\"flex items-center justify-between gap-4 flex-wrap\">\n        <p className=\"text-xs text-text-secondary\">Showing {(page-1)*pageSize+1}–{Math.min(page*pageSize, filtered.length)} of {filtered.length}</p>\n        {totalPages > 1 && <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />}\n      </div>\n    </div>\n  );\n}",
       "variants": [
         {
@@ -2958,6 +2962,14 @@
         {
           "title": "Card layout (layout=\"cards\")",
           "code": "<DataTable<Invoice>\n  layout=\"cards\"\n  cardMinWidth=\"12rem\"\n  rows={invoices}\n  columns={columns} // the sortable columns feed the \"Sort by\" select\n  filterFields={[{ id: 'status', label: 'Status', type: 'multiselect', options }]}\n  renderCard={(r, { actions, selected, toggleSelected }) => <InvoiceCard invoice={r} menu={actions} />}\n/>"
+        },
+        {
+          "title": "Groups, locked selection, search beyond columns (groupBy, isRowSelectionLocked, searchText)",
+          "code": "<DataTable<Permission>\n  mode=\"static\"\n  rows={permissions}\n  groupBy={(p) => p.group}                       // a header row per group, sorted within it\n  renderGroupHeader={(g, rows) => `${g} · ${rows.length}`}\n  searchText={(p) => `${p.id} ${p.module} ${p.note}`} // matched without a hidden column\n  selectable\n  isRowSelectionLocked={(p) => granted.has(p.id)} // ticked, disabled, not counted\n  columns={[\n    { key: 'name', header: 'Permission', sortable: true },\n    { key: 'limit', header: 'Daily limit', searchable: false,\n      render: (p, { index }) => <Input id={`limit-${p.id}`} label=\"Daily limit\" hideLabel value={limits[index]} … /> },\n  ]}\n/>\n// Empty cells sort last in both directions; a default multi-column sort shows no priority numbers."
+        },
+        {
+          "title": "Required choice in the toolbar (required, placement)",
+          "code": "filterFields={[\n  // no \"Any\", no chip, not counted on Filters, applied at once, kept by Clear all and Reset\n  { id: 'status', label: 'Status', type: 'radio', required: true, placement: 'toolbar', defaultValue: 'Open', options },\n  { id: 'amount', label: 'Amount', type: 'numberrange' },\n]}"
         },
         {
           "title": "Sticky header (stickyHeader)",
@@ -3066,7 +3078,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Timeline.tsx",
       "abbr": "Tl",
-      "description": "Chronological activity feed with sticky day headings. Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.",
+      "description": "Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.",
       "source": "'use client';\n// Chronological feed with sticky day headings.\nexport function Timeline({ items, timeZone, locale, groupByDay = true, emptyMessage = 'Nothing here yet.' }) {\n  if (items.length === 0) return <p>{emptyMessage}</p>;\n\n  // Grouping uses the VIEWER's local day. An event at 23:50 UTC belongs to a\n  // different day depending on who is looking, and grouping on the raw ISO\n  // date puts it under the wrong heading for anyone east or west of the server.\n  const dayFormat  = new Intl.DateTimeFormat(locale, { timeZone, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });\n  // hourCycle, not hour12:false — the latter renders midnight as hour \"24\".\n  const timeFormat = new Intl.DateTimeFormat(locale, { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });\n\n  // Grouping is computed BEFORE rendering. React 19 may restart a render, and\n  // a closure variable mutated inside map() survives the restart and puts the\n  // day headings in the wrong places.\n  const sorted   = [...items].sort((a, b) => +new Date(b.at) - +new Date(a.at));\n  const rendered = sorted.map((item, i) => ({\n    item,\n    day: dayFormat.format(new Date(item.at)),\n    showDay: groupByDay && dayFormat.format(new Date(item.at)) !== (i === 0 ? null : dayFormat.format(new Date(sorted[i - 1].at))),\n  }));\n\n  return (\n    <ol>\n      {rendered.map(({ item, day, showDay }) => (\n        <Fragment key={item.id}>\n          {showDay && <li className=\"sticky top-0\">{day}</li>}\n          <li>\n            <span className={TONE_CLASS[item.tone ?? 'default']}>{item.icon}</span>\n            <span>{item.title}</span>\n            <time dateTime={new Date(item.at).toISOString()}>{timeFormat.format(new Date(item.at))}</time>\n            {item.body && <div>{item.body}</div>}\n          </li>\n        </Fragment>\n      ))}\n    </ol>\n  );\n}",
       "variants": [
         {
@@ -3076,6 +3088,10 @@
         {
           "title": "Empty, and ungrouped",
           "code": "<Timeline items={[]} emptyMessage=\"No activity yet.\" />\n<Timeline items={items} groupByDay={false} />"
+        },
+        {
+          "title": "Process steps: oldest first, current and upcoming, undated",
+          "code": "<Timeline\n  order=\"oldest\"                 // default \"newest\"\n  items={[\n    { id: 'sent', at: sentAt, title: 'Invitation sent', status: 'done' },\n    { id: 'opened', at: openedAt, title: 'Opened', status: 'current' },  // aria-current=\"step\"\n    { id: 'expires', at: expiresAt, title: 'Expires', status: 'upcoming' }, // hollow, muted\n    { id: 'accepted', at: null, title: 'Accepted', status: 'upcoming' },   // undated: last, no time\n  ]}\n/>"
         }
       ],
       "status": "stable",
@@ -4300,7 +4316,7 @@
       "category": "App",
       "filePath": "modules/app/KanbanBoard/index.tsx",
       "abbr": "KB",
-      "description": "Trello / Linear-style kanban board. M1 ships HTML5-native drag and drop between columns with an inline drop-position indicator (thin line between cards) and full optimistic-UI rewind on rejected onCardMove. Use the canMove hook to gate transitions client-side, or throw from onCardMove to revert. Future milestones: column reorder + collapse + WIP limits (M2), swimlanes + filters + search (M3), inline edit + bulk select + card detail panel (M4), keyboard nav + ARIA announcements (M5), virtualization + auto-archive + dependencies (M6). Pixel-identical EJS sibling at modules/app/KanbanBoard/KanbanBoard.ejs.",
+      "description": "Trello / Linear-style kanban board. M1 ships HTML5-native drag and drop between columns with an inline drop-position indicator (thin line between cards) and full optimistic-UI rewind on rejected onCardMove. Use the canMove hook to gate transitions client-side, or return false (or a promise of false) or throw from onCardMove to revert; `reorderWithinColumn={false}` limits moves to between columns. Future milestones: column reorder + collapse + WIP limits (M2), swimlanes + filters + search (M3), inline edit + bulk select + card detail panel (M4), keyboard nav + ARIA announcements (M5), virtualization + auto-archive + dependencies (M6). Pixel-identical EJS sibling at modules/app/KanbanBoard/KanbanBoard.ejs.",
       "source": "import { useState } from 'react';\nimport { KanbanBoard, type KanbanCard, type KanbanColumn } from '@/modules/app/KanbanBoard';\n\nconst columns: KanbanColumn[] = [\n  { id: 'todo',  title: 'To Do' },\n  { id: 'doing', title: 'In Progress' },\n  { id: 'done',  title: 'Done' },\n];\n\nconst initialCards: KanbanCard[] = [\n  { id: 'c1', columnId: 'todo',  title: 'Audit dark-mode tokens', priority: 'medium' },\n  { id: 'c2', columnId: 'doing', title: 'Refactor Quill toolbar', assignees: [{ id: 'u1', name: 'Jane Doe' }] },\n];\n\nfunction Board() {\n  const [cards, setCards] = useState(initialCards);\n  return (\n    <KanbanBoard\n      columns={columns}\n      cards={cards}\n      onCardMove={async (card, from, to, index) => {\n        // Optimistic: KanbanBoard already moved the card. Persist remotely;\n        // throw to revert. `index` is the destination insertion index.\n        await fetch('/api/cards/' + card.id, {\n          method: 'PATCH',\n          body: JSON.stringify({ columnId: to, index }),\n        }).then((r) => { if (!r.ok) throw new Error(r.statusText); });\n        setCards((prev) =>\n          prev.map((c) => (c.id === card.id ? { ...c, columnId: to } : c)),\n        );\n      }}\n      canMove={(card, from, to) => from !== 'done' || to === 'done'}\n    />\n  );\n}",
       "variants": [
         {
@@ -4317,7 +4333,11 @@
         },
         {
           "title": "Async onCardMove with rollback",
-          "code": "<KanbanBoard\n  columns={columns}\n  cards={cards}\n  onCardMove={async (card, from, to) => {\n    const res = await fetch('/api/move', { method: 'POST', body: JSON.stringify({ card, to }) });\n    // Throw to revert the optimistic update.\n    if (!res.ok) throw new Error('Server rejected');\n    setCards(next);\n  }}\n/>"
+          "code": "<KanbanBoard\n  columns={columns}\n  cards={cards}\n  onCardMove={async (card, from, to) => {\n    const res = await fetch('/api/move', { method: 'POST', body: JSON.stringify({ card, to }) });\n    // Throw (or return false) to revert the optimistic update.\n    if (!res.ok) throw new Error('Server rejected');\n    setCards(next);\n  }}\n/>"
+        },
+        {
+          "title": "Stages only, refused by returning false (reorderWithinColumn)",
+          "code": "<KanbanBoard\n  columns={stages}\n  cards={applicants}\n  reorderWithinColumn={false}   // the API has no order inside a stage: no drop back, no Alt + Up / Down\n  onCardMove={(card, from, to) => {\n    if (!allowed(from, to)) return false;   // false, a promise of false, or a throw reverts the card\n    return api.setStage(card.id, to);\n  }}\n/>"
         }
       ],
       "status": "beta",

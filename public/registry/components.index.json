@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T18:03:24.949Z",
+  "generatedAt": "2026-10-25T18:11:11.517Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -470,7 +470,7 @@
         "reviews-review-submit-form",
         "rich-text-editor"
       ],
-      "variantCount": 12
+      "variantCount": 13
     },
     {
       "id": "textarea",
@@ -1720,7 +1720,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Table/DataTable.tsx",
       "abbr": "Dt",
-      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\" | \"manual\"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant=\"card\"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout=\"cards\"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).",
+      "description": "Unified table with `mode=\"static\" | \"paginated\" | \"server\" | \"manual\"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant=\"card\"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout=\"cards\"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order). Phase 11.16: `groupBy` + `renderGroupHeader` (a header row, or a heading before each group of cards), `isRowSelectionLocked` (ticked, disabled, not counted), `searchText` and per-column `searchValue` / `searchable: false`, `render(row, { index, id })`, empty cells sorted last, priority numbers only for a user-built multi-sort, and `required` / `placement: 'toolbar'` select and radio filter fields.",
       "status": "stable",
       "since": "2025-03",
       "designTokens": [
@@ -1729,7 +1729,7 @@
         "--surface-base",
         "--text-secondary"
       ],
-      "variantCount": 12
+      "variantCount": 14
     },
     {
       "id": "advanced-data-table",
@@ -1790,11 +1790,11 @@
       "category": "Organism",
       "filePath": "modules/ui/Timeline.tsx",
       "abbr": "Tl",
-      "description": "Chronological activity feed with sticky day headings. Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.",
+      "description": "Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.",
       "status": "stable",
       "since": "2026-08",
       "designTokens": [],
-      "variantCount": 2
+      "variantCount": 3
     },
     {
       "id": "keyed-table",
@@ -2576,7 +2576,7 @@
       "category": "App",
       "filePath": "modules/app/KanbanBoard/index.tsx",
       "abbr": "KB",
-      "description": "Trello / Linear-style kanban board. M1 ships HTML5-native drag and drop between columns with an inline drop-position indicator (thin line between cards) and full optimistic-UI rewind on rejected onCardMove. Use the canMove hook to gate transitions client-side, or throw from onCardMove to revert. Future milestones: column reorder + collapse + WIP limits (M2), swimlanes + filters + search (M3), inline edit + bulk select + card detail panel (M4), keyboard nav + ARIA announcements (M5), virtualization + auto-archive + dependencies (M6). Pixel-identical EJS sibling at modules/app/KanbanBoard/KanbanBoard.ejs.",
+      "description": "Trello / Linear-style kanban board. M1 ships HTML5-native drag and drop between columns with an inline drop-position indicator (thin line between cards) and full optimistic-UI rewind on rejected onCardMove. Use the canMove hook to gate transitions client-side, or return false (or a promise of false) or throw from onCardMove to revert; `reorderWithinColumn={false}` limits moves to between columns. Future milestones: column reorder + collapse + WIP limits (M2), swimlanes + filters + search (M3), inline edit + bulk select + card detail panel (M4), keyboard nav + ARIA announcements (M5), virtualization + auto-archive + dependencies (M6). Pixel-identical EJS sibling at modules/app/KanbanBoard/KanbanBoard.ejs.",
       "status": "beta",
       "since": "2026-05",
       "composes": [
@@ -2620,7 +2620,7 @@
         "--error-subtle",
         "--success-subtle"
       ],
-      "variantCount": 4
+      "variantCount": 5
     },
     {
       "id": "calendar",

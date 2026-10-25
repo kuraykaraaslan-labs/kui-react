@@ -92,14 +92,14 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Avatar | `Avatar.tsx` | `src`, `alt`, `size`, fallback initials |
 | Toggle | `Toggle.tsx` | `checked`, `onChange`, `label` |
 | Checkbox | `Checkbox.tsx` | `checked`, `label`, `indeterminate` |
-| Input | `Input.tsx` | `label`, `hint`, `error`, `clearable`, `type` (password shows toggle) |
+| Input | `Input.tsx` | `label`, `hideLabel` (screen-reader only, e.g. an editable table cell), `hint`, `error`, `clearable`, `type` (password shows toggle) |
 | Textarea | `Textarea.tsx` | `label`, `hint`, `error`, `rows` |
-| Select | `Select.tsx` | `label`, `options`, `error`, `messages` (no results, search, placeholder, required) |
+| Select | `Select.tsx` | `label`, `hideLabel`, `options`, `error`, `messages` (no results, search, placeholder, required) |
 | FileInput | `FileInput.tsx` | `accept`, `multiple`, `onFiles` |
 | DatePicker | `DatePicker.tsx` | `value`, `onChange`, `min`, `max` |
 | SkipLink | `SkipLink.tsx` | `href` — accessibility skip-to-content |
 | LiveRegion | `LiveRegion.tsx` | `message`, `politeness` — ARIA live region |
-| Spinner | `Spinner.tsx` | `size` (xs–xl) — CSS border-based loading indicator |
+| Spinner | `Spinner.tsx` | `size` (xs–xl), `label` (screen-reader text, `null` beside a visible message) — CSS border-based loading indicator |
 | BrandLogo | `BrandLogo.tsx` | `size` (sm–2xl) |
 | Label | `Label.tsx` | `required`, `disabled` — form label wrapper |
 | Progress | `Progress.tsx` | `value`, `variant`, `size`, `shape` (bar\|circle), `showLabel` |
@@ -132,7 +132,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | UnavailableContribution | `UnavailableContribution.tsx` | `reason` (disabled\|unentitled\|blocked\|retired\|banned\|quarantined\|failed\|missing\|no-access), `size` (inline\|card\|tab\|node), `title`, `label`, `detail`, `action` |
 | Skeleton | `Skeleton.tsx` | Exports `SkeletonLine`, `SkeletonAvatar`, `SkeletonText`, `SkeletonCard` |
 | Table | `Table.tsx` | `columns`, `rows` |
-| DataTable | `DataTable.tsx` | `columns`, `rows`, `searchable`, `sortable`, `rowActions` (per-row menu: `id`, `label`, `onClick`/`href`, `hidden`, `disabled`, `disabledReason`, `destructive`, `group`, `order`), `selectable` + `rowId` / `selectedRowIds` / `onSelectionChange` (keyed by row id, header selects the rows shown), `renderExpanded` (detail rows), `stickyHeader` |
+| DataTable | `DataTable.tsx` | `columns`, `rows`, `searchable`, `sortable`, `rowActions` (per-row menu: `id`, `label`, `onClick`/`href`, `hidden`, `disabled`, `disabledReason`, `destructive`, `group`, `order`), `selectable` + `rowId` / `selectedRowIds` / `onSelectionChange` (keyed by row id, header selects the rows shown), `renderExpanded` (detail rows), `stickyHeader`, `groupBy` + `renderGroupHeader`, `isRowSelectionLocked`, `searchText` (+ column `searchValue` / `searchable`), `render(row, { index, id })`, filter fields `required` / `placement: 'toolbar'` |
 | AdvancedDataTable | `AdvancedDataTable.tsx` | **Deprecated**, to be removed: thin wrapper over DataTable `selectable` / `renderExpanded` (`_expanded` row field) / `stickyHeader`. Use DataTable |
 | TreeView | `TreeView.tsx` | `nodes` (recursive), `onSelect` |
 | ButtonGroup | `ButtonGroup.tsx` | `options`, `selected`, `onChange` |
@@ -157,7 +157,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | ServerDataTable | `ServerDataTable.tsx` | `columns`, server-driven `rows`/`total`/`loading`, `onQueryChange` |
 | StatCard | `StatCard.tsx` | `label`, `value`, `accent` |
 | TabButton | `TabButton.tsx` | `active`, `onClick`, `count` |
-| Timeline | `Timeline.tsx` | `items`, `groupByDay`, `timeZone`, `locale` |
+| Timeline | `Timeline.tsx` | `items` (per item `status`: done\|current\|upcoming; no or invalid `at` = undated, last), `order` (newest\|oldest), `groupByDay`, `undatedLabel`, `timeZone`, `locale` |
 | ChatThread | `ChatThread/` | Controlled chat thread: `items` (`author`, `side` own\|other\|system, `body`, `at`, `status`, `attachments`, `actions`), oldest first, sticks to the bottom + "New messages" jump, `hasOlder`/`loadingOlder`/`onLoadOlder` (keeps position), `pending` (streamed last message), `typing`, `daySeparators`, `composer` slot, `messages`. Parts: `ChatBubble`, `ChatTypingIndicator` |
 | ViewToggle | `ViewToggle.tsx` | `value` (horizontal\|vertical), `onChange`, `labels` |
 
@@ -222,7 +222,7 @@ Full page-section components that combine multiple UI molecules into usable work
 |-----------|------|-------------|
 | Calendar | `Calendar/` | Month / week / day / resource / agenda views with drag-create + RRULE recurrence — see `Calendar/PLAN.md` |
 | Gantt | `Gantt/` | WBS tree + timeline bars + dependencies + critical path + export — see `Gantt/PLAN.MD` |
-| KanbanBoard | `KanbanBoard/` | Column-based card board with drag-to-reorder + cross-column moves |
+| KanbanBoard | `KanbanBoard/` | Column-based card board with drag-to-reorder + cross-column moves; `onCardMove` returning / resolving `false` or throwing reverts; `reorderWithinColumn` |
 
 ### Theming + a11y
 

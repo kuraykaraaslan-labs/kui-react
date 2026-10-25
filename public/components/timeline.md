@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2026-08
 
-Chronological activity feed with sticky day headings. Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.
+Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.
 
 ## Variants
 
@@ -29,6 +29,20 @@ Chronological activity feed with sticky day headings. Grouping uses the viewer�
 ```tsx
 <Timeline items={[]} emptyMessage="No activity yet." />
 <Timeline items={items} groupByDay={false} />
+```
+
+### Process steps: oldest first, current and upcoming, undated
+
+```tsx
+<Timeline
+  order="oldest"                 // default "newest"
+  items={[
+    { id: 'sent', at: sentAt, title: 'Invitation sent', status: 'done' },
+    { id: 'opened', at: openedAt, title: 'Opened', status: 'current' },  // aria-current="step"
+    { id: 'expires', at: expiresAt, title: 'Expires', status: 'upcoming' }, // hollow, muted
+    { id: 'accepted', at: null, title: 'Accepted', status: 'upcoming' },   // undated: last, no time
+  ]}
+/>
 ```
 
 ## Full source

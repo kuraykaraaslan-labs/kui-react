@@ -38,6 +38,13 @@ Text input field with label, hint, error, prefix icon, password toggle, and 3 si
 <Input id="email" label="Email" type="email" placeholder="you@example.com" hint="We'll never share your email." />
 ```
 
+### Hidden label (hideLabel)
+
+```tsx
+// An editable table cell: the column heading shows what it is; the label stays the accessible name.
+<Input id="qty-a" label="Quantity of Widget A" hideLabel type="number" />
+```
+
 ### Error
 
 ```tsx

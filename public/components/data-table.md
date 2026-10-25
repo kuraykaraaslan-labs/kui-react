@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-03
 
-Unified table with `mode="static" | "paginated" | "server" | "manual"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant="card"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout="cards"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order).
+Unified table with `mode="static" | "paginated" | "server" | "manual"` (manual: the host owns the rows and fetches from `onQueryChange`; server: `reloadKey`, debounced search, aborted stale requests, rows kept under a spinner while the next page loads, Retry). Live rows (`rowState` new / leaving, keyboard rows, `isRowSelectable`), columns with `hideBelow`, `sortKey`, `footer` and `width`, `multiSort`, active-filter chips with Clear all, date-range presets, `numberrange` fields and per-field `defaultValue`, a card shell (`variant="card"`, `title`, `headerActions`, `toolbarStart` / `toolbarEnd`, `density`, `bulkActions`), a card layout (`layout="cards"` + `renderCard`, with a Sort by select) and every string in `messages`. Multi-column sort (Shift+click), global search, per-column filter (text + select), pagination, unified loading/empty/error state, a filter panel (`filterFields`: select, multiselect, checkboxes, radio, checkbox, text, number, date, daterange, range, custom — sent to the server as `filterValues`), row selection keyed by row id (`selectable`, `rowId`, `selectedRowIds`, `onSelectionChange`), expandable detail rows (`renderExpanded`), `stickyHeader`, and `rowActions` (a per-row actions menu with id, href, hidden, disabledReason, destructive, group and order). Phase 11.16: `groupBy` + `renderGroupHeader` (a header row, or a heading before each group of cards), `isRowSelectionLocked` (ticked, disabled, not counted), `searchText` and per-column `searchValue` / `searchable: false`, `render(row, { index, id })`, empty cells sorted last, priority numbers only for a user-built multi-sort, and `required` / `placement: 'toolbar'` select and radio filter fields.
 
 ## Design tokens consumed
 
@@ -216,6 +216,36 @@ const [selected, setSelected] = useState<DataTableRowId[]>([]);
   filterFields={[{ id: 'status', label: 'Status', type: 'multiselect', options }]}
   renderCard={(r, { actions, selected, toggleSelected }) => <InvoiceCard invoice={r} menu={actions} />}
 />
+```
+
+### Groups, locked selection, search beyond columns (groupBy, isRowSelectionLocked, searchText)
+
+```tsx
+<DataTable<Permission>
+  mode="static"
+  rows={permissions}
+  groupBy={(p) => p.group}                       // a header row per group, sorted within it
+  renderGroupHeader={(g, rows) => `${g} · ${rows.length}`}
+  searchText={(p) => `${p.id} ${p.module} ${p.note}`} // matched without a hidden column
+  selectable
+  isRowSelectionLocked={(p) => granted.has(p.id)} // ticked, disabled, not counted
+  columns={[
+    { key: 'name', header: 'Permission', sortable: true },
+    { key: 'limit', header: 'Daily limit', searchable: false,
+      render: (p, { index }) => <Input id={`limit-${p.id}`} label="Daily limit" hideLabel value={limits[index]} … /> },
+  ]}
+/>
+// Empty cells sort last in both directions; a default multi-column sort shows no priority numbers.
+```
+
+### Required choice in the toolbar (required, placement)
+
+```tsx
+filterFields={[
+  // no "Any", no chip, not counted on Filters, applied at once, kept by Clear all and Reset
+  { id: 'status', label: 'Status', type: 'radio', required: true, placement: 'toolbar', defaultValue: 'Open', options },
+  { id: 'amount', label: 'Amount', type: 'numberrange' },
+]}
 ```
 
 ### Sticky header (stickyHeader)

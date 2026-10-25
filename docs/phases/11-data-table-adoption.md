@@ -155,6 +155,32 @@ strings, as on `DataTable`. `ChatBubble` / `ChatTypingIndicator` are its parts: 
 `TypingIndicator` are now adapters over them, and `domains/common/chat/ChatBox` draws its list with `ChatThread`.
 Mirrors: kui-ejs (`domain/common/chat`) and KUInative (with 11.13) are open.
 
+### 11.16 Gaps NB's migration hit `[both] +native` (2026-10-26)
+
+From NB `docs/phases/43-data-tables/README.md` "Open after stage D/F" and the stage E reports. Kanban and IoT items are
+kui-react only (kui-ejs / KUInative have no board and no IoT vertical).
+
+- [x] 1. `Input` / `Select` `hideLabel`: the label is screen-reader only and stays the accessible name (editable cells).
+- [x] 2. Static sort: empty values (`null`, `undefined`, `''`) last in both directions; numbers and dates by value.
+- [x] 3. Search beyond columns: table `searchText(row)`, column `searchValue(row)` and `searchable: false`.
+- [x] 4. `groupBy(row)` + `renderGroupHeader(group, rows)`: a full-width header row per group; static / paginated keep
+  groups in first-seen order and sort within each; manual / server group the page.
+- [x] 5. `Column.render(row, { index, id })`: the row's position in `rows` (server: in the page) and its id.
+- [x] 6. `isRowSelectionLocked(row)`: ticked and disabled, outside the "n selected" count, `bulkActions` and select-all.
+- [x] 7. Sort priority numbers only once the user builds a multi-column sort (a default one shows plain headings).
+- [x] 8. Timeline: an entry with no or an invalid `at` is undated (last, no time, optional `undatedLabel` heading).
+- [x] 9. Timeline item `status`: `done` | `current` (`aria-current="step"`) | `upcoming` (hollow dashed marker, muted).
+- [x] 10. Timeline `order`: `newest` (default) | `oldest`.
+- [x] 11. KanbanBoard `reorderWithinColumn` (default `true`).
+- [x] 12. KanbanBoard: `onCardMove` returning or resolving `false` reverts the card, like a throw; documented.
+- [x] 13. IoT `AlarmDetailView` "Related" aside draws through `DescriptionList`.
+- [x] 14. The ten IoT views of b6c7216 pass `variant="plain"`; `PlaceDevicesDialog` uses `isRowSelectionLocked`.
+- [x] 15. `state="loading"` says "Loading…" once (`Spinner` `label={null}` beside the visible message).
+- [x] 16. `groupBy` in `layout="cards"`: a heading and its own list per group.
+- [x] 17. (with 3) a column can opt out of search; `searchText` needs no hidden helper column.
+- [x] 18. Filter fields: `required` select / radio (no "Any", no chip, not counted, kept by Clear all, Reset returns to
+  its default) and `placement: 'toolbar'` (radio as a segmented group, select with a hidden label, applied at once).
+
 ## Done when
 
 - [x] 11.1–11.9 in kui-react with tests and showcase sections; `npm run registry:snapshot` run. 280c17d

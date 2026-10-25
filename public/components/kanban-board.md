@@ -7,7 +7,7 @@
 - **status:** beta
 - **since:** 2026-05
 
-Trello / Linear-style kanban board. M1 ships HTML5-native drag and drop between columns with an inline drop-position indicator (thin line between cards) and full optimistic-UI rewind on rejected onCardMove. Use the canMove hook to gate transitions client-side, or throw from onCardMove to revert. Future milestones: column reorder + collapse + WIP limits (M2), swimlanes + filters + search (M3), inline edit + bulk select + card detail panel (M4), keyboard nav + ARIA announcements (M5), virtualization + auto-archive + dependencies (M6). Pixel-identical EJS sibling at modules/app/KanbanBoard/KanbanBoard.ejs.
+Trello / Linear-style kanban board. M1 ships HTML5-native drag and drop between columns with an inline drop-position indicator (thin line between cards) and full optimistic-UI rewind on rejected onCardMove. Use the canMove hook to gate transitions client-side, or return false (or a promise of false) or throw from onCardMove to revert; `reorderWithinColumn={false}` limits moves to between columns. Future milestones: column reorder + collapse + WIP limits (M2), swimlanes + filters + search (M3), inline edit + bulk select + card detail panel (M4), keyboard nav + ARIA announcements (M5), virtualization + auto-archive + dependencies (M6). Pixel-identical EJS sibling at modules/app/KanbanBoard/KanbanBoard.ejs.
 
 ## Depends on
 
@@ -100,9 +100,23 @@ const [cards, setCards] = useState(initialCards);
   cards={cards}
   onCardMove={async (card, from, to) => {
     const res = await fetch('/api/move', { method: 'POST', body: JSON.stringify({ card, to }) });
-    // Throw to revert the optimistic update.
+    // Throw (or return false) to revert the optimistic update.
     if (!res.ok) throw new Error('Server rejected');
     setCards(next);
+  }}
+/>
+```
+
+### Stages only, refused by returning false (reorderWithinColumn)
+
+```tsx
+<KanbanBoard
+  columns={stages}
+  cards={applicants}
+  reorderWithinColumn={false}   // the API has no order inside a stage: no drop back, no Alt + Up / Down
+  onCardMove={(card, from, to) => {
+    if (!allowed(from, to)) return false;   // false, a promise of false, or a throw reverts the card
+    return api.setStage(card.id, to);
   }}
 />
 ```
