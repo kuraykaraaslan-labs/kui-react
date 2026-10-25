@@ -60,6 +60,7 @@ export function RpcRequestList({
     <div className={className}>
       <DataTable<RpcRequest>
         mode="manual"
+        variant="plain"
         caption={m.rpc.history}
         columns={columns}
         rows={requests as RpcRequest[]}

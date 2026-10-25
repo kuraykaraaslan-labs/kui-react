@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Drawer } from '@/modules/ui/Drawer';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { Button } from '@/modules/ui/Button';
+import { DescriptionList } from '@/modules/ui/DescriptionList';
 import { cn } from '@/libs/utils/cn';
 import { errorMessage } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
@@ -140,28 +141,31 @@ export function AlarmDetailView({ alarmId, hrefs = {}, now, className }: AlarmDe
 
       <aside aria-label={m.related.title} className="h-fit space-y-3 rounded-xl border border-border bg-surface-raised p-4 text-sm">
         <h2 className="text-sm font-semibold text-text-primary">{m.related.title}</h2>
-        <dl className="space-y-2">
-          <div>
-            <dt className="text-xs text-text-secondary">{m.alarm.device}</dt>
-            <dd className="text-text-primary">
-              {alarm.deviceId && hrefs.device
+        <DescriptionList
+          layout="stacked"
+          dense
+          emptyValue="—"
+          items={[
+            {
+              id: 'device',
+              label: m.alarm.device,
+              value: alarm.deviceId && hrefs.device
                 ? <a className="rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus" href={hrefs.device(alarm.deviceId)}>{alarm.deviceName ?? alarm.deviceId}</a>
-                : (alarm.deviceName ?? '—')}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-text-secondary">{m.related.raisedBy}</dt>
-            <dd className="break-words text-text-primary">
-              {raisedHref ? <a className="rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus" href={raisedHref}>{raisedBy}</a> : raisedBy}
-            </dd>
-          </div>
-          {alarm.topic && (
-            <div>
-              <dt className="text-xs text-text-secondary">{m.alarm.topic}</dt>
-              <dd><code className="break-all font-mono text-xs">{alarm.topic}</code></dd>
-            </div>
-          )}
-        </dl>
+                : alarm.deviceName,
+            },
+            {
+              id: 'raisedBy',
+              label: m.related.raisedBy,
+              value: raisedHref ? <a className="rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus" href={raisedHref}>{raisedBy}</a> : raisedBy,
+            },
+            {
+              id: 'topic',
+              label: m.alarm.topic,
+              value: <code className="break-all font-mono text-xs">{alarm.topic}</code>,
+              hidden: !alarm.topic,
+            },
+          ]}
+        />
       </aside>
 
       <Drawer open={runbookOpen} onClose={() => setRunbookOpen(false)} title={m.runbook.title} closeLabel={m.common.close}>

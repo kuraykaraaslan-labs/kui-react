@@ -221,6 +221,7 @@ export function AlarmTable({
       )}
       <DataTable<AlarmTableRow>
         mode="manual"
+        variant="plain"
         caption={m.alarmTable.caption}
         columns={cols}
         rows={visible}

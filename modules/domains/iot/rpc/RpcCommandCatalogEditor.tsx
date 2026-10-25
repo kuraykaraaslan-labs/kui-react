@@ -165,6 +165,7 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
       ) : (
         <DataTable<RpcCatalogCommand>
           mode="manual"
+          variant="plain"
           caption={m.rpcCatalog.title}
           columns={columns}
           rows={commands ?? []}

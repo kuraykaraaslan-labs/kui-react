@@ -213,6 +213,7 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
       </p>
       <DataTable<AttributeEntry>
         mode="manual"
+        variant="plain"
         caption={m.attribute[scope]}
         columns={columns}
         rows={rows as AttributeEntry[]}

@@ -59,6 +59,7 @@ export function AssetRelationTable({ rows, hrefs = {}, onRemove, loading, error,
   return (
     <DataTable<AssetRelation>
       mode="manual"
+      variant="plain"
       className={className}
       caption={m.asset.relations}
       columns={columns}

@@ -219,6 +219,7 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
       </div>
       <DataTable<DeviceProfile>
         mode="manual"
+        variant="plain"
         caption={m.profiles.title}
         columns={columns}
         rows={items}

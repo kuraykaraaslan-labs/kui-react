@@ -133,6 +133,7 @@ export function DeviceTable({
   return (
     <DataTable<DeviceTableRow>
       mode="manual"
+      variant="plain"
       bordered={false}
       className={className}
       caption={m.deviceTable.caption}

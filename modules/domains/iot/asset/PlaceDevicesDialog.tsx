@@ -1,7 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Button } from '@/modules/ui/Button';
-import { Checkbox } from '@/modules/ui/Checkbox';
 import { Modal } from '@/modules/ui/Modal';
 import { SearchBar } from '@/modules/ui/SearchBar';
 import { DataTable } from '@/modules/ui/Table/DataTable';
@@ -15,7 +14,7 @@ import { onlineStateOf, type DeviceRecord } from '../types/device';
 /**
  * PlaceDevicesDialog — "Place devices" on an asset (phase 08 §8.2): search the tenant's devices (the device list of the adapter),
  * tick several, place them in one call (at most 100). A device has one place (NB A-3): placing it here moves it from where it was.
- * Devices already placed here are shown ticked and locked. The devices are a DataTable (manual mode) whose name cell is the tick.
+ * Devices already placed here are shown ticked and locked (`isRowSelectionLocked`). The devices are a selectable DataTable (manual mode).
  */
 export type PlaceDevicesDialogProps = {
   open: boolean;
@@ -51,12 +50,9 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
     return () => { clearTimeout(t); ctrl.abort(); };
   }, [adapter.devices, open, search, m.devices.loadError]);
 
-  function toggle(id: string, on: boolean) {
-    setSelected((cur) => {
-      const next = new Set(cur);
-      if (on && next.size < MAX_PLACE) next.add(id); else next.delete(id);
-      return next;
-    });
+  // At most MAX_PLACE devices: ticks past the limit are dropped; a device already here never joins the selection.
+  function select(ids: (string | number)[]) {
+    setSelected(new Set(ids.map(String).filter((id) => !placedIds?.has(id)).slice(0, MAX_PLACE)));
   }
 
   async function submit() {
@@ -77,24 +73,16 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
     }
   }
 
-  // the tick is the row's own Checkbox (name and label as its text), so a device already here stays ticked and locked
   const columns: Column<DeviceRecord>[] = [
     {
       key: 'name',
       header: m.devices.name,
-      render: (d) => {
-        const here = placedIds?.has(d.deviceId) ?? false;
-        return (
-          <Checkbox
-            id={`place-${d.deviceId}`}
-            label={d.name}
-            hint={d.label ?? undefined}
-            checked={here || selected.has(d.deviceId)}
-            disabled={here}
-            onChange={(e) => toggle(d.deviceId, e.target.checked)}
-          />
-        );
-      },
+      render: (d) => (
+        <span className="block min-w-0">
+          <span className="block text-sm text-text-primary">{d.name}</span>
+          {d.label && <span className="block text-xs text-text-secondary">{d.label}</span>}
+        </span>
+      ),
     },
     {
       key: 'online',
@@ -131,9 +119,14 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
           columns={columns}
           rows={devices ?? []}
           rowId={(d) => d.deviceId}
+          selectable
+          selectedRowIds={[...selected]}
+          onSelectionChange={select}
+          isRowSelectionLocked={(d) => placedIds?.has(d.deviceId) ?? false}
+          rowSelectLabel={(d) => d.name}
           loading={devices === null}
           emptyMessage={m.devices.empty}
-          messages={{ loading: m.common.loading, retry: m.common.retry }}
+          messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
           searchable={false}
           pageSizeOptions={[]}
           density="compact"

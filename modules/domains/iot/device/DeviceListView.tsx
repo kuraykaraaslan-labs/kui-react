@@ -304,6 +304,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
 
       <DataTable<DeviceRecord>
         mode="manual"
+        variant="plain"
         caption={m.devices.title}
         columns={columns}
         rows={items}

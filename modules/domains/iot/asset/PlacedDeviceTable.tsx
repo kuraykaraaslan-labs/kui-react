@@ -99,6 +99,7 @@ export function PlacedDeviceTable({
   return (
     <DataTable<PlacedDevice>
       mode="manual"
+      variant="plain"
       className={className}
       caption={m.asset.devices}
       columns={columns}

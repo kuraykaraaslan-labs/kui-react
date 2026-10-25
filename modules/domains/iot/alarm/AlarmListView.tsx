@@ -346,6 +346,7 @@ export function AlarmListView({
 
       <DataTable<Alarm>
         mode="manual"
+        variant="plain"
         caption={m.alarms.title}
         columns={columns}
         rows={items}
