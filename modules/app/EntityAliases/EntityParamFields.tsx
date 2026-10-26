@@ -1,7 +1,7 @@
 'use client';
 // The fields of one entity parameter (next-boilerplate dashboard phase 41): the entity type, how the entity is chosen and
 // the fields of that choice, one or many, the filter-bar mode, "with no value, take the first" and the default entity,
-// searched by name. No path, search key or value key: the host's access lists and searches the entities. The relation
+// searched by name in the parameter's set, and with `preview` the entities a set of the type matches. No path, search key or value key: the host's access lists and searches the entities. The relation
 // details (direction, depth, relation type, last level only, relation filters) show only with `advanced`; the host owns
 // that disclosure, with the parameter's key beside them. Controlled: every edit calls `onChange` with a whole parameter.
 // The label and the key are the host's: they belong to every kind of parameter.
@@ -11,25 +11,32 @@ import { Checkbox } from '@/modules/ui/Checkbox';
 import { Input } from '@/modules/ui/Input';
 import { Select } from '@/modules/ui/Select';
 import { Toggle } from '@/modules/ui/Toggle';
+import { AliasPreviewPanel, useAliasPreview } from './AliasPreview';
 import { EntityListPicker, EntityPicker, EntityTypeSelect, SubtypesPicker } from './EntityPickers';
 import { FormPanel, QueryOptions, RelationFiltersEditor, RelationTypeSelect } from './RelationFields';
 import {
   ENTITY_CHOICE_TYPES,
   barModesFor,
   choiceTakesMany,
+  defaultFits,
   fitChoice,
+  followsParam,
   isMixedRelated,
+  normalizeEntityParam,
   peerFits,
+  previewAlias,
   takesDefault,
   takesFirst,
+  validateEntityParam,
   withChoice,
+  withChoicePatch,
   withEntityType,
   type EntityParamErrors,
 } from './entity-params';
 import { mergeAliasMessages, type EntityAliasesMessagesInput, type EntityParamErrorField } from './messages';
 import { useAliasCatalog } from './useAliasData';
 import { NAME_PREFIX_MAX } from './validate';
-import type { EntityAliasesAccess, EntityChoice, EntityChoiceType, EntityParam, ParamBarMode, ParamPeer } from './types';
+import type { EntityAliasesAccess, EntityChoice, EntityChoiceType, EntityParam, EntityRef, ParamBarMode, ParamPeer } from './types';
 
 export interface EntityParamFieldsProps {
   value: EntityParam;
@@ -41,6 +48,11 @@ export interface EntityParamFieldsProps {
   advanced?: boolean;
   /** Field errors from `validateEntityParam`, shown under their fields. */
   errors?: EntityParamErrors;
+  /**
+   * Show which entities a set of the type matches (by name, by subtype, related to a fixed entity) through `access.preview`,
+   * as the alias dialog did, so a wrong prefix or walk is seen before the board shows it.
+   */
+  preview?: boolean;
   messages?: EntityAliasesMessagesInput;
   className?: string;
 }
@@ -48,7 +60,7 @@ export interface EntityParamFieldsProps {
 /** The value of the "Related to" select that stands for a fixed root entity (a parameter key never has a colon). */
 const FIXED_ROOT = ':entity';
 
-export function EntityParamFields({ value, onChange, params, access, advanced = false, errors, messages, className }: EntityParamFieldsProps) {
+export function EntityParamFields({ value, onChange, params, access, advanced = false, errors, preview = false, messages, className }: EntityParamFieldsProps) {
   const m = useMemo(() => mergeAliasMessages(messages), [messages]);
   const idBase = useId();
   const { entityTypes, providers } = useAliasCatalog(access);
@@ -62,7 +74,17 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
   const typeInfo = (key: string | undefined) => entityTypes.find((t) => t.key === key);
   const mixed = isMixedRelated(c);
   const set = (next: EntityParam) => onChange(next);
-  const setChoice = (patch: Partial<EntityChoice>) => set(fitChoice({ ...p, choose: { ...c, ...patch } as EntityChoice }));
+  const setChoice = (patch: Partial<EntityChoice>) => set(withChoicePatch(p, patch));
+  // A complete choice only (the server's 400 is not a preview); one the form need not show has none.
+  const previewJson = useMemo(() => {
+    if (!preview) return '';
+    const draft = normalizeEntityParam(p);
+    const alias = previewAlias(draft);
+    return alias && Object.keys(validateEntityParam(draft, params)).length === 0 ? JSON.stringify(alias) : '';
+  }, [preview, p, params]);
+  const matched = useAliasPreview(access, previewJson);
+  // The default is searched in the set where the form can tell it (a list, a name prefix, subtypes), so it never falls outside.
+  const acceptDefault = (e: EntityRef) => defaultFits(p, e);
 
   // A subtype choice needs a type with subtypes, a relation a relation source; a stored choice always stays offered.
   const choices = ENTITY_CHOICE_TYPES.filter((t) => {
@@ -101,6 +123,7 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
           />
         </div>
         {renderChoice()}
+        {previewJson && <AliasPreviewPanel status={matched.status} result={matched.result} m={m} />}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {choiceTakesMany(c) && (
             <Select messages={m.select}
@@ -138,6 +161,8 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
             error={err('default')}
             required={false}
             clearable
+            accept={acceptDefault}
+            searchScope={JSON.stringify(c)}
             m={m}
           />
         )}
@@ -194,7 +219,12 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
             label={m.followParam}
             options={[{ value: '', label: m.followLink }, ...options.map((x) => ({ value: x.key, label: x.label || x.key }))]}
             value={c.param ?? ''}
-            onChange={(e) => set(fitChoice({ ...p, choose: e.target.value ? { type: 'page', param: e.target.value } : { type: 'page' } }))}
+            onChange={(e) => {
+              const next: EntityParam = { ...p, choose: e.target.value ? { type: 'page', param: e.target.value } : { type: 'page' } };
+              // "take the first" was the follow's own (`fitChoice`), not a choice made for a link
+              if (followsParam(p) && !e.target.value) delete next.defaultFrom;
+              set(fitChoice(next));
+            }}
             error={err('choose.param')}
           />
         );
@@ -260,6 +290,8 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
                 };
                 const next: EntityParam = { ...p, choose: on ? { ...walk, filters: [] } : walk };
                 if (on) delete next.entityType;
+                // another set: the default was picked in the old one
+                delete next.default;
                 set(fitChoice(next));
               }}
             />

@@ -9,7 +9,7 @@ import { ComboBox } from '@/modules/ui/ComboBox';
 import { MultiSelect } from '@/modules/ui/MultiSelect';
 import { toEntityOption, useEntityRefs, useLatestRef } from './useAliasData';
 import type { EntityAliasesMessages } from './messages';
-import type { EntityAliasesAccess, EntityTypeInfo } from './types';
+import type { EntityAliasesAccess, EntityRef, EntityTypeInfo } from './types';
 
 /** Keeps a stored value visible even when the list no longer offers it. */
 function withCurrent(options: SelectOption[], value: string): SelectOption[] {
@@ -70,6 +70,8 @@ export function EntityPicker({
   error,
   required = true,
   clearable = false,
+  accept,
+  searchScope = '',
   m,
 }: {
   id: string;
@@ -83,24 +85,30 @@ export function EntityPicker({
   /** An optional pick (a default entity) is not required and can be cleared (`onChange('')`). */
   required?: boolean;
   clearable?: boolean;
+  /** Only the entities it accepts are offered (a default inside its parameter's set). */
+  accept?: (entity: EntityRef) => boolean;
+  /** What `accept` depends on: a change starts a new search, as a new entity type does. */
+  searchScope?: string;
   m: EntityAliasesMessages;
 }) {
   const accessRef = useLatestRef(access);
+  const acceptRef = useLatestRef(accept);
   const { known, remember } = useEntityRefs(access, entityType, value ? [value] : []);
   const onSearch = useCallback(
     async (q: string) => {
       if (!entityType) return [];
       const refs = await accessRef.current.searchEntities(entityType, q);
       remember(refs);
-      return refs.map(toEntityOption);
+      const keep = acceptRef.current;
+      return (keep ? refs.filter(keep) : refs).map(toEntityOption);
     },
-    [entityType, remember, accessRef],
+    [entityType, remember, accessRef, acceptRef],
   );
   const current = value ? (known[value] ? toEntityOption(known[value]) : { value, label: value }) : null;
   return (
     <ComboBox messages={m.comboBox}
-      // A new entity type starts a new search cache.
-      key={entityType}
+      // A new entity type (or what `accept` depends on) starts a new search cache.
+      key={`${entityType}|${searchScope}`}
       id={id}
       label={label ?? m.entity}
       options={current ? [current] : []}

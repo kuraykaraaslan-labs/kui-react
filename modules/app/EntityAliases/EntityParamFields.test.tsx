@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EntityParamFields } from './EntityParamFields';
-import { demoAccess } from './demo-access';
+import { DEMO_ENTITIES, demoAccess } from './demo-access';
 import { validateEntityParam, type EntityParamErrors } from './entity-params';
 import type { EntityAliasesAccess, EntityParam, ParamPeer } from './types';
 
@@ -83,8 +83,12 @@ describe('EntityParamFields', () => {
     expect(screen.queryByLabelText(/In the filter bar/)).toBeNull();
     expect(optionLabels(select(/Taken from/))).toEqual(['A link, a page or a button', 'Site', 'Limit']);
     fireEvent.change(select(/Taken from/), { target: { value: 'site' } });
-    expect(onParam).toHaveBeenLastCalledWith({ kind: 'entity', key: 'pump', label: 'Pump', entityType: 'iot_asset', choose: { type: 'page', param: 'site' } });
+    // following a parameter is its only way to a value: it takes the first of its set (the followed entity)
+    expect(onParam).toHaveBeenLastCalledWith({ kind: 'entity', key: 'pump', label: 'Pump', entityType: 'iot_asset', choose: { type: 'page', param: 'site' }, defaultFrom: 'firstOption' });
     expect(screen.queryByLabelText(/Default entity/)).toBeNull();
+    expect(screen.queryByLabelText('With no value, take the first')).toBeNull();
+    fireEvent.change(select(/Taken from/), { target: { value: '' } });
+    expect(onParam).toHaveBeenLastCalledWith({ kind: 'entity', key: 'pump', label: 'Pump', entityType: 'iot_asset', choose: { type: 'page' } });
   });
 
   it('a relation starts from another parameter; its details are under Advanced only', async () => {
@@ -115,6 +119,31 @@ describe('EntityParamFields', () => {
     const param: EntityParam = { ...START, choose: { type: 'page', param: 'pump' } };
     render(<Harness initial={param} errors={validateEntityParam(param, [param])} />);
     expect(await screen.findByText('A parameter cannot take its entity from itself.')).toBeInTheDocument();
+  });
+
+  it('a default is searched inside the set: by name, only the entities the prefix holds', async () => {
+    // the host's search finds every device; the form keeps those of the set
+    const access = demoAccess({ searchEntities: async (type) => DEMO_ENTITIES.filter((e) => e.type === type) });
+    render(<Harness access={access} initial={{ ...START, choose: { type: 'name', namePrefix: 'Pump' } }} />);
+    const user = userEvent.setup();
+    await user.type(screen.getByPlaceholderText('Search entities…'), 'x');
+    expect(await screen.findByRole('option', { name: /Pump 1/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Tank A/ })).toBeNull();
+  });
+
+  it('offers no default for a relation: its set is a walk only the server knows', async () => {
+    render(<Harness initial={{ ...START, choose: { type: 'related', provider: 'iot_asset', root: { param: 'site' }, direction: 'from', maxLevel: 1 } }} />);
+    expect(await screen.findByRole('option', { name: 'Device' })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Default entity/)).toBeNull();
+    expect(screen.getByLabelText('With no value, take the first')).toBeInTheDocument();
+  });
+
+  it('with preview, shows the entities a set by name matches', async () => {
+    render(
+      <EntityParamFields value={{ ...START, choose: { type: 'name', namePrefix: 'Pump' } }} onChange={() => {}} params={[SITE]} access={demoAccess()} preview />,
+    );
+    expect(await screen.findByText('2 entities matched')).toBeInTheDocument();
+    expect(screen.getByText(/Pump 1, Pump 2/)).toBeInTheDocument();
   });
 
   it('many entities drop the default and "take the first"', async () => {

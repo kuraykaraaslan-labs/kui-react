@@ -6,7 +6,7 @@
 
 import { NAME_PREFIX_MAX, ENTITY_LIST_MAX, SUBTYPES_MAX, MAX_RELATION_LEVEL, MAX_RELATION_FILTERS, slugKey } from './validate';
 import type { EntityParamErrorCode, EntityParamErrorField } from './messages';
-import type { EntityChoice, EntityChoiceType, EntityParam, ParamBarMode, ParamPeer, RelationFilter, RelationProviderInfo } from './types';
+import type { EntityAlias, EntityChoice, EntityChoiceType, EntityParam, EntityRef, ParamBarMode, ParamPeer, RelationFilter, RelationProviderInfo } from './types';
 
 /** The choices in the order the form offers them. */
 export const ENTITY_CHOICE_TYPES: readonly EntityChoiceType[] = ['viewer', 'page', 'single', 'list', 'all', 'name', 'subtype', 'related'];
@@ -35,12 +35,35 @@ export function barModesFor(p: Pick<EntityParam, 'choose'>): ParamBarMode[] {
   return [...PARAM_BAR_MODES];
 }
 
-/** Does "with no value, take the first" apply? One entity chosen from a set (not one that follows another parameter). */
-export const takesFirst = (p: Pick<EntityParam, 'choose' | 'multiple'>): boolean =>
-  !p.multiple && p.choose.type !== 'single' && !(p.choose.type === 'page' && !!p.choose.param);
+/** A page choice that follows another parameter: its entity is that parameter's, never a pick or a default of its own. */
+export const followsParam = (p: Pick<EntityParam, 'choose'>): boolean => p.choose.type === 'page' && !!p.choose.param;
 
-/** Does a default entity apply? As `takesFirst`, and the entity type is known (the default is searched by name in it). */
-export const takesDefault = (p: Pick<EntityParam, 'choose' | 'multiple' | 'entityType'>): boolean => takesFirst(p) && !!p.entityType;
+/**
+ * Does "with no value, take the first" apply as a choice? One entity chosen from a set. Not one that follows another
+ * parameter: it always takes the first of its set (the followed entity), its only way to a value (`fitChoice` sets it).
+ */
+export const takesFirst = (p: Pick<EntityParam, 'choose' | 'multiple'>): boolean =>
+  !p.multiple && p.choose.type !== 'single' && !followsParam(p);
+
+/**
+ * Does the form offer a default entity? As `takesFirst`, the entity type is known (the default is searched by name in it),
+ * and the form can tell whether an entity is in the set (`defaultFits`): not for a relation, whose set is a walk only the
+ * server knows. A default outside the set would be refused (422) on every card that reads the parameter.
+ */
+export const takesDefault = (p: Pick<EntityParam, 'choose' | 'multiple' | 'entityType'>): boolean =>
+  takesFirst(p) && !!p.entityType && p.choose.type !== 'related';
+
+/** May `e` be the default: in the fixed list, its name starts with the prefix, its subtype is chosen (the server's rule). */
+export function defaultFits(p: Pick<EntityParam, 'choose'>, e: EntityRef): boolean {
+  const c = p.choose;
+  const prefixHolds = (prefix: string | undefined) => !prefix || e.name.toLowerCase().startsWith(prefix.toLowerCase());
+  switch (c.type) {
+    case 'list': return c.ids.includes(e.id);
+    case 'name': return prefixHolds(c.namePrefix);
+    case 'subtype': return prefixHolds(c.namePrefix) && !!e.subtype && c.subtypes.includes(e.subtype);
+    default: return true;
+  }
+}
 
 /** Can the parameter be what another one follows (one entity) or a relation's root (one entity of a known type)? */
 export function peerFits(peer: ParamPeer, as: 'page' | 'root'): boolean {
@@ -86,18 +109,34 @@ export function emptyChoice(type: EntityChoiceType, prev: EntityChoice | null | 
  */
 export function withChoice(p: EntityParam, type: EntityChoiceType, ctx: Omit<EmptyChoiceContext, 'entityType'>): EntityParam {
   const choose = emptyChoice(type, p.choose, { ...ctx, entityType: p.entityType });
-  return fitChoice({ ...p, choose });
+  const next: EntityParam = { ...p, choose };
+  // another set: the default was picked in the old one
+  if (choose.type !== p.choose.type) delete next.default;
+  return fitChoice(next);
 }
 
-/** What depends on the choice, made to fit it (`withChoice`, and a change of one or many). */
+/** The parameter with fields of its choice changed: the set changes, so the default goes unless it is still listed. */
+export function withChoicePatch(p: EntityParam, patch: Partial<EntityChoice>): EntityParam {
+  const next: EntityParam = { ...p, choose: { ...p.choose, ...patch } as EntityChoice };
+  if (next.default !== undefined && !(next.choose.type === 'list' && next.choose.ids.includes(next.default))) delete next.default;
+  return fitChoice(next);
+}
+
+/**
+ * What depends on the choice, made to fit it (`withChoice`, and a change of one or many). A page choice that follows another
+ * parameter takes the first of its set, the followed entity: without it the server never resolves it (422). A default the form
+ * does not offer (a relation's, stored through the API) is kept while one entity is chosen from a set: the form never rewrites
+ * what it does not show, and a change of the set drops it (`withChoice`, `withChoicePatch`, `withEntityType`).
+ */
 export function fitChoice(p: EntityParam): EntityParam {
   const next: EntityParam = { ...p };
   if (!choiceTakesMany(next.choose)) delete next.multiple;
   const modes = barModesFor(next);
   if (modes.length === 0) delete next.viewer;
   else if (!modes.includes(next.viewer ?? 'edit')) next.viewer = modes[modes.length - 1];
-  if (!takesFirst(next)) delete next.defaultFrom;
-  if (!takesDefault(next)) delete next.default;
+  if (followsParam(next) && !next.multiple) next.defaultFrom = 'firstOption';
+  else if (!takesFirst(next)) delete next.defaultFrom;
+  if (!takesFirst(next)) delete next.default;
   return next;
 }
 
@@ -121,8 +160,14 @@ function withoutKeys<T extends object>(o: T, keys: readonly string[]): T {
   return out as T;
 }
 
-/** A key made from the label (D41-6): camelCase ASCII, not one of `taken` (`Pump station` → `pumpStation`). */
-export const paramKeyFromLabel = (label: string, taken: readonly string[] = []): string => slugKey(label, taken, 'param');
+/** The keys a parameter never has (the server's `isReservedParamKey`): each is a property every object already has. */
+export const RESERVED_PARAM_KEYS: readonly string[] = [
+  '__proto__', 'constructor', 'prototype', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable', 'toString', 'toLocaleString', 'valueOf',
+];
+
+/** A key made from the label (D41-6): camelCase ASCII, not one of `taken` nor reserved (`Pump station` → `pumpStation`). */
+export const paramKeyFromLabel = (label: string, taken: readonly string[] = []): string =>
+  slugKey(label, [...taken, ...RESERVED_PARAM_KEYS], 'param');
 
 function cleanRelationFilters(filters: readonly RelationFilter[]): RelationFilter[] {
   const out: RelationFilter[] = [];
@@ -144,10 +189,11 @@ function normalizeChoice(c: EntityChoice): EntityChoice {
   switch (c.type) {
     case 'page': return c.param ? { type: 'page', param: c.param } : { type: 'page' };
     case 'list': return { type: 'list', ids: [...new Set(c.ids)] };
-    case 'name': return { type: 'name', namePrefix: c.namePrefix.trim() };
+    // a name prefix is kept as typed: the server matches it as it is, so 'Pump ' does not match 'Pumpkin'
+    case 'name': return { type: 'name', namePrefix: c.namePrefix };
     case 'subtype': {
-      const prefix = c.namePrefix?.trim();
-      return { type: 'subtype', subtypes: [...new Set(c.subtypes)], ...(prefix ? { namePrefix: prefix } : {}) };
+      const prefix = c.namePrefix;
+      return { type: 'subtype', subtypes: [...new Set(c.subtypes)], ...(prefix && prefix.trim() ? { namePrefix: prefix } : {}) };
     }
     case 'related': {
       const base = {
@@ -159,6 +205,36 @@ function normalizeChoice(c: EntityChoice): EntityChoice {
       return { ...base, ...(relationType ? { relationType } : {}), ...(c.subtypes?.length ? { subtypes: [...new Set(c.subtypes)] } : {}) };
     }
     default: return c;
+  }
+}
+
+/**
+ * The alias the server resolves the parameter as (its `entityParamFilter`), keyed and named as a draft, for a preview of the
+ * entities it matches; null for a choice whose set the form need not show (the viewer's, a page's, a fixed one or list, all of
+ * the type) or reads other parameters' values (a relation from a parameter).
+ */
+export function previewAlias(p: EntityParam): EntityAlias | null {
+  const c = p.choose;
+  const entityType = p.entityType ?? '';
+  const resolveMultiple = !!p.multiple;
+  const draft = (filter: EntityAlias['filter']): EntityAlias => ({ key: 'draft', name: p.label.trim() || 'Draft', resolveMultiple, filter });
+  switch (c.type) {
+    case 'name': return draft({ type: 'entityName', entityType, namePrefix: c.namePrefix });
+    case 'subtype': return draft({ type: 'entitySubtype', entityType, subtypes: c.subtypes, ...(c.namePrefix ? { namePrefix: c.namePrefix } : {}) });
+    case 'related': {
+      if (!('entity' in c.root)) return null;
+      const walk = {
+        provider: c.provider, root: c.root, direction: c.direction, maxLevel: c.maxLevel,
+        ...(c.lastLevelOnly !== undefined ? { lastLevelOnly: c.lastLevelOnly } : {}),
+      };
+      if (isMixedRelated(c)) return draft({ type: 'relationsQuery', ...walk, filters: c.filters });
+      return draft({
+        type: 'entitySearchQuery', ...walk, entityType,
+        ...(c.relationType !== undefined ? { relationType: c.relationType } : {}),
+        ...(c.subtypes !== undefined ? { subtypes: c.subtypes } : {}),
+      });
+    }
+    default: return null;
   }
 }
 
@@ -232,12 +308,12 @@ export function validateEntityParam(p: EntityParam, params: readonly ParamPeer[]
       break;
     case 'name':
       if (blank(c.namePrefix)) errors['choose.namePrefix'] = 'required';
-      else if (c.namePrefix.trim().length > NAME_PREFIX_MAX) errors['choose.namePrefix'] = 'tooLong';
+      else if (c.namePrefix.length > NAME_PREFIX_MAX) errors['choose.namePrefix'] = 'tooLong';
       break;
     case 'subtype':
       if (c.subtypes.length < 1) errors['choose.subtypes'] = 'tooFew';
       else if (c.subtypes.length > SUBTYPES_MAX) errors['choose.subtypes'] = 'tooMany';
-      if (c.namePrefix && c.namePrefix.trim().length > NAME_PREFIX_MAX) errors['choose.namePrefix'] = 'tooLong';
+      if (c.namePrefix && c.namePrefix.length > NAME_PREFIX_MAX) errors['choose.namePrefix'] = 'tooLong';
       break;
     case 'page': {
       const src = sourceError(p, params);

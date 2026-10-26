@@ -29,8 +29,8 @@ nothing is copied, the behaviour is rebuilt with kui primitives.
 | `KEY_FILTER_OPS`, `predicateShape`, `withValueType`, `normalizeBoardFilter`, `filterParamKeys` | The operations per value type, what each operation reads, the value-type change, the save clean-up, the params a filter reads (for the param bar). Pure. |
 | `validateAlias`, `validateAliases`, `validateFilter`, `slugKey` | The server caps, mirrored (below). Pure. |
 | `normalizeAlias`, `aliasCompatibility`, `emptyFilter`, `defaultResolveMultiple` | Save clean-up (trim, drop empty and duplicate relation filters, single entity → one), the slot rule, the type-change defaults. Pure. |
-| `EntityParamFields` | The fields of one **entity parameter** (phase 41, below): entity type, how the entity is chosen and that choice's fields, one or many, the filter-bar mode, a default entity searched by name, "with no value, take the first". Controlled; the label and the key are the host's. `advanced` shows the relation details. |
-| `validateEntityParam`, `normalizeEntityParam`, `withChoice`, `withEntityType`, `fitChoice`, `barModesFor`, `takesFirst`, `takesDefault`, `peerFits`, `paramKeyFromLabel` | The entity parameter's caps against the whole list (what it follows exists, is one entity, never comes back), the save clean-up, the choice and entity-type changes with what depends on them, and the key made from the label. Pure. |
+| `EntityParamFields` | The fields of one **entity parameter** (phase 41, below): entity type, how the entity is chosen and that choice's fields, one or many, the filter-bar mode, a default entity searched by name inside the set, "with no value, take the first". Controlled; the label and the key are the host's. `advanced` shows the relation details, `preview` the entities a set matches. |
+| `validateEntityParam`, `normalizeEntityParam`, `withChoice`, `withChoicePatch`, `withEntityType`, `fitChoice`, `barModesFor`, `takesFirst`, `takesDefault`, `defaultFits`, `followsParam`, `previewAlias`, `peerFits`, `paramKeyFromLabel` | The entity parameter's caps against the whole list (what it follows exists, is one entity, never comes back), the save clean-up, the choice and entity-type changes with what depends on them, and the key made from the label. Pure. |
 | `DEFAULT_ALIAS_MESSAGES`, `mergeAliasMessages` | Every text the kit draws, English defaults; every component takes `messages` (a partial override). |
 
 ## Filter types
@@ -69,9 +69,15 @@ and the key (made from the label, `paramKeyFromLabel`, editable under the host's
 
 Beside the choice: **one or many** (not for one fixed entity), the **filter-bar mode** (shown and changeable, shown, hidden;
 none for a page choice, no picker for one fixed entity, which defaults to hidden), a **default entity** searched by name
-(one entity chosen from a set of a known type) and **with no value, take the first** (the same). `fitChoice` keeps these
-consistent whenever the choice or the count changes; `normalizeEntityParam` leaves out what says nothing. The form never
-asks for a path, a search key or a value key: the host's access lists and searches the entities.
+inside the set (one entity chosen from a set of a known type, not a relation, whose set only the server walks; `defaultFits`
+keeps the search to the listed entities, the name prefix and the subtypes) and **with no value, take the first** (the same).
+A page choice that follows another parameter always takes the first of its set, the followed entity: it is its only way to
+a value. `fitChoice` keeps these consistent whenever the choice or the count changes, and a change of the set drops the
+default picked in the old one (`withChoice`, `withChoicePatch`, `withEntityType`); `normalizeEntityParam` leaves out what
+says nothing and keeps a name prefix as typed. With `preview`, a set by name, by subtype or related to a fixed entity shows
+the entities it matches (`previewAlias` through `access.preview`). The form never asks for a path, a search key or a value
+key: the host's access lists and searches the entities. A key made from the label is never one the server reserves
+(`RESERVED_PARAM_KEYS`).
 
 Errors are field-keyed codes (`{ 'choose.param': 'cycle' }`); `messages.paramError(field, code)` gives the text in plain
 words ("The parameters it follows lead back to it.").
