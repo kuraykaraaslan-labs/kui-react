@@ -1233,7 +1233,7 @@ export function BulkActionTable({ columns, rows, rowId, selected, onSelectedChan
       category: 'Organism',
       abbr: 'Tl',
       description:
-        'Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.',
+        'Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server. A day heading lines up with the events’ text, keeps a gap above the first marker and is drawn in the timeline’s `surface` (`raised` inside a card), so it never reads as a band of another colour; the last event leaves no space under it.',
       filePath: 'modules/ui/Timeline.tsx',
       sourceCode: `'use client';
 // Chronological feed with sticky day headings.
@@ -1334,6 +1334,24 @@ export function Timeline({ items, timeZone, locale, groupByDay = true, emptyMess
     { id: 'accepted', at: null, title: 'Accepted', status: 'upcoming' },   // undated: last, no time
   ]}
 />`,
+        },
+        {
+          title: 'Inside a card: surface="raised"',
+          layout: 'stack' as const,
+          preview: (
+            <div className="w-full max-w-lg space-y-4 rounded-xl border border-border bg-surface-raised p-4 shadow-sm">
+              <Timeline
+                surface="raised"
+                items={[
+                  { id: '1', at: '2026-08-25T14:40:00Z', title: 'Acknowledged by Alex', body: 'Valve closed, watching the pressure.', tone: 'warning' },
+                  { id: '2', at: '2026-08-25T14:31:00Z', title: 'Severity raised: Major → Critical', tone: 'warning' },
+                  { id: '3', at: '2026-08-24T22:05:00Z', title: 'Opened by the platform', tone: 'error' },
+                ]}
+              />
+              <p className="border-t border-border pt-4 text-sm text-text-secondary">What follows the timeline starts right after its last event.</p>
+            </div>
+          ),
+          code: `<section className="rounded-xl border border-border bg-surface-raised p-4">\n  <Timeline items={events} surface="raised" />\n</section>`,
         },
       ],
     },

@@ -49,6 +49,9 @@ export type TimelineItem = {
 
 export type TimelineStatus = 'done' | 'current' | 'upcoming';
 
+/** The surface a timeline sits on. */
+export type TimelineSurface = 'base' | 'raised' | 'overlay' | 'sunken';
+
 export type TimelineProps = {
   items: TimelineItem[];
   /**
@@ -71,7 +74,20 @@ export type TimelineProps = {
   /** The next batch is loading (the button shows a spinner and is disabled). */
   loadingMore?: boolean;
   loadMoreLabel?: string;
+  /**
+   * The surface the timeline sits on (`raised` inside a card): the sticky day headings, the hollow marker of an upcoming step
+   * and the gap of the current step's ring take its colour, so nothing reads as a band or a ring of another surface.
+   */
+  surface?: TimelineSurface;
   className?: string;
+};
+
+// Literal classes, so the stylesheet keeps them.
+const SURFACE_CLASS: Record<TimelineSurface, { bg: string; ringOffset: string }> = {
+  base: { bg: 'bg-surface-base', ringOffset: 'ring-offset-surface-base' },
+  raised: { bg: 'bg-surface-raised', ringOffset: 'ring-offset-surface-raised' },
+  overlay: { bg: 'bg-surface-overlay', ringOffset: 'ring-offset-surface-overlay' },
+  sunken: { bg: 'bg-surface-sunken', ringOffset: 'ring-offset-surface-sunken' },
 };
 
 const TONE_CLASS: Record<NonNullable<TimelineItem['tone']>, string> = {
@@ -101,8 +117,10 @@ export function Timeline({
   onLoadMore,
   loadingMore = false,
   loadMoreLabel = 'Load more',
+  surface = 'base',
   className,
 }: TimelineProps) {
+  const surfaceClass = SURFACE_CLASS[surface] ?? SURFACE_CLASS.base;
   if (items.length === 0) {
     return (
       <p className={cn('py-8 text-center text-sm text-text-secondary', className)}>
@@ -154,14 +172,20 @@ export function Timeline({
         const last = index === rendered.length - 1;
         return (
           <Fragment key={item.id}>
+            {/*
+              The day heading is drawn in the timeline's own surface (opaque, so it stays readable while it sticks), lines up
+              with the events' text (the item's 0.25rem + the marker's 2.125rem + the 0.75rem gap) and keeps a gap above the
+              first marker.
+            */}
             {showDay && (
-              <li className="sticky top-0 z-10 bg-surface-base/95 py-2 text-xs font-medium uppercase tracking-wide text-text-secondary backdrop-blur">
+              <li className={cn('sticky top-0 z-10 mb-2 py-2 pl-[3.125rem] text-xs font-medium uppercase tracking-wide text-text-secondary', surfaceClass.bg)}>
                 {day}
               </li>
             )}
 
+            {/* The last event ends at its text: no padding under it before whatever follows the timeline. */}
             <li
-              className="relative flex gap-3 pb-5 pl-1"
+              className={cn('relative flex gap-3 pl-1', !last && 'pb-5')}
               aria-current={item.status === 'current' ? 'step' : undefined}
               data-status={item.status}
             >
@@ -188,9 +212,9 @@ export function Timeline({
                 className={cn(
                   'relative z-[1] flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-full',
                   item.status === 'upcoming'
-                    ? 'border-2 border-dashed border-border-strong bg-surface-base text-text-disabled'
+                    ? cn('border-2 border-dashed border-border-strong text-text-disabled', surfaceClass.bg)
                     : TONE_CLASS[item.tone ?? 'default'],
-                  item.status === 'current' && 'ring-2 ring-primary ring-offset-2 ring-offset-surface-base',
+                  item.status === 'current' && cn('ring-2 ring-primary ring-offset-2', surfaceClass.ringOffset),
                 )}
               >
                 {item.icon}
@@ -221,7 +245,7 @@ export function Timeline({
         );
       })}
       {hasMore && onLoadMore && (
-        <li className="pl-12" data-part="load-more">
+        <li className="pl-12 pt-5" data-part="load-more">
           <Button variant="outline" size="sm" loading={loadingMore} disabled={loadingMore} onClick={onLoadMore}>
             {loadMoreLabel}
           </Button>

@@ -98,7 +98,7 @@ export function AlarmEventTimeline({
 
   return (
     <section className={cn('space-y-4 rounded-xl border border-border bg-surface-raised p-4 shadow-sm sm:p-5', className)} aria-label={m.event.label}>
-      <Timeline items={items} locale={lang} timeZone={timeZone} emptyMessage={m.event.empty} />
+      <Timeline items={items} locale={lang} timeZone={timeZone} emptyMessage={m.event.empty} surface="raised" />
       {onAddNote && (
         <div className="space-y-2 border-t border-border pt-4">
           <Textarea

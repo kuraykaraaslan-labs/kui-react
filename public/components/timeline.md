@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2026-08
 
-Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.
+Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server. A day heading lines up with the events’ text, keeps a gap above the first marker and is drawn in the timeline’s `surface` (`raised` inside a card), so it never reads as a band of another colour; the last event leaves no space under it.
 
 ## Variants
 
@@ -43,6 +43,14 @@ Chronological activity feed with sticky day headings, `order` (newest or oldest 
     { id: 'accepted', at: null, title: 'Accepted', status: 'upcoming' },   // undated: last, no time
   ]}
 />
+```
+
+### Inside a card: surface="raised"
+
+```tsx
+<section className="rounded-xl border border-border bg-surface-raised p-4">
+  <Timeline items={events} surface="raised" />
+</section>
 ```
 
 ## Full source

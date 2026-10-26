@@ -63,4 +63,40 @@ describe('Timeline', () => {
     // the way to an upcoming step is dashed
     expect(events[1].querySelector('span.border-l.border-dashed')).not.toBeNull();
   });
+
+  it('draws its day headings on its own surface, in line with the events\' text, with a gap above the first marker', () => {
+    const items = [
+      { id: 'a', at: '2026-08-24T10:00:00Z', title: 'Old' },
+      { id: 'b', at: '2026-08-25T14:40:00Z', title: 'New', status: 'current' as const },
+      { id: 'c', at: '2026-08-26T09:00:00Z', title: 'Next', status: 'upcoming' as const },
+    ];
+    const { container, rerender } = render(<Timeline timeZone="UTC" locale="en-US" items={items} />);
+    const headings = () => [...container.querySelectorAll('li.sticky')];
+    expect(headings()).toHaveLength(3);
+    for (const h of headings()) {
+      // no page-coloured band with a blur: the surface itself, opaque so it stays readable while it sticks
+      expect(h.className).toContain('bg-surface-base');
+      expect(h.className).not.toContain('/95');
+      expect(h.className).not.toContain('backdrop-blur');
+      // the item's pl-1 + the 2.125rem marker + the gap-3
+      expect(h.className).toContain('pl-[3.125rem]');
+      expect(h.className).toContain('mb-2');
+    }
+    rerender(<Timeline timeZone="UTC" locale="en-US" items={items} surface="raised" />);
+    expect(headings().every((h) => h.className.includes('bg-surface-raised') && !h.className.includes('bg-surface-base'))).toBe(true);
+    expect(container.querySelector('[data-status="upcoming"] span.border-dashed.bg-surface-raised')).not.toBeNull();
+    expect(container.querySelector('[data-status="current"] span.ring-offset-surface-raised')).not.toBeNull();
+  });
+
+  it('leaves no space under the last event; Load more keeps its gap', () => {
+    const items = [
+      { id: 'a', at: '2026-08-24T10:00:00Z', title: 'Old' },
+      { id: 'b', at: '2026-08-25T14:40:00Z', title: 'New' },
+    ];
+    const { container, rerender } = render(<Timeline timeZone="UTC" items={items} />);
+    const events = () => [...container.querySelectorAll('li.relative')];
+    expect(events().map((li) => li.classList.contains('pb-5'))).toEqual([true, false]);
+    rerender(<Timeline timeZone="UTC" items={items} hasMore onLoadMore={() => undefined} />);
+    expect(container.querySelector('[data-part="load-more"]')!.className).toContain('pt-5');
+  });
 });
