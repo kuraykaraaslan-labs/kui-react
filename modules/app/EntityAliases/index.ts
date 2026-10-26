@@ -1,7 +1,8 @@
 // Entity aliases kit (next-boilerplate dashboard phases 36.4 and 36.7, the ThingsBoard model): the board's alias list,
 // one alias's dialog, the entity filter form, the readable filter text, the toolbar entity select, a widget's alias
-// picker, the board's key filters (filters dialog, filter dialog, key filter editor, filter text, validator), and the
-// fields of an entity parameter (phase 41: how its entity is chosen, its caps and clean-up).
+// picker, the board's key filters (filters dialog, filter dialog, key filter editor, filter text, validator), the
+// fields of an entity parameter (phase 41: how its entity is chosen, its caps and clean-up) and the filter bar's entity
+// picker (a search box, one or many; the toolbar entity select is built of it).
 // Host-agnostic: every read goes through the host's `EntityAliasesAccess`. See README.md.
 
 export { EntityAliasesDialog, aliasRemovalBlockers } from './EntityAliasesDialog';
@@ -12,6 +13,8 @@ export { EntityFilterForm } from './EntityFilterForm';
 export type { EntityFilterFormProps } from './EntityFilterForm';
 export { AliasEntitySelect } from './AliasEntitySelect';
 export type { AliasEntitySelectProps } from './AliasEntitySelect';
+export { EntityParamPicker } from './EntityParamPicker';
+export type { EntityParamPickerProps } from './EntityParamPicker';
 export { EntityAliasPicker, aliasPickerOptions } from './EntityAliasPicker';
 export type { EntityAliasPickerProps } from './EntityAliasPicker';
 export { AliasPreviewPanel, useAliasPreview, PREVIEW_DEBOUNCE_MS } from './AliasPreview';
@@ -111,6 +114,7 @@ export {
   takesDefault,
   takesFirst,
   validateEntityParam,
+  viewerWithin,
   withChoice,
   withChoicePatch,
   withEntityType,
@@ -162,4 +166,5 @@ export type {
   RelationFilter,
   RelationFilterType,
   RelationProviderInfo,
+  ViewerWithin,
 } from './types';

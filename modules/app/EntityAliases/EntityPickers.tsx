@@ -132,6 +132,7 @@ export function EntityListPicker({
   entityType,
   value,
   onChange,
+  hint,
   error,
   m,
 }: {
@@ -140,6 +141,7 @@ export function EntityListPicker({
   entityType: string;
   value: readonly string[];
   onChange: (ids: string[]) => void;
+  hint?: string;
   error?: string;
   m: EntityAliasesMessages;
 }) {
@@ -165,6 +167,7 @@ export function EntityListPicker({
       onSearch={onSearch}
       placeholder={m.entitiesPlaceholder}
       disabled={!entityType}
+      hint={hint}
       error={error}
     />
   );

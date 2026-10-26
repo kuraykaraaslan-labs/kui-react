@@ -28,6 +28,7 @@ import {
   takesDefault,
   takesFirst,
   validateEntityParam,
+  viewerWithin,
   withChoice,
   withChoicePatch,
   withEntityType,
@@ -36,7 +37,7 @@ import {
 import { mergeAliasMessages, type EntityAliasesMessagesInput, type EntityParamErrorField } from './messages';
 import { useAliasCatalog } from './useAliasData';
 import { NAME_PREFIX_MAX } from './validate';
-import type { EntityAliasesAccess, EntityChoice, EntityChoiceType, EntityParam, EntityRef, ParamBarMode, ParamPeer } from './types';
+import type { EntityAliasesAccess, EntityChoice, EntityChoiceType, EntityParam, EntityRef, ParamBarMode, ParamPeer, ViewerWithin } from './types';
 
 export interface EntityParamFieldsProps {
   value: EntityParam;
@@ -187,6 +188,8 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
   function renderChoice(): React.ReactNode {
     const entityType = p.entityType ?? '';
     switch (c.type) {
+      case 'viewer':
+        return renderWithin(c.within);
       case 'single':
         return (
           <EntityPicker id={`${idBase}-entity`} label={m.fixedEntity} access={access} entityType={entityType} value={c.id}
@@ -234,6 +237,36 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
       default:
         return null;
     }
+  }
+
+  /**
+   * What a viewer's pick may be narrowed to: the subtypes (a type that has them) and a name prefix; a fixed list stored through
+   * the API is shown as the list it is. Empty fields leave it out (any entity of the type).
+   */
+  function renderWithin(w: ViewerWithin | undefined): React.ReactNode {
+    const entityType = p.entityType ?? '';
+    const setWithin = (within: ViewerWithin | undefined) => set(withChoicePatch({ ...p, choose: { type: 'viewer' } }, within ? { within } : {}));
+    if (w?.type === 'list') {
+      return (
+        <EntityListPicker id={`${idBase}-within-entities`} access={access} entityType={entityType} value={w.ids}
+          onChange={(ids) => setWithin(viewerWithin({ ids }))} hint={m.withinListHint} error={err('choose.ids')} m={m} />
+      );
+    }
+    const subtypes = w?.type === 'subtype' ? w.subtypes : [];
+    const prefix = w?.namePrefix ?? '';
+    const withSubtypes = subtypes.length > 0 || !!typeInfo(entityType)?.hasSubtypes;
+    return (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {withSubtypes && (
+          <SubtypesPicker id={`${idBase}-within-subtypes`} label={typeInfo(entityType)?.subtypeLabel ?? m.subtypes} access={access}
+            entityType={entityType} value={subtypes} onChange={(next) => setWithin(viewerWithin({ subtypes: next, namePrefix: prefix }))}
+            hint={m.withinSubtypesHint} error={err('choose.subtypes')} m={m} />
+        )}
+        <Input id={`${idBase}-within-prefix`} label={m.namePrefix} value={prefix} maxLength={NAME_PREFIX_MAX}
+          onChange={(e) => setWithin(viewerWithin({ subtypes, namePrefix: e.target.value }) ?? (e.target.value ? { type: 'name', namePrefix: e.target.value } : undefined))}
+          hint={m.withinNamePrefixHint} error={err('choose.namePrefix')} />
+      </div>
+    );
   }
 
   function renderRelated(r: Extract<EntityChoice, { type: 'related' }>): React.ReactNode {

@@ -10,6 +10,7 @@ import {
   takesDefault,
   takesFirst,
   validateEntityParam,
+  viewerWithin,
   withChoice,
   withChoicePatch,
   withEntityType,
@@ -181,5 +182,43 @@ describe('validateEntityParam', () => {
     const m = mergeAliasMessages();
     expect(m.paramError('choose.param', 'cycle')).toBe('The parameters it follows lead back to it.');
     expect(m.paramError('choose.type', 'required')).toBe('How it is chosen is required.');
+  });
+});
+
+describe('a viewer pick narrowed (within)', () => {
+  const pumps = base({ choose: { type: 'viewer', within: { type: 'subtype', subtypes: ['Pump'] } } });
+
+  it('is made of what the form shows: subtypes (with a prefix), else a prefix, else a list, else nothing', () => {
+    expect(viewerWithin({ subtypes: ['Pump', 'Pump'], namePrefix: 'P' })).toEqual({ type: 'subtype', subtypes: ['Pump'], namePrefix: 'P' });
+    expect(viewerWithin({ subtypes: [], namePrefix: 'P' })).toEqual({ type: 'name', namePrefix: 'P' });
+    expect(viewerWithin({ ids: ['d1'] })).toEqual({ type: 'list', ids: ['d1'] });
+    expect(viewerWithin({ subtypes: [], namePrefix: ' ' })).toBeUndefined();
+  });
+
+  it('is saved clean: an empty one is left out, a stored one kept', () => {
+    expect(normalizeEntityParam(base({ choose: { type: 'viewer', within: { type: 'subtype', subtypes: [] } } })).choose).toEqual({ type: 'viewer' });
+    expect(normalizeEntityParam(pumps).choose).toEqual({ type: 'viewer', within: { type: 'subtype', subtypes: ['Pump'] } });
+    expect(normalizeEntityParam(base({ choose: { type: 'viewer', within: { type: 'list', ids: ['d1', 'd1'] } } })).choose)
+      .toEqual({ type: 'viewer', within: { type: 'list', ids: ['d1'] } });
+  });
+
+  it('a default fits only inside it; another entity type drops it', () => {
+    expect(defaultFits(pumps, { type: 'iot_device', id: 'd1', name: 'Pump 1', subtype: 'Pump' })).toBe(true);
+    expect(defaultFits(pumps, { type: 'iot_device', id: 'd3', name: 'Tank A', subtype: 'Tank' })).toBe(false);
+    expect(withEntityType(pumps, 'iot_asset').choose).toEqual({ type: 'viewer' });
+  });
+
+  it('is checked against the caps; a listed one keeps the default only among its entities', () => {
+    expect(validateEntityParam(pumps, [])).toEqual({});
+    expect(validateEntityParam(base({ choose: { type: 'viewer', within: { type: 'list', ids: ['d1'] } }, default: 'd2' }), [])).toEqual({ default: 'notListed' });
+    expect(validateEntityParam(base({ choose: { type: 'viewer', within: { type: 'subtype', subtypes: Array.from({ length: 51 }, (_, i) => `s${i}`) } } }), []))
+      .toEqual({ 'choose.subtypes': 'tooMany' });
+    const listed = base({ choose: { type: 'viewer', within: { type: 'list', ids: ['d1', 'd2'] } }, default: 'd1' });
+    expect(withChoicePatch(listed, {}).default).toBe('d1');
+  });
+
+  it('is previewed as the set it is', () => {
+    expect(previewAlias(pumps)?.filter).toEqual({ type: 'entitySubtype', entityType: 'iot_device', subtypes: ['Pump'] });
+    expect(previewAlias(base())).toBeNull();
   });
 });

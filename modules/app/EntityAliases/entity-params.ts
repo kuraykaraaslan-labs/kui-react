@@ -6,7 +6,7 @@
 
 import { NAME_PREFIX_MAX, ENTITY_LIST_MAX, SUBTYPES_MAX, MAX_RELATION_LEVEL, MAX_RELATION_FILTERS, slugKey } from './validate';
 import type { EntityParamErrorCode, EntityParamErrorField } from './messages';
-import type { EntityAlias, EntityChoice, EntityChoiceType, EntityParam, EntityRef, ParamBarMode, ParamPeer, RelationFilter, RelationProviderInfo } from './types';
+import type { EntityAlias, EntityChoice, EntityChoiceType, EntityParam, EntityRef, ParamBarMode, ParamPeer, RelationFilter, RelationProviderInfo, ViewerWithin } from './types';
 
 /** The choices in the order the form offers them. */
 export const ENTITY_CHOICE_TYPES: readonly EntityChoiceType[] = ['viewer', 'page', 'single', 'list', 'all', 'name', 'subtype', 'related'];
@@ -53,9 +53,21 @@ export const takesFirst = (p: Pick<EntityParam, 'choose' | 'multiple'>): boolean
 export const takesDefault = (p: Pick<EntityParam, 'choose' | 'multiple' | 'entityType'>): boolean =>
   takesFirst(p) && !!p.entityType && p.choose.type !== 'related';
 
+/**
+ * The narrowing of a viewer's pick made of what the form shows (subtypes and a name prefix, or a fixed list): subtypes win
+ * (with the prefix beside them), then the prefix alone, then the list; undefined when none says anything (any entity).
+ */
+export function viewerWithin(parts: { subtypes?: readonly string[]; namePrefix?: string; ids?: readonly string[] }): ViewerWithin | undefined {
+  const prefix = parts.namePrefix && parts.namePrefix.trim() ? parts.namePrefix : undefined;
+  if (parts.subtypes?.length) return { type: 'subtype', subtypes: [...new Set(parts.subtypes)], ...(prefix ? { namePrefix: prefix } : {}) };
+  if (prefix) return { type: 'name', namePrefix: prefix };
+  if (parts.ids?.length) return { type: 'list', ids: [...new Set(parts.ids)] };
+  return undefined;
+}
+
 /** May `e` be the default: in the fixed list, its name starts with the prefix, its subtype is chosen (the server's rule). */
 export function defaultFits(p: Pick<EntityParam, 'choose'>, e: EntityRef): boolean {
-  const c = p.choose;
+  const c: EntityChoice | ViewerWithin = p.choose.type === 'viewer' && p.choose.within ? p.choose.within : p.choose;
   const prefixHolds = (prefix: string | undefined) => !prefix || e.name.toLowerCase().startsWith(prefix.toLowerCase());
   switch (c.type) {
     case 'list': return c.ids.includes(e.id);
@@ -118,7 +130,9 @@ export function withChoice(p: EntityParam, type: EntityChoiceType, ctx: Omit<Emp
 /** The parameter with fields of its choice changed: the set changes, so the default goes unless it is still listed. */
 export function withChoicePatch(p: EntityParam, patch: Partial<EntityChoice>): EntityParam {
   const next: EntityParam = { ...p, choose: { ...p.choose, ...patch } as EntityChoice };
-  if (next.default !== undefined && !(next.choose.type === 'list' && next.choose.ids.includes(next.default))) delete next.default;
+  const listed = next.choose.type === 'list' ? next.choose.ids
+    : next.choose.type === 'viewer' && next.choose.within?.type === 'list' ? next.choose.within.ids : null;
+  if (next.default !== undefined && !(listed && listed.includes(next.default))) delete next.default;
   return fitChoice(next);
 }
 
@@ -144,7 +158,8 @@ export function fitChoice(p: EntityParam): EntityParam {
 export function withEntityType(p: EntityParam, entityType: string): EntityParam {
   const c = p.choose;
   const choose: EntityChoice =
-    c.type === 'single' ? { ...c, id: '' }
+    c.type === 'viewer' ? { type: 'viewer' }
+      : c.type === 'single' ? { ...c, id: '' }
       : c.type === 'list' ? { ...c, ids: [] }
       : c.type === 'subtype' ? { ...c, subtypes: [] }
       : c.type === 'related' && !isMixedRelated(c) ? withoutKeys(c, ['subtypes'])
@@ -187,6 +202,14 @@ function cleanRelationFilters(filters: readonly RelationFilter[]): RelationFilte
 
 function normalizeChoice(c: EntityChoice): EntityChoice {
   switch (c.type) {
+    case 'viewer': {
+      const w = c.within;
+      const within = !w ? undefined
+        : w.type === 'subtype' ? viewerWithin({ subtypes: w.subtypes, namePrefix: w.namePrefix })
+        : w.type === 'name' ? viewerWithin({ namePrefix: w.namePrefix })
+        : viewerWithin({ ids: w.ids });
+      return within ? { type: 'viewer', within } : { type: 'viewer' };
+    }
     case 'page': return c.param ? { type: 'page', param: c.param } : { type: 'page' };
     case 'list': return { type: 'list', ids: [...new Set(c.ids)] };
     // a name prefix is kept as typed: the server matches it as it is, so 'Pump ' does not match 'Pumpkin'
@@ -219,6 +242,13 @@ export function previewAlias(p: EntityParam): EntityAlias | null {
   const resolveMultiple = !!p.multiple;
   const draft = (filter: EntityAlias['filter']): EntityAlias => ({ key: 'draft', name: p.label.trim() || 'Draft', resolveMultiple, filter });
   switch (c.type) {
+    case 'viewer': {
+      // what a narrowed pick may be, shown as the set it is
+      const w = c.within;
+      if (!w || w.type === 'list') return null;
+      if (w.type === 'name') return draft({ type: 'entityName', entityType, namePrefix: w.namePrefix });
+      return draft({ type: 'entitySubtype', entityType, subtypes: w.subtypes, ...(w.namePrefix ? { namePrefix: w.namePrefix } : {}) });
+    }
     case 'name': return draft({ type: 'entityName', entityType, namePrefix: c.namePrefix });
     case 'subtype': return draft({ type: 'entitySubtype', entityType, subtypes: c.subtypes, ...(c.namePrefix ? { namePrefix: c.namePrefix } : {}) });
     case 'related': {
@@ -297,6 +327,17 @@ export function validateEntityParam(p: EntityParam, params: readonly ParamPeer[]
   }
   if (blank(p.entityType) && !isMixedRelated(c)) errors.entityType = 'required';
   switch (c.type) {
+    case 'viewer': {
+      // a narrowing says something or is left out (`normalizeEntityParam`); only its caps are checked
+      const w = c.within;
+      if (w?.type === 'subtype' && w.subtypes.length > SUBTYPES_MAX) errors['choose.subtypes'] = 'tooMany';
+      if (w && w.type !== 'list' && w.namePrefix && w.namePrefix.length > NAME_PREFIX_MAX) errors['choose.namePrefix'] = 'tooLong';
+      if (w?.type === 'list') {
+        if (w.ids.length > ENTITY_LIST_MAX) errors['choose.ids'] = 'tooMany';
+        if (p.default && !w.ids.includes(p.default)) errors.default = 'notListed';
+      }
+      break;
+    }
     case 'single':
       if (blank(c.id)) errors['choose.id'] = 'required';
       if (p.multiple) errors.multiple = 'singleOnly';

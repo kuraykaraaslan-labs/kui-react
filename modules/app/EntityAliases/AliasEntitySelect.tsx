@@ -2,17 +2,18 @@
 // The board toolbar's entity select (TB's aliases-entity-select): for each single-resolve alias that is not a single
 // entity, the viewer picks the current entity, and every widget on that alias follows. The button shows the current
 // entity's name when there is one alias to pick for, "Entities" otherwise; nothing is drawn when there is none.
-// The host decides which aliases are selectable (E36-6) and loads the resolved set (`loadOptions`).
+// The host decides which aliases are selectable (E36-6) and loads the resolved set (`loadOptions`). Each alias is the
+// filter bar's entity picker (`EntityParamPicker`, phase 41), the same search box an entity parameter shows there.
 
 import { useCallback, useId, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCubes } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
-import { ComboBox } from '@/modules/ui/ComboBox';
 import { Popover } from '@/modules/ui/Popover';
 import { mergeAliasMessages, type EntityAliasesMessages, type EntityAliasesMessagesInput } from './messages';
-import { toEntityOption, useLatestRef } from './useAliasData';
+import { EntityParamPicker } from './EntityParamPicker';
+import { useLatestRef } from './useAliasData';
 import type { AliasEntitySelectItem, EntityRef } from './types';
 
 export interface AliasEntitySelectProps {
@@ -39,21 +40,17 @@ function AliasEntityCombo({
   m: EntityAliasesMessages;
 }) {
   const loadRef = useLatestRef(loadOptions);
-  const onSearch = useCallback(
-    async (q: string) => (await loadRef.current(item.aliasKey, q)).map(toEntityOption),
-    [item.aliasKey, loadRef],
-  );
+  const onSearch = useCallback((q: string) => loadRef.current(item.aliasKey, q), [item.aliasKey, loadRef]);
+  // The filter bar's entity picker (phase 41, D41-5): one control for both places a viewer picks an entity.
   return (
-    <ComboBox messages={m.comboBox}
+    <EntityParamPicker messages={m}
       id={id}
       label={item.aliasName}
-      options={item.current ? [toEntityOption(item.current)] : []}
       value={item.current?.id ?? ''}
-      onChange={(id) => { if (id) onChange(item.aliasKey, id); }}
-      onSearch={onSearch}
-      placeholder={m.entityPlaceholder}
-      noResultsText={m.noEntitiesFound}
-      clearable={false}
+      current={item.current}
+      loadOptions={onSearch}
+      onChange={(id) => { if (typeof id === 'string' && id) onChange(item.aliasKey, id); }}
+      required
     />
   );
 }

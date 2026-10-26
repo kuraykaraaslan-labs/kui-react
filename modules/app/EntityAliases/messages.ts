@@ -340,6 +340,10 @@ export interface EntityAliasesMessages {
   takeFirstHint: string;
   defaultEntity: string;
   defaultEntityHint: string;
+  /** The narrowing of a viewer's pick (`viewer.within`): subtypes, a name prefix, a fixed list. */
+  withinSubtypesHint: string;
+  withinNamePrefixHint: string;
+  withinListHint: string;
 
   // ---- entity parameter validation ----
   paramError: (field: EntityParamErrorField, code: EntityParamErrorCode) => string;
@@ -804,6 +808,9 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   takeFirstHint: 'The first entity by name, until a viewer or a link picks one.',
   defaultEntity: 'Default entity',
   defaultEntityHint: 'Search by name. Leave it empty for none.',
+  withinSubtypesHint: 'Optional: viewers pick only among these. None selected means every one.',
+  withinNamePrefixHint: 'Optional: viewers pick only entities whose name starts with this text.',
+  withinListHint: 'Viewers pick only among these entities.',
   paramError: defaultParamError,
 
   // Literal copies of the primitives' English defaults (this file imports no .tsx): DEFAULT_COMBOBOX_MESSAGES,

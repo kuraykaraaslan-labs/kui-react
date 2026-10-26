@@ -58,13 +58,22 @@ export interface EntityKeyInfo { type: KeyFilterKeyType; name: string; label: st
 
 // ---- entity parameter contract (verbatim, next-boilerplate phase 41: `modules/dashboard/server/board-params.ts`) ----
 /**
- * How an entity parameter's entity is chosen. `viewer`: the viewer picks one of the type (the filter bar). `page`: a link,
+ * What a viewer's pick may be narrowed to (`viewer.within`): entities of some subtypes (a device profile, an asset type),
+ * optionally by a name prefix; entities whose name starts with a text; or a fixed list. Absent = any entity of the type.
+ */
+export type ViewerWithin =
+  | { type: 'subtype'; subtypes: string[]; namePrefix?: string }
+  | { type: 'name'; namePrefix: string }
+  | { type: 'list'; ids: string[] }
+/**
+ * How an entity parameter's entity is chosen. `viewer`: the viewer picks one of the type (the filter bar), inside
+ * `within` when it is narrowed; a pick outside it is refused. `page`: a link,
  * a host or an action sets it (`param`: it is the value of another parameter). `single` / `list`: fixed. `all`, `name`,
  * `subtype`: a set of the type. `related`: the entities related to another parameter's entity or to a fixed one; with
  * `filters` a relations query (it may mix types), without them a search query of the parameter's own type.
  */
 export type EntityChoice =
-  | { type: 'viewer' }
+  | { type: 'viewer'; within?: ViewerWithin }
   | { type: 'page'; param?: string }
   | { type: 'single'; id: string }
   | { type: 'list'; ids: string[] }

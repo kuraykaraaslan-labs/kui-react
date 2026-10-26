@@ -8,6 +8,7 @@ import {
   EntityAliasPicker,
   EntityFilterForm,
   EntityParamFields,
+  EntityParamPicker,
   boardFilterText,
   entityFilterText,
   normalizeEntityParam,
@@ -135,6 +136,22 @@ function ToolbarSelectDemo() {
   );
 }
 
+function BarPickerDemo() {
+  const [one, setOne] = useState('');
+  const [many, setMany] = useState<string[]>(['d1']);
+  const search = async (q: string) => DEMO_ENTITIES.filter((e) => e.type === 'iot_device' && e.name.toLowerCase().includes(q.toLowerCase()));
+  const resolve = async (ids: string[]) => DEMO_ENTITIES.filter((e) => ids.includes(e.id));
+  return (
+    <div className="flex min-h-[18rem] w-full flex-wrap items-start gap-6">
+      <div className="w-56"><EntityParamPicker label="Pump" value={one} loadOptions={search} resolve={resolve} current={DEMO_ENTITIES[0]}
+        onChange={(v) => setOne(v as string)} required /></div>
+      <div className="w-64"><EntityParamPicker label="Devices" multiple value={many} loadOptions={search} resolve={resolve}
+        onChange={(v) => setMany(v as string[])} /></div>
+      <div className="w-56"><EntityParamPicker label="Site (read-only)" value="d3" loadOptions={search} resolve={resolve} onChange={() => {}} readOnly /></div>
+    </div>
+  );
+}
+
 function FiltersDialogDemo() {
   const access = useMemo(() => demoAccess(), []);
   const [open, setOpen] = useState(false);
@@ -187,7 +204,7 @@ export function buildAppEntityAliasesData(): ShowcaseComponent[] {
       category: 'App',
       abbr: 'EA',
       description:
-        "Dashboard entity aliases and key filters, the ThingsBoard model (next-boilerplate dashboard phases 36.4 and 36.7). EntityAliasesDialog lists a board's aliases (numbered rows, the filter as one readable line, resolve-multiple switch, edit, remove; an alias a widget uses cannot be removed, the widgets are named). EntityAliasDialog adds or edits one alias: name with the key derived on add, resolve-multiple with its hint, the filter form and a debounced preview; a filter that matches no entity blocks the save. EntityFilterForm covers single entity, entity list, name prefix, entity type, the page's entity (a board param), entity subtype, relations query and entity search query (the last two only when the host has a relation provider). AliasEntitySelect is the toolbar's entity select, EntityAliasPicker binds a widget's entity slot (and, once an alias is chosen, one of the board's filters). Key filters (phase 36.7, ThingsBoard's dashboard filters): BoardFiltersDialog lists the board's filters (a filter a widget uses cannot be removed), BoardFilterDialog edits one, KeyFilterEditor edits one key filter (entity field, attribute or latest telemetry; key names suggested through access.entityKeys; up to 4 conditions with the operations of the value type; a value can read a dashboard parameter), boardFilterText writes it as one line. EntityParamFields (phase 41, parameters as one concept) edits an entity parameter: its entity type, how the entity is chosen (the viewer picks, the page or a link sets it, fixed one or list, all of the type, by name, by subtype, related to another parameter or entity), one or many, the filter-bar mode, a default searched by name and \"with no value, take the first\"; the relation details sit under the host's Advanced. The host supplies every read through EntityAliasesAccess; validateAlias and validateBoardFilter mirror the server caps. React only.",
+        "Dashboard entity aliases and key filters, the ThingsBoard model (next-boilerplate dashboard phases 36.4 and 36.7). EntityAliasesDialog lists a board's aliases (numbered rows, the filter as one readable line, resolve-multiple switch, edit, remove; an alias a widget uses cannot be removed, the widgets are named). EntityAliasDialog adds or edits one alias: name with the key derived on add, resolve-multiple with its hint, the filter form and a debounced preview; a filter that matches no entity blocks the save. EntityFilterForm covers single entity, entity list, name prefix, entity type, the page's entity (a board param), entity subtype, relations query and entity search query (the last two only when the host has a relation provider). AliasEntitySelect is the toolbar's entity select, EntityAliasPicker binds a widget's entity slot (and, once an alias is chosen, one of the board's filters). Key filters (phase 36.7, ThingsBoard's dashboard filters): BoardFiltersDialog lists the board's filters (a filter a widget uses cannot be removed), BoardFilterDialog edits one, KeyFilterEditor edits one key filter (entity field, attribute or latest telemetry; key names suggested through access.entityKeys; up to 4 conditions with the operations of the value type; a value can read a dashboard parameter), boardFilterText writes it as one line. EntityParamFields (phase 41, parameters as one concept) edits an entity parameter: its entity type, how the entity is chosen (the viewer picks, the page or a link sets it, fixed one or list, all of the type, by name, by subtype, related to another parameter or entity), one or many, the filter-bar mode, a default searched by name and \"with no value, take the first\" (a viewer's pick may be narrowed to some subtypes, a name prefix or a list); the relation details sit under the host's Advanced. EntityParamPicker is the filter bar's entity picker: a search box (type a name; one entity, or many as chips; read-only shows them), the control AliasEntitySelect is built of. The host supplies every read through EntityAliasesAccess; validateAlias and validateBoardFilter mirror the server caps. React only.",
       filePath: 'modules/app/EntityAliases/EntityAliasesDialog.tsx',
       sourceCode: `import { EntityAliasesDialog, type EntityAliasesAccess } from '@/modules/app/EntityAliases';
 
@@ -225,6 +242,10 @@ export function buildAppEntityAliasesData(): ShowcaseComponent[] {
         { title: 'Entity parameter fields (how the entity is chosen; Advanced shows the relation details)', layout: 'stack' as const, preview: <ParamFieldsDemo />,
           code: `<EntityParamFields value={param} onChange={setParam} params={board.params} access={access}
   advanced={advancedOpen} errors={validateEntityParam(param, board.params)} />` },
+        { title: 'Filter bar entity picker (a search box: one, many, read-only)', layout: 'stack' as const, preview: <BarPickerDemo />,
+          code: `<EntityParamPicker label="Pump" value={pick} current={firstOfSet} required
+  loadOptions={(search) => api.paramEntities('pump', search)} resolve={(ids) => api.entitiesByIds('iot_device', ids)} onChange={setPick} />
+<EntityParamPicker label="Devices" multiple value={picks} loadOptions={search} resolve={resolve} onChange={setPicks} />` },
         { title: 'Toolbar entity select (one alias, several aliases)', layout: 'stack' as const, preview: <ToolbarSelectDemo />,
           code: `<AliasEntitySelect items={[{ aliasKey: 'mainTank', aliasName: 'Main tank', current }]}
   loadOptions={(aliasKey, search) => api.aliasEntities(aliasKey, search)} onChange={setAliasEntity} />` },

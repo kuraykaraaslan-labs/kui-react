@@ -146,6 +146,23 @@ describe('EntityParamFields', () => {
     expect(screen.getByText(/Pump 1, Pump 2/)).toBeInTheDocument();
   });
 
+  it('the viewer\'s pick may be narrowed to some subtypes or a name prefix; nothing picked leaves it out', async () => {
+    const onParam = vi.fn();
+    const user = userEvent.setup();
+    render(<Harness onParam={onParam} />);
+    await user.click(await screen.findByRole('combobox', { name: /Device profiles/ }));
+    await user.click(await screen.findByRole('option', { name: /Pump/ }));
+    expect(onParam).toHaveBeenLastCalledWith({ kind: 'entity', key: 'pump', label: 'Pump', entityType: 'iot_device', choose: { type: 'viewer', within: { type: 'subtype', subtypes: ['Pump'] } } });
+    fireEvent.change(screen.getByLabelText(/Name starts with/), { target: { value: 'P' } });
+    expect(onParam).toHaveBeenLastCalledWith(expect.objectContaining({ choose: { type: 'viewer', within: { type: 'subtype', subtypes: ['Pump'], namePrefix: 'P' } } }));
+  });
+
+  it('a fixed list a viewer picks from (stored through the API) is shown as that list', async () => {
+    render(<Harness initial={{ ...START, choose: { type: 'viewer', within: { type: 'list', ids: ['d1'] } } }} />);
+    expect(await screen.findByText('Viewers pick only among these entities.')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Name starts with/)).toBeNull();
+  });
+
   it('many entities drop the default and "take the first"', async () => {
     const onParam = vi.fn();
     render(<Harness onParam={onParam} initial={{ ...START, default: 'd1', defaultFrom: 'firstOption' }} />);
