@@ -1,11 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { crc32 } from 'node:zlib';
-import { render, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { WidgetKitProvider } from '../WidgetKitContext';
 import { effective } from '../settings/engine';
 import { columnName, toXlsxBytes, zipStored } from '../settings/xlsx';
 import type { SlotData } from '../kind';
 import { DATA_TABLE } from '../templates/data-table';
-import { DATA_TABLE_VIEW, dropRepeats, ruleMatches, tableColumns } from '../views/DataTableView';
+import { DATA_TABLE_VIEW, DataTableView, dropRepeats, ruleMatches, tableColumns } from '../views/DataTableView';
 
 /** Reads a stored zip back: name → text, checking every CRC. */
 function unzip(bytes: Uint8Array): Record<string, string> {
@@ -115,5 +117,43 @@ describe('xlsx export', () => {
   });
   it('zipStored keeps UTF-8 names and text', () => {
     expect(unzip(zipStored([['é.txt', 'İstanbul ✓']]))['é.txt']).toBe('İstanbul ✓');
+  });
+});
+
+describe('row buttons', () => {
+  const rowActions = (runButton = vi.fn()) => ({
+    cellClickColumns: [], cellClick: vi.fn(), runButton,
+    buttons: [
+      { id: 'open', label: 'Open', icon: 'fas fa-arrow-right' },
+      { id: 'limits', label: 'Limits', icon: 'fas fa-sliders', iconOnly: true },
+      { id: 'plain', label: 'Plain' },
+    ],
+  });
+  const renderIcon = (name: string, o: { className?: string }) => <i data-icon={name} className={o.className} />;
+
+  it('draw the entry\'s icon before the label, alone when the entry asks for it', async () => {
+    const runButton = vi.fn();
+    const { container } = render(
+      <WidgetKitProvider value={{ renderIcon }}>
+        <DataTableView settings={effective(DATA_TABLE, { search: false })} format={{}} data={{ rows: history }} locale="en" rowActions={rowActions(runButton)} />
+      </WidgetKitProvider>,
+    );
+    const [open] = screen.getAllByRole('button', { name: 'Open' });
+    expect(open).toHaveTextContent('Open');
+    expect(open.querySelector('[data-icon="fas fa-arrow-right"]')).not.toBeNull();
+    const [limits] = screen.getAllByRole('button', { name: 'Limits' });
+    expect(limits).toHaveTextContent('');
+    expect(limits).toHaveAttribute('title', 'Limits');
+    expect(limits.querySelector('[data-icon="fas fa-sliders"]')?.parentElement).toHaveAttribute('aria-hidden', 'true');
+    const [plain] = screen.getAllByRole('button', { name: 'Plain' });
+    expect(plain.querySelector('[data-icon]')).toBeNull();
+    await userEvent.setup().click(limits);
+    expect(runButton).toHaveBeenCalledWith('limits', history.rows![0]);
+    expect(container.querySelectorAll('[data-icon="fas fa-sliders"]')).toHaveLength(history.rows!.length);
+  });
+
+  it('an icon-only button keeps its label when the host draws no icons', () => {
+    render(<DataTableView settings={effective(DATA_TABLE, { search: false })} format={{}} data={{ rows: history }} locale="en" rowActions={rowActions()} />);
+    expect(screen.getAllByRole('button', { name: 'Limits' })[0]).toHaveTextContent('Limits');
   });
 });

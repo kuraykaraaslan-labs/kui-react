@@ -38,7 +38,11 @@ export interface TableRowActions {
   /** Columns that have a cell action; `'*'` = every column. */
   cellClickColumns: string[];
   cellClick: (columnKey: string, row: Row) => void;
-  buttons: Array<{ id: string; label: string }>;
+  /**
+   * One button per row-button entry. `icon` is drawn before the label; `iconOnly` (an entry with an icon and no name)
+   * draws the icon alone, named by `label`.
+   */
+  buttons: Array<{ id: string; label: string; icon?: string; iconOnly?: boolean }>;
   runButton: (id: string, row: Row) => void;
 }
 
@@ -268,17 +272,25 @@ export function DataTableView({
       thStyle: model.buttonsHead.style as CSSProperties,
       cellClassName: (r: ViewRow) => r.m.buttonsCell?.className,
       cellStyle: (r: ViewRow) => r.m.buttonsCell?.style as CSSProperties | undefined,
-      render: (r: ViewRow) => buttons.map((b) => (
-        <button
-          key={b.id}
-          type="button"
-          className={cn(ROW_BUTTON, 'ml-1')}
-          onClick={(e) => { e.stopPropagation(); rowActions?.runButton(b.id, r.m.raw); }}
-          onDoubleClick={(e) => e.stopPropagation()}
-        >
-          {b.label}
-        </button>
-      )),
+      render: (r: ViewRow) => buttons.map((b) => {
+        // Without an icon renderer an icon-only button keeps its label, so it never draws empty.
+        const icon = b.icon && renderIcon ? <span aria-hidden="true" className="inline-flex">{renderIcon(b.icon, { className: 'h-3 w-3' })}</span> : null;
+        const iconOnly = !!icon && !!b.iconOnly;
+        return (
+          <button
+            key={b.id}
+            type="button"
+            className={cn(ROW_BUTTON, 'ml-1', icon && !iconOnly && 'gap-1', iconOnly && 'w-6 justify-center px-0')}
+            aria-label={iconOnly ? b.label : undefined}
+            title={iconOnly ? b.label : undefined}
+            onClick={(e) => { e.stopPropagation(); rowActions?.runButton(b.id, r.m.raw); }}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            {icon}
+            {iconOnly ? null : b.label}
+          </button>
+        );
+      }),
     }] : []),
   ];
 

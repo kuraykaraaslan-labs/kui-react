@@ -178,4 +178,29 @@ describe('layouts and parts', () => {
     rerender(<ControlTile state="idle" framed={false} bodyAlign="end">x</ControlTile>);
     expect(container.querySelector('.justify-end')).not.toBeNull();
   });
+  it('ControlTile: the status line takes room only while it has a status; its live region stays mounted', () => {
+    const { container, rerender } = render(<ControlTile state="idle" framed={false}>x</ControlTile>);
+    const line = () => container.querySelector('[aria-live="polite"]')!;
+    expect(line()).toBeEmptyDOMElement();
+    expect(line().className).toBe('sr-only');
+    rerender(<ControlTile state="pending" framed={false}>x</ControlTile>);
+    expect(line()).toHaveTextContent('Sending…');
+    expect(line().className).not.toContain('sr-only');
+    rerender(<ControlTile state="idle" readOnly>x</ControlTile>);
+    expect(line()).toHaveTextContent('You do not have permission');
+    expect(line().className).toContain('min-h-5');
+  });
+  it('ControlButton: unframed, a tile fills its space and the other layouts keep their size', () => {
+    const { rerender } = render(<ControlButton framed={false} layout="tile" label="Open" onCommit={vi.fn()} />);
+    const tile = screen.getByRole('button', { name: 'Open' });
+    expect(tile.parentElement!.className).toContain('flex-1');
+    expect(tile.className).not.toMatch(/(^|\s)h-\d/);
+    rerender(<ControlButton framed={false} layout="tile" label="Open" disabledReason="No command" onCommit={vi.fn()} />);
+    // The tooltip over a disabled tile stretches with it.
+    expect(screen.getByRole('button', { name: 'Open' }).closest('span.relative')!.className).toContain('flex-1');
+    rerender(<ControlButton framed={false} label="Open" onCommit={vi.fn()} />);
+    const plain = screen.getByRole('button', { name: 'Open' });
+    expect(plain.className).toContain('h-9');
+    expect(plain.parentElement!.className).not.toContain('flex-1');
+  });
 });

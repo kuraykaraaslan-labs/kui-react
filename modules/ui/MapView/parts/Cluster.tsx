@@ -1,5 +1,5 @@
 'use client';
-import { useState, type ReactNode } from 'react';
+import { useCallback, useSyncExternalStore, type ReactNode } from 'react';
 import type * as LeafletLib from 'leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import type { LeafletBundle } from '../providers/leaflet';
@@ -64,10 +64,15 @@ type ClusteredMarkersProps = {
 
 /** Markers grouped by overlap at the current zoom; a group is a count bubble that zooms in on click. */
 export function ClusteredMarkers({ bundle, markers, onMarkerClick, onMarkerMove, showLabels, tooltipTrigger, renderLink, radius = 40 }: ClusteredMarkersProps) {
-  const { useMap, useMapEvents, Marker, Tooltip, Popup, L } = bundle;
+  const { useMap, Marker, Tooltip, Popup, L } = bundle;
   const map = useMap() as LeafletMap;
-  const [zoom, setZoom] = useState(() => map.getZoom());
-  useMapEvents({ zoomend: () => setZoom(map.getZoom()) });
+  // The zoom is read when the listener is registered as well as on every zoomend: the canvas's first fitBounds runs
+  // before this component subscribes, so its zoomend has already fired by then.
+  const subscribe = useCallback((onZoom: () => void) => {
+    map.on('zoomend', onZoom);
+    return () => { map.off('zoomend', onZoom); };
+  }, [map]);
+  const zoom = useSyncExternalStore(subscribe, () => map.getZoom(), () => map.getZoom());
   const groups = clusterMarkers(markers, (pos) => map.project(pos, zoom), Math.min(200, Math.max(10, radius)));
 
   return (

@@ -90,3 +90,19 @@ describe('WidgetCard badges', () => {
     expect(screen.getByText('Old data')).toBeInTheDocument();
   });
 });
+
+describe('WidgetCard header buttons', () => {
+  it('hidden until hover from lg up they take no room; keyboard focus reveals them', () => {
+    render(<WidgetCard title="Sites" card={{ buttons: ['refresh'] }} onRefresh={vi.fn()}><p>widget body</p></WidgetCard>);
+    const group = screen.getByRole('button', { name: 'Refresh' }).parentElement!;
+    const classes = group.className.split(' ');
+    // At rest from lg up: no width, no gap before it, nothing drawn outside it.
+    expect(classes).toEqual(expect.arrayContaining(['lg:max-w-0', 'lg:-ml-2', 'lg:overflow-hidden', 'lg:opacity-0']));
+    // On hover and on focus inside the card: its full width, its focus rings unclipped.
+    for (const on of ['lg:group-hover/wk:', 'lg:group-focus-within/wk:']) {
+      expect(classes).toEqual(expect.arrayContaining([`${on}max-w-none`, `${on}ml-0`, `${on}overflow-visible`, `${on}opacity-100`]));
+    }
+    // Never removed from the tab order (no display: none, no visibility: hidden).
+    expect(group.className).not.toMatch(/(^|\s)(lg:)?(hidden|invisible)(\s|$)/);
+  });
+});

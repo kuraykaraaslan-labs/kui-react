@@ -6,6 +6,15 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Fixed
 
+- `ControlTile`: the status line takes room only while it has a status (its live region stays mounted, out of the flow),
+  so a control centres in its card instead of sitting 22 px high; `ControlButton`'s `tile` layout, unframed, fills the
+  height it is given (at least 96 px), so `control.button` can fill its card. New `ControlTile` prop `fill`.
+- WidgetKit `WidgetCard`: from lg up the card buttons hidden until hover take no room (a short title keeps the whole row);
+  hover or keyboard focus inside the card shows them, their focus rings unclipped.
+- WidgetKit `data.table`: a row button draws its entry's icon before the label, or alone (named by the label) when the
+  host marks it `iconOnly`; `TableRowActions.buttons` takes `icon` and `iconOnly`.
+- `MapView` grouping: `ClusteredMarkers` reads the map's zoom when it subscribes as well as on every `zoomend`, so the
+  first fit (which zoomed before it listened) regroups the markers; seven sites showed as one bubble.
 - `Timeline`: a day heading is drawn in the timeline's `surface` (new prop, `base` by default, `raised` inside a card; the
   hollow marker of an upcoming step and the gap of the current step's ring follow it), opaque instead of a blurred band of
   the page colour, lines up with the events' text and keeps a gap above the first marker; the last event has no padding

@@ -27,7 +27,8 @@ export type ControlButtonProps = {
   /** Why it is disabled; shown in a tooltip. Implies `disabled`. */
   disabledReason?: string;
   /**
-   * `button` (default): a button. `tile`: a large pressable area with the icon above the label.
+   * `button` (default): a button. `tile`: a large pressable area with the icon above the label; unframed it fills
+   * the height it is given (at least 96 px).
    * `icon`: a round icon button with the label under it. `fab`: a fully rounded, raised button.
    */
   layout?: 'button' | 'tile' | 'icon' | 'fab';
@@ -101,10 +102,12 @@ export function ControlButton({
       framed={framed}
       disabledReason={disabledReason}
       bodyAlign={bodyAlign}
+      fill={layout === 'tile'}
       className={className}
     >
       {!asking ? (
-        <div className={cn('flex', ALIGN[align])}>{layout === 'icon' ? (
+        // Unframed, a tile fills the space it is given (its card); the other layouts keep their size and sit centred.
+        <div className={cn('flex', ALIGN[align], layout === 'tile' && !framed && 'min-h-0 flex-1')}>{layout === 'icon' ? (
           <div className="flex flex-col items-center gap-2">
             <Button
               variant={variant}

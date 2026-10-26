@@ -46,6 +46,8 @@ export type ControlTileProps = {
   disabledReason?: string;
   /** Unframed only: centre the control in the space (default) or put it at the bottom. */
   bodyAlign?: 'center' | 'end';
+  /** Unframed only: the control slot takes the whole height the status line leaves (a tile that fills its card). */
+  fill?: boolean;
   children: ReactNode;
   className?: string;
 };
@@ -53,28 +55,41 @@ export type ControlTileProps = {
 /**
  * ControlTile — the frame every async control shares: title, the control slot, and one
  * live status line (pending / confirmed / mismatch / failed / read-only). One place, so
- * the controls cannot drift on what "pending" or "failed" looks like.
+ * the controls cannot drift on what "pending" or "failed" looks like. The status line takes
+ * room only while it has something to say, so a control can centre in (or fill) its space;
+ * its live region stays mounted (out of the flow) so the next status is still announced.
  */
 export function ControlTile({
-  title, state, error, readOnly, reportedText, onRetry, messages, framed = true, disabledReason, bodyAlign = 'center', children, className,
+  title, state, error, readOnly, reportedText, onRetry, messages, framed = true, disabledReason, bodyAlign = 'center', fill = false, children, className,
 }: ControlTileProps) {
   const m = { ...DEFAULT_CONTROL_MESSAGES, ...messages };
   // A host-written failure text leads; the reason the write failed follows it.
   const failText = messages?.failed ? (error ? `${messages.failed} (${error})` : messages.failed) : error || m.failed;
+  const hasStatus = state !== 'idle' || !!readOnly;
+  const fills = fill && !framed;
   return (
     <div
       className={cn(framed ? 'rounded-lg border border-border bg-surface-raised p-3' : 'flex h-full min-h-0 flex-col', className)}
       data-disabled-reason={disabledReason || undefined}
     >
       {title && <h3 className="mb-2 text-sm font-semibold text-text-primary">{title}</h3>}
-      <div className={cn(framed ? 'space-y-2' : 'space-y-1.5', !framed && 'flex min-h-0 flex-1 flex-col', !framed && (bodyAlign === 'end' ? 'justify-end' : 'justify-center'))}>
+      <div className={cn('flex flex-col', framed ? 'gap-2' : 'min-h-0 flex-1 gap-1.5', !framed && (bodyAlign === 'end' ? 'justify-end' : 'justify-center'))}>
         {disabledReason ? (
-          <Tooltip content={disabledReason} className="flex w-full [&>span:first-child]:min-w-0 [&>span:first-child]:flex-1">
+          <Tooltip
+            content={disabledReason}
+            className={cn(
+              'flex w-full [&>span:first-child]:min-w-0 [&>span:first-child]:flex-1',
+              fills && 'min-h-0 flex-1 items-stretch [&>span:first-child]:flex [&>span:first-child]:flex-col',
+            )}
+          >
             {children}
           </Tooltip>
         ) : children}
         {reportedText && <p className="text-xs text-text-secondary">{reportedText}</p>}
-        <div className={cn('flex items-center gap-2', framed ? 'min-h-5 text-xs' : 'min-h-4 text-[11px] leading-4')} aria-live="polite">
+        <div
+          className={cn(!hasStatus ? 'sr-only' : framed ? 'flex min-h-5 items-center gap-2 text-xs' : 'flex min-h-4 items-center gap-2 text-[11px] leading-4')}
+          aria-live="polite"
+        >
           {state === 'pending' && (
             <>
               <span aria-hidden="true" className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-border border-t-primary motion-reduce:animate-none" />

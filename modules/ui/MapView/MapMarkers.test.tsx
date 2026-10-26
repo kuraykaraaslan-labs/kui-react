@@ -1,10 +1,11 @@
+import { useEffect, type ReactNode } from 'react';
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { markerIcon } from './parts/Marker';
-import { clusterColor, clusterMarkers } from './parts/Cluster';
+import { ClusteredMarkers, clusterColor, clusterMarkers } from './parts/Cluster';
 import { Popup, isInternalHref } from './parts/Popup';
 import { safeMarkerColor, safeMarkerIcon, safeMarkerImage } from './types';
-import { LEAFLET_TILES } from './providers/leaflet';
+import { LEAFLET_TILES, type LeafletBundle } from './providers/leaflet';
 
 describe('marker drawing', () => {
   it('accepts plain colours and tokens, refuses anything that could break out of the HTML', () => {
@@ -97,5 +98,46 @@ describe('picture markers', () => {
     const bad = markerIcon({ id: '1', position: [0, 0], shape: 'image', image: 'javascript:alert(1)', color: '#ff0000' });
     expect(bad.html).not.toContain('<img');
     expect(bad.html).toContain('background:#ff0000');
+  });
+});
+
+describe('ClusteredMarkers zoom', () => {
+  // A stand-in map: one pixel per degree at zoom 0, doubling with each zoom level.
+  function fakeMap(zoom: number) {
+    const listeners = new Set<() => void>();
+    return {
+      zoom,
+      getZoom() { return this.zoom; },
+      project: (p: [number, number], z: number) => ({ x: p[1] * 2 ** z, y: p[0] * 2 ** z }),
+      on: (_: string, fn: () => void) => { listeners.add(fn); },
+      off: (_: string, fn: () => void) => { listeners.delete(fn); },
+      zoomTo(z: number) { this.zoom = z; listeners.forEach((fn) => fn()); },
+    };
+  }
+  const bundleOf = (map: ReturnType<typeof fakeMap>) => ({
+    useMap: () => map,
+    Marker: ({ alt, children }: { alt?: string; children?: ReactNode }) => <div data-testid="marker" data-alt={alt}>{children}</div>,
+    Tooltip: ({ children }: { children?: ReactNode }) => <>{children}</>,
+    Popup: ({ children }: { children?: ReactNode }) => <>{children}</>,
+    L: { divIcon: (o: object) => o },
+  }) as unknown as LeafletBundle;
+  // Seven sites a degree apart: one group at zoom 2 (4 px apart), seven markers at zoom 8 (256 px apart).
+  const sites = Array.from({ length: 7 }, (_, i) => ({ id: `s${i}`, position: [39, 27 + i] as [number, number], label: `Site ${i}` }));
+
+  it('groups at the zoom the first fit left, though that zoomend fired before it listened', () => {
+    const map = fakeMap(2);
+    // The canvas's fit runs in an effect of an earlier sibling, before the markers subscribe.
+    function FitFirst() { useEffect(() => { map.zoomTo(8); }, []); return null; }
+    render(<><FitFirst /><ClusteredMarkers bundle={bundleOf(map)} markers={sites} /></>);
+    expect(screen.getAllByTestId('marker')).toHaveLength(7);
+  });
+
+  it('regroups on every zoomend after that', () => {
+    const map = fakeMap(8);
+    render(<ClusteredMarkers bundle={bundleOf(map)} markers={sites} />);
+    expect(screen.getAllByTestId('marker')).toHaveLength(7);
+    act(() => map.zoomTo(2));
+    expect(screen.getAllByTestId('marker')).toHaveLength(1);
+    expect(screen.getByTestId('marker')).toHaveAttribute('data-alt', '7 markers, zoom in');
   });
 });

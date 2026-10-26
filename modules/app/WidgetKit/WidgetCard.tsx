@@ -66,6 +66,13 @@ export type WidgetCardProps = {
 
 const iconBtn = ICON_BUTTON_CLASS;
 
+const HEADER_BUTTONS_CLASS = cn(
+  'flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity',
+  'lg:-ml-2 lg:max-w-0 lg:overflow-hidden lg:opacity-0',
+  'lg:group-hover/wk:ml-0 lg:group-hover/wk:max-w-none lg:group-hover/wk:overflow-visible lg:group-hover/wk:opacity-100',
+  'lg:group-focus-within/wk:ml-0 lg:group-focus-within/wk:max-w-none lg:group-focus-within/wk:overflow-visible lg:group-focus-within/wk:opacity-100',
+);
+
 /**
  * The frame every dashboard widget sits in: title row (icon, title, subtitle, help, badges),
  * card buttons (full screen, CSV, refresh), the body states (loading, empty, unconfigured, error,
@@ -137,7 +144,9 @@ export function WidgetCard({
               <span className="rounded-full bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-fg">{m.oldData}</span>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity lg:opacity-0 lg:group-hover/wk:opacity-100 lg:group-focus-within/wk:opacity-100">
+          {/* From lg up the card buttons show on hover or keyboard focus; hidden they take no room, so a short
+              title keeps the whole row. Still focusable: a Tab into them reveals them. */}
+          <div className={HEADER_BUTTONS_CLASS}>
             {headerRight}
             {buttons.includes('refresh') && onRefresh && (
               <button type="button" onClick={onRefresh} disabled={refreshing} aria-label={m.refresh} title={m.refresh} className={iconBtn}>
