@@ -5,6 +5,8 @@
 // value is ids; a picked id the box has not seen in a search (a link's pick, a reload) is named through `resolve`, else
 // shown as it is. `current` is the entity in effect with no pick (the set's first, a default), shown, never written.
 // Read-only shows the entities in a disabled box. The toolbar entity select (`AliasEntitySelect`) is this same picker.
+// A box that stays on screen (the filter bar) is told what its set is read with (`searchKey`): the search box keeps the lists
+// it was answered for a while, so a set that follows another parameter starts afresh when that parameter changes.
 
 import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { ComboBox } from '@/modules/ui/ComboBox';
@@ -22,6 +24,11 @@ export interface EntityParamPickerProps {
   value: string | readonly string[] | null | undefined;
   /** The entities of the parameter's set whose name holds `search`, by name. */
   loadOptions: (search: string) => Promise<EntityRef[]>;
+  /**
+   * What the set is read with (another parameter's value, the board's): a change forgets the lists the box was answered, so it
+   * never offers entities of the set as it was. Absent = the set never changes while the box is shown.
+   */
+  searchKey?: string;
   /** Picked ids by name, for ids no search returned yet; absent = such an id is shown as it is. */
   resolve?: (ids: string[]) => Promise<EntityRef[]>;
   /** The entity in effect with no pick (the set's first, a default): shown in the box, never written as a pick. */
@@ -48,6 +55,7 @@ export function EntityParamPicker({
   multiple = false,
   value,
   loadOptions,
+  searchKey,
   resolve,
   current,
   onChange,
@@ -102,6 +110,7 @@ export function EntityParamPicker({
   if (multiple) {
     return (
       <MultiSelect messages={m.multiSelect}
+        key={searchKey ?? ''}
         id={boxId}
         label={label}
         options={ids.map(option)}
@@ -119,6 +128,8 @@ export function EntityParamPicker({
   const shown = ids[0] ?? current?.id ?? '';
   return (
     <ComboBox messages={m.comboBox}
+      // A new box for a set read anew: the search box keeps its answers by search text alone.
+      key={searchKey ?? ''}
       id={boxId}
       label={label}
       options={shown ? [option(shown)] : []}

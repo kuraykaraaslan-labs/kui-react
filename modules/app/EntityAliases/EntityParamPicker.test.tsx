@@ -95,6 +95,23 @@ describe('EntityParamPicker', () => {
     await waitFor(() => expect(box).toHaveValue('Tank A'));
     expect(box).toBeDisabled();
   });
+
+  it('a set read anew (searchKey) is searched again, never offered as the box last saw it', async () => {
+    const [a, b] = devices;
+    const loadA = vi.fn(async () => [a]);
+    const loadB = vi.fn(async () => [b]);
+    const user = userEvent.setup();
+    const view = (load: typeof loadA, key: string) => <EntityParamPicker label="Pump" value="" loadOptions={load} searchKey={key} onChange={() => {}} />;
+    const { rerender } = render(view(loadA, 'site-a'));
+    await user.click(screen.getByRole('searchbox'));
+    expect(await screen.findByRole('option', { name: new RegExp(a.name) })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    rerender(view(loadB, 'site-b'));
+    await user.click(screen.getByRole('searchbox'));
+    expect(await screen.findByRole('option', { name: new RegExp(b.name) })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: new RegExp(a.name) })).toBeNull();
+    expect(loadB).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('AliasEntitySelect, built of the same picker', () => {
