@@ -43,6 +43,11 @@ export interface WidgetCaps {
   exportable: boolean;
   /** It prints numbers, so `core:format` applies. */
   formatsNumbers: boolean;
+  /**
+   * A bound query follows a time window (the host knows: a template cannot), so the card may offer its own window
+   * selector (`core:card` showWindow). Absent = no.
+   */
+  windowed?: boolean;
 }
 
 export type Sparse = Record<string, unknown>;
@@ -160,6 +165,8 @@ export interface CardSettings {
   overlayColor?: string;
   overlayBlur?: number;
   buttons?: Array<'fullscreen' | 'export' | 'refresh'>;
+  /** The board's time window selector in the card's header, for this card alone (`timeWindow` on the card). */
+  showWindow?: boolean;
   noDataText?: string;
   /** With no data: the widget's empty shape under the no-data text (`shape`, default) or the text alone. */
   emptyDisplay?: 'shape' | 'message';

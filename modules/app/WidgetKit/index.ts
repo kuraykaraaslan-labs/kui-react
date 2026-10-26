@@ -9,7 +9,7 @@ export * from './kind';
 export { BUILTIN_KINDS, builtinKind, builtinTemplate } from './templates';
 export { BUILTIN_VIEWS } from './views';
 export { WidgetCard, formatUpdated } from './WidgetCard';
-export type { CardSettings, WidgetCardProps, WidgetCardState } from './WidgetCard';
+export type { CardSettings, CardTimeWindow, WidgetCardProps, WidgetCardState } from './WidgetCard';
 export { WidgetKitProvider, useWidgetKit, useKitMessages, SettingIcon } from './WidgetKitContext';
 export type { WidgetKitHost } from './WidgetKitContext';
 export { DEFAULT_WIDGET_KIT_MESSAGES, mergeKitMessages, CONTROL_TILE_MESSAGE_KEYS, issueText } from './messages';

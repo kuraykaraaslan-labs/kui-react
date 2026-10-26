@@ -1,10 +1,11 @@
 'use client';
-import type { CSSProperties, ReactNode } from 'react';
+import { useId, type ComponentProps, type CSSProperties, type ReactNode } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExpand, faDownload, faFileExcel, faRotateRight, faCircleInfo } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Tooltip } from '@/modules/ui/Tooltip';
 import { UnavailableContribution, type UnavailableContributionContent } from '@/modules/ui/UnavailableContribution';
+import { TimeWindowSelect } from '@/modules/ui/TimeWindowSelect';
 import { cssColor, fontStyle } from './settings/style';
 import { ICON_BUTTON_CLASS, cardModel, formatUpdated, type StyleRecord, type WidgetCardState } from './card-logic';
 
@@ -13,6 +14,12 @@ import type { CardSettings } from './settings/types';
 import { SettingIcon, useKitMessages } from './WidgetKitContext';
 
 export type { CardSettings };
+
+/**
+ * The card's own time window (`card.showWindow`): the board's `TimeWindowSelect`, the same button and panel, with the
+ * window this card shows. The host keeps the viewer's choice (never in the card's settings) and decides what is offered.
+ */
+export type CardTimeWindow = Omit<ComponentProps<typeof TimeWindowSelect>, 'idPrefix'> & { idPrefix?: string };
 
 /** What the card body is showing. `unavailable`: the widget's provider cannot be shown (see `unavailable`). */
 export type { WidgetCardState } from './card-logic';
@@ -51,6 +58,11 @@ export type WidgetCardProps = {
   headerRight?: ReactNode;
   /** Badges next to the title (e.g. a pinned time window); where the card hides its title, in the title row's place. */
   badges?: ReactNode;
+  /**
+   * The card's time window selector, shown in the header when `card.showWindow` asks for it. Give it only where a bound
+   * query follows a window; without it the setting shows nothing.
+   */
+  timeWindow?: CardTimeWindow;
   footer?: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -83,14 +95,15 @@ const HEADER_BUTTONS_CLASS = cn(
  */
 export function WidgetCard({
   title, card, state = 'ready', stale = false, updatedAt, unconfiguredText, emptyBody, errorText, onRetry, unavailable, onFullscreen, onExport, onExportXlsx, onRefresh, refreshing = false,
-  headerRight, badges, footer, children, className, style, locale, fixedHeight = false, ...rest
+  headerRight, badges, timeWindow, footer, children, className, style, locale, fixedHeight = false, ...rest
 }: WidgetCardProps) {
   const m = useKitMessages().card;
+  const windowId = `wk-tw-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
   const model = cardModel({
     title, card, state, stale, updatedAt, locale, fixedHeight, refreshing,
-    hasHeaderRight: !!headerRight, hasBadges: !!badges, hasFooter: !!footer, style: style as StyleRecord | undefined,
+    hasHeaderRight: !!headerRight, hasBadges: !!badges, hasFooter: !!footer, hasWindow: !!timeWindow, style: style as StyleRecord | undefined,
   });
-  const { buttons, showTitle, staleMode, bodyState, updated } = model;
+  const { buttons, showTitle, showWindow, staleMode, bodyState, updated } = model;
   const placeholder = (text: ReactNode) => (emptyBody ? (
     <div className="relative flex h-full min-h-16 flex-col">
       <div aria-hidden="true" inert className="pointer-events-none flex h-full min-h-0 flex-1 select-none flex-col opacity-40">{emptyBody}</div>
@@ -146,6 +159,13 @@ export function WidgetCard({
               <span className="rounded-full bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-fg">{m.oldData}</span>
             )}
           </div>
+          {/* The card's own window: always shown (it says what the card shows), never with the hover buttons. Its trigger
+              truncates, so a narrow card keeps its title. */}
+          {showWindow && timeWindow && (
+            <div className="min-w-0 max-w-[60%]">
+              <TimeWindowSelect idPrefix={windowId} {...timeWindow} className={cn('h-7 px-2 text-xs', timeWindow.className)} />
+            </div>
+          )}
           {/* From lg up the card buttons show on hover or keyboard focus; hidden they take no room, so a short
               title keeps the whole row. Still focusable: a Tab into them reveals them. */}
           <div className={HEADER_BUTTONS_CLASS}>

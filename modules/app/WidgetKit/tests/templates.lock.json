@@ -145,6 +145,10 @@
         "hide"
       ]
     },
+    "showWindow": {
+      "type": "boolean",
+      "value": false
+    },
     "hideOnMobile": {
       "type": "boolean",
       "value": false

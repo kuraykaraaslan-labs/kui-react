@@ -15,6 +15,7 @@ export const CORE_CARD: SettingsTemplate = {
     { id: 'background', label: 'Background', tab: 'Card', since: 1 },
     { id: 'buttons', label: 'Buttons', tab: 'Card', since: 1 },
     { id: 'dataDisplay', label: 'Data display', tab: 'Data', since: 1, showWhen: { caps: 'hasData' } },
+    { id: 'timeWindow', label: 'Time window', tab: 'Data', since: 1, showWhen: { caps: 'windowed' } },
     { id: 'smallScreens', label: 'Small screens', tab: 'Card', since: 1 },
   ],
   fields: since(1, {
@@ -84,6 +85,10 @@ export const CORE_CARD: SettingsTemplate = {
       label: 'When data is old', type: 'select', value: 'badge', group: 'dataDisplay', advanced: true, required: true,
       options: [opt('badge', 'Show an "Old data" badge'), opt('dim', 'Fade the card and show the badge'), opt('hide', 'Show the no-data message')],
     },
+
+    // Time window: purely additive (off by default), so no version bump.
+    showWindow: { label: 'Show the time window on the card', type: 'boolean', value: false, group: 'timeWindow',
+      description: 'Viewers can pick another window for this card alone, with the same button as the dashboard\'s. Their choice is never saved to the card.' },
 
     // Small screens
     hideOnMobile: { label: 'Hide on small screens', type: 'boolean', value: false, group: 'smallScreens', advanced: true },

@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { Modal } from '@/modules/ui/Modal';
 import type { ReactNode } from 'react';
-import { WidgetCard } from './WidgetCard';
+import { WidgetCard, type CardTimeWindow } from './WidgetCard';
 import { ZoomPane } from './ZoomPane';
 import { resolvePlacement, toCsvText } from './settings/resolve';
 import { primaryMeta } from './settings/source-meta';
@@ -37,6 +37,8 @@ export interface PlacementCardProps {
   isEditor?: boolean;
   headerRight?: ReactNode;
   badges?: ReactNode;
+  /** The card's time window selector (see `WidgetCard.timeWindow`): shown when the placement's `showWindow` asks for it. */
+  timeWindow?: CardTimeWindow;
   renderLink?: (href: string, children: ReactNode, className?: string) => ReactNode;
   className?: string;
   /** The card sits in a fixed-height grid cell (see `WidgetCard.fixedHeight`). */
@@ -69,7 +71,7 @@ function download(name: string, text: string | Uint8Array, type = 'text/csv;char
 /** One placement: resolved settings → `WidgetCard` + the type's view, with full screen and CSV. */
 export function PlacementCard({
   title, template, slots, view, settings, board, definitionDefaults, data, boundSlots, loading = false, error,
-  onRetry, onRefresh, refreshing, onControl, controlDisabledReason, isEditor = false, headerRight, badges, renderLink,
+  onRetry, onRefresh, refreshing, onControl, controlDisabledReason, isEditor = false, headerRight, badges, timeWindow, renderLink,
   className, now: nowProp, viewProps, fixedHeight = false, exportData,
 }: PlacementCardProps) {
   const { locale } = useWidgetKit();
@@ -131,6 +133,7 @@ export function PlacementCard({
         onFullscreen={() => setFull(true)}
         headerRight={headerRight}
         badges={badges}
+        timeWindow={timeWindow}
         className={className}
         locale={locale}
         fixedHeight={fixedHeight}

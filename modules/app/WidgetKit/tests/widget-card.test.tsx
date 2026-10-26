@@ -108,3 +108,48 @@ describe('WidgetCard header buttons', () => {
     expect(group.className).not.toMatch(/(^|\s)(lg:)?(hidden|invisible)(\s|$)/);
   });
 });
+
+describe('WidgetCard time window', () => {
+  const window = { mode: 'relative' as const, last: '24h' };
+
+  it('shows the board\'s selector in the header when the card asks for it', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<WidgetCard title="Flow" card={{ showWindow: true }} timeWindow={{ value: window, onChange }}><p>body</p></WidgetCard>);
+    const trigger = screen.getByRole('button', { name: /Change time window/ });
+    expect(trigger).toHaveTextContent('Realtime · Last 24h');
+    // In the header, beside the title, not with the buttons that only show on hover.
+    expect(trigger.closest('header')).not.toBeNull();
+    await user.click(trigger);
+    await user.click(screen.getByRole('radio', { name: '7d' }));
+    await user.click(screen.getByRole('button', { name: 'Update' }));
+    expect(onChange).toHaveBeenCalledWith({ mode: 'relative', last: '7d' });
+  });
+
+  it('shows nothing when the setting is off, or the host gives no window', () => {
+    const { unmount } = render(<WidgetCard title="Flow" card={{}} timeWindow={{ value: window, onChange: () => {} }} />);
+    expect(screen.queryByRole('button', { name: /Change time window/ })).not.toBeInTheDocument();
+    unmount();
+    render(<WidgetCard title="Flow" card={{ showWindow: true }} />);
+    expect(screen.queryByRole('button', { name: /Change time window/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps a header for the selector on a card without a title, and none on an unavailable card', () => {
+    const { unmount } = render(<WidgetCard card={{ showWindow: true, showTitle: false }} timeWindow={{ value: window, onChange: () => {} }} />);
+    expect(screen.getByRole('button', { name: /Change time window/ })).toBeInTheDocument();
+    unmount();
+    render(<WidgetCard title="Flow" card={{ showWindow: true }} state="unavailable" timeWindow={{ value: window, onChange: () => {} }} />);
+    expect(screen.queryByRole('button', { name: /Change time window/ })).not.toBeInTheDocument();
+  });
+
+  it('gives two cards distinct ids', () => {
+    render(
+      <>
+        <WidgetCard title="A" card={{ showWindow: true }} timeWindow={{ value: window, onChange: () => {} }} />
+        <WidgetCard title="B" card={{ showWindow: true }} timeWindow={{ value: window, onChange: () => {} }} />
+      </>,
+    );
+    const ids = screen.getAllByRole('button', { name: /Change time window/ }).map((b) => b.id);
+    expect(new Set(ids).size).toBe(2);
+  });
+});

@@ -70,6 +70,8 @@ export interface CardModelInput {
   hasHeaderRight?: boolean;
   hasBadges?: boolean;
   hasFooter?: boolean;
+  /** The caller gives the card a time window selector (shown when `card.showWindow` asks for it). */
+  hasWindow?: boolean;
   /** Frame style the caller adds last (a `style` prop). */
   style?: StyleRecord;
   /** The "now" the relative "Updated …" text counts from. */
@@ -91,6 +93,8 @@ export function cardModel(i: CardModelInput) {
   // An unavailable widget has no data to refresh, export or enlarge, and nothing to call old.
   const buttons = isUnavailable ? [] : card.buttons ?? [];
   const showTitle = card.showTitle !== false && !!title;
+  // The card's own time window selector: asked for by the setting, given by the caller, and only on a card with data.
+  const showWindow = card.showWindow === true && !!i.hasWindow && !isUnavailable;
   const staleMode = i.stale && !isUnavailable ? card.staleDisplay ?? 'badge' : null;
   const bodyState: WidgetCardState = staleMode === 'hide' ? 'empty' : state;
   const updated = isUnavailable ? null : formatUpdated(i.updatedAt, card.showUpdated, locale, i.now);
@@ -111,7 +115,7 @@ export function cardModel(i: CardModelInput) {
   const pad = typeof card.padding === 'number' ? card.padding : 12;
   // The title row and footer keep readable side spacing even when the body has none (a map, a table).
   const chromePad = Math.max(pad, 12);
-  const hasHeader = showTitle || !!i.hasHeaderRight || !!i.hasBadges || buttons.length > 0 || staleMode !== null;
+  const hasHeader = showTitle || showWindow || !!i.hasHeaderRight || !!i.hasBadges || buttons.length > 0 || staleMode !== null;
   // The shadow setting replaces the raised variant's own shadow (what tailwind-merge does in the React card).
   const variantClass = card.shadow && variant === 'raised' ? VARIANT.raised.replace(' shadow-sm', '') : VARIANT[variant];
   const sectionClass = [
@@ -125,7 +129,7 @@ export function cardModel(i: CardModelInput) {
     card.mobileHeight !== undefined && 'max-lg:[height:var(--wk-mh)]',
   ].filter(Boolean).join(' ');
   return {
-    state, bodyState, buttons, showTitle, staleMode, updated, frame, image, sectionClass, hasHeader,
+    state, bodyState, buttons, showTitle, showWindow, staleMode, updated, frame, image, sectionClass, hasHeader,
     overlay: image && cssColor(card.overlayColor)
       ? { background: cssColor(card.overlayColor), backdropFilter: card.overlayBlur ? `blur(${card.overlayBlur}px)` : undefined } as StyleRecord
       : null,

@@ -199,4 +199,9 @@ describe('defaults and groups', () => {
     expect(g.has('dataDisplay')).toBe(false);
     expect(g.has('title')).toBe(true);
   });
+  it('offers the card\'s own time window only where a bound query follows a window', () => {
+    expect(visibleGroups(CORE_CARD, { hasData: true, exportable: true, formatsNumbers: true }).has('timeWindow')).toBe(false);
+    expect(visibleGroups(CORE_CARD, { hasData: true, exportable: true, formatsNumbers: true, windowed: true }).has('timeWindow')).toBe(true);
+    expect(templateDefaults(CORE_CARD).showWindow).toBe(false);
+  });
 });
