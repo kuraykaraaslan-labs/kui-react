@@ -5,10 +5,12 @@
 import type {
   AliasFilterType,
   AttributeScope,
+  EntityChoiceType,
   KeyFilter,
   KeyFilterKeyType,
   KeyFilterOp,
   KeyFilterValueType,
+  ParamBarMode,
   RelationDirection,
 } from './types';
 
@@ -43,6 +45,36 @@ export type AliasErrorField =
   | 'filter.root'
   | 'filter.maxLevel'
   | 'filter.filters';
+
+/** What `validateEntityParam` reports, keyed by field (phase 41). */
+export type EntityParamErrorCode =
+  | 'required'
+  | 'tooLong'
+  | 'tooFew'
+  | 'tooMany'
+  | 'range'
+  | 'unknownParam'
+  | 'self'
+  | 'notOneEntity'
+  | 'cycle'
+  | 'singleOnly'
+  | 'notListed';
+
+/** The fields `validateEntityParam` keys its errors by. */
+export type EntityParamErrorField =
+  | 'entityType'
+  | 'choose.type'
+  | 'choose.id'
+  | 'choose.ids'
+  | 'choose.namePrefix'
+  | 'choose.subtypes'
+  | 'choose.param'
+  | 'choose.provider'
+  | 'choose.root'
+  | 'choose.maxLevel'
+  | 'choose.filters'
+  | 'multiple'
+  | 'default';
 
 /** What `validateBoardFilter` reports, keyed by field. */
 export type FilterErrorCode =
@@ -287,6 +319,31 @@ export interface EntityAliasesMessages {
   // ---- filter validation ----
   filterError: (field: BoardFilterErrorField | KeyFilterErrorField, code: FilterErrorCode) => string;
 
+  // ---- entity parameter form (phase 41: a board parameter of the entity kind) ----
+  chooseHow: string;
+  choiceTypes: Record<EntityChoiceType, string>;
+  /** One line under the choice, saying what it does. */
+  choiceHints: Record<EntityChoiceType, string>;
+  followParam: string;
+  followLink: string;
+  fixedEntity: string;
+  relatedTo: string;
+  relatedToEntity: string;
+  relationDetails: string;
+  matchRelationFilters: string;
+  mixedTypesHint: string;
+  howMany: string;
+  howManyOptions: { one: string; many: string };
+  barMode: string;
+  barModes: Record<ParamBarMode, string>;
+  takeFirst: string;
+  takeFirstHint: string;
+  defaultEntity: string;
+  defaultEntityHint: string;
+
+  // ---- entity parameter validation ----
+  paramError: (field: EntityParamErrorField, code: EntityParamErrorCode) => string;
+
   /** The kui primitives' own texts inside the kit (ComboBox, Select, MultiSelect), so a host translates them with the rest. */
   comboBox: { placeholder: string; noResults: string; clear: string; loading: string; loadingMore: string };
   select: { noResults: string; search: string; placeholder: string; required: string };
@@ -305,6 +362,10 @@ const NESTED_KEYS = [
   'keyFilterOps',
   'textOps',
   'textJoin',
+  'choiceTypes',
+  'choiceHints',
+  'howManyOptions',
+  'barModes',
   'comboBox',
   'select',
   'multiSelect',
@@ -359,6 +420,52 @@ function defaultError(field: AliasErrorField, code: AliasErrorCode): string {
   }
   if (code === 'required') return `${FIELD_NAMES[field]} is required.`;
   return `${FIELD_NAMES[field]} is not valid.`;
+}
+
+const PARAM_FIELD_NAMES: Record<EntityParamErrorField, string> = {
+  entityType: 'Entity type',
+  'choose.type': 'How it is chosen',
+  'choose.id': 'Entity',
+  'choose.ids': 'Entities',
+  'choose.namePrefix': 'Name starts with',
+  'choose.subtypes': 'Types',
+  'choose.param': 'Taken from',
+  'choose.provider': 'Relation source',
+  'choose.root': 'Related to',
+  'choose.maxLevel': 'Max relation level',
+  'choose.filters': 'Relation filters',
+  multiple: 'One or many',
+  default: 'Default entity',
+};
+
+/** The English text of an entity parameter error; a host overrides `paramError` to translate. Caps match `entity-params.ts`. */
+function defaultParamError(field: EntityParamErrorField, code: EntityParamErrorCode): string {
+  switch (`${field}:${code}`) {
+    case 'entityType:required': return 'Pick an entity type.';
+    case 'choose.id:required': return 'Search for the entity by name and pick it.';
+    case 'choose.ids:tooFew': return 'Pick at least one entity.';
+    case 'choose.ids:tooMany': return 'At most 100 entities.';
+    case 'choose.namePrefix:required': return 'Type how the names start.';
+    case 'choose.namePrefix:tooLong': return 'At most 120 characters.';
+    case 'choose.subtypes:tooFew': return 'Pick at least one type.';
+    case 'choose.subtypes:tooMany': return 'At most 50 types.';
+    case 'choose.param:unknownParam':
+    case 'choose.root:unknownParam': return 'This board has no such parameter.';
+    case 'choose.param:self':
+    case 'choose.root:self': return 'A parameter cannot take its entity from itself.';
+    case 'choose.param:notOneEntity': return 'It can follow a parameter of one entity only.';
+    case 'choose.root:notOneEntity': return 'A relation starts from one entity of a known type: pick a parameter of one entity.';
+    case 'choose.param:cycle':
+    case 'choose.root:cycle': return 'The parameters it follows lead back to it.';
+    case 'choose.provider:required': return 'Pick where the relations come from.';
+    case 'choose.root:required': return 'Pick what it is related to.';
+    case 'choose.maxLevel:range': return 'A whole number from 1 to 10.';
+    case 'choose.filters:tooMany': return 'At most 8 relation filters.';
+    case 'multiple:singleOnly': return 'One fixed entity is always one.';
+    case 'default:notListed': return 'The default must be one of the listed entities.';
+  }
+  if (code === 'required') return `${PARAM_FIELD_NAMES[field]} is required.`;
+  return `${PARAM_FIELD_NAMES[field]} is not valid.`;
 }
 
 const FILTER_FIELD_NAMES: Record<string, string> = {
@@ -659,6 +766,46 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   pickerFilterLabel: 'Filter',
 
   filterError: defaultFilterError,
+
+  chooseHow: 'How is it chosen',
+  choiceTypes: {
+    viewer: 'The viewer picks',
+    page: 'The page or a link sets it',
+    single: 'Fixed: one entity',
+    list: 'Fixed: a list',
+    all: 'All of the type',
+    name: 'By name',
+    subtype: 'By subtype or profile',
+    related: 'Related to another parameter or entity',
+  },
+  choiceHints: {
+    viewer: 'Viewers pick in the filter bar by typing a name.',
+    page: 'Not in the filter bar: a link, a page or a button sets it, or it follows another parameter.',
+    single: 'Always this entity.',
+    list: 'Always these entities.',
+    all: 'Every entity of the type the viewer may see.',
+    name: 'The entities whose name starts with a text.',
+    subtype: 'The entities of some subtypes (device profiles, asset types).',
+    related: "The entities related to another parameter's entity or to a fixed one.",
+  },
+  followParam: 'Taken from',
+  followLink: 'A link, a page or a button',
+  fixedEntity: 'Entity',
+  relatedTo: 'Related to',
+  relatedToEntity: 'A fixed entity',
+  relationDetails: 'Relation details',
+  matchRelationFilters: 'Match relation filters instead (may mix entity types)',
+  mixedTypesHint: 'The relation filters decide which entity types it holds.',
+  howMany: 'One or many',
+  howManyOptions: { one: 'One entity', many: 'Many entities' },
+  barMode: 'In the filter bar',
+  barModes: { edit: 'Shown, viewers can change it', readOnly: 'Shown, not changeable', hidden: 'Hidden' },
+  takeFirst: 'With no value, take the first',
+  takeFirstHint: 'The first entity by name, until a viewer or a link picks one.',
+  defaultEntity: 'Default entity',
+  defaultEntityHint: 'Search by name. Leave it empty for none.',
+  paramError: defaultParamError,
+
   // Literal copies of the primitives' English defaults (this file imports no .tsx): DEFAULT_COMBOBOX_MESSAGES,
   // DEFAULT_SELECT_MESSAGES, DEFAULT_MULTI_SELECT_MESSAGES.
   comboBox: { placeholder: 'Search or select...', noResults: 'No results found.', clear: 'Clear selection', loading: 'Loading…', loadingMore: 'Loading more…' },

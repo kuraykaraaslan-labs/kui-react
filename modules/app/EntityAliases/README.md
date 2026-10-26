@@ -29,6 +29,8 @@ nothing is copied, the behaviour is rebuilt with kui primitives.
 | `KEY_FILTER_OPS`, `predicateShape`, `withValueType`, `normalizeBoardFilter`, `filterParamKeys` | The operations per value type, what each operation reads, the value-type change, the save clean-up, the params a filter reads (for the param bar). Pure. |
 | `validateAlias`, `validateAliases`, `validateFilter`, `slugKey` | The server caps, mirrored (below). Pure. |
 | `normalizeAlias`, `aliasCompatibility`, `emptyFilter`, `defaultResolveMultiple` | Save clean-up (trim, drop empty and duplicate relation filters, single entity → one), the slot rule, the type-change defaults. Pure. |
+| `EntityParamFields` | The fields of one **entity parameter** (phase 41, below): entity type, how the entity is chosen and that choice's fields, one or many, the filter-bar mode, a default entity searched by name, "with no value, take the first". Controlled; the label and the key are the host's. `advanced` shows the relation details. |
+| `validateEntityParam`, `normalizeEntityParam`, `withChoice`, `withEntityType`, `fitChoice`, `barModesFor`, `takesFirst`, `takesDefault`, `peerFits`, `paramKeyFromLabel` | The entity parameter's caps against the whole list (what it follows exists, is one entity, never comes back), the save clean-up, the choice and entity-type changes with what depends on them, and the key made from the label. Pure. |
 | `DEFAULT_ALIAS_MESSAGES`, `mergeAliasMessages` | Every text the kit draws, English defaults; every component takes `messages` (a partial override). |
 
 ## Filter types
@@ -45,6 +47,34 @@ nothing is copied, the behaviour is rebuilt with kui primitives.
 | `entitySearchQuery` | the same root and options + one relation type + entity type + optional subtypes. |
 
 The two relation types are offered only when `access.relationProviders()` returns at least one provider.
+
+## Entity parameters (phase 41)
+
+next-boilerplate phase 41 merges the board parameters and the entity aliases into one concept: a **parameter** is a value
+(text, number, date, a fixed list) or an **entity**. An entity parameter (`EntityParam`, verbatim with the server's
+`modules/dashboard/server/board-params.ts`) has an entity type and **how the entity is chosen** (`EntityChoice`); a card
+names it with `{ "$param": "<key>" }`. `EntityParamFields` edits one; the host's parameter list keeps the label, the kind
+and the key (made from the label, `paramKeyFromLabel`, editable under the host's Advanced).
+
+| Choice | Fields | Was (alias filter) |
+|---|---|---|
+| The viewer picks (`viewer`) | — (a search box in the filter bar) | an entity-type `remote-select` parameter |
+| The page or a link sets it (`page`) | "Taken from": a link / page / button, or another parameter of one entity | a hidden parameter; `stateEntity` |
+| Fixed: one entity (`single`) | the entity, searched by name | `singleEntity` |
+| Fixed: a list (`list`) | 1–100 entities, searched by name | `entityList` |
+| All of the type (`all`) | — | `entityType` |
+| By name (`name`) | name starts with | `entityName` |
+| By subtype or profile (`subtype`) | 1–50 subtypes + optional name prefix (offered for a type with subtypes) | `entitySubtype` |
+| Related to another parameter or entity (`related`) | "Related to": a parameter of one entity of a known type, or a fixed entity; Advanced: direction, max level, last level only, relation type and subtypes, or relation filters (which may mix types, and then the parameter has no entity type) | `entitySearchQuery`, `relationsQuery` |
+
+Beside the choice: **one or many** (not for one fixed entity), the **filter-bar mode** (shown and changeable, shown, hidden;
+none for a page choice, no picker for one fixed entity, which defaults to hidden), a **default entity** searched by name
+(one entity chosen from a set of a known type) and **with no value, take the first** (the same). `fitChoice` keeps these
+consistent whenever the choice or the count changes; `normalizeEntityParam` leaves out what says nothing. The form never
+asks for a path, a search key or a value key: the host's access lists and searches the entities.
+
+Errors are field-keyed codes (`{ 'choose.param': 'cycle' }`); `messages.paramError(field, code)` gives the text in plain
+words ("The parameters it follows lead back to it.").
 
 ## Key filters
 

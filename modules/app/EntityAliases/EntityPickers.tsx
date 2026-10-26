@@ -66,7 +66,10 @@ export function EntityPicker({
   entityType,
   value,
   onChange,
+  hint,
   error,
+  required = true,
+  clearable = false,
   m,
 }: {
   id: string;
@@ -75,7 +78,11 @@ export function EntityPicker({
   entityType: string;
   value: string;
   onChange: (id: string) => void;
+  hint?: string;
   error?: string;
+  /** An optional pick (a default entity) is not required and can be cleared (`onChange('')`). */
+  required?: boolean;
+  clearable?: boolean;
   m: EntityAliasesMessages;
 }) {
   const accessRef = useLatestRef(access);
@@ -103,9 +110,10 @@ export function EntityPicker({
       placeholder={m.entityPlaceholder}
       noResultsText={m.noEntitiesFound}
       disabled={!entityType}
-      clearable={false}
+      clearable={clearable}
+      hint={hint}
       error={error}
-      required
+      required={required}
     />
   );
 }

@@ -56,6 +56,61 @@ export interface BoardFilter { key: string; name: string; operation?: 'and' | 'o
 export interface EntityKeyInfo { type: KeyFilterKeyType; name: string; label: string; valueType: KeyFilterValueType; scope?: AttributeScope }
 // ---- end of key filter contract ----
 
+// ---- entity parameter contract (verbatim, next-boilerplate phase 41: `modules/dashboard/server/board-params.ts`) ----
+/**
+ * How an entity parameter's entity is chosen. `viewer`: the viewer picks one of the type (the filter bar). `page`: a link,
+ * a host or an action sets it (`param`: it is the value of another parameter). `single` / `list`: fixed. `all`, `name`,
+ * `subtype`: a set of the type. `related`: the entities related to another parameter's entity or to a fixed one; with
+ * `filters` a relations query (it may mix types), without them a search query of the parameter's own type.
+ */
+export type EntityChoice =
+  | { type: 'viewer' }
+  | { type: 'page'; param?: string }
+  | { type: 'single'; id: string }
+  | { type: 'list'; ids: string[] }
+  | { type: 'all' }
+  | { type: 'name'; namePrefix: string }
+  | { type: 'subtype'; subtypes: string[]; namePrefix?: string }
+  | {
+      type: 'related'; provider: string; root: AliasRoot; direction: RelationDirection; maxLevel: number; lastLevelOnly?: boolean
+      relationType?: string; subtypes?: string[]; filters?: RelationFilter[]
+    }
+export type EntityChoiceType = EntityChoice['type']
+/** How the filter bar shows a parameter: `edit` (absent) a picker, `readOnly` the value shown, `hidden` nothing. */
+export type ParamBarMode = 'edit' | 'readOnly' | 'hidden'
+export interface EntityParam {
+  kind: 'entity'
+  key: string
+  label: string
+  description?: string
+  placeholder?: string
+  /** A contributed entity type. Absent only for a relations query (`related` with `filters`), which may mix types. */
+  entityType?: string
+  choose: EntityChoice
+  /** One entity (absent) or every entity of the set. */
+  multiple?: boolean
+  /** The entity a single parameter starts with, by id (chosen by name in the editor). */
+  default?: string
+  /** With no value and no default, take the first entity of the set by name. */
+  defaultFrom?: 'firstOption'
+  viewer?: ParamBarMode
+  required?: boolean
+}
+// ---- end of entity parameter contract ----
+
+/**
+ * Another parameter of the board, as an entity parameter's form reads it: what a page choice may follow and a relation may
+ * start from. An `EntityParam` is one; a value parameter is `{ key, label, entityType? }`.
+ */
+export interface ParamPeer {
+  key: string
+  label: string
+  kind?: 'value' | 'entity'
+  entityType?: string
+  multiple?: boolean
+  choose?: EntityChoice
+}
+
 /** The filter types that walk a relation graph; offered only when the host has a relation provider. */
 export type RelationFilterType = 'relationsQuery' | 'entitySearchQuery'
 

@@ -1,6 +1,7 @@
 // Entity aliases kit (next-boilerplate dashboard phases 36.4 and 36.7, the ThingsBoard model): the board's alias list,
 // one alias's dialog, the entity filter form, the readable filter text, the toolbar entity select, a widget's alias
-// picker, and the board's key filters (filters dialog, filter dialog, key filter editor, filter text, validator).
+// picker, the board's key filters (filters dialog, filter dialog, key filter editor, filter text, validator), and the
+// fields of an entity parameter (phase 41: how its entity is chosen, its caps and clean-up).
 // Host-agnostic: every read goes through the host's `EntityAliasesAccess`. See README.md.
 
 export { EntityAliasesDialog, aliasRemovalBlockers } from './EntityAliasesDialog';
@@ -89,11 +90,34 @@ export {
   validateKeyFilter,
 } from './validate-filters';
 export type { BoardFilterErrors, BoardFilterListErrors, KeyFilterErrors, ValidateBoardFilterOptions } from './validate-filters';
+export { EntityParamFields } from './EntityParamFields';
+export type { EntityParamFieldsProps } from './EntityParamFields';
+export {
+  ENTITY_CHOICE_TYPES,
+  PARAM_BAR_MODES,
+  barModesFor,
+  choiceTakesMany,
+  emptyChoice,
+  fitChoice,
+  isMixedRelated,
+  normalizeEntityParam,
+  paramKeyFromLabel,
+  paramSource,
+  peerFits,
+  takesDefault,
+  takesFirst,
+  validateEntityParam,
+  withChoice,
+  withEntityType,
+} from './entity-params';
+export type { EmptyChoiceContext, EntityParamErrors } from './entity-params';
 export { DEFAULT_ALIAS_MESSAGES, mergeAliasMessages } from './messages';
 export type {
   AliasErrorCode,
   AliasErrorField,
   BoardFilterErrorField,
+  EntityParamErrorCode,
+  EntityParamErrorField,
   EntityAliasesMessages,
   EntityAliasesMessagesInput,
   FilterErrorCode,
@@ -115,7 +139,10 @@ export type {
   EntityAlias,
   EntityAliasFilter,
   EntityAliasesAccess,
+  EntityChoice,
+  EntityChoiceType,
   EntityKeyInfo,
+  EntityParam,
   EntityRef,
   EntityTypeInfo,
   FilterValue,
@@ -124,6 +151,8 @@ export type {
   KeyFilterOp,
   KeyFilterPredicate,
   KeyFilterValueType,
+  ParamBarMode,
+  ParamPeer,
   RelationDirection,
   RelationFilter,
   RelationFilterType,
