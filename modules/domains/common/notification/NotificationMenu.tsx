@@ -270,11 +270,12 @@ export function NotificationMenu({
           role="dialog"
           aria-label={labels.title}
           className={cn(
-            'absolute top-full mt-2 z-50 w-80 rounded-xl border border-border bg-surface-raised shadow-xl overflow-hidden',
+            // One scroll only: the panel is a column no taller than the window and only the list scrolls (it gives up height first).
+            'absolute top-full mt-2 z-50 flex w-80 max-h-[calc(100dvh-5rem)] flex-col rounded-xl border border-border bg-surface-raised shadow-xl overflow-hidden',
             align === 'right' ? 'right-0' : 'left-0'
           )}
         >
-          <div className="space-y-2 px-4 py-3 border-b border-border">
+          <div className="shrink-0 space-y-2 px-4 py-3 border-b border-border">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-text-primary">{labels.title}</span>
@@ -338,7 +339,7 @@ export function NotificationMenu({
               <p className="text-sm">{shownSource?.emptyLabel ?? labels.empty}</p>
             </div>
           ) : (
-            <ul className="max-h-80 overflow-y-auto divide-y divide-border">
+            <ul className="min-h-0 flex-1 max-h-80 overflow-y-auto divide-y divide-border">
               {visible.map(({ item, source, key }) => {
                 const time = item.timestamp ?? formatNotificationTime(item.at, { locale, now });
                 const at = timeOf(item.at);
@@ -408,7 +409,7 @@ export function NotificationMenu({
           )}
 
           {footer.length > 0 && (
-            <div className="flex divide-x divide-border border-t border-border">
+            <div className="flex shrink-0 divide-x divide-border border-t border-border">
               {footer.map((f) => {
                 const cls = cn('flex-1 py-2.5 text-center text-xs text-primary font-medium hover:bg-surface-overlay transition-colors', linkClass);
                 return f.href ? (

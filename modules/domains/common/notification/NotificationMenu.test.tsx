@@ -53,6 +53,19 @@ describe('NotificationMenu', () => {
     await user.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
     expect(screen.getByRole('dialog', { name: 'Notifications' })).toBeVisible();
   });
+
+  it('scrolls in one place only: the panel is a column no taller than the window, the list alone scrolls', async () => {
+    const user = userEvent.setup();
+    render(<NotificationMenu items={items} />);
+    await user.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+    const panel = screen.getByRole('dialog', { name: 'Notifications' });
+    expect(panel.className).toMatch(/\bflex-col\b/);
+    expect(panel.className).toMatch(/max-h-\[calc\(100dvh-5rem\)\]/);
+    expect(panel.className).toMatch(/\boverflow-hidden\b/);
+    const list = within(panel).getByRole('list');
+    expect(list.className).toMatch(/\boverflow-y-auto\b/);
+    expect(list.className).toMatch(/\bmin-h-0\b/);
+  });
 });
 
 describe('NotificationMenu: one list from every source (D40-16)', () => {
