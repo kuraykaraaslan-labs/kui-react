@@ -354,10 +354,10 @@ export function AppSidebar({
       )}
 
       <nav
-        className="flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-4 sidebar-scrollbar-hover"
-        // Icon-only mode is too narrow to spare a reserved scrollbar gutter: the
-        // `scrollbar-gutter: stable` of .sidebar-scrollbar-hover would push the centered
-        // icons left, so the collapsed nav drops the reservation.
+        className={cn('flex-1 min-h-0 overflow-y-auto px-2 py-3 space-y-4 sidebar-scrollbar-hover', effectiveCollapsed && 'sidebar-scrollbar-none')}
+        // Icon-only mode is too narrow to spare a scrollbar: the `scrollbar-gutter: stable`
+        // of .sidebar-scrollbar-hover, or a classic scrollbar once the menu overflows
+        // (Windows), would push the centered icons left, so the collapsed nav has neither.
         style={effectiveCollapsed ? { scrollbarGutter: 'auto' } : undefined}
         aria-label="Sidebar navigation"
       >

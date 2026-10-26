@@ -87,6 +87,14 @@ describe('AppSidebar', () => {
     expect(nav().style.scrollbarGutter || '').toBe('');
   });
 
+  it('hides the scrollbar only while collapsed (a classic one would take the narrow nav\'s width)', () => {
+    const { rerender } = render(<AppSidebar navItems={ITEMS} collapsed searchable={false} />);
+    const nav = () => screen.getByRole('navigation', { name: 'Sidebar navigation' });
+    expect(nav()).toHaveClass('sidebar-scrollbar-none');
+    rerender(<AppSidebar navItems={ITEMS} collapsed={false} searchable={false} />);
+    expect(nav()).not.toHaveClass('sidebar-scrollbar-none');
+  });
+
   describe('nested items', () => {
     const TREE = [
       { id: 'intro', label: 'Introduction', href: '/docs' },

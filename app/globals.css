@@ -160,6 +160,16 @@
   scrollbar-color: var(--border-strong) transparent;
 }
 
+/* Icon-only sidebar: no scrollbar at all (it still scrolls by wheel, touch and keyboard). A classic scrollbar (Windows)
+   takes its width out of the narrow nav even with no gutter reserved, and the centered icons slid left. */
+.sidebar-scrollbar-none {
+  scrollbar-width: none;
+}
+
+.sidebar-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 .sidebar-scrollbar-hover::-webkit-scrollbar {
   width: 8px;
   height: 8px;
