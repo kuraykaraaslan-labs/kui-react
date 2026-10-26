@@ -49,7 +49,7 @@ export type WidgetCardProps = {
   refreshing?: boolean;
   /** Extra header controls (e.g. action buttons), left of the card buttons. */
   headerRight?: ReactNode;
-  /** Badges next to the title (e.g. a pinned time window). */
+  /** Badges next to the title (e.g. a pinned time window); where the card hides its title, in the title row's place. */
   badges?: ReactNode;
   footer?: ReactNode;
   children?: ReactNode;
@@ -131,6 +131,8 @@ export function WidgetCard({
             {showTitle && card.subtitle && (
               <p className="truncate text-xs text-text-secondary" style={{ color: cssColor(card.subtitleColor) }}>{card.subtitle}</p>
             )}
+            {/* Without the title row, the badges still show where it would be (the header is kept for them). */}
+            {!showTitle && badges && <div className="flex min-w-0 items-center gap-1.5">{badges}</div>}
             {!showTitle && staleMode && (
               <span className="rounded-full bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-fg">{m.oldData}</span>
             )}

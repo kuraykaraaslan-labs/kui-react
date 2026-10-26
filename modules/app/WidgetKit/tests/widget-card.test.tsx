@@ -70,3 +70,23 @@ describe('WidgetCard unavailable state', () => {
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 });
+
+describe('WidgetCard badges', () => {
+  it('shows the badges next to the title', () => {
+    render(<WidgetCard title="Open calls" card={{}} badges={<span>Not refreshed</span>}><p>widget body</p></WidgetCard>);
+    expect(screen.getByRole('heading', { name: 'Open calls' }).parentElement).toHaveTextContent('Not refreshed');
+  });
+
+  it('still shows them when the card hides its title row, with the old-data mark', () => {
+    render(<WidgetCard title="Open calls" card={{ showTitle: false }} stale badges={<span>Not refreshed</span>}><p>widget body</p></WidgetCard>);
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument();
+    expect(screen.getByText('Not refreshed')).toBeInTheDocument();
+    expect(screen.getByText('Old data')).toBeInTheDocument();
+  });
+
+  it('a card without a title and without badges keeps no badge row', () => {
+    const { container } = render(<WidgetCard card={{}} stale><p>widget body</p></WidgetCard>);
+    expect(container.querySelector('header .flex.min-w-0.items-center')).toBeNull();
+    expect(screen.getByText('Old data')).toBeInTheDocument();
+  });
+});
