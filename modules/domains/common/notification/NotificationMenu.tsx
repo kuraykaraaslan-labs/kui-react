@@ -162,13 +162,14 @@ function mergeItems(items: NotificationItem[], sources: NotificationSource[]): E
 }
 
 const unreadOf = (list: NotificationItem[]) => list.filter((n) => !n.read).length;
+const NO_SOURCES: NotificationSource[] = [];
 
 export function NotificationMenu({
   items,
   onMarkAllRead,
   onViewAll,
   align = 'right',
-  sources = [],
+  sources = NO_SOURCES,
   sections,
   extraCount = 0,
   locale,
