@@ -6,11 +6,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Fixed
 
-- `ControlTile`: the status line takes room only while it has a status (its live region stays mounted, out of the flow),
-  so a control centres in its card instead of sitting 22 px high; `ControlButton`'s `tile` layout, unframed, fills the
-  height it is given (at least 96 px), so `control.button` can fill its card. New `ControlTile` prop `fill`.
+- `ControlButton`: its status line takes room only while it has a status (its live region stays mounted, out of the
+  flow), so the button centres in its card instead of sitting 22 px high; the `tile` layout, unframed, fills the height it
+  is given (at least 96 px), so `control.button` can fill its card. New `ControlTile` props `fill` and `reserveStatus`
+  (default `true`: the switch, the slider and the set-point keep the line's room, so a status never moves them).
 - WidgetKit `WidgetCard`: from lg up the card buttons hidden until hover take no room (a short title keeps the whole row);
-  hover or keyboard focus inside the card shows them, their focus rings unclipped.
+  hover or keyboard focus inside the card shows them, their focus rings unclipped. A screen that cannot hover (a touch
+  tablet in landscape, a kiosk) always shows them.
 - WidgetKit `data.table`: a row button draws its entry's icon before the label, or alone (named by the label) when the
   host marks it `iconOnly`; `TableRowActions.buttons` takes `icon` and `iconOnly`.
 - `MapView` grouping: `ClusteredMarkers` reads the map's zoom when it subscribes as well as on every `zoomend`, so the

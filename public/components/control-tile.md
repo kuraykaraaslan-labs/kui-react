@@ -24,7 +24,7 @@ Async controls: a frame (`ControlTile`) plus `ControlButton`, `ControlSwitch`, `
 - WCAG: AA
 - ARIA patterns: switch, slider, status
 
-The status line is an aria-live region; a failure is role="alert". It takes room only while it has a status (the region stays mounted, out of the flow, so the next status is announced), so an unframed control centres in its card; an unframed `tile` button fills the height it is given. Pending sets aria-busy and disables the input. A bad set-point is a field error (aria-invalid + described-by) and sends nothing.
+The status line is an aria-live region; a failure is role="alert". A switch, a slider and a set-point keep its room while it is empty, so a status never moves the control under the pointer. A button's line takes room only while it has a status (the region stays mounted, out of the flow, so the next status is announced), so an unframed button centres in its card and an unframed `tile` button fills the height it is given (`ControlTile`'s `reserveStatus={false}`). Pending sets aria-busy and disables the input. A bad set-point is a field error (aria-invalid + described-by) and sends nothing.
 
 ## Design tokens consumed
 

@@ -102,6 +102,8 @@ describe('WidgetCard header buttons', () => {
     for (const on of ['lg:group-hover/wk:', 'lg:group-focus-within/wk:']) {
       expect(classes).toEqual(expect.arrayContaining([`${on}max-w-none`, `${on}ml-0`, `${on}overflow-visible`, `${on}opacity-100`]));
     }
+    // A screen that cannot hover (a touch tablet at lg width) always shows them: Tailwind's hover variant needs (hover: hover).
+    expect(classes).toEqual(expect.arrayContaining(['[@media(hover:none)]:max-w-none', '[@media(hover:none)]:ml-0', '[@media(hover:none)]:overflow-visible', '[@media(hover:none)]:opacity-100']));
     // Never removed from the tab order (no display: none, no visibility: hidden).
     expect(group.className).not.toMatch(/(^|\s)(lg:)?(hidden|invisible)(\s|$)/);
   });

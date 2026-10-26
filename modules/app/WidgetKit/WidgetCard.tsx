@@ -71,6 +71,8 @@ const HEADER_BUTTONS_CLASS = cn(
   'lg:-ml-2 lg:max-w-0 lg:overflow-hidden lg:opacity-0',
   'lg:group-hover/wk:ml-0 lg:group-hover/wk:max-w-none lg:group-hover/wk:overflow-visible lg:group-hover/wk:opacity-100',
   'lg:group-focus-within/wk:ml-0 lg:group-focus-within/wk:max-w-none lg:group-focus-within/wk:overflow-visible lg:group-focus-within/wk:opacity-100',
+  // A touch screen cannot hover (a tablet in landscape, a kiosk): there they always show.
+  '[@media(hover:none)]:ml-0 [@media(hover:none)]:max-w-none [@media(hover:none)]:overflow-visible [@media(hover:none)]:opacity-100',
 );
 
 /**

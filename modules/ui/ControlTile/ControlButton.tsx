@@ -103,6 +103,7 @@ export function ControlButton({
       disabledReason={disabledReason}
       bodyAlign={bodyAlign}
       fill={layout === 'tile'}
+      reserveStatus={false}
       className={className}
     >
       {!asking ? (

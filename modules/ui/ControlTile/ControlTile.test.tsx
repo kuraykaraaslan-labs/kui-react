@@ -178,17 +178,33 @@ describe('layouts and parts', () => {
     rerender(<ControlTile state="idle" framed={false} bodyAlign="end">x</ControlTile>);
     expect(container.querySelector('.justify-end')).not.toBeNull();
   });
-  it('ControlTile: the status line takes room only while it has a status; its live region stays mounted', () => {
-    const { container, rerender } = render(<ControlTile state="idle" framed={false}>x</ControlTile>);
+  it('ControlTile: without reserved room the status line takes room only while it has a status; its live region stays mounted', () => {
+    const { container, rerender } = render(<ControlTile state="idle" framed={false} reserveStatus={false}>x</ControlTile>);
     const line = () => container.querySelector('[aria-live="polite"]')!;
     expect(line()).toBeEmptyDOMElement();
     expect(line().className).toBe('sr-only');
-    rerender(<ControlTile state="pending" framed={false}>x</ControlTile>);
+    rerender(<ControlTile state="pending" framed={false} reserveStatus={false}>x</ControlTile>);
     expect(line()).toHaveTextContent('Sending…');
     expect(line().className).not.toContain('sr-only');
-    rerender(<ControlTile state="idle" readOnly>x</ControlTile>);
+    rerender(<ControlTile state="idle" readOnly reserveStatus={false}>x</ControlTile>);
     expect(line()).toHaveTextContent('You do not have permission');
     expect(line().className).toContain('min-h-5');
+  });
+  it('a switch, a slider and a setpoint keep the status line\'s room while idle, so a status never moves them; a button does not', () => {
+    const line = (c: HTMLElement) => c.querySelector('[aria-live="polite"]')!;
+    const views = [
+      <ControlSwitch key="s" framed={false} label="Pump" value={false} onCommit={vi.fn()} />,
+      <ControlSlider key="l" framed={false} ariaLabel="Level" value={10} onCommit={vi.fn()} />,
+      <ControlSetpoint key="p" framed={false} ariaLabel="Target" value={20} onCommit={vi.fn()} />,
+    ];
+    for (const view of views) {
+      const { container, unmount } = render(view);
+      expect(line(container).className).toContain('min-h-4');
+      expect(line(container).className).not.toContain('sr-only');
+      unmount();
+    }
+    const { container } = render(<ControlButton framed={false} label="Open" onCommit={vi.fn()} />);
+    expect(line(container).className).toBe('sr-only');
   });
   it('ControlButton: unframed, a tile fills its space and the other layouts keep their size', () => {
     const { rerender } = render(<ControlButton framed={false} layout="tile" label="Open" onCommit={vi.fn()} />);

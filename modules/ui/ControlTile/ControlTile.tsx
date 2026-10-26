@@ -48,6 +48,12 @@ export type ControlTileProps = {
   bodyAlign?: 'center' | 'end';
   /** Unframed only: the control slot takes the whole height the status line leaves (a tile that fills its card). */
   fill?: boolean;
+  /**
+   * Keep the status line's room while it is empty (default), so the control never moves under the pointer when a
+   * status shows. `false`: it takes room only while it has a status, so a control can centre in (or fill) its space
+   * (`ControlButton`, whose press is one click).
+   */
+  reserveStatus?: boolean;
   children: ReactNode;
   className?: string;
 };
@@ -55,17 +61,17 @@ export type ControlTileProps = {
 /**
  * ControlTile — the frame every async control shares: title, the control slot, and one
  * live status line (pending / confirmed / mismatch / failed / read-only). One place, so
- * the controls cannot drift on what "pending" or "failed" looks like. The status line takes
- * room only while it has something to say, so a control can centre in (or fill) its space;
- * its live region stays mounted (out of the flow) so the next status is still announced.
+ * the controls cannot drift on what "pending" or "failed" looks like. With `reserveStatus={false}`
+ * the status line takes room only while it has something to say, so a control can centre in (or
+ * fill) its space; its live region stays mounted (out of the flow) so the next status is still announced.
  */
 export function ControlTile({
-  title, state, error, readOnly, reportedText, onRetry, messages, framed = true, disabledReason, bodyAlign = 'center', fill = false, children, className,
+  title, state, error, readOnly, reportedText, onRetry, messages, framed = true, disabledReason, bodyAlign = 'center', fill = false, reserveStatus = true, children, className,
 }: ControlTileProps) {
   const m = { ...DEFAULT_CONTROL_MESSAGES, ...messages };
   // A host-written failure text leads; the reason the write failed follows it.
   const failText = messages?.failed ? (error ? `${messages.failed} (${error})` : messages.failed) : error || m.failed;
-  const hasStatus = state !== 'idle' || !!readOnly;
+  const hasStatus = reserveStatus || state !== 'idle' || !!readOnly;
   const fills = fill && !framed;
   return (
     <div
