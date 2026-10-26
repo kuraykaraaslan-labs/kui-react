@@ -43,19 +43,23 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
-- `NotificationMenu` one list: `sources` (`NotificationSource`: key, label, items, unread, action, viewAll, emptyLabel) join
-  the notifications newest first (`at`), with a filter All / <source> / Notifications, each source's action in the header
-  (where it applies), its page in the footer, and its unread count in the badge. Items take `at` (written relative in
+- `NotificationMenu` one list: `sources` (`NotificationSource`: key, label, items, unread, action, viewAll, emptyLabel,
+  summary) join the notifications newest first (`at`), with a filter All / <source> / Notifications, each source's action in
+  the header (where it applies; it closes the menu and puts focus back on the bell before it runs, so a confirmation it
+  opens is not left under the panel), its page in the footer, its `summary` line under its own filter, and its unread count
+  in the badge. Header actions are keyed by whose they are, so one that goes away does not hand its focus to the next. Items take `at` (written relative in
   `locale` when there is no `timestamp`), `icon`, `meta`, `href` and an inline `action`; `labels` translate the menu.
 - IoT bell: `useAlarmBellSource` / `AlarmBellSource` hand the alarms to a host's `NotificationMenu` as such a source
   (severity icon, title, device and site, opening time, inline Acknowledge for an OPEN alarm, a click that opens it; every
-  OPEN alarm counts as unread). "Acknowledge all (n)" asks first, with the alarm list's optional note (`confirmDialog`).
+  OPEN alarm counts as unread; the summary says how many are open and acknowledged). "Acknowledge all (n)" asks first, with the alarm list's optional note (`confirmDialog`).
   `AlarmBellMenuProps.onNavigate` opens the bell's links inside a host app.
 - IoT bell traffic (`alarm-bell-state.ts`, `AlarmBellSync`): each live alarm event updates the counts and the list
   without asking the host (created, acknowledged, updated with `severityChange`, cleared by `acknowledgedAt`), an event
   older than what the bell holds for that alarm (status, then occurrences) is ignored, and the host is asked only at the
-  start (with the subscription's first snapshot), after a reconnect, when the list runs short or drifts (at most once per
-  30 s), every 5 minutes, and every 60 s without a live source; a 429 waits its `Retry-After`. An adapter without
+  start (with the subscription's first snapshot, or after 3 s without one), on every later snapshot (the subscription is
+  live on the server from then on, a reconnect included), when the list runs short or drifts, when an event about an alarm
+  the last answer did not list arrives within 2 s of it (it may be counted already), after a failed answer (all at most
+  once per 30 s), every 5 minutes, and every 60 s without a live source; a 429 waits its `Retry-After` and then asks again. An adapter without
   `alarms.parseLive` re-reads after an event, at most once per 30 s. `AlarmLiveEvent.severityChange` and `Alarm.siteName`
   are new (both optional).
 - AppSidebar nested items: `AppSidebarNavItem.children` (any depth) render indented behind a disclosure toggle;

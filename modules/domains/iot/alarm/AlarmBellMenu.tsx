@@ -59,28 +59,26 @@ export function useAlarmBell(limit = 5) {
   const liveRef = useRef(live);
   useEffect(() => { syncRef.current = sync; liveRef.current = live; });
 
-  // subscribed before the first answer is asked, so that answer and the events leave no gap between them
+  // the first answer waits for the subscription's snapshot, so that answer and the events leave no gap between them
   useLiveOrPoll({
     enabled: allowed,
     key: 'tenant',
     intervalMs: ALARM_BELL_POLL_MS,
-    subscribe: api && !refused ? (source) => {
-      syncRef.current?.subscribed();
-      return source.subscribe({
-        ...iotTopics.alarms('tenant'),
-        onLive: (p) => syncRef.current?.live(p),
-        onSnapshot: () => syncRef.current?.snapshot(),
-        onError: () => setRefused(true),
-      });
-    } : undefined,
+    subscribe: api && !refused ? (source) => source.subscribe({
+      ...iotTopics.alarms('tenant'),
+      onLive: (p) => syncRef.current?.live(p),
+      onSnapshot: () => syncRef.current?.snapshot(),
+      onError: () => setRefused(true),
+    }) : undefined,
     poll: () => syncRef.current?.poll(),
   });
 
   useEffect(() => {
     if (!allowed || !sync) return;
     const source = liveRef.current;
-    // a subscription that is still connecting answers with a snapshot: the first answer goes with it
-    sync.start({ awaitSnapshot: !!source && (source.state === 'idle' || source.state === 'connecting') });
+    // a subscription answers with a snapshot once the server holds it (live already, connecting or reconnecting alike): the first
+    // answer goes with it, or after 3 s without one
+    sync.start({ awaitSnapshot: !!source && source.state !== 'closed' });
     return () => sync.stop();
   }, [allowed, sync]);
 
@@ -218,6 +216,8 @@ export type AlarmNotificationSource = {
   action?: { label: string; onClick: () => void; loading?: boolean; disabled?: boolean };
   viewAll: { label: string; href: string; onClick?: () => void };
   emptyLabel: string;
+  /** "3 open · 2 acknowledged" (loading until the first answer). */
+  summary: string;
 };
 
 export type AlarmBellSourceOptions = Omit<AlarmBellMenuProps, 'className' | 'now'>;
@@ -226,10 +226,11 @@ export type AlarmBellSourceOptions = Omit<AlarmBellMenuProps, 'className' | 'now
  * The alarms as items of a host's one notification list (D40-16), or null while the viewer may not read alarms. An item has its
  * severity's icon and colour, its title, the device and site, its opening time (the menu writes it relative), an inline
  * "Acknowledge" while it is OPEN and a click that opens the alarm; an OPEN alarm is unread, and every OPEN alarm, listed or not,
- * counts in `unread`. The source's action is "Acknowledge all (n)" behind the confirmation, its page the alarm list.
+ * counts in `unread`, and the summary under its filter says how many are open and acknowledged. The source's action is
+ * "Acknowledge all (n)" behind the confirmation, its page the alarm list.
  */
 export function useAlarmBellSource({ hrefs, limit = 5, onNavigate }: AlarmBellSourceOptions): AlarmNotificationSource | null {
-  const { allowed, canAcknowledge, latest, open, busy, acknowledge, acknowledgeAll } = useAlarmBell(limit);
+  const { allowed, canAcknowledge, counts, latest, open, busy, acknowledge, acknowledgeAll } = useAlarmBell(limit);
   const { m } = useIotText();
   // keep `hrefs.alarm` and `onNavigate` stable (memoized) in the host: a new one makes a new source
   const { alarms: alarmsHref, alarm: alarmHref } = hrefs;
@@ -240,6 +241,7 @@ export function useAlarmBellSource({ hrefs, limit = 5, onNavigate }: AlarmBellSo
       key: 'alarms',
       label: m.bell.label,
       emptyLabel: m.bell.none,
+      summary: counts ? `${fill(m.alarms.openCount, { n: counts.open })} · ${fill(m.alarms.acknowledgedCount, { n: counts.acknowledged })}` : m.common.loading,
       unread: open,
       items: latest.map((a) => ({
         id: a.alarmId,
@@ -259,7 +261,7 @@ export function useAlarmBellSource({ hrefs, limit = 5, onNavigate }: AlarmBellSo
         : undefined,
       viewAll: { label: m.bell.viewAll, href: alarmsHref, onClick: go(alarmsHref) },
     };
-  }, [allowed, canAcknowledge, latest, open, busy, acknowledge, acknowledgeAll, alarmsHref, alarmHref, onNavigate, m]);
+  }, [allowed, canAcknowledge, counts, latest, open, busy, acknowledge, acknowledgeAll, alarmsHref, alarmHref, onNavigate, m]);
 }
 
 /**

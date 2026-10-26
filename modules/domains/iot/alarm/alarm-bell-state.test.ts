@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { IotApiError, type AlarmLiveEvent, type AlarmTransition } from '../api/adapter';
 import type { Alarm, AlarmCounts } from '../types/alarm';
 import {
-  ALARM_BELL_REFRESH_MS, ALARM_BELL_REPAIR_MS, ALARM_BELL_START_WAIT_MS, AlarmBellSync, EMPTY_ALARM_BELL, alarmBellFrom, alarmCountsBehind,
+  ALARM_BELL_GRACE_MS, ALARM_BELL_REFRESH_MS, ALARM_BELL_REPAIR_MS, ALARM_BELL_START_WAIT_MS, AlarmBellSync, EMPTY_ALARM_BELL, alarmBellFrom, alarmCountsBehind,
   alarmsRunShort, applyAlarmEvent, compareMarks, type AlarmBellState,
 } from './alarm-bell-state';
 
@@ -179,16 +179,16 @@ describe('AlarmBellSync', () => {
     const f = fakeApi();
     const changes: AlarmBellState[] = [];
     const sync = new AlarmBellSync({ api: f.api, limit: 5, onChange: (s) => changes.push(s) });
-    sync.subscribed();
-    sync.start();
+    sync.start({ awaitSnapshot: true });
+    sync.snapshot(); // the subscription's first snapshot: the first answer goes with it
     await flush();
     expect(f.api.counts).toHaveBeenCalledTimes(1);
     expect(sync.state.counts?.open).toBe(2);
-    sync.snapshot(); // the subscription's first snapshot: the answer was asked after it was made
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_GRACE_MS);
     sync.live(ev(alarm('a9', 1), 'created'));
     sync.live(ev(alarm('a1', 5, { status: 'ACKNOWLEDGED', acknowledgedAt: new Date() }), 'acknowledged'));
     sync.live({ not: 'an event' });
-    await vi.advanceTimersByTimeAsync(ALARM_BELL_REFRESH_MS - 1_000);
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_REFRESH_MS - ALARM_BELL_GRACE_MS - 1_000);
     expect(f.api.counts).toHaveBeenCalledTimes(1);
     expect(sync.state.counts).toEqual(counts(2, 1, { MAJOR: 3 }));
     expect(ids(sync.state)).toEqual(['a9', 'a1', 'a2']);
@@ -199,12 +199,10 @@ describe('AlarmBellSync', () => {
     vi.useFakeTimers({ now: T0 });
     const f = fakeApi();
     const sync = new AlarmBellSync({ api: f.api, limit: 5, onChange: () => undefined });
-    sync.subscribed();
     sync.start();
     await flush();
     await vi.advanceTimersByTimeAsync(ALARM_BELL_REFRESH_MS);
     expect(f.api.counts).toHaveBeenCalledTimes(2);
-    sync.snapshot();
     sync.snapshot(); // a reconnect
     await flush();
     expect(f.api.counts).toHaveBeenCalledTimes(3);
@@ -216,11 +214,10 @@ describe('AlarmBellSync', () => {
     expect(f.api.counts).toHaveBeenCalledTimes(4);
   });
 
-  it('a subscription still connecting: the first answer goes with its first snapshot, or after 3 s without one', async () => {
+  it('a subscription being made: the first answer goes with its first snapshot, or after 3 s without one and again with it', async () => {
     vi.useFakeTimers({ now: T0 });
     const f = fakeApi();
     const sync = new AlarmBellSync({ api: f.api, limit: 5, onChange: () => undefined });
-    sync.subscribed();
     sync.start({ awaitSnapshot: true });
     sync.poll(); // the host's poll does not jump the wait
     await flush();
@@ -232,10 +229,17 @@ describe('AlarmBellSync', () => {
 
     const g = fakeApi();
     const late = new AlarmBellSync({ api: g.api, limit: 5, onChange: () => undefined });
-    late.subscribed();
     late.start({ awaitSnapshot: true });
     await vi.advanceTimersByTimeAsync(ALARM_BELL_START_WAIT_MS);
     expect(g.api.counts).toHaveBeenCalledTimes(1);
+    // the socket comes up at 10 s: an alarm created since the 3 s answer is in neither that answer nor the events
+    g.set(counts(3, 0, { MAJOR: 2, CRITICAL: 1 }), [alarm('c1', 0, { severity: 'CRITICAL' }), alarm('a1', 5), alarm('a2', 10)]);
+    await vi.advanceTimersByTimeAsync(7_000);
+    late.snapshot();
+    await flush();
+    expect(g.api.counts).toHaveBeenCalledTimes(2);
+    expect(late.state.counts?.open).toBe(3);
+    expect(ids(late.state)).toEqual(['c1', 'a1', 'a2']);
     late.stop();
   });
 
@@ -246,7 +250,6 @@ describe('AlarmBellSync', () => {
     sync.start();
     await flush();
     await vi.advanceTimersByTimeAsync(2_000);
-    sync.subscribed();
     sync.snapshot();
     await flush();
     expect(f.api.counts).toHaveBeenCalledTimes(2);
@@ -343,6 +346,78 @@ describe('AlarmBellSync', () => {
     expect(f.api.counts).toHaveBeenCalledTimes(2);
     await vi.advanceTimersByTimeAsync(1);
     expect(f.api.counts).toHaveBeenCalledTimes(3);
+    sync.stop();
+  });
+
+  it('a refused answer (429) alone is asked again once its Retry-After (at least 30 s) is over', async () => {
+    vi.useFakeTimers({ now: T0 });
+    const f = fakeApi();
+    const sync = new AlarmBellSync({ api: f.api, limit: 5, onChange: () => undefined });
+    sync.start();
+    await flush();
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_REPAIR_MS);
+    f.api.counts.mockRejectedValueOnce(new IotApiError('rate_limited', 'Too many requests', { retryAfterMs: 45_000 }));
+    sync.poll();
+    await flush();
+    await vi.advanceTimersByTimeAsync(44_000);
+    expect(f.api.counts).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(f.api.counts).toHaveBeenCalledTimes(3);
+    sync.stop();
+  });
+
+  it('a failed first answer while live is asked again (at most once per 30 s), not left to the safety net', async () => {
+    vi.useFakeTimers({ now: T0 });
+    const f = fakeApi();
+    f.api.counts.mockRejectedValueOnce(new IotApiError('unavailable', 'Bad gateway'));
+    const sync = new AlarmBellSync({ api: f.api, limit: 5, onChange: () => undefined });
+    sync.start();
+    await flush();
+    expect(sync.state.counts).toBeNull();
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_REPAIR_MS);
+    expect(f.api.counts).toHaveBeenCalledTimes(2);
+    expect(sync.state.counts?.open).toBe(2);
+    sync.stop();
+
+    // a network error that is not the adapter's error is retried too; a refused viewer is not (the safety net stays)
+    const g = fakeApi();
+    g.api.counts.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const net = new AlarmBellSync({ api: g.api, limit: 5, onChange: () => undefined });
+    net.start();
+    await flush();
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_REPAIR_MS);
+    expect(g.api.counts).toHaveBeenCalledTimes(2);
+    net.stop();
+    const h = fakeApi();
+    h.api.counts.mockRejectedValueOnce(new IotApiError('forbidden', 'No'));
+    const denied = new AlarmBellSync({ api: h.api, limit: 5, onChange: () => undefined });
+    denied.start();
+    await flush();
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_REFRESH_MS - 1_000);
+    expect(h.api.counts).toHaveBeenCalledTimes(1);
+    denied.stop();
+  });
+
+  it('an event just after an answer, about an alarm it does not list, brings one more answer (it may be counted twice)', async () => {
+    vi.useFakeTimers({ now: T0 });
+    const f = fakeApi();
+    // 7 open, the list shows 5; a6 (not listed) is acknowledged and the answer already counts it
+    const listed = ['a1', 'a2', 'a3', 'a4', 'a5'].map((id, i) => alarm(id, i + 1));
+    f.set(counts(6, 1, { MAJOR: 7 }), listed);
+    const sync = new AlarmBellSync({ api: f.api, limit: 5, onChange: () => undefined });
+    sync.start();
+    await flush();
+    sync.live(ev(alarm('a6', 30, { status: 'ACKNOWLEDGED', acknowledgedAt: new Date() }), 'acknowledged'));
+    expect(sync.state.counts).toEqual(counts(5, 2, { MAJOR: 7 })); // applied twice for now
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_REPAIR_MS);
+    expect(f.api.counts).toHaveBeenCalledTimes(2);
+    expect(sync.state.counts).toEqual(counts(6, 1, { MAJOR: 7 }));
+    // after the grace an event about an unlisted alarm is the bell's to apply
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_GRACE_MS);
+    sync.live(ev(alarm('a7', 40, { status: 'ACKNOWLEDGED', acknowledgedAt: new Date() }), 'acknowledged'));
+    expect(sync.state.counts).toEqual(counts(5, 2, { MAJOR: 7 }));
+    await vi.advanceTimersByTimeAsync(ALARM_BELL_REFRESH_MS - ALARM_BELL_GRACE_MS - 1_000);
+    expect(f.api.counts).toHaveBeenCalledTimes(2);
     sync.stop();
   });
 

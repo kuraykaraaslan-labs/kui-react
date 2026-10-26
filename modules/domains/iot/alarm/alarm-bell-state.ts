@@ -152,10 +152,17 @@ export const ALARM_BELL_POLL_MS = 60_000;
 export const ALARM_BELL_REPAIR_MS = 30_000;
 /** A subscription that is connecting answers with a snapshot; the first answer waits for it at most this long. */
 export const ALARM_BELL_START_WAIT_MS = 3_000;
+/**
+ * An answer reads the alarms before their events reach the bell (the live gateway holds an event up to 250 ms, then the hop):
+ * an event this soon after an answer, about an alarm the answer does not list, may already be in its counts.
+ */
+export const ALARM_BELL_GRACE_MS = 2_000;
 /** A burst of events that each want an answer gets one. */
 const COALESCE_MS = 1_000;
 /** Without a `Retry-After`, a refused (429) answer waits this long. */
 const RATE_LIMITED_WAIT_MS = 60_000;
+/** A failed answer is asked again (at most once per 30 s) unless the host refused the viewer or has no alarms to give. */
+const FINAL_ERRORS = new Set(['forbidden', 'not_found', 'validation', 'conflict']);
 
 export type AlarmBellSyncOptions = {
   api: Pick<IotAlarmsApi, 'counts' | 'list' | 'parseLive'>;
@@ -166,14 +173,16 @@ export type AlarmBellSyncOptions = {
 };
 
 /**
- * The bell's state and its traffic (D40-9). HTTP (the counts and the list, in parallel) only: when the bell starts (or the first
- * snapshot of a subscription that was still connecting), after the live source reconnects (a later snapshot), when the list runs
- * short while the counts say more are not resolved, after a drift, and every 5 minutes as a safety net; every 60 s without a live
- * source (the host's poll). Everything else comes from the events: `parseLive` turns a payload into an event and
- * `applyAlarmEvent` applies it. An adapter without `parseLive` keeps the old behaviour, a refresh after an event, at most once per
- * 30 s. One refresh at a time; events that arrive while one is in flight are applied at once and again on its answer, which
- * judges the alarms it lists exactly; when such an event concerns an alarm the answer does not list, one more refresh follows
- * (at most once per 30 s). A refused answer (429) holds every refresh for its `Retry-After`.
+ * The bell's state and its traffic (D40-9). HTTP (the counts and the list, in parallel) only: when the bell starts (with the first
+ * snapshot of its subscription, or after 3 s without one), on every snapshot (the subscription is live on the server from then on:
+ * the first after a start that could not wait for it, and a reconnect), when the list runs short while the counts say more are
+ * not resolved, after a drift, after a failed answer, and every 5 minutes as a safety net; every 60 s without a live source (the
+ * host's poll). Everything else comes from the events: `parseLive` turns a payload into an event and `applyAlarmEvent` applies
+ * it. An adapter without `parseLive` keeps the old behaviour, a refresh after an event, at most once per 30 s. One refresh at a
+ * time; events that arrive while one is in flight are applied at once and again on its answer, which judges the alarms it lists
+ * exactly; when such an event, or one in the {@link ALARM_BELL_GRACE_MS} after an answer, concerns an alarm the answer does not
+ * list, one more refresh follows (at most once per 30 s): the counts may hold it twice. A refused answer (429) holds every
+ * refresh for its `Retry-After`, then asks again.
  */
 export class AlarmBellSync {
   state: AlarmBellState = EMPTY_ALARM_BELL;
@@ -183,9 +192,8 @@ export class AlarmBellSync {
   private again = false;
   private buffer: AlarmLiveEvent[] = [];
   private lastSent = Number.NEGATIVE_INFINITY;
+  private answeredAt = Number.NEGATIVE_INFINITY;
   private holdUntil = 0;
-  private subscribedAt = Number.NEGATIVE_INFINITY;
-  private snapshots = 0;
   private waiting = false;
   private repairTimer: ReturnType<typeof setTimeout> | null = null;
   private safetyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -195,7 +203,7 @@ export class AlarmBellSync {
     this.now = o.now ?? Date.now;
   }
 
-  /** The bell may read alarms: the first answer now, or (`awaitSnapshot`) with the snapshot of the subscription being connected. */
+  /** The bell may read alarms: the first answer now, or (`awaitSnapshot`, a subscription is being made) with its first snapshot. */
   start(opts: { awaitSnapshot?: boolean } = {}): void {
     this.stopped = false;
     if (opts.awaitSnapshot) {
@@ -214,24 +222,18 @@ export class AlarmBellSync {
     this.repairTimer = this.safetyTimer = this.startTimer = null;
   }
 
-  /** A (new) subscription to the alarm topic was made: its first snapshot is a catch-up point unless an answer was asked since. */
-  subscribed(): void {
-    this.subscribedAt = this.now();
-    this.snapshots = 0;
-  }
-
-  /** The subscription's snapshot: the first after `subscribed` (unless already answered) and every later one (a reconnect) refresh. */
+  /**
+   * The subscription's snapshot: it is live on the server from now on, so an answer asked now leaves no gap to the events. Every
+   * snapshot refreshes: the one the start waits for, the first after a start that asked without it (the subscription may have
+   * reached the server only after that answer was read) and every later one (a reconnect).
+   */
   snapshot(): void {
     if (this.stopped) return;
-    this.snapshots += 1;
     if (this.waiting) {
       this.waiting = false;
       if (this.startTimer) clearTimeout(this.startTimer);
       this.startTimer = null;
-      void this.refresh();
-      return;
     }
-    if (this.snapshots === 1 && this.lastSent >= this.subscribedAt) return;
     void this.refresh();
   }
 
@@ -252,10 +254,12 @@ export class AlarmBellSync {
   apply(ev: AlarmLiveEvent): void {
     if (this.stopped) return;
     if (this.inFlight) this.buffer.push(ev);
+    // just after an answer, an alarm it did not list may have this event in its counts already
+    const unsure = !this.inFlight && !this.state.seen.has(ev.alarm.alarmId) && this.now() - this.answeredAt < ALARM_BELL_GRACE_MS;
     const r = applyAlarmEvent(this.state, ev, this.o.limit);
     if (!r.applied) return;
     this.commit(r.state);
-    if (r.drift || alarmsRunShort(r.state, this.o.limit) || alarmCountsBehind(r.state)) this.repair();
+    if (unsure || r.drift || alarmsRunShort(r.state, this.o.limit) || alarmCountsBehind(r.state)) this.repair();
   }
 
   /** Asks the host now (a refresh in flight is followed by one more). Resolves when the answer is applied (or failed). */
@@ -281,11 +285,13 @@ export class AlarmBellSync {
         next = r.state;
         drift = drift || r.drift;
       }
+      this.answeredAt = this.now();
       this.commit(next);
       if (unsure || drift || alarmsRunShort(next, limit) || alarmCountsBehind(next)) this.repair();
     } catch (e) {
-      // keep the last answer; a refused one waits its Retry-After
+      // keep the last answer and ask again; a refused one waits its Retry-After
       if (e instanceof IotApiError && e.code === 'rate_limited') this.holdUntil = this.now() + (e.retryAfterMs ?? RATE_LIMITED_WAIT_MS);
+      if (!(e instanceof IotApiError && FINAL_ERRORS.has(e.code))) this.repair();
     } finally {
       this.inFlight = false;
       this.buffer = [];

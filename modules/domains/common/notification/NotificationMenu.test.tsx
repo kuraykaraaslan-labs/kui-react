@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { NotificationMenu, formatNotificationTime, type NotificationItem, type NotificationSource } from './NotificationMenu';
 
@@ -91,19 +92,46 @@ describe('NotificationMenu: one list from every source (D40-16)', () => {
     expect(within(filter).getByRole('button', { name: 'All' })).toHaveAttribute('aria-pressed', 'true');
     // under All both actions apply
     expect(within(panel()).getByRole('button', { name: 'Mark all read' })).toBeInTheDocument();
+    // a source's action closes the menu first (what it opens is not left under the panel), focus back on the bell
     await user.click(within(panel()).getByRole('button', { name: 'Acknowledge all (3)' }));
     expect(source.action!.onClick).toHaveBeenCalledTimes(1);
-    expect(panel()).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByRole('button', { name: /Notifications, 4 unread/ })).toHaveFocus();
 
-    await user.click(within(filter).getByRole('button', { name: /Alarms/ }));
+    await user.click(screen.getByRole('button', { name: /Notifications, 4 unread/ }));
+    await user.click(within(panel()).getByRole('button', { name: /Alarms/ }));
     expect(within(panel()).queryByRole('button', { name: 'Mark all read' })).toBeNull();
     expect(within(panel()).getByText('No open alarms')).toBeInTheDocument();
 
-    await user.click(within(filter).getByRole('button', { name: /Notifications/ }));
+    await user.click(within(panel()).getByRole('button', { name: /^Notifications/ }));
     expect(within(panel()).queryByRole('button', { name: /Acknowledge all/ })).toBeNull();
     expect(titles()).toEqual(['Backup done', 'Invoice ready']);
     await user.click(within(panel()).getByRole('button', { name: 'Mark all read' }));
     expect(markAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('a source\'s summary shows under its own filter only', async () => {
+    const user = userEvent.setup();
+    render(<NotificationMenu items={notes} sources={[alarms({ summary: '3 open · 2 acknowledged' })]} now={NOW} />);
+    await user.click(screen.getByRole('button', { name: /Notifications, 4 unread/ }));
+    expect(within(panel()).queryByText('3 open · 2 acknowledged')).toBeNull();
+    await user.click(within(panel()).getByRole('button', { name: /Alarms/ }));
+    expect(within(panel()).getByText('3 open · 2 acknowledged')).toBeInTheDocument();
+  });
+
+  it('a header action that goes away does not hand its focus to the next one', async () => {
+    function Host() {
+      const [own, setOwn] = useState(notes);
+      return <NotificationMenu items={own} sources={[alarms()]} onMarkAllRead={() => setOwn(own.map((n) => ({ ...n, read: true })))} now={NOW} />;
+    }
+    const user = userEvent.setup();
+    render(<Host />);
+    await user.click(screen.getByRole('button', { name: /Notifications, 4 unread/ }));
+    const markAll = within(panel()).getByRole('button', { name: 'Mark all read' });
+    markAll.focus();
+    await user.keyboard('{Enter}');
+    expect(within(panel()).queryByRole('button', { name: 'Mark all read' })).toBeNull();
+    expect(within(panel()).getByRole('button', { name: 'Acknowledge all (3)' })).not.toHaveFocus();
   });
 
   it('without sources there is no filter, and an item without a time keeps its place', async () => {

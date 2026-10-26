@@ -360,6 +360,9 @@ describe('AlarmBellMenu', () => {
     const live = createFakeLive();
     const adapter = createFakeAdapter();
     wrap(<AlarmBellSection hrefs={HREFS} now={NOW} />, { adapter, live });
+    // the first answer goes with the subscription's snapshot
+    expect(adapter.alarms!.counts).not.toHaveBeenCalled();
+    act(() => live.snapshot('alarms'));
     await screen.findByRole('link', { name: 'Alarm a1' });
     expect(screen.getByText('Open (1) · Acknowledged (1)')).toBeInTheDocument();
     act(() => live.publish('alarms', { alarm: alarm('a7', { openedAt: ago(1_000), severity: 'CRITICAL' }), transition: 'created' }));
@@ -376,7 +379,7 @@ describe('AlarmBellMenu', () => {
     expect(adapter.alarms!.counts).toHaveBeenCalledTimes(1);
     expect(adapter.alarms!.list).toHaveBeenCalledTimes(1);
     // a reconnect (a later snapshot of the subscription) asks again
-    act(() => { live.snapshot('alarms'); live.snapshot('alarms'); });
+    act(() => live.snapshot('alarms'));
     await waitFor(() => expect(adapter.alarms!.counts).toHaveBeenCalledTimes(2));
   });
 });
@@ -410,6 +413,9 @@ describe('useAlarmBellSource: the alarms in the one list of a notification menu'
     // acknowledged: read, and the badge has only the notification left, without asking the host again
     await waitFor(() => expect(screen.getByRole('button', { name: 'Notifications, 1 unread' })).toBeInTheDocument());
     expect(adapter.alarms!.counts).toHaveBeenCalledTimes(1);
+    // the old section's counts line, under the Alarms filter
+    await user.click(within(panel).getByRole('button', { name: /^Alarms/ }));
+    expect(within(panel).getByText(/^Open \(\d+\) · Acknowledged \(\d+\)$/)).toBeInTheDocument();
     await user.click(within(panel).getByRole('link', { name: /Alarm a1/ }));
     expect(onNavigate).toHaveBeenCalledWith('/a/a1');
   });

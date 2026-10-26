@@ -52,8 +52,13 @@ export type NotificationSource = {
   items: NotificationItem[];
   /** What the source adds to the badge, when it is more than its unread items (every open alarm, not only the listed ones). */
   unread?: number;
-  /** The header action of the source ("Acknowledge all (3)"), shown under All and under the source's filter. */
+  /**
+   * The header action of the source ("Acknowledge all (3)"), shown under All and under the source's filter. It closes the menu
+   * (focus back on the bell) before it runs: what it opens (a confirmation) is not left under the panel.
+   */
   action?: NotificationAction;
+  /** A line about the source under its filter ("3 open · 2 acknowledged"), what its items alone do not tell. */
+  summary?: string;
   /** The source's page, in the footer ("View all alarms"): a link, or a click (the host navigates inside the app). */
   viewAll?: { label: string; href?: string; onClick?: () => void };
   /** Shown under the source's filter when it has no items ("No open alarms"). */
@@ -181,6 +186,7 @@ export function NotificationMenu({
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<string>('all');
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const ownUnread = unreadOf(items);
   const sourceUnread = (s: NotificationSource) => s.unread ?? unreadOf(s.items);
@@ -189,7 +195,7 @@ export function NotificationMenu({
   // a source that went away leaves its filter
   const shown = filter === 'all' || filter === OWN || sources.some((s) => s.key === filter) ? filter : 'all';
   const visible = shown === 'all' ? merged : merged.filter((e) => e.source === shown);
-  const emptySource = sources.find((s) => s.key === shown);
+  const shownSource = sources.find((s) => s.key === shown);
   useKeepInViewport(panelRef, open);
 
   useEffect(() => {
@@ -223,9 +229,14 @@ export function NotificationMenu({
       { id: OWN, label: labels.notifications, count: ownUnread },
     ]
     : [];
-  const actions: NotificationAction[] = [
-    ...(onMarkAllRead && ownUnread > 0 && (shown === 'all' || shown === OWN) ? [{ label: labels.markAllRead, onClick: onMarkAllRead }] : []),
-    ...sources.filter((s) => s.action && (shown === 'all' || shown === s.key)).map((s) => s.action!),
+  // keyed by whose action it is: one that goes away (Mark all read) does not hand its focus to the next
+  const actions: Array<NotificationAction & { key: string }> = [
+    ...(onMarkAllRead && ownUnread > 0 && (shown === 'all' || shown === OWN) ? [{ key: OWN, label: labels.markAllRead, onClick: onMarkAllRead }] : []),
+    ...sources.filter((s) => s.action && (shown === 'all' || shown === s.key)).map((s) => ({
+      ...s.action!,
+      key: s.key,
+      onClick: () => { triggerRef.current?.focus(); setOpen(false); s.action!.onClick(); },
+    })),
   ];
   const footer = [
     ...sources.filter((s) => s.viewAll).map((s) => ({ key: s.key, ...s.viewAll! })),
@@ -236,6 +247,7 @@ export function NotificationMenu({
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={badgeCount > 0 ? `${labels.title}, ${labels.unread.replace('{n}', String(badgeCount))}` : labels.title}
         aria-haspopup="dialog"
@@ -274,9 +286,9 @@ export function NotificationMenu({
               </div>
               {actions.length > 0 && (
                 <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
-                  {actions.map((a, i) => (
+                  {actions.map((a) => (
                     <button
-                      key={i}
+                      key={a.key}
                       type="button"
                       onClick={a.onClick}
                       disabled={a.disabled || a.loading}
@@ -315,6 +327,7 @@ export function NotificationMenu({
                 ))}
               </div>
             )}
+            {shownSource?.summary && <p className="text-xs text-text-secondary">{shownSource.summary}</p>}
           </div>
 
           {sections}
@@ -322,7 +335,7 @@ export function NotificationMenu({
           {visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 gap-2 text-text-disabled">
               <FontAwesomeIcon icon={faBell} className="w-6 h-6" aria-hidden="true" />
-              <p className="text-sm">{emptySource?.emptyLabel ?? labels.empty}</p>
+              <p className="text-sm">{shownSource?.emptyLabel ?? labels.empty}</p>
             </div>
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-border">
