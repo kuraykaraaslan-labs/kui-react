@@ -8,7 +8,9 @@ import { DeviceListView } from './device/DeviceListView';
 import { DeviceDetailView } from './device/DeviceDetailView';
 import { AlarmListView } from './alarm/AlarmListView';
 import { AlarmDetailView } from './alarm/AlarmDetailView';
-import { AlarmBellMenu, AlarmBellSection } from './alarm/AlarmBellMenu';
+import { AlarmBellMenu, AlarmBellSection, AlarmBellSource, useAlarmBellSource } from './alarm/AlarmBellMenu';
+import { NotificationMenu, type NotificationItem } from '@/modules/domains/common/notification/NotificationMenu';
+import { ConfirmHost } from '@/modules/ui/ConfirmDialog';
 import type { Alarm } from './types/alarm';
 import type { DeviceRecord } from './types/device';
 
@@ -325,7 +327,7 @@ describe('AlarmBellMenu', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('acknowledges every open alarm page by page from the panel', async () => {
+  it('acknowledges every open alarm page by page from the panel, behind the confirmation with its note', async () => {
     const user = userEvent.setup();
     const adapter = createFakeAdapter();
     const open = [alarm('a1'), alarm('a2')];
@@ -333,10 +335,14 @@ describe('AlarmBellMenu', () => {
       ? { items: open.splice(0), total: 2 }
       : { items: [alarm('a1')], total: 1 }));
     adapter.alarms!.acknowledge = vi.fn().mockImplementation(async (ids: string[]) => ids.map((alarmId) => ({ alarmId, ok: true })));
-    wrap(<AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => id }} now={NOW} />, { adapter });
+    wrap(<><ConfirmHost /><AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => id }} now={NOW} /></>, { adapter });
     await user.click(await screen.findByRole('button', { name: 'Alarms: Open (1)' }));
     await user.click(screen.getByRole('button', { name: 'Acknowledge all (1)' }));
-    await waitFor(() => expect(adapter.alarms!.acknowledge).toHaveBeenCalledWith(['a1', 'a2'], undefined));
+    const dialog = await screen.findByRole('dialog', { name: 'Acknowledge all (1)' });
+    expect(adapter.alarms!.acknowledge).not.toHaveBeenCalled();
+    await user.type(within(dialog).getByLabelText('Note (optional)'), 'Shift handover');
+    await user.click(within(dialog).getByRole('button', { name: 'Acknowledge all (1)' }));
+    await waitFor(() => expect(adapter.alarms!.acknowledge).toHaveBeenCalledWith(['a1', 'a2'], 'Shift handover'));
     expect(adapter.alarms!.acknowledge).toHaveBeenCalledTimes(1);
   });
 
@@ -348,5 +354,91 @@ describe('AlarmBellMenu', () => {
     await waitFor(() => expect(onCount).toHaveBeenLastCalledWith(1));
     unmount();
     expect(onCount).toHaveBeenLastCalledWith(0);
+  });
+
+  it('follows the live events without asking the host again', async () => {
+    const live = createFakeLive();
+    const adapter = createFakeAdapter();
+    wrap(<AlarmBellSection hrefs={HREFS} now={NOW} />, { adapter, live });
+    await screen.findByRole('link', { name: 'Alarm a1' });
+    expect(screen.getByText('Open (1) · Acknowledged (1)')).toBeInTheDocument();
+    act(() => live.publish('alarms', { alarm: alarm('a7', { openedAt: ago(1_000), severity: 'CRITICAL' }), transition: 'created' }));
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['Alarm a7', 'Alarm a1', 'Alarm a2', 'View all alarms']);
+    expect(screen.getByText('Open (2) · Acknowledged (1)')).toBeInTheDocument();
+    act(() => live.publish('alarms', { alarm: alarm('a1', { status: 'ACKNOWLEDGED', acknowledgedAt: ago(0) }), transition: 'acknowledged' }));
+    expect(screen.getByText('Open (1) · Acknowledged (2)')).toBeInTheDocument();
+    act(() => live.publish('alarms', { alarm: alarm('a2', { status: 'RESOLVED', acknowledgedAt: ago(0), resolvedAt: ago(0) }), transition: 'cleared' }));
+    expect(screen.getByText('Open (1) · Acknowledged (1)')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Alarm a2' })).toBeNull();
+    // a late copy of a1's opening changes nothing
+    act(() => live.publish('alarms', { alarm: alarm('a1'), transition: 'created' }));
+    expect(screen.getByText('Open (1) · Acknowledged (1)')).toBeInTheDocument();
+    expect(adapter.alarms!.counts).toHaveBeenCalledTimes(1);
+    expect(adapter.alarms!.list).toHaveBeenCalledTimes(1);
+    // a reconnect (a later snapshot of the subscription) asks again
+    act(() => { live.snapshot('alarms'); live.snapshot('alarms'); });
+    await waitFor(() => expect(adapter.alarms!.counts).toHaveBeenCalledTimes(2));
+  });
+});
+
+const HREFS = { alarms: '/alarms', alarm: (id: string) => `/a/${id}` };
+
+/** A host bell: its own notifications and the alarms in one list. */
+function OneList({ onNavigate, notes = [] }: { onNavigate?: (href: string) => void; notes?: NotificationItem[] }) {
+  const source = useAlarmBellSource({ hrefs: HREFS, onNavigate });
+  return <NotificationMenu items={notes} sources={source ? [source] : []} now={NOW} locale="en" />;
+}
+
+describe('useAlarmBellSource: the alarms in the one list of a notification menu', () => {
+  it('lists each alarm with its look, device and time; an open one is unread and has Acknowledge; a click opens it', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const onNavigate = vi.fn();
+    wrap(<OneList onNavigate={onNavigate} notes={[{ id: 'n1', title: 'Backup done', at: ago(30_000), read: false }]} />, { adapter });
+    // one unread notification + one OPEN alarm
+    const trigger = await screen.findByRole('button', { name: 'Notifications, 2 unread' });
+    await user.click(trigger);
+    const panel = screen.getByRole('dialog', { name: 'Notifications' });
+    expect(within(panel).getAllByRole('listitem').map((li) => li.querySelector('p')?.textContent)).toEqual(['Backup done', 'Alarm a1', 'Alarm a2']);
+    const a1 = within(panel).getByText('Alarm a1').closest('li')!;
+    expect(a1.querySelector('[data-severity="MAJOR"]')).not.toBeNull();
+    expect(within(a1).getByText('Pump 4')).toBeInTheDocument();
+    expect(within(a1).getByText('1 min. ago')).toBeInTheDocument();
+    expect(within(within(panel).getByText('Alarm a2').closest('li')!).queryByRole('button', { name: 'Acknowledge' })).toBeNull();
+    await user.click(within(a1).getByRole('button', { name: 'Acknowledge' }));
+    expect(adapter.alarms!.acknowledge).toHaveBeenCalledWith(['a1']);
+    // acknowledged: read, and the badge has only the notification left, without asking the host again
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Notifications, 1 unread' })).toBeInTheDocument());
+    expect(adapter.alarms!.counts).toHaveBeenCalledTimes(1);
+    await user.click(within(panel).getByRole('link', { name: /Alarm a1/ }));
+    expect(onNavigate).toHaveBeenCalledWith('/a/a1');
+  });
+
+  it('Acknowledge all (n) in the header goes through the confirmation; the footer opens the alarm list', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const onNavigate = vi.fn();
+    wrap(<><ConfirmHost /><OneList onNavigate={onNavigate} /></>, { adapter });
+    await user.click(await screen.findByRole('button', { name: 'Notifications, 1 unread' }));
+    const panel = screen.getByRole('dialog', { name: 'Notifications' });
+    await user.click(within(panel).getByRole('button', { name: 'Acknowledge all (1)' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Acknowledge all (1)' });
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(adapter.alarms!.acknowledge).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Notifications' })).getByRole('link', { name: 'View all alarms' }));
+    expect(onNavigate).toHaveBeenCalledWith('/alarms');
+  });
+
+  it('nothing for a viewer who may not read alarms; the headless source hands it up and takes it back', async () => {
+    const onSource = vi.fn();
+    const { unmount } = wrap(<AlarmBellSource hrefs={HREFS} onSource={onSource} />);
+    await waitFor(() => expect(onSource).toHaveBeenLastCalledWith(expect.objectContaining({ key: 'alarms', unread: 1, items: expect.any(Array) })));
+    unmount();
+    expect(onSource).toHaveBeenLastCalledWith(null);
+    const denied = vi.fn();
+    wrap(<AlarmBellSource hrefs={HREFS} onSource={denied} />, { caps: {} });
+    await act(async () => {});
+    expect(denied).not.toHaveBeenCalledWith(expect.objectContaining({ key: 'alarms' }));
   });
 });

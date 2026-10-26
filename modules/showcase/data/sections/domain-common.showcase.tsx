@@ -1363,7 +1363,7 @@ import { ChatBox } from '@/modules/domains/common/chat/ChatBox';
       title: 'NotificationMenu',
       category: 'Domain',
       abbr: 'NM',
-      description: 'Bell icon button with unread count badge. Opens a dropdown panel showing notification items grouped by read/unread state with variant color dots, timestamps, and mark-all-read / view-all actions. `sections` puts more of the same bell above the list (an alarm section, say) and `extraCount` adds its count to the badge, so a host shows one bell. The panel stays inside the visible screen on a phone.',
+      description: 'Bell icon button with unread count badge. Opens a dropdown panel with one list: the notifications and the items of every other source (`sources`, the IoT alarms say) newest first, each with its colour dot or its own icon, a line under the title, a relative time in `locale` and an optional inline action. A filter All / <source> / Notifications appears with sources; "Mark all read" and each source\'s action (Acknowledge all) show where they apply, and the footer links to each page there is. An item with `href` is a link (a modified click opens a new tab) whose plain click runs `onClick`, so the host opens it inside the app and marks it read. `sections` still puts content above the list and `extraCount` adds to the badge. The panel stays inside the visible screen on a phone.',
       filePath: 'modules/domains/common/notification/NotificationMenu.tsx',
       sourceCode: `'use client';
 import { NotificationMenu } from '@/modules/domains/common/notification/NotificationMenu';
@@ -1394,6 +1394,22 @@ const [items, setItems] = useState(initialNotifications);
           title: 'Empty state',
           preview: <NotificationMenuEmptyDemo />,
           code: `<NotificationMenu items={[]} onViewAll={() => router.push('/notifications')} />`,
+        },
+        {
+          title: 'One list with another source (alarms)',
+          preview: <NotificationMenuSourcesDemo />,
+          code: `<NotificationMenu
+  items={notifications}
+  sources={[{
+    key: 'alarms',
+    label: 'Alarms',
+    unread: openAlarms,
+    items: alarms.map((a) => ({ id: a.id, title: a.title, meta: a.device, at: a.openedAt, read: a.acknowledged, icon: <SeverityIcon level={a.severity} />, href: \`/alarms/\${a.id}\`, onClick: () => router.push(\`/alarms/\${a.id}\`), action: { label: 'Acknowledge', onClick: () => acknowledge(a) } })),
+    action: { label: \`Acknowledge all (\${openAlarms})\`, onClick: confirmAcknowledgeAll },
+    viewAll: { label: 'View all alarms', href: '/alarms' },
+  }]}
+  onMarkAllRead={markAllRead}
+/>`,
         },
       ],
     },
@@ -1890,6 +1906,44 @@ function NotificationMenuWithItemsDemo() {
         items={items}
         onMarkAllRead={() => setItems((prev) => prev.map((n) => ({ ...n, read: true })))}
         onViewAll={() => {}}
+      />
+    </div>
+  );
+}
+
+function NotificationMenuSourcesDemo() {
+  const [items, setItems] = useState(DEMO_NOTIFICATION_ITEMS.map((n, i) => ({ ...n, timestamp: undefined, at: new Date(Date.UTC(2026, 9, 26, 12) - [2, 60, 180, 1_440][i] * 60_000) })));
+  const [acked, setAcked] = useState<string[]>([]);
+  const alarmItems = [
+    { id: 'a1', title: 'Discharge pressure high', meta: 'Pump 4 · Plant A', minutes: 5 },
+    { id: 'a2', title: 'Device offline', meta: 'Gateway 2 · Plant B', minutes: 95 },
+  ].map((a) => ({
+    id: a.id,
+    title: a.title,
+    meta: a.meta,
+    at: new Date(Date.UTC(2026, 9, 26, 12) - a.minutes * 60_000),
+    read: acked.includes(a.id),
+    icon: <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-error text-[10px] font-bold text-text-inverse" aria-label="Critical">!</span>,
+    href: '#alarm',
+    action: acked.includes(a.id) ? undefined : { label: 'Acknowledge', onClick: () => setAcked((x) => [...x, a.id]) },
+  }));
+  const open = alarmItems.filter((a) => !a.read).length;
+  return (
+    <div className="flex items-start justify-center pt-4 pb-96">
+      <NotificationMenu
+        items={items}
+        sources={[{
+          key: 'alarms',
+          label: 'Alarms',
+          unread: open,
+          items: alarmItems,
+          action: open > 0 ? { label: `Acknowledge all (${open})`, onClick: () => setAcked(['a1', 'a2']) } : undefined,
+          viewAll: { label: 'View all alarms', href: '#alarms' },
+          emptyLabel: 'No open alarms',
+        }]}
+        onMarkAllRead={() => setItems((prev) => prev.map((n) => ({ ...n, read: true })))}
+        now={Date.UTC(2026, 9, 26, 12)}
+        locale="en-GB"
       />
     </div>
   );

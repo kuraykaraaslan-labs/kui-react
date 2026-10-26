@@ -7,7 +7,7 @@
 - **status:** beta
 - **since:** 2026-10
 
-The IoT bell: the count of OPEN alarms (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, Acknowledge all, and View all. In a host that already has a bell, AlarmBellSection goes inside its NotificationMenu (sections + extraCount) so there is one bell.
+The IoT bell: the count of OPEN alarms (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, Acknowledge all (behind a confirmation with an optional note), and View all. Counts and list follow the live alarm events without asking the host again (alarm-bell-state.ts); the host is asked at the start, after a reconnect, when the list runs short and every 5 minutes. In a host that already has a bell, useAlarmBellSource puts the alarms into its NotificationMenu's one list (sources): their severity look, device and site, inline Acknowledge, a click that opens the alarm, and every OPEN alarm in the badge. AlarmBellSection (a section above that list) still works.
 
 ## Variants
 
@@ -28,6 +28,13 @@ The IoT bell: the count of OPEN alarms (its dot in the colour of the worst sever
 ```tsx
 const [alarms, setAlarms] = useState(0);
 <NotificationMenu items={items} extraCount={alarms} sections={<AlarmBellSection hrefs={hrefs} onCount={setAlarms} />} />
+```
+
+### One bell, one list: the alarms are items of the notification menu
+
+```tsx
+const alarms = useAlarmBellSource({ hrefs, onNavigate: router.push });
+<NotificationMenu items={notifications} sources={alarms ? [alarms] : []} />
 ```
 
 ## Full source

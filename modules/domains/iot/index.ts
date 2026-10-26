@@ -34,7 +34,15 @@ export { AlarmTable, sortAlarmRows } from './alarm/AlarmTable';
 export type { AlarmTableProps, AlarmTableRow, AlarmTableColumnId, AlarmTableRowAction } from './alarm/AlarmTable';
 export { AlarmListView } from './alarm/AlarmListView';
 export { AlarmDetailView } from './alarm/AlarmDetailView';
-export { AlarmBellMenu, AlarmBellPanel, AlarmBellSection, useAlarmBell, type AlarmBell, type AlarmBellMenuProps } from './alarm/AlarmBellMenu';
+export {
+  AlarmBellMenu, AlarmBellPanel, AlarmBellSection, AlarmBellSource, useAlarmBell, useAlarmBellSource,
+  type AlarmBell, type AlarmBellItem, type AlarmBellMenuProps, type AlarmBellSourceOptions, type AlarmNotificationSource,
+} from './alarm/AlarmBellMenu';
+export {
+  AlarmBellSync, applyAlarmEvent, alarmBellFrom, alarmsRunShort, alarmCountsBehind, compareAlarms, compareMarks, EMPTY_ALARM_BELL,
+  ALARM_BELL_REFRESH_MS, ALARM_BELL_POLL_MS, ALARM_BELL_REPAIR_MS, ALARM_BELL_START_WAIT_MS,
+  type AlarmBellState, type AlarmBellSyncOptions, type AlarmEventResult, type AlarmMark,
+} from './alarm/alarm-bell-state';
 export { acknowledgeAllOpen } from './alarm/acknowledgeAll';
 export { ALARM_SEVERITY_META, ALARM_STATUS_META, SEVERITY_ORDER, compareSeverity, worstSeverity, isAlarmSeverity } from './alarm/alarm-severity';
 

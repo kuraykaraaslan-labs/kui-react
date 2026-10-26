@@ -37,6 +37,8 @@ export const AlarmSchema = z.object({
   message: z.string().optional(),
   deviceId: z.string().nullable(),
   deviceName: z.string().nullable(),
+  /** The site (or asset) the device sits in, when the host knows it: the bell shows it after the device. */
+  siteName: z.string().nullable().optional(),
   profileId: z.string().nullable().optional(),
   origin: AlarmOriginSchema.optional(),
   /** OD-25 / OD-34: the `metadata.topic` of the triggering message, when it was not a default topic. */

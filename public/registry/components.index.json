@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-25T18:30:34.639Z",
+  "generatedAt": "2026-10-26T12:02:25.829Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1790,11 +1790,11 @@
       "category": "Organism",
       "filePath": "modules/ui/Timeline.tsx",
       "abbr": "Tl",
-      "description": "Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server.",
+      "description": "Chronological activity feed with sticky day headings, `order` (newest or oldest first), step `status` (done, current, upcoming: a hollow marker) and undated entries (no or invalid `at`: drawn last without a time, never a RangeError). Grouping uses the viewer’s local day via `Intl`, not the raw ISO date — an event at 23:50 UTC otherwise lands under the wrong heading for anyone east or west of the server. A day heading lines up with the events’ text, keeps a gap above the first marker and is drawn in the timeline’s `surface` (`raised` inside a card), so it never reads as a band of another colour; the last event leaves no space under it.",
       "status": "stable",
       "since": "2026-08",
       "designTokens": [],
-      "variantCount": 3
+      "variantCount": 4
     },
     {
       "id": "keyed-table",
@@ -3544,11 +3544,11 @@
       "category": "Domain",
       "filePath": "modules/domains/common/notification/NotificationMenu.tsx",
       "abbr": "NM",
-      "description": "Bell icon button with unread count badge. Opens a dropdown panel showing notification items grouped by read/unread state with variant color dots, timestamps, and mark-all-read / view-all actions. `sections` puts more of the same bell above the list (an alarm section, say) and `extraCount` adds its count to the badge, so a host shows one bell. The panel stays inside the visible screen on a phone.",
+      "description": "Bell icon button with unread count badge. Opens a dropdown panel with one list: the notifications and the items of every other source (`sources`, the IoT alarms say) newest first, each with its colour dot or its own icon, a line under the title, a relative time in `locale` and an optional inline action. A filter All / <source> / Notifications appears with sources; \"Mark all read\" and each source's action (Acknowledge all) show where they apply, and the footer links to each page there is. An item with `href` is a link (a modified click opens a new tab) whose plain click runs `onClick`, so the host opens it inside the app and marks it read. `sections` still puts content above the list and `extraCount` adds to the badge. The panel stays inside the visible screen on a phone.",
       "status": "stable",
       "since": "2025-05",
       "designTokens": [],
-      "variantCount": 2
+      "variantCount": 3
     },
     {
       "id": "common-subscription-plan-card",
@@ -5704,11 +5704,11 @@
       "category": "Domain",
       "filePath": "modules/domains/iot/alarm/AlarmBellMenu.tsx",
       "abbr": "BM",
-      "description": "The IoT bell: the count of OPEN alarms (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, Acknowledge all, and View all. In a host that already has a bell, AlarmBellSection goes inside its NotificationMenu (sections + extraCount) so there is one bell.",
+      "description": "The IoT bell: the count of OPEN alarms (its dot in the colour of the worst severity), the latest open alarms with inline acknowledge, Acknowledge all (behind a confirmation with an optional note), and View all. Counts and list follow the live alarm events without asking the host again (alarm-bell-state.ts); the host is asked at the start, after a reconnect, when the list runs short and every 5 minutes. In a host that already has a bell, useAlarmBellSource puts the alarms into its NotificationMenu's one list (sources): their severity look, device and site, inline Acknowledge, a click that opens the alarm, and every OPEN alarm in the badge. AlarmBellSection (a section above that list) still works.",
       "status": "beta",
       "since": "2026-10",
       "designTokens": [],
-      "variantCount": 3
+      "variantCount": 4
     },
     {
       "id": "iot-device-online-dot",

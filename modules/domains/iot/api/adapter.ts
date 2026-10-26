@@ -174,7 +174,15 @@ export type AlarmListQuery = {
 
 export type AlarmTransition = 'created' | 'updated' | 'acknowledged' | 'cleared';
 
-export type AlarmLiveEvent = { alarm: Alarm; transition: AlarmTransition };
+/**
+ * One alarm transition as the live topic carries it: the alarm as it is now and what happened. `severityChange` comes with an
+ * `updated` that moved the severity (the bell moves the alarm between its severity counts without asking the host).
+ */
+export type AlarmLiveEvent = {
+  alarm: Alarm;
+  transition: AlarmTransition;
+  severityChange?: { from: AlarmSeverity; to: AlarmSeverity };
+};
 
 export interface IotAlarmsApi {
   list(query: AlarmListQuery, signal?: AbortSignal): Promise<Page<Alarm>>;
@@ -186,7 +194,10 @@ export interface IotAlarmsApi {
   clear(alarmIds: string[], note?: string): Promise<AlarmBulkResult[]>;
   comment(alarmId: string, text: string): Promise<void>;
   counts(scope?: { deviceId?: string }, signal?: AbortSignal): Promise<AlarmCounts>;
-  /** An `alarms` live payload as an event, or null when it is not one. */
+  /**
+   * An `alarms` live payload as an event, or null when it is not one. With it the bell (`useAlarmBell`) follows the events
+   * without asking again; without it, it re-reads after an event (at most once per 30 s).
+   */
   parseLive?(payload: unknown): AlarmLiveEvent | null;
 }
 
