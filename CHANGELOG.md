@@ -54,6 +54,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `Card` `density`: `compact` pads header, body, footer and the loading skeleton 16 px at the sides instead of 24 px, for
+  a 320-400 px side panel or an embedded view (an Autodesk Forma extension panel); `default` is unchanged. kui-ejs
+  `Card.ejs` and KUInative `Card` take the same prop.
+- `Stepper` `warning` state: a step that ran but needs attention (a check that passed with a caveat), drawn hollow
+  (`warning-subtle` fill, `warning` ring, a `warning-fg` exclamation mark) so the mark keeps 3:1 in both themes, where white
+  or near-white on the amber fill falls below it in one; its label is `warning-fg` and the line after it continues in
+  `warning`. `StepState` is exported. Same in kui-ejs `Stepper.ejs` and KUInative `Stepper`.
 - `NotificationMenu` one list: `sources` (`NotificationSource`: key, label, items, unread, action, viewAll, emptyLabel,
   summary) join the notifications newest first (`at`), with a filter All / <source> / Notifications, each source's action in
   the header (where it applies; it closes the menu and puts focus back on the bell before it runs, so a confirmation it

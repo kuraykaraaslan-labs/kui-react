@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-26T21:44:17.744Z",
+  "generatedAt": "2026-10-26T21:47:25.280Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2055,8 +2055,8 @@
       "category": "Organism",
       "filePath": "modules/ui/Card.tsx",
       "abbr": "Ca",
-      "description": "Content container with raised / flat / outline variants. Supports title, subtitle, headerRight, footer slots and loading skeleton state.",
-      "source": "import { cn } from '@/libs/utils/cn';\n\nexport function Card({ title, subtitle, headerRight, footer, children, variant = 'raised', className }) {\n  return (\n    <div className={cn('rounded-xl border border-border overflow-hidden', variant === 'raised' && 'bg-surface-raised shadow-sm', variant === 'flat' && 'bg-surface-base', variant === 'outline' && 'bg-transparent', className)}>\n      {(title || headerRight) && (\n        <div className=\"flex items-start justify-between gap-3 px-6 py-4 border-b border-border\">\n          <div>\n            {title && <h3 className=\"text-sm font-semibold text-text-primary\">{title}</h3>}\n            {subtitle && <p className=\"text-xs text-text-secondary mt-0.5\">{subtitle}</p>}\n          </div>\n          {headerRight && <div className=\"shrink-0\">{headerRight}</div>}\n        </div>\n      )}\n      {children && <div className=\"px-6 py-4\">{children}</div>}\n      {footer && <div className=\"px-6 py-3 border-t border-border bg-surface-base\">{footer}</div>}\n    </div>\n  );\n}",
+      "description": "Content container with raised / flat / outline variants and default / compact density (compact: 16 px sides, for narrow side panels and embedded views). Supports title, subtitle, headerRight, footer slots and loading skeleton state.",
+      "source": "import { cn } from '@/libs/utils/cn';\n\nconst densityClasses = {\n  default: { header: 'px-6 py-4', body: 'px-6 py-4', footer: 'px-6 py-3' },\n  compact: { header: 'px-4 py-3', body: 'px-4 py-3', footer: 'px-4 py-2.5' },\n};\n\nexport function Card({ title, subtitle, headerRight, footer, children, variant = 'raised', density = 'default', className }) {\n  const pad = densityClasses[density];\n  return (\n    <div className={cn('rounded-xl border border-border overflow-hidden', variant === 'raised' && 'bg-surface-raised shadow-sm', variant === 'flat' && 'bg-surface-base', variant === 'outline' && 'bg-transparent', className)}>\n      {(title || headerRight) && (\n        <div className={cn('flex items-start justify-between gap-3 border-b border-border', pad.header)}>\n          <div>\n            {title && <h3 className=\"text-sm font-semibold text-text-primary\">{title}</h3>}\n            {subtitle && <p className=\"text-xs text-text-secondary mt-0.5\">{subtitle}</p>}\n          </div>\n          {headerRight && <div className=\"shrink-0\">{headerRight}</div>}\n        </div>\n      )}\n      {children && <div className={pad.body}>{children}</div>}\n      {footer && <div className={cn('border-t border-border bg-surface-base', pad.footer)}>{footer}</div>}\n    </div>\n  );\n}",
       "variants": [
         {
           "title": "Raised",
@@ -2081,6 +2081,10 @@
         {
           "title": "Loading skeleton",
           "code": "<Card loading />"
+        },
+        {
+          "title": "Compact (narrow panel)",
+          "code": "<Card density=\"compact\" title=\"Incident\" subtitle=\"Where, what, how bad\" footer={<Button size=\"sm\">Plan the response</Button>}>\n  <p>16 px sides, for a narrow side panel.</p>\n</Card>"
         }
       ],
       "status": "stable",
@@ -2489,8 +2493,8 @@
       "category": "Organism",
       "filePath": "modules/ui/Stepper.tsx",
       "abbr": "St",
-      "description": "Multi-step progress indicator with complete, active, error, and pending states. Supports horizontal and vertical orientations.",
-      "source": "import { cn } from '@/libs/utils/cn';\n\nexport function Stepper({ steps, orientation = 'horizontal' }) {\n  // renders step circles with connectors, supports complete/active/error/pending states\n}",
+      "description": "Multi-step progress indicator with complete, active, warning, error, and pending states. Supports horizontal and vertical orientations.",
+      "source": "import { cn } from '@/libs/utils/cn';\n\nexport function Stepper({ steps, orientation = 'horizontal' }) {\n  // renders step circles with connectors, supports complete/active/warning/error/pending states\n}",
       "variants": [
         {
           "title": "Horizontal",
@@ -2499,6 +2503,10 @@
         {
           "title": "Vertical",
           "code": "<Stepper orientation=\"vertical\" steps={[\n  { label: 'Create account', state: 'complete' },\n  { label: 'Verify email', state: 'error' },\n  { label: 'Set up profile', state: 'pending' },\n]} />"
+        },
+        {
+          "title": "Steps that ran with a warning",
+          "code": "<Stepper orientation=\"vertical\" steps={[\n  { label: 'Path analysis', state: 'complete' },\n  { label: 'Shelter allocation', description: '69 % housed on site', state: 'warning' },\n]} />"
         }
       ],
       "status": "stable",

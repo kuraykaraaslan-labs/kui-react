@@ -1,9 +1,11 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faExclamation, faXmark } from '@fortawesome/free-solid-svg-icons';
 
-type StepState = 'complete' | 'active' | 'error' | 'pending';
+// `warning`: the step ran but needs attention (a check that passed with a caveat). Hollow, so the mark reads in both
+// themes: a white or near-white glyph on the amber fill falls below 3:1 in one of them.
+export type StepState = 'complete' | 'active' | 'warning' | 'error' | 'pending';
 
 export type StepItem = {
   label: string;
@@ -22,6 +24,11 @@ const stateStyles: Record<StepState, { circle: string; text: string; line: strin
     text:   'text-text-primary font-semibold',
     line:   'bg-border',
   },
+  warning: {
+    circle: 'bg-warning-subtle text-warning-fg border-warning',
+    text:   'text-warning-fg',
+    line:   'bg-warning',
+  },
   error: {
     circle: 'bg-error text-text-inverse border-error',
     text:   'text-error-fg',
@@ -36,6 +43,7 @@ const stateStyles: Record<StepState, { circle: string; text: string; line: strin
 
 function StepIcon({ state, index }: { state: StepState; index: number }) {
   if (state === 'complete') return <FontAwesomeIcon icon={faCheck} className="w-3.5 h-3.5" aria-hidden="true" />;
+  if (state === 'warning')  return <FontAwesomeIcon icon={faExclamation} className="w-3.5 h-3.5" aria-hidden="true" />;
   if (state === 'error')    return <FontAwesomeIcon icon={faXmark} className="w-3.5 h-3.5" aria-hidden="true" />;
   return <span>{index + 1}</span>;
 }

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-26T21:44:17.744Z",
+  "generatedAt": "2026-10-26T21:47:25.280Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -1245,7 +1245,7 @@
       "category": "Organism",
       "filePath": "modules/ui/Card.tsx",
       "abbr": "Ca",
-      "description": "Content container with raised / flat / outline variants. Supports title, subtitle, headerRight, footer slots and loading skeleton state.",
+      "description": "Content container with raised / flat / outline variants and default / compact density (compact: 16 px sides, for narrow side panels and embedded views). Supports title, subtitle, headerRight, footer slots and loading skeleton state.",
       "status": "stable",
       "since": "2025-02",
       "designTokens": [
@@ -1257,7 +1257,7 @@
         "--text-primary",
         "--text-secondary"
       ],
-      "variantCount": 6
+      "variantCount": 7
     },
     {
       "id": "page-header",
@@ -1467,11 +1467,11 @@
       "category": "Organism",
       "filePath": "modules/ui/Stepper.tsx",
       "abbr": "St",
-      "description": "Multi-step progress indicator with complete, active, error, and pending states. Supports horizontal and vertical orientations.",
+      "description": "Multi-step progress indicator with complete, active, warning, error, and pending states. Supports horizontal and vertical orientations.",
       "status": "stable",
       "since": "2025-02",
       "designTokens": [],
-      "variantCount": 2
+      "variantCount": 3
     },
     {
       "id": "tree-view",

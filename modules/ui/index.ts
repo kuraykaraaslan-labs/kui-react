@@ -111,7 +111,7 @@ export { ServerDataTable } from './ServerDataTable';
 export { SkeletonLine, SkeletonAvatar, SkeletonText, SkeletonCard, SkeletonTableRow } from './Skeleton';
 export { Slider } from './Slider';
 export { Stepper } from './Stepper';
-export type { StepItem } from './Stepper';
+export type { StepItem, StepState } from './Stepper';
 export { TabButton } from './TabButton';
 export { TabGroup } from './TabGroup';
 export type { Tab, TabErrorContext } from './TabGroup';

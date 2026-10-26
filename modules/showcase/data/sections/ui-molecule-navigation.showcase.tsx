@@ -451,9 +451,9 @@ export function Breadcrumb({ items, className, renderLink, ariaLabel = 'Breadcru
       title: 'Stepper',
       category: 'Organism',
       abbr: 'St',
-      description: 'Multi-step progress indicator with complete, active, error, and pending states. Supports horizontal and vertical orientations.',
+      description: 'Multi-step progress indicator with complete, active, warning, error, and pending states. Supports horizontal and vertical orientations.',
       filePath: 'modules/ui/Stepper.tsx',
-      sourceCode: `import { cn } from '@/libs/utils/cn';\n\nexport function Stepper({ steps, orientation = 'horizontal' }) {\n  // renders step circles with connectors, supports complete/active/error/pending states\n}`,
+      sourceCode: `import { cn } from '@/libs/utils/cn';\n\nexport function Stepper({ steps, orientation = 'horizontal' }) {\n  // renders step circles with connectors, supports complete/active/warning/error/pending states\n}`,
       variants: [
         {
           title: 'Horizontal',
@@ -481,6 +481,19 @@ export function Breadcrumb({ items, className, renderLink, ariaLabel = 'Breadcru
             ]} />
           ),
           code: `<Stepper orientation="vertical" steps={[\n  { label: 'Create account', state: 'complete' },\n  { label: 'Verify email', state: 'error' },\n  { label: 'Set up profile', state: 'pending' },\n]} />`,
+        },
+        {
+          title: 'Steps that ran with a warning',
+          layout: 'stack' as const,
+          preview: (
+            <Stepper orientation="vertical" steps={[
+              { label: 'Hazard against the ground', description: '18 ha under water at 103.6 m', state: 'complete' },
+              { label: 'Buildings reached', description: '10 of 22 buildings, 4,898 people to relocate', state: 'complete' },
+              { label: 'Path analysis', description: 'First responders on site in 0.8 min', state: 'complete' },
+              { label: 'Shelter allocation', description: '69 % housed on site; the rest to shelters off the site', state: 'warning' },
+            ]} />
+          ),
+          code: `<Stepper orientation="vertical" steps={[\n  { label: 'Path analysis', state: 'complete' },\n  { label: 'Shelter allocation', description: '69 % housed on site', state: 'warning' },\n]} />`,
         },
       ],
     },
