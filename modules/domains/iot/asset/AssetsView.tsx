@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEllipsis, faMapLocationDot, faPlus, faSitemap } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -14,7 +14,7 @@ import { useIotAdapter, useIotCapabilities, useIotText } from '../api/IotAdapter
 import { LIST_PAGE_SIZES, sameSort, toIotSort, toTableSort } from '../api/list-table';
 import { ALARM_SEVERITY_META } from '../alarm/alarm-severity';
 import { fill } from '../format';
-import { SUGGESTED_ASSET_KINDS, type AssetRow, type AssetSummary } from '../types/asset';
+import { assetKindChoices, type AssetRow, type AssetSummary } from '../types/asset';
 import { AssetDrawer } from './AssetDrawer';
 import { AssetFormDrawer } from './AssetFormDrawer';
 import { AssetKindBadge } from './AssetKindBadge';
@@ -29,15 +29,23 @@ import { assetKindLabel } from './asset-kind';
  * opens `AssetsMapDrawer`, "⋯" the host's `moreActions`, "New site" the form for a top-level node.
  *
  * The open asset (`query.asset`) and the open map (`query.map`) belong to the host's URL like the filters: `onQueryChange` says
- * `push` when a drawer opens (Back closes it) and `replace` for everything else; the view follows `initialQuery.asset` / `.map` when
- * they change (Back, Forward, a pasted link). After a write in a drawer the table and the KPI row are read again.
+ * `push` when a drawer opens (Back closes it) and `replace` for everything else. The view follows `initialQuery` when the host's URL
+ * changes for another reason than its own report (Back, Forward, a pasted link, a link to the same page): the drawers, and the
+ * filters, sort, search and page too. After a write in a drawer the table and the KPI row are read again.
  *
- * Without alarm counts from the host (`alarms` false) the alarm KPI, column, filter and sort are left out.
+ * Without alarm counts from the host (`alarms` false) the alarm KPI, column, filter and sort are left out. On a phone the header's
+ * and the drawers' controls are at least 40 px tall.
  */
 export type AssetsViewProps = {
   initialQuery?: Partial<AssetListQuery>;
   onQueryChange?: (query: AssetListQuery, how?: 'push' | 'replace') => void;
-  hrefs?: { asset?: (assetId: string) => string; device?: (deviceId: string) => string; alarms?: (siteId: string) => string };
+  hrefs?: {
+    asset?: (assetId: string) => string;
+    device?: (deviceId: string) => string;
+    alarms?: (siteId: string) => string;
+    /** An asset's board ("Open dashboard" in its drawer, for an asset that has one). */
+    dashboard?: (dashboardId: string) => string;
+  };
   /** The header's "⋯" menu (e.g. links to related lists). */
   moreActions?: readonly DropdownItem[];
   pageSize?: number;
@@ -50,23 +58,30 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
   const caps = useIotCapabilities();
   const { m } = useIotText();
 
-  const [query, setQuery] = useState<AssetListQuery>(() => {
-    // the drawers are the view's own state below, not the table's query
-    const rest: Partial<AssetListQuery> = { ...initialQuery };
-    delete rest.asset;
-    delete rest.map;
-    return { ...rest, page: rest.page ?? 1, pageSize: rest.pageSize ?? pageSize };
-  });
+  const [query, setQuery] = useState<AssetListQuery>(() => tableQueryOf(initialQuery, pageSize));
   // the drawers: which asset is open and whether the map is, followed from the URL too
   const urlAsset = initialQuery?.asset ?? null;
   const urlMap = !!initialQuery?.map;
+  const urlTable = tableKey(initialQuery, pageSize);
   const [openId, setOpenId] = useState<string | null>(urlAsset);
   const [mapOpen, setMapOpen] = useState(urlMap);
-  const [urlSeen, setUrlSeen] = useState({ asset: urlAsset, map: urlMap });
-  if (urlAsset !== urlSeen.asset || urlMap !== urlSeen.map) {
-    setUrlSeen({ asset: urlAsset, map: urlMap });
+  const [urlSeen, setUrlSeen] = useState({ asset: urlAsset, map: urlMap, table: urlTable });
+  // the table queries this view reported that the host's URL has not caught up with yet (its own, never followed back)
+  const [reported, setReported] = useState<string[]>([urlTable]);
+  if (urlAsset !== urlSeen.asset || urlMap !== urlSeen.map || urlTable !== urlSeen.table) {
+    setUrlSeen({ asset: urlAsset, map: urlMap, table: urlTable });
     setOpenId(urlAsset);
     setMapOpen(urlMap);
+    if (urlTable !== urlSeen.table) {
+      const own = reported.indexOf(urlTable);
+      if (own >= 0) {
+        setReported(reported.slice(own));
+      } else {
+        // the host navigated (Back, a link to this page): its filters, sort, search and page, not the ones the view last had
+        setReported([urlTable]);
+        if (urlTable !== tableKey(query, pageSize)) setQuery(tableQueryOf(initialQuery, pageSize));
+      }
+    }
   }
   const [items, setItems] = useState<AssetRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -77,7 +92,8 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const queryRef = useRef(query);
-  useEffect(() => { queryRef.current = query; }, [query]);
+  // before the table's own effects: a query the URL reset must be the one the table's report is compared with
+  useLayoutEffect(() => { queryRef.current = query; }, [query]);
   const drawers = useRef({ asset: openId, map: mapOpen });
   useEffect(() => { drawers.current = { asset: openId, map: mapOpen }; }, [openId, mapOpen]);
 
@@ -112,6 +128,8 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
   const reread = useCallback(() => { void load(queryRef.current); void loadSummary(); }, [load, loadSummary]);
 
   function report(q: AssetListQuery, d: { asset: string | null; map: boolean }, how: 'push' | 'replace') {
+    const key = tableKey(q, pageSize);
+    setReported((r) => (r[r.length - 1] === key ? r : [...r, key].slice(-20)));
     onQueryChange?.({ ...q, ...(d.asset ? { asset: d.asset } : {}), ...(d.map ? { map: true } : {}) }, how);
   }
   function change(patch: Partial<AssetListQuery>) {
@@ -149,9 +167,10 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
 
   const filterFields = useMemo((): DataTableFilterField<AssetRow>[] => [
     { id: 'site', label: m.assets.filterSite, type: 'select', options: (summary?.siteList ?? []).map((s) => ({ value: s.assetId, label: s.name })) },
-    { id: 'kind', label: m.assets.filterKind, type: 'select', options: SUGGESTED_ASSET_KINDS.map((k) => ({ value: k, label: assetKindLabel(k, m) })) },
+    // the suggested kinds, then the tenant's own (kind is free text, NB A-4) and the one in the URL
+    { id: 'kind', label: m.assets.filterKind, type: 'select', options: assetKindChoices(summary?.kinds, query.kind).map((k) => ({ value: k, label: assetKindLabel(k, m) })) },
     ...(alarms ? [{ id: 'alarmed', label: m.assets.filterAlarmed, type: 'checkbox' as const }] : []),
-  ], [summary, alarms, m]);
+  ], [summary, alarms, m, query.kind]);
   const filterValues = useMemo((): DataTableFilterValues => ({
     ...(query.site ? { site: query.site } : {}),
     ...(query.kind ? { kind: query.kind } : {}),
@@ -200,7 +219,7 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-3">
         <PageHeader className="min-w-0 pb-0" title={m.assets.title} subtitle={m.assets.subtitle} />
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="outline" onClick={() => showMap(true, 'push')} iconLeft={<FontAwesomeIcon icon={faMapLocationDot} className="h-3.5 w-3.5" aria-hidden="true" />}>
+          <Button variant="outline" className={TOUCH} onClick={() => showMap(true, 'push')} iconLeft={<FontAwesomeIcon icon={faMapLocationDot} className="h-3.5 w-3.5" aria-hidden="true" />}>
             {m.assets.map}
           </Button>
           {moreActions.length > 0 && (
@@ -208,14 +227,14 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
               align="right"
               items={[...moreActions]}
               trigger={(
-                <Button variant="ghost" iconOnly aria-label={m.assets.moreActions} title={m.assets.moreActions}>
+                <Button variant="ghost" iconOnly className={TOUCH} aria-label={m.assets.moreActions} title={m.assets.moreActions}>
                   <FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" aria-hidden="true" />
                 </Button>
               )}
             />
           )}
           {canCreate && (
-            <Button onClick={() => setCreating(true)} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
+            <Button className={TOUCH} onClick={() => setCreating(true)} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
               {m.assets.newSite}
             </Button>
           )}
@@ -223,6 +242,11 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
       </div>
 
       <Kpis summary={summary} />
+      {summary?.alarmsTruncated && (
+        <p role="status" className="rounded-lg border border-warning bg-warning-subtle px-3 py-2 text-xs text-text-primary" data-testid="assets-alarms-partial">
+          {m.assets.alarmsPartial}
+        </p>
+      )}
 
       {empty ? (
         <EmptyState
@@ -291,6 +315,25 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
   );
 }
 
+/** On a phone a control is at least 40 px each way (a touch target); from `sm` the control's own size. */
+const TOUCH = 'max-sm:min-h-10 max-sm:min-w-10';
+
+/** The table's part of a host query (the drawers are the view's own state), with the defaults filled in. Pure. */
+function tableQueryOf(q: Partial<AssetListQuery> | undefined, pageSize: number): AssetListQuery {
+  const rest: Partial<AssetListQuery> = { ...q };
+  delete rest.asset;
+  delete rest.map;
+  return { ...rest, page: rest.page ?? 1, pageSize: rest.pageSize ?? pageSize };
+}
+
+/** The table's part of a query as one comparable string (page, rows per page, sort, search, kind, site, alarmed). Pure. */
+function tableKey(q: Partial<AssetListQuery> | undefined, pageSize: number): string {
+  return JSON.stringify([
+    q?.page ?? 1, q?.pageSize ?? pageSize, q?.sort ? `${q.sort.key}:${q.sort.dir}` : '', q?.search || '', q?.kind ?? '', q?.site ?? '',
+    !!q?.alarmed, q?.parentId ?? '',
+  ]);
+}
+
 /** The alarm column: "n active" in the worst severity's tone, or "No issues". */
 function AlarmCell({ row }: { row: AssetRow }) {
   const { m } = useIotText();
@@ -307,7 +350,7 @@ function AlarmCell({ row }: { row: AssetRow }) {
   );
 }
 
-/** The KPI row: sites (with a location), assets, devices (placed), active alarms (at how many sites) when the host shows them. */
+/** The KPI row: sites (with a location), assets, devices (placed), and the tenant's active alarms (critical, unacknowledged) when the host shows them. */
 function Kpis({ summary }: { summary: AssetSummary | null }) {
   const { m, locale } = useIotText();
   const cards: Array<{ id: string; label: string; value: number | null; hint: string; tone?: 'error' }> = [
@@ -315,7 +358,8 @@ function Kpis({ summary }: { summary: AssetSummary | null }) {
     { id: 'assets', label: m.assets.kpiAssets, value: summary?.assets ?? null, hint: m.assets.kpiAssetsHint },
     { id: 'devices', label: m.assets.kpiDevices, value: summary?.devices ?? null, hint: fill(m.assets.kpiDevicesHint, { n: summary?.placedDevices ?? 0 }) },
     ...(summary === null || summary.alarms ? [{
-      id: 'alarms', label: m.assets.kpiAlarms, value: summary?.activeAlarms ?? null, hint: fill(m.assets.kpiAlarmsHint, { n: summary?.sitesWithAlarms ?? 0 }),
+      id: 'alarms', label: m.assets.kpiAlarms, value: summary?.activeAlarms ?? null,
+      hint: fill(m.assets.kpiAlarmsHint, { critical: summary?.criticalAlarms ?? 0, unacknowledged: summary?.unacknowledgedAlarms ?? 0 }),
       tone: (summary?.activeAlarms ?? 0) > 0 ? 'error' as const : undefined,
     }] : []),
   ];

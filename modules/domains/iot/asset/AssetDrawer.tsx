@@ -1,16 +1,18 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowsUpDownLeftRight, faEllipsis, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faArrowsUpDownLeftRight, faChartLine, faEllipsis, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableQuery } from '@/modules/ui/Table/types';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Drawer } from '@/modules/ui/Drawer';
 import { DropdownMenu } from '@/modules/ui/DropdownMenu';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { Toggle } from '@/modules/ui/Toggle';
 import { errorMessage } from '../api/adapter';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill, formatDateTime } from '../format';
 import type { AssetNode, AssetRecord, AssetRelation, AssetRow, PlacedDevice } from '../types/asset';
@@ -25,10 +27,12 @@ import { PlacedDeviceTable } from './PlacedDeviceTable';
 /**
  * AssetDrawer — one site or asset in a right-side drawer over the Sites & assets table (owner 2026-10-27, option B; it replaces the
  * tabbed detail pane of phase 08 §8.2): everything that pane had, as sections one under the other, no tabs. The header holds the name
- * and the actions (add a child, edit, "Move to…", delete: refused by the host while children remain or another module points at it,
- * and the refusal's reason is shown); on a phone the action labels fold to their icons. The body: the path (each step opens that asset
- * here), the code and counts, Overview (description, kind, time zone (inherited when empty), location, counts, created), Attributes,
- * Devices (placed here or below, "Place devices", remove a placement), Child assets (each opens here) and Relations.
+ * and the actions as the approved mockup has them: add a child, edit, "Move to…", "Open dashboard" (an asset with a board, when the
+ * host gives `hrefs.dashboard`) and "⋯" with delete (refused by the host while children remain or another module points at it, and
+ * the refusal's reason is shown); on a phone the action labels fold to their icons, each a 40 px touch target. The body: the path
+ * (each step opens that asset here), the code and counts, Overview (description, kind, time zone (inherited when empty), location,
+ * counts, created), Attributes, Devices (placed here or below, "Place devices", remove a placement), Child assets (paged, each opens
+ * here) and Relations.
  *
  * `onChanged` asks the host to read its table again after a write; `onDeleted` hands it the deleted asset's parent.
  */
@@ -36,7 +40,7 @@ export type AssetDrawerProps = {
   assetId: string;
   open?: boolean;
   onClose: () => void;
-  hrefs?: { asset?: (assetId: string) => string; device?: (deviceId: string) => string };
+  hrefs?: { asset?: (assetId: string) => string; device?: (deviceId: string) => string; dashboard?: (dashboardId: string) => string };
   onChanged?: () => void;
   onDeleted?: (parentId: string | null) => void;
   /** Open another asset in the drawer (a path step, a child). Without it the `hrefs.asset` links are used. */
@@ -106,25 +110,40 @@ export function AssetDrawer({
   const name = a?.name ?? '';
   const open_ = (id: string) => (onOpenAsset ? onOpenAsset(id) : undefined);
   const actionLabel = 'hidden sm:inline';
+  const dashboardHref = a?.defaultDashboardId && hrefs.dashboard ? hrefs.dashboard(a.defaultDashboardId) : null;
+  const manage = !!a && caps.canManageAssets;
 
   const header = (
     <div className="flex min-w-0 items-center gap-2" data-testid="asset-drawer-header">
       <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-text-primary" title={name}>{name}</h2>
       {a && <AssetKindBadge kind={a.kind} className="hidden shrink-0 sm:inline-flex" />}
-      {a && caps.canManageAssets && (
+      {a && (manage || dashboardHref) && (
         <div className="flex shrink-0 items-center gap-1" role="group" aria-label={m.asset.actions}>
-          <Button variant="outline" size="sm" onClick={() => setAddingChild(true)} aria-label={m.asset.addChild} title={m.asset.addChild}
-            iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
-            <span className={actionLabel}>{m.asset.addChild}</span>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)} aria-label={m.asset.edit} title={m.asset.edit}
-            iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>
-            <span className={actionLabel}>{m.asset.edit}</span>
-          </Button>
-          <DropdownMenu
+          {manage && (
+            <>
+              <Button variant="outline" size="sm" className={TOUCH} onClick={() => setAddingChild(true)} aria-label={m.asset.addChild} title={m.asset.addChild}
+                iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
+                <span className={actionLabel}>{m.asset.addChild}</span>
+              </Button>
+              <Button variant="ghost" size="sm" className={TOUCH} onClick={() => setEditing(true)} aria-label={m.asset.edit} title={m.asset.edit}
+                iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>
+                <span className={actionLabel}>{m.asset.edit}</span>
+              </Button>
+              <Button variant="ghost" size="sm" className={TOUCH} onClick={() => void startMove()} aria-label={m.asset.move} title={m.asset.move}
+                iconLeft={<FontAwesomeIcon icon={faArrowsUpDownLeftRight} className="h-3 w-3" aria-hidden="true" />}>
+                <span className={actionLabel}>{m.asset.move}</span>
+              </Button>
+            </>
+          )}
+          {dashboardHref && (
+            <Button as="a" href={dashboardHref} variant="ghost" size="sm" className={TOUCH} aria-label={m.asset.openDashboard} title={m.asset.openDashboard}
+              iconLeft={<FontAwesomeIcon icon={faChartLine} className="h-3 w-3" aria-hidden="true" />}>
+              <span className={actionLabel}>{m.asset.openDashboard}</span>
+            </Button>
+          )}
+          {manage && <DropdownMenu
             align="right"
             items={[
-              { id: 'move', label: m.asset.move, icon: <FontAwesomeIcon icon={faArrowsUpDownLeftRight} aria-hidden="true" />, onClick: () => void startMove() },
               {
                 id: 'delete', label: m.asset.delete, danger: true, icon: <FontAwesomeIcon icon={faTrash} aria-hidden="true" />,
                 onClick: () => {
@@ -134,11 +153,11 @@ export function AssetDrawer({
               },
             ]}
             trigger={(
-              <Button variant="ghost" size="sm" iconOnly aria-label={m.assets.moreActions} title={m.assets.moreActions}>
+              <Button variant="ghost" size="sm" iconOnly className={TOUCH} aria-label={m.assets.moreActions} title={m.assets.moreActions}>
                 <FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" aria-hidden="true" />
               </Button>
             )}
-          />
+          />}
         </div>
       )}
     </div>
@@ -172,7 +191,7 @@ export function AssetDrawer({
             <DevicesSection key={`${a.assetId}:${version}`} asset={a} hrefs={hrefs} pageSize={pageSize} now={now} onChanged={changed} />
           </Section>
           <Section title={fill(m.asset.childrenSection, { n: a.childCount })}>
-            <ChildrenSection key={`${a.assetId}:${version}`} asset={a} hrefs={hrefs} onOpenAsset={onOpenAsset} />
+            <ChildrenSection key={`${a.assetId}:${version}`} asset={a} hrefs={hrefs} pageSize={pageSize} onOpenAsset={onOpenAsset} />
           </Section>
           {api.relations && (
             <Section title={m.asset.relations}>
@@ -187,6 +206,9 @@ export function AssetDrawer({
     </Drawer>
   );
 }
+
+/** On a phone a control is at least 40 px each way (a touch target); from `sm` the control's own size. */
+const TOUCH = 'max-sm:min-h-10 max-sm:min-w-10';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -205,7 +227,7 @@ function PathButtons({ path, onOpen, label }: { path: AssetRecord['ancestors']; 
       {path.map((p, i) => (
         <span key={p.assetId} className="inline-flex min-w-0 items-center gap-1">
           {i > 0 && <span aria-hidden="true">›</span>}
-          <button type="button" onClick={() => onOpen(p.assetId)} className="truncate rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
+          <button type="button" onClick={() => onOpen(p.assetId)} className={cn('truncate rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus', TOUCH)}>
             {p.name}
           </button>
         </span>
@@ -334,19 +356,23 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
   );
 }
 
-const CHILD_PAGE = 50;
-
-/** The direct children, read through the table's list (`parentId`), with their own counts; each opens in the drawer. */
-function ChildrenSection({ asset, hrefs, onOpenAsset }: { asset: AssetRecord; hrefs: AssetDrawerProps['hrefs'] & object; onOpenAsset?: (id: string) => void }) {
+/** The direct children, read through the table's list (`parentId`) a page at a time, with their own counts; each opens in the drawer. */
+function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }: {
+  asset: AssetRecord; hrefs: AssetDrawerProps['hrefs'] & object; pageSize: number; onOpenAsset?: (id: string) => void;
+}) {
   const api = useIotAdapter().assets!;
   const { m } = useIotText();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(firstPageSize);
   const [rows, setRows] = useState<AssetRow[] | null>(null);
   const [total, setTotal] = useState(0);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback((signal?: AbortSignal) => api.list({ page: 1, pageSize: CHILD_PAGE, parentId: asset.assetId, sort: { key: 'name', dir: 'asc' } }, signal).then(
-    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); } },
-    (e) => { if (!signal?.aborted) setError(errorMessage(e, m.asset.loadError)); },
-  ), [api, asset.assetId, m.asset.loadError]);
+  const key = `${page}:${pageSize}`;
+  const load = useCallback((signal?: AbortSignal) => api.list({ page, pageSize, parentId: asset.assetId, sort: { key: 'name', dir: 'asc' } }, signal).then(
+    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(`${page}:${pageSize}`); } },
+    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(`${page}:${pageSize}`); } },
+  ), [api, asset.assetId, page, pageSize, m.asset.loadError]);
   useEffect(() => {
     if (!asset.childCount) return;
     const ctrl = new AbortController();
@@ -383,16 +409,19 @@ function ChildrenSection({ asset, hrefs, onOpenAsset }: { asset: AssetRecord; hr
         columns={columns}
         rows={asset.childCount ? rows ?? [] : []}
         rowId={(c) => c.assetId}
-        loading={!!asset.childCount && rows === null && !error}
+        loading={!!asset.childCount && loadedKey !== key}
         error={error || undefined}
         onRetry={() => void load()}
         emptyMessage={m.asset.noChildren}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
         searchable={false}
-        pageSizeOptions={[]}
+        // every child is reachable: the host's pages, the table's own pagination and rows per page
+        total={asset.childCount ? total : 0}
+        query={{ page, pageSize }}
+        onQueryChange={(q: DataTableQuery) => { if (q.page !== page || q.pageSize !== pageSize) { setPage(q.pageSize === pageSize ? q.page : 1); setPageSize(q.pageSize); } }}
+        pageSizeOptions={LIST_PAGE_SIZES}
         density="compact"
       />
-      {total > CHILD_PAGE && <p className="text-xs text-text-secondary">{fill(m.asset.childCount, { n: total })}</p>}
     </>
   );
 }

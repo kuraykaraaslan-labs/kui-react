@@ -47,6 +47,8 @@ describe('demo sites and assets (the rules NB iot_asset enforces)', () => {
       { deviceId: 'dev-002', severity: 'MINOR' as const, status: 'OPEN' as const },
       { deviceId: 'dev-002', severity: 'CRITICAL' as const, status: 'ACKNOWLEDGED' as const },
       { deviceId: 'dev-001', severity: 'MAJOR' as const, status: 'RESOLVED' as const },
+      // a device placed nowhere: in the KPI totals, at no site
+      { deviceId: 'dev-x', severity: 'CRITICAL' as const, status: 'OPEN' as const },
     ];
     const api = createDemoAssets(() => DEVICES, async () => undefined, () => alarms);
     const all = await api.list({ page: 1, pageSize: 100 });
@@ -66,7 +68,10 @@ describe('demo sites and assets (the rules NB iot_asset enforces)', () => {
     expect(byAlarm.items[0].worstSeverity).toBe('CRITICAL');
     expect(byAlarm.total).toBe(all.total);
     const s = await api.summary();
-    expect(s).toMatchObject({ sites: 2, assets: all.total, devices: 4, activeAlarms: 2, sitesWithAlarms: 1, alarms: true });
+    expect(s).toMatchObject({
+      sites: 2, assets: all.total, devices: 4, activeAlarms: 3, criticalAlarms: 2, unacknowledgedAlarms: 2, sitesWithAlarms: 1, alarms: true,
+    });
+    expect(s.kinds).toEqual([...new Set(all.items.map((r) => r.kind))].sort());
     expect(s.siteList[0]).toMatchObject({ assetId: 'as-plant', alarmsBySeverity: { CRITICAL: 1, MINOR: 1 } });
   });
 });

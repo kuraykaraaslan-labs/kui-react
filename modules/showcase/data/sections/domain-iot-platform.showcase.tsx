@@ -238,7 +238,7 @@ const ASSET_ROWS = assetRows();
 const SITE_PLACES: Record<string, [number, number]> = { plant: [41.0786, 29.0112], depot: [39.9334, 32.8597] };
 const ASSET_SUMMARY: AssetSummary = {
   sites: ASSET_TREE.length, sitesLocated: 2, assets: ASSET_ROWS.length, devices: 7, placedDevices: 6,
-  activeAlarms: 4, sitesWithAlarms: 2, sitesTruncated: false, alarms: true,
+  activeAlarms: 4, criticalAlarms: 1, unacknowledgedAlarms: 3, sitesWithAlarms: 2, kinds: ['BUILDING', 'LINE', 'SITE'], sitesTruncated: false, alarms: true,
   siteList: ASSET_ROWS.filter((r) => !r.parentId).map((r) => ({
     assetId: r.assetId, code: r.code, name: r.name, kind: r.kind, lat: SITE_PLACES[r.assetId]?.[0] ?? null, lng: SITE_PLACES[r.assetId]?.[1] ?? null,
     assetCount: ASSET_ROWS.filter((x) => x.assetId === r.assetId || x.location.some((l) => l.assetId === r.assetId)).length,
@@ -408,7 +408,7 @@ function AssetDrawerDemo({ assetId }: { assetId: string }) {
 
 /** The map without alarm counts: a host without the alarm module, or a viewer who may not read alarms (neutral markers). */
 const ASSET_SUMMARY_NO_ALARMS: AssetSummary = {
-  ...ASSET_SUMMARY, alarms: false, activeAlarms: null, sitesWithAlarms: null,
+  ...ASSET_SUMMARY, alarms: false, activeAlarms: null, criticalAlarms: null, unacknowledgedAlarms: null, sitesWithAlarms: null,
   siteList: ASSET_SUMMARY.siteList.map((s) => ({ ...s, alarmCount: null, worstSeverity: null, alarmsBySeverity: null })),
 };
 

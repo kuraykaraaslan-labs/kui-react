@@ -132,8 +132,12 @@ export function createDemoAssets(
       const summary: AssetSummary = {
         sites: siteList.length, sitesLocated: siteList.filter((x) => x.lat != null && x.lng != null).length, assets: all.length,
         devices: devices().length, placedDevices: placements().filter((x) => devices().some((d) => d.deviceId === x.toId)).length,
-        activeAlarms: siteList.reduce((n, x) => n + (x.alarmCount ?? 0), 0), sitesWithAlarms: siteList.filter((x) => (x.alarmCount ?? 0) > 0).length,
-        siteList, sitesTruncated: false, alarms: true,
+        // every active alarm, whatever its device is placed on (or nowhere), as NB's iot_alarm counts them
+        activeAlarms: active.length, criticalAlarms: active.filter((x) => x.severity === 'CRITICAL').length,
+        unacknowledgedAlarms: active.filter((x) => x.status === 'OPEN').length,
+        sitesWithAlarms: siteList.filter((x) => (x.alarmCount ?? 0) > 0).length,
+        kinds: [...new Set(all.map((x) => x.kind))].sort(),
+        siteList, sitesTruncated: false, alarmsTruncated: false, alarms: true,
       };
       return summary;
     },

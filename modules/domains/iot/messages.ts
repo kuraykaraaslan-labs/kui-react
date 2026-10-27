@@ -732,7 +732,8 @@ export const IOT_MESSAGES = {
     kpiDevices: 'Devices',
     kpiDevicesHint: '{n} placed on an asset',
     kpiAlarms: 'Active alarms',
-    kpiAlarmsHint: 'Sites affected: {n}',
+    kpiAlarmsHint: '{critical} critical · {unacknowledged} unacknowledged',
+    alarmsPartial: 'There are too many active alarms to count them all here: the counts per site and per row cover the most severe ones.',
     columnAsset: 'Asset',
     columnKind: 'Kind',
     columnPlace: 'Place',
@@ -763,6 +764,7 @@ export const IOT_MESSAGES = {
     mapNoSites: 'No site has a location yet. Edit a site and give it a latitude and longitude.',
     mapTruncated: 'Only the first {n} sites are listed.',
     closeSite: 'Close the site summary',
+    mapFitAll: 'Fit all',
   },
   asset: {
     kind: 'Kind',
@@ -839,6 +841,7 @@ export const IOT_MESSAGES = {
     actions: 'Actions',
     drawerTitle: 'Asset {name}',
     childrenSection: 'Child assets ({n})',
+    openDashboard: 'Open dashboard',
   },
   placement: {
     title: 'Placement',

@@ -1,7 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faExpand, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { Drawer } from '@/modules/ui/Drawer';
@@ -22,7 +22,9 @@ import { AssetKindBadge } from './AssetKindBadge';
  * or warning, green none; neutral when the host shows no alarms); the list on the side has every site, most severe and most alarms
  * first, with its devices and active alarms. Choosing a site (in the list or on the map) opens its summary over the map: nodes,
  * devices, active alarms per severity, and "List assets" (the table filtered to the site), "Details" (the site's drawer) and, when the
- * host gives one, "Alarms". "Only with active alarms" narrows both. On a phone the map sits above the list.
+ * host gives one, "Alarms". "Only with active alarms" narrows both; "Fit all" brings every drawn site back into view (after a zoom or
+ * a pan), and sites that overlap at the current zoom are drawn as one cluster that zooms in on a click. On a phone the map sits above
+ * the list and every control is a 40 px touch target.
  *
  * The summary is the page's (`AssetsView` reads it once for the KPI row); the drawer reads nothing itself.
  */
@@ -47,6 +49,9 @@ export function siteLine(m: IotMessages, s: Pick<AssetSite, 'deviceCount' | 'ala
     : fill(m.assets.mapSiteLine, { devices: s.deviceCount, alarms: s.alarmCount });
 }
 
+/** On a phone a control is at least 40 px each way (a touch target); from `sm` the control's own size. */
+const TOUCH = 'max-sm:min-h-10 max-sm:min-w-10';
+
 const TONE_DOT: Record<ReturnType<typeof siteTone>, string> = {
   error: 'bg-error', warning: 'bg-warning', info: 'bg-info', success: 'bg-success', neutral: 'bg-text-disabled',
 };
@@ -55,6 +60,8 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
   const { m } = useIotText();
   const [onlyAlarmed, setOnlyAlarmed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // "Fit all": a new map, which fits itself to the markers when it mounts
+  const [fitRound, setFitRound] = useState(0);
   const alarms = !!summary?.alarms;
   const sites = useMemo(
     () => (summary?.siteList ?? []).filter((s) => !onlyAlarmed || (s.alarmCount ?? 0) > 0),
@@ -89,25 +96,34 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
         <SkeletonText lines={6} />
       ) : (
         <div className="flex min-h-0 flex-col gap-3 lg:h-full">
-          {alarms && (
+          {(alarms || markers.length > 0) && (
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                aria-pressed={onlyAlarmed}
-                onClick={() => setOnlyAlarmed((v) => !v)}
-                className={cn(
-                  'rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-                  onlyAlarmed ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary hover:bg-surface-overlay',
-                )}
-              >
-                {m.assets.filterAlarmed}
-              </button>
+              {alarms && (
+                <button
+                  type="button"
+                  aria-pressed={onlyAlarmed}
+                  onClick={() => setOnlyAlarmed((v) => !v)}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
+                    onlyAlarmed ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary hover:bg-surface-overlay',
+                    TOUCH,
+                  )}
+                >
+                  {m.assets.filterAlarmed}
+                </button>
+              )}
+              {markers.length > 0 && (
+                <Button variant="outline" size="sm" className={cn('ml-auto', TOUCH)} onClick={() => setFitRound((n) => n + 1)}
+                  iconLeft={<FontAwesomeIcon icon={faExpand} className="h-3 w-3" aria-hidden="true" />}>
+                  {m.assets.mapFitAll}
+                </Button>
+              )}
             </div>
           )}
           <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:flex-row-reverse">
             <div className="relative h-72 shrink-0 overflow-hidden rounded-xl border border-border sm:h-96 lg:h-auto lg:min-h-0 lg:flex-1" data-testid="assets-map">
               {markers.length ? (
-                <MapCanvas markers={markers} onMarkerClick={setSelectedId} loadingLabel={m.common.loading} />
+                <MapCanvas key={fitRound} markers={markers} onMarkerClick={setSelectedId} loadingLabel={m.common.loading} cluster />
               ) : (
                 <p className="flex h-full items-center justify-center p-6 text-center text-sm text-text-secondary">{m.assets.mapNoSites}</p>
               )}
@@ -196,7 +212,7 @@ function SiteCard({ site, line, onClose, onListAssets, onOpenSite, alarmsHref }:
           </p>
         </div>
         <button type="button" onClick={onClose} aria-label={m.assets.closeSite} title={m.assets.closeSite}
-          className="rounded p-1 text-text-secondary hover:bg-surface-overlay hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
+          className={cn('inline-flex items-center justify-center rounded p-1 text-text-secondary hover:bg-surface-overlay hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus', TOUCH)}>
           <FontAwesomeIcon icon={faXmark} className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       </div>
@@ -212,9 +228,9 @@ function SiteCard({ site, line, onClose, onListAssets, onOpenSite, alarmsHref }:
         )
       )}
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" size="sm" onClick={onListAssets}>{m.assets.mapListAssets}</Button>
-        <Button variant="outline" size="sm" onClick={onOpenSite}>{m.assets.mapDetails}</Button>
-        {alarmsHref && <Button as="a" href={alarmsHref} variant="outline" size="sm">{m.assets.mapAlarms}</Button>}
+        <Button variant="primary" size="sm" className={TOUCH} onClick={onListAssets}>{m.assets.mapListAssets}</Button>
+        <Button variant="outline" size="sm" className={TOUCH} onClick={onOpenSite}>{m.assets.mapDetails}</Button>
+        {alarmsHref && <Button as="a" href={alarmsHref} variant="outline" size="sm" className={TOUCH}>{m.assets.mapAlarms}</Button>}
       </div>
     </section>
   );

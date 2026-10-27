@@ -55,6 +55,8 @@ export type AssetRecord = {
   ancestors: AssetCrumb[];
   childCount: number;
   deviceCount: number;
+  /** The board that shows this asset ("Open dashboard"); null or absent: none. */
+  defaultDashboardId?: string | null;
   createdAt?: Date | null;
   updatedAt?: Date | null;
 };
@@ -114,13 +116,27 @@ export type AssetSummary = {
   assets: number;
   devices: number;
   placedDevices: number;
+  /** The tenant's active alarms, whatever they are raised on (a device placed nowhere too); of them critical and unacknowledged. */
   activeAlarms: number | null;
+  criticalAlarms?: number | null;
+  unacknowledgedAlarms?: number | null;
   sitesWithAlarms: number | null;
+  /** The kinds the tenant's nodes use (the Kind filter offers them besides the suggested ones). */
+  kinds?: string[];
   /** Most severe and most alarms first. */
   siteList: AssetSite[];
   sitesTruncated: boolean;
+  /** The host counted only part of a very large set of active alarms: the per-site and per-row counts are partial. */
+  alarmsTruncated?: boolean;
   alarms: boolean;
 };
+
+/** The Kind filter's choices: the suggested kinds, then the other kinds in use and the one asked for, each once. Pure. */
+export function assetKindChoices(inUse: readonly string[] = [], current?: string): string[] {
+  const out: string[] = [...SUGGESTED_ASSET_KINDS];
+  for (const k of [...[...inUse].sort(), ...(current ? [current] : [])]) if (!out.includes(k)) out.push(k);
+  return out;
+}
 
 /** A device placed under an asset, with the node it sits on (the asset itself or a descendant). */
 export type PlacedDevice = { device: DeviceRecord; placement: AssetCrumb };

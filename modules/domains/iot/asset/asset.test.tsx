@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotAssetsApi, type IotCapabilities } from '../api/adapter';
 import {
-  assetPath, devicesBelow, filterAssets, flattenAssets, locatedSites, siteTone, subtreeIds, withoutAssets,
+  assetKindChoices, assetPath, devicesBelow, filterAssets, flattenAssets, locatedSites, siteTone, subtreeIds, withoutAssets,
   type AssetNode, type AssetRecord, type AssetRow, type AssetSummary, type PlacedDevice,
 } from '../types/asset';
 import type { DeviceRecord } from '../types/device';
@@ -20,13 +20,19 @@ import { PlaceDevicesDialog } from './PlaceDevicesDialog';
 import { assetKindLabel } from './asset-kind';
 import { mergeIotMessages } from '../messages';
 
-vi.mock('@/modules/ui/MapView/MapCanvas', () => ({
-  MapCanvas: ({ markers, onMarkerClick }: { markers: Array<{ id: string }>; onMarkerClick?: (id: string) => void }) => (
-    <div data-testid="fake-map" data-markers={JSON.stringify(markers)}>
+const mapMounts = vi.hoisted(() => ({ n: 0 }));
+vi.mock('@/modules/ui/MapView/MapCanvas', async () => {
+  const { useEffect } = await import('react');
+  return { MapCanvas: FakeMap };
+  function FakeMap({ markers, onMarkerClick, cluster }: { markers: Array<{ id: string }>; onMarkerClick?: (id: string) => void; cluster?: boolean }) {
+    useEffect(() => { mapMounts.n += 1; }, []);
+    return (
+    <div data-testid="fake-map" data-markers={JSON.stringify(markers)} data-cluster={String(!!cluster)}>
       {markers.map((mk) => <button key={mk.id} type="button" onClick={() => onMarkerClick?.(mk.id)}>{`marker ${mk.id}`}</button>)}
     </div>
-  ),
-}));
+    );
+  }
+});
 
 const NOW = new Date('2026-10-24T12:00:00Z').getTime();
 
@@ -232,7 +238,7 @@ describe('AssetDrawer', () => {
     const assets = fakeAssets();
     const { unmount } = wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} onOpenAsset={onOpenAsset} />, assets);
     await screen.findByRole('heading', { name: 'Press line' });
-    expect(assets.list).toHaveBeenCalledWith({ page: 1, pageSize: 50, parentId: 'press-line', sort: { key: 'name', dir: 'asc' } }, expect.anything());
+    expect(assets.list).toHaveBeenCalledWith({ page: 1, pageSize: 10, parentId: 'press-line', sort: { key: 'name', dir: 'asc' } }, expect.anything());
     const table = await screen.findByRole('table', { name: 'Child assets' });
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2));
     const row = within(table).getAllByRole('row')[1];
@@ -249,6 +255,33 @@ describe('AssetDrawer', () => {
     expect(none.list).not.toHaveBeenCalled();
   });
 
+  it('pages the child assets, so every child of a large node is reachable', async () => {
+    const user = userEvent.setup();
+    const kids = Array.from({ length: 10 }, (_, i) => row(`room-${i}`, `Room ${i}`, 'ROOM', ['Berlin plant'], 0, 0, 0));
+    const assets = fakeAssets({
+      get: vi.fn().mockResolvedValue({ ...RECORD, childCount: 80 }),
+      list: vi.fn().mockResolvedValue({ items: kids, total: 80, alarms: true }),
+    });
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} onOpenAsset={() => undefined} />, assets);
+    const table = await screen.findByRole('table', { name: 'Child assets' });
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(11));
+    const section = screen.getByRole('region', { name: 'Child assets (80)' });
+    await user.click(within(section).getByRole('button', { name: 'Page 8' }));
+    await waitFor(() => expect(assets.list).toHaveBeenLastCalledWith({ page: 8, pageSize: 10, parentId: 'press-line', sort: { key: 'name', dir: 'asc' } }, expect.anything()));
+  });
+
+  it('opens the asset\'s board from the header when it has one and the host links boards', async () => {
+    const assets = fakeAssets({ get: vi.fn().mockResolvedValue({ ...RECORD, defaultDashboardId: 'board-7' }) });
+    const { unmount } = wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} hrefs={{ dashboard: (id) => `/boards/${id}` }} />, assets, {});
+    await screen.findByRole('heading', { name: 'Press line' });
+    // a viewer who may not manage assets still opens the board
+    expect(within(screen.getByTestId('asset-drawer-header')).getByRole('link', { name: 'Open dashboard' })).toHaveAttribute('href', '/boards/board-7');
+    unmount();
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} hrefs={{ dashboard: (id) => `/boards/${id}` }} />, fakeAssets());
+    await screen.findByRole('heading', { name: 'Press line' });
+    expect(screen.queryByRole('link', { name: 'Open dashboard' })).toBeNull();
+  });
+
   it('keeps the actions in the header (labels fold to icons on a phone), moves with the tree read on demand, and says why a delete was refused', async () => {
     const user = userEvent.setup();
     const assets = fakeAssets({ remove: vi.fn().mockRejectedValue(new IotApiError('conflict', 'This asset still has child assets: move or delete them first.')) });
@@ -258,10 +291,12 @@ describe('AssetDrawer', () => {
     const add = within(header).getByRole('button', { name: 'Add child' });
     expect(add.querySelector('span.hidden.sm\\:inline')).not.toBeNull();
     expect(within(header).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    // a 40 px touch target on a phone, each of them
+    for (const b of within(header).getAllByRole('button')) expect(b).toHaveClass('max-sm:min-h-10', 'max-sm:min-w-10');
     expect(screen.getByRole('dialog', { name: 'Asset Press line' }).querySelector('.max-w-full')).not.toBeNull();
     expect(assets.tree).not.toHaveBeenCalled();
-    await user.click(within(header).getByRole('button', { name: 'More actions' }));
-    await user.click(await screen.findByRole('menuitem', { name: /Move to…/ }));
+    // "Move to…" is a header button, as in the approved drawer
+    await user.click(within(header).getByRole('button', { name: 'Move to…' }));
     await waitFor(() => expect(assets.tree).toHaveBeenCalled());
     expect(await screen.findByRole('dialog', { name: /Move “Press line”/ })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -273,12 +308,13 @@ describe('AssetDrawer', () => {
     unmount();
     wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} />, fakeAssets(), {});
     await screen.findByRole('heading', { name: 'Press line' });
-    for (const name of ['Add child', 'Edit', 'More actions']) expect(screen.queryByRole('button', { name })).toBeNull();
+    for (const name of ['Add child', 'Edit', 'Move to…', 'More actions']) expect(screen.queryByRole('button', { name })).toBeNull();
   });
 });
 
 const SUMMARY: AssetSummary = {
-  sites: 2, sitesLocated: 1, assets: 6, devices: 4, placedDevices: 3, activeAlarms: 3, sitesWithAlarms: 1, sitesTruncated: false, alarms: true,
+  sites: 2, sitesLocated: 1, assets: 6, devices: 4, placedDevices: 3, activeAlarms: 5, criticalAlarms: 2, unacknowledgedAlarms: 4, sitesWithAlarms: 1,
+  kinds: ['DEPOT', 'LINE', 'SITE'], sitesTruncated: false, alarmsTruncated: false, alarms: true,
   siteList: [
     { assetId: 'plant', code: 'PLANT', name: 'Berlin plant', kind: 'SITE', lat: 52.5, lng: 13.4, assetCount: 5, deviceCount: 3, alarmCount: 3, worstSeverity: 'CRITICAL', alarmsBySeverity: { CRITICAL: 1, MINOR: 2 } },
     { assetId: 'hub', code: 'HUB', name: 'Logistics hub', kind: 'SITE', lat: null, lng: null, assetCount: 1, deviceCount: 0, alarmCount: 0, worstSeverity: null, alarmsBySeverity: {} },
@@ -294,6 +330,11 @@ describe('asset table helpers', () => {
     expect(siteTone({ alarmCount: 0, worstSeverity: null })).toBe('success');
     expect(siteTone({ alarmCount: null, worstSeverity: null })).toBe('neutral');
   });
+
+  it('offers the suggested kinds, then the custom kinds in use and the one asked for, each once', () => {
+    expect(assetKindChoices(['SITE', 'PUMP_STATION', 'DEPOT'], 'VAULT')).toEqual(['SITE', 'BUILDING', 'FLOOR', 'ROOM', 'AREA', 'LINE', 'MACHINE', 'OTHER', 'DEPOT', 'PUMP_STATION', 'VAULT']);
+    expect(assetKindChoices(undefined, 'SITE')).toHaveLength(8);
+  });
 });
 
 describe('AssetsView', () => {
@@ -306,7 +347,10 @@ describe('AssetsView', () => {
     await waitFor(() => expect(within(kpis).getByText('6')).toBeInTheDocument());
     expect(within(kpis).getByText('1 on the map')).toBeInTheDocument();
     expect(within(kpis).getByText('3 placed on an asset')).toBeInTheDocument();
-    expect(within(kpis).getByText('Sites affected: 1')).toBeInTheDocument();
+    // the tenant's active alarms (an unplaced device's too, as the host counts them), critical and unacknowledged
+    expect(within(kpis).getByText('5')).toBeInTheDocument();
+    expect(within(kpis).getByText('2 critical · 4 unacknowledged')).toBeInTheDocument();
+    expect(screen.queryByTestId('assets-alarms-partial')).toBeNull();
     expect(assets.list).toHaveBeenCalledWith({ page: 1, pageSize: 20 }, expect.anything());
     const table = await screen.findByRole('table', { name: 'Sites & assets' });
     const head = within(table).getAllByRole('columnheader').map((h) => h.textContent);
@@ -331,6 +375,39 @@ describe('AssetsView', () => {
     await waitFor(() => expect(assets.list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'devices', dir: 'asc' }, alarmed: true }), expect.anything()));
     rerender(<IotAdapterProvider adapter={{ assets }} capabilities={{ canManageAssets: true }} notify={vi.fn()}><AssetsView initialQuery={{ asset: 'press-line' }} /></IotAdapterProvider>);
     expect(await screen.findByRole('dialog', { name: 'Asset Press line' })).toBeInTheDocument();
+  });
+
+  it('follows the filters of a URL it did not write (a link to the same page, Back), never the echo of its own report', async () => {
+    const user = userEvent.setup();
+    const assets = fakeAssets();
+    const reports: unknown[] = [];
+    const view = (q: object) => (
+      <IotAdapterProvider adapter={{ assets }} capabilities={{ canManageAssets: true }} notify={vi.fn()}>
+        <AssetsView initialQuery={q} onQueryChange={(next) => reports.push(next)} />
+      </IotAdapterProvider>
+    );
+    const { rerender } = render(view({ site: 'plant', kind: 'LINE' }));
+    await screen.findByRole('table', { name: 'Sites & assets' });
+    expect(assets.list).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, site: 'plant', kind: 'LINE' }, expect.anything());
+    // the view's own change, then the host's URL catching up with it: one read, no step back
+    await user.click(screen.getByRole('button', { name: /Devices/ }));
+    await waitFor(() => expect(assets.list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'devices', dir: 'asc' }, site: 'plant' }), expect.anything()));
+    const calls = vi.mocked(assets.list).mock.calls.length;
+    rerender(view({ site: 'plant', kind: 'LINE', sort: { key: 'devices', dir: 'asc' } }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(vi.mocked(assets.list).mock.calls.length).toBe(calls);
+    // the sidebar's link to the bare page: the filters go too
+    rerender(view({}));
+    await waitFor(() => expect(assets.list).toHaveBeenLastCalledWith({ page: 1, pageSize: 20 }, expect.anything()));
+  });
+
+  it('offers the custom kinds in the Kind filter and says when the host counted only part of the alarms', async () => {
+    const user = userEvent.setup();
+    wrap(<AssetsView />, fakeAssets({ summary: vi.fn().mockResolvedValue({ ...SUMMARY, alarmsTruncated: true }) }));
+    expect(await screen.findByTestId('assets-alarms-partial')).toHaveTextContent(/too many active alarms/);
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const kind = await screen.findByLabelText('Kind');
+    expect(within(kind).getAllByRole('option').map((o) => o.getAttribute('value'))).toEqual(expect.arrayContaining(['SITE', 'DEPOT']));
   });
 
   it('leaves the alarm KPI, column and filter out when the host shows no alarms, and shows the empty state with New site', async () => {
@@ -376,6 +453,7 @@ describe('AssetsView', () => {
     expect(actions).toHaveClass('flex-wrap');
     expect(actions.parentElement).toHaveClass('flex-wrap');
     expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument();
+    for (const name of ['Map', 'More actions', 'New site']) expect(screen.getAllByRole('button', { name })[0]).toHaveClass('max-sm:min-h-10');
     await waitFor(() => expect(within(table).getByText('Press line')).toBeInTheDocument());
     expect(within(table).getAllByText('Berlin plant › Hall A').some((el) => el.classList.contains('md:hidden'))).toBe(true);
     expect(screen.getByTestId('assets-kpis')).toHaveClass('grid-cols-2');
@@ -400,6 +478,21 @@ describe('AssetsMapDrawer', () => {
     expect(within(card).getByRole('link', { name: 'Alarms' })).toHaveAttribute('href', '/alarms?site=plant');
     await user.click(within(card).getByRole('button', { name: 'Details' }));
     expect(onOpenSite).toHaveBeenCalledWith('plant');
+  });
+
+  it('clusters overlapping sites, fits every site back into view, and gives each control a phone touch target', async () => {
+    const user = userEvent.setup();
+    wrap(<AssetsMapDrawer onClose={() => undefined} summary={SUMMARY} onListAssets={() => undefined} onOpenSite={() => undefined} />, fakeAssets());
+    expect((await screen.findByTestId('fake-map')).getAttribute('data-cluster')).toBe('true');
+    const mounts = mapMounts.n;
+    await user.click(screen.getByRole('button', { name: 'Fit all' }));
+    // a new map fits itself to the markers
+    await waitFor(() => expect(mapMounts.n).toBe(mounts + 1));
+    expect(screen.getByRole('button', { name: 'Fit all' })).toHaveClass('max-sm:min-h-10');
+    expect(screen.getByRole('button', { name: 'Only with active alarms' })).toHaveClass('max-sm:min-h-10');
+    await user.click(screen.getByRole('button', { name: 'marker plant' }));
+    const card = await screen.findByTestId('assets-map-site');
+    for (const b of within(card).getAllByRole('button')) expect(b).toHaveClass('max-sm:min-h-10');
   });
 
   it('says when no site has a location, and draws neutral markers without alarms', () => {
