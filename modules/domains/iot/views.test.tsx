@@ -213,6 +213,68 @@ describe('DeviceListView', () => {
     await waitFor(() => expect(screen.queryByTestId('issued-secret')).toBeNull());
   });
 
+  it('offers the host\'s ways to add a device beside "Other device", each in the drawer with Back to the choice', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const choice = {
+      id: 'vendor', label: 'Vendor device', description: 'With the code on its screen',
+      render: ({ added }: { close: () => void; added: () => void }) => <button type="button" onClick={added}>Claim it</button>,
+    };
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} addChoices={[choice]} now={NOW} />, { adapter });
+    await user.click(await screen.findByRole('button', { name: /New device/ }));
+    expect(screen.getByText('What are you adding?')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Vendor device/ }));
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    const reads = list.mock.calls.length;
+    await user.click(screen.getByRole('button', { name: 'Claim it' }));
+    await waitFor(() => expect(list.mock.calls.length).toBe(reads + 1));
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await user.click(screen.getByRole('button', { name: /Other device/ }));
+    expect(screen.getByRole('button', { name: 'Create device' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('button', { name: /Vendor device/ })).toBeInTheDocument();
+  });
+
+  it('opens a host choice at once when the role cannot create, and shows no New device without either', async () => {
+    const user = userEvent.setup();
+    const choice = { id: 'vendor', label: 'Vendor device', render: () => <p>vendor screen</p> };
+    const { unmount } = wrap(<DeviceListView hrefs={{ device: (id) => id }} addChoices={[choice]} now={NOW} />, { caps: { ...ALL, canCreateDevice: false } });
+    await user.click(await screen.findByRole('button', { name: /New device/ }));
+    expect(screen.getByText('vendor screen')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    unmount();
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} now={NOW} />, { caps: { ...ALL, canCreateDevice: false } });
+    await screen.findByText('Pump 4');
+    expect(screen.queryByRole('button', { name: /New device/ })).toBeNull();
+  });
+
+  it('opens the host\'s approval view from "Awaiting approval (n)" in place of the quick filter, and re-reads on a change', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const renderQuarantine = ({ changed }: { close: () => void; changed: () => void }) => <button type="button" onClick={changed}>Approve all</button>;
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} renderQuarantine={renderQuarantine} now={NOW} />, { adapter });
+    await user.click(await screen.findByRole('button', { name: 'Awaiting approval (1)' }));
+    expect(screen.queryByRole('button', { name: 'Quarantined (1)' })).toBeNull();
+    const dialog = screen.getByRole('dialog', { name: 'Devices awaiting approval' });
+    const count = adapter.devices!.quarantinedCount as ReturnType<typeof vi.fn>;
+    const before = count.mock.calls.length;
+    await user.click(within(dialog).getByRole('button', { name: 'Approve all' }));
+    await waitFor(() => expect(count.mock.calls.length).toBe(before + 1));
+    await user.click(within(dialog).getAllByRole('button', { name: 'Close' })[0]);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Devices awaiting approval' })).toBeNull());
+  });
+
+  it('puts the host\'s more actions in a "⋯" menu, and draws none without them', async () => {
+    const user = userEvent.setup();
+    const { unmount } = wrap(<DeviceListView hrefs={{ device: (id) => id }} moreActions={[{ id: 'map', label: 'Readings mapping', href: '/bindings' }]} now={NOW} />);
+    await user.click(await screen.findByRole('button', { name: 'More actions' }));
+    expect(screen.getByRole('menuitem', { name: 'Readings mapping' })).toHaveAttribute('href', '/bindings');
+    unmount();
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} now={NOW} />);
+    await screen.findByText('Pump 4');
+    expect(screen.queryByRole('button', { name: 'More actions' })).toBeNull();
+  });
+
   it('patches a row from deviceState live', async () => {
     const live = createFakeLive();
     wrap(<DeviceListView hrefs={{ device: (id) => id }} now={NOW} />, { live });
