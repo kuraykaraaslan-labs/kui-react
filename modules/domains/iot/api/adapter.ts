@@ -9,7 +9,7 @@ import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcRequest, RpcSen
 import type { DeviceProfile, DeviceProfileInput, DeviceProfileUsage, OnlineRule, ProfileTransport } from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
 import type {
-  AssetInput, AssetNode, AssetRecord, AssetRelation, AssetRelationInput, DevicePlacement, PlacedDevice, RelationEntityType,
+  AssetInput, AssetNode, AssetRecord, AssetRow, AssetSummary, AssetRelation, AssetRelationInput, DevicePlacement, PlacedDevice, RelationEntityType,
 } from '../types/asset';
 
 /*
@@ -262,14 +262,40 @@ export interface IotRpcApi {
 
 export type PlacedDeviceQuery = { page: number; pageSize: number; /** Devices on descendants too (default true). */ recursive?: boolean };
 
+/** The columns the Sites & assets table sorts by on the host (no sort: tree order, each site followed by what is under it). */
+export const ASSET_SORT_KEYS = ['name', 'kind', 'location', 'children', 'devices', 'alarms'] as const;
+export type AssetSortKey = (typeof ASSET_SORT_KEYS)[number];
+
+/**
+ * The Sites & assets table's query (owner 2026-10-27, option B): paging, sort, search (name, code or place), the kind, a site's
+ * subtree (`site`, the node itself included), the direct children of a node (`parentId`) and "only with active alarms". `asset` (the
+ * open asset drawer) and `map` (the map drawer is open) are the view's own state, kept by a host in its URL; never sent to the host API.
+ */
+export type AssetListQuery = {
+  page: number;
+  pageSize: number;
+  sort?: IotListSort<AssetSortKey>;
+  search?: string;
+  kind?: string;
+  site?: string;
+  parentId?: string;
+  alarmed?: boolean;
+  asset?: string;
+  map?: boolean;
+};
+
 /**
  * The topology (NB `iot_asset`): the tree, one asset, its devices and relations, and a device's placement. A host refuses a move
  * under the asset itself or a descendant (`validation`), a delete while children remain or another module still points at the
  * asset (`conflict`, the message names it), and a second placement of a device is a move, never a second parent.
  */
 export interface IotAssetsApi {
-  /** The whole tree (a host may bound it; `truncated` says it did). */
+  /** The whole tree (a host may bound it; `truncated` says it did): the Move and placement pickers. */
   tree(signal?: AbortSignal): Promise<{ nodes: AssetNode[]; truncated: boolean }>;
+  /** One page of the Sites & assets table, filtered and sorted by the host; `alarms` false when it shows no alarm counts. */
+  list(query: AssetListQuery, signal?: AbortSignal): Promise<Page<AssetRow> & { alarms: boolean }>;
+  /** The page's KPI row and its sites on the map. */
+  summary(signal?: AbortSignal): Promise<AssetSummary>;
   get(assetId: string, signal?: AbortSignal): Promise<AssetRecord>;
   create(input: AssetInput): Promise<{ assetId: string }>;
   /** Only the changed fields; never the parent (that is `move`). */

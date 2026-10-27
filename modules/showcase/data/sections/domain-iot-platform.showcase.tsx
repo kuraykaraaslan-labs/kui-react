@@ -55,7 +55,8 @@ import { IotAdapterProvider } from '@/modules/domains/iot/api/IotAdapterProvider
 import { AssetKindBadge } from '@/modules/domains/iot/asset/AssetKindBadge';
 import { AssetBreadcrumb } from '@/modules/domains/iot/asset/AssetBreadcrumb';
 import { AssetTree } from '@/modules/domains/iot/asset/AssetTree';
-import { AssetDetailView } from '@/modules/domains/iot/asset/AssetDetailView';
+import { AssetDrawer } from '@/modules/domains/iot/asset/AssetDrawer';
+import { AssetsMapDrawer } from '@/modules/domains/iot/asset/AssetsMapDrawer';
 import { AssetsView } from '@/modules/domains/iot/asset/AssetsView';
 import { AssetFormDrawer } from '@/modules/domains/iot/asset/AssetFormDrawer';
 import { MoveAssetDialog } from '@/modules/domains/iot/asset/MoveAssetDialog';
@@ -64,8 +65,8 @@ import { PlacedDeviceTable } from '@/modules/domains/iot/asset/PlacedDeviceTable
 import { AssetRelationTable } from '@/modules/domains/iot/asset/AssetRelationTable';
 import { DevicePlacementPanel } from '@/modules/domains/iot/asset/DevicePlacementPanel';
 import { DevicePlacementPicker } from '@/modules/domains/iot/asset/DevicePlacementPicker';
-import type { AssetCrumb, AssetNode, AssetRecord, AssetRelation, PlacedDevice } from '@/modules/domains/iot/types/asset';
-import { IotApiError, type IotAdapter } from '@/modules/domains/iot/api/adapter';
+import type { AssetCrumb, AssetNode, AssetRecord, AssetRelation, AssetRow, AssetSummary, PlacedDevice } from '@/modules/domains/iot/types/asset';
+import { IotApiError, type AssetListQuery, type IotAdapter } from '@/modules/domains/iot/api/adapter';
 import type { Alarm, AlarmEvent } from '@/modules/domains/iot/types/alarm';
 import type { AttributeEntry, DeviceConnectionEvent, DeviceLogEntry, DeviceLogFilter, DeviceRecord } from '@/modules/domains/iot/types/device';
 
@@ -210,6 +211,53 @@ const assetRecord = (id: string): AssetRecord => {
     deviceCount: node.deviceCount + node.children.reduce((s, c) => s + c.deviceCount, 0), createdAt: ago(400 * 86_400_000),
   };
 };
+/** The table's rows and the map's sites from the fixture tree: place, counts (devices on a node or below) and a few active alarms. */
+const ASSET_ALARMS: Record<string, { n: number; worst: AssetRow['worstSeverity'] }> = { 'press-3': { n: 2, worst: 'CRITICAL' }, boiler: { n: 1, worst: 'MINOR' }, cold: { n: 1, worst: 'WARNING' } };
+const SEVERITY_RANK = ['INFO', 'WARNING', 'MINOR', 'MAJOR', 'CRITICAL'];
+function assetRows(): AssetRow[] {
+  const out: AssetRow[] = [];
+  const walk = (n: AssetNode, trail: AssetNode[]): { devices: number; alarms: number; worst: AssetRow['worstSeverity'] } => {
+    const at = out.length;
+    out.push({ assetId: n.assetId, parentId: trail.at(-1)?.assetId ?? null, code: n.code, name: n.name, kind: n.kind, location: trail.map((t) => ({ assetId: t.assetId, name: t.name })), childCount: n.children.length, deviceCount: 0, alarmCount: 0, worstSeverity: null });
+    let devices = n.deviceCount;
+    let alarms = ASSET_ALARMS[n.assetId]?.n ?? 0;
+    let worst = ASSET_ALARMS[n.assetId]?.worst ?? null;
+    for (const c of n.children) {
+      const r = walk(c, [...trail, n]);
+      devices += r.devices;
+      alarms += r.alarms;
+      if (r.worst && (!worst || SEVERITY_RANK.indexOf(r.worst) > SEVERITY_RANK.indexOf(worst))) worst = r.worst;
+    }
+    out[at] = { ...out[at], deviceCount: devices, alarmCount: alarms, worstSeverity: worst };
+    return { devices, alarms, worst };
+  };
+  ASSET_TREE.forEach((n) => walk(n, []));
+  return out;
+}
+const ASSET_ROWS = assetRows();
+const SITE_PLACES: Record<string, [number, number]> = { plant: [41.0786, 29.0112], depot: [39.9334, 32.8597] };
+const ASSET_SUMMARY: AssetSummary = {
+  sites: ASSET_TREE.length, sitesLocated: 2, assets: ASSET_ROWS.length, devices: 7, placedDevices: 6,
+  activeAlarms: 4, sitesWithAlarms: 2, sitesTruncated: false, alarms: true,
+  siteList: ASSET_ROWS.filter((r) => !r.parentId).map((r) => ({
+    assetId: r.assetId, code: r.code, name: r.name, kind: r.kind, lat: SITE_PLACES[r.assetId]?.[0] ?? null, lng: SITE_PLACES[r.assetId]?.[1] ?? null,
+    assetCount: ASSET_ROWS.filter((x) => x.assetId === r.assetId || x.location.some((l) => l.assetId === r.assetId)).length,
+    deviceCount: r.deviceCount, alarmCount: r.alarmCount, worstSeverity: r.worstSeverity,
+    alarmsBySeverity: r.assetId === 'plant' ? { CRITICAL: 2, MINOR: 1 } : { WARNING: 1 },
+  })),
+};
+function listAssetRows(q: AssetListQuery): { items: AssetRow[]; total: number; alarms: boolean } {
+  const s = q.search?.toLowerCase();
+  let rows = ASSET_ROWS.filter((r) => (!s || r.name.toLowerCase().includes(s) || r.code.toLowerCase().includes(s) || r.location.some((l) => l.name.toLowerCase().includes(s)))
+    && (!q.kind || r.kind === q.kind) && (!q.parentId || r.parentId === q.parentId) && (!q.alarmed || (r.alarmCount ?? 0) > 0)
+    && (!q.site || r.assetId === q.site || r.location.some((l) => l.assetId === q.site)));
+  if (q.sort) {
+    const val = (r: AssetRow): string | number => ({ name: r.name, kind: r.kind, location: r.location.map((l) => l.name).join(' › '), children: r.childCount, devices: r.deviceCount, alarms: SEVERITY_RANK.indexOf(r.worstSeverity ?? '') * 1000 + (r.alarmCount ?? 0) })[q.sort!.key];
+    const dir = q.sort.dir === 'desc' ? -1 : 1;
+    rows = [...rows].sort((a, b) => (val(a) < val(b) ? -dir : val(a) > val(b) ? dir : a.name.localeCompare(b.name)));
+  }
+  return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: rows.length, alarms: true };
+}
 const PLACED: PlacedDevice[] = [
   { device: { ...DEVICES[0], lastRemoteIp: '203.0.113.7', lastTransport: 'mqtt' }, placement: { assetId: 'press-3', code: 'PRESS-3', name: 'Press 3', kind: 'MACHINE' } },
   { device: { ...DEVICES[1], lastRemoteIp: '198.51.100.24', lastTransport: 'mqtts' }, placement: { assetId: 'boiler', code: 'BOILER', name: 'Boiler room', kind: 'ROOM' } },
@@ -242,6 +290,8 @@ function fixtureAdapter(fail = false): IotAdapter {
     },
     assets: {
       tree: fail ? failing : async () => { await wait(); return { nodes: ASSET_TREE, truncated: false }; },
+      list: fail ? failing : async (q) => { await wait(); return listAssetRows(q); },
+      summary: fail ? failing : async () => { await wait(); return ASSET_SUMMARY; },
       get: fail ? failing : async (id) => { await wait(); return assetRecord(id); },
       async create() { await wait(); return { assetId: 'line-3' }; },
       async update() { await wait(); },
@@ -343,8 +393,33 @@ function Fixture({ fail = false, children }: { fail?: boolean; children: React.R
 }
 
 function AssetsViewDemo({ fail = false }: { fail?: boolean }) {
-  const [selected, setSelected] = useState<string | null>(fail ? null : 'bldg-a');
-  return <Fixture fail={fail}><AssetsView selectedId={selected} onSelect={setSelected} hrefs={{ asset: (id) => `#asset-${id}`, device: (id) => `#device-${id}` }} now={NOW} /></Fixture>;
+  return <Fixture fail={fail}><AssetsView hrefs={{ asset: (id) => `#asset-${id}`, device: (id) => `#device-${id}`, alarms: () => '#alarms' }} now={NOW} /></Fixture>;
+}
+
+function AssetDrawerDemo({ assetId }: { assetId: string }) {
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <Fixture>
+      <Button variant="primary" size="sm" onClick={() => setOpen(assetId)}>{`Open ${findAsset(assetId)!.node.name}`}</Button>
+      {open && <AssetDrawer assetId={open} onClose={() => setOpen(null)} onOpenAsset={setOpen} hrefs={{ device: (id) => `#device-${id}` }} now={NOW} />}
+    </Fixture>
+  );
+}
+
+/** The map without alarm counts: a host without the alarm module, or a viewer who may not read alarms (neutral markers). */
+const ASSET_SUMMARY_NO_ALARMS: AssetSummary = {
+  ...ASSET_SUMMARY, alarms: false, activeAlarms: null, sitesWithAlarms: null,
+  siteList: ASSET_SUMMARY.siteList.map((s) => ({ ...s, alarmCount: null, worstSeverity: null, alarmsBySeverity: null })),
+};
+
+function AssetsMapDrawerDemo({ alarms = true }: { alarms?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Fixture>
+      <Button variant="primary" size="sm" onClick={() => setOpen(true)}>{alarms ? 'Map' : 'Map without alarms'}</Button>
+      {open && <AssetsMapDrawer onClose={() => setOpen(false)} summary={alarms ? ASSET_SUMMARY : ASSET_SUMMARY_NO_ALARMS} onListAssets={() => setOpen(false)} onOpenSite={() => setOpen(false)} alarmsHref={() => '#alarms'} />}
+    </Fixture>
+  );
 }
 
 function AssetTreeDemo() {
@@ -1004,24 +1079,36 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       id: 'iot-assets-view',
       title: 'AssetsView',
       abbr: 'AV',
-      description: 'The Sites & assets page through the IoT adapter: the tree with search on the left, the selected asset on the right, New site; the selection and tab belong to the host URL.',
+      description: 'The Sites & assets page through the IoT adapter: a KPI row, one DataTable of every site and asset (search over name, code or place; site, kind and alarm filters; sortable columns; server paging), a row opening the asset drawer, Map, ⋯ and New site; the filters and the open drawer belong to the host URL.',
       filePath: 'modules/domains/iot/asset/AssetsView.tsx',
-      usage: `<IotAdapterProvider adapter={adapter}><AssetsView selectedId={id} onSelect={toUrl} hrefs={{ asset, device }} /></IotAdapterProvider>`,
+      usage: `<IotAdapterProvider adapter={adapter}><AssetsView initialQuery={fromUrl} onQueryChange={toUrl} hrefs={{ device, alarms }} /></IotAdapterProvider>`,
       variants: [
-        { title: 'Fixture adapter', layout: 'stack', preview: <AssetsViewDemo />, code: '<AssetsView selectedId={id} onSelect={setId} hrefs={hrefs} />' },
+        { title: 'Fixture adapter', layout: 'stack', preview: <AssetsViewDemo />, code: '<AssetsView initialQuery={q} onQueryChange={setQ} hrefs={hrefs} />' },
         { title: 'Failing adapter', layout: 'stack', preview: <AssetsViewDemo fail />, code: '<AssetsView />' },
       ],
     }),
     entry({
-      id: 'iot-asset-detail-view',
-      title: 'AssetDetailView',
+      id: 'iot-asset-drawer',
+      title: 'AssetDrawer',
       abbr: 'AW',
-      description: 'One site or asset through the adapter: path, kind and code, add a child, edit, Move to… (never under itself), delete with the host refusal shown; tabs Overview (inherited time zone, attributes), Devices (placed here or below, online state and IP, Place devices), Child assets and Relations.',
-      filePath: 'modules/domains/iot/asset/AssetDetailView.tsx',
-      usage: `<AssetDetailView assetId={id} nodes={tree} hrefs={{ asset, device }} onChanged={reloadTree} />`,
+      description: 'One site or asset in a right-side drawer over the table: the actions in the header (add a child, edit; Move to… and delete in the ⋯ menu, labels folding to icons on a phone), then sections one under the other: path, Overview (inherited time zone, location), Attributes, Devices (placed here or below, Place devices), Child assets and Relations.',
+      filePath: 'modules/domains/iot/asset/AssetDrawer.tsx',
+      usage: `<AssetDrawer assetId={id} onClose={close} onOpenAsset={open} onChanged={reread} hrefs={{ device }} />`,
       variants: [
-        { title: 'A site', layout: 'stack', preview: <Fixture><AssetDetailView assetId="plant" nodes={ASSET_TREE} hrefs={{ asset: (id) => `#asset-${id}`, device: (id) => `#device-${id}` }} now={NOW} /></Fixture>, code: '<AssetDetailView assetId="plant" nodes={tree} />' },
-        { title: 'Devices tab', layout: 'stack', preview: <Fixture><AssetDetailView assetId="bldg-a" nodes={ASSET_TREE} tab="devices" hrefs={{ asset: (id) => `#asset-${id}`, device: (id) => `#device-${id}` }} now={NOW} /></Fixture>, code: '<AssetDetailView assetId="bldg-a" tab="devices" />' },
+        { title: 'A site', layout: 'stack', preview: <AssetDrawerDemo assetId="plant" />, code: '<AssetDrawer assetId="plant" onClose={close} />' },
+        { title: 'A building', layout: 'stack', preview: <AssetDrawerDemo assetId="bldg-a" />, code: '<AssetDrawer assetId="bldg-a" onClose={close} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-assets-map-drawer',
+      title: 'AssetsMapDrawer',
+      abbr: 'MQ',
+      description: 'The sites on the map in a wide drawer: markers coloured by the worst active alarm, the sites listed by alarm beside the map (under it on a phone), a site summary with List assets, Details and Alarms, and "Only with active alarms".',
+      filePath: 'modules/domains/iot/asset/AssetsMapDrawer.tsx',
+      usage: `<AssetsMapDrawer summary={summary} onClose={close} onListAssets={filterTo} onOpenSite={openDrawer} />`,
+      variants: [
+        { title: 'Fixture summary', layout: 'stack', preview: <AssetsMapDrawerDemo />, code: '<AssetsMapDrawer summary={summary} onClose={close} onListAssets={filterTo} onOpenSite={open} />' },
+        { title: 'Without alarms', layout: 'stack', preview: <AssetsMapDrawerDemo alarms={false} />, code: '<AssetsMapDrawer summary={{ ...summary, alarms: false }} onClose={close} onListAssets={filterTo} onOpenSite={open} />' },
       ],
     }),
     entry({

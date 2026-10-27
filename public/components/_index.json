@@ -2159,11 +2159,17 @@
     "category": "Domain",
     "file": "iot-assets-view.md"
   },
-  "iot-asset-detail-view": {
-    "name": "AssetDetailView",
+  "iot-asset-drawer": {
+    "name": "AssetDrawer",
     "layer": "domain",
     "category": "Domain",
-    "file": "iot-asset-detail-view.md"
+    "file": "iot-asset-drawer.md"
+  },
+  "iot-assets-map-drawer": {
+    "name": "AssetsMapDrawer",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-assets-map-drawer.md"
   },
   "iot-placed-device-table": {
     "name": "PlacedDeviceTable",
