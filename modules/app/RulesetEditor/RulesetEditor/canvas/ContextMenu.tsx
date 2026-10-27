@@ -8,13 +8,18 @@ export type ContextMenuItem =
   | { kind: 'item'; label: string; icon?: IconDefinition; danger?: boolean; disabled?: boolean; /** the keys that do the same, shown at the right */ hint?: string; onSelect: () => void }
   | { kind: 'separator' };
 
+/** how the menu closed: a pointer outside it, Escape, or an item picked */
+export type ContextMenuClose = 'away' | 'escape' | 'pick';
+
 /** Right-click / long-press menu, positioned inside its container (x, y in the
- *  container's pixels). Arrow keys move, Enter picks, Escape or a click outside closes. */
-export function ContextMenu({ x, y, items, onClose }: {
+ *  container's pixels). Arrow keys move, Enter picks, Escape or a click outside closes.
+ *  `anchor` is the button that opened it: a press on it is not "outside", the button toggles the menu itself. */
+export function ContextMenu({ x, y, items, onClose, anchor }: {
   x: number;
   y: number;
   items: ContextMenuItem[];
-  onClose: () => void;
+  onClose: (how: ContextMenuClose) => void;
+  anchor?: React.RefObject<HTMLElement | null>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x, y });
@@ -32,17 +37,20 @@ export function ContextMenu({ x, y, items, onClose }: {
   }, [x, y]);
 
   useEffect(() => {
-    function away(e: PointerEvent) { if (!ref.current?.contains(e.target as Node)) onClose(); }
+    function away(e: PointerEvent) {
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !anchor?.current?.contains(t)) onClose('away');
+    }
     document.addEventListener('pointerdown', away, true);
     return () => document.removeEventListener('pointerdown', away, true);
-  }, [onClose]);
+  }, [onClose, anchor]);
 
   function onKeyDown(e: React.KeyboardEvent) {
     const its = Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') ?? []);
     const i = its.indexOf(document.activeElement as HTMLButtonElement);
     if (e.key === 'ArrowDown') { its[(i + 1) % its.length]?.focus(); e.preventDefault(); }
     else if (e.key === 'ArrowUp') { its[(i - 1 + its.length) % its.length]?.focus(); e.preventDefault(); }
-    else if (e.key === 'Escape') { onClose(); e.preventDefault(); }
+    else if (e.key === 'Escape') { onClose('escape'); e.preventDefault(); }
     e.stopPropagation();
   }
 
@@ -55,7 +63,7 @@ export function ContextMenu({ x, y, items, onClose }: {
         : (
           <button key={it.label} type="button" role="menuitem" disabled={it.disabled}
             aria-keyshortcuts={it.hint ? it.hint.replace('Ctrl', 'Control').replace('⌘', 'Meta') : undefined}
-            onClick={() => { onClose(); it.onSelect(); }}
+            onClick={() => { onClose('pick'); it.onSelect(); }}
             className={cn('flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors focus-visible:outline-none disabled:cursor-default disabled:opacity-45 sm:py-1.5 max-sm:py-2.5',
               it.danger
                 ? 'text-error hover:bg-error-subtle focus-visible:bg-error-subtle'

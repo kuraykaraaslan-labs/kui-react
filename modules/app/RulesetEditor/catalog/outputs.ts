@@ -75,21 +75,29 @@ export function outputPrefix(outputs: OutputsSpec | undefined): string {
   return outputs && !Array.isArray(outputs) ? outputs.prefix ?? 'o' : 'o';
 }
 
+/** what the stored names list allows of one name (the contract's pattern without its comma, the separator) */
+const STORED_NAME = /^[A-Za-z0-9_ -]+$/;
+
 /**
  * The problem of each row's name (undefined: fine; an empty name is fine, the output is then used by its number). A name
  * is used in code as a string (`return "alarm"`) and kept in a comma list: letters, digits, `_` and `-`, starting with a
  * letter or `_`, at most `OUTPUT_NAME_MAX` long, unlike the others (case does not count), and not a port id the editor
- * gives itself (`o1`, `error`).
+ * gives itself (`o1`, `error`). `kept` are the names the block had before the edit: one of them that the stored list
+ * allows (`Too hot`, `2nd`) is not held to the first two rules, so an old flow's outputs can be changed without renaming
+ * an output its code returns.
  */
-export function outputNameProblems(rows: Pick<OutputRow, 'name'>[], prefix = 'o'): (OutputNameProblem | undefined)[] {
+export function outputNameProblems(rows: Pick<OutputRow, 'name'>[], prefix = 'o', kept: readonly string[] = []): (OutputNameProblem | undefined)[] {
   const seen = new Map<string, number>();
   for (const r of rows) { const k = r.name.trim().toLowerCase(); if (k) seen.set(k, (seen.get(k) ?? 0) + 1); }
   const reserved = new RegExp(`^(${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\d+|error)$`, 'i');
+  const old = new Set(kept.map((k) => k.trim()).filter((k) => STORED_NAME.test(k)));
   return rows.map((r) => {
     const name = r.name.trim();
     if (!name) return undefined;
-    if (name.length > OUTPUT_NAME_MAX) return 'long';
-    if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(name)) return 'chars';
+    if (!old.has(name)) {
+      if (name.length > OUTPUT_NAME_MAX) return 'long';
+      if (!/^[A-Za-z_][A-Za-z0-9_-]*$/.test(name)) return 'chars';
+    }
     if (reserved.test(name)) return 'reserved';
     if ((seen.get(name.toLowerCase()) ?? 0) > 1) return 'duplicate';
     return undefined;
@@ -118,7 +126,7 @@ export function outputPortMap(rows: Pick<OutputRow, 'from'>[], before: number, p
  */
 export function outputsExample(rows: Pick<OutputRow, 'name'>[], to: (n: number, name?: string) => string, each: string): string {
   const lines: string[] = [];
-  rows.forEach((r, i) => { const name = r.name.trim(); if (name && /^[A-Za-z_][A-Za-z0-9_-]*$/.test(name)) lines.push(`return "${name}"; // → ${to(i + 1)}`); });
+  rows.forEach((r, i) => { const name = r.name.trim(); if (name && STORED_NAME.test(name)) lines.push(`return "${name}"; // → ${to(i + 1)}`); });
   if (rows.length === 1 && !lines.length) lines.push(`return msg; // → ${to(1)}`);
   if (rows.length > 1) {
     const vars = rows.map((r, i) => { const name = r.name.trim(); return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : `msg${i + 1}`; });

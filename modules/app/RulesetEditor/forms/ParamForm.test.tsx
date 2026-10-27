@@ -509,6 +509,23 @@ describe('ParamForm: outputs (a count with pins)', () => {
     expect(onValues).toHaveBeenLastCalledWith({ outputs: 3, labels: 'c, a, b' });
   });
 
+  it('keeps an old flow\'s names the stored list allows: an output is added without renaming, a new name with a space is flagged', async () => {
+    const user = userEvent.setup();
+    const onValues = vi.fn();
+    render(<Harness schema={schema} initial={{ outputs: 1, labels: 'Too hot' }} onValues={onValues} />);
+    await user.click(screen.getByTestId('outputs-edit'));
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByTestId('outputs-error')).toBeNull();
+    await user.click(within(dialog).getByTestId('outputs-add'));
+    await user.type(within(dialog).getByRole('textbox', { name: 'Name, Output 2' }), 'Too cold');
+    expect(within(dialog).getByTestId('outputs-error')).toBeInTheDocument();
+    expect(within(dialog).getByTestId('outputs-save')).toBeDisabled();
+    await user.clear(within(dialog).getByRole('textbox', { name: 'Name, Output 2' }));
+    await user.type(within(dialog).getByRole('textbox', { name: 'Name, Output 2' }), 'cold');
+    await user.click(within(dialog).getByTestId('outputs-save'));
+    expect(onValues).toHaveBeenLastCalledWith({ outputs: 2, labels: 'Too hot, cold' });
+  });
+
   it('read only: the list without the button', () => {
     render(<Harness schema={schema} initial={{ outputs: 2 }} readOnly />);
     expect(within(screen.getByTestId('outputs-list')).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1·no name', '2·no name']);

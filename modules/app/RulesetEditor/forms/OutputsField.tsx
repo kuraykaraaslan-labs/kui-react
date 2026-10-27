@@ -105,7 +105,9 @@ export function OutputsDialog({ title, schema, keys, initial, prefix, onSave, on
   const min = Math.max(1, spec?.min ?? 1);
   const max = spec?.max ?? 16;
   const namesMax = schema[keys.names]?.max_len;
-  const problems = outputNameProblems(rows, prefix);
+  /* the names the block had keep working as they are (an old flow may have `Too hot`) */
+  const [kept] = useState(() => initial.map((r) => r.name));
+  const problems = outputNameProblems(rows, prefix, kept);
   const joined = String(paramsOfRows(rows, keys)[keys.names] ?? '');
   const tooLong = namesMax !== undefined && joined.length > namesMax;
   const valid = !tooLong && problems.every((p) => !p) && rows.length >= min && rows.length <= max;

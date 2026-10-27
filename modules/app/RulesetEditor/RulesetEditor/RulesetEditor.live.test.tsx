@@ -7,7 +7,7 @@ import { catalogFromBlocks } from '../catalog';
 import { PULSE_ON_MS } from '../graph/activity';
 import type { RuleEdge, RuleNode } from '../types';
 
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); window.localStorage.removeItem('kui-ruleset-sidebar'); });
 
 const node = (nodeId: string, type: string, label: string, x: number, y: number, extra: Partial<RuleNode> = {}): RuleNode => ({ nodeId, type, label, x, y, ...extra });
 const edge = (edgeId: string, from: string, port: string, to: string): RuleEdge => ({ edgeId, sourceNodeId: from, sourcePort: port, targetNodeId: to, targetPort: 'in' });
@@ -212,6 +212,19 @@ describe('the side bar (debug comparison items 4 and 6)', () => {
     expect(screen.getByLabelText('Sink settings')).toBeInTheDocument();
     await user.click(screen.getByTestId('tool-side-panel'));
     expect(screen.queryByRole('complementary', { name: 'Runtime insight' })).toBeNull();
+  });
+
+  it('keeps the last choice in the browser when the host does not keep the bar open state', async () => {
+    const user = userEvent.setup();
+    const first = setup({ sideBar: { messages: [] } });
+    await user.click(screen.getByTestId('insight-close'));
+    expect(window.localStorage.getItem('kui-ruleset-sidebar')).toBe('closed');
+    first.unmount();
+    setup({ sideBar: { messages: [] } });
+    expect(screen.queryByRole('complementary', { name: 'Runtime insight' })).toBeNull();
+    expect(screen.getByTestId('tool-side-panel')).toHaveAttribute('aria-pressed', 'false');
+    await user.click(screen.getByTestId('tool-side-panel'));
+    expect(window.localStorage.getItem('kui-ruleset-sidebar')).toBe('open');
   });
 
   it('tells a host that keeps the bar open state: the X of the block panel closes it there too', async () => {

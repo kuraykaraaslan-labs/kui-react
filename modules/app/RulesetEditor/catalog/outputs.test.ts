@@ -54,6 +54,14 @@ describe('outputNameProblems', () => {
     const rows = ['alarm', '', 'bad name', '2nd', 'a'.repeat(OUTPUT_NAME_MAX + 1), 'o3', 'Error', 'Alarm', 'ok_1-b'].map((name) => ({ name }));
     expect(outputNameProblems(rows)).toEqual(['duplicate', undefined, 'chars', 'chars', 'long', 'reserved', 'reserved', 'duplicate', undefined]);
   });
+  it('lets a name the block already had keep the characters and length the stored list allows, still unique and not a port id', () => {
+    const long = `${'a'.repeat(OUTPUT_NAME_MAX)} b`;
+    const kept = ['Too hot', '2nd', long, 'o1', 'x,y'];
+    const rows = ['Too hot', '2nd', long, 'o1', 'Too cold', '2ND'].map((name) => ({ name }));
+    expect(outputNameProblems(rows, 'o', kept)).toEqual([undefined, 'duplicate', undefined, 'reserved', 'chars', 'chars']);
+    // a kept name the stored list does not allow is held to every rule
+    expect(outputNameProblems([{ name: 'a"b' }], 'o', ['a"b'])).toEqual(['chars']);
+  });
   it('checks the port ids of the block\'s own prefix', () => {
     expect(outputNameProblems([{ name: 'out1' }, { name: 'o1' }], 'out')).toEqual(['reserved', undefined]);
     expect(outputPrefix({ count: 'n', prefix: 'out' })).toBe('out');
@@ -82,6 +90,7 @@ describe('outputsExample', () => {
     ].join('\n'));
   });
   it('uses msg for a single unnamed output and placeholders for names that are not identifiers', () => {
+    expect(outputsExample([{ name: 'Too hot' }, { name: 'a"b' }], to, 'each').split('\n')[0]).toBe('return "Too hot"; // → output 1');
     expect(outputsExample([{ name: '' }], to, 'each')).toBe('return msg; // → output 1');
     expect(outputsExample([{ name: 'high-temp' }, { name: '' }], to, 'each')).toBe([
       'return "high-temp"; // → output 1', '', '// each', 'return [msg1, msg2]; // → output 1 (high-temp), output 2',

@@ -1,11 +1,11 @@
 'use client';
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Ic } from './Ic';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { faBug, faCircleInfo, faClock, faEllipsis, faGaugeHigh, faRoute, faSliders, faTableList, faTriangleExclamation, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { MessagesProvider, useMergedMessages, useMessages, type EditorMessages } from '../messages';
-import { ContextMenu } from '../canvas/ContextMenu';
+import { ContextMenu, type ContextMenuClose } from '../canvas/ContextMenu';
 import { BusiestTab } from './BusiestTab';
 import { DataTab, type DataTabProps } from './DataTab';
 import { DebugTab, type DebugTabProps } from './DebugTab';
@@ -116,6 +116,16 @@ function InsightBody(p: InsightPanelProps) {
   const stripRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<number | null>(null);
   const [more, setMore] = useState<{ x: number; y: number } | null>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  /* where the focus goes when the menu has closed: the More button after Escape, the picked tab after a pick (a click
+     elsewhere leaves it where the click put it) */
+  const refocus = useRef<string | null>(null);
+  useEffect(() => {
+    const to = refocus.current;
+    if (more || !to) return;
+    refocus.current = null;
+    (to === 'more' ? moreRef.current : document.getElementById(`${uid}-${to}`))?.focus();
+  });
   useLayoutEffect(() => {
     const el = stripRef.current;
     if (!el) return;
@@ -141,6 +151,12 @@ function InsightBody(p: InsightPanelProps) {
     setMore({ x: a ? b.left - a.left : 0, y: a ? b.bottom - a.top + 2 : 0 });
   };
   const countText = (n: number) => (n > 99 ? '99+' : String(n));
+  const closeMore = (how: ContextMenuClose) => {
+    if (how !== 'away') refocus.current = 'more';
+    setMore(null);
+  };
+  /* the counts of the hidden tabs are in the button's name too (the dot is for the eye) */
+  const moreLabel = hiddenCount.n > 0 ? `${m.insMoreTabs} (${countText(hiddenCount.n)})` : m.insMoreTabs;
   return (
     <aside ref={asideRef} aria-label={m.insPanel} className={cn('relative flex h-full min-h-0 flex-col overflow-hidden border-l border-border bg-surface-raised', p.className)}>
       <div className="flex shrink-0 items-end gap-1 border-b border-border px-1.5 pt-1.5">
@@ -165,7 +181,7 @@ function InsightBody(p: InsightPanelProps) {
             })}
           </div>
           {hidden.length > 0 && (
-            <button type="button" data-testid="insight-more" aria-label={m.insMoreTabs} title={m.insMoreTabs} aria-haspopup="menu" aria-expanded={!!more} onClick={openMore}
+            <button ref={moreRef} type="button" data-testid="insight-more" aria-label={moreLabel} title={moreLabel} aria-haspopup="menu" aria-expanded={!!more} onClick={openMore}
               className="relative mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-text-secondary hover:bg-surface-overlay hover:text-text-primary focus-visible:outline-2 focus-visible:outline-border-focus">
               <Ic icon={faEllipsis} size=".8rem" />
               {hiddenCount.n > 0 && <span aria-hidden="true" className={cn('absolute right-1 top-1 h-1.5 w-1.5 rounded-full', hiddenCount.error ? 'bg-error' : 'bg-primary')} />}
@@ -180,10 +196,10 @@ function InsightBody(p: InsightPanelProps) {
         )}
       </div>
       {more && hidden.length > 0 && (
-        <ContextMenu x={more.x} y={more.y} onClose={() => setMore(null)}
+        <ContextMenu x={more.x} y={more.y} anchor={moreRef} onClose={closeMore}
           items={hidden.map((x) => {
             const c = counts[x.id];
-            return { kind: 'item' as const, label: c && c.n > 0 ? `${x.label} (${countText(c.n)})` : x.label, icon: x.icon, onSelect: () => setTab(x.id) };
+            return { kind: 'item' as const, label: c && c.n > 0 ? `${x.label} (${countText(c.n)})` : x.label, icon: x.icon, onSelect: () => { refocus.current = x.id; setTab(x.id); } };
           })} />
       )}
       <div role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-${tab}`} className="flex min-h-0 flex-1 flex-col">

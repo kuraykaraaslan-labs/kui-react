@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { InsightPanel, splitTabs } from './InsightPanel';
 import type { DebugMessage } from './types';
 
@@ -184,7 +185,7 @@ describe('InsightPanel: the tab strip never scrolls', () => {
       // 160 px hold five tabs of 32 px: four tabs and the menu button
       expect(screen.getAllByRole('tab').map((x) => x.getAttribute('data-testid'))).toEqual(['insight-tab-block', 'insight-tab-debug', 'insight-tab-help', 'insight-tab-trace']);
       const more = screen.getByTestId('insight-more');
-      expect(more.getAttribute('aria-label')).toBe('More tabs');
+      expect(more.getAttribute('aria-label')).toBe('More tabs (5)');
       expect(more.parentElement!.className).toContain('overflow-hidden');
       expect(document.querySelector('.overflow-x-auto')).toBeNull();
       fireEvent.click(more);
@@ -195,6 +196,34 @@ describe('InsightPanel: the tab strip never scrolls', () => {
       expect(screen.queryByRole('menu')).toBeNull();
       expect(screen.getByText('events')).toBeTruthy();
       expect(screen.getByTestId('insight-tab-events').getAttribute('aria-selected')).toBe('true');
+    } finally {
+      width.mockRestore();
+      tabW.mockRestore();
+    }
+  });
+
+  it('the More button closes its own menu, the hidden counts are in its name, and the focus comes back after Escape or a pick', async () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(64);
+    const tabW = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(32);
+    try {
+      const user = userEvent.setup();
+      render(<InsightPanel nodeNames={names} deployProblems={[{ message: 'x' }, { message: 'y' }]} />);
+      const more = screen.getByTestId('insight-more');
+      // 64 px hold Debug and the button: Errors (2), Data and Busiest are in the menu
+      expect(more).toHaveAccessibleName('More tabs (2)');
+      await user.click(more);
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      expect(more).toHaveAttribute('aria-expanded', 'true');
+      await user.click(more);
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(more).toHaveAttribute('aria-expanded', 'false');
+      await user.click(more);
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(document.activeElement).toBe(more);
+      await user.click(more);
+      await user.click(screen.getByRole('menuitem', { name: 'Busiest' }));
+      expect(document.activeElement).toBe(screen.getByTestId('insight-tab-busiest'));
     } finally {
       width.mockRestore();
       tabW.mockRestore();

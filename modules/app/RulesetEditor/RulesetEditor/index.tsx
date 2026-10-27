@@ -55,6 +55,7 @@ import { usePaletteDrop } from './hooks/usePaletteDrop';
 import { useSnapDrag } from './hooks/useSnapDrag';
 import { useBoxSelect } from './hooks/useBoxSelect';
 import { useMiniMap } from './hooks/useMiniMap';
+import { useSidePref } from './hooks/useSidePref';
 import { FULLSCREEN_CLASSES, useFullscreen } from './hooks/useFullscreen';
 import { hintOf, isMac, shortcutOf, type ShortcutId } from './shortcuts';
 import { ShortcutsDialog } from './dialogs/ShortcutsDialog';
@@ -79,7 +80,8 @@ export type RulesetSideBar = Omit<InsightPanelProps, 'slots' | 'onReveal' | 'sel
   traceTab?: InsightSlot;
   /** the Runs tab (e.g. kui `RunsPanel` over the host's run records); no tab without it */
   runsTab?: InsightSlot;
-  /** is the bar shown (default true); the editor shows it anyway while a block is open */
+  /** is the bar shown; the editor shows it anyway while a block is open. Without it the editor keeps the last choice in
+   *  localStorage (`kui-ruleset-sidebar`), shown at first */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   tab?: string;
@@ -287,8 +289,10 @@ export function RulesetEditor({
   const [picker, setPicker]         = useState<Picker | null>(null);
   const [groupEdit, setGroupEdit]   = useState<GroupEdit | null>(null);
   const [scriptTest, setScriptTest] = useState<{ nodeId: string; key: string; code: string } | null>(null);
-  const [sideShownOwn, setSideShown] = useState(true);
+  /* a host that keeps `open` decides it; else the last choice is kept in the browser */
+  const [sideShownOwn, setSideShownOwn] = useSidePref();
   const sideShown = sideBar?.open ?? sideShownOwn;
+  const setSideShown = (on: boolean) => { if (sideBar?.open === undefined && on !== sideShownOwn) setSideShownOwn(on); };
   const [sideTabOwn, setSideTabOwn] = useState<string>(sideBar?.defaultTab ?? 'block');
   const sideTab = sideBar?.tab ?? sideTabOwn;
   const setSideTab = (t: string) => { setSideTabOwn(t); sideBar?.onTabChange?.(t); };
