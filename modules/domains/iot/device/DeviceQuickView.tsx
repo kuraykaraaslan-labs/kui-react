@@ -133,7 +133,7 @@ export function DeviceQuickView({
       {error && !device ? (
         <p role="alert" className="text-sm text-error">{error}</p>
       ) : !device ? (
-        <SkeletonText lines={5} />
+        <SkeletonText lines={5} label={m.common.loading} />
       ) : (
         <div className="space-y-5" data-device-id={deviceId}>
           <section aria-label={m.quickView.label} className="space-y-3">

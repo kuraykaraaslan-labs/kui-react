@@ -106,7 +106,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
       </div>
     );
   }
-  if (base === null) return <SkeletonText lines={4} className={className} />;
+  if (base === null) return <SkeletonText lines={4} label={m.common.loading} className={className} />;
 
   const words = { and: m.alarmRules.and, or: m.alarmRules.or, attribute: m.alarmRules.attribute, topic: m.alarmRules.onTopic };
   const columns: Column<RuleRow>[] = [

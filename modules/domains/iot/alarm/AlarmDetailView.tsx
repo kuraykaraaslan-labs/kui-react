@@ -106,7 +106,7 @@ export function AlarmDetailView({ alarmId, hrefs = {}, now, className }: AlarmDe
       </div>
     );
   }
-  if (!alarm) return <SkeletonText lines={6} className={className} />;
+  if (!alarm) return <SkeletonText lines={6} label={m.common.loading} className={className} />;
 
   const origin = alarm.origin;
   const raisedBy = !origin ? m.related.unknown

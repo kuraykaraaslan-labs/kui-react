@@ -69,7 +69,7 @@ export function DevicePlacementPanel({ deviceId, hrefs = {}, className }: Device
       </div>
     );
   }
-  if (!placement) return <SkeletonText lines={2} className={className} />;
+  if (!placement) return <SkeletonText lines={2} label={m.common.loading} className={className} />;
   const at = placement.path[placement.path.length - 1];
 
   return (

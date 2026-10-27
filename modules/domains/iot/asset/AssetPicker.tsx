@@ -45,7 +45,7 @@ export function AssetPicker({
   const selected = value === null ? (allowTop ? TOP_LEVEL_ID : undefined) : value;
   return (
     <div className={cn('space-y-2', className)}>
-      <SearchBar placeholder={searchPlaceholder ?? m.placement.pickSearch} value={search} onChange={setSearch} onClear={() => setSearch('')} />
+      <SearchBar placeholder={searchPlaceholder ?? m.placement.pickSearch} clearLabel={m.common.clearSearch} value={search} onChange={setSearch} onClear={() => setSearch('')} />
       <div className="max-h-80 overflow-auto rounded-lg border border-border p-1">
         {tree.length ? (
           <TreeView

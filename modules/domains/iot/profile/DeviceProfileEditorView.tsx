@@ -193,7 +193,7 @@ export function DeviceProfileEditorView({
       </div>
     );
   }
-  if (!profile || !draft || !base) return <SkeletonText lines={8} className={className} />;
+  if (!profile || !draft || !base) return <SkeletonText lines={8} label={m.common.loading} className={className} />;
 
   const issueTabs = new Set([...Object.keys(issues), ...Object.keys(serverErrors)].map(tabOf));
   const badge = (id: string) => (issueTabs.has(id) ? <span className="ml-1 inline-block h-2 w-2 rounded-full bg-error" aria-label={m.profile.invalid} /> : undefined);
@@ -360,7 +360,7 @@ export function DeviceProfileEditorView({
 
       {readOnly && <Callout variant="info" title={null}>{m.profile.readOnly}</Callout>}
 
-      <TabGroup tabs={tabs} defaultTab={tab} onTabChange={onTabChange} label={m.profile.tabs} isolate retryLabel={m.common.retry} />
+      <TabGroup tabs={tabs} defaultTab={tab} onTabChange={onTabChange} label={m.profile.tabs} isolate retryLabel={m.common.retry} errorLabel={m.common.loadFailed} errorDetail={m.common.loadFailedDetail} />
 
       {dirty && !readOnly && (
         <div role="region" aria-label={m.profile.unsaved}

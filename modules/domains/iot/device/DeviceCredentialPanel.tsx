@@ -72,7 +72,7 @@ export function DeviceCredentialPanel({
       {secret && <IssuedSecretNotice secret={secret} onDismiss={onSecretDismiss} messages={messages} />}
 
       {loading ? (
-        <SkeletonText lines={3} />
+        <SkeletonText lines={3} label={m.common.loading} />
       ) : !credential ? (
         <p className="text-sm text-text-secondary">{m.credential.none}</p>
       ) : (

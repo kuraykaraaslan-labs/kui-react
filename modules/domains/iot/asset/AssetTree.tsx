@@ -42,14 +42,14 @@ export function AssetTree({ nodes, selectedId, onSelect, loading, error, onRetry
   const q = search.trim();
   return (
     <div className={cn('space-y-2', className)}>
-      <SearchBar placeholder={m.assets.search} value={search} onChange={setSearch} onClear={() => setSearch('')} />
+      <SearchBar placeholder={m.assets.search} clearLabel={m.common.clearSearch} value={search} onChange={setSearch} onClear={() => setSearch('')} />
       {error ? (
         <div role="alert" className="space-y-2 rounded-lg border border-border p-3 text-sm text-error">
           <p>{error}</p>
           {onRetry && <button type="button" onClick={onRetry} className="text-primary underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">{m.common.retry}</button>}
         </div>
       ) : loading && !nodes.length ? (
-        <SkeletonText lines={6} />
+        <SkeletonText lines={6} label={m.common.loading} />
       ) : !nodes.length ? (
         <EmptyState icon={<FontAwesomeIcon icon={faSitemap} aria-hidden="true" />} title={m.assets.empty} description={m.assets.emptyHint} action={emptyAction} />
       ) : tree.length ? (

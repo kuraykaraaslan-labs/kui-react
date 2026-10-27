@@ -12,9 +12,18 @@ export function SkeletonAvatar({ size = 'md', className }: { size?: 'sm' | 'md' 
   return <div className={cn(base, 'rounded-full shrink-0', s, className)} />;
 }
 
-export function SkeletonText({ lines = 3, className }: { lines?: number; className?: string }) {
+/** `label` is the accessible name of the busy region. */
+export function SkeletonText({
+  lines = 3,
+  label = 'Loading content',
+  className,
+}: {
+  lines?: number;
+  label?: string;
+  className?: string;
+}) {
   return (
-    <div className={cn('space-y-2', className)} aria-busy="true" aria-label="Loading content">
+    <div className={cn('space-y-2', className)} aria-busy="true" aria-label={label}>
       {Array.from({ length: lines }).map((_, i) => (
         <SkeletonLine key={i} width={i === lines - 1 ? 'w-4/5' : 'w-full'} />
       ))}
@@ -22,12 +31,12 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
   );
 }
 
-export function SkeletonCard({ className }: { className?: string }) {
+export function SkeletonCard({ label = 'Loading content', className }: { label?: string; className?: string }) {
   return (
     <div
       className={cn('bg-surface-raised border border-border rounded-xl p-6 space-y-4', className)}
       aria-busy="true"
-      aria-label="Loading content"
+      aria-label={label}
     >
       <div className="flex items-center gap-3">
         <SkeletonAvatar />
@@ -36,7 +45,7 @@ export function SkeletonCard({ className }: { className?: string }) {
           <SkeletonLine width="w-1/2" />
         </div>
       </div>
-      <SkeletonText lines={3} />
+      <SkeletonText lines={3} label={label} />
       <div className="flex justify-between">
         <div className={cn(base, 'h-6 w-16 rounded')} />
         <div className={cn(base, 'h-6 w-20 rounded')} />

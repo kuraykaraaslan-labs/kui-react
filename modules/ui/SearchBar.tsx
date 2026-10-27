@@ -8,6 +8,7 @@ export function SearchBar({
   id = 'search',
   placeholder = 'Search…',
   label,
+  clearLabel = 'Clear search',
   value,
   onChange,
   onClear,
@@ -17,6 +18,8 @@ export function SearchBar({
   placeholder?: string;
   /** Accessible name of the input (a placeholder is not one); without it the input is named by nothing but its context. */
   label?: string;
+  /** Accessible name of the clear button. */
+  clearLabel?: string;
   value?: string;
   onChange?: (value: string) => void;
   onClear?: () => void;
@@ -67,7 +70,7 @@ export function SearchBar({
         <button
           type="button"
           onClick={handleClear}
-          aria-label="Clear search"
+          aria-label={clearLabel}
           className="absolute right-2 text-text-disabled hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded"
         >
           <FontAwesomeIcon icon={faXmark} className="w-3 h-3" />

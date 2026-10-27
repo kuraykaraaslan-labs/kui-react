@@ -38,6 +38,8 @@ export function TabGroup({
   loadingFallback,
   onTabError,
   retryLabel = 'Retry',
+  errorLabel,
+  errorDetail,
   onTabChange,
   className,
 }: {
@@ -63,6 +65,10 @@ export function TabGroup({
   onTabError?: (tabId: string, error: Error, info: ErrorInfo) => void;
   /** Label of the default error fallback's retry button. */
   retryLabel?: string;
+  /** Heading of the default error fallback; defaults to the "failed" reason's English text. */
+  errorLabel?: string;
+  /** Explanation of the default error fallback; defaults to the "failed" reason's English text. */
+  errorDetail?: string;
   /** Called with the id of the tab the user activates (e.g. to keep it in the URL). */
   onTabChange?: (tabId: string) => void;
   className?: string;
@@ -113,7 +119,13 @@ export function TabGroup({
           renderError ? (
             renderError({ tab, error, reset })
           ) : (
-            <UnavailableContribution reason="failed" size="tab" action={{ label: retryLabel, onClick: reset }} />
+            <UnavailableContribution
+              reason="failed"
+              size="tab"
+              label={errorLabel}
+              detail={errorDetail}
+              action={{ label: retryLabel, onClick: reset }}
+            />
           )
         }
       >

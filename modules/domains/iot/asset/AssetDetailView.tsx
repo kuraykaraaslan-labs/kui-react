@@ -110,7 +110,7 @@ export function AssetDetailView({
       </div>
     );
   }
-  if (!shown) return <SkeletonText lines={6} className={className} />;
+  if (!shown) return <SkeletonText lines={6} label={m.common.loading} className={className} />;
   const a = shown;
 
   const tabs: Tab[] = [
@@ -156,7 +156,7 @@ export function AssetDetailView({
         </div>
       </section>
 
-      <TabGroup tabs={tabs} defaultTab={tab} onTabChange={onTabChange} label={a.name} lazy isolate retryLabel={m.common.retry} />
+      <TabGroup tabs={tabs} defaultTab={tab} onTabChange={onTabChange} label={a.name} lazy isolate retryLabel={m.common.retry} errorLabel={m.common.loadFailed} errorDetail={m.common.loadFailedDetail} />
 
       {editing && <AssetFormDrawer open asset={a} onClose={() => setEditing(false)} onSaved={changed} />}
       {addingChild && <AssetFormDrawer open parent={{ assetId: a.assetId, name: a.name }} onClose={() => setAddingChild(false)} onSaved={changed} />}

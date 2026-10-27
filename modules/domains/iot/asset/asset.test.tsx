@@ -128,6 +128,17 @@ describe('AssetTree', () => {
     expect(screen.queryByRole('button', { name: 'Expand all' })).toBeNull();
   });
 
+  it('names the search clear button and the loading skeleton from the kit messages', async () => {
+    const user = userEvent.setup();
+    const messages = { common: { clearSearch: 'Aramayı temizle', loading: 'Yükleniyor…' } };
+    const { rerender } = render(<AssetTree nodes={TREE} messages={messages} />);
+    await user.type(screen.getByPlaceholderText('Search by name or code'), 'press');
+    expect(screen.getByRole('button', { name: 'Aramayı temizle' })).toBeInTheDocument();
+    rerender(<AssetTree nodes={[]} loading messages={messages} />);
+    expect(screen.getByLabelText('Yükleniyor…')).toHaveAttribute('aria-busy', 'true');
+    expect(screen.queryByLabelText('Loading content')).toBeNull();
+  });
+
   it('shows the empty state with the host action', () => {
     render(<AssetTree nodes={[]} emptyAction={<button type="button">New site</button>} />);
     expect(screen.getByText('No sites yet')).toBeInTheDocument();

@@ -126,7 +126,7 @@ export function DeviceDetailView({
       </div>
     );
   }
-  if (!device) return <SkeletonText lines={6} className={className} />;
+  if (!device) return <SkeletonText lines={6} label={m.common.loading} className={className} />;
 
   const tabs: Tab[] = [
     { id: 'overview', label: m.detail.overview, order: 0, content: <Overview device={device} /> },
@@ -161,7 +161,7 @@ export function DeviceDetailView({
           </>
         )}
       />
-      <TabGroup tabs={tabs} defaultTab={tab ? (TAB_ALIASES[tab] ?? tab) : undefined} onTabChange={onTabChange} label={m.detail.tabs} lazy isolate retryLabel={m.common.retry} />
+      <TabGroup tabs={tabs} defaultTab={tab ? (TAB_ALIASES[tab] ?? tab) : undefined} onTabChange={onTabChange} label={m.detail.tabs} lazy isolate retryLabel={m.common.retry} errorLabel={m.common.loadFailed} errorDetail={m.common.loadFailedDetail} />
     </div>
   );
 }

@@ -216,6 +216,24 @@ describe('TabGroup', () => {
       expect(screen.getByText('Alpha content')).toBeVisible();
     });
 
+    it('the default fallback takes its heading and explanation from the host, for a translated page', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      render(
+        <TabGroup
+          tabs={WITH_BROKEN}
+          defaultTab="x"
+          isolate
+          retryLabel="Yeniden dene"
+          errorLabel="Yüklenemedi"
+          errorDetail="Bu gösterilirken bir sorun oluştu."
+        />,
+      );
+      expect(screen.getByText('Yüklenemedi')).toBeInTheDocument();
+      expect(screen.getByText('Bu gösterilirken bir sorun oluştu.')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Yeniden dene' })).toBeInTheDocument();
+      expect(screen.queryByText('Failed to load')).toBeNull();
+    });
+
     it('a per-tab isolate flag works without the group flag', () => {
       vi.spyOn(console, 'error').mockImplementation(() => {});
       render(<TabGroup tabs={[WITH_BROKEN[0], { ...WITH_BROKEN[1], isolate: true }]} />);
