@@ -136,8 +136,13 @@ export {
   DEFAULT_WIDGET_KIT_MESSAGES,
   BUILTIN_KINDS,
   BUILTIN_VIEWS,
+  SceneSetupDrawer,
 } from './WidgetKit';
 export type {
+  SceneSetupDrawerProps,
+  SceneSetupDocument,
+  SceneSetupDevice,
+  SceneSetupMessages,
   CardSettings,
   WidgetCardProps,
   PlacementCardProps,

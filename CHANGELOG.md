@@ -21,6 +21,20 @@ All notable changes to this project will be documented here. Format follows [Kee
 - The event domain's `VenueLeafletMap` draws the installation's `MapTilesProvider` source, else OpenStreetMap's, darkened
   in the dark theme, instead of always requesting OpenStreetMap.
 
+### Added
+
+- WidgetKit `SceneSetupDrawer` (next-boilerplate phase 42.2.3): the scene setup as one right-side drawer, a scrolling form with no tabs.
+  Slot (text or select) and kind (segmented, only the kinds the host passes); the document in a DataTable (name, updated, used by,
+  with search, sort and a use filter) and an optional "New from this device" button; the devices in a DataTable with an editable
+  role proposed from the device code; the matching table of scene keys with a status badge (matched by key, by label, proposed by
+  type, set by hand, unmatched), an element select per row, "Match automatically", a "Pick in the scene" button per row (`onPick`;
+  the key the host reports comes back as `pickedKey`, shown above the table; the host's canvas goes in the `preview` slot), Accept
+  for a type proposal, and the unresolved count; the save goes through the kit's `ConfirmDialog` (an acknowledgement for what
+  stays open, an optional reason) and is off while nothing changed. A 409 shows through `conflict` with a Reload action. Texts come
+  from the `messages` prop. The pure part is `views/scene-binding-logic.ts`: `autoMatch`, `bindingDraft` (exceptions only: an
+  identity match is never stored), `validateDraft` (key grammar `^[A-Za-z_][A-Za-z0-9_.-]{0,47}$`, 100 devices, 500 map entries),
+  `unresolved`, `proposeRoles`. Demo at `/theme/iot/scene-setup`.
+
 ### Fixed
 
 - IoT kit list views (`DeviceListView`, `DeviceProfileListView`, `AlarmListView`, the asset's devices tab, `PlaceDevicesDialog`) on

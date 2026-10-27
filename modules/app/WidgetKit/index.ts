@@ -38,3 +38,18 @@ export { useNow } from './useNow';
 export { sampleSources, sampleData, SAMPLE_GALLERY_BOARD } from './sample/sample-data';
 export type { SampleSource } from './sample/sample-data';
 export { SAMPLE_BOARDS, SAMPLE_PLANT_BOARD, SAMPLE_SALES_BOARD, SAMPLE_ENERGY_BOARD, SAMPLE_INFRA_BOARD, SAMPLE_SITES_BOARD } from './sample/sample-boards';
+// The scene setup drawer (next-boilerplate phase 42.2.3): binds a scene document to the devices that feed it. Host-driven (the
+// kit fetches nothing); the matching and the binding payload are the pure functions beside it.
+export { SceneSetupDrawer } from './views/SceneSetupDrawer';
+export type { SceneSetupDrawerProps, SceneSetupDocument, SceneSetupDevice, SceneSetupSave } from './views/SceneSetupDrawer';
+export { DEFAULT_SCENE_SETUP_MESSAGES } from './views/scene-setup-messages';
+export type { SceneSetupMessages } from './views/scene-setup-messages';
+export {
+  KEY_GRAMMAR, ROLE_GRAMMAR, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAIN_ROLE, isSceneKey, isRoleName, splitKey, elementsForRole,
+  autoMatch, roleFromCode, proposeRoles, bindingDraft, draftSignature, sameDraft, devicesFromRoles, validateDraft,
+  unresolved as sceneUnresolved,
+} from './views/scene-binding-logic';
+export type {
+  SceneKey, DeviceElement, DeviceRef, AutoMatch, AutoMatchHow, AutoMatchOptions, MatchHow, MatchStep, BindingDraft, DraftInput,
+  DraftMatch, BindingIssue, BindingIssueCode, UnresolvedInput, Unresolved,
+} from './views/scene-binding-logic';

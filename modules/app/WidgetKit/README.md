@@ -66,6 +66,12 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       `RuleContext.thingIds`).
                       Map extras: `map-logic.ts` also holds the status pictures, the satellite preset, the floor plan
                       address, drag write-back and the route replay model (`replayModel`, `replayAt`, `replayMarkers`).
+                      Scene setup (`SceneSetupDrawer.tsx`, next-boilerplate phase 42.2.3): a right-side drawer, one scrolling form (slot and
+                      kind, the document, devices and roles, matching), host-driven: the host passes the documents, devices, scene keys and
+                      elements and answers `onDocumentChange` / `onPick` / `onSave`; the kit fetches nothing. `scene-binding-logic.ts` is the
+                      pure part: the key grammar and caps, `autoMatch` (key, then label, then catalogue type; a type match is only a
+                      proposal), `bindingDraft` (the payload; `map` holds exceptions, an identity match is never stored), `validateDraft`,
+                      `unresolved`. `scene-setup-messages.ts` has its texts (a `messages` prop, English defaults).
 card-logic.ts         cardModel (the frame's classes, styles, body state), formatUpdated, styleAttribute (pure)
 placement-logic.ts    placementStatus: bound slots, stale, the card state (pure)
 tests/parity/         the reference rendering: cases.ts (49+ widget cases as JSON), golden.json (the HTML kui-react

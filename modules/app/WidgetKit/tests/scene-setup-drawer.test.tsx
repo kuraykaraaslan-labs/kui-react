@@ -1,0 +1,488 @@
+import { describe, it, expect, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
+import { SceneSetupDrawer, type SceneSetupDrawerProps } from '../views/SceneSetupDrawer';
+
+const DOCS = [
+  { id: 'doc-a', name: 'Fryer line', updatedAt: '2026-10-01T10:00:00Z', usedBy: 3 },
+  { id: 'doc-b', name: 'Grill station', updatedAt: '2026-10-20T10:00:00Z', usedBy: 0 },
+];
+const KEYS = [
+  { key: 'heater', kind: 'symbol', label: 'Heater' },
+  { key: 'pump', kind: 'symbol', label: 'Circulation' },
+  { key: 'fan', kind: 'symbol', catalogue: 'fan' },
+  { key: 'ghost', kind: 'symbol' },
+];
+const ELEMENTS = [
+  { element: 'heater', deviceId: 'd1' },
+  { element: 'p_main', label: 'Circulation', deviceId: 'd1' },
+  { element: 'blower', deviceId: 'd1', catalogue: 'fan' },
+  { element: 'spare', deviceId: 'd1' },
+];
+const DEVICES = [{ id: 'd1', label: 'Fryer 1', code: 'FRY-1' }];
+
+function props(over: Partial<SceneSetupDrawerProps> = {}): SceneSetupDrawerProps {
+  return {
+    open: true, onClose: vi.fn(), kinds: ['diagram', 'design'], documents: DOCS, devices: DEVICES, sceneKeys: KEYS, elements: ELEMENTS,
+    onSave: vi.fn(), initial: { slot: 'main', kind: 'design', documentId: 'doc-a' }, ...over,
+  };
+}
+
+/** The element select of a key's row. */
+const elementOf = (key: string) => screen.getByLabelText(`Element for ${key}`) as HTMLSelectElement;
+const statusOf = (key: string) => {
+  const row = elementOf(key).closest('tr')!;
+  return within(row).getByText(/Matched by|Proposed by|Set by hand|Unmatched/).textContent;
+};
+
+describe('SceneSetupDrawer: layout', () => {
+  it('is a drawer with the sections of D42-10 as one form, no tabs', () => {
+    render(<SceneSetupDrawer {...props()} />);
+    expect(screen.getByRole('dialog', { name: 'Scene' })).toBeInTheDocument();
+    for (const h of ['1. Slot and kind', '2. Document', '3. Devices and roles', '4. Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
+    expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.getAllByRole('region').length).toBeGreaterThan(0);
+  });
+  it('renders nothing while closed', () => {
+    render(<SceneSetupDrawer {...props({ open: false })} />);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+  it('goes full width on a phone and wide from sm', () => {
+    render(<SceneSetupDrawer {...props()} />);
+    const panel = screen.getByRole('dialog').querySelector('[tabindex="-1"]') as HTMLElement;
+    expect(panel.className).toContain('w-full');
+    expect(panel.className).toContain('sm:w-[min(100vw,60rem)]');
+  });
+  it('takes the texts from the messages prop', () => {
+    render(<SceneSetupDrawer {...props({ messages: { title: 'Sahne', slotSection: '1. Yuva' } })} />);
+    expect(screen.getByRole('dialog', { name: 'Sahne' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '1. Yuva' })).toBeInTheDocument();
+  });
+});
+
+describe('SceneSetupDrawer: slot and kind', () => {
+  it('shows the slot as text and the kinds the host passes, the initial one pressed', () => {
+    render(<SceneSetupDrawer {...props()} />);
+    expect(screen.getByLabelText('Slot')).toHaveValue('main');
+    expect(screen.getByRole('button', { name: '3D design' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '2D diagram' })).toHaveAttribute('aria-pressed', 'false');
+  });
+  it('offers only the kinds passed, and reports a change', async () => {
+    const onKindChange = vi.fn();
+    render(<SceneSetupDrawer {...props({ kinds: ['design'], onKindChange })} />);
+    expect(screen.queryByRole('button', { name: '2D diagram' })).toBeNull();
+    expect(screen.getByRole('button', { name: '3D design' })).toBeInTheDocument();
+    const user = userEvent.setup();
+    const r2 = render(<SceneSetupDrawer {...props({ kinds: ['diagram', 'design'], onKindChange })} />);
+    await user.click(within(r2.baseElement).getAllByRole('button', { name: '2D diagram' })[0]);
+    expect(onKindChange).toHaveBeenCalledWith('diagram');
+  });
+  it('is a select when the host passes slots', async () => {
+    const onSlotChange = vi.fn();
+    render(<SceneSetupDrawer {...props({ slots: [{ value: 'main', label: 'Main' }, { value: 'side', label: 'Side' }], onSlotChange })} />);
+    await userEvent.setup().selectOptions(screen.getByLabelText('Slot'), 'side');
+    expect(onSlotChange).toHaveBeenCalledWith('side');
+  });
+});
+
+describe('SceneSetupDrawer: document', () => {
+  it('lists the documents in a DataTable with name, updated and used by, searchable and sortable', async () => {
+    render(<SceneSetupDrawer {...props()} />);
+    const table = screen.getByRole('table', { name: '2. Document' });
+    expect(within(table).getByText('Fryer line')).toBeInTheDocument();
+    expect(within(table).getByText('Used by 3')).toBeInTheDocument();
+    expect(within(table).getByText('Used by 0')).toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: /Name/ })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Search documents' })).toBeInTheDocument();
+    expect(within(table).getByRole('columnheader', { name: /Updated/ })).toBeInTheDocument();
+    // Sorted by update, newest first; a click on Name sorts by name.
+    const names = () => within(table).getAllByRole('row').slice(1).map((r) => within(r).queryByText(/Fryer line|Grill station/)?.textContent);
+    expect(names()).toEqual(['Grill station', 'Fryer line']);
+    await userEvent.setup().click(within(table).getByRole('columnheader', { name: /Name/ }).querySelector('button')!);
+    expect(names()).toEqual(['Fryer line', 'Grill station']);
+    await userEvent.setup().type(screen.getByRole('searchbox', { name: 'Search documents' }), 'grill');
+    expect(names()).toEqual(['Grill station']);
+  });
+  it('marks the initial document and chooses another by its radio, reporting it', async () => {
+    const onDocumentChange = vi.fn();
+    render(<SceneSetupDrawer {...props({ onDocumentChange })} />);
+    expect(screen.getByRole('radio', { name: 'Use Fryer line' })).toBeChecked();
+    expect(screen.getByText('Document: Fryer line')).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('radio', { name: 'Use Grill station' }));
+    expect(onDocumentChange).toHaveBeenCalledWith('doc-b');
+    expect(screen.getByRole('radio', { name: 'Use Grill station' })).toBeChecked();
+  });
+  it('a click on the row chooses it too', async () => {
+    const onDocumentChange = vi.fn();
+    render(<SceneSetupDrawer {...props({ onDocumentChange })} />);
+    await userEvent.setup().click(screen.getByText('Grill station'));
+    expect(onDocumentChange).toHaveBeenCalledWith('doc-b');
+  });
+  it('has the "New from this device" button only when the host gives the callback', async () => {
+    const onNewFromDevice = vi.fn();
+    const a = render(<SceneSetupDrawer {...props()} />);
+    expect(screen.queryByRole('button', { name: 'New from this device' })).toBeNull();
+    a.unmount();
+    render(<SceneSetupDrawer {...props({ onNewFromDevice })} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'New from this device' }));
+    expect(onNewFromDevice).toHaveBeenCalled();
+  });
+  it('empty and loading states', () => {
+    const a = render(<SceneSetupDrawer {...props({ documents: [], initial: {} })} />);
+    expect(screen.getByText('No document of this kind yet.')).toBeInTheDocument();
+    expect(screen.getAllByText('Choose a document.').length).toBeGreaterThan(0);
+    a.unmount();
+    render(<SceneSetupDrawer {...props({ documentsLoading: true })} />);
+    expect(screen.getAllByText('Loading').length).toBeGreaterThan(0);
+  });
+});
+
+describe('SceneSetupDrawer: devices and roles', () => {
+  const two = [{ id: 'd1', label: 'Fryer 1', code: 'KITCHEN-FRYER' }, { id: 'd2', label: 'Grill 1', code: 'grill-1' }];
+  it('lists the devices with an editable role, empty (main) for a single device', () => {
+    render(<SceneSetupDrawer {...props()} />);
+    expect(screen.getByLabelText('Role of Fryer 1')).toHaveValue('');
+  });
+  it('proposes roles from the codes for several devices, with the scene roles first, and lets the user change one', async () => {
+    render(<SceneSetupDrawer {...props({ devices: two, roles: ['fryer'], elements: [], sceneKeys: [] })} />);
+    expect(screen.getByLabelText('Role of Fryer 1')).toHaveValue('fryer');
+    expect(screen.getByLabelText('Role of Grill 1')).toHaveValue('grill-1');
+    const user = userEvent.setup();
+    await user.clear(screen.getByLabelText('Role of Grill 1'));
+    await user.type(screen.getByLabelText('Role of Grill 1'), 'grill');
+    expect(screen.getByLabelText('Role of Grill 1')).toHaveValue('grill');
+  });
+  it('uses the role of the saved binding and the one the host proposes', () => {
+    render(<SceneSetupDrawer {...props({
+      devices: [{ id: 'd1', label: 'Fryer 1' }, { id: 'd2', label: 'Grill 1', role: 'bbq' }], initial: { devices: { fryer: 'd1' } },
+    })} />);
+    expect(screen.getByLabelText('Role of Fryer 1')).toHaveValue('fryer');
+    expect(screen.getByLabelText('Role of Grill 1')).toHaveValue('bbq');
+  });
+  it('flags a duplicate role and keeps Save off', async () => {
+    render(<SceneSetupDrawer {...props({ devices: two })} />);
+    const user = userEvent.setup();
+    await user.clear(screen.getByLabelText('Role of Grill 1'));
+    await user.type(screen.getByLabelText('Role of Grill 1'), 'fryer');
+    await user.clear(screen.getByLabelText('Role of Fryer 1'));
+    await user.type(screen.getByLabelText('Role of Fryer 1'), 'fryer');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getAllByText('Two devices have the role fryer.').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Role of Fryer 1')).toHaveAttribute('aria-invalid', 'true');
+  });
+  it('empty state', () => {
+    render(<SceneSetupDrawer {...props({ devices: [] })} />);
+    expect(screen.getByText('No device to bind.')).toBeInTheDocument();
+  });
+});
+
+describe('SceneSetupDrawer: matching', () => {
+  it('shows a row per scene key, matched by key at once and the rest unmatched until Match automatically', () => {
+    render(<SceneSetupDrawer {...props()} />);
+    expect(elementOf('heater')).toHaveValue(String(0));
+    expect(statusOf('heater')).toBe('Matched by key');
+    expect(statusOf('pump')).toBe('Unmatched');
+    expect(elementOf('pump')).toHaveValue('');
+    expect(screen.getByText('3 scene keys without an element')).toBeInTheDocument();
+  });
+  it('Match automatically fills the rows by label and flags the type proposals', async () => {
+    render(<SceneSetupDrawer {...props()} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Match automatically' }));
+    expect(statusOf('pump')).toBe('Matched by label');
+    expect(elementOf('pump').selectedOptions[0].textContent).toBe('Circulation (p_main)');
+    expect(statusOf('fan')).toBe('Proposed by type');
+    expect(elementOf('fan').selectedOptions[0].textContent).toBe('blower');
+    expect(statusOf('ghost')).toBe('Unmatched');
+    expect(screen.getByText('2 keys matched, 1 to confirm.')).toBeInTheDocument();
+    expect(screen.getByText('1 proposal is not stored until accepted')).toBeInTheDocument();
+    expect(screen.getByText('2 scene keys without an element')).toBeInTheDocument();
+  });
+  it('a manual pick sets the row, can be changed, and picking the identity element drops the exception', async () => {
+    render(<SceneSetupDrawer {...props()} />);
+    const user = userEvent.setup();
+    await user.selectOptions(elementOf('ghost'), 'spare');
+    expect(statusOf('ghost')).toBe('Set by hand');
+    expect(elementOf('ghost').selectedOptions[0].textContent).toBe('spare');
+    await user.selectOptions(elementOf('ghost'), '');
+    expect(statusOf('ghost')).toBe('Unmatched');
+    await user.selectOptions(elementOf('heater'), 'spare');
+    expect(statusOf('heater')).toBe('Set by hand');
+    await user.selectOptions(elementOf('heater'), 'heater');
+    expect(statusOf('heater')).toBe('Matched by key');
+  });
+  it('an element that matched by key cannot be left empty (nothing could store it)', () => {
+    render(<SceneSetupDrawer {...props()} />);
+    expect(within(elementOf('heater')).queryByRole('option', { name: 'Not matched' })).toBeNull();
+    expect(within(elementOf('ghost')).getByRole('option', { name: 'Not matched' })).toBeInTheDocument();
+  });
+  it('Accept turns a proposal into a hand pick, and Accept all does so for every proposal', async () => {
+    render(<SceneSetupDrawer {...props()} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Match automatically' }));
+    await user.click(screen.getByRole('button', { name: 'Accept the proposal for fan' }));
+    expect(statusOf('fan')).toBe('Set by hand');
+    expect(screen.queryByRole('button', { name: 'Accept the proposal for fan' })).toBeNull();
+  });
+  it('Accept all proposals', async () => {
+    render(<SceneSetupDrawer {...props({ sceneKeys: [{ key: 'f1', kind: 'symbol', catalogue: 'fan' }], elements: [{ element: 'blower', deviceId: 'd1', catalogue: 'fan' }] })} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Match automatically' }));
+    await user.click(screen.getByRole('button', { name: 'Accept all proposals (1)' }));
+    expect(statusOf('f1')).toBe('Set by hand');
+    expect(screen.getByText('Every scene key has an element.')).toBeInTheDocument();
+  });
+  it('Match automatically does not overwrite a hand pick and does not hand its element out again', async () => {
+    render(<SceneSetupDrawer {...props()} />);
+    const user = userEvent.setup();
+    await user.selectOptions(elementOf('fan'), 'Circulation (p_main)');
+    await user.click(screen.getByRole('button', { name: 'Match automatically' }));
+    expect(elementOf('fan').selectedOptions[0].textContent).toBe('Circulation (p_main)');
+    expect(statusOf('fan')).toBe('Set by hand');
+    expect(statusOf('pump')).toBe('Unmatched');
+  });
+  it('is disabled with nothing to match', () => {
+    render(<SceneSetupDrawer {...props({ elements: [] })} />);
+    expect(screen.getByRole('button', { name: 'Match automatically' })).toBeDisabled();
+  });
+  it('the role prefix of a key selects the device whose elements it offers', async () => {
+    render(<SceneSetupDrawer {...props({
+      devices: [{ id: 'd1', label: 'Fryer', role: 'fryer' }, { id: 'd2', label: 'Grill', role: 'grill' }],
+      sceneKeys: [{ key: 'fryer.heater', kind: 'symbol' }, { key: 'grill.heater', kind: 'symbol' }],
+      elements: [{ element: 'heater', deviceId: 'd1' }, { element: 'heater', deviceId: 'd2' }, { element: 'only_grill', deviceId: 'd2' }],
+      initial: {},
+    })} />);
+    expect(statusOf('fryer.heater')).toBe('Matched by key');
+    expect(statusOf('grill.heater')).toBe('Matched by key');
+    expect(within(elementOf('fryer.heater')).queryByRole('option', { name: 'only_grill' })).toBeNull();
+    expect(within(elementOf('grill.heater')).getByRole('option', { name: 'only_grill' })).toBeInTheDocument();
+  });
+  it('a key whose role has no device says so and cannot be picked', () => {
+    render(<SceneSetupDrawer {...props({ roles: ['oven'], sceneKeys: [{ key: 'oven.heater', kind: 'symbol' }] })} />);
+    expect(elementOf('oven.heater')).toBeDisabled();
+    expect(screen.getByText('No device has the role oven.')).toBeInTheDocument();
+    expect(screen.getByText('No device for the role oven')).toBeInTheDocument();
+  });
+  it('lists what no key reads', () => {
+    render(<SceneSetupDrawer {...props()} />);
+    expect(screen.getByText('3 elements no key reads')).toBeInTheDocument();
+  });
+  it('empty and loading states', () => {
+    const a = render(<SceneSetupDrawer {...props({ sceneKeys: [] })} />);
+    expect(screen.getByText('The scene has no keys.')).toBeInTheDocument();
+    a.unmount();
+    render(<SceneSetupDrawer {...props({ sceneKeysLoading: true })} />);
+    expect(screen.getAllByText('Loading').length).toBeGreaterThan(0);
+  });
+  it('searches the keys and filters by status', async () => {
+    render(<SceneSetupDrawer {...props()} />);
+    const user = userEvent.setup();
+    const table = screen.getByRole('table', { name: '4. Match' });
+    await user.type(screen.getByRole('searchbox', { name: 'Search scene keys' }), 'circ');
+    expect(within(table).queryByText('ghost')).toBeNull();
+    expect(within(table).getByText('pump')).toBeInTheDocument();
+    // The search reads the element a row has, too.
+    await user.clear(screen.getByRole('searchbox', { name: 'Search scene keys' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Search scene keys' }), 'heater');
+    expect(within(table).getByText('heater', { selector: 'span' })).toBeInTheDocument();
+    expect(within(table).queryByText('pump')).toBeNull();
+  });
+});
+
+describe('SceneSetupDrawer: pick in the scene', () => {
+  it('has a Pick button per row only when the host can pick, calling onPick with the key and toggling it off', async () => {
+    const onPick = vi.fn();
+    const a = render(<SceneSetupDrawer {...props()} />);
+    expect(screen.queryByRole('button', { name: /in the scene$/ })).toBeNull();
+    a.unmount();
+    render(<SceneSetupDrawer {...props({ onPick })} />);
+    const user = userEvent.setup();
+    const btn = screen.getByRole('button', { name: 'Pick pump in the scene' });
+    await user.click(btn);
+    expect(onPick).toHaveBeenLastCalledWith('pump');
+    expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await user.click(btn);
+    expect(onPick).toHaveBeenLastCalledWith(null);
+    expect(btn).toHaveAttribute('aria-pressed', 'false');
+  });
+  it('shows the key the host reports picked above the table, with its own element select', async () => {
+    const { rerender } = render(<SceneSetupDrawer {...props({ onPick: vi.fn() })} />);
+    expect(screen.queryByTestId('picked-strip')).toBeNull();
+    rerender(<SceneSetupDrawer {...props({ onPick: vi.fn(), pickedKey: 'ghost' })} />);
+    const strip = screen.getByTestId('picked-strip');
+    expect(within(strip).getByText('Choose the element this key reads.')).toBeInTheDocument();
+    const select = within(strip).getByLabelText('Picked in the scene: ghost');
+    await act(async () => { await new Promise((r) => setTimeout(r, 5)); });
+    expect(select).toHaveFocus();
+    await userEvent.setup().selectOptions(select, 'spare');
+    expect(statusOf('ghost')).toBe('Set by hand');
+  });
+  it('draws the preview slot beside the table', () => {
+    render(<SceneSetupDrawer {...props({ preview: <canvas data-testid="canvas" /> })} />);
+    expect(within(screen.getByRole('region', { name: 'Scene preview' })).getByTestId('canvas')).toBeInTheDocument();
+  });
+});
+
+describe('SceneSetupDrawer: save', () => {
+  it('is disabled while nothing changed, and says so', () => {
+    const initial = { slot: 'main', kind: 'design', documentId: 'doc-a', devices: { '': 'd1' } };
+    render(<SceneSetupDrawer {...props({ initial })} />);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getByText('Nothing has changed.')).toBeInTheDocument();
+  });
+  it('is disabled while data loads, and without a document', () => {
+    const a = render(<SceneSetupDrawer {...props({ devicesLoading: true })} />);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getByText('Waiting for the data to load.')).toBeInTheDocument();
+    a.unmount();
+    render(<SceneSetupDrawer {...props({ initial: { slot: 'main', kind: 'design' } })} />);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getAllByText('Choose a document.').length).toBeGreaterThan(0);
+  });
+  it('opens the ConfirmDialog (never window.confirm) and calls onSave with the draft, exceptions only', async () => {
+    const onSave = vi.fn();
+    const confirm = vi.spyOn(window, 'confirm');
+    render(<SceneSetupDrawer {...props({ onSave })} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Match automatically' }));
+    await user.selectOptions(elementOf('ghost'), 'spare');
+    await user.click(screen.getByRole('button', { name: 'Accept the proposal for fan' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(within(dialog).getByText(/with 3 exceptions\. 0 keys|with 3 exceptions\. Every key is matched\./)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0]).toEqual({
+      documentId: 'doc-a', slot: 'main', kind: 'design', devices: { '': 'd1' }, hidden: [],
+      map: {
+        pump: { deviceId: 'd1', element: 'p_main' },
+        fan: { deviceId: 'd1', element: 'blower' },
+        ghost: { deviceId: 'd1', element: 'spare' },
+      },
+    });
+    expect(onSave.mock.calls[0][1]).toEqual({ reason: '' });
+    expect(confirm).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
+  it('does not store a proposal that was not accepted, and asks to acknowledge what stays open', async () => {
+    const onSave = vi.fn();
+    render(<SceneSetupDrawer {...props({ onSave })} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Match automatically' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    const confirmBtn = within(dialog).getByRole('button', { name: 'Save setup' });
+    expect(confirmBtn).toBeDisabled();
+    await user.click(within(dialog).getByRole('checkbox'));
+    expect(within(dialog).getByText('I know that 1 scene key stays unmatched and 1 proposal is not accepted and not saved.')).toBeInTheDocument();
+    await user.click(confirmBtn);
+    expect(onSave.mock.calls[0][0].map).toEqual({ pump: { deviceId: 'd1', element: 'p_main' } });
+  });
+  it('Cancel in the dialog saves nothing', async () => {
+    const onSave = vi.fn();
+    render(<SceneSetupDrawer {...props({ onSave })} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Save the scene setup' })).getByRole('button', { name: 'Cancel' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Save the scene setup' })).toBeNull();
+  });
+  it('asks for a reason when the host wants one, and passes it', async () => {
+    const onSave = vi.fn();
+    render(<SceneSetupDrawer {...props({ onSave, askReason: true })} />);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    await user.type(within(dialog).getByLabelText('Reason (optional)'), 'new fryer');
+    await user.click(within(dialog).getByRole('checkbox'));
+    await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));
+    expect(onSave.mock.calls[0][1]).toEqual({ reason: 'new fryer' });
+  });
+  it('shows the saving state and a save error from the host', () => {
+    const a = render(<SceneSetupDrawer {...props({ saving: true })} />);
+    expect(screen.getByRole('button', { name: /Saving/ })).toBeDisabled();
+    a.unmount();
+    render(<SceneSetupDrawer {...props({ saveError: 'Server said no' })} />);
+    expect(screen.getByText('Server said no')).toBeInTheDocument();
+    expect(screen.getByText('The setup could not be saved.')).toBeInTheDocument();
+  });
+  it('surfaces a 409 conflict with Reload, and the confirmation says the saved setup is newer', async () => {
+    const onReload = vi.fn();
+    render(<SceneSetupDrawer {...props({ conflict: true, onReload })} />);
+    expect(screen.getByText('Someone else changed this setup')).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Reload' }));
+    expect(onReload).toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(within(screen.getByRole('dialog', { name: 'Save the scene setup' })).getByText(/saved setup is newer/)).toBeInTheDocument();
+  });
+  it('a saved binding is read back: its exceptions show as hand picks, a vanished element is called out', () => {
+    render(<SceneSetupDrawer {...props({
+      initial: {
+        slot: 'main', kind: 'design', documentId: 'doc-a', devices: { '': 'd1' },
+        map: { pump: { deviceId: 'd1', element: 'p_main' }, ghost: { deviceId: 'd1', element: 'gone' } },
+      },
+    })} />);
+    expect(statusOf('pump')).toBe('Set by hand');
+    expect(statusOf('ghost')).toBe('Set by hand');
+    expect(elementOf('ghost').selectedOptions[0].textContent).toBe('gone (not on the device)');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+});
+
+describe('SceneSetupDrawer: keyboard and session', () => {
+  it('Escape closes the drawer', async () => {
+    const onClose = vi.fn();
+    render(<SceneSetupDrawer {...props({ onClose })} />);
+    await userEvent.setup().keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalled();
+  });
+  it('every control is reachable by Tab and has an accessible name', async () => {
+    render(<SceneSetupDrawer {...props({ onPick: vi.fn() })} />);
+    const dialog = screen.getByRole('dialog');
+    for (const el of dialog.querySelectorAll<HTMLElement>('button, input, select')) {
+      const name = el.getAttribute('aria-label') ?? el.textContent ?? '';
+      const labelled = el.id && dialog.querySelector(`label[for="${el.id}"]`);
+      expect(name.trim() !== '' || !!labelled || el.getAttribute('aria-labelledby'), el.outerHTML.slice(0, 120)).toBeTruthy();
+    }
+  });
+  it('a changed resetKey starts the form over from the new initial binding', () => {
+    const { rerender } = render(<SceneSetupDrawer {...props({ resetKey: 1 })} />);
+    fireEvent.change(screen.getByLabelText('Slot'), { target: { value: 'edited' } });
+    rerender(<SceneSetupDrawer {...props({ resetKey: 1, initial: { slot: 'other', kind: 'design', documentId: 'doc-a' } })} />);
+    expect(screen.getByLabelText('Slot')).toHaveValue('edited');
+    rerender(<SceneSetupDrawer {...props({ resetKey: 2, initial: { slot: 'other', kind: 'design', documentId: 'doc-a' } })} />);
+    expect(screen.getByLabelText('Slot')).toHaveValue('other');
+  });
+  it('a reopened drawer starts from the host data again', () => {
+    function Host() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <button onClick={() => setOpen((o) => !o)}>toggle</button>
+          <SceneSetupDrawer {...props({ open })} />
+        </>
+      );
+    }
+    render(<Host />);
+    fireEvent.change(screen.getByLabelText('Slot'), { target: { value: 'changed' } });
+    expect(screen.getByLabelText('Slot')).toHaveValue('changed');
+    fireEvent.click(screen.getByText('toggle'));
+    fireEvent.click(screen.getByText('toggle'));
+    return screen.findByLabelText('Slot').then((e) => expect(e).toHaveValue('main'));
+  });
+});
+
+describe('SceneSetupDrawer: exports', () => {
+  it('the kit index carries the drawer, the pure logic and the default texts', async () => {
+    const kit = await import('../index');
+    expect(kit.SceneSetupDrawer).toBe(SceneSetupDrawer);
+    expect(typeof kit.autoMatch).toBe('function');
+    expect(typeof kit.bindingDraft).toBe('function');
+    expect(typeof kit.sceneUnresolved).toBe('function');
+    expect(kit.DEFAULT_SCENE_SETUP_MESSAGES.title).toBe('Scene');
+    const app = await import('../../index');
+    expect(app.SceneSetupDrawer).toBe(SceneSetupDrawer);
+  });
+});
