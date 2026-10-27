@@ -717,6 +717,8 @@ export const IOT_MESSAGES = {
     select: 'Select an asset',
     selectHint: 'Pick a site or an asset in the tree to see its devices and details.',
     devicesBadge: '{n} devices',
+    expandAll: 'Expand all',
+    collapseAll: 'Collapse all',
   },
   asset: {
     kind: 'Kind',

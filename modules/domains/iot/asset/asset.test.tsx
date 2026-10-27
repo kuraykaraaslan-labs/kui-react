@@ -121,6 +121,13 @@ describe('AssetTree', () => {
     expect(await screen.findByText('Nothing matches “zzz”.')).toBeInTheDocument();
   });
 
+  it('labels the expand and collapse all toolbar from the kit messages', () => {
+    render(<AssetTree nodes={TREE} messages={{ assets: { expandAll: 'Tümünü genişlet', collapseAll: 'Tümünü daralt' } }} />);
+    expect(screen.getByRole('button', { name: 'Tümünü genişlet' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tümünü daralt' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Expand all' })).toBeNull();
+  });
+
   it('shows the empty state with the host action', () => {
     render(<AssetTree nodes={[]} emptyAction={<button type="button">New site</button>} />);
     expect(screen.getByText('No sites yet')).toBeInTheDocument();

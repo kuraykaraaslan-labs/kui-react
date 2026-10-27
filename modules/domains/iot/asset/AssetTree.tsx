@@ -59,7 +59,7 @@ export function AssetTree({ nodes, selectedId, onSelect, loading, error, onRetry
           selectedId={selectedId ?? undefined}
           label={m.assets.tree}
           onSelect={(id) => onSelect?.(id)}
-          messages={{ tree: m.assets.tree }}
+          messages={{ tree: m.assets.tree, expandAll: m.assets.expandAll, collapseAll: m.assets.collapseAll }}
         />
       ) : (
         <p className="px-2 py-3 text-sm text-text-secondary">{fill(m.assets.noMatch, { search: q })}</p>
