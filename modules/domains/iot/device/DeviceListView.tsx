@@ -306,34 +306,32 @@ export function DeviceListView({
 
   return (
     <div ref={listRef} className={cn('space-y-4', className)}>
-      <div className="flex items-center gap-2">
-        <PageHeader
-          className="min-w-0 flex-1"
-          title={m.devices.title}
-          subtitle={m.devices.subtitle}
-          actions={[
-            ...(renderQuarantine ? [{
-              label: quarantined === null ? m.devices.awaitingApprovalTitle : fill(m.devices.awaitingApproval, { n: quarantined }),
-              variant: 'outline' as const,
-              onClick: () => setApproving(true),
-            }] : []),
-            ...(canCreate || addChoices.length > 0 ? [{
-              label: <><FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" /> {m.devices.new}</>,
-              onClick: () => setCreating(true),
-            }] : []),
-          ]}
-        />
-        {moreActions.length > 0 && (
-          <div className="shrink-0 pb-3">
-            <DropdownMenu
-              align="right"
-              items={[...moreActions]}
-              trigger={(
-                <Button variant="ghost" iconOnly aria-label={m.devices.moreActions} title={m.devices.moreActions}>
-                  <FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              )}
-            />
+      {/* the actions wrap under the title on a phone, the "⋯" menu with them */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-3">
+        <PageHeader className="min-w-0 pb-0" title={m.devices.title} subtitle={m.devices.subtitle} />
+        {(renderQuarantine || canCreate || addChoices.length > 0 || moreActions.length > 0) && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {renderQuarantine && (
+              <Button variant="outline" onClick={() => setApproving(true)}>
+                {quarantined === null ? m.devices.awaitingApprovalTitle : fill(m.devices.awaitingApproval, { n: quarantined })}
+              </Button>
+            )}
+            {(canCreate || addChoices.length > 0) && (
+              <Button onClick={() => setCreating(true)} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
+                {m.devices.new}
+              </Button>
+            )}
+            {moreActions.length > 0 && (
+              <DropdownMenu
+                align="right"
+                items={[...moreActions]}
+                trigger={(
+                  <Button variant="ghost" iconOnly aria-label={m.devices.moreActions} title={m.devices.moreActions}>
+                    <FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                )}
+              />
+            )}
           </div>
         )}
       </div>
