@@ -4,6 +4,19 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- `MapView` / `MapCanvas`: the default basemap is OpenStreetMap's standard tiles (keyless, attributed), drawn darkened in
+  the dark theme (Esri's Canvas maps were the default since CARTO started asking for a key). An installation sets its own
+  tile source once with `MapTilesProvider` (`MapTileSource`: URL template, attribution, subdomains, deepest zoom, optional
+  dark URL), checked by `safeTileSource`; a map's `tiles` prop still wins, and the map widget's "Follow the theme" style
+  takes the source too. `MapTiles` gains `subdomains`, `maxZoom` and `dim`. OSM's tile policy fits light use: production
+  traffic belongs on a keyed provider.
+- Map markers: a dot or circle carries a short escaped `text` (a count); `clusterText` sets what a cluster bubble says; a
+  mixed cluster takes the worst status variant among its markers instead of the primary colour.
+- `AssetsMapDrawer`: sites are circles coloured by the worst active alarm with the alarm count inside, sized by devices;
+  clusters add their sites' alarms up and split as the map zooms in.
+
 ### Fixed
 
 - IoT kit list views (`DeviceListView`, `DeviceProfileListView`, `AlarmListView`, the asset's devices tab, `PlaceDevicesDialog`) on
