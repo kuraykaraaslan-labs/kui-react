@@ -245,7 +245,7 @@ function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: st
       if (!r) { setFieldErrors((f) => ({ ...f, paramsSchema: m.rpcCatalog.paramsNotBuildable })); return; }
       setRows(r);
       setParamsMode('builder');
-      setFieldErrors((f) => { const { paramsSchema: _p, ...rest } = f; return rest; });
+      setFieldErrors((f) => Object.fromEntries(Object.entries(f).filter(([k]) => k !== 'paramsSchema')));
     } catch {
       setFieldErrors((f) => ({ ...f, paramsSchema: m.rpcCatalog.jsonInvalid }));
     }

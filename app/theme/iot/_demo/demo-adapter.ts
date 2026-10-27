@@ -415,7 +415,8 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         id: 'scada.set_value', label: 'Set a value (board controls)',
         command: {
           method: 'scada.set_value', label: 'Set a value', tier: 'basic', highImpact: false, oneway: false,
-          paramsSchema: { key: { label: 'Key', type: 'text', required: true }, value: { label: 'Value', type: 'json', required: true } },
+          // the value is not required: a switch sends false (as in next-boilerplate's seeded catalogs)
+          paramsSchema: { key: { label: 'Key', type: 'text', required: true }, value: { label: 'Value', type: 'json' } },
         },
       }],
       async list(profileId) { await wait(); const p = profileOf(profileId); return { commands: structuredClone(catalogOf(profileId)), supported: p.topicSchemes.includes('ROLTEK') }; },
