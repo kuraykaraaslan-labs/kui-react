@@ -213,7 +213,7 @@ describe('DeviceListView', () => {
     await waitFor(() => expect(screen.queryByTestId('issued-secret')).toBeNull());
   });
 
-  it('offers the host\'s ways to add a device beside "Other device", each in the drawer with Back to the choice', async () => {
+  it('offers the host\'s ways to add a device beside "Other device", each in the drawer with "Choose another way" back to the choice', async () => {
     const user = userEvent.setup();
     const adapter = createFakeAdapter();
     const choice = {
@@ -228,10 +228,12 @@ describe('DeviceListView', () => {
     const reads = list.mock.calls.length;
     await user.click(screen.getByRole('button', { name: 'Claim it' }));
     await waitFor(() => expect(list.mock.calls.length).toBe(reads + 1));
-    await user.click(screen.getByRole('button', { name: 'Back' }));
+    // never "Back": the host's screen may have a Back of its own (a wizard's previous step)
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Choose another way' }));
     await user.click(screen.getByRole('button', { name: /Other device/ }));
     expect(screen.getByRole('button', { name: 'Create device' })).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await user.click(screen.getByRole('button', { name: 'Choose another way' }));
     expect(screen.getByRole('button', { name: /Vendor device/ })).toBeInTheDocument();
   });
 
@@ -241,7 +243,7 @@ describe('DeviceListView', () => {
     const { unmount } = wrap(<DeviceListView hrefs={{ device: (id) => id }} addChoices={[choice]} now={NOW} />, { caps: { ...ALL, canCreateDevice: false } });
     await user.click(await screen.findByRole('button', { name: /New device/ }));
     expect(screen.getByText('vendor screen')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Choose another way' })).toBeNull();
     unmount();
     wrap(<DeviceListView hrefs={{ device: (id) => id }} now={NOW} />, { caps: { ...ALL, canCreateDevice: false } });
     await screen.findByText('Pump 4');

@@ -16,7 +16,8 @@ import { IssuedSecretNotice } from './DeviceCredentialPanel';
  *
  * A host may offer other ways to add a device (`choices`: claiming a vendor's device with the code on its screen, …). The drawer
  * then opens on a choice between them and "Other device" (the form above, only with `canCreate`); a single way opens at once.
- * A host choice draws its own screen inside the drawer; "Back" returns to the choice.
+ * A host choice draws its own screen inside the drawer; "Choose another way" returns to the choice. It is not named "Back": a host's
+ * screen may have steps and a Back of its own, and two buttons of one name doing different things lose what was typed.
  */
 export type DeviceAddChoice = {
   id: string;

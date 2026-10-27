@@ -164,7 +164,7 @@ export const IOT_MESSAGES = {
     choose: 'What are you adding?',
     other: 'Other device',
     otherHint: 'Any other device: give it a name and a profile, and it gets an access token.',
-    back: 'Back',
+    back: 'Choose another way',
   },
   detail: {
     overview: 'Overview',
