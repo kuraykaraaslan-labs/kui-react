@@ -34,6 +34,18 @@ All notable changes to this project will be documented here. Format follows [Kee
   from the `messages` prop. The pure part is `views/scene-binding-logic.ts`: `autoMatch`, `bindingDraft` (exceptions only: an
   identity match is never stored), `validateDraft` (key grammar `^[A-Za-z_][A-Za-z0-9_.-]{0,47}$`, 100 devices, 500 map entries),
   `unresolved`, `proposeRoles`. Demo at `/theme/iot/scene-setup`.
+  Review fixes: the drawer no longer drops a saved thing silently. Saved `map` entries for keys the document no longer has, saved
+  `devices` roles whose device is not listed and saved `hidden` keys with no key are listed as stale entries that stay in the payload,
+  need the acknowledgement in the save confirmation while kept, and can be removed one by one (`staleEntries`); Save is off while the
+  keys of the chosen document have not loaded (`sceneKeysLoading`, or `sceneKeysDocumentId` differing from the chosen document).
+  `view` and `rules` of the saved binding travel through `initial` and `onSave` unchanged (a PUT no longer erases them).
+  `validateDraft` applies the server grammars (slot, kind, uuids; `slot-invalid`, `kind-invalid`, `document-invalid`,
+  `device-invalid`), the slot field is lower-cased and capped at 32 and starts as `main`. An empty `deviceId` is no device: no key
+  match, pool entry or map entry for a role without a device. The label step counts a label over all keys and all elements of the role
+  before the key step, so an ambiguous label never matches silently. A per-device "in the scene" toggle (count against the 100 cap,
+  role proposals for included devices only) and a per-key "Don't bind" / "Bind again" (the key goes into `hidden`, round-tripped).
+  The form and its baseline come from one snapshot of `initial`: a new `initial` restarts an untouched form, and shows a "saved version
+  changed" notice with Reload when the form has edits. The document radio column's screen-reader header is "Choose".
 
 ### Fixed
 

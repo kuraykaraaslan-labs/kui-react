@@ -17,6 +17,14 @@ export const MAX_BINDING_DEVICES = 100;
 export const MAX_BINDING_MAP = 500;
 /** The role of the device a key without a role prefix belongs to. */
 export const MAIN_ROLE = '';
+/** The slot a binding starts in (the server's default). */
+export const DEFAULT_SLOT = 'main';
+/** The server's grammars (`scene-binding.ts` of next-boilerplate), so a draft is refused here before the server would refuse it. */
+export const SLOT_GRAMMAR = /^[a-z][a-z0-9_-]{0,31}$/;
+export const KIND_GRAMMAR = /^[a-z][a-z0-9_]{0,31}$/;
+export const UUID_GRAMMAR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** The slot field's length (the grammar's own cap). */
+export const MAX_SLOT_LENGTH = 32;
 
 /** Names a plain object would answer for without owning them; never a key, a role or an element. */
 const RESERVED = new Set(['__proto__', 'prototype', 'constructor']);
@@ -56,8 +64,8 @@ export interface DeviceRef {
 
 /** How a match was found. `none` = no element. */
 export type AutoMatchHow = 'key' | 'label' | 'type' | 'none';
-/** `manual` is a pick by hand; `autoMatch` never says it. */
-export type MatchHow = AutoMatchHow | 'manual';
+/** `manual` is a pick by hand and `hidden` a key the user left out (`hidden[]` of the binding); `autoMatch` never says either. */
+export type MatchHow = AutoMatchHow | 'manual' | 'hidden';
 export type MatchStep = 'key' | 'label' | 'type';
 
 export interface AutoMatch {
@@ -100,19 +108,29 @@ export function splitKey(key: string, roles: Iterable<string>): { role: string; 
 
 const refId = (deviceId: string | null | undefined, element: string): string => `${deviceId ?? ''}\u0000${element}`;
 
-/** The elements a role's device offers. The main role also owns the elements with no `deviceId`. */
+/** The device an element names; an empty `deviceId` is no device. */
+const elementDevice = (e: DeviceElement): string | undefined => e.deviceId || undefined;
+
+/**
+ * The elements a role's device offers. The main role also owns the elements with no `deviceId`, but only when the main role has a
+ * device: an element with no device does not belong to a role that has none, so nothing is matched or stored against ''.
+ */
 export function elementsForRole(
   role: string,
   elements: readonly DeviceElement[],
   devices: Readonly<Record<string, string>>,
 ): DeviceElement[] {
   const d = own(devices, role) ? devices[role] : undefined;
-  return elements.filter((e) => (d !== undefined && e.deviceId === d) || (role === MAIN_ROLE && e.deviceId === undefined));
+  if (!d) return [];
+  return elements.filter((e) => {
+    const ed = elementDevice(e);
+    return ed === d || (role === MAIN_ROLE && ed === undefined);
+  });
 }
 
 /** The device an element of `role` is on: its own `deviceId`, else the role's device, else null. */
 function deviceOfElement(role: string, e: DeviceElement, devices: Readonly<Record<string, string>>): string | null {
-  return e.deviceId ?? (own(devices, role) ? devices[role] : null);
+  return elementDevice(e) ?? ((own(devices, role) ? devices[role] : '') || null);
 }
 
 // ─── Auto match ──────────────────────────────────────────────────────────────
@@ -124,7 +142,8 @@ const norm = (s: string | undefined): string => (s ?? '').trim().toLowerCase();
  *
  *  1. `key`: the key (minus its role prefix) is the element id. Exact; this is what the runtime does without a map entry.
  *  2. `label`: the key's label equals the element's label or name, ignoring case, and only when exactly one key and one
- *     element of that role carry it (a label two things share decides nothing).
+ *     element of that role carry it, counted over all of them before the key step (a label two things share decides nothing,
+ *     even when one of them was taken by an earlier step).
  *  3. `type`: the key's catalogue type equals the element's, paired in list order (the first free `pump` key gets the first
  *     free `pump` element). Always a proposal.
  *
@@ -171,10 +190,11 @@ export function autoMatch(
   }
 
   if (steps.has('label')) {
-    // Count the labels over what is still open, per role, on both sides.
+    // A label is only a match when it is unique: counted over ALL keys of the role and ALL elements of the role's device, before
+    // any step handed something out, so a label a settled key or a taken element also carries is ambiguous and decides nothing.
     const keyCount = new Map<string, number>();
     sceneKeys.forEach((k, i) => {
-      if (!open(i) || !norm(k.label)) return;
+      if (!norm(k.label)) return;
       const id = `${out[i].role}\u0000${norm(k.label)}`;
       keyCount.set(id, (keyCount.get(id) ?? 0) + 1);
     });
@@ -182,8 +202,8 @@ export function autoMatch(
       const label = norm(k.label);
       if (!open(i) || !label || keyCount.get(`${out[i].role}\u0000${label}`) !== 1) return;
       const role = out[i].role;
-      const hits = poolOf(role).filter((e) => free(role, e) && (norm(e.label) === label || norm(e.element) === label));
-      if (hits.length === 1) settle(i, hits[0], 'label');
+      const hits = poolOf(role).filter((e) => norm(e.label) === label || norm(e.element) === label);
+      if (hits.length === 1 && free(role, hits[0])) settle(i, hits[0], 'label');
     });
   }
 
@@ -263,6 +283,13 @@ export interface BindingDraft {
   map: Record<string, DeviceRef>;
   /** Keys the scene leaves out. */
   hidden: string[];
+  /**
+   * The saved binding's view (level / focus) and rules, opaque to the drawer: they come in through `initial` and go out here
+   * unchanged, because the server replaces the whole binding on a save and would erase them otherwise. Absent when the saved
+   * binding had none.
+   */
+  view?: Record<string, unknown> | null;
+  rules?: Array<Record<string, unknown>> | null;
 }
 
 export interface DraftMatch {
@@ -279,26 +306,39 @@ export interface DraftInput {
   /** The matches to store: the accepted ones. A proposal still waiting for its confirmation is not passed. */
   matches: readonly DraftMatch[];
   hidden?: readonly string[];
+  /** Passed through to the payload as they are (see `BindingDraft`). */
+  view?: BindingDraft['view'];
+  rules?: BindingDraft['rules'];
+  /**
+   * Saved entries the scene no longer matches (a stale exception, a stale role) that the user keeps: written out as they are,
+   * after the live ones. A live match wins over a carried entry of the same key or role.
+   */
+  carryMap?: Readonly<Record<string, DeviceRef>>;
+  carryDevices?: Readonly<Record<string, string>>;
 }
 
 /**
  * Builds the payload. A match that is the identity (the key's role device, the key's local part as the element) is left
- * out: `map` carries exceptions only. Unmatched keys are left out too. Keys are written in the scene's order.
+ * out: `map` carries exceptions only. Unmatched keys are left out too. Keys are written in the scene's order. A match with an
+ * empty device id is a match with no device: it falls back to the role's device, and with none it is skipped (a map entry
+ * never carries an empty `deviceId`).
  */
 export function bindingDraft(input: DraftInput): BindingDraft {
-  const devices = Object.fromEntries(Object.entries(input.devices));
+  const devices = Object.fromEntries(Object.entries({ ...input.carryDevices, ...input.devices }));
   const roleNames = Object.keys(devices);
   const entries: Array<[string, DeviceRef]> = [];
   for (const m of input.matches) {
     if (m.element === null) continue;
     const { role, local } = splitKey(m.key, roleNames);
-    const roleDevice = own(devices, role) ? devices[role] : undefined;
-    const deviceId = m.deviceId ?? roleDevice;
-    if (deviceId === undefined || deviceId === null) continue;
+    const roleDevice = (own(devices, role) ? devices[role] : undefined) || undefined;
+    const deviceId = m.deviceId || roleDevice;
+    if (!deviceId) continue;
     if (local === m.element && deviceId === roleDevice) continue;
     entries.push([m.key, { deviceId, element: m.element }]);
   }
-  return {
+  const seen = new Set(entries.map(([k]) => k));
+  for (const [k, ref] of Object.entries(input.carryMap ?? {})) if (!seen.has(k)) entries.push([k, { deviceId: ref.deviceId, element: ref.element }]);
+  const out: BindingDraft = {
     documentId: input.documentId,
     slot: input.slot,
     kind: input.kind,
@@ -306,6 +346,9 @@ export function bindingDraft(input: DraftInput): BindingDraft {
     map: Object.fromEntries(entries),
     hidden: [...new Set(input.hidden ?? [])],
   };
+  if (input.view !== undefined) out.view = input.view;
+  if (input.rules !== undefined) out.rules = input.rules;
+  return out;
 }
 
 /** A stable text of a draft (keys sorted), so two drafts can be compared for "has anything changed". */
@@ -316,6 +359,8 @@ export function draftSignature(d: BindingDraft): string {
     sorted(d.devices),
     sorted(d.map).map(([k, v]) => [k, v.deviceId, v.element]),
     [...d.hidden].sort(),
+    d.view ?? null,
+    d.rules ?? null,
   ]);
 }
 
@@ -325,14 +370,18 @@ export const sameDraft = (a: BindingDraft, b: BindingDraft): boolean => draftSig
 
 export type BindingIssueCode =
   | 'document-missing'
+  | 'document-invalid'
   | 'slot-missing'
+  | 'slot-invalid'
   | 'kind-missing'
+  | 'kind-invalid'
   | 'no-devices'
   | 'too-many-devices'
   | 'too-many-map'
   | 'role-invalid'
   | 'role-duplicate'
   | 'device-missing'
+  | 'device-invalid'
   | 'key-invalid'
   | 'element-invalid'
   | 'hidden-invalid';
@@ -370,14 +419,18 @@ export function devicesFromRoles(
 export function validateDraft(d: BindingDraft): BindingIssue[] {
   const issues: BindingIssue[] = [];
   if (!d.documentId) issues.push({ code: 'document-missing' });
+  else if (!UUID_GRAMMAR.test(d.documentId)) issues.push({ code: 'document-invalid', subject: d.documentId });
   if (!d.slot.trim()) issues.push({ code: 'slot-missing' });
+  else if (!SLOT_GRAMMAR.test(d.slot)) issues.push({ code: 'slot-invalid', subject: d.slot });
   if (!d.kind) issues.push({ code: 'kind-missing' });
+  else if (!KIND_GRAMMAR.test(d.kind)) issues.push({ code: 'kind-invalid', subject: d.kind });
   const roles = Object.keys(d.devices);
   if (roles.length === 0) issues.push({ code: 'no-devices' });
   if (roles.length > MAX_BINDING_DEVICES) issues.push({ code: 'too-many-devices' });
   for (const role of roles) {
     if (role !== MAIN_ROLE && !isRoleName(role)) issues.push({ code: 'role-invalid', subject: role });
     if (!d.devices[role]) issues.push({ code: 'device-missing', subject: role });
+    else if (!UUID_GRAMMAR.test(d.devices[role])) issues.push({ code: 'device-invalid', subject: role });
   }
   const mapKeys = Object.keys(d.map);
   if (mapKeys.length > MAX_BINDING_MAP) issues.push({ code: 'too-many-map' });
@@ -386,6 +439,7 @@ export function validateDraft(d: BindingDraft): BindingIssue[] {
     const e = d.map[k];
     if (!isSceneKey(e.element)) issues.push({ code: 'element-invalid', subject: k });
     if (!e.deviceId) issues.push({ code: 'device-missing', subject: k });
+    else if (!UUID_GRAMMAR.test(e.deviceId)) issues.push({ code: 'device-invalid', subject: k });
   }
   for (const h of d.hidden) if (!isSceneKey(h)) issues.push({ code: 'hidden-invalid', subject: h });
   return issues;
@@ -426,15 +480,15 @@ export function unresolved(input: UnresolvedInput): Unresolved {
   for (const m of input.matches) {
     if (m.element === null || m.element === undefined) continue;
     const role = splitKey(m.key, Object.keys(input.devices)).role;
-    const deviceId = m.deviceId ?? (own(input.devices, role) ? input.devices[role] : undefined);
-    if (deviceId === undefined || deviceId === null) continue;
+    const deviceId = m.deviceId || (own(input.devices, role) ? input.devices[role] : undefined);
+    if (!deviceId) continue;
     used.add(refId(deviceId, m.element));
     usedDevices.add(deviceId);
   }
   const elements: DeviceRef[] = [];
-  const mainDevice = own(input.devices, MAIN_ROLE) ? input.devices[MAIN_ROLE] : undefined;
+  const mainDevice = (own(input.devices, MAIN_ROLE) ? input.devices[MAIN_ROLE] : undefined) || undefined;
   for (const e of input.elements) {
-    const deviceId = e.deviceId ?? mainDevice;
+    const deviceId = elementDevice(e) ?? mainDevice;
     if (deviceId === undefined || !bound.has(deviceId)) continue;
     if (!used.has(refId(deviceId, e.element))) elements.push({ deviceId, element: e.element });
   }
@@ -443,5 +497,41 @@ export function unresolved(input: UnresolvedInput): Unresolved {
     elements,
     roles: (input.roles ?? []).filter((r) => r !== MAIN_ROLE && !own(input.devices, r)),
     devices: [...bound].filter((d) => !usedDevices.has(d)),
+  };
+}
+
+// ─── Saved entries the scene no longer has ───────────────────────────────────
+
+export interface StaleInput {
+  sceneKeys: readonly SceneKey[];
+  /** Every device the host lists (included in the scene or not). */
+  deviceIds: Iterable<string>;
+  /** The saved binding's `map`, `devices` and `hidden`. */
+  map: Readonly<Record<string, DeviceRef>>;
+  devices: Readonly<Record<string, string>>;
+  hidden: readonly string[];
+}
+
+export interface StaleEntries {
+  /** Saved `map` keys the chosen document has no key for. */
+  exceptions: string[];
+  /** Saved roles whose device the host does not list. */
+  roles: string[];
+  /** Saved `hidden` keys the chosen document has no key for. */
+  hidden: string[];
+}
+
+/**
+ * What the saved binding holds that the drawer cannot show as a row: a map entry or a hidden key the document no longer has, a
+ * role whose device is not listed. They are never dropped silently: the drawer lists them, keeps them in the payload and asks
+ * for an acknowledgement, and the user removes them one by one.
+ */
+export function staleEntries(input: StaleInput): StaleEntries {
+  const keys = new Set(input.sceneKeys.map((k) => k.key));
+  const listed = new Set(input.deviceIds);
+  return {
+    exceptions: Object.keys(input.map).filter((k) => !keys.has(k)),
+    roles: Object.keys(input.devices).filter((r) => !listed.has(input.devices[r])),
+    hidden: [...new Set(input.hidden)].filter((k) => !keys.has(k)),
   };
 }

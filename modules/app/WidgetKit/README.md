@@ -71,7 +71,21 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       elements and answers `onDocumentChange` / `onPick` / `onSave`; the kit fetches nothing. `scene-binding-logic.ts` is the
                       pure part: the key grammar and caps, `autoMatch` (key, then label, then catalogue type; a type match is only a
                       proposal), `bindingDraft` (the payload; `map` holds exceptions, an identity match is never stored), `validateDraft`,
-                      `unresolved`. `scene-setup-messages.ts` has its texts (a `messages` prop, English defaults).
+                      `unresolved`, `staleEntries`. `scene-setup-messages.ts` has its texts (a `messages` prop, English defaults).
+                      The drawer never drops a saved thing silently. `initial.view` and `initial.rules` are opaque: they come back in the
+                      `onSave` draft unchanged (the server replaces the whole binding on a save, so a draft without them would erase them).
+                      `initial.map` entries for keys the chosen document no longer has, `initial.devices` roles whose device the host does
+                      not list and `initial.hidden` keys with no key are listed as stale entries (type, name, detail, Kept/Removed): they
+                      stay in the payload, the save confirmation asks for an acknowledgement while any is kept, and each row can be removed
+                      (and kept again). Save is off while `sceneKeysLoading` / `elementsLoading` / `devicesLoading` / `documentsLoading`
+                      is set, and while `sceneKeysDocumentId` (the document the passed `sceneKeys` belong to) differs from the chosen one.
+                      `validateDraft` applies the server's grammars (slot `^[a-z][a-z0-9_-]{0,31}$`, kind `^[a-z][a-z0-9_]{0,31}$`, uuids for
+                      the document and every device); the slot starts as `main`. Each device row has an include toggle (only included devices
+                      get roles and enter the payload; the count shows against the 100 cap), and every key row can be left out ("Don't
+                      bind", into `hidden`, undone with "Bind again"). A new `initial` restarts an untouched form; once the form has edits
+                      it shows a "saved version changed" notice with Reload, and a changed `resetKey` always restarts it. A role with no
+                      device matches nothing: an element with no `deviceId` belongs to the main role only when the main role has a device,
+                      and an empty `deviceId` counts as no device.
 card-logic.ts         cardModel (the frame's classes, styles, body state), formatUpdated, styleAttribute (pure)
 placement-logic.ts    placementStatus: bound slots, stale, the card state (pure)
 tests/parity/         the reference rendering: cases.ts (49+ widget cases as JSON), golden.json (the HTML kui-react

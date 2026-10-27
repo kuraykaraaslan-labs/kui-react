@@ -28,6 +28,8 @@ export interface SceneSetupMessages {
   documentUpdated: string;
   documentUsedBy: string;
   documentUse: (name: string) => string;
+  /** The (screen reader only) header of the radio column. */
+  documentPick: string;
   documentSearch: string;
   documentsEmpty: string;
   documentFilterUse: string;
@@ -57,6 +59,11 @@ export interface SceneSetupMessages {
   roleFilterAny: string;
   roleFilterMain: string;
   roleFilterNamed: string;
+  deviceInclude: string;
+  /** The include checkbox's accessible name for one device. */
+  includeOf: (device: string) => string;
+  /** "3 of 100 devices in the scene". */
+  devicesIncluded: (included: number, max: number) => string;
 
   // 4. Matching
   matchSection: string;
@@ -87,6 +94,32 @@ export interface SceneSetupMessages {
   acceptOf: (key: string) => string;
   acceptAll: (n: number) => string;
   previewLabel: string;
+  /** Leaves a key out of the scene (it goes into the binding's `hidden`). */
+  dontBind: string;
+  dontBindOf: (key: string) => string;
+  bindAgain: string;
+  bindAgainOf: (key: string) => string;
+
+  // Saved entries the scene no longer has
+  staleSection: string;
+  staleHint: string;
+  staleKind: { exception: string; role: string; hidden: string };
+  staleTypeColumn: string;
+  staleNameColumn: string;
+  staleDetailColumn: string;
+  staleStateColumn: string;
+  staleKept: string;
+  staleRemoved: string;
+  staleRemove: string;
+  staleRemoveOf: (kind: string, name: string) => string;
+  staleKeep: string;
+  staleKeepOf: (kind: string, name: string) => string;
+  /** "Stale exception for fryer.heater: the device e2... is not listed". */
+  staleExceptionDetail: (deviceId: string, element: string) => string;
+  staleRoleDetail: (deviceId: string) => string;
+  staleHiddenDetail: string;
+  staleSearch: string;
+  staleEmpty: string;
 
   // Unresolved
   unresolvedKeys: (n: number) => string;
@@ -95,6 +128,7 @@ export interface SceneSetupMessages {
   unresolvedDevices: (n: number) => string;
   unresolvedRoles: (roles: string[]) => string;
   pendingProposals: (n: number) => string;
+  unresolvedStale: (n: number) => string;
 
   // Save
   save: string;
@@ -106,7 +140,7 @@ export interface SceneSetupMessages {
   confirmTitle: string;
   confirmMessage: (kind: string, mapped: number, unmatched: number) => string;
   confirmButton: string;
-  acknowledge: (unmatched: number, proposals: number) => string;
+  acknowledge: (unmatched: number, proposals: number, stale: number) => string;
   reasonLabel: string;
   reasonPlaceholder: string;
 
@@ -114,6 +148,9 @@ export interface SceneSetupMessages {
   conflictTitle: string;
   conflictBody: string;
   reload: string;
+  /** The saved binding the form started from changed (the host passed a new `initial`) while the form has edits. */
+  savedChangedTitle: string;
+  savedChangedBody: string;
   saveFailed: string;
 }
 
@@ -136,6 +173,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   documentUpdated: 'Updated',
   documentUsedBy: 'Used by',
   documentUse: (name) => `Use ${name}`,
+  documentPick: 'Choose',
   documentSearch: 'Search documents',
   documentsEmpty: 'No document of this kind yet.',
   documentFilterUse: 'Use',
@@ -161,6 +199,9 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   roleFilterAny: 'Any',
   roleFilterMain: 'Main device',
   roleFilterNamed: 'Named role',
+  deviceInclude: 'In the scene',
+  includeOf: (device) => `Include ${device} in the scene`,
+  devicesIncluded: (included, max) => `${included} of ${max} devices in the scene.`,
 
   matchSection: '4. Match',
   matchHint: 'Each key of the scene reads one element of a device. A key that is the element id needs nothing stored; the rest are saved as exceptions.',
@@ -180,6 +221,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     label: 'Matched by label',
     type: 'Proposed by type',
     manual: 'Set by hand',
+    hidden: 'Not bound',
     none: 'Unmatched',
   },
   elementOf: (key) => `Element for ${key}`,
@@ -194,6 +236,29 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   acceptOf: (key) => `Accept the proposal for ${key}`,
   acceptAll: (count) => `Accept all proposals (${count})`,
   previewLabel: 'Scene preview',
+  dontBind: "Don't bind",
+  dontBindOf: (key) => `Do not bind ${key}`,
+  bindAgain: 'Bind again',
+  bindAgainOf: (key) => `Bind ${key} again`,
+
+  staleSection: 'Saved entries the scene no longer has',
+  staleHint: 'The saved setup holds these, but this document or device list has nothing for them. They are kept when you save unless you remove them here.',
+  staleKind: { exception: 'Stale exception', role: 'Stale role', hidden: 'Stale hidden key' },
+  staleTypeColumn: 'Type',
+  staleNameColumn: 'Name',
+  staleDetailColumn: 'Detail',
+  staleStateColumn: 'State',
+  staleKept: 'Kept',
+  staleRemoved: 'Removed',
+  staleRemove: 'Remove',
+  staleRemoveOf: (kind, name) => `Remove the ${kind.toLowerCase()} ${name}`,
+  staleKeep: 'Keep',
+  staleKeepOf: (kind, name) => `Keep the ${kind.toLowerCase()} ${name}`,
+  staleExceptionDetail: (deviceId, element) => `Reads ${element} of device ${deviceId}`,
+  staleRoleDetail: (deviceId) => `Device ${deviceId} is not in the list`,
+  staleHiddenDetail: 'Left out of the scene',
+  staleSearch: 'Search saved entries',
+  staleEmpty: 'Nothing stale.',
 
   unresolvedKeys: (count) => `${n(count, 'scene key', 'scene keys')} without an element`,
   allResolved: 'Every scene key has an element.',
@@ -201,6 +266,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   unresolvedDevices: (count) => `${n(count, 'device', 'devices')} no key reads`,
   unresolvedRoles: (roles) => `No device for the role ${roles.join(', ')}`,
   pendingProposals: (count) => `${n(count, 'proposal is', 'proposals are')} not stored until accepted`,
+  unresolvedStale: (count) => `${n(count, 'saved entry', 'saved entries')} the scene no longer has, kept until removed`,
 
   save: 'Save',
   saving: 'Saving',
@@ -209,14 +275,18 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   waitForData: 'Waiting for the data to load.',
   issue: {
     'document-missing': () => 'Choose a document.',
+    'document-invalid': () => 'The document id is not a valid id.',
     'slot-missing': () => 'Give the slot.',
+    'slot-invalid': (s) => `The slot ${s ?? ''} is not valid: lower-case letters, digits, _ and -, at most 32, starting with a letter.`,
     'kind-missing': () => 'Choose a kind.',
+    'kind-invalid': (s) => `The kind ${s ?? ''} is not valid: lower-case letters, digits and _, at most 32, starting with a letter.`,
     'no-devices': () => 'Bind at least one device.',
     'too-many-devices': () => 'A scene binds at most 100 devices.',
     'too-many-map': () => 'A scene stores at most 500 exceptions.',
     'role-invalid': (s) => `The role ${s ?? ''} is not valid: letters, digits, _ and -, starting with a letter or _.`,
     'role-duplicate': (s) => (s ? `Two devices have the role ${s}.` : 'Two devices are the main device.'),
     'device-missing': (s) => `No device for ${s || 'the main role'}.`,
+    'device-invalid': (s) => `The device of ${s || 'the main role'} is not a valid id.`,
     'key-invalid': (s) => `${s ?? ''} is not a valid key: letters, digits, _ . and -, at most 48, starting with a letter or _.`,
     'element-invalid': (s) => `The element of ${s ?? ''} is not a valid element id.`,
     'hidden-invalid': (s) => `${s ?? ''} is not a valid key.`,
@@ -225,8 +295,12 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   confirmMessage: (kind, mapped, unmatched) =>
     `Saves the ${kind} setup for this slot, with ${n(mapped, 'exception', 'exceptions')}. ${unmatched ? `${n(unmatched, 'key stays', 'keys stay')} unmatched.` : 'Every key is matched.'}`,
   confirmButton: 'Save setup',
-  acknowledge: (unmatched, proposals) => {
-    const parts = [unmatched ? n(unmatched, 'scene key stays', 'scene keys stay') + ' unmatched' : '', proposals ? n(proposals, 'proposal is', 'proposals are') + ' not accepted and not saved' : ''].filter(Boolean);
+  acknowledge: (unmatched, proposals, stale) => {
+    const parts = [
+      unmatched ? n(unmatched, 'scene key stays', 'scene keys stay') + ' unmatched' : '',
+      proposals ? n(proposals, 'proposal is', 'proposals are') + ' not accepted and not saved' : '',
+      stale ? n(stale, 'saved entry the scene no longer has is', 'saved entries the scene no longer has are') + ' kept' : '',
+    ].filter(Boolean);
     return `I know that ${parts.join(' and ')}.`;
   },
   reasonLabel: 'Reason (optional)',
@@ -235,5 +309,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   conflictTitle: 'Someone else changed this setup',
   conflictBody: 'The saved setup is newer than the one you started from. Reload to see it, or save again to replace it with yours.',
   reload: 'Reload',
+  savedChangedTitle: 'The saved version changed',
+  savedChangedBody: 'A newer saved setup arrived while you were editing. Reload to start over from it and lose your edits, or keep editing.',
   saveFailed: 'The setup could not be saved.',
 };

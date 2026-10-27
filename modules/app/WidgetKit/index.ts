@@ -45,11 +45,11 @@ export type { SceneSetupDrawerProps, SceneSetupDocument, SceneSetupDevice, Scene
 export { DEFAULT_SCENE_SETUP_MESSAGES } from './views/scene-setup-messages';
 export type { SceneSetupMessages } from './views/scene-setup-messages';
 export {
-  KEY_GRAMMAR, ROLE_GRAMMAR, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAIN_ROLE, isSceneKey, isRoleName, splitKey, elementsForRole,
+  KEY_GRAMMAR, ROLE_GRAMMAR, SLOT_GRAMMAR, KIND_GRAMMAR, UUID_GRAMMAR, DEFAULT_SLOT, MAX_SLOT_LENGTH, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAIN_ROLE, isSceneKey, isRoleName, splitKey, elementsForRole,
   autoMatch, roleFromCode, proposeRoles, bindingDraft, draftSignature, sameDraft, devicesFromRoles, validateDraft,
-  unresolved as sceneUnresolved,
+  staleEntries, unresolved as sceneUnresolved,
 } from './views/scene-binding-logic';
 export type {
   SceneKey, DeviceElement, DeviceRef, AutoMatch, AutoMatchHow, AutoMatchOptions, MatchHow, MatchStep, BindingDraft, DraftInput,
-  DraftMatch, BindingIssue, BindingIssueCode, UnresolvedInput, Unresolved,
+  DraftMatch, BindingIssue, BindingIssueCode, UnresolvedInput, Unresolved, StaleInput, StaleEntries,
 } from './views/scene-binding-logic';

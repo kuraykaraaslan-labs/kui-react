@@ -23,7 +23,8 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { Input } from '@/modules/ui/Input';
 import { Select, type SelectOption } from '@/modules/ui/Select';
 import {
-  MAIN_ROLE, autoMatch, bindingDraft, devicesFromRoles, elementsForRole, proposeRoles, sameDraft, unresolved, validateDraft,
+  DEFAULT_SLOT, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_SLOT_LENGTH, autoMatch, bindingDraft, devicesFromRoles, draftSignature, elementsForRole,
+  proposeRoles, sameDraft, staleEntries, unresolved, validateDraft,
   type BindingDraft, type BindingIssue, type DeviceElement, type DeviceRef, type MatchHow, type SceneKey,
 } from './scene-binding-logic';
 import { DEFAULT_SCENE_SETUP_MESSAGES, mergeMessages, type DeepPartial, type SceneSetupMessages } from './scene-setup-messages';
@@ -53,7 +54,13 @@ export interface SceneSetupSave {
 export interface SceneSetupDrawerProps {
   open: boolean;
   onClose: () => void;
-  /** The saved binding when there is one, or what the card menu pre-sets (slot, kind). Read when the drawer opens. */
+  /**
+   * The saved binding when there is one, or what the card menu pre-sets (slot, kind). Read when the drawer opens; a changed
+   * `initial` after that restarts the form while it is untouched, and shows a "saved version changed" notice with Reload once it
+   * has edits. Its `view` and `rules` are opaque to the drawer: they come back in the `onSave` draft unchanged (the server replaces
+   * the whole binding on a save, so a draft without them would erase them). Its `map` entries for keys the document no longer has,
+   * its `devices` roles whose device is not listed and its `hidden` keys are shown as stale entries and kept until removed.
+   */
   initial?: Partial<BindingDraft>;
 
   /** Slot choices; without them the slot is a text field. */
@@ -78,6 +85,11 @@ export interface SceneSetupDrawerProps {
 
   sceneKeys: readonly SceneKey[];
   sceneKeysLoading?: boolean;
+  /**
+   * The document `sceneKeys` belong to. When given and it differs from the chosen document the keys have not loaded yet, and Save
+   * stays off (together with `sceneKeysLoading`, `elementsLoading`, `devicesLoading` and `documentsLoading`).
+   */
+  sceneKeysDocumentId?: string;
   elements: readonly DeviceElement[];
   elementsLoading?: boolean;
 
@@ -96,7 +108,7 @@ export interface SceneSetupDrawerProps {
   conflict?: boolean;
   /** Reloads the saved binding: the host fetches it, passes it as `initial` and changes `resetKey` so the form starts over from it. */
   onReload?: () => void;
-  /** A change starts the form over from `initial` (after a reload); the form is also fresh each time the drawer opens. */
+  /** A change always starts the form over from `initial` (the host reloaded on the user's request); the form is also fresh each time the drawer opens. */
   resetKey?: string | number;
   /** Asks for an optional reason in the confirmation (it reaches the audit log). */
   askReason?: boolean;
@@ -134,12 +146,12 @@ type KeyRow = {
 };
 
 type DocRow = { id: string; name: string; updatedAt: string; usedBy: number; use: 'used' | 'unused' };
-type DeviceRow = { id: string; label: string; code: string; role: string; roleKind: 'main' | 'named' };
+type DeviceRow = { id: string; label: string; code: string; role: string; roleKind: 'main' | 'named'; included: boolean };
 
-const HOW_VARIANT: Record<MatchHow, 'success' | 'info' | 'warning' | 'primary' | 'error'> = {
-  key: 'success', label: 'info', type: 'warning', manual: 'primary', none: 'error',
+const HOW_VARIANT: Record<MatchHow, 'success' | 'info' | 'warning' | 'primary' | 'error' | 'neutral'> = {
+  key: 'success', label: 'info', type: 'warning', manual: 'primary', hidden: 'neutral', none: 'error',
 };
-const HOWS: MatchHow[] = ['key', 'label', 'type', 'manual', 'none'];
+const HOWS: MatchHow[] = ['key', 'label', 'type', 'manual', 'hidden', 'none'];
 
 
 function formatDate(iso: string | undefined, locale?: string): string {
@@ -148,6 +160,62 @@ function formatDate(iso: string | undefined, locale?: string): string {
   return Number.isNaN(t) ? iso : new Date(t).toLocaleString(locale, { dateStyle: 'medium', timeStyle: iso.length > 10 ? 'short' : undefined });
 }
 
+/** What the form starts from, read once from `initial` (and the host's slots / kinds) so the baseline and the form share it. */
+interface Seed {
+  slot: string;
+  kind: string;
+  documentId: string;
+  devices: Record<string, string>;
+  map: Record<string, DeviceRef>;
+  hidden: string[];
+  view: BindingDraft['view'];
+  rules: BindingDraft['rules'];
+  /** A stable text of all of it: two seeds with the same text are the same saved binding. */
+  sig: string;
+}
+
+function seedFrom(initial: Partial<BindingDraft> | undefined, kinds: readonly string[], slots: SceneSetupDrawerProps['slots']): Seed {
+  // The server's default slot is `main`; a host that offers other slots only starts from its first one.
+  const fallbackSlot = slots && slots.length > 0 && !slots.some((o) => o.value === DEFAULT_SLOT) ? slots[0].value : DEFAULT_SLOT;
+  const seed: Omit<Seed, 'sig'> = {
+    slot: initial?.slot || fallbackSlot,
+    kind: initial?.kind || kinds[0] || '',
+    documentId: initial?.documentId ?? '',
+    devices: { ...(initial?.devices ?? {}) },
+    map: { ...(initial?.map ?? {}) },
+    hidden: [...(initial?.hidden ?? [])],
+    view: initial?.view,
+    rules: initial?.rules,
+  };
+  return { ...seed, sig: draftSignature(seed) };
+}
+
+/** Everything the user edits. A new seed starts it over. */
+interface Form {
+  slot: string;
+  kind: string;
+  documentId: string;
+  roleEdits: Record<string, string>;
+  /** Device id -> in the scene or not; a device with no entry follows the default (all of them, or the saved ones). */
+  include: Record<string, boolean>;
+  manual: Record<string, DeviceRef | null>;
+  /** The keys left out of the scene (stale ones included until removed). */
+  hidden: string[];
+  /** Ids of the stale entries the user removed. */
+  removedStale: Record<string, true>;
+  autoOn: boolean;
+  note: string;
+}
+
+const freshForm = (seed: Seed): Form => ({
+  slot: seed.slot, kind: seed.kind, documentId: seed.documentId, roleEdits: {}, include: {}, manual: { ...seed.map }, hidden: [...seed.hidden],
+  removedStale: {}, autoOn: false, note: '',
+});
+
+type StaleRow = { id: string; type: 'exception' | 'role' | 'hidden'; typeLabel: string; name: string; detail: string; state: 'kept' | 'removed' };
+
+const owns = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+
 function SceneSetupSession(props: SceneSetupDrawerProps) {
   const {
     open, onClose, initial, slots, kinds, documents, devices, sceneKeys, elements, preview, pickedKey, saving, conflict, saveError,
@@ -155,52 +223,121 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const m = useMemo(() => mergeMessages<SceneSetupMessages>(DEFAULT_SCENE_SETUP_MESSAGES, props.messages), [props.messages]);
   const uid = useId();
 
-  const [slot, setSlot] = useState(initial?.slot ?? '');
-  const [kind, setKind] = useState(initial?.kind ?? kinds[0] ?? '');
-  const [documentId, setDocumentId] = useState(initial?.documentId ?? '');
-  const [roleEdits, setRoleEdits] = useState<Record<string, string>>({});
-  const [manual, setManual] = useState<Record<string, DeviceRef | null>>(() => ({ ...(initial?.map ?? {}) }));
-  const [autoOn, setAutoOn] = useState(false);
-  const [note, setNote] = useState('');
+  // One snapshot of the saved binding feeds the form AND the baseline. A new `initial` while the form is untouched starts the form
+  // over from it; while it has edits, the form keeps them and says the saved version changed (Reload takes the new one).
+  const latest = seedFrom(initial, kinds, slots);
+  const [seed, setSeed] = useState<Seed>(latest);
+  const [form, setForm] = useState<Form>(() => freshForm(latest));
+  const [touched, setTouched] = useState(false);
+  const newerSaved = latest.sig !== seed.sig;
+  if (newerSaved && !touched) {
+    setSeed(latest);
+    setForm(freshForm(latest));
+  }
+  const edit = (fn: (f: Form) => Form): void => {
+    setTouched(true);
+    setForm(fn);
+  };
+  const reloadFromSaved = (): void => {
+    setSeed(latest);
+    setForm(freshForm(latest));
+    setTouched(false);
+  };
+  const { slot, kind, documentId, manual, autoOn, note } = form;
   const [pickingKey, setPickingKey] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  // ── Roles ──
+  // ── Devices in the scene and their roles ──
+  const savedDeviceIds = useMemo(() => new Set(Object.values(seed.devices)), [seed.devices]);
+  const included = (id: string): boolean => form.include[id] ?? (savedDeviceIds.size === 0 || savedDeviceIds.has(id));
+  const includedDevices = useMemo(
+    () => devices.filter((d) => form.include[d.id] ?? (savedDeviceIds.size === 0 || savedDeviceIds.has(d.id))),
+    [devices, form.include, savedDeviceIds],
+  );
   const initialRoleOf = useMemo(() => {
     const out: Record<string, string> = {};
-    for (const [role, deviceId] of Object.entries(initial?.devices ?? {})) out[deviceId] = role;
+    for (const [role, deviceId] of Object.entries(seed.devices)) out[deviceId] = role;
     return out;
-  }, [initial?.devices]);
-  const proposed = useMemo(() => proposeRoles(props.devices, props.roles), [props.devices, props.roles]);
+  }, [seed.devices]);
+  const proposed = useMemo(() => proposeRoles(includedDevices, props.roles), [includedDevices, props.roles]);
   const roleMap = useMemo(
-    () => Object.fromEntries(devices.map((d) => [d.id, roleEdits[d.id] ?? initialRoleOf[d.id] ?? d.role ?? proposed[d.id] ?? MAIN_ROLE])),
-    [devices, roleEdits, initialRoleOf, proposed],
+    () => Object.fromEntries(devices.map((d) => [d.id, form.roleEdits[d.id] ?? initialRoleOf[d.id] ?? d.role ?? proposed[d.id] ?? MAIN_ROLE])),
+    [devices, form.roleEdits, initialRoleOf, proposed],
   );
-  const roleTable = useMemo(() => devicesFromRoles(devices.map((d) => ({ deviceId: d.id, role: roleMap[d.id] }))), [devices, roleMap]);
+  const roleTable = useMemo(
+    () => devicesFromRoles(includedDevices.map((d) => ({ deviceId: d.id, role: roleMap[d.id] }))),
+    [includedDevices, roleMap],
+  );
   const devMap = roleTable.devices;
   const roleIssues = roleTable.issues;
+
+  // ── Loading: the keys of the CHOSEN document must be in before anything is saved ──
+  const keysForOther = props.sceneKeysDocumentId !== undefined && !!documentId && props.sceneKeysDocumentId !== documentId;
+  const loading = !!(props.documentsLoading || props.devicesLoading || props.sceneKeysLoading || props.elementsLoading || keysForOther);
+
+  // ── Saved entries the scene has no row for ──
+  const stale = useMemo(
+    () => staleEntries({ sceneKeys, deviceIds: devices.map((d) => d.id), map: seed.map, devices: seed.devices, hidden: seed.hidden }),
+    [sceneKeys, devices, seed],
+  );
+  const staleRows: StaleRow[] = useMemo(() => {
+    if (loading) return [];
+    const rows: StaleRow[] = [];
+    const state = (id: string): 'kept' | 'removed' => (form.removedStale[id] ? 'removed' : 'kept');
+    for (const k of stale.exceptions) {
+      const ref = seed.map[k];
+      rows.push({ id: `exception:${k}`, type: 'exception', typeLabel: m.staleKind.exception, name: k, detail: m.staleExceptionDetail(ref.deviceId, ref.element), state: state(`exception:${k}`) });
+    }
+    for (const r of stale.roles) {
+      rows.push({ id: `role:${r}`, type: 'role', typeLabel: m.staleKind.role, name: r, detail: m.staleRoleDetail(seed.devices[r]), state: state(`role:${r}`) });
+    }
+    for (const k of stale.hidden) {
+      rows.push({ id: `hidden:${k}`, type: 'hidden', typeLabel: m.staleKind.hidden, name: k, detail: m.staleHiddenDetail, state: state(`hidden:${k}`) });
+    }
+    return rows;
+  }, [loading, stale, seed, form.removedStale, m]);
+  const staleKept = staleRows.filter((r) => r.state === 'kept');
+  const carryMap = useMemo(
+    () => Object.fromEntries(staleKept.filter((r) => r.type === 'exception').map((r) => [r.name, seed.map[r.name]])),
+    [staleKept, seed.map],
+  );
+  const carryDevices = useMemo(
+    () => Object.fromEntries(staleKept.filter((r) => r.type === 'role').map((r) => [r.name, seed.devices[r.name]])),
+    [staleKept, seed.devices],
+  );
+  // A removed stale hidden key leaves `hidden`; the others stay (a live key's hide is the user's own choice).
+  const hiddenKeys = useMemo(() => form.hidden.filter((k) => !form.removedStale[`hidden:${k}`]), [form.hidden, form.removedStale]);
+  const hiddenSet = useMemo(() => new Set(hiddenKeys), [hiddenKeys]);
 
   // ── Matching ──
   const sceneRoles = props.roles;
   const base = useMemo(
-    () => autoMatch(sceneKeys, elements, { devices: devMap, roles: sceneRoles, steps: ['key'] }),
-    [sceneKeys, elements, devMap, sceneRoles],
+    () => autoMatch(sceneKeys, elements, { devices: devMap, roles: sceneRoles, steps: ['key'], skip: hiddenSet }),
+    [sceneKeys, elements, devMap, sceneRoles, hiddenSet],
   );
+  /** The elements hand picks hold (a pick of a key the scene no longer has, or of a key left out, holds none). */
+  const claimedRefs = (): DeviceRef[] => {
+    const live = new Set(sceneKeys.map((k) => k.key));
+    return Object.entries(manual).filter(([k, r]) => !!r && live.has(k) && !hiddenSet.has(k)).map(([, r]) => r as DeviceRef);
+  };
   const auto = useMemo(() => {
     if (!autoOn) return null;
-    const settled = new Set(Object.keys(manual));
-    const claimed = Object.values(manual).filter((r): r is DeviceRef => !!r);
+    const settled = new Set([...Object.keys(manual), ...hiddenSet]);
+    const live = new Set(sceneKeys.map((k) => k.key));
+    const claimed = Object.entries(manual).filter(([k, r]) => !!r && live.has(k) && !hiddenSet.has(k)).map(([, r]) => r as DeviceRef);
     return autoMatch(sceneKeys, elements, { devices: devMap, roles: sceneRoles, skip: settled, claimed });
-  }, [autoOn, manual, sceneKeys, elements, devMap, sceneRoles]);
+  }, [autoOn, manual, hiddenSet, sceneKeys, elements, devMap, sceneRoles]);
 
   const baseOf = useMemo(() => new Map(base.map((b) => [b.key, b] as const)), [base]);
   const rows: KeyRow[] = useMemo(
     () =>
       sceneKeys.map((k, i) => {
-        const m0 = Object.prototype.hasOwnProperty.call(manual, k.key) ? manual[k.key] : undefined;
+        const m0 = owns(manual, k.key) ? manual[k.key] : undefined;
         let how: MatchHow = 'none';
         let ref: DeviceRef | null = null;
-        if (m0) {
+        if (hiddenSet.has(k.key)) {
+          how = 'hidden';
+        } else if (m0) {
           how = 'manual';
           ref = m0;
         } else if (base[i].element !== null) {
@@ -216,7 +353,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           find: `${k.key} ${label} ${ref?.element ?? ''}`,
         };
       }),
-    [sceneKeys, manual, base, auto],
+    [sceneKeys, manual, base, auto, hiddenSet],
   );
   const pending = rows.filter((r) => r.how === 'type');
 
@@ -226,23 +363,27 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     [rows],
   );
   const draft = useMemo(
-    () => bindingDraft({ documentId, slot, kind, devices: devMap, matches: accepted, hidden: initial?.hidden }),
-    [documentId, slot, kind, devMap, accepted, initial?.hidden],
+    () => bindingDraft({
+      documentId, slot, kind, devices: devMap, matches: accepted, hidden: hiddenKeys, view: seed.view, rules: seed.rules, carryMap, carryDevices,
+    }),
+    [documentId, slot, kind, devMap, accepted, hiddenKeys, seed.view, seed.rules, carryMap, carryDevices],
   );
   const baseline = useMemo<BindingDraft>(
     () => ({
-      documentId: initial?.documentId ?? '', slot: initial?.slot ?? '', kind: initial?.kind ?? '',
-      devices: initial?.devices ?? {}, map: initial?.map ?? {}, hidden: initial?.hidden ?? [],
+      documentId: seed.documentId, slot: seed.slot, kind: seed.kind, devices: seed.devices, map: seed.map, hidden: seed.hidden,
+      view: seed.view, rules: seed.rules,
     }),
-    [initial],
+    [seed],
   );
   const changed = !sameDraft(draft, baseline);
   const left = useMemo(
-    () => unresolved({ sceneKeys, elements, devices: devMap, roles: sceneRoles, hidden: initial?.hidden, matches: accepted }),
-    [sceneKeys, elements, devMap, sceneRoles, initial?.hidden, accepted],
+    () => unresolved({ sceneKeys, elements, devices: devMap, roles: sceneRoles, hidden: hiddenKeys, matches: accepted }),
+    [sceneKeys, elements, devMap, sceneRoles, hiddenKeys, accepted],
   );
   const issues = useMemo(() => {
     const all: BindingIssue[] = [...roleIssues, ...validateDraft(draft)];
+    // A kept stale role must not take the name of a role a listed device now has.
+    for (const r of staleKept) if (r.type === 'role' && owns(devMap, r.name)) all.push({ code: 'role-duplicate', subject: r.name });
     const seen = new Set<string>();
     return all.filter((i) => {
       const id = `${i.code}\u0000${i.subject ?? ''}`;
@@ -250,55 +391,62 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
       seen.add(id);
       return true;
     });
-  }, [draft, roleIssues]);
-  const loading = !!(props.documentsLoading || props.devicesLoading || props.sceneKeysLoading || props.elementsLoading);
+  }, [draft, roleIssues, staleKept, devMap]);
   const canSave = changed && issues.length === 0 && !loading && !saving;
   const stuck = loading ? m.waitForData : issues.length ? m.issue[issues[0].code](issues[0].subject) : !changed ? m.nothingChanged : '';
   const unmatchedStaying = left.keys.length - pending.length;
 
   // ── Handlers ──
-  const setKindTo = (k: string) => { setKind(k); props.onKindChange?.(k); };
-  const setSlotTo = (s: string) => { setSlot(s); props.onSlotChange?.(s); };
+  const setKindTo = (k: string) => { edit((f) => ({ ...f, kind: k })); props.onKindChange?.(k); };
+  const setSlotTo = (v: string) => { edit((f) => ({ ...f, slot: v })); props.onSlotChange?.(v); };
   const selectDocument = (id: string) => {
     if (id === documentId) return;
-    setDocumentId(id);
+    edit((f) => ({ ...f, documentId: id }));
     props.onDocumentChange?.(id);
   };
   const refsFor = (r: KeyRow): DeviceRef[] =>
     elementsForRole(r.role, elements, devMap).flatMap((e) => {
-      const deviceId = e.deviceId ?? (Object.prototype.hasOwnProperty.call(devMap, r.role) ? devMap[r.role] : undefined);
-      return deviceId === undefined ? [] : [{ deviceId, element: e.element }];
+      const deviceId = e.deviceId || (owns(devMap, r.role) ? devMap[r.role] : undefined);
+      return deviceId ? [{ deviceId, element: e.element }] : [];
     });
   const choose = (r: KeyRow, ref: DeviceRef | null) => {
-    setManual((cur) => {
-      const next = { ...cur };
+    edit((f) => {
+      const next = { ...f.manual };
       const b = baseOf.get(r.key);
       const identity = !!b && b.element !== null && !!ref && ref.element === b.element && ref.deviceId === b.deviceId;
       if (identity) delete next[r.key];
       else next[r.key] = ref;
-      return next;
+      return { ...f, manual: next };
     });
   };
   const accept = (r: KeyRow) => {
     if (r.element !== null) choose(r, { deviceId: r.deviceId ?? '', element: r.element });
   };
   const acceptAll = () => {
-    setManual((cur) => {
-      const next = { ...cur };
+    edit((f) => {
+      const next = { ...f.manual };
       for (const r of pending) next[r.key] = { deviceId: r.deviceId ?? '', element: r.element! };
-      return next;
+      return { ...f, manual: next };
     });
   };
+  const leaveOut = (key: string) => edit((f) => ({ ...f, hidden: f.hidden.includes(key) ? f.hidden : [...f.hidden, key] }));
+  const bindAgain = (key: string) => edit((f) => ({ ...f, hidden: f.hidden.filter((k) => k !== key) }));
+  const toggleStale = (id: string) => edit((f) => {
+    const removedStale = { ...f.removedStale };
+    if (removedStale[id]) delete removedStale[id];
+    else removedStale[id] = true;
+    return { ...f, removedStale };
+  });
   const runAuto = () => {
-    // A key cleared by hand is matched again; a key picked by hand stays.
-    setManual((cur) => Object.fromEntries(Object.entries(cur).filter(([, v]) => v !== null)));
-    setAutoOn(true);
-    const claimed = Object.values(manual).filter((r): r is DeviceRef => !!r);
-    const settled = new Set(Object.entries(manual).filter(([, v]) => v).map(([k]) => k));
-    const result = autoMatch(sceneKeys, elements, { devices: devMap, roles: sceneRoles, skip: settled, claimed });
+    const settled = new Set([...Object.entries(manual).filter(([, v]) => v).map(([k]) => k), ...hiddenSet]);
+    const result = autoMatch(sceneKeys, elements, { devices: devMap, roles: sceneRoles, skip: settled, claimed: claimedRefs() });
     // What this press found: the identity matches were there already.
     const found = result.filter((r) => r.element !== null && r.how !== 'key');
-    setNote(m.matchedAuto(found.length, found.filter((r) => r.how === 'type').length));
+    // A key cleared by hand is matched again; a key picked by hand stays.
+    edit((f) => ({
+      ...f, manual: Object.fromEntries(Object.entries(f.manual).filter(([, v]) => v !== null)), autoOn: true,
+      note: m.matchedAuto(found.length, found.filter((r) => r.how === 'type').length),
+    }));
   };
   const pick = (key: string) => {
     const next = pickingKey === key ? null : key;
@@ -326,7 +474,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   }));
   const docColumns: Column<DocRow>[] = [
     {
-      key: 'pick', header: <span className="sr-only">{m.documentChosen('')}</span>, width: '2.5rem', hideable: false,
+      key: 'pick', header: <span className="sr-only">{m.documentPick}</span>, width: '2.5rem', hideable: false,
       render: (r) => (
         <input
           type="radio" name={`${uid}-doc`} checked={documentId === r.id} onChange={() => selectDocument(r.id)}
@@ -346,20 +494,30 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
 
   const deviceRows: DeviceRow[] = devices.map((d) => {
     const role = roleMap[d.id];
-    return { id: d.id, label: d.label, code: d.code ?? '', role, roleKind: role === MAIN_ROLE ? 'main' : 'named' };
+    return { id: d.id, label: d.label, code: d.code ?? '', role, roleKind: role === MAIN_ROLE ? 'main' : 'named', included: included(d.id) };
   });
   const roleInvalid = new Set(roleIssues.filter((i) => i.code === 'role-invalid' || i.code === 'role-duplicate').map((i) => i.subject));
   const deviceColumns: Column<DeviceRow>[] = [
     { key: 'label', header: m.deviceName, sortable: true },
     { key: 'code', header: m.deviceCode, sortable: true, hideBelow: 'sm' },
     {
+      key: 'included', header: m.deviceInclude, width: '6rem', searchable: false, hideable: false,
+      render: (r) => (
+        <input
+          type="checkbox" checked={r.included} aria-label={m.includeOf(r.label)}
+          onChange={(e) => { const on = e.target.checked; edit((f) => ({ ...f, include: { ...f.include, [r.id]: on } })); }}
+          className="h-4 w-4 accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+        />
+      ),
+    },
+    {
       key: 'role', header: m.deviceRole, width: '12rem', searchable: false, hideable: false,
       render: (r) => (
         <Input
           id={`${uid}-role-${r.id}`} label={m.roleOf(r.label)} hideLabel value={r.role} placeholder={m.mainRole}
-          maxLength={48} spellCheck={false} autoComplete="off"
-          aria-invalid={roleInvalid.has(r.role)}
-          onChange={(e) => setRoleEdits((cur) => ({ ...cur, [r.id]: e.target.value }))}
+          maxLength={48} spellCheck={false} autoComplete="off" disabled={!r.included}
+          aria-invalid={r.included && roleInvalid.has(r.role)}
+          onChange={(e) => { const v = e.target.value; edit((f) => ({ ...f, roleEdits: { ...f.roleEdits, [r.id]: v } })); }}
         />
       ),
     },
@@ -372,7 +530,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const elementField = (r: KeyRow, id: string, hideLabel = true, label = m.elementOf(r.key)): ReactNode => {
     const refs = refsFor(r);
     const options: SelectOption[] = refs.map((ref, i) => {
-      const e = elements.find((x) => x.element === ref.element && (x.deviceId ?? ref.deviceId) === ref.deviceId);
+      const e = elements.find((x) => x.element === ref.element && (x.deviceId || ref.deviceId) === ref.deviceId);
       return { value: String(i), label: e?.label && e.label !== e.element ? `${e.label} (${e.element})` : ref.element };
     });
     let current = r.element === null ? -1 : refs.findIndex((x) => x.deviceId === r.deviceId && x.element === r.element);
@@ -382,13 +540,15 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
       current = refs.length - 1;
     }
     const identity = baseOf.get(r.key)?.element != null;
-    const noDevice = !Object.prototype.hasOwnProperty.call(devMap, r.role) && !(r.role === MAIN_ROLE && elements.some((e) => e.deviceId === undefined));
+    const leftOut = r.how === 'hidden';
+    // An element with no device belongs to the main role only when the main role has one; a role with no device offers nothing.
+    const noDevice = !owns(devMap, r.role);
     return (
       <Select
         id={id} label={label} hideLabel={hideLabel} options={options}
-        placeholder={identity ? undefined : m.elementNone}
-        disabled={noDevice || options.length === 0}
-        hint={noDevice ? m.noDeviceForRole(r.role) : undefined}
+        placeholder={identity && !leftOut ? undefined : m.elementNone}
+        disabled={noDevice || leftOut || options.length === 0}
+        hint={noDevice && !leftOut ? m.noDeviceForRole(r.role) : undefined}
         value={current < 0 ? '' : String(current)}
         onChange={(e) => {
           const v = e.target.value;
@@ -423,6 +583,12 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
               {m.accept}
             </Button>
           )}
+          <Button
+            size="xs" variant="outline" aria-label={r.how === 'hidden' ? m.bindAgainOf(r.key) : m.dontBindOf(r.key)}
+            onClick={() => (r.how === 'hidden' ? bindAgain(r.key) : leaveOut(r.key))}
+          >
+            {r.how === 'hidden' ? m.bindAgain : m.dontBind}
+          </Button>
           {props.onPick && (
             <Button
               size="xs" variant="outline" aria-label={m.pickOf(r.key)} aria-pressed={pickingKey === r.key}
@@ -435,12 +601,32 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
       ),
     },
   ];
+  const staleColumns: Column<StaleRow>[] = [
+    { key: 'typeLabel', header: m.staleTypeColumn, sortable: true },
+    { key: 'name', header: m.staleNameColumn, sortable: true, render: (r) => <span className="font-mono text-xs break-all">{r.name}</span> },
+    { key: 'detail', header: m.staleDetailColumn, hideBelow: 'md', render: (r) => <span className="text-xs break-all">{r.detail}</span> },
+    {
+      key: 'state', header: m.staleStateColumn, sortable: true, searchable: false,
+      render: (r) => <Badge variant={r.state === 'kept' ? 'warning' : 'neutral'} size="sm">{r.state === 'kept' ? m.staleKept : m.staleRemoved}</Badge>,
+    },
+    {
+      key: 'actions', header: <span className="sr-only">{m.actionsColumn}</span>, searchable: false, hideable: false, align: 'right',
+      render: (r) => (
+        <Button
+          size="xs" variant="outline" onClick={() => toggleStale(r.id)}
+          aria-label={r.state === 'kept' ? m.staleRemoveOf(r.typeLabel, r.name) : m.staleKeepOf(r.typeLabel, r.name)}
+        >
+          {r.state === 'kept' ? m.staleRemove : m.staleKeep}
+        </Button>
+      ),
+    },
+  ];
   const keyFilters: DataTableFilterField<KeyRow>[] = [{
     id: 'how', label: m.statusFilter, type: 'select', placeholder: m.statusAny, placement: 'toolbar',
     options: HOWS.map((h) => ({ value: h, label: m.status[h] })),
   }];
 
-  const needsAck = left.keys.length > 0;
+  const needsAck = left.keys.length > 0 || staleKept.length > 0;
   const confirmText = m.confirmMessage(kind, Object.keys(draft.map).length, left.keys.length);
 
   return (
@@ -464,6 +650,12 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
         }
       >
         <div className="space-y-8">
+          {newerSaved && (
+            <AlertBanner
+              variant="warning" title={m.savedChangedTitle} message={m.savedChangedBody}
+              action={{ label: m.reload, onClick: reloadFromSaved }}
+            />
+          )}
           {conflict && (
             <AlertBanner
               variant="warning" title={m.conflictTitle} message={m.conflictBody}
@@ -479,7 +671,11 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
               {slots ? (
                 <Select id={`${uid}-slot`} label={m.slotLabel} hint={m.slotHint} options={[...slots]} value={slot} onChange={(e) => setSlotTo(e.target.value)} />
               ) : (
-                <Input id={`${uid}-slot`} label={m.slotLabel} hint={m.slotHint} value={slot} maxLength={64} onChange={(e) => setSlotTo(e.target.value)} />
+                // The server's slot grammar is lower case and at most 32 long, so what is typed is lower-cased.
+                <Input
+                  id={`${uid}-slot`} label={m.slotLabel} hint={m.slotHint} value={slot} maxLength={MAX_SLOT_LENGTH} spellCheck={false} autoComplete="off"
+                  onChange={(e) => setSlotTo(e.target.value.toLowerCase())}
+                />
               )}
               <div role="group" aria-labelledby={`${uid}-kind`} className="space-y-1">
                 <span id={`${uid}-kind`} className="block text-sm font-medium text-text-primary">{m.kindLabel}</span>
@@ -531,6 +727,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
               messages={{ loading: m.loading, ...props.tableMessages, search: m.deviceSearch }}
             />
             <p className="text-xs text-text-secondary">{m.roleHint}</p>
+            <p role="status" className="text-xs text-text-secondary">{m.devicesIncluded(Object.keys(draft.devices).length, MAX_BINDING_DEVICES)}</p>
           </section>
 
           {/* 4. Matching */}
@@ -572,6 +769,20 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
               )}
             </div>
 
+            {staleRows.length > 0 && (
+              <div className="space-y-2" data-testid="stale-entries">
+                <div>
+                  <h4 className="text-sm font-medium text-text-primary">{m.staleSection}</h4>
+                  <p className="text-xs text-text-secondary">{m.staleHint}</p>
+                </div>
+                <DataTable<StaleRow>
+                  id={`${uid}-stale`} mode="paginated" caption={m.staleSection} columns={staleColumns} rows={staleRows} rowId={(r) => r.id}
+                  searchable searchPlaceholder={m.staleSearch} pageSize={10} pageSizeOptions={[10, 25, 50]} density="compact"
+                  emptyMessage={m.staleEmpty} messages={{ loading: m.loading, ...props.tableMessages, search: m.staleSearch }}
+                />
+              </div>
+            )}
+
             <div className="space-y-1" role="status" aria-live="polite">
               <p className={cn('text-sm font-medium', left.keys.length ? 'text-warning-fg' : 'text-success-fg')}>
                 {left.keys.length ? m.unresolvedKeys(left.keys.length) : sceneKeys.length ? m.allResolved : ''}
@@ -581,6 +792,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
                 {left.devices.length > 0 && <li>{m.unresolvedDevices(left.devices.length)}</li>}
                 {left.roles.length > 0 && <li>{m.unresolvedRoles(left.roles)}</li>}
                 {pending.length > 0 && <li>{m.pendingProposals(pending.length)}</li>}
+                {staleKept.length > 0 && <li>{m.unresolvedStale(staleKept.length)}</li>}
                 {note && <li>{note}</li>}
               </ul>
               {pending.length > 0 && (
@@ -600,7 +812,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
         confirmLabel={m.confirmButton}
         cancelLabel={m.cancel}
         input={props.askReason ? { kind: 'text', label: m.reasonLabel, placeholder: m.reasonPlaceholder, maxLength: 200 } : undefined}
-        acknowledgement={needsAck || pending.length > 0 ? m.acknowledge(unmatchedStaying, pending.length) : undefined}
+        acknowledgement={needsAck || pending.length > 0 ? m.acknowledge(unmatchedStaying, pending.length, staleKept.length) : undefined}
         onCancel={() => setConfirming(false)}
         onConfirm={(result) => {
           setConfirming(false);
