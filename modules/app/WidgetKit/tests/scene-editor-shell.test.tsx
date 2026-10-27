@@ -523,6 +523,14 @@ describe('Apply and Close', () => {
     expect(confirm).not.toHaveBeenCalled();
   });
 
+  it('opens the discard question inside the editor, so a host\'s modal dialog around it does not block it', () => {
+    const { svg } = mount();
+    click(svg, { x: B.valve1.cx, y: B.valve1.cy });
+    key(screen.getByTestId('scene-canvas'), 'Delete');
+    fireEvent.click(screen.getByTestId('editor-close'));
+    expect(screen.getByTestId('scene-editor').contains(screen.getByRole('dialog', { name: 'Discard your changes?' }))).toBe(true);
+  });
+
   it('the discard question is a danger confirmation', () => {
     const { svg } = mount();
     click(svg, { x: B.valve1.cx, y: B.valve1.cy });

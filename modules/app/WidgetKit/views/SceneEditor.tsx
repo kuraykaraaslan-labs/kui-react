@@ -104,6 +104,9 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const [peek, setPeek] = useState<string | null>(null);
 
   const canvasRef = useRef<CanvasHandle>(null);
+  // The editor's own box: its "Discard your changes?" question opens inside it, so a host that shows the editor in a modal dialog
+  // (a Radix dialog blocks clicks and focus outside itself) can still reach it.
+  const [root, setRoot] = useState<HTMLDivElement | null>(null);
   const canvasHost = useRef<HTMLDivElement>(null);
   const lastPointer = useRef<Pt | null>(null);
   const memory = useRef<string>('');
@@ -484,6 +487,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
 
   return (
     <div
+      ref={setRoot}
       role="region"
       aria-label={props.title ?? m.title}
       data-testid="scene-editor"
@@ -600,6 +604,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
 
       <ConfirmDialog
         open={confirming}
+        portalTarget={root}
         title={m.dirtyTitle}
         message={m.dirtyBody}
         tone="danger"
