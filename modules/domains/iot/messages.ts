@@ -144,6 +144,9 @@ export const IOT_MESSAGES = {
     empty: 'No devices match these filters.',
     loadError: 'The devices could not be read.',
     new: 'New device',
+    awaitingApproval: 'Awaiting approval ({n})',
+    awaitingApprovalTitle: 'Devices awaiting approval',
+    moreActions: 'More actions',
   },
   newDevice: {
     title: 'New device',
@@ -158,6 +161,10 @@ export const IOT_MESSAGES = {
     open: 'Open device',
     failed: 'The device could not be created.',
     nameRequired: 'A name is required.',
+    choose: 'What are you adding?',
+    other: 'Other device',
+    otherHint: 'Any other device: give it a name and a profile, and it gets an access token.',
+    back: 'Back',
   },
   detail: {
     overview: 'Overview',

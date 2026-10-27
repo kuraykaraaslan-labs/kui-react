@@ -13,16 +13,37 @@ import { IssuedSecretNotice } from './DeviceCredentialPanel';
  * NewDeviceDrawer — "New device" (phase 01 §1.1): name, label, profile (the default one when none is chosen) and the gateway
  * flag. On success the drawer shows the new access token once (`IssuedSecretNotice`) and a link to the device; the token lives
  * only in this open drawer's state and is gone when it closes.
+ *
+ * A host may offer other ways to add a device (`choices`: claiming a vendor's device with the code on its screen, …). The drawer
+ * then opens on a choice between them and "Other device" (the form above, only with `canCreate`); a single way opens at once.
+ * A host choice draws its own screen inside the drawer; "Back" returns to the choice.
  */
+export type DeviceAddChoice = {
+  id: string;
+  label: string;
+  description?: string;
+  /** The choice's screen in the drawer: `close` closes the drawer, `added` tells the list a device was added. */
+  render: (ctx: { close: () => void; added: () => void }) => React.ReactNode;
+};
+
 export type NewDeviceDrawerProps = {
   open: boolean;
   profiles: ReadonlyArray<{ id: string; name: string }>;
   deviceHref: (deviceId: string) => string;
   onClose: () => void;
   onCreated?: (created: CreatedDevice['device']) => void;
+  /** A host choice added a device (the list re-reads). */
+  onAdded?: () => void;
+  /** The host's ways to add a device, offered before "Other device". */
+  choices?: readonly DeviceAddChoice[];
+  /** Whether "Other device" (the create form) is offered. Default true. */
+  canCreate?: boolean;
 };
 
-export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated }: NewDeviceDrawerProps) {
+/** The create form's id among the choices. */
+const OTHER = '_other';
+
+export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated, onAdded, choices = [], canCreate = true }: NewDeviceDrawerProps) {
   const api = useIotAdapter().devices;
   const notify = useIotNotify();
   const { m } = useIotText();
@@ -34,10 +55,20 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<CreatedDevice | null>(null);
+  const ways = [...choices.map((c) => c.id), ...(canCreate ? [OTHER] : [])];
+  // with one way there is nothing to choose: it opens at once
+  const [picked, setPicked] = useState<string | null>(ways.length === 1 ? ways[0] : null);
+  const choice = choices.find((c) => c.id === picked);
 
   function close() {
     setCreated(null); // the secret leaves with the drawer
     onClose();
+  }
+  function back() {
+    setCreated(null);
+    setError(null);
+    setFieldErrors({});
+    setPicked(null);
   }
 
   async function submit() {
@@ -59,11 +90,53 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
     }
   }
 
+  const backButton = ways.length > 1
+    ? <Button variant="ghost" size="sm" className="mr-auto" onClick={back}>{m.newDevice.back}</Button>
+    : null;
+
+  if (picked === null || choice) {
+    return (
+      <Drawer
+        open={open}
+        onClose={close}
+        title={choice ? choice.label : m.newDevice.title}
+        closeLabel={m.common.close}
+        footer={(
+          <div className="flex justify-end gap-2">
+            {choice && backButton}
+            <Button variant="ghost" size="sm" onClick={close}>{choice ? m.common.close : m.common.cancel}</Button>
+          </div>
+        )}
+      >
+        {choice ? choice.render({ close, added: () => onAdded?.() }) : (
+          <div className="space-y-3">
+            <p className="text-sm text-text-secondary">{m.newDevice.choose}</p>
+            <ul className="space-y-2">
+              {[...choices.map((c) => ({ id: c.id, label: c.label, description: c.description })),
+                ...(canCreate ? [{ id: OTHER, label: m.newDevice.other, description: m.newDevice.otherHint }] : [])].map((c) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => setPicked(c.id)}
+                    className="flex w-full flex-col items-start gap-0.5 rounded-lg border border-border bg-surface-raised px-4 py-3 text-left transition-colors hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+                  >
+                    <span className="text-sm font-medium text-text-primary">{c.label}</span>
+                    {c.description && <span className="text-xs text-text-secondary">{c.description}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </Drawer>
+    );
+  }
+
   return (
     <Drawer
       open={open}
       onClose={close}
-      title={m.newDevice.title}
+      title={ways.length > 1 ? m.newDevice.other : m.newDevice.title}
       closeLabel={m.common.close}
       footer={created ? (
         <div className="flex justify-end gap-2">
@@ -72,6 +145,7 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
         </div>
       ) : (
         <div className="flex justify-end gap-2">
+          {backButton}
           <Button variant="ghost" size="sm" onClick={close}>{m.common.cancel}</Button>
           <Button variant="primary" size="sm" loading={busy} onClick={() => void submit()}>{m.newDevice.create}</Button>
         </div>

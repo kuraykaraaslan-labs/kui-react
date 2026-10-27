@@ -1,10 +1,12 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faPowerOff } from '@fortawesome/free-solid-svg-icons';
+import { faEllipsis, faPlus, faPowerOff } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
+import { Drawer } from '@/modules/ui/Drawer';
+import { DropdownMenu, type DropdownItem } from '@/modules/ui/DropdownMenu';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column, DataTableFilterField, DataTableFilterValues, DataTableQuery, DataTableRowId } from '@/modules/ui/Table/types';
 import { PageHeader } from '@/modules/ui/PageHeader';
@@ -17,7 +19,7 @@ import type { DeviceRecord, DeviceRegistryStatus, DeviceStatePatch } from '../ty
 import { DeviceAddress } from './DeviceAddress';
 import { DeviceConnectionBadge } from './DeviceConnectionBadge';
 import { DeviceQuickView } from './DeviceQuickView';
-import { NewDeviceDrawer } from './NewDeviceDrawer';
+import { NewDeviceDrawer, type DeviceAddChoice } from './NewDeviceDrawer';
 
 /**
  * DeviceListView — the device list (phase 01 §1.1, NB iot_device 05 §5.3), read through the adapter, on the DataTable's own
@@ -31,6 +33,11 @@ import { NewDeviceDrawer } from './NewDeviceDrawer';
  * through the page. The open device is `query.device`: a host keeps it in its URL through `onQueryChange` (`how` is `push` when
  * the drawer opens, so Back closes it; `replace` for everything else) and hands it back in `initialQuery`, whose `device` the view
  * follows when it changes (Back, Forward, a pasted link).
+ *
+ * The header's actions beside "New device", all from the host: `addChoices` (more ways to add a device, offered in the New device
+ * drawer before "Other device", the create form; "New device" shows with either), `renderQuarantine` (the host's approval view
+ * for the devices waiting in quarantine: an "Awaiting approval (n)" button opens it in a drawer, in place of the "Quarantined (n)"
+ * quick filter) and `moreActions` (a "⋯" menu).
  */
 export type DeviceListViewProps = {
   hrefs: { device: (deviceId: string) => string };
@@ -39,6 +46,12 @@ export type DeviceListViewProps = {
   pageSize?: number;
   now?: number;
   className?: string;
+  /** More ways to add a device (e.g. claiming a vendor's device with its code), offered in the New device drawer. */
+  addChoices?: readonly DeviceAddChoice[];
+  /** The host's approval view of the quarantined devices, drawn in a drawer; `changed` re-reads the list and the count. */
+  renderQuarantine?: (ctx: { close: () => void; changed: () => void }) => React.ReactNode;
+  /** The header's "⋯" menu (e.g. a link to a related list). */
+  moreActions?: readonly DropdownItem[];
 };
 
 const MAX_ACTIVATE = 100;
@@ -58,7 +71,9 @@ export function applyStatePatch(d: DeviceRecord, p: DeviceStatePatch): DeviceRec
   };
 }
 
-export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 20, now, className }: DeviceListViewProps) {
+export function DeviceListView({
+  hrefs, initialQuery, onQueryChange, pageSize = 20, now, className, addChoices = [], renderQuarantine, moreActions = [],
+}: DeviceListViewProps) {
   const adapter = useIotAdapter();
   const api = adapter.devices;
   const caps = useIotCapabilities();
@@ -88,6 +103,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
   const [quarantined, setQuarantined] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [activating, setActivating] = useState(false);
   const queryRef = useRef(query);
   useEffect(() => { queryRef.current = query; }, [query]);
@@ -200,6 +216,9 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
     poll: () => { void load(queryRef.current); void loadQuarantined(); },
   });
 
+  /** The list and the quarantined count again, after the host added or approved a device. */
+  const reread = useCallback(() => { void load(queryRef.current); void loadQuarantined(); }, [load, loadQuarantined]);
+
   async function activate() {
     if (!api?.activate) return;
     const ids = [...selected].slice(0, MAX_ACTIVATE);
@@ -218,6 +237,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
 
   const profileName = (id: string, fallback?: string | null) => fallback ?? profiles.find((p) => p.id === id)?.name ?? '—';
   const canActivate = caps.canActivateDevice && !!api?.activate && query.status === 'QUARANTINED';
+  const canCreate = caps.canCreateDevice && !!api?.create;
   const filterFields = useMemo((): DataTableFilterField<DeviceRecord>[] => [
     { id: 'profileId', label: m.devices.profile, type: 'select', options: profiles.map((p) => ({ value: p.id, label: p.name })) },
     {
@@ -286,17 +306,40 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
 
   return (
     <div ref={listRef} className={cn('space-y-4', className)}>
-      <PageHeader
-        title={m.devices.title}
-        subtitle={m.devices.subtitle}
-        actions={caps.canCreateDevice && api.create ? [{
-          label: <><FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" /> {m.devices.new}</>,
-          onClick: () => setCreating(true),
-        }] : undefined}
-      />
+      <div className="flex items-center gap-2">
+        <PageHeader
+          className="min-w-0 flex-1"
+          title={m.devices.title}
+          subtitle={m.devices.subtitle}
+          actions={[
+            ...(renderQuarantine ? [{
+              label: quarantined === null ? m.devices.awaitingApprovalTitle : fill(m.devices.awaitingApproval, { n: quarantined }),
+              variant: 'outline' as const,
+              onClick: () => setApproving(true),
+            }] : []),
+            ...(canCreate || addChoices.length > 0 ? [{
+              label: <><FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" /> {m.devices.new}</>,
+              onClick: () => setCreating(true),
+            }] : []),
+          ]}
+        />
+        {moreActions.length > 0 && (
+          <div className="shrink-0 pb-3">
+            <DropdownMenu
+              align="right"
+              items={[...moreActions]}
+              trigger={(
+                <Button variant="ghost" iconOnly aria-label={m.devices.moreActions} title={m.devices.moreActions}>
+                  <FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              )}
+            />
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {quarantined !== null && quarantined > 0 && (
+        {!renderQuarantine && quarantined !== null && quarantined > 0 && (
           <button
             type="button"
             aria-pressed={query.status === 'QUARANTINED'}
@@ -371,8 +414,26 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
           deviceHref={hrefs.device}
           onClose={() => setCreating(false)}
           onCreated={() => { void load(queryRef.current); }}
+          onAdded={reread}
+          choices={addChoices}
+          canCreate={canCreate}
         />
+      )}
+
+      {approving && renderQuarantine && (
+        <Drawer open onClose={() => setApproving(false)} title={m.devices.awaitingApprovalTitle} closeLabel={m.common.close} className="w-[40rem]">
+          <HostView render={renderQuarantine} close={() => setApproving(false)} changed={reread} />
+        </Drawer>
       )}
     </div>
   );
+}
+
+/** Draws a host's view (a render prop) as a component of its own. */
+function HostView({ render, close, changed }: {
+  render: NonNullable<DeviceListViewProps['renderQuarantine']>;
+  close: () => void;
+  changed: () => void;
+}) {
+  return <>{render({ close, changed })}</>;
 }

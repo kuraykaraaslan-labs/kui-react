@@ -34,6 +34,12 @@ Filters panel (the alarm status is a toolbar choice), a column the host can orde
 `SearchBar`, a filter `Select` or a `Pagination` beside a DataTable. `api/list-table.ts` maps between the table and the adapter query and
 reads / writes a host URL's `sort` and `size`.
 
+`DeviceListView`'s header takes the host's actions beside "New device": `addChoices` (more ways to add a device, e.g. claiming a
+vendor's device with the code on its screen, offered in the New device drawer before "Other device", the create form),
+`renderQuarantine` (the host's approval view of the quarantined devices, opened in a drawer by "Awaiting approval (n)", which then
+replaces the "Quarantined (n)" quick filter) and `moreActions` (a "⋯" menu). The kit stays free of the host's modules: the host draws
+those views.
+
 ## Rule chain editor
 
 `ruleset/` holds the rule chain editor, its block catalog, param forms, undo, groups, flows that run each other, validation and the

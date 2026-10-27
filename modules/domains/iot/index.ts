@@ -68,6 +68,8 @@ export type { DeviceTableProps, DeviceTableRow, DeviceTableKeyColumn, DeviceTabl
 export { DeviceListView } from './device/DeviceListView';
 export { DeviceDetailView } from './device/DeviceDetailView';
 export { NewDeviceDrawer } from './device/NewDeviceDrawer';
+export type { DeviceAddChoice, NewDeviceDrawerProps } from './device/NewDeviceDrawer';
+export type { DeviceListViewProps } from './device/DeviceListView';
 
 // ── RPC console (phase 04) ───────────────────────────────────────────────────────────────────────────────────────────
 export { RpcStatusBadge } from './rpc/RpcStatusBadge';
