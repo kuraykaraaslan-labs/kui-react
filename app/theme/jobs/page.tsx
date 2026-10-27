@@ -220,7 +220,7 @@ export default function JobsThemePage() {
           <p className="text-primary-fg/80 max-w-md mx-auto text-sm leading-relaxed">
             Post your job to reach thousands of qualified candidates. Get your first listing free.
           </p>
-          <Button variant="secondary" size="lg">Post a Job — It&apos;s Free</Button>
+          <Button variant="accent" size="lg">Post a Job — It&apos;s Free</Button>
         </div>
       </section>
     </div>

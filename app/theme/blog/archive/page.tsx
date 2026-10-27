@@ -44,7 +44,7 @@ export default function BlogArchivePage() {
               badge={<Badge variant="neutral" size="md">All stories</Badge>}
               actions={[
                 { label: 'Back to overview', href: '/domains/blog', variant: 'outline' },
-                { label: 'Subscribe', href: '#subscribe', variant: 'secondary' },
+                { label: 'Subscribe', href: '#subscribe', variant: 'accent' },
               ]}
             />
           </div>

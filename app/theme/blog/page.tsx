@@ -102,7 +102,7 @@ export default function BlogDomainPage() {
             subtitle="Curated for product thinkers, designers, and research-led teams."
             actions={[
               { label: 'View archive', href: '/domains/blog/archive', variant: 'outline' },
-              { label: 'Submit a pitch', href: '#pitch', variant: 'secondary' },
+              { label: 'Submit a pitch', href: '#pitch', variant: 'accent' },
             ]}
           />
 
@@ -173,7 +173,7 @@ export default function BlogDomainPage() {
                     <p className="text-sm text-text-secondary max-w-xl">
                       We review new story ideas every Friday. Send a concise brief and why it matters now.
                     </p>
-                    <Button variant="secondary" size="sm">Submit pitch</Button>
+                    <Button variant="accent" size="sm">Submit pitch</Button>
                   </div>
                 </Card>
               </div>

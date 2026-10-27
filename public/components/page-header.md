@@ -7,12 +7,15 @@
 - **status:** stable
 - **since:** 2025-02
 
-Page title + subtitle + optional badge + action buttons. Supports 5 button variants (primary/secondary/outline/danger/ghost); rendered as a link with href or as a button.
+Page title + subtitle + optional badge + action buttons. Supports 6 button variants (primary/secondary/accent/outline/danger/ghost; secondary is neutral, accent coloured); rendered as a link with href or as a button.
 
 ## Design tokens consumed
 
+- `--accent`
+- `--accent-fg`
 - `--border`
 - `--border-focus`
+- `--border-strong`
 - `--error`
 - `--primary`
 - `--primary-fg`
@@ -65,7 +68,8 @@ import { cn } from '@/libs/utils/cn';
 
 const variantMap = {
   primary:   'bg-primary text-primary-fg hover:bg-primary-hover',
-  secondary: 'bg-secondary text-secondary-fg hover:bg-secondary-hover',
+  secondary: 'bg-surface-overlay text-text-primary hover:bg-border-strong',
+  accent:    'bg-accent text-accent-fg hover:bg-accent-hover',
   outline:   'border border-border text-text-primary hover:bg-surface-overlay',
   danger:    'bg-error text-text-inverse hover:opacity-90',
   ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',

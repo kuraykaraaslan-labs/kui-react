@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-27T08:52:13.152Z",
+  "generatedAt": "2026-10-27T09:55:17.661Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -49,7 +49,17 @@
     {
       "name": "--secondary",
       "light": "#8b5cf6",
-      "purpose": "Secondary actions"
+      "purpose": "Second palette colour (tints, charts)"
+    },
+    {
+      "name": "--accent",
+      "light": "#8b5cf6",
+      "purpose": "Coloured alternative action (Button accent)"
+    },
+    {
+      "name": "--accent-fg",
+      "light": "#ffffff",
+      "purpose": "Text on accent"
     },
     {
       "name": "--surface-base",
@@ -160,17 +170,19 @@
       "category": "Atom",
       "filePath": "modules/ui/Button.tsx",
       "abbr": "Bt",
-      "description": "Core interactive element. Supports 5 visual styles (variants) and 5 sizes. disabled, loading and selected states are built-in.",
+      "description": "Core interactive element. Supports 6 visual styles (variants) and 5 sizes: secondary is the neutral alternative (Cancel, Back), accent the coloured one (a brand's second colour). disabled, loading and selected states are built-in.",
       "status": "stable",
       "since": "2025-01",
       "designTokens": [
+        "--accent",
+        "--accent-fg",
         "--border",
         "--border-focus",
+        "--border-strong",
         "--error",
         "--primary",
         "--primary-fg",
         "--primary-hover",
-        "--secondary",
         "--surface-overlay",
         "--text-inverse",
         "--text-primary"
@@ -189,7 +201,7 @@
         "rich-text-editor",
         "share-dialog"
       ],
-      "variantCount": 12
+      "variantCount": 13
     },
     {
       "id": "badge",
@@ -1266,12 +1278,15 @@
       "category": "Organism",
       "filePath": "modules/ui/PageHeader.tsx",
       "abbr": "Ph",
-      "description": "Page title + subtitle + optional badge + action buttons. Supports 5 button variants (primary/secondary/outline/danger/ghost); rendered as a link with href or as a button.",
+      "description": "Page title + subtitle + optional badge + action buttons. Supports 6 button variants (primary/secondary/accent/outline/danger/ghost; secondary is neutral, accent coloured); rendered as a link with href or as a button.",
       "status": "stable",
       "since": "2025-02",
       "designTokens": [
+        "--accent",
+        "--accent-fg",
         "--border",
         "--border-focus",
+        "--border-strong",
         "--error",
         "--primary",
         "--primary-fg",

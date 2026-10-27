@@ -2,7 +2,7 @@
 import { Button } from '@/modules/ui/Button';
 import type { ShowcaseComponent } from '../showcase.types';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
+type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger' | 'outline';
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 function ButtonLoadingDemo() {
@@ -25,17 +25,18 @@ export function buildButtonData(): ShowcaseComponent[] {
       title: 'Button',
       category: 'Atom',
       abbr: 'Bt',
-      description: 'Core interactive element. Supports 5 visual styles (variants) and 5 sizes. disabled, loading and selected states are built-in.',
+      description: 'Core interactive element. Supports 6 visual styles (variants) and 5 sizes: secondary is the neutral alternative (Cancel, Back), accent the coloured one (a brand\'s second colour). disabled, loading and selected states are built-in.',
       filePath: 'modules/ui/Button.tsx',
       sourceCode: `'use client';
 import { cn } from '@/libs/utils/cn';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
+type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger' | 'outline';
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:   'bg-primary text-primary-fg hover:bg-primary-hover',
-  secondary: 'bg-secondary text-secondary-fg hover:bg-secondary-hover',
+  secondary: 'bg-surface-overlay text-text-primary hover:bg-border-strong',
+  accent:    'bg-accent text-accent-fg hover:bg-accent-hover',
   ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',
   danger:    'bg-error text-text-inverse hover:opacity-90',
   outline:   'border border-border text-text-primary hover:bg-surface-overlay',
@@ -69,7 +70,7 @@ export function Button({ children, variant = 'primary', size = 'md', disabled, l
 }`,
       playground: {
         controls: [
-          { key: 'variant', label: 'Variant', type: 'select', options: ['primary', 'secondary', 'ghost', 'danger', 'outline'] as const, default: 'primary' },
+          { key: 'variant', label: 'Variant', type: 'select', options: ['primary', 'secondary', 'accent', 'ghost', 'danger', 'outline'] as const, default: 'primary' },
           { key: 'size',    label: 'Size',    type: 'select', options: ['xs', 'sm', 'md', 'lg', 'xl'] as const,                    default: 'md' },
           { key: 'label',   label: 'Label',   type: 'text',    default: 'Click me' },
           { key: 'disabled', label: 'Disabled', type: 'boolean', default: false },
@@ -104,6 +105,7 @@ export function Button({ children, variant = 'primary', size = 'md', disabled, l
       variants: [
         { title: 'Primary', preview: <Button variant="primary">Primary</Button>, code: `<Button variant="primary">Primary</Button>` },
         { title: 'Secondary', preview: <Button variant="secondary">Secondary</Button>, code: `<Button variant="secondary">Secondary</Button>` },
+        { title: 'Accent', preview: <Button variant="accent">Accent</Button>, code: `<Button variant="accent">Accent</Button>` },
         { title: 'Ghost', preview: <Button variant="ghost">Ghost</Button>, code: `<Button variant="ghost">Ghost</Button>` },
         { title: 'Danger', preview: <Button variant="danger">Danger</Button>, code: `<Button variant="danger">Danger</Button>` },
         { title: 'Outline', preview: <Button variant="outline">Outline</Button>, code: `<Button variant="outline">Outline</Button>` },

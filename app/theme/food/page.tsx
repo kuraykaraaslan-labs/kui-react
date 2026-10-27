@@ -222,7 +222,7 @@ export default function FoodThemePage() {
           <p className="text-[var(--surface-base)]/70 max-w-sm mx-auto text-sm leading-relaxed">
             Join over a million happy customers ordering from their favourite restaurants every day.
           </p>
-          <Button as="a" href="/theme/food/restaurants" variant="secondary" size="lg">
+          <Button as="a" href="/theme/food/restaurants" variant="accent" size="lg">
             Order now
           </Button>
         </div>

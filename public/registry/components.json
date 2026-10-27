@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-27T08:52:13.152Z",
+  "generatedAt": "2026-10-27T09:55:17.661Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -49,7 +49,17 @@
     {
       "name": "--secondary",
       "light": "#8b5cf6",
-      "purpose": "Secondary actions"
+      "purpose": "Second palette colour (tints, charts)"
+    },
+    {
+      "name": "--accent",
+      "light": "#8b5cf6",
+      "purpose": "Coloured alternative action (Button accent)"
+    },
+    {
+      "name": "--accent-fg",
+      "light": "#ffffff",
+      "purpose": "Text on accent"
     },
     {
       "name": "--surface-base",
@@ -160,8 +170,8 @@
       "category": "Atom",
       "filePath": "modules/ui/Button.tsx",
       "abbr": "Bt",
-      "description": "Core interactive element. Supports 5 visual styles (variants) and 5 sizes. disabled, loading and selected states are built-in.",
-      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\n\ntype ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';\ntype ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';\n\nconst variantClasses: Record<ButtonVariant, string> = {\n  primary:   'bg-primary text-primary-fg hover:bg-primary-hover',\n  secondary: 'bg-secondary text-secondary-fg hover:bg-secondary-hover',\n  ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',\n  danger:    'bg-error text-text-inverse hover:opacity-90',\n  outline:   'border border-border text-text-primary hover:bg-surface-overlay',\n};\n\nconst sizeClasses: Record<ButtonSize, string> = {\n  xs: 'px-2 py-1 text-xs',\n  sm: 'px-3 py-1.5 text-sm',\n  md: 'px-4 py-2 text-sm',\n  lg: 'px-5 py-2.5 text-base',\n  xl: 'px-6 py-3 text-lg',\n};\n\nexport function Button({ children, variant = 'primary', size = 'md', disabled, loading, ...props }) {\n  return (\n    <button\n      type=\"button\"\n      disabled={disabled || loading}\n      aria-busy={loading}\n      className={cn(\n        'inline-flex items-center gap-2 rounded-md font-medium transition-colors',\n        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',\n        'disabled:opacity-50 disabled:cursor-not-allowed',\n        variantClasses[variant], sizeClasses[size]\n      )}\n      {...props}\n    >\n      {children}\n    </button>\n  );\n}",
+      "description": "Core interactive element. Supports 6 visual styles (variants) and 5 sizes: secondary is the neutral alternative (Cancel, Back), accent the coloured one (a brand's second colour). disabled, loading and selected states are built-in.",
+      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\n\ntype ButtonVariant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger' | 'outline';\ntype ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';\n\nconst variantClasses: Record<ButtonVariant, string> = {\n  primary:   'bg-primary text-primary-fg hover:bg-primary-hover',\n  secondary: 'bg-surface-overlay text-text-primary hover:bg-border-strong',\n  accent:    'bg-accent text-accent-fg hover:bg-accent-hover',\n  ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',\n  danger:    'bg-error text-text-inverse hover:opacity-90',\n  outline:   'border border-border text-text-primary hover:bg-surface-overlay',\n};\n\nconst sizeClasses: Record<ButtonSize, string> = {\n  xs: 'px-2 py-1 text-xs',\n  sm: 'px-3 py-1.5 text-sm',\n  md: 'px-4 py-2 text-sm',\n  lg: 'px-5 py-2.5 text-base',\n  xl: 'px-6 py-3 text-lg',\n};\n\nexport function Button({ children, variant = 'primary', size = 'md', disabled, loading, ...props }) {\n  return (\n    <button\n      type=\"button\"\n      disabled={disabled || loading}\n      aria-busy={loading}\n      className={cn(\n        'inline-flex items-center gap-2 rounded-md font-medium transition-colors',\n        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',\n        'disabled:opacity-50 disabled:cursor-not-allowed',\n        variantClasses[variant], sizeClasses[size]\n      )}\n      {...props}\n    >\n      {children}\n    </button>\n  );\n}",
       "variants": [
         {
           "title": "Primary",
@@ -170,6 +180,10 @@
         {
           "title": "Secondary",
           "code": "<Button variant=\"secondary\">Secondary</Button>"
+        },
+        {
+          "title": "Accent",
+          "code": "<Button variant=\"accent\">Accent</Button>"
         },
         {
           "title": "Ghost",
@@ -215,13 +229,15 @@
       "status": "stable",
       "since": "2025-01",
       "designTokens": [
+        "--accent",
+        "--accent-fg",
         "--border",
         "--border-focus",
+        "--border-strong",
         "--error",
         "--primary",
         "--primary-fg",
         "--primary-hover",
-        "--secondary",
         "--surface-overlay",
         "--text-inverse",
         "--text-primary"
@@ -2106,8 +2122,8 @@
       "category": "Organism",
       "filePath": "modules/ui/PageHeader.tsx",
       "abbr": "Ph",
-      "description": "Page title + subtitle + optional badge + action buttons. Supports 5 button variants (primary/secondary/outline/danger/ghost); rendered as a link with href or as a button.",
-      "source": "import { cn } from '@/libs/utils/cn';\n\nconst variantMap = {\n  primary:   'bg-primary text-primary-fg hover:bg-primary-hover',\n  secondary: 'bg-secondary text-secondary-fg hover:bg-secondary-hover',\n  outline:   'border border-border text-text-primary hover:bg-surface-overlay',\n  danger:    'bg-error text-text-inverse hover:opacity-90',\n  ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',\n};\n\nexport function PageHeader({ title, subtitle, badge, actions, className }) {\n  return (\n    <div className={cn('flex items-center justify-between gap-4 pb-3', className)}>\n      <div className=\"min-w-0\">\n        <div className=\"flex items-center gap-2 flex-wrap\">\n          <h1 className=\"text-xl font-semibold text-text-primary leading-tight\">{title}</h1>\n          {badge}\n        </div>\n        {subtitle && <p className=\"text-sm text-text-secondary mt-0.5\">{subtitle}</p>}\n      </div>\n      {actions?.length > 0 && (\n        <div className=\"flex items-center gap-2 shrink-0\">\n          {actions.map((action, i) => (\n            <button key={i} type=\"button\" onClick={action.onClick} disabled={action.disabled} className={cn('inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:opacity-50', variantMap[action.variant ?? 'primary'])}>\n              {action.label}\n            </button>\n          ))}\n        </div>\n      )}\n    </div>\n  );\n}",
+      "description": "Page title + subtitle + optional badge + action buttons. Supports 6 button variants (primary/secondary/accent/outline/danger/ghost; secondary is neutral, accent coloured); rendered as a link with href or as a button.",
+      "source": "import { cn } from '@/libs/utils/cn';\n\nconst variantMap = {\n  primary:   'bg-primary text-primary-fg hover:bg-primary-hover',\n  secondary: 'bg-surface-overlay text-text-primary hover:bg-border-strong',\n  accent:    'bg-accent text-accent-fg hover:bg-accent-hover',\n  outline:   'border border-border text-text-primary hover:bg-surface-overlay',\n  danger:    'bg-error text-text-inverse hover:opacity-90',\n  ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',\n};\n\nexport function PageHeader({ title, subtitle, badge, actions, className }) {\n  return (\n    <div className={cn('flex items-center justify-between gap-4 pb-3', className)}>\n      <div className=\"min-w-0\">\n        <div className=\"flex items-center gap-2 flex-wrap\">\n          <h1 className=\"text-xl font-semibold text-text-primary leading-tight\">{title}</h1>\n          {badge}\n        </div>\n        {subtitle && <p className=\"text-sm text-text-secondary mt-0.5\">{subtitle}</p>}\n      </div>\n      {actions?.length > 0 && (\n        <div className=\"flex items-center gap-2 shrink-0\">\n          {actions.map((action, i) => (\n            <button key={i} type=\"button\" onClick={action.onClick} disabled={action.disabled} className={cn('inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:opacity-50', variantMap[action.variant ?? 'primary'])}>\n              {action.label}\n            </button>\n          ))}\n        </div>\n      )}\n    </div>\n  );\n}",
       "variants": [
         {
           "title": "With actions",
@@ -2125,8 +2141,11 @@
       "status": "stable",
       "since": "2025-02",
       "designTokens": [
+        "--accent",
+        "--accent-fg",
         "--border",
         "--border-focus",
+        "--border-strong",
         "--error",
         "--primary",
         "--primary-fg",

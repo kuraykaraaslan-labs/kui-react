@@ -1,11 +1,13 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
 
-type ActionVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
+type ActionVariant = 'primary' | 'secondary' | 'accent' | 'outline' | 'danger' | 'ghost';
 
 const variantMap: Record<ActionVariant, string> = {
   primary:   'bg-primary text-primary-fg hover:bg-primary-hover',
-  secondary: 'bg-secondary text-secondary-fg hover:bg-secondary-hover',
+  // As Button: `secondary` is neutral, `accent` carries the brand's second colour.
+  secondary: 'bg-surface-overlay text-text-primary hover:bg-border-strong',
+  accent:    'bg-accent text-accent-fg hover:bg-accent-hover',
   outline:   'border border-border text-text-primary hover:bg-surface-overlay',
   danger:    'bg-error text-text-inverse hover:opacity-90',
   ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',

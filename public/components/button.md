@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-01
 
-Core interactive element. Supports 5 visual styles (variants) and 5 sizes. disabled, loading and selected states are built-in.
+Core interactive element. Supports 6 visual styles (variants) and 5 sizes: secondary is the neutral alternative (Cancel, Back), accent the coloured one (a brand's second colour). disabled, loading and selected states are built-in.
 
 ## Used by
 
@@ -26,13 +26,15 @@ Core interactive element. Supports 5 visual styles (variants) and 5 sizes. disab
 
 ## Design tokens consumed
 
+- `--accent`
+- `--accent-fg`
 - `--border`
 - `--border-focus`
+- `--border-strong`
 - `--error`
 - `--primary`
 - `--primary-fg`
 - `--primary-hover`
-- `--secondary`
 - `--surface-overlay`
 - `--text-inverse`
 - `--text-primary`
@@ -49,6 +51,12 @@ Core interactive element. Supports 5 visual styles (variants) and 5 sizes. disab
 
 ```tsx
 <Button variant="secondary">Secondary</Button>
+```
+
+### Accent
+
+```tsx
+<Button variant="accent">Accent</Button>
 ```
 
 ### Ghost
@@ -122,12 +130,13 @@ Core interactive element. Supports 5 visual styles (variants) and 5 sizes. disab
 'use client';
 import { cn } from '@/libs/utils/cn';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
+type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger' | 'outline';
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:   'bg-primary text-primary-fg hover:bg-primary-hover',
-  secondary: 'bg-secondary text-secondary-fg hover:bg-secondary-hover',
+  secondary: 'bg-surface-overlay text-text-primary hover:bg-border-strong',
+  accent:    'bg-accent text-accent-fg hover:bg-accent-hover',
   ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',
   danger:    'bg-error text-text-inverse hover:opacity-90',
   outline:   'border border-border text-text-primary hover:bg-surface-overlay',

@@ -206,7 +206,7 @@ export default function CommerceHomePage() {
           <Button
             as="a"
             href="/theme/commerce/products"
-            variant="secondary"
+            variant="accent"
             size="lg"
             iconRight={<FontAwesomeIcon icon={faArrowRight} className="w-3.5 h-3.5" />}
           >

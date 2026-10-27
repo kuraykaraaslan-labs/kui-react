@@ -17,6 +17,11 @@
   --secondary-subtle: #f5f3ff;
   --secondary-fg:     #ffffff;
 
+  /* The coloured alternative action (Button `accent`). A brand's second colour goes here; Button `secondary` is neutral. */
+  --accent:           #8b5cf6;
+  --accent-hover:     #7c3aed;
+  --accent-fg:        #ffffff;
+
   --surface-base:    #ffffff;
   --surface-raised:  #f9fafb;
   --surface-overlay: #f3f4f6;
@@ -65,6 +70,10 @@
   --secondary-active: #7c3aed;
   --secondary-subtle: #2e1065;
   --secondary-fg:     #ffffff;
+
+  --accent:           #a78bfa;
+  --accent-hover:     #c4b5fd;
+  --accent-fg:        #ffffff;
 
   --text-inverse:     #111827;
 
@@ -116,6 +125,10 @@
   --color-secondary-fg:     var(--secondary-fg);
   --color-secondary-active: var(--secondary-active);
   --color-secondary-subtle: var(--secondary-subtle);
+
+  --color-accent:           var(--accent);
+  --color-accent-hover:     var(--accent-hover);
+  --color-accent-fg:        var(--accent-fg);
 
   --color-surface-base:    var(--surface-base);
   --color-surface-raised:  var(--surface-raised);

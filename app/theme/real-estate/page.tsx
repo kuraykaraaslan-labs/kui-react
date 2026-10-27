@@ -412,7 +412,7 @@ export default function RealEstateHomePage() {
                 Reach thousands of qualified buyers and renters. List your property on EstateView today — it&apos;s free to get started.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                <Button variant="secondary" size="lg">
+                <Button variant="accent" size="lg">
                   <FontAwesomeIcon icon={faChartLine} className="w-4 h-4 mr-2" aria-hidden="true" />
                   List Property — It&apos;s Free
                 </Button>

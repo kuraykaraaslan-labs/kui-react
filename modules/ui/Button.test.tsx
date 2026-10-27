@@ -17,7 +17,8 @@ describe('Button', () => {
   it('applies the variant class for every variant', () => {
     const variants = {
       primary: 'bg-primary',
-      secondary: 'bg-secondary',
+      secondary: 'bg-surface-overlay',
+      accent: 'bg-accent',
       ghost: 'bg-transparent',
       danger: 'bg-error',
       outline: 'border-border',
@@ -27,6 +28,18 @@ describe('Button', () => {
       expect(screen.getByRole('button').className).toContain(expectedClass);
       unmount();
     }
+  });
+
+  it('secondary is neutral (surface tokens); accent carries the brand\'s second colour', () => {
+    const { unmount } = render(<Button variant="secondary">Cancel</Button>);
+    const secondary = screen.getByRole('button').className;
+    expect(secondary).toContain('text-text-primary');
+    expect(secondary).not.toMatch(/\b(?:bg|text|hover:bg)-(?:secondary|accent)/);
+    unmount();
+    render(<Button variant="accent">Import</Button>);
+    const accent = screen.getByRole('button').className;
+    expect(accent).toContain('text-accent-fg');
+    expect(accent).toContain('hover:bg-accent-hover');
   });
 
   it('disabled sets the attribute and the disabled: classes', () => {

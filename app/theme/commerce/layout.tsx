@@ -200,7 +200,7 @@ export default function CommerceThemeLayout({ children }: { children: React.Reac
               ))}
               <div className="mt-2 pt-2 border-t border-[var(--success)] flex flex-col gap-2">
                 <Button variant="outline" size="sm" fullWidth>Sign In</Button>
-                <Button variant="secondary" size="sm" fullWidth>Register</Button>
+                <Button variant="accent" size="sm" fullWidth>Register</Button>
               </div>
             </nav>
           </div>

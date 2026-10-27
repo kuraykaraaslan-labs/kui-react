@@ -2,12 +2,14 @@
 import { cn } from '@/libs/utils/cn';
 import type { PolymorphicProps } from '@/libs/utils/polymorphic';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
+type ButtonVariant = 'primary' | 'secondary' | 'accent' | 'ghost' | 'danger' | 'outline';
 type ButtonSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:   'bg-primary text-primary-fg hover:bg-primary-hover',
-  secondary: 'bg-secondary text-secondary-fg hover:bg-secondary-hover',
+  // Neutral: the quiet alternative beside a primary (Cancel, Back). `accent` is the coloured one (a brand's second colour).
+  secondary: 'bg-surface-overlay text-text-primary hover:bg-border-strong',
+  accent:    'bg-accent text-accent-fg hover:bg-accent-hover',
   ghost:     'bg-transparent text-text-primary hover:bg-surface-overlay',
   danger:    'bg-error text-text-inverse hover:opacity-90',
   outline:   'border border-border text-text-primary hover:bg-surface-overlay',

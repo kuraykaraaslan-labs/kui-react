@@ -269,7 +269,7 @@ export default function TravelHomePage() {
               className="px-4 py-2.5 rounded-lg text-sm text-text-primary bg-surface-base focus:outline-none focus:ring-2 focus:ring-border-focus min-w-[200px]"
               aria-label="Email address"
             />
-            <Button variant="secondary" size="md">
+            <Button variant="accent" size="md">
               <FontAwesomeIcon icon={faCircleCheck} className="w-4 h-4 mr-1.5" aria-hidden="true" />
               Join Free
             </Button>

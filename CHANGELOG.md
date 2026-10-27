@@ -348,6 +348,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- `Button` `secondary` is neutral (`bg-surface-overlay text-text-primary hover:bg-border-strong`): the quiet alternative
+  beside a primary (Cancel, Back) no longer takes the second brand colour. The new `accent` variant carries it
+  (`bg-accent text-accent-fg hover:bg-accent-hover`) for an alternative that is meant to be coloured; `PageHeader` actions
+  take the same two. New tokens `--accent`, `--accent-hover`, `--accent-fg` (light and dark, in `styles/index.css`; a host maps
+  them to `--color-accent*` as it maps the others), defaulting to the old secondary colours. The theme pages' coloured
+  calls to action use `accent`. kui-ejs and KUInative follow.
 - `Select`: the native (non-searchable, icon-free) mode draws the chevron the custom Select and `MultiSelect` show
   (`faChevronDown`, `w-3 h-3 text-text-disabled`, `right-3`; the select is `pr-8`). `appearance-none` had removed the
   browser arrow, so a plain Select did not read as a dropdown.
