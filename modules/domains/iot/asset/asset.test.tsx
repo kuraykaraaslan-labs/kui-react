@@ -499,6 +499,9 @@ describe('AssetsMapDrawer', () => {
     // the kit's table (check:tables in NB), one site a row, each a button
     const list = screen.getByRole('table', { name: 'Sites' });
     expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Berlin plant3 devices · 3 active', 'Logistics hub0 devices · 0 active · No location']);
+    // fixed to the column's width: a long name is cut off with an ellipsis, the list never scrolls sideways
+    expect(list).toHaveClass('table-fixed');
+    expect(within(list).getByText('Berlin plant')).toHaveClass('truncate');
     await user.click(within(list).getByRole('button', { name: /Logistics hub/ }));
     expect(within(list).getByRole('button', { name: /Logistics hub/ })).toHaveAttribute('aria-current', 'true');
     expect(within(list).getByRole('button', { name: /Logistics hub/ }).closest('tr')).toHaveClass('bg-surface-overlay');

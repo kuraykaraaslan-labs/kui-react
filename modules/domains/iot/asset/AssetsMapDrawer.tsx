@@ -88,6 +88,7 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
   );
 
   // The sites beside the map: the kit's table (never a hand-made list), one column, each site a button that opens its summary.
+  // The table is fixed to the column's width, so a long site name is cut off with an ellipsis instead of scrolling the list sideways.
   const siteColumns = useMemo((): Column<AssetSite>[] => [{
     key: 'name',
     header: m.assets.mapSites,
@@ -176,6 +177,7 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
                 variant="plain"
                 bordered={false}
                 density="compact"
+                tableClassName="table-fixed"
                 caption={m.assets.mapSites}
                 columns={siteColumns}
                 rows={sites}
