@@ -5,6 +5,7 @@ import { DeviceOnlineDot } from './DeviceOnlineDot';
 import { DeviceConnectionBadge } from './DeviceConnectionBadge';
 import { DeviceDetailHeader } from './DeviceDetailHeader';
 import { DeviceCredentialPanel, IssuedSecretNotice } from './DeviceCredentialPanel';
+import { connectionCommands, examplePayload } from './DeviceConnectionCard';
 import { DeviceAttributeTable, parseValue, valueToText } from './DeviceAttributeTable';
 import { DesiredReportedBadge } from './DesiredReportedBadge';
 import { DeviceConnectionTimeline } from './DeviceConnectionTimeline';
@@ -96,6 +97,37 @@ describe('DeviceCredentialPanel', () => {
     expect(writeText).toHaveBeenCalledWith('SECRET-TOKEN-123');
     await user.click(screen.getByRole('button', { name: 'I have stored it' }));
     expect(onDismiss).toHaveBeenCalled();
+  });
+
+  it('UX-23: the connection details name the broker, the login, the topics and the HTTPS URL, with ready lines that carry the secret only while it is shown', async () => {
+    const user = userEvent.setup();
+    const info = { mqtt: { host: 'mqtt.example.com', port: 8883, tls: true }, httpBase: 'https://acme.example.com', telemetryKeys: [{ key: 'pressure', type: 'number' }, { key: 'running', type: 'boolean' }] };
+    render(<IssuedSecretNotice secret={{ token: 'SECRET-TOKEN-123' }} connection={info} credentialType="ACCESS_TOKEN" />);
+    const card = screen.getByRole('region', { name: 'Connection details' });
+    expect(card).toHaveTextContent('mqtt.example.com:8883');
+    expect(card).toHaveTextContent('Username = the access token, password empty');
+    expect(card).toHaveTextContent('v1/telemetry');
+    expect(card).toHaveTextContent('v1/rpc/req/+');
+    expect(card).toHaveTextContent('POST https://acme.example.com/api/v1/telemetry');
+    expect(card).toHaveTextContent('{"pressure":21.5,"running":true}');
+    expect(card).not.toHaveTextContent('SECRET-TOKEN-123');
+    expect(card).toHaveTextContent("mosquitto_pub -h mqtt.example.com -p 8883 --capath /etc/ssl/certs -u '<ACCESS_TOKEN>' -t v1/telemetry");
+    await user.click(screen.getByRole('button', { name: 'Show' }));
+    expect(card).toHaveTextContent("-u 'SECRET-TOKEN-123'");
+    expect(card).toHaveTextContent("-H 'Authorization: Bearer SECRET-TOKEN-123'");
+    await user.click(screen.getByRole('button', { name: 'Hide' }));
+    expect(card).not.toHaveTextContent('SECRET-TOKEN-123');
+
+    // the Credentials tab without a fresh secret: the card under the credential, with placeholders; nothing without endpoints
+    const { rerender } = render(<DeviceCredentialPanel credential={{ type: 'ACCESS_TOKEN' }} connection={{ mqtt: null, httpBase: 'https://acme.example.com' }} />);
+    expect(screen.getAllByRole('region', { name: 'Connection details' })).toHaveLength(2);
+    rerender(<DeviceCredentialPanel credential={{ type: 'ACCESS_TOKEN' }} connection={{}} />);
+    expect(screen.getAllByRole('region', { name: 'Connection details' })).toHaveLength(1);
+    expect(examplePayload([])).toBe('{"temperature":21.5}');
+    const basic = connectionCommands({ info, credentialType: 'MQTT_BASIC', username: 'pump-4', clientId: 'c-1', placeholders: { token: '<T>', password: '<P>' } });
+    expect(basic.mqtt).toContain("-i 'c-1' -u 'pump-4' -P '<P>'");
+    expect(basic.http).toBeNull();
+    expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: { token: '<T>', password: '<P>' } })).toEqual({ mqtt: null, http: null });
   });
 
   it('lists non-secret fields and rotates behind a confirmation; X.509 has no rotate', async () => {

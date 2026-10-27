@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
 import {
-  blankProfileDraft, isNetwork, parseLimitString, profileDraftIssues, profilePatch, draftOf, DEFAULT_RATE_LIMITS,
+  blankProfileDraft, isNetwork, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, DEFAULT_RATE_LIMITS,
   type DeviceProfile, type DeviceProfileDraft, type ProfileAuthMode, type ProfileRateLimits, type ProfileTransport,
 } from '../types/profile';
 import { OnlineRuleField, formatSeconds, type OnlineRuleValue } from './OnlineRuleField';
@@ -98,6 +98,7 @@ describe('OnlineRuleField (OD-57, OD-63)', () => {
     const user = userEvent.setup();
     render(<RuleHarness transport="HTTP" initial={{ onlineRule: null, expectedIntervalS: null, onlineWindowFactor: 3 }} />);
     await user.click(screen.getByRole('radio', { name: /Recent message/ }));
+    await user.clear(screen.getByLabelText(/Expected interval/));
     await user.type(screen.getByLabelText(/Expected interval/), '600');
     expect(screen.getByText('Shown offline after 30 min without a message.')).toBeInTheDocument();
     await user.clear(screen.getByLabelText(/^Factor/));
@@ -106,6 +107,23 @@ describe('OnlineRuleField (OD-57, OD-63)', () => {
     await user.click(screen.getByRole('radio', { name: /Last seen only/ }));
     expect(screen.queryByLabelText(/Expected interval/)).toBeNull();
     expect(formatSeconds(86_400)).toBe('1 d');
+  });
+
+  it('UX-61/63: recommends the live connection while nothing is chosen, fills the shortest interval, and an out-of-range error names the range', async () => {
+    const user = userEvent.setup();
+    function Harness() {
+      const [v, setV] = useState<OnlineRuleValue>({ onlineRule: null, expectedIntervalS: null, onlineWindowFactor: 3 });
+      const issues = profileDraftIssues({ ...blankProfileDraft('x'), ...v });
+      return <OnlineRuleField value={v} transport="MQTT" onChange={setV} errors={{ expectedIntervalS: issues.expectedIntervalS ? 'Out of the allowed range.' : undefined }} />;
+    }
+    render(<Harness />);
+    expect(screen.getByText('Devices that keep an MQTT connection open usually use Live connection.')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Recent message/ }));
+    expect(screen.getByLabelText(/Expected interval/)).toHaveValue(60);
+    expect(screen.queryByText(/Devices that keep an MQTT connection/)).toBeNull();
+    await user.clear(screen.getByLabelText(/Expected interval/));
+    await user.type(screen.getByLabelText(/Expected interval/), '20');
+    expect(screen.getByText('Out of the allowed range. Allowed: 60 to 604800')).toBeInTheDocument();
   });
 
   it('keeps a chosen rule that the transport no longer allows and says why', () => {
@@ -203,7 +221,36 @@ describe('transport and auth pieces', () => {
     const tele = screen.getByRole('table', { name: 'Telemetry keys' });
     expect(within(tele).getByText('No keys yet.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add key' }));
-    expect(onChange).toHaveBeenLastCalledWith([{ key: '' }]);
+    expect(onChange).toHaveBeenLastCalledWith([{ key: '', type: 'number' }]);
+  });
+
+  it('UX-85: types read in words, a new row starts as a number, and a new row is not red before it is typed in or left', async () => {
+    const user = userEvent.setup();
+    function Tele() {
+      const [v, setV] = useState<Parameters<typeof TelemetryKeySchemaTable>[0]['value']>([{ key: 'level' }]);
+      return <TelemetryKeySchemaTable value={v} onChange={setV} error={profileDraftIssues({ ...blankProfileDraft('x'), telemetrySchema: v }).telemetrySchema ? 'A key is not valid.' : undefined} />;
+    }
+    render(<Tele />);
+    const type = screen.getByLabelText('Type level') as HTMLSelectElement;
+    expect([...type.options].map((o) => o.textContent)).toEqual(['Not set', 'Number', 'Whole number', 'Yes / no', 'Text', 'JSON']);
+    await user.click(screen.getByRole('button', { name: 'Add key' }));
+    expect(screen.getByLabelText('Type 2')).toHaveValue('number');
+    expect(screen.getByLabelText('Key 2')).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByText('A key is not valid.')).toBeNull();
+    await user.click(screen.getByLabelText('Key 2'));
+    await user.tab();
+    expect(screen.getByLabelText('Key 2')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('A key is not valid.')).toBeInTheDocument();
+    cleanup();
+    render(<TelemetryKeySchemaTable value={[{ key: 'flag', type: 'boolean' }, { key: 'x' }]} readOnly />);
+    expect(screen.getByRole('cell', { name: 'Yes / no' })).toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: 'Not set' })).toBeInTheDocument();
+  });
+
+  it('UX-11: a key renamed in place is a rename; a removal that shifts rows is never guessed into one', () => {
+    expect(telemetryKeyChanges([{ key: 'temp' }, { key: 'level' }], [{ key: 'temperature' }, { key: 'level' }])).toEqual({ removed: ['temp'], renames: { temp: 'temperature' } });
+    expect(telemetryKeyChanges([{ key: 'a' }, { key: 'b' }, { key: 'c' }], [{ key: 'b' }, { key: 'd' }])).toEqual({ removed: ['a', 'c'], renames: {} });
+    expect(telemetryKeyChanges([{ key: 'a' }], [{ key: 'a' }, { key: 'b' }])).toEqual({ removed: [], renames: {} });
   });
 
   it('provisioning keys are a disabled placeholder without the host: no key, no secret, no button', () => {
@@ -235,15 +282,19 @@ function profilesAdapter(over: Partial<NonNullable<IotAdapter['profiles']>> = {}
 }
 
 describe('NewDeviceProfileDrawer (OD-63)', () => {
-  it.each(['MQTT', 'HTTP', 'LORAWAN'] as ProfileTransport[])('keeps Create disabled until a rule is chosen (%s), and the transport never picks one', async (transport) => {
+  it.each(['MQTT', 'HTTP', 'LORAWAN'] as ProfileTransport[])('creates nothing until a rule is chosen (%s), says so only after Create, and the transport never picks one', async (transport) => {
     const user = userEvent.setup();
     const adapter = profilesAdapter();
     render(<Wrap adapter={adapter}><NewDeviceProfileDrawer open onClose={() => undefined} /></Wrap>);
     await user.type(screen.getByLabelText(/^Name/), 'Boilers');
     await user.selectOptions(screen.getByLabelText('Transport'), transport);
     expect((screen.getAllByRole('radio') as HTMLInputElement[]).every((r) => !r.checked)).toBe(true);
+    // UX-61: no red before anything was pressed, and Create is a button that says why when pressed
+    expect(screen.queryByText('Choose how this profile decides online.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Create profile' })).toBeEnabled();
+    await user.click(screen.getByRole('button', { name: 'Create profile' }));
     expect(screen.getByText('Choose how this profile decides online.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create profile' })).toBeDisabled();
+    expect(adapter.profiles!.create).not.toHaveBeenCalled();
     await user.click(screen.getByRole('radio', { name: /Last seen only/ }));
     await user.selectOptions(screen.getByLabelText('Transport'), 'ANY');
     expect((screen.getByRole('radio', { name: /Last seen only/ }) as HTMLInputElement).checked).toBe(true);
@@ -268,6 +319,36 @@ describe('DeviceProfileEditorView', () => {
     await user.click(screen.getByRole('radio', { name: /Last seen only/ }));
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { transportType: 'LORAWAN', onlineRule: 'LAST_SEEN_ONLY' }));
+  });
+
+  it('UX-11: after a save that renamed a key in use, offers to update the rules to the new name, or keeps them and says what still reads it', async () => {
+    const user = userEvent.setup();
+    const notify = vi.fn();
+    const keyUsage = vi.fn(async () => [{ moduleId: 'iot_alarm', label: 'alarm rules', count: 2, keys: ['temp'], canRename: true }]);
+    const renameKeys = vi.fn(async () => [{ moduleId: 'iot_alarm', label: 'alarm rules', count: 2, keys: ['temp'], canRename: true }]);
+    const store = [profile({ telemetrySchema: [{ key: 'temp' }, { key: 'level' }] })];
+    const adapter = profilesAdapter({ keyUsage, renameKeys }, store);
+    const { unmount } = render(<IotAdapterProvider adapter={adapter} capabilities={ALL} notify={notify}><DeviceProfileEditorView profileId="p1" tab="telemetry" /></IotAdapterProvider>);
+    const key = await screen.findByLabelText('Key 1');
+    await user.clear(key);
+    await user.type(key, 'temperature');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Removed keys are still in use' });
+    expect(keyUsage).toHaveBeenCalledWith('p1', ['temp']);
+    expect(dialog).toHaveTextContent('2 alarm rules read temp.');
+    expect(dialog).toHaveTextContent('temp → temperature');
+    await user.click(within(dialog).getByRole('button', { name: 'Update them to the new names' }));
+    await waitFor(() => expect(renameKeys).toHaveBeenCalledWith('p1', { temp: 'temperature' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'success', message: 'Updated to the new key names.' }));
+    unmount();
+
+    // removed without a new name: nothing to rewrite, a notice names what still reads it
+    notify.mockClear();
+    render(<IotAdapterProvider adapter={profilesAdapter({ keyUsage, renameKeys }, [profile({ telemetrySchema: [{ key: 'temp' }, { key: 'level' }] })])} capabilities={ALL} notify={notify}><DeviceProfileEditorView profileId="p1" tab="telemetry" /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'Remove temp' }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'info', message: 'Still reading removed keys: 2 alarm rules read temp. They never match again until they are edited.' }));
+    expect(renameKeys).toHaveBeenCalledTimes(1);
   });
 
   it('shows the host\'s refusal as it comes', async () => {

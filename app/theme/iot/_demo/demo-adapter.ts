@@ -6,7 +6,7 @@ import type {
 import type { Device } from '@/modules/domains/iot/types';
 import { isRefusedRpcMethod, type RpcCatalogCommand, type RpcCommand, type RpcCommandInput, type RpcRequest, type RpcStatus } from '@/modules/domains/iot/types/rpc';
 import { blankProfileDraft, onlineRuleBlock, type DeviceProfile, type DeviceProfileUsage } from '@/modules/domains/iot/types/profile';
-import { newInactivityRule, type AlarmRuleDefinition } from '@/modules/domains/iot/types/alarm-rule';
+import { alarmRuleKeys, conditionLeaves, isInactivityRule, newInactivityRule, type AlarmRuleDefinition } from '@/modules/domains/iot/types/alarm-rule';
 import { ALARMS, ALARM_EVENTS, DEVICES, DEVICE_PROFILES } from '../iot.data';
 import type { DemoLive } from './demo-live';
 import { createDemoAssets } from './demo-assets';
@@ -380,6 +380,25 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         await wait();
         return Object.fromEntries(ids.filter((id) => store.profiles.some((p) => p.profileId === id)).map((id) => [id, usageOf(id)]));
       },
+      async keyUsage(id, keys) {
+        await wait();
+        const using = (store.rules.get(id) ?? []).filter((r) => alarmRuleKeys(r).some((k) => keys.includes(k)));
+        const read = [...new Set(using.flatMap((r) => alarmRuleKeys(r)).filter((k) => keys.includes(k)))];
+        return using.length ? [{ moduleId: 'alarm rules', label: 'alarm rules', count: using.length, keys: read, canRename: true }] : [];
+      },
+      async renameKeys(id, renames) {
+        await wait();
+        const rules = store.rules.get(id) ?? [];
+        let changed = 0;
+        for (const r of rules) {
+          if (isInactivityRule(r)) continue;
+          const leaves = [...r.severities.flatMap((x) => conditionLeaves(x.condition)), ...(r.clear ? conditionLeaves(r.clear) : [])];
+          const hit = leaves.filter((l) => l.key in renames);
+          for (const l of hit) l.key = renames[l.key];
+          if (hit.length) changed++;
+        }
+        return changed ? [{ moduleId: 'alarm rules', label: 'alarm rules', count: changed, keys: Object.values(renames), canRename: true }] : [];
+      },
     },
     alarmRules: {
       async list(profileId) { await wait(); profileOf(profileId); return (store.rules.get(profileId) ?? []).map((definition, i) => ({ ruleId: `${profileId}-rule-${i}`, version: 1, definition: structuredClone(definition) })); },
@@ -392,6 +411,13 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
       },
     },
     rpcCatalog: {
+      templates: [{
+        id: 'scada.set_value', label: 'Set a value (board controls)',
+        command: {
+          method: 'scada.set_value', label: 'Set a value', tier: 'basic', highImpact: false, oneway: false,
+          paramsSchema: { key: { label: 'Key', type: 'text', required: true }, value: { label: 'Value', type: 'json', required: true } },
+        },
+      }],
       async list(profileId) { await wait(); const p = profileOf(profileId); return { commands: structuredClone(catalogOf(profileId)), supported: p.topicSchemes.includes('ROLTEK') }; },
       async create(profileId, input) {
         await wait();
@@ -483,6 +509,12 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     },
     credentials: {
       async get(id) { await wait(); device(id); return store.credentials.get(id) ?? null; },
+      async connection(id) {
+        await wait();
+        const d = device(id);
+        const keys = store.profiles.find((p) => p.profileId === d.deviceProfileId)?.telemetrySchema ?? [];
+        return { mqtt: { host: 'mqtt.example.com', port: 8883, tls: true }, httpBase: 'https://demo.example.com', telemetryKeys: keys.map((k) => ({ key: k.key, type: k.type })) };
+      },
       async rotate(id) {
         await wait();
         const cur = store.credentials.get(id);

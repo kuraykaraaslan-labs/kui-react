@@ -156,6 +156,40 @@ export type DeviceProfileUsage = {
   unverifiable?: string[];
 };
 
+/**
+ * What another module still reads among some telemetry keys of a profile (NB `iot_device_profile:key_usage`: the alarm rules, …):
+ * `count` items (rules) of `label` read `keys`; `canRename` when the viewer may rewrite them to new key names.
+ */
+export type ProfileKeyUsage = {
+  moduleId: string;
+  label: string;
+  count: number;
+  keys: string[];
+  canRename: boolean;
+};
+
+/**
+ * The telemetry keys an edit removed, and the ones it renamed in place: a row whose key changed from a removed key to a key that is new
+ * (`temp` → `temperature` on the same row). A removed row shifts the rows after it, so a pair is only taken when the old key is gone and
+ * the new one did not exist before; a move the rows cannot tell apart is a removal (nothing is renamed by a guess).
+ */
+export function telemetryKeyChanges(base: readonly TelemetryKeySpec[], draft: readonly TelemetryKeySpec[]): { removed: string[]; renames: Record<string, string> } {
+  const before = new Set(base.map((k) => k.key).filter(Boolean));
+  const after = new Set(draft.map((k) => k.key).filter(Boolean));
+  const removed = [...before].filter((k) => !after.has(k));
+  const renames: Record<string, string> = {};
+  const taken = new Set<string>();
+  for (let i = 0; i < Math.min(base.length, draft.length); i++) {
+    const from = base[i].key;
+    const to = draft[i].key;
+    if (from && to && from !== to && !after.has(from) && !before.has(to) && isTelemetryKey(to) && !taken.has(to)) {
+      renames[from] = to;
+      taken.add(to);
+    }
+  }
+  return { removed, renames };
+}
+
 /** The protocol defaults of a new profile (01 §1.1, OD-35, OD-160, OD-161); the online rule is left empty (OD-63). */
 export function blankProfileDraft(name = ''): DeviceProfileDraft {
   return {

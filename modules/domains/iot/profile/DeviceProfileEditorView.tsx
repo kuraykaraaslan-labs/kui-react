@@ -17,8 +17,8 @@ import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { fill, formatDateTime } from '../format';
 import {
-  CFG_DRIFT_POLICIES, RATE_LIMIT_FAMILIES, draftOf, profileDraftIssues, profilePatch,
-  type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileTransport, type ProvisionStrategy,
+  CFG_DRIFT_POLICIES, RATE_LIMIT_FAMILIES, draftOf, profileDraftIssues, profilePatch, telemetryKeyChanges,
+  type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileKeyUsage, type ProfileTransport, type ProvisionStrategy,
 } from '../types/profile';
 import { AuthModeSelector } from './AuthModeSelector';
 import { CfgSchemaTable } from './CfgSchemaTable';
@@ -39,6 +39,10 @@ import { ProfileSection, RangeNumberField } from './profile-fields';
  * only the changed fields are sent, the form blocks what the host would refuse (a transport that forbids the chosen online rule
  * included) and shows the host's own refusal when it still comes. The host's `extraTabs` (Alarm rules, Commands, … contributed by other
  * modules) follow, each saving on its own. Without `canManageProfiles` everything is read-only. The device count follows every 30 s.
+ *
+ * A save that removed telemetry keys asks the host who still reads them (`profiles.keyUsage`: alarm rules, …). Keys renamed in place
+ * are offered for a rewrite ("Update them to the new names", `profiles.renameKeys`) or kept as they are; a removed key with no new name,
+ * or a viewer who may not rewrite, gets a notice naming what still reads it. The profile is saved either way: the question comes after.
  */
 export type DeviceProfileEditorViewProps = {
   profileId: string;
@@ -132,6 +136,7 @@ export function DeviceProfileEditorView({
     if (!api?.update || !base || !draft || blocking) return;
     const patch = profilePatch(base, draft);
     if (!Object.keys(patch).length) return;
+    const keyChanges = telemetryKeyChanges(base.telemetrySchema, draft.telemetrySchema);
     setSaving(true);
     setSaveError(null);
     setServerErrors({});
@@ -140,12 +145,46 @@ export function DeviceProfileEditorView({
       setProfile(saved);
       setDraft(draftOf(saved));
       notify({ tone: 'success', message: m.profile.saved });
+      if (keyChanges.removed.length) void followKeyChanges(keyChanges);
     } catch (e) {
       if (e instanceof IotApiError && e.fieldErrors) setServerErrors(e.fieldErrors);
       setSaveError(fill(m.profile.saveError, { message: errorMessage(e, m.profile.loadError) }));
     } finally {
       setSaving(false);
     }
+  }
+
+  /** After a save that removed keys: what still reads them, and (for keys renamed in place) the offer to rewrite it. */
+  async function followKeyChanges({ removed, renames }: { removed: string[]; renames: Record<string, string> }) {
+    if (!api?.keyUsage) return;
+    let usage: ProfileKeyUsage[];
+    try { usage = (await api.keyUsage(profileId, removed)).filter((u) => u.count > 0); } catch { return; }
+    if (!usage.length) return;
+    const used = new Set(usage.flatMap((u) => u.keys));
+    const mapped = Object.fromEntries(Object.entries(renames).filter(([from]) => used.has(from)));
+    const lines = usage.map((u) => fill(m.profile.keyUsageLine, { count: u.count, label: u.label, keys: u.keys.join(', ') }));
+    const rename = api.renameKeys;
+    if (rename && Object.keys(mapped).length && usage.some((u) => u.canRename && u.keys.some((k) => k in mapped))) {
+      const done = await confirmDialog({
+        title: m.profile.keyUsageTitle,
+        message: lines.join(' '),
+        details: (
+          <ul className="list-inside list-disc text-sm">
+            {Object.entries(mapped).map(([from, to]) => <li key={from}><code className="font-mono">{from}</code> → <code className="font-mono">{to}</code></li>)}
+          </ul>
+        ),
+        tone: 'warning',
+        confirmLabel: m.profile.keyUsageRename,
+        cancelLabel: m.profile.keyUsageKeep,
+        action: () => rename(profileId, mapped),
+        errorMessage: (e) => errorMessage(e, m.profile.loadError),
+      });
+      if (done) {
+        notify({ tone: 'success', message: m.profile.keyUsageRenamed });
+        return;
+      }
+    }
+    notify({ tone: 'info', message: fill(m.profile.keyUsageOrphaned, { list: lines.join(' ') }) });
   }
 
   async function makeDefault() {

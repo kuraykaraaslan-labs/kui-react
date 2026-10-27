@@ -1,4 +1,5 @@
 'use client';
+import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faMicrochip, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -16,6 +17,9 @@ import { isTelemetryKey, type TelemetryKeySpec } from '../types/profile';
  * used for devices whose firmware description is unknown. Editable rows (a bad or duplicate key is marked where it is); read-only with
  * a "from firmware" badge when the keys come from a firmware's `profile.json`. Drawn by the kit DataTable (manual mode), one row per key
  * with its inputs in the cells; a row's id is its position, so typing a key keeps the row.
+ *
+ * The type reads in words ("Number", "Yes / no", …; "Not set" for an untyped key) and a new row starts as a number. A row's key is
+ * marked only once it was typed in or left, and the table's error waits for that too: a row just added is not red before any input.
  */
 export type TelemetryKeySchemaTableProps = {
   value: TelemetryKeySpec[];
@@ -36,8 +40,14 @@ type TelemetryRow = { i: number; k: TelemetryKeySpec };
 
 export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnly, error, messages, className }: TelemetryKeySchemaTableProps) {
   const { m } = useIotText(messages);
+  const [touched, setTouched] = useState<ReadonlySet<number>>(() => new Set());
   const locked = readOnly || !!fromFirmware;
-  const keys = value.map((k) => k.key);
+  const typeLabel = (t: TelemetryKeySpec['type']) => (t ? m.schema[`type_${t}`] : m.schema.notSet);
+  // an empty key nobody has typed in or left yet is not an error yet (the save stays blocked by the host's checks all the same)
+  const pending = (i: number, k: TelemetryKeySpec) => k.key === '' && !touched.has(i);
+  const isBad = (i: number, k: TelemetryKeySpec) => !pending(i, k) && (!isTelemetryKey(k.key) || value.findIndex((x) => x.key === k.key) !== i);
+  // the table's error is about its keys: it waits while the only bad keys are rows nobody has typed in or left yet
+  const shownError = error && value.some((k, i) => isBad(i, k)) ? error : undefined;
   const set = (i: number, patch: Partial<TelemetryKeySpec>) => onChange?.(value.map((k, j) => (j === i ? clean({ ...k, ...patch }) : k)));
   // rows keep their position as id: a key being typed never remounts its row (and never loses the caret)
   const rows: TelemetryRow[] = value.map((k, i) => ({ i, k }));
@@ -47,21 +57,21 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
       key: 'key',
       header: m.schema.key,
       render: ({ i, k }) => {
-        const bad = !isTelemetryKey(k.key) || keys.indexOf(k.key) !== i;
+        const bad = isBad(i, k);
         return locked ? <code className="font-mono text-xs">{k.key}</code> : (
-          <input className={cn(cell, 'font-mono', bad && 'border-error')} value={k.key} aria-label={`${m.schema.key} ${i + 1}`} aria-invalid={bad || undefined}
-            maxLength={64} onChange={(e) => set(i, { key: e.target.value })} />
+          <input className={cn(cell, 'min-w-[8rem] font-mono', bad && 'border-error')} value={k.key} aria-label={`${m.schema.key} ${i + 1}`} aria-invalid={bad || undefined}
+            maxLength={64} onChange={(e) => set(i, { key: e.target.value })} onBlur={() => setTouched((t) => (t.has(i) ? t : new Set(t).add(i)))} />
         );
       },
     },
     {
       key: 'type',
       header: m.schema.type,
-      render: (r) => (locked ? (r.k.type ?? m.schema.any) : (
-        <select className={cell} value={r.k.type ?? ''} aria-label={`${m.schema.type} ${nameOf(r)}`}
+      render: (r) => (locked ? typeLabel(r.k.type) : (
+        <select className={cn(cell, 'min-w-[7rem]')} value={r.k.type ?? ''} aria-label={`${m.schema.type} ${nameOf(r)}`}
           onChange={(e) => set(r.i, { type: (e.target.value || undefined) as TelemetryKeySpec['type'] })}>
-          <option value="">{m.schema.any}</option>
-          {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          <option value="">{m.schema.notSet}</option>
+          {TYPES.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
         </select>
       )),
     },
@@ -73,7 +83,7 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
     {
       key: 'label',
       header: m.schema.label,
-      render: (r) => (locked ? (r.k.label ?? '—') : <input className={cell} value={r.k.label ?? ''} maxLength={128} aria-label={`${m.schema.label} ${nameOf(r)}`} onChange={(e) => set(r.i, { label: e.target.value })} />),
+      render: (r) => (locked ? (r.k.label ?? '—') : <input className={cn(cell, 'min-w-[10rem]')} value={r.k.label ?? ''} maxLength={128} aria-label={`${m.schema.label} ${nameOf(r)}`} onChange={(e) => set(r.i, { label: e.target.value })} />),
     },
     {
       key: 'min',
@@ -95,7 +105,7 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
       header: <span className="sr-only">{m.profiles.actions}</span>,
       align: 'right' as const,
       render: (r: TelemetryRow) => (
-        <button type="button" onClick={() => onChange?.(value.filter((_, j) => j !== r.i))} aria-label={fill(m.schema.remove, { key: r.k.key || String(r.i + 1) })}
+        <button type="button" onClick={() => { setTouched((t) => new Set([...t].filter((j) => j !== r.i).map((j) => (j > r.i ? j - 1 : j)))); onChange?.(value.filter((_, j) => j !== r.i)); }} aria-label={fill(m.schema.remove, { key: r.k.key || String(r.i + 1) })}
           className="rounded p-1.5 text-text-secondary hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <FontAwesomeIcon icon={faTrash} className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -122,11 +132,11 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
         searchable={false}
         pageSizeOptions={[]}
         density="compact"
-        tableClassName="min-w-[42rem]"
+        tableClassName="min-w-[48rem]"
       />
-      {error && <p role="alert" className="text-xs text-error">{error}</p>}
+      {shownError && <p role="alert" className="text-xs text-error">{shownError}</p>}
       {!locked && (
-        <Button variant="outline" size="sm" onClick={() => onChange?.([...value, { key: '' }])} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
+        <Button variant="outline" size="sm" onClick={() => onChange?.([...value, { key: '', type: 'number' }])} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
           {m.schema.add}
         </Button>
       )}

@@ -37,7 +37,7 @@ export function RangeNumberField({
       step={step}
       disabled={disabled}
       value={value === null || !Number.isFinite(value) ? '' : value}
-      error={error}
+      error={error && error === m.issue.out_of_range ? `${error} ${fill(m.limits.range, r)}` : error}
       hint={hint ? `${hint} ${fill(m.limits.range, r)}` : fill(m.limits.range, r)}
       onChange={(e) => {
         const raw = e.target.value.trim();

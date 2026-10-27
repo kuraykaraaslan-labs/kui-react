@@ -12,8 +12,9 @@ import { OnlineRuleField, type OnlineRuleValue } from './OnlineRuleField';
 
 /**
  * NewDeviceProfileDrawer — "New profile" (phase 01 §1.4): name, description, transport and the online rule. OD-63: the online rule
- * starts EMPTY for every transport and "Create" stays disabled until one is chosen; switching the transport never picks one. Every
- * other setting takes the protocol default and is edited on the profile page that opens after the create.
+ * starts EMPTY for every transport and switching the transport never picks one. Nothing is marked before the first "Create": that press
+ * shows what is missing where it is missing (no red before any input, and a disabled button that never says why). Every other setting
+ * takes the protocol default and is edited on the profile page that opens after the create.
  */
 export type NewDeviceProfileDrawerProps = {
   open: boolean;
@@ -67,10 +68,11 @@ export function NewDeviceProfileDrawer({ open, transports, onClose, onCreated }:
       onClose={onClose}
       title={m.newProfile.title}
       closeLabel={m.common.close}
+      className="w-[32rem]"
       footer={(
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>{m.common.cancel}</Button>
-          <Button variant="primary" size="sm" loading={busy} disabled={blocking} onClick={() => void submit()}>{m.newProfile.create}</Button>
+          <Button variant="primary" size="sm" loading={busy} onClick={() => void submit()}>{m.newProfile.create}</Button>
         </div>
       )}
     >
@@ -88,7 +90,7 @@ export function NewDeviceProfileDrawer({ open, transports, onClose, onCreated }:
           transport={draft.transportType}
           onChange={(v) => setDraft({ ...draft, ...v })}
           errors={{
-            onlineRule: word('onlineRule'),
+            onlineRule: touched ? word('onlineRule') : undefined,
             expectedIntervalS: draft.expectedIntervalS !== null || touched ? word('expectedIntervalS') : undefined,
             onlineWindowFactor: word('onlineWindowFactor'),
           }}

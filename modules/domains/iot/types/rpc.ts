@@ -46,6 +46,14 @@ export type RpcCatalogCommand = RpcCommand & {
 /** What the catalog editor sends (create, edit, import): never `sendable` (the host answers it per viewer). */
 export type RpcCommandInput = Omit<RpcCommand, 'sendable'> & { maskedParams?: string[] };
 
+/** A ready command a host offers in "New command" ("From a template"): the form starts from it and stays editable. */
+export type RpcCommandTemplate = {
+  id: string;
+  label: string;
+  description?: string;
+  command: RpcCommandInput;
+};
+
 /** "running" = an accepted long method; "unknown" = a timeout; "late" = an answer after the end. */
 export type RpcOutcome = 'running' | 'unknown' | 'late' | null;
 

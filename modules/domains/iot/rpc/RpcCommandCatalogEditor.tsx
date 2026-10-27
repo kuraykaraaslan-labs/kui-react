@@ -19,13 +19,18 @@ import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill } from '../format';
 import { isRefusedRpcMethod, type RpcCatalogCommand, type RpcCommandInput } from '../types/rpc';
+import { paramRowIssues, paramRowsOf, paramsSchemaOf, RpcParamsBuilder, type RpcParamRow } from './RpcParamsBuilder';
 
 /**
  * RpcCommandCatalogEditor — the command catalog of one device profile (NB iot_rpc 00 §0.3, the profile's "Commands" tab contributed by
  * the RPC module): method, label, tier (basic / privileged / critical, each sent with its own permission), high impact with an optional
- * typed phrase, one-way, long-running, default timeout, persistence, declared parameters (`FieldSchema` JSON) and masked parameters.
+ * typed phrase, one-way, long-running, default timeout, persistence, declared parameters and masked parameters.
  * Add, edit (never the method) and remove one command; export the catalog as JSON and import one, which replaces the whole catalog
  * after a typed confirmation. A factory reset is never accepted as a command (OD-8). Read-only without `canManageRpcCommands`.
+ *
+ * The parameters are built row by row (`RpcParamsBuilder`); JSON stays behind "Advanced (JSON)" with an example, and a schema the rows
+ * cannot draw opens there. "New command" can start from a host template (`rpcCatalog.templates`). A refusal of the host about one
+ * parameter is shown on the parameters, in the kit's words with the host's detail, never as a bare "Validation error".
  */
 export type RpcCommandCatalogEditorProps = {
   profileId: string;
@@ -196,31 +201,74 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
   );
 }
 
+const PARAMS_EXAMPLE = '{\n  "value": { "label": "Set-point", "type": "number", "min": 0, "max": 100, "required": true },\n  "mode": { "label": "Mode", "type": "select", "options": ["auto", "manual"] }\n}';
+
 function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: string; command: RpcCatalogCommand | null; onClose: () => void; onSaved: () => void }) {
   const api = useIotAdapter().rpcCatalog!;
   const notify = useIotNotify();
   const { m } = useIotText();
   const id = useId();
   const [draft, setDraft] = useState<RpcCommandInput>(() => (command ? inputOf(command) : blank()));
+  const [rows, setRows] = useState<RpcParamRow[]>(() => paramRowsOf(draft.paramsSchema) ?? []);
+  const [paramsMode, setParamsMode] = useState<'builder' | 'json'>(() => (paramRowsOf(draft.paramsSchema) ? 'builder' : 'json'));
   const [params, setParams] = useState(() => JSON.stringify(draft.paramsSchema ?? {}, null, 2));
   const [masked, setMasked] = useState(() => (draft.maskedParams ?? []).join(', '));
+  const [templateId, setTemplateId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [pressed, setPressed] = useState(false);
   const set = (patch: Partial<RpcCommandInput>) => setDraft((d) => ({ ...d, ...patch }));
+  const templates = !command ? (api.templates ?? []) : [];
+
+  function startFrom(tid: string) {
+    setTemplateId(tid);
+    const t = templates.find((x) => x.id === tid);
+    if (!t) return;
+    const next: RpcCommandInput = { ...blank(), ...structuredClone(t.command) };
+    setDraft(next);
+    setMasked((next.maskedParams ?? []).join(', '));
+    setParams(JSON.stringify(next.paramsSchema ?? {}, null, 2));
+    const r = paramRowsOf(next.paramsSchema);
+    setRows(r ?? []);
+    setParamsMode(r ? 'builder' : 'json');
+    setFieldErrors({});
+  }
+  function toJson() {
+    setParams(JSON.stringify(paramsSchemaOf(rows), null, 2));
+    setParamsMode('json');
+  }
+  function toBuilder() {
+    try {
+      const parsed = JSON.parse(params || '{}') as RpcCommandInput['paramsSchema'];
+      const r = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? paramRowsOf(parsed) : null;
+      if (!r) { setFieldErrors((f) => ({ ...f, paramsSchema: m.rpcCatalog.paramsNotBuildable })); return; }
+      setRows(r);
+      setParamsMode('builder');
+      setFieldErrors((f) => { const { paramsSchema: _p, ...rest } = f; return rest; });
+    } catch {
+      setFieldErrors((f) => ({ ...f, paramsSchema: m.rpcCatalog.jsonInvalid }));
+    }
+  }
 
   async function submit() {
+    setPressed(true);
     const errs: Record<string, string> = {};
     if (!command && !METHOD_RE.test(draft.method)) errs.method = m.rpcCatalog.methodInvalid;
     if (!command && isRefusedRpcMethod(draft.method)) errs.method = m.rpcCatalog.refused;
     if (!draft.label.trim()) errs.label = m.rpcCatalog.labelRequired;
     let paramsSchema: RpcCommandInput['paramsSchema'] = {};
-    try {
-      const parsed = JSON.parse(params || '{}') as unknown;
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('shape');
-      paramsSchema = parsed as RpcCommandInput['paramsSchema'];
-    } catch {
-      errs.paramsSchema = m.rpcCatalog.jsonInvalid;
+    if (paramsMode === 'builder') {
+      if (Object.keys(paramRowIssues(rows)).length) errs.paramsSchema = m.rpcCatalog.paramsCheck;
+      else paramsSchema = paramsSchemaOf(rows);
+    } else {
+      try {
+        const parsed = JSON.parse(params || '{}') as unknown;
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('shape');
+        paramsSchema = parsed as RpcCommandInput['paramsSchema'];
+      } catch {
+        errs.paramsSchema = m.rpcCatalog.jsonInvalid;
+      }
     }
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
@@ -246,8 +294,14 @@ function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: st
       }
       onSaved();
     } catch (e) {
-      if (e instanceof IotApiError && e.fieldErrors) setFieldErrors(e.fieldErrors);
-      setError(errorMessage(e, m.rpcCatalog.loadError));
+      if (e instanceof IotApiError && e.fieldErrors) {
+        const { paramsSchema: paramsDetail, ...rest } = e.fieldErrors;
+        setFieldErrors({ ...rest, ...(paramsDetail ? { paramsSchema: fill(m.rpcCatalog.paramsRejected, { detail: paramsDetail }) } : {}) });
+        // the host's field messages are shown on their fields: the summary says where to look, in the kit's words
+        setError(m.rpcCatalog.checkFields);
+      } else {
+        setError(errorMessage(e, m.rpcCatalog.loadError));
+      }
     } finally {
       setBusy(false);
     }
@@ -259,6 +313,7 @@ function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: st
       onClose={onClose}
       title={command ? m.rpcCatalog.editTitle : m.rpcCatalog.newTitle}
       closeLabel={m.common.close}
+      className="w-[40rem]"
       footer={(
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={onClose}>{m.common.cancel}</Button>
@@ -268,6 +323,11 @@ function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: st
     >
       <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
         {error && <p role="alert" className="text-sm text-error">{error}</p>}
+        {templates.length > 0 && (
+          <Select id={`${id}-template`} label={m.rpcCatalog.template} hint={m.rpcCatalog.templateHint} value={templateId}
+            options={[{ value: '', label: m.rpcCatalog.templateNone }, ...templates.map((t) => ({ value: t.id, label: t.label }))]}
+            onChange={(e) => startFrom(e.target.value)} />
+        )}
         <Input id={`${id}-method`} label={m.rpcCatalog.method} hint={m.rpcCatalog.methodHint} required readOnly={!!command} maxLength={64} className="font-mono"
           value={draft.method} error={fieldErrors.method} onChange={(e) => set({ method: e.target.value })} />
         <Input id={`${id}-label`} label={m.rpcCatalog.label} required maxLength={120} value={draft.label} error={fieldErrors.label} onChange={(e) => set({ label: e.target.value })} />
@@ -284,7 +344,24 @@ function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: st
         <Checkbox id={`${id}-persistent`} label={m.rpcCatalog.persistent} checked={!!draft.persistentDefault} onChange={(e) => set({ persistentDefault: e.target.checked })} />
         <Input id={`${id}-timeout`} type="number" label={m.rpcCatalog.timeout} min={1000} step={1000} value={draft.defaultTimeoutMs ?? ''}
           onChange={(e) => set({ defaultTimeoutMs: e.target.value === '' ? null : Number(e.target.value) })} />
-        <Textarea id={`${id}-params`} label={m.rpcCatalog.params} rows={8} className="font-mono" value={params} error={fieldErrors.paramsSchema} onChange={(e) => setParams(e.target.value)} />
+        <div className="space-y-2" role="group" aria-labelledby={`${id}-params-title`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p id={`${id}-params-title`} className="text-sm font-medium text-text-primary">{m.rpcCatalog.params}</p>
+            <div className="flex gap-1" role="group" aria-label={`${m.rpcCatalog.paramsBuilder} / ${m.rpcCatalog.paramsJson}`}>
+              <Button variant={paramsMode === 'builder' ? 'secondary' : 'ghost'} size="xs" aria-pressed={paramsMode === 'builder'}
+                onClick={() => (paramsMode === 'json' ? toBuilder() : undefined)}>{m.rpcCatalog.paramsBuilder}</Button>
+              <Button variant={paramsMode === 'json' ? 'secondary' : 'ghost'} size="xs" aria-pressed={paramsMode === 'json'}
+                onClick={() => (paramsMode === 'builder' ? toJson() : undefined)}>{m.rpcCatalog.paramsJson}</Button>
+            </div>
+          </div>
+          {fieldErrors.paramsSchema && <p role="alert" className="text-xs text-error">{fieldErrors.paramsSchema}</p>}
+          {paramsMode === 'builder' ? (
+            <RpcParamsBuilder rows={rows} onChange={setRows} showIssues={pressed} />
+          ) : (
+            <Textarea id={`${id}-params`} label={m.rpcCatalog.paramsJson} rows={8} className="font-mono" value={params} placeholder={PARAMS_EXAMPLE}
+              hint={m.rpcCatalog.paramsJsonHint} onChange={(e) => setParams(e.target.value)} />
+          )}
+        </div>
         <Input id={`${id}-masked`} label={m.rpcCatalog.masked} hint={m.rpcCatalog.maskedHint} value={masked} error={fieldErrors.maskedParams} onChange={(e) => setMasked(e.target.value)} />
       </form>
     </Drawer>

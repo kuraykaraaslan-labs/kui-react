@@ -69,6 +69,11 @@ export function isLeafCondition(c: AlarmRuleCondition): c is AlarmRuleLeaf {
   return !('all' in c) && !('any' in c);
 }
 
+/** Every comparison of a condition tree, in order. */
+export function conditionLeaves(c: AlarmRuleCondition): AlarmRuleLeaf[] {
+  return 'all' in c ? c.all.flatMap(conditionLeaves) : 'any' in c ? c.any.flatMap(conditionLeaves) : [c];
+}
+
 /** `temperature > 80`, `(a > 1 and b < 2)`, `level >= attribute:limit`, with ` on <topic>` when the leaf names one. */
 export function describeCondition(c: AlarmRuleCondition, words: { and: string; or: string; attribute: string; topic: string } = { and: 'and', or: 'or', attribute: 'attribute', topic: 'on' }): string {
   if ('all' in c) return `(${c.all.map((x) => describeCondition(x, words)).join(` ${words.and} `)})`;
@@ -93,7 +98,33 @@ export function newInactivityRule(): InactivityAlarmRule {
 }
 
 /** What the editor checks before it sends a set (the host validates the full schema again). */
-export type AlarmRuleIssue = 'type_invalid' | 'type_duplicate' | 'title_required' | 'severity_required' | 'severity_duplicate' | 'key_required' | 'after_out_of_range';
+export type AlarmRuleIssue = 'type_invalid' | 'type_duplicate' | 'title_required' | 'severity_required' | 'severity_duplicate' | 'key_required' | 'key_invalid' | 'after_out_of_range';
+
+/**
+ * A condition key names a telemetry key, never a value: no whitespace and not a bare number (`5.3` typed into the key box is refused, NB
+ * `iot_alarm` refuses it on write too). Anything else passes, so a key a device sends but the profile does not declare stays possible.
+ */
+export function isAlarmRuleKey(k: string): boolean {
+  return k.length > 0 && k.length <= 128 && !/\s/.test(k) && !/^[-+]?(\d+\.?\d*|\.\d+)$/.test(k);
+}
+
+/** Every key the rule's conditions read (its severities and its clear condition). */
+export function alarmRuleKeys(r: AlarmRuleDefinition): string[] {
+  if (isInactivityRule(r)) return [];
+  const keys = [...r.severities.flatMap((s) => conditionLeaves(s.condition)), ...(r.clear ? conditionLeaves(r.clear) : [])].map((l) => l.key.trim()).filter(Boolean);
+  return [...new Set(keys)];
+}
+
+/**
+ * The keys of the rule the profile does not declare (`declared`: its telemetry keys). A warning, never a block: a profile may list no keys
+ * at all (then nothing is reported), and a device may send keys its profile does not list. A rule whose keys are all undeclared never
+ * fires on a device that sends only the declared ones.
+ */
+export function undeclaredRuleKeys(r: AlarmRuleDefinition, declared: readonly string[] | null | undefined): string[] {
+  if (!declared || declared.length === 0) return [];
+  const known = new Set(declared);
+  return alarmRuleKeys(r).filter((k) => !known.has(k));
+}
 
 export function alarmRuleIssues(r: AlarmRuleDefinition, others: readonly AlarmRuleDefinition[] = []): AlarmRuleIssue[] {
   const out: AlarmRuleIssue[] = [];
@@ -107,7 +138,8 @@ export function alarmRuleIssues(r: AlarmRuleDefinition, others: readonly AlarmRu
   if (r.type === DEVICE_OFFLINE_RULE_TYPE) out.push('type_invalid');
   if (!r.severities.length) out.push('severity_required');
   if (new Set(r.severities.map((s) => s.severity)).size !== r.severities.length) out.push('severity_duplicate');
-  const leaves = (c: AlarmRuleCondition): AlarmRuleLeaf[] => ('all' in c ? c.all.flatMap(leaves) : 'any' in c ? c.any.flatMap(leaves) : [c]);
-  if (r.severities.some((s) => leaves(s.condition).some((l) => !l.key.trim()))) out.push('key_required');
+  const all = [...r.severities.flatMap((s) => conditionLeaves(s.condition)), ...(r.clear ? conditionLeaves(r.clear) : [])];
+  if (all.some((l) => !l.key.trim())) out.push('key_required');
+  else if (all.some((l) => !isAlarmRuleKey(l.key.trim()))) out.push('key_invalid');
   return out;
 }

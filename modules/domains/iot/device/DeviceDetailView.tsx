@@ -12,7 +12,7 @@ import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrP
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime } from '../format';
 import type {
-  AttributeEntry, AttributeScope, DeviceCredential, DeviceLogFilter, DeviceRecord, IssuedSecret,
+  AttributeEntry, AttributeScope, DeviceConnectionInfo, DeviceCredential, DeviceLogFilter, DeviceRecord, IssuedSecret,
 } from '../types/device';
 import { DeviceAttributeTable } from './DeviceAttributeTable';
 import { DeviceLogTimeline } from './DeviceLogTimeline';
@@ -251,6 +251,7 @@ function CredentialsTab({ deviceId }: { deviceId: string }) {
   const [loading, setLoading] = useState(true);
   // the one-time secret: only in this tab's state, dropped when dismissed or when the tab goes away
   const [secret, setSecret] = useState<IssuedSecret | null>(null);
+  const [connection, setConnection] = useState<DeviceConnectionInfo | null>(null);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -258,6 +259,8 @@ function CredentialsTab({ deviceId }: { deviceId: string }) {
       .then((c) => { if (!ctrl.signal.aborted) setCredential(c); })
       .catch((e) => { if (!ctrl.signal.aborted) notify({ tone: 'error', message: errorMessage(e, m.detail.loadError) }); })
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
+    // the connection card is a help, not the tab's content: without it the tab works as before
+    api.connection?.(deviceId, ctrl.signal).then((c) => { if (!ctrl.signal.aborted) setConnection(c); }, () => undefined);
     return () => ctrl.abort();
   }, [api, deviceId, notify, m.detail.loadError]);
 
@@ -266,6 +269,7 @@ function CredentialsTab({ deviceId }: { deviceId: string }) {
       credential={credential}
       loading={loading}
       secret={secret}
+      connection={connection}
       onSecretDismiss={() => setSecret(null)}
       onRotate={async () => {
         try {

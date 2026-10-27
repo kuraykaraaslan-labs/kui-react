@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import type { DeviceConnectionInfo } from '../types/device';
 import { Button } from '@/modules/ui/Button';
 import { Checkbox } from '@/modules/ui/Checkbox';
 import { Drawer } from '@/modules/ui/Drawer';
@@ -11,8 +12,9 @@ import { IssuedSecretNotice } from './DeviceCredentialPanel';
 
 /**
  * NewDeviceDrawer — "New device" (phase 01 §1.1): name, label, profile (the default one when none is chosen) and the gateway
- * flag. On success the drawer shows the new access token once (`IssuedSecretNotice`) and a link to the device; the token lives
- * only in this open drawer's state and is gone when it closes.
+ * flag. On success the drawer shows the new access token once (`IssuedSecretNotice`, with the "Connection details" card when the
+ * host tells where devices connect) and a link to the device; the token lives only in this open drawer's state and is gone when it
+ * closes.
  *
  * A host may offer other ways to add a device (`choices`: claiming a vendor's device with the code on its screen, …). The drawer
  * then opens on a choice between them and "Other device" (the form above, only with `canCreate`); a single way opens at once.
@@ -45,7 +47,8 @@ export type NewDeviceDrawerProps = {
 const OTHER = '_other';
 
 export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated, onAdded, choices = [], canCreate = true }: NewDeviceDrawerProps) {
-  const api = useIotAdapter().devices;
+  const adapter = useIotAdapter();
+  const api = adapter.devices;
   const notify = useIotNotify();
   const { m } = useIotText();
   const [name, setName] = useState('');
@@ -56,6 +59,7 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<CreatedDevice | null>(null);
+  const [connection, setConnection] = useState<DeviceConnectionInfo | null>(null);
   const ways = [...choices.map((c) => c.id), ...(canCreate ? [OTHER] : [])];
   // with one way there is nothing to choose: it opens at once
   const [picked, setPicked] = useState<string | null>(ways.length === 1 ? ways[0] : null);
@@ -63,6 +67,7 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
 
   function close() {
     setCreated(null); // the secret leaves with the drawer
+    setConnection(null);
     onClose();
   }
   function back() {
@@ -81,6 +86,7 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
     try {
       const res = await api.create({ name: name.trim(), label: label.trim() || null, profileId: profileId || undefined, isGateway: gateway });
       setCreated(res);
+      adapter.credentials?.connection?.(res.device.deviceId).then(setConnection, () => undefined);
       notify({ tone: 'success', message: m.newDevice.created });
       onCreated?.(res.device);
     } catch (e) {
@@ -139,6 +145,7 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
       onClose={close}
       title={ways.length > 1 ? m.newDevice.other : m.newDevice.title}
       closeLabel={m.common.close}
+      className={created ? 'w-[36rem]' : undefined}
       footer={created ? (
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={close}>{m.common.close}</Button>
@@ -155,7 +162,7 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
       {created ? (
         <div className="space-y-3">
           <p className="text-sm text-text-primary">{created.device.name}</p>
-          {created.secret && <IssuedSecretNotice secret={created.secret} />}
+          {created.secret && <IssuedSecretNotice secret={created.secret} connection={connection} credentialType={created.credential?.type} />}
           <p className="text-xs text-text-secondary">{m.newDevice.credentialHint}</p>
         </div>
       ) : (

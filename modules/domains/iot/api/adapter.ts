@@ -2,11 +2,11 @@ import type {
   Alarm, AlarmBulkResult, AlarmCounts, AlarmEvent, AlarmSeverity, AlarmStatus,
 } from '../types/alarm';
 import type {
-  AttributeEntry, AttributeScope, CredentialType, DeviceConnectionEvent, DeviceCredential, DeviceLogEntry, DeviceLogSource, DeviceRecord,
-  DeviceRegistryStatus, DeviceStatePatch, IssuedSecret,
+  AttributeEntry, AttributeScope, CredentialType, DeviceConnectionEvent, DeviceConnectionInfo, DeviceCredential, DeviceLogEntry, DeviceLogSource,
+  DeviceRecord, DeviceRegistryStatus, DeviceStatePatch, IssuedSecret,
 } from '../types/device';
-import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
-import type { DeviceProfile, DeviceProfileInput, DeviceProfileUsage, OnlineRule, ProfileTransport } from '../types/profile';
+import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcCommandTemplate, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
+import type { DeviceProfile, DeviceProfileInput, DeviceProfileUsage, OnlineRule, ProfileKeyUsage, ProfileTransport } from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
 import type {
   AssetInput, AssetNode, AssetRecord, AssetRow, AssetSummary, AssetRelation, AssetRelationInput, DevicePlacement, PlacedDevice, RelationEntityType,
@@ -139,6 +139,10 @@ export interface IotProfilesApi {
   usage?(profileIds: string[], signal?: AbortSignal): Promise<Record<string, DeviceProfileUsage>>;
   /** The transports this host offers (default MQTT, HTTP, ANY). */
   transports?: ProfileTransport[];
+  /** Who still reads some telemetry keys of the profile (alarm rules, …): asked after a save removed keys. Only non-zero counts. */
+  keyUsage?(profileId: string, keys: string[], signal?: AbortSignal): Promise<ProfileKeyUsage[]>;
+  /** Rewrites what reads the old keys to the new names (`{ old: new }`) where the viewer may; answers what each module changed. */
+  renameKeys?(profileId: string, renames: Record<string, string>): Promise<ProfileKeyUsage[]>;
 }
 
 /** The alarm rules of a profile (NB `iot_alarm`): read, and replace the whole set (types unique in a profile). */
@@ -158,12 +162,16 @@ export interface IotRpcCatalogApi {
   exportAll(profileId: string): Promise<RpcCommandInput[]>;
   /** Replaces the whole catalog. */
   importAll(profileId: string, commands: RpcCommandInput[]): Promise<RpcCatalogCommand[]>;
+  /** Commands the host's own features send (a board control's `scada.set_value`): "New command" offers them as a start. */
+  templates?: readonly RpcCommandTemplate[];
 }
 
 export interface IotCredentialsApi {
   get(deviceId: string, signal?: AbortSignal): Promise<DeviceCredential | null>;
   /** A new secret of the same type, returned once; the old one stops working at once. */
   rotate(deviceId: string): Promise<{ credential: DeviceCredential | null; secret: IssuedSecret | null }>;
+  /** Where the device connects (host, port, the HTTPS base, its profile's keys): the "Connection details" card. Absent: no card. */
+  connection?(deviceId: string, signal?: AbortSignal): Promise<DeviceConnectionInfo>;
 }
 
 export interface IotAttributesApi {

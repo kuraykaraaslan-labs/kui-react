@@ -8,14 +8,18 @@ import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { useIotText } from '../api/IotAdapterProvider';
 import { formatDateTime } from '../format';
-import type { DeviceCredential, IssuedSecret } from '../types/device';
+import type { CredentialType, DeviceConnectionInfo, DeviceCredential, IssuedSecret } from '../types/device';
 import type { IotMessagesInput } from '../messages';
+import { DeviceConnectionCard } from './DeviceConnectionCard';
 
 /**
  * DeviceCredentialPanel — a device's credential without its secret: the type, the non-secret identifiers (client id,
  * username, X.509 fingerprint, subject and expiry), and "Rotate secret" behind a `ConfirmDialog`. A secret the server has just
  * issued (`secret`) is shown once in `IssuedSecretNotice`: masked until "Show", copyable, gone for good when dismissed. The
  * component never stores a secret anywhere but in the host's prop (no storage, no logging).
+ *
+ * With `connection` (the host's endpoints) a "Connection details" card follows: inside the one-time notice while a secret is shown
+ * (its lines then carry the secret while "Show" is on), under the credential otherwise (with a placeholder).
  */
 export type DeviceCredentialPanelProps = {
   credential: DeviceCredential | null;
@@ -25,13 +29,15 @@ export type DeviceCredentialPanelProps = {
   onSecretDismiss?: () => void;
   /** Present only for a viewer who may rotate (`canViewCredentials`). */
   onRotate?: () => Promise<void> | void;
+  /** Where the device connects: the "Connection details" card. */
+  connection?: DeviceConnectionInfo | null;
   locale?: string;
   messages?: IotMessagesInput;
   className?: string;
 };
 
 export function DeviceCredentialPanel({
-  credential, loading = false, secret, onSecretDismiss, onRotate, locale, messages, className,
+  credential, loading = false, secret, onSecretDismiss, onRotate, connection, locale, messages, className,
 }: DeviceCredentialPanelProps) {
   const { m, locale: lang } = useIotText(messages, locale);
   const [rotating, setRotating] = useState(false);
@@ -69,7 +75,10 @@ export function DeviceCredentialPanel({
         )}
       </div>
 
-      {secret && <IssuedSecretNotice secret={secret} onDismiss={onSecretDismiss} messages={messages} />}
+      {secret && (
+        <IssuedSecretNotice secret={secret} onDismiss={onSecretDismiss} messages={messages} connection={connection}
+          credentialType={credential?.type} username={credential?.username} clientId={credential?.clientId} />
+      )}
 
       {loading ? (
         <SkeletonText lines={3} label={m.common.loading} />
@@ -88,18 +97,26 @@ export function DeviceCredentialPanel({
       <p className="text-xs text-text-secondary">
         {credential?.type === 'X509_CERTIFICATE' ? m.credential.x509Note : m.credential.neverShown}
       </p>
+      {connection && !secret && credential && (
+        <DeviceConnectionCard info={connection} credentialType={credential.type} username={credential.username} clientId={credential.clientId} messages={messages} />
+      )}
     </section>
   );
 }
 
 /**
  * IssuedSecretNotice — a secret shown exactly once: masked by default, "Show" / "Copy", a warning that it cannot be read
- * back, and "I have stored it", after which the host drops it. Also used by the "New device" dialog.
+ * back, and "I have stored it", after which the host drops it. Also used by the "New device" dialog. With `connection` it carries the
+ * "Connection details" card, whose lines hold the secret only while it is shown.
  */
-export function IssuedSecretNotice({ secret, onDismiss, messages, className }: {
+export function IssuedSecretNotice({ secret, onDismiss, messages, connection, credentialType, username, clientId, className }: {
   secret: IssuedSecret;
   onDismiss?: () => void;
   messages?: IotMessagesInput;
+  connection?: DeviceConnectionInfo | null;
+  credentialType?: CredentialType;
+  username?: string | null;
+  clientId?: string | null;
   className?: string;
 }) {
   const { m } = useIotText(messages);
@@ -149,6 +166,10 @@ export function IssuedSecretNotice({ secret, onDismiss, messages, className }: {
           {copied ? m.common.copied : m.common.copy}
         </Button>
       </div>
+      {connection && (
+        <DeviceConnectionCard info={connection} credentialType={credentialType ?? ('token' in secret ? 'ACCESS_TOKEN' : 'MQTT_BASIC')}
+          secret={shown ? value : null} username={username} clientId={clientId} messages={messages} />
+      )}
       {onDismiss && (
         <div className="flex justify-end">
           <Button variant="primary" size="xs" onClick={onDismiss}>{m.credential.stored}</Button>

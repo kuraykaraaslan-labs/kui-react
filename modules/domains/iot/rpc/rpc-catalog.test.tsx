@@ -2,16 +2,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
-import type { IotAdapter, IotCapabilities, IotRpcCatalogApi } from '../api/adapter';
+import { IotApiError, type IotAdapter, type IotCapabilities, type IotRpcCatalogApi } from '../api/adapter';
 import type { RpcCatalogCommand, RpcCommandInput } from '../types/rpc';
 import { RpcCommandCatalogEditor } from './RpcCommandCatalogEditor';
+import { paramRowIssues, paramRowsOf, paramsSchemaOf } from './RpcParamsBuilder';
 
 const CATALOG: RpcCatalogCommand[] = [
   { commandId: 'c1', method: 'sys.info', label: 'System information', tier: 'basic', highImpact: false, oneway: false, paramsSchema: {} },
   { commandId: 'c2', method: 'sys.reboot', label: 'Reboot', tier: 'critical', highImpact: true, confirmText: 'REBOOT', oneway: true, paramsSchema: {} },
 ];
 
-function setup(caps: Partial<IotCapabilities> = { canManageRpcCommands: true }, supported = true) {
+function setup(caps: Partial<IotCapabilities> = { canManageRpcCommands: true }, supported = true, over: Partial<IotRpcCatalogApi> = {}) {
   const api: IotRpcCatalogApi = {
     list: vi.fn(async () => ({ commands: CATALOG, supported })),
     create: vi.fn(async (_p, c) => ({ ...c, commandId: 'c9' })),
@@ -19,13 +20,75 @@ function setup(caps: Partial<IotCapabilities> = { canManageRpcCommands: true }, 
     remove: vi.fn(async () => undefined),
     exportAll: vi.fn(async () => CATALOG.map(({ commandId: _id, ...rest }) => rest)),
     importAll: vi.fn(async (_p: string, commands: RpcCommandInput[]) => commands.map((c, i) => ({ ...c, commandId: `i${i}` }))),
+    ...over,
   };
   const adapter: IotAdapter = { rpcCatalog: api };
   render(<IotAdapterProvider adapter={adapter} capabilities={caps}><RpcCommandCatalogEditor profileId="p1" /></IotAdapterProvider>);
   return api;
 }
 
+describe('the parameter rows (UX-19)', () => {
+  it('reads a schema into rows and writes it back, keeping what a row does not draw; a schema the rows cannot draw stays JSON', () => {
+    const schema: RpcCommandInput['paramsSchema'] = {
+      speed: { label: 'Speed', type: 'number', min: 0, max: 120, required: true, description: 'rpm', step: 5 },
+      key: { label: 'Control', type: 'select', options: [{ value: 'pump', label: 'Pump' }, 'fan'] },
+      value: { label: 'Value', type: 'json' },
+    };
+    const rows = paramRowsOf(schema)!;
+    expect(rows.map((r) => [r.name, r.type, r.options])).toEqual([['speed', 'number', ''], ['key', 'select', 'pump=Pump, fan'], ['value', 'json', '']]);
+    expect(paramsSchemaOf(rows)).toEqual(schema);
+    expect(paramRowsOf({ notes: { label: 'Notes', type: 'textarea' } })).toBeNull();
+    expect(paramRowsOf({ k: { label: 'K', type: 'select', options: ['a,b'] } })).toBeNull();
+    expect(paramRowIssues([...rows, { ...rows[0], name: 'speed' }, { ...rows[1], name: '1x', label: ' ', options: '' }, { ...rows[0], name: 'm', min: '5', max: '1' }])).toEqual({
+      3: { name: 'name_duplicate' },
+      4: { name: 'name_invalid', label: 'label_required', options: 'options_required' },
+      5: { range: 'range_invalid' },
+    });
+  });
+});
+
 describe('RpcCommandCatalogEditor', () => {
+  it('UX-19: builds the parameters as fields, starts from a host template, and shows a refused parameter on the parameters in words', async () => {
+    const user = userEvent.setup();
+    const create = vi.fn(async () => { throw new IotApiError('validation', 'Validation error', { fieldErrors: { paramsSchema: 'mode.type: Invalid option' } }); });
+    const api = setup(undefined, true, {
+      create,
+      templates: [{ id: 'set_value', label: 'Set a value (board controls)', command: { method: 'scada.set_value', label: 'Set a value', tier: 'basic', highImpact: false, oneway: false, paramsSchema: { key: { label: 'Key', type: 'text', required: true }, value: { label: 'Value', type: 'json', required: true } } } }],
+    });
+    await screen.findByText('System information');
+    await user.click(screen.getByRole('button', { name: 'Add command' }));
+    await user.selectOptions(screen.getByLabelText(/^From a template/), 'set_value');
+    expect(screen.getByLabelText(/^Method/)).toHaveValue('scada.set_value');
+    expect(screen.getAllByLabelText(/^Name/).map((e) => (e as HTMLInputElement).value)).toEqual(['key', 'value']);
+    await user.click(screen.getByRole('button', { name: 'Add a parameter' }));
+    await user.click(screen.getByRole('button', { name: 'Save command' }));
+    // a new empty row: refused before anything is sent, on its own fields
+    expect(screen.getByText('Check the parameters marked below.')).toBeInTheDocument();
+    expect(screen.getAllByText('Letters, digits and _, starting with a letter or _.').length).toBeGreaterThan(0);
+    expect(create).not.toHaveBeenCalled();
+    await user.type(screen.getAllByLabelText(/^Name/)[2], 'mode');
+    await user.type(screen.getAllByLabelText(/^Label/)[3], 'Mode');
+    await user.selectOptions(screen.getAllByLabelText('Type')[2], 'select');
+    await user.type(screen.getByLabelText(/^Choices/), 'auto=Automatic, manual');
+    await user.click(screen.getByRole('button', { name: 'Save command' }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0]).toEqual(['p1', expect.objectContaining({
+      method: 'scada.set_value',
+      paramsSchema: {
+        key: { label: 'Key', type: 'text', required: true },
+        value: { label: 'Value', type: 'json', required: true },
+        mode: { label: 'Mode', type: 'select', options: [{ value: 'auto', label: 'Automatic' }, 'manual'] },
+      },
+    })]);
+    expect(await screen.findByText('Some fields were refused: see the messages under them.')).toBeInTheDocument();
+    expect(screen.getByText('The parameters were refused: mode.type: Invalid option')).toBeInTheDocument();
+    expect(screen.queryByText('Validation error')).toBeNull();
+    // Advanced (JSON) shows the same schema, and back
+    await user.click(screen.getByRole('button', { name: 'Advanced (JSON)' }));
+    expect((screen.getByLabelText('Advanced (JSON)') as HTMLTextAreaElement).value).toContain('"manual"');
+    expect(api.update).not.toHaveBeenCalled();
+  });
+
   it('adds a command and never accepts a factory reset (OD-8)', async () => {
     const user = userEvent.setup();
     const api = setup();

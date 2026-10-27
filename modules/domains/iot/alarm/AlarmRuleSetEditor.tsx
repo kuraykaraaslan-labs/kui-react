@@ -16,7 +16,7 @@ import { errorMessage } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill } from '../format';
 import {
-  DEVICE_OFFLINE_RULE_TYPE, describeCondition, isInactivityRule, newInactivityRule, newThresholdRule, type AlarmRuleDefinition,
+  DEVICE_OFFLINE_RULE_TYPE, describeCondition, isInactivityRule, newInactivityRule, newThresholdRule, undeclaredRuleKeys, type AlarmRuleDefinition,
 } from '../types/alarm-rule';
 import { AlarmRuleDrawer } from './AlarmRuleDrawer';
 import { AlarmSeverityBadge } from './AlarmSeverityBadge';
@@ -26,7 +26,21 @@ import { AlarmSeverityBadge } from './AlarmSeverityBadge';
  * contributed by the alarm module, P-3). A DataTable of the rules (kind, type, title, the comparison per severity, debounce, enabled), add a threshold
  * rule or the device-offline rule, edit one in a drawer (form or JSON), remove one. Changes collect in the page and "Save rules"
  * replaces the profile's whole set (a removed rule's open alarms are resolved by the host). Read-only without `canManageAlarmRules`.
+ *
+ * The profile's telemetry keys (read through `profiles.get` when the host offers it, again when a drawer opens, so keys renamed on the
+ * Telemetry keys tab count) are offered in the drawer, and a rule reading a key the profile does not declare is marked "Unknown key".
+ * While changes are unsaved the bar says how many rules changed and leaving or reloading the page asks first.
  */
+/** How many rules differ between the saved set and the edited one (added, removed or changed, by type). */
+export function changedRuleCount(base: readonly AlarmRuleDefinition[], rules: readonly AlarmRuleDefinition[]): number {
+  const before = new Map(base.map((r) => [r.type, JSON.stringify(r)]));
+  const after = new Map(rules.map((r) => [r.type, JSON.stringify(r)]));
+  let n = 0;
+  for (const [type, json] of after) if (before.get(type) !== json) n++;
+  for (const type of before.keys()) if (!after.has(type)) n++;
+  return n;
+}
+
 /** A row of the rules table: the rule and its position in the set (edits and removals go by position). */
 type RuleRow = { i: number; r: AlarmRuleDefinition };
 
@@ -36,7 +50,9 @@ export type AlarmRuleSetEditorProps = {
 };
 
 export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorProps) {
-  const api = useIotAdapter().alarmRules;
+  const adapter = useIotAdapter();
+  const api = adapter.alarmRules;
+  const profiles = adapter.profiles;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
   const { m } = useIotText();
@@ -46,6 +62,15 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<{ index: number; rule: AlarmRuleDefinition } | null>(null);
+  const [telemetryKeys, setTelemetryKeys] = useState<string[]>([]);
+
+  const readKeys = useCallback((signal?: AbortSignal) => {
+    if (!profiles?.get) return;
+    profiles.get(profileId, signal).then(
+      (p) => { if (!signal?.aborted) setTelemetryKeys((p.telemetrySchema ?? []).map((k) => k.key).filter(Boolean)); },
+      () => undefined, // the keys only feed suggestions and warnings: the rules work without them
+    );
+  }, [profiles, profileId]);
 
   const load = useCallback((signal?: AbortSignal): Promise<void> => {
     if (!api) return Promise.resolve();
@@ -64,11 +89,25 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
   useEffect(() => {
     const ctrl = new AbortController();
     load(ctrl.signal).catch(() => undefined);
+    readKeys(ctrl.signal);
     return () => ctrl.abort();
-  }, [load]);
+  }, [load, readKeys]);
 
   const canEdit = caps.canManageAlarmRules;
   const dirty = base !== null && JSON.stringify(base) !== JSON.stringify(rules);
+
+  // unsaved rules are lost on a reload or a closed tab: the browser asks first while there are any
+  useEffect(() => {
+    if (!dirty || !canEdit) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [dirty, canEdit]);
+
+  function edit(next: { index: number; rule: AlarmRuleDefinition }) {
+    readKeys();
+    setEditing(next);
+  }
   const hasOffline = rules.some((r) => r.type === DEVICE_OFFLINE_RULE_TYPE);
 
   async function save() {
@@ -94,7 +133,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
       let n = 1;
       while (rules.some((r) => r.type === rule.type)) rule = newThresholdRule(`high_value_${++n}`);
     }
-    setEditing({ index: -1, rule });
+    edit({ index: -1, rule });
   }
 
   if (!api) return null;
@@ -113,13 +152,22 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
     {
       key: 'type',
       header: m.alarmRules.type,
-      render: ({ r }) => (
-        <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-primary">
-          <Badge variant="neutral" size="sm">{isInactivityRule(r) ? m.alarmRules.offlineKind : m.alarmRules.thresholdKind}</Badge>
-          <code className="font-mono text-xs text-text-secondary">{r.type}</code>
-          {!r.enabled && <Badge variant="warning" size="sm">{m.alarmRules.disabledRule}</Badge>}
-        </span>
-      ),
+      render: ({ r }) => {
+        const unknown = undeclaredRuleKeys(r, telemetryKeys);
+        return (
+          <span className="flex flex-wrap items-center gap-2 text-sm font-medium text-text-primary">
+            <Badge variant="neutral" size="sm">{isInactivityRule(r) ? m.alarmRules.offlineKind : m.alarmRules.thresholdKind}</Badge>
+            <code className="font-mono text-xs text-text-secondary">{r.type}</code>
+            {!r.enabled && <Badge variant="warning" size="sm">{m.alarmRules.disabledRule}</Badge>}
+            {unknown.length > 0 && (
+              <span title={fill(m.alarmRules.undeclaredTitle, { keys: unknown.join(', ') })}>
+                <Badge variant="warning" size="sm">{m.alarmRules.undeclared}</Badge>
+                <span className="sr-only">{fill(m.alarmRules.undeclaredTitle, { keys: unknown.join(', ') })}</span>
+              </span>
+            )}
+          </span>
+        );
+      },
     },
     { key: 'title', header: m.alarmRules.titleField, render: ({ r }) => <span className="text-sm text-text-primary">{r.title}</span> },
     {
@@ -156,7 +204,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
         <span className="inline-flex items-center justify-end gap-1">
           <Toggle id={`rule-enabled-${i}`} size="sm" label={m.alarmRules.enabled} checked={r.enabled}
             onChange={(v) => setRules(rules.map((x, j) => (j === i ? { ...x, enabled: v } : x)))} />
-          <Button variant="ghost" size="xs" aria-label={`${m.alarmRules.edit} ${r.type}`} onClick={() => setEditing({ index: i, rule: r })}
+          <Button variant="ghost" size="xs" aria-label={`${m.alarmRules.edit} ${r.type}`} onClick={() => edit({ index: i, rule: r })}
             iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>{m.alarmRules.edit}</Button>
           <Button onClick={() => { void confirmDialog({ title: fill(m.alarmRules.removeConfirm, { type: r.type }), message: m.alarmRules.removeHint, tone: 'danger', confirmLabel: m.alarmRules.remove, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void setRules(rules.filter((_, j) => j !== i)); }); }} variant="ghost" size="xs" aria-label={`${m.alarmRules.remove} ${r.type}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}><span className="sr-only">{m.alarmRules.remove}</span></Button>
         </span>
@@ -206,6 +254,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
           className="sticky bottom-0 z-10 flex flex-col gap-2 rounded-xl border border-border bg-surface-base p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-sm">
             <p className="font-medium text-text-primary">{m.alarmRules.unsaved}</p>
+            <p className="text-xs text-text-secondary">{fill(m.alarmRules.unsavedCount, { n: changedRuleCount(base, rules) })}</p>
             {saveError && <p role="alert" className="text-xs text-error">{saveError}</p>}
           </div>
           <div className="flex gap-2">
@@ -219,6 +268,8 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
         <AlarmRuleDrawer
           open
           rule={editing.rule}
+          isNew={editing.index < 0}
+          telemetryKeys={telemetryKeys}
           others={rules.filter((_, j) => j !== editing.index)}
           onClose={() => setEditing(null)}
           onApply={(rule) => {

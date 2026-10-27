@@ -90,6 +90,16 @@ export type DeviceCredential = {
 /** A secret the server returns once (create, rotate, switch): it cannot be read back. */
 export type IssuedSecret = { token: string } | { password: string };
 
+/**
+ * Where a device connects (nothing secret): the host's public MQTT endpoint, the base of its HTTPS device API (`https://acme.example.com`,
+ * the routes are `/api/v1/…`) and the keys of the device's profile for an example payload. A part the host does not know is absent.
+ */
+export type DeviceConnectionInfo = {
+  mqtt?: { host: string; port: number; tls: boolean } | null;
+  httpBase?: string | null;
+  telemetryKeys?: Array<{ key: string; type?: string | null }>;
+};
+
 // ── attributes (01 §1.5) ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export const ATTRIBUTE_SCOPES = ['SERVER', 'SHARED', 'CLIENT'] as const;

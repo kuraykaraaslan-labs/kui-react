@@ -11,8 +11,9 @@ import { Textarea } from '@/modules/ui/Textarea';
 import { Toggle } from '@/modules/ui/Toggle';
 import { useIotText } from '../api/IotAdapterProvider';
 import { ALARM_SEVERITIES, type AlarmSeverity } from '../types/alarm';
+import { fill } from '../format';
 import {
-  ALARM_RULE_OPS, alarmRuleIssues, isInactivityRule, isLeafCondition,
+  ALARM_RULE_OPS, alarmRuleIssues, isAlarmRuleKey, isInactivityRule, isLeafCondition, undeclaredRuleKeys,
   type AlarmRuleDefinition, type AlarmRuleLeaf, type AlarmRuleOp, type InactivityAlarmRule, type ThresholdAlarmRule,
 } from '../types/alarm-rule';
 
@@ -20,8 +21,12 @@ import {
  * AlarmRuleDrawer — edits one alarm rule of a profile (phase 01 §1.4 "Alarm rules", NB iot_alarm 01 §1.1) as a form or as JSON. The
  * form covers the common shape: type, title, enabled; for a threshold rule one comparison per severity (key, operator, value, optional
  * topic, OD-25), debounce, hysteresis and runbook; for the `device_offline` rule the delay and severity. Settings the form does not
- * draw (notifications, dampening, a clear condition) are kept as they are; a rule with combined conditions opens as JSON. "Apply"
- * returns the rule to the set; nothing is sent until the set is saved.
+ * draw (notifications, dampening, a clear condition) are kept as they are; a rule with combined conditions opens as JSON. "Add to list"
+ * (or "Update the list") returns the rule to the set; nothing is sent until the set is saved.
+ *
+ * Laid out for its own width (container queries, never the viewport): each severity is one line of severity, then one of key,
+ * operator and value, with the topic filter under "Advanced". The key offers the profile's telemetry keys (`telemetryKeys`) and still
+ * takes free text; a value or a spaced word is refused as a key, and a key the profile does not declare is a warning that never blocks.
  */
 export type AlarmRuleDrawerProps = {
   open: boolean;
@@ -30,6 +35,10 @@ export type AlarmRuleDrawerProps = {
   others: readonly AlarmRuleDefinition[];
   onApply: (rule: AlarmRuleDefinition) => void;
   onClose: () => void;
+  /** The profile's telemetry keys: offered for the key and compared with it (absent or empty: no warning). */
+  telemetryKeys?: readonly string[];
+  /** A rule that is not in the set yet ("Add to list" rather than "Update the list"). */
+  isNew?: boolean;
 };
 
 /** `80` → 80, `true` → true, `attribute:limit` → `{ attribute: 'limit' }`, anything else stays text. */
@@ -49,7 +58,7 @@ export function isFormable(r: AlarmRuleDefinition): boolean {
   return isInactivityRule(r) || r.severities.every((s) => isLeafCondition(s.condition));
 }
 
-export function AlarmRuleDrawer({ open, rule, others, onApply, onClose }: AlarmRuleDrawerProps) {
+export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetryKeys = [], isNew = false }: AlarmRuleDrawerProps) {
   const { m } = useIotText();
   const id = useId();
   const [draft, setDraft] = useState<AlarmRuleDefinition>(() => structuredClone(rule));
@@ -59,6 +68,8 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose }: AlarmR
 
   const issues = alarmRuleIssues(draft, others);
   const issueText = issues.map((i) => m.alarmRules[`issue_${i}`]);
+  const undeclared = undeclaredRuleKeys(draft, telemetryKeys);
+  const keyListId = `${id}-keys`;
 
   function toJson() {
     setJson(JSON.stringify(draft, null, 2));
@@ -97,6 +108,10 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose }: AlarmR
     severities: threshold.severities.map((s, j) => (j === i ? { ...s, condition: { ...(s.condition as AlarmRuleLeaf), ...patch } } : s)),
   });
   const severityOptions = ALARM_SEVERITIES.map((s) => ({ value: s, label: m.severity[s] }));
+  const known = new Set(telemetryKeys);
+  const keyError = (k: string) => (k.trim() && !isAlarmRuleKey(k.trim()) ? m.alarmRules.issue_key_invalid : undefined);
+  const keyHint = (k: string) => (k.trim() && known.size > 0 && !known.has(k.trim()) ? fill(m.alarmRules.keyUndeclared, { key: k.trim() }) : m.alarmRules.keyHint);
+  const holdMode = threshold?.debounce?.mode ?? 'count';
 
   return (
     <Drawer
@@ -104,6 +119,7 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose }: AlarmR
       onClose={onClose}
       title={m.alarmRules.editTitle}
       closeLabel={m.common.close}
+      className="w-[40rem]"
       footer={(
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-1" role="group" aria-label={`${m.alarmRules.form} / ${m.alarmRules.json}`}>
@@ -112,14 +128,20 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose }: AlarmR
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={onClose}>{m.common.cancel}</Button>
-            <Button variant="primary" size="sm" onClick={apply}>{m.alarmRules.apply}</Button>
+            <Button variant="primary" size="sm" onClick={apply}>{isNew ? m.alarmRules.addToList : m.alarmRules.apply}</Button>
           </div>
         </div>
       )}
     >
-      <div className="space-y-4">
+      <div className="@container space-y-4">
         {issueText.length > 0 && (
           <ul role="alert" className="list-inside list-disc text-sm text-error">{issueText.map((t) => <li key={t}>{t}</li>)}</ul>
+        )}
+        {undeclared.length > 0 && (
+          <Callout variant="warning" title={null}>{fill(m.alarmRules.warn_key_undeclared, { keys: undeclared.join(', ') })}</Callout>
+        )}
+        {telemetryKeys.length > 0 && (
+          <datalist id={keyListId}>{telemetryKeys.map((k) => <option key={k} value={k} />)}</datalist>
         )}
         {mode === 'json' ? (
           <>
@@ -136,7 +158,7 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose }: AlarmR
             <Toggle id={`${id}-enabled`} label={m.alarmRules.enabled} checked={draft.enabled} onChange={(v) => setDraft({ ...draft, enabled: v })} />
 
             {inactivity && (
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 @md:grid-cols-2">
                 <Input id={`${id}-after`} type="number" label={m.alarmRules.afterSec} min={10} max={7 * 86_400} step={1} value={inactivity.inactivity.afterSec}
                   onChange={(e) => setI({ inactivity: { ...inactivity.inactivity, afterSec: Number(e.target.value) } })} />
                 <Select id={`${id}-offline-severity`} label={m.alarmRules.severity} value={inactivity.inactivity.severity} options={severityOptions}
@@ -150,19 +172,31 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose }: AlarmR
                 {threshold.severities.map((s, i) => {
                   const leaf = s.condition as AlarmRuleLeaf;
                   return (
-                    <div key={i} className="grid grid-cols-2 items-end gap-2 rounded-lg border border-border p-2 sm:grid-cols-[8rem_minmax(0,1fr)_5rem_minmax(0,1fr)_minmax(0,1fr)_auto]">
-                      <Select id={`${id}-sev-${i}`} label={m.alarmRules.severity} value={s.severity} options={severityOptions}
-                        onChange={(e) => setT({ severities: threshold.severities.map((x, j) => (j === i ? { ...x, severity: e.target.value as AlarmSeverity } : x)) })} />
-                      <Input id={`${id}-key-${i}`} label={m.alarmRules.key} value={leaf.key} className="font-mono" onChange={(e) => setLeaf(i, { key: e.target.value })} />
-                      <Select id={`${id}-op-${i}`} label={m.alarmRules.op} value={leaf.op} options={ALARM_RULE_OPS.map((o) => ({ value: o, label: o }))}
-                        onChange={(e) => setLeaf(i, { op: e.target.value as AlarmRuleOp })} />
-                      <Input id={`${id}-value-${i}`} label={m.alarmRules.value} value={formatRuleValue(leaf.value)} onChange={(e) => setLeaf(i, { value: parseRuleValue(e.target.value) })} />
-                      <Input id={`${id}-topic-${i}`} label={m.alarmRules.topic} placeholder={m.alarmRules.topicHint} value={leaf.topic ?? ''}
-                        onChange={(e) => setLeaf(i, { topic: e.target.value || undefined })} />
-                      <Button variant="ghost" size="sm" aria-label={`${m.alarmRules.removeSeverity} (${m.severity[s.severity]})`} disabled={threshold.severities.length < 2}
-                        onClick={() => setT({ severities: threshold.severities.filter((_, j) => j !== i) })}>
-                        <FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />
-                      </Button>
+                    <div key={i} className="space-y-2 rounded-lg border border-border p-3">
+                      <div className="flex items-end gap-2">
+                        <Select id={`${id}-sev-${i}`} label={m.alarmRules.severity} value={s.severity} options={severityOptions} className="min-w-0 flex-1"
+                          onChange={(e) => setT({ severities: threshold.severities.map((x, j) => (j === i ? { ...x, severity: e.target.value as AlarmSeverity } : x)) })} />
+                        <Button variant="ghost" size="sm" aria-label={`${m.alarmRules.removeSeverity} (${m.severity[s.severity]})`} disabled={threshold.severities.length < 2}
+                          onClick={() => setT({ severities: threshold.severities.filter((_, j) => j !== i) })}>
+                          <FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-1 items-start gap-2 @md:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1fr)]">
+                        <Input id={`${id}-key-${i}`} label={m.alarmRules.key} value={leaf.key} className="font-mono" autoComplete="off" maxLength={128}
+                          list={telemetryKeys.length > 0 ? keyListId : undefined} error={keyError(leaf.key)} hint={keyHint(leaf.key)}
+                          onChange={(e) => setLeaf(i, { key: e.target.value })} />
+                        <Select id={`${id}-op-${i}`} label={m.alarmRules.op} value={leaf.op} options={ALARM_RULE_OPS.map((o) => ({ value: o, label: o }))}
+                          onChange={(e) => setLeaf(i, { op: e.target.value as AlarmRuleOp })} />
+                        <Input id={`${id}-value-${i}`} label={m.alarmRules.value} hint={m.alarmRules.valueHint} value={formatRuleValue(leaf.value)}
+                          onChange={(e) => setLeaf(i, { value: parseRuleValue(e.target.value) })} />
+                      </div>
+                      <details open={!!leaf.topic} className="text-sm">
+                        <summary className="cursor-pointer select-none text-xs text-text-secondary">{m.alarmRules.advanced}</summary>
+                        <div className="pt-2">
+                          <Input id={`${id}-topic-${i}`} label={m.alarmRules.topic} placeholder={m.alarmRules.topicHint} value={leaf.topic ?? ''}
+                            onChange={(e) => setLeaf(i, { topic: e.target.value || undefined })} />
+                        </div>
+                      </details>
                     </div>
                   );
                 })}
@@ -180,17 +214,23 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose }: AlarmR
             )}
 
             {threshold && (
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Select id={`${id}-debounce-mode`} label={m.alarmRules.debounce} value={threshold.debounce?.mode ?? 'count'}
-                  options={[{ value: 'count', label: m.alarmRules.debounceCount }, { value: 'duration', label: m.alarmRules.debounceDuration }]}
-                  onChange={(e) => setT({ debounce: { raise: 1, clear: 1, ...threshold.debounce, mode: e.target.value as 'count' | 'duration' } })} />
-                <Input id={`${id}-raise`} type="number" label={m.alarmRules.raise} min={1} max={86_400} step={1} value={threshold.debounce?.raise ?? 1}
-                  onChange={(e) => setT({ debounce: { mode: 'count', clear: 1, ...threshold.debounce, raise: Number(e.target.value) } })} />
-                <Input id={`${id}-clear`} type="number" label={m.alarmRules.clear} min={1} max={86_400} step={1} value={threshold.debounce?.clear ?? 1}
-                  onChange={(e) => setT({ debounce: { mode: 'count', raise: 1, ...threshold.debounce, clear: Number(e.target.value) } })} />
-                <Input id={`${id}-hysteresis`} type="number" label={m.alarmRules.hysteresis} min={0} step="any" value={threshold.hysteresis ?? ''}
-                  onChange={(e) => { const { hysteresis: _h, ...rest } = threshold; setDraft(e.target.value === '' ? rest : { ...rest, hysteresis: Number(e.target.value) }); }} />
-              </div>
+              <fieldset className="space-y-2">
+                <legend className="mb-1 text-sm font-medium text-text-primary">{m.alarmRules.debounce}</legend>
+                <div className="grid gap-3 @md:grid-cols-2">
+                  <Select id={`${id}-debounce-mode`} label={m.alarmRules.debounceMode} value={holdMode} className="@md:col-span-2"
+                    options={[{ value: 'count', label: m.alarmRules.debounceCount }, { value: 'duration', label: m.alarmRules.debounceDuration }]}
+                    onChange={(e) => setT({ debounce: { raise: 1, clear: 1, ...threshold.debounce, mode: e.target.value as 'count' | 'duration' } })} />
+                  <Input id={`${id}-raise`} type="number" label={holdMode === 'count' ? m.alarmRules.raiseCount : m.alarmRules.raiseDuration} min={1} max={86_400} step={1}
+                    value={threshold.debounce?.raise ?? 1}
+                    onChange={(e) => setT({ debounce: { mode: 'count', clear: 1, ...threshold.debounce, raise: Number(e.target.value) } })} />
+                  <Input id={`${id}-clear`} type="number" label={holdMode === 'count' ? m.alarmRules.clearCount : m.alarmRules.clearDuration} min={1} max={86_400} step={1}
+                    value={threshold.debounce?.clear ?? 1}
+                    onChange={(e) => setT({ debounce: { mode: 'count', raise: 1, ...threshold.debounce, clear: Number(e.target.value) } })} />
+                  <p className="text-xs text-text-secondary @md:col-span-2">{holdMode === 'count' ? m.alarmRules.debounceHint_count : m.alarmRules.debounceHint_duration}</p>
+                  <Input id={`${id}-hysteresis`} type="number" label={m.alarmRules.hysteresis} min={0} step="any" value={threshold.hysteresis ?? ''}
+                    onChange={(e) => { const { hysteresis: _h, ...rest } = threshold; setDraft(e.target.value === '' ? rest : { ...rest, hysteresis: Number(e.target.value) }); }} />
+                </div>
+              </fieldset>
             )}
 
             <Textarea id={`${id}-runbook`} label={m.alarmRules.runbook} rows={4} maxLength={10_000} value={draft.runbook ?? ''}
