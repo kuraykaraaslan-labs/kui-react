@@ -62,6 +62,10 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `TabGroup` `activeTab`: the host keeps the open tab (a page's `?tab=`); the group follows it whenever it changes and
+  reports the reader's choice through `onTabChange`. A sidebar link to a page's tab opens that tab on a page already open.
+- `AppSidebar`: an item whose own page is active shows its children too (a parent page such as Members shows Invitations
+  under it while it is open), before only a branch holding an active descendant opened.
 - `Card` `density`: `compact` pads header, body, footer and the loading skeleton 16 px at the sides instead of 24 px, for
   a 320-400 px side panel or an embedded view (an Autodesk Forma extension panel); `default` is unchanged. kui-ejs
   `Card.ejs` and KUInative `Card` take the same prop.

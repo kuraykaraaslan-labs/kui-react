@@ -156,6 +156,29 @@ describe('AppSidebar', () => {
       expect(screen.getByRole('link', { name: 'API' })).toHaveAttribute('aria-current', 'page');
     });
 
+    it('an active parent page shows its children (one click away)', () => {
+      render(<AppSidebar navItems={TREE} activeId="guides" searchable={false} />);
+      expect(screen.getByRole('link', { name: 'Guides' })).toHaveAttribute('aria-current', 'page');
+      expect(screen.getByRole('button', { name: 'Collapse Guides' })).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('link', { name: 'Writing' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Plugins' })).not.toBeInTheDocument();
+    });
+
+    it('opens the branch of a parent page that becomes active (client-side navigation)', () => {
+      const { rerender } = render(<AppSidebar navItems={TREE} activeId="intro" searchable={false} />);
+      expect(screen.queryByRole('link', { name: 'Writing' })).not.toBeInTheDocument();
+      rerender(<AppSidebar navItems={TREE} activeId="guides" searchable={false} />);
+      expect(screen.getByRole('link', { name: 'Writing' })).toBeInTheDocument();
+    });
+
+    it('search finds a child by its own name and shows it under its parent', async () => {
+      const user = userEvent.setup();
+      render(<AppSidebar navItems={TREE} />);
+      await user.type(screen.getByRole('searchbox', { name: 'Search navigation' }), 'writ');
+      expect(screen.getByRole('link', { name: 'Writing' })).toBeInTheDocument();
+      expect(screen.getByRole('group', { name: 'Guides' })).toBeInTheDocument();
+    });
+
     it('marks a collapsible group active through a nested item', () => {
       render(<AppSidebar navGroups={[{ label: 'Docs', collapsible: true, items: TREE }]} activeId="api" searchable={false} />);
       expect(screen.getByRole('button', { name: 'Docs' })).toHaveAttribute('aria-expanded', 'true');

@@ -23,6 +23,38 @@ describe('TabGroup', () => {
     expect(screen.getByRole('tab', { name: 'Beta' })).toHaveAttribute('aria-selected', 'true');
   });
 
+  describe('activeTab (the host keeps the open tab, e.g. in the URL)', () => {
+    it('opens the tab it names and follows it when it changes', () => {
+      const { rerender } = render(<TabGroup tabs={TABS} activeTab="b" />);
+      expect(screen.getByRole('tab', { name: 'Beta' })).toHaveAttribute('aria-selected', 'true');
+      rerender(<TabGroup tabs={TABS} activeTab="d" />);
+      expect(screen.getByRole('tab', { name: 'Delta' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByText('Delta content')).toBeVisible();
+    });
+
+    it('a click reports the choice and the group waits for the host to move activeTab', async () => {
+      const user = userEvent.setup();
+      const onTabChange = vi.fn();
+      render(<TabGroup tabs={TABS} activeTab="a" onTabChange={onTabChange} />);
+      await user.click(screen.getByRole('tab', { name: 'Beta' }));
+      expect(onTabChange).toHaveBeenCalledWith('b');
+      expect(screen.getByRole('tab', { name: 'Alpha' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('an id no tab has opens the first tab', () => {
+      render(<TabGroup tabs={TABS} activeTab="nope" />);
+      expect(screen.getByRole('tab', { name: 'Alpha' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('a lazy panel the host opened stays mounted after the host moves on', () => {
+      const { rerender } = render(<TabGroup tabs={TABS} activeTab="a" lazy />);
+      expect(screen.queryByText('Beta content')).not.toBeInTheDocument();
+      rerender(<TabGroup tabs={TABS} activeTab="b" lazy />);
+      rerender(<TabGroup tabs={TABS} activeTab="a" lazy />);
+      expect(screen.getByText('Beta content')).not.toBeVisible();
+    });
+  });
+
   it('clicking a tab activates it and shows its panel', async () => {
     const user = userEvent.setup();
     render(<TabGroup tabs={TABS} />);

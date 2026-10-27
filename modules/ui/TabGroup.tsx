@@ -30,6 +30,7 @@ export type TabErrorContext = {
 export function TabGroup({
   tabs,
   defaultTab,
+  activeTab,
   label = 'Tabs',
   lazy = false,
   isolate = false,
@@ -42,6 +43,11 @@ export function TabGroup({
 }: {
   tabs: Tab[];
   defaultTab?: string;
+  /**
+   * The open tab when the host keeps it (e.g. in the URL's `?tab=`): the group follows it whenever it changes and
+   * reports the reader's choice through `onTabChange`. An id no tab has opens the first one.
+   */
+  activeTab?: string;
   label?: string;
   lazy?: boolean;
   /**
@@ -67,8 +73,12 @@ export function TabGroup({
   const [activated, setActivated] = useState<ReadonlySet<string>>(
     () => new Set([defaultTab ?? firstId]),
   );
+  const chosen = activeTab ?? active;
   // A tab that went away (a contributed tab that was removed) hands over to the first one.
-  const current = ordered.some((t) => t.id === active) ? active : firstId;
+  const current = ordered.some((t) => t.id === chosen) ? chosen : firstId;
+  // A tab opened by the host (activeTab moved) counts as activated, so a lazy panel stays mounted once visited —
+  // adjusted during render, React's pattern for state derived from a prop.
+  if (!activated.has(current)) setActivated((prev) => (prev.has(current) ? prev : new Set(prev).add(current)));
 
   function activate(id: string) {
     setActive(id);

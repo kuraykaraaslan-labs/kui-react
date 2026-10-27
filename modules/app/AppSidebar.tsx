@@ -15,7 +15,7 @@ export type AppSidebarNavItem = {
   href?: string;
   /** Nested items, shown indented under this one behind a disclosure toggle. */
   children?: AppSidebarNavItem[];
-  /** Start this item's children expanded. A branch holding the active item always starts expanded. */
+  /** Start this item's children expanded. A branch holding the active item, or whose own page is active, always starts expanded. */
   defaultExpanded?: boolean;
 };
 
@@ -83,6 +83,11 @@ function ancestorIds(items: AppSidebarNavItem[], id: string | undefined, trail: 
   return [];
 }
 
+/** The items to open so `id` and its children show: its ancestors, and the item itself (a no-op for a leaf). */
+function openTrail(items: AppSidebarNavItem[], id: string | undefined): string[] {
+  return id === undefined ? [] : [...ancestorIds(items, id), id];
+}
+
 function collectDefaultExpanded(items: AppSidebarNavItem[], into: Set<string>) {
   for (const item of items) {
     if (item.defaultExpanded && item.children?.length) into.add(item.id);
@@ -139,7 +144,8 @@ export function AppSidebar({
   });
   const [expandedItems, setExpandedItems] = useState<Set<string>>(() => {
     const allItems = (navGroups ?? (navItems ? [{ items: navItems }] : [])).flatMap((g) => g.items);
-    const initial = new Set<string>(ancestorIds(allItems, activeId));
+    // The active item's own branch opens too: a parent page (Members) shows its children (Invitations) while it is open.
+    const initial = new Set<string>(openTrail(allItems, activeId));
     collectDefaultExpanded(allItems, initial);
     return initial;
   });
@@ -152,7 +158,7 @@ export function AppSidebar({
     const allGroups = navGroups ?? (navItems ? [{ items: navItems }] : []);
     const owner = allGroups.find((g) => g.collapsible && g.items.some((i) => containsId(i, activeId)));
     if (owner) setExpandedGroups((prev) => new Set(prev).add(owner.label ?? ''));
-    const trail = ancestorIds(allGroups.flatMap((g) => g.items), activeId);
+    const trail = openTrail(allGroups.flatMap((g) => g.items), activeId);
     if (trail.length) setExpandedItems((prev) => new Set([...prev, ...trail]));
   }
   const [isDesktop, setIsDesktop] = useState(() => {
