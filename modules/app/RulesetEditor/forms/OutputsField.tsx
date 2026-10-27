@@ -121,7 +121,7 @@ export function OutputsDialog({ title, schema, keys, initial, prefix, onSave, on
     focusNext.current = { key, part: 'name' };
     setRows((rs) => [...rs, { name: '', note: '', from: null, key }]);
   };
-  const submit = () => { if (valid) onSave(rows.map(({ key: _key, ...r }) => r)); };
+  const submit = () => { if (valid) onSave(rows.map((r) => ({ name: r.name, note: r.note, from: r.from }))); };
 
   return (
     <Modal open onClose={onClose} title={title} description={m.outputsIntro} size="lg"

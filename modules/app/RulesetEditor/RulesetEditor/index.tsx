@@ -436,7 +436,7 @@ export function RulesetEditor({
     setShowRequired(false);
   }
 
-  /* the side bar's X, the node panel's X and Close, and the tool bar button all close the whole bar (not only the block) */
+  /* the node panel's X and Close and the tool bar button close the whole bar (not only the block), as the bar's own X does */
   function closeSide() {
     setEditingNodeId(null);
     setSideShown(false);
@@ -1029,7 +1029,7 @@ export function RulesetEditor({
       {!sideBar && panelProps && <NodeEditorPanel key={panelProps.node.nodeId} {...panelProps} />}
 
       {sideBar && sideVisible && (() => {
-        const { traceTab, runsTab, open: _open, onOpenChange: _onOpen, tab: _tab, onTabChange: _onTab, onReveal: hostReveal, nodeNames: _names, deployProblems: _dp, ...insight } = sideBar;
+        const { traceTab, runsTab, open: _open, onOpenChange, tab: _tab, onTabChange: _onTab, onReveal: hostReveal, nodeNames: _names, deployProblems: _dp, ...insight } = sideBar;
         const pick = <p className="p-4 text-xs text-text-secondary">{m.sideBarPickBlock}</p>;
         return (
           <InsightPanel
@@ -1042,7 +1042,7 @@ export function RulesetEditor({
             tab={sideTab}
             onTabChange={setSideTab}
             onReveal={(id) => { selectOnly(id); reveal(id); hostReveal?.(id); }}
-            onClose={closeSide}
+            onClose={() => { setEditingNodeId(null); setSideShown(false); onOpenChange?.(false); }}
             slots={{
               block: { content: panelProps ? <NodeEditorPanel key={panelProps.node.nodeId} {...panelProps} bare tabs={['settings', 'messages']} /> : pick },
               help: { content: panelProps ? <NodeEditorPanel key={`help-${panelProps.node.nodeId}`} {...panelProps} bare tabs={['help']} /> : pick },
