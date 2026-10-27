@@ -357,6 +357,8 @@ All notable changes to this project will be documented here. Format follows [Kee
 - `useFocusTrap` (Modal, Drawer, Popover): Tab with focus in another dialog layered over the overlay (one not on the trap's
   stack, such as a host's confirm portaled to `<body>`) is left to that dialog; Shift+Tab pulled focus back into the
   overlay before. Escape an inner control already handled (`defaultPrevented`) still leaves the overlay open.
+- `BoardFilterDialog`: closing with an unsaved edit (X, Escape, Cancel) asks first, Discard or Keep editing, as
+  `BoardFiltersDialog` does (new message `discardFilterBody`).
 - `Select`: the native (non-searchable, icon-free) mode draws the chevron the custom Select and `MultiSelect` show
   (`faChevronDown`, `w-3 h-3 text-text-disabled`, `right-3`; the select is `pr-8`). `appearance-none` had removed the
   browser arrow, so a plain Select did not read as a dropdown.

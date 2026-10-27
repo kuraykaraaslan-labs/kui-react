@@ -2,13 +2,15 @@
 // Add or edit one filter (TB's filter dialog): the name (the key is derived from it on add and read-only after), the
 // key filters (each edited in place with KeyFilterEditor; TB opens a third dialog for one) joined by "and" or "or"
 // (the select appears from two key filters on), and the filter as text. Saving validates the caps and normalises the
-// filter (only the fields each operation reads).
+// filter (only the fields each operation reads). Closing with an unsaved edit (X, Escape, Cancel) asks first, as the
+// filters dialog does: Discard, or Keep editing.
 
 import { useId, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
+import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Input } from '@/modules/ui/Input';
 import { Modal } from '@/modules/ui/Modal';
 import { Select } from '@/modules/ui/Select';
@@ -54,6 +56,9 @@ const draftOf = (filter?: BoardFilter): Draft => ({
   submitted: false,
 });
 
+/** What the user edits, to tell an unsaved edit from the filter as it was opened. */
+const editsOf = (d: Draft) => JSON.stringify([d.name, d.operation, d.keyFilters]);
+
 export function BoardFilterDialog({
   open,
   filter,
@@ -70,13 +75,27 @@ export function BoardFilterDialog({
   const idBase = useId();
   const isAdd = !filter;
   const [draft, setDraft] = useState<Draft>(() => draftOf(filter));
+  const [opened, setOpened] = useState(() => editsOf(draftOf(filter)));
+  const [confirmingClose, setConfirmingClose] = useState(false);
 
   // A new session each time the dialog opens: start from the filter given.
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
     setPrevOpen(open);
-    if (open) setDraft(draftOf(filter));
+    if (open) {
+      const fresh = draftOf(filter);
+      setDraft(fresh);
+      setOpened(editsOf(fresh));
+      setConfirmingClose(false);
+    }
   }
+
+  // An edit is never dropped silently: closing with one asks first.
+  const dirty = editsOf(draft) !== opened;
+  const requestClose = () => {
+    if (dirty) setConfirmingClose(true);
+    else onClose();
+  };
 
   const key = filter ? filter.key : slugKey(draft.name, existingKeys, 'filter');
   const candidate = normalizeBoardFilter({ key, name: draft.name, operation: draft.operation, keyFilters: draft.keyFilters });
@@ -95,117 +114,131 @@ export function BoardFilterDialog({
   const full = draft.keyFilters.length >= MAX_KEY_FILTERS;
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={isAdd ? m.addFilter : m.editFilter}
-      closeLabel={m.close}
-      closeOnBackdropClick={false}
-      scrollable
-      className="max-h-[calc(100vh-2rem)] max-w-4xl"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose}>{m.cancel}</Button>
-          <Button onClick={save}>{isAdd ? m.add : m.save}</Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        {listError && <p role="alert" className="text-sm text-error">{listError}</p>}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr]">
-          <Input
-            id={`${idBase}-name`}
-            label={m.filterName}
-            value={draft.name}
-            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-            maxLength={BOARD_FILTER_NAME_MAX}
-            error={err('name')}
-            required
-          />
-          <Input id={`${idBase}-key`} label={m.key} value={key} readOnly error={err('key')} />
-        </div>
-        <p className="-mt-2 text-xs text-text-secondary">{m.filterKeyHint}</p>
-
-        <section aria-labelledby={`${idBase}-kf-title`} className="space-y-3">
-          <div>
-            <h3 id={`${idBase}-kf-title`} className="text-sm font-semibold text-text-primary">{m.keyFilters}</h3>
-            <p className="text-xs text-text-secondary">{m.keyFiltersHint(draft.keyFilters.length > 1 ? draft.operation : 'and')}</p>
-          </div>
-          {draft.keyFilters.length > 1 && (
-            <Select messages={m.select}
-              id={`${idBase}-operation`}
-              label={m.keyFiltersOperation}
-              options={KEY_FILTER_OPERATIONS.map((o) => ({ value: o, label: m.operations[o] }))}
-              value={draft.operation}
-              onChange={(e) => setDraft((d) => ({ ...d, operation: e.target.value === 'or' ? 'or' : 'and' }))}
-              error={err('operation')}
-              className="sm:max-w-xs"
+    <>
+      <Modal
+        open={open}
+        onClose={requestClose}
+        title={isAdd ? m.addFilter : m.editFilter}
+        closeLabel={m.close}
+        closeOnBackdropClick={false}
+        scrollable
+        className="max-h-[calc(100vh-2rem)] max-w-4xl"
+        footer={
+          <>
+            <Button variant="ghost" onClick={requestClose}>{m.cancel}</Button>
+            <Button onClick={save}>{isAdd ? m.add : m.save}</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {listError && <p role="alert" className="text-sm text-error">{listError}</p>}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_1fr]">
+            <Input
+              id={`${idBase}-name`}
+              label={m.filterName}
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              maxLength={BOARD_FILTER_NAME_MAX}
+              error={err('name')}
+              required
             />
-          )}
-          {draft.keyFilters.length === 0 ? (
-            <p className="text-sm text-text-secondary">{m.noKeyFilters}</p>
-          ) : (
-            <ol className="space-y-3">
-              {draft.keyFilters.map((kf, i) => {
-                const kfErrors = keyFilterErrorsAt(errors, i);
-                const titleId = `${idBase}-kf${i}-title`;
-                return (
-                  <li key={i} className="space-y-2">
-                    {i > 0 && (
-                      <p className="pl-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">{m.textJoin[draft.operation]}</p>
-                    )}
-                    <section
-                      aria-labelledby={titleId}
-                      className={cn(
-                        'space-y-3 rounded-lg border bg-surface-raised p-4',
-                        Object.keys(kfErrors).length > 0 ? 'border-error' : 'border-border',
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <h4 id={titleId} className="text-sm font-semibold text-text-primary">{m.keyFilterTitle(i + 1)}</h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          iconOnly
-                          aria-label={m.removeKeyFilter(i + 1)}
-                          onClick={() => setKeyFilters(draft.keyFilters.filter((_, j) => j !== i))}
-                        >
-                          <FontAwesomeIcon icon={faXmark} className="h-3.5 w-3.5" aria-hidden="true" />
-                        </Button>
-                      </div>
-                      <KeyFilterEditor
-                        value={kf}
-                        onChange={(next) => setKeyFilters(draft.keyFilters.map((x, j) => (j === i ? next : x)))}
-                        params={params}
-                        entityType={entityType}
-                        access={access}
-                        errors={kfErrors}
-                        messages={messages}
-                      />
-                    </section>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-          {keyFiltersError && <p role="alert" className="text-xs text-error">{keyFiltersError}</p>}
-          <Button
-            variant="outline"
-            size="sm"
-            iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" />}
-            disabled={full}
-            onClick={() => setKeyFilters([...draft.keyFilters, emptyKeyFilter()])}
-          >
-            {m.addKeyFilter}
-          </Button>
-        </section>
+            <Input id={`${idBase}-key`} label={m.key} value={key} readOnly error={err('key')} />
+          </div>
+          <p className="-mt-2 text-xs text-text-secondary">{m.filterKeyHint}</p>
 
-        <FormPanel title={m.filterPreview}>
-          <p className="text-sm text-text-primary" aria-live="polite">
-            {boardFilterText(candidate, { params, messages: m })}
-          </p>
-        </FormPanel>
-      </div>
-    </Modal>
+          <section aria-labelledby={`${idBase}-kf-title`} className="space-y-3">
+            <div>
+              <h3 id={`${idBase}-kf-title`} className="text-sm font-semibold text-text-primary">{m.keyFilters}</h3>
+              <p className="text-xs text-text-secondary">{m.keyFiltersHint(draft.keyFilters.length > 1 ? draft.operation : 'and')}</p>
+            </div>
+            {draft.keyFilters.length > 1 && (
+              <Select messages={m.select}
+                id={`${idBase}-operation`}
+                label={m.keyFiltersOperation}
+                options={KEY_FILTER_OPERATIONS.map((o) => ({ value: o, label: m.operations[o] }))}
+                value={draft.operation}
+                onChange={(e) => setDraft((d) => ({ ...d, operation: e.target.value === 'or' ? 'or' : 'and' }))}
+                error={err('operation')}
+                className="sm:max-w-xs"
+              />
+            )}
+            {draft.keyFilters.length === 0 ? (
+              <p className="text-sm text-text-secondary">{m.noKeyFilters}</p>
+            ) : (
+              <ol className="space-y-3">
+                {draft.keyFilters.map((kf, i) => {
+                  const kfErrors = keyFilterErrorsAt(errors, i);
+                  const titleId = `${idBase}-kf${i}-title`;
+                  return (
+                    <li key={i} className="space-y-2">
+                      {i > 0 && (
+                        <p className="pl-1 text-xs font-semibold uppercase tracking-wide text-text-secondary">{m.textJoin[draft.operation]}</p>
+                      )}
+                      <section
+                        aria-labelledby={titleId}
+                        className={cn(
+                          'space-y-3 rounded-lg border bg-surface-raised p-4',
+                          Object.keys(kfErrors).length > 0 ? 'border-error' : 'border-border',
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <h4 id={titleId} className="text-sm font-semibold text-text-primary">{m.keyFilterTitle(i + 1)}</h4>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            iconOnly
+                            aria-label={m.removeKeyFilter(i + 1)}
+                            onClick={() => setKeyFilters(draft.keyFilters.filter((_, j) => j !== i))}
+                          >
+                            <FontAwesomeIcon icon={faXmark} className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Button>
+                        </div>
+                        <KeyFilterEditor
+                          value={kf}
+                          onChange={(next) => setKeyFilters(draft.keyFilters.map((x, j) => (j === i ? next : x)))}
+                          params={params}
+                          entityType={entityType}
+                          access={access}
+                          errors={kfErrors}
+                          messages={messages}
+                        />
+                      </section>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+            {keyFiltersError && <p role="alert" className="text-xs text-error">{keyFiltersError}</p>}
+            <Button
+              variant="outline"
+              size="sm"
+              iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" />}
+              disabled={full}
+              onClick={() => setKeyFilters([...draft.keyFilters, emptyKeyFilter()])}
+            >
+              {m.addKeyFilter}
+            </Button>
+          </section>
+
+          <FormPanel title={m.filterPreview}>
+            <p className="text-sm text-text-primary" aria-live="polite">
+              {boardFilterText(candidate, { params, messages: m })}
+            </p>
+          </FormPanel>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={open && confirmingClose}
+        tone="danger"
+        title={m.discardTitle}
+        message={m.discardFilterBody}
+        confirmLabel={m.discard}
+        cancelLabel={m.keepEditing}
+        closeLabel={m.close}
+        onConfirm={() => { setConfirmingClose(false); onClose(); }}
+        onCancel={() => setConfirmingClose(false)}
+      />
+    </>
   );
 }

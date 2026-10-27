@@ -131,11 +131,67 @@ describe('filterRemovalBlockers', () => {
 describe('BoardFilterDialog', () => {
   function open(over: Partial<React.ComponentProps<typeof BoardFilterDialog>> = {}) {
     const onSave = vi.fn();
+    const onClose = vi.fn();
     render(
-      <BoardFilterDialog open existingKeys={['hot']} params={params} access={demoAccess()} onSave={onSave} onClose={() => {}} {...over} />,
+      <BoardFilterDialog open existingKeys={['hot']} params={params} access={demoAccess()} onSave={onSave} onClose={onClose} {...over} />,
     );
-    return { onSave };
+    return { onSave, onClose };
   }
+
+  it('closes at once with nothing changed, a new filter or one being edited', () => {
+    const add = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(add.onClose).toHaveBeenCalledTimes(1);
+    cleanup();
+    const edit = open({ filter: filters[1], existingKeys: [] });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(edit.onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: 'Discard unsaved changes?' })).toBeNull();
+  });
+
+  it('with an unsaved edit, X, Escape and Cancel ask first: Keep editing keeps it, Discard closes without saving', () => {
+    const { onSave, onClose } = open({ filter: filters[1], existingKeys: [] });
+    fireEvent.change(screen.getByLabelText(/^Filter name/), { target: { value: 'All pumps' } });
+    for (const close of [
+      () => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })),
+      () => fireEvent.keyDown(document, { key: 'Escape' }),
+      () => fireEvent.click(within(screen.getByRole('dialog', { name: 'Edit filter' })).getAllByRole('button', { name: 'Close' })[0]),
+    ]) {
+      close();
+      const ask = screen.getByRole('dialog', { name: 'Discard unsaved changes?' });
+      expect(ask).toHaveTextContent('The changes you made to this filter are not saved.');
+      expect(onClose).not.toHaveBeenCalled();
+      fireEvent.click(within(ask).getByRole('button', { name: 'Keep editing' }));
+      expect(screen.queryByRole('dialog', { name: 'Discard unsaved changes?' })).toBeNull();
+      expect(screen.getByDisplayValue('All pumps')).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Discard unsaved changes?' })).getByRole('button', { name: 'Discard' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('an edit typed back to what it was is not an unsaved edit', () => {
+    const { onClose } = open({ filter: filters[1], existingKeys: [] });
+    const name = screen.getByLabelText(/^Filter name/);
+    fireEvent.change(name, { target: { value: 'Pumpss' } });
+    fireEvent.change(name, { target: { value: 'Pumps' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('inside the filters dialog, Escape with an unsaved filter edit asks in the filter dialog and leaves the list open', () => {
+    const { onClose } = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit filter Pumps' }));
+    fireEvent.change(screen.getByLabelText(/^Filter name/), { target: { value: 'All pumps' } });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    const ask = screen.getByRole('dialog', { name: 'Discard unsaved changes?' });
+    expect(ask).toHaveTextContent('this filter');
+    fireEvent.click(within(ask).getByRole('button', { name: 'Discard' }));
+    expect(screen.queryByRole('dialog', { name: 'Edit filter' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
 
   it('derives the key from the name on add, avoiding taken keys', () => {
     open();

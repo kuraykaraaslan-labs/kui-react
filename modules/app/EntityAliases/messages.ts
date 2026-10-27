@@ -256,6 +256,8 @@ export interface EntityAliasesMessages {
   /** Asked when the filters dialog closes with an unsaved edit. */
   discardTitle: string;
   discardFiltersBody: string;
+  /** Asked when the dialog of one filter closes with an unsaved edit. */
+  discardFilterBody: string;
   discard: string;
   keepEditing: string;
 
@@ -674,6 +676,7 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   invalidFilters: 'Some filters are not valid. Edit the ones marked below before saving.',
   discardTitle: 'Discard unsaved changes?',
   discardFiltersBody: 'The changes you made to the filters are not saved. Discard them, or keep editing and save them.',
+  discardFilterBody: 'The changes you made to this filter are not saved. Discard them, or keep editing and save them.',
   discard: 'Discard',
   keepEditing: 'Keep editing',
 
