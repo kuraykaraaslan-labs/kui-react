@@ -18,6 +18,18 @@ export function isSuggestedAssetKind(kind: string): kind is SuggestedAssetKind {
   return (SUGGESTED_ASSET_KINDS as readonly string[]).includes(kind);
 }
 
+/**
+ * The kinds with a label in the kit messages and an icon of their own: the suggested ones, and the ones the platform's own seeds and
+ * solutions use beside them (a plant under a city's site, a farm's regions, a campus's zones, a depot). The pickers keep to the
+ * suggested list; any other kind is still drawn with its own name.
+ */
+export const NAMED_ASSET_KINDS = [...SUGGESTED_ASSET_KINDS, 'PLANT', 'REGION', 'ZONE', 'DEPOT'] as const;
+export type NamedAssetKind = (typeof NAMED_ASSET_KINDS)[number];
+
+export function isNamedAssetKind(kind: string): kind is NamedAssetKind {
+  return (NAMED_ASSET_KINDS as readonly string[]).includes(kind);
+}
+
 /** One node of the tree as the tree view draws it: its counts, and its children (all of them, or none when not loaded yet). */
 export type AssetNode = {
   assetId: string;

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotAssetsApi, type IotCapabilities } from '../api/adapter';
 import {
-  assetKindChoices, assetPath, devicesBelow, filterAssets, flattenAssets, locatedSites, siteTone, subtreeIds, withoutAssets,
+  NAMED_ASSET_KINDS, assetKindChoices, assetPath, devicesBelow, filterAssets, flattenAssets, locatedSites, siteTone, subtreeIds, withoutAssets,
   type AssetNode, type AssetRecord, type AssetRow, type AssetSummary, type PlacedDevice,
 } from '../types/asset';
 import type { DeviceRecord } from '../types/device';
@@ -17,8 +17,8 @@ import { AssetsMapDrawer } from './AssetsMapDrawer';
 import { AssetFormDrawer } from './AssetFormDrawer';
 import { DevicePlacementPanel } from './DevicePlacementPanel';
 import { PlaceDevicesDialog } from './PlaceDevicesDialog';
-import { assetKindLabel } from './asset-kind';
-import { mergeIotMessages } from '../messages';
+import { assetKindIcon, assetKindLabel } from './asset-kind';
+import { IOT_MESSAGES, mergeIotMessages } from '../messages';
 
 const mapMounts = vi.hoisted(() => ({ n: 0 }));
 vi.mock('@/modules/ui/MapView/MapCanvas', async () => {
@@ -130,6 +130,17 @@ describe('AssetKindBadge', () => {
     expect(screen.getByText('Site')).toHaveClass('sr-only');
     expect(assetKindLabel('LINE', mergeIotMessages({ assetKind: { LINE: 'Hat' } }))).toBe('Hat');
   });
+
+  it('labels the kinds the platform seeds beside the suggested ones from the messages, with icons of their own, and keeps them out of the pickers', () => {
+    const tr = mergeIotMessages({ assetKind: { PLANT: 'Tesis', REGION: 'Bölge', ZONE: 'Zon', DEPOT: 'Depo' } });
+    expect(['plant', 'REGION', 'Zone', 'DEPOT'].map((k) => assetKindLabel(k, tr))).toEqual(['Tesis', 'Bölge', 'Zon', 'Depo']);
+    expect(NAMED_ASSET_KINDS.map((k) => assetKindLabel(k, IOT_MESSAGES))).not.toContain(undefined);
+    expect(new Set(['PLANT', 'REGION', 'ZONE', 'DEPOT'].map((k) => assetKindIcon(k).iconName)).has('cube')).toBe(false);
+    const { container } = render(<AssetKindBadge kind="PLANT" messages={{ assetKind: { PLANT: 'Tesis' } }} />);
+    expect(screen.getByText('Tesis')).toBeInTheDocument();
+    expect(container.querySelector('[data-kind="PLANT"][data-suggested="false"]')).not.toBeNull();
+    expect(assetKindChoices()).not.toContain('PLANT');
+  });
 });
 
 describe('AssetTree', () => {
@@ -213,12 +224,28 @@ describe('AssetDrawer', () => {
     for (const name of ['Overview', 'Attributes', 'Devices', 'Child assets (1)', 'Relations']) expect(screen.getByRole('heading', { level: 3, name })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Press sensor/ })).toHaveAttribute('href', '/d/d1');
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
-    expect(screen.getByText('Online')).toBeInTheDocument();
+    expect(screen.getAllByText('Online')).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'Press 3' })).toHaveAttribute('href', '/a/press-3');
     expect(assets.devices).toHaveBeenCalledWith('press-line', { page: 1, pageSize: 10, recursive: true }, expect.anything());
     expect(await screen.findByText('Coolant station')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Remove placement: Press sensor' }));
     await waitFor(() => expect(assets.setPlacement).toHaveBeenCalledWith('d1', null));
+  });
+
+  it('keeps the devices to two columns that fit the narrow drawer at any screen width, the place under the name', async () => {
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} hrefs={{ asset: (id) => `/a/${id}`, device: (id) => `/d/${id}` }} now={NOW} />, fakeAssets());
+    const table = await screen.findByRole('table', { name: 'Devices' });
+    await within(table).findByText('Press sensor');
+    // no column hidden by a screen breakpoint: the drawer is 40rem wide on a wide screen too
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Name', 'Connection', 'Remove placement']);
+    const [device, connection] = within(table).getAllByRole('row')[1].querySelectorAll('td');
+    expect(device.textContent).toBe('Press sensorPlaced on:MachinePress 3');
+    expect(device.firstElementChild).toHaveClass('max-w-[8rem]', 'sm:max-w-[16rem]');
+    // a phone: the dot alone and no address; from sm the text and the address under it
+    const [dot, full] = connection.querySelectorAll('[data-state]');
+    expect(dot).toHaveClass('sm:hidden');
+    expect(full).toHaveClass('hidden', 'sm:inline-flex');
+    expect(within(connection).getByText('203.0.113.7').parentElement).toHaveClass('hidden', 'sm:inline-flex');
   });
 
   it('pages the devices with the table\'s own pagination and rows per page', async () => {
@@ -469,8 +496,12 @@ describe('AssetsMapDrawer', () => {
     expect(JSON.parse(map.getAttribute('data-markers')!)).toEqual([
       { id: 'plant', position: [52.5, 13.4], variant: 'error', label: 'Berlin plant', tooltip: { title: 'Berlin plant', description: '3 devices · 3 active' } },
     ]);
-    const list = screen.getByRole('list', { name: 'Sites' });
+    // the kit's table (check:tables in NB), one site a row, each a button
+    const list = screen.getByRole('table', { name: 'Sites' });
     expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Berlin plant3 devices · 3 active', 'Logistics hub0 devices · 0 active · No location']);
+    await user.click(within(list).getByRole('button', { name: /Logistics hub/ }));
+    expect(within(list).getByRole('button', { name: /Logistics hub/ })).toHaveAttribute('aria-current', 'true');
+    expect(within(list).getByRole('button', { name: /Logistics hub/ }).closest('tr')).toHaveClass('bg-surface-overlay');
     await user.click(screen.getByRole('button', { name: 'Only with active alarms' }));
     expect(within(list).getAllByRole('button')).toHaveLength(1);
     await user.click(within(map).getByRole('button', { name: 'marker plant' }));

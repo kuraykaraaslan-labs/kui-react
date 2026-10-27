@@ -704,6 +704,7 @@ export const IOT_MESSAGES = {
   },
   assetKind: {
     SITE: 'Site', BUILDING: 'Building', FLOOR: 'Floor', ROOM: 'Room', AREA: 'Area', LINE: 'Line', MACHINE: 'Machine', OTHER: 'Other',
+    PLANT: 'Plant', REGION: 'Region', ZONE: 'Zone', DEPOT: 'Depot',
     custom: 'Another kind',
   },
   assets: {

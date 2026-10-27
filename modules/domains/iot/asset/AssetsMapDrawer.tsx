@@ -8,6 +8,8 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { MapCanvas } from '@/modules/ui/MapView/MapCanvas';
 import type { MapMarker } from '@/modules/ui/MapView/types';
 import { SkeletonText } from '@/modules/ui/Skeleton';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessages } from '../messages';
 import { AlarmSeverityBadge } from '../alarm/AlarmSeverityBadge';
@@ -85,6 +87,28 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
     </div>
   );
 
+  // The sites beside the map: the kit's table (never a hand-made list), one column, each site a button that opens its summary.
+  const siteColumns = useMemo((): Column<AssetSite>[] => [{
+    key: 'name',
+    header: m.assets.mapSites,
+    render: (s) => (
+      <button
+        type="button"
+        aria-current={s.assetId === selectedId ? 'true' : undefined}
+        onClick={() => setSelectedId(s.assetId)}
+        className="flex w-full min-w-0 items-start gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus max-sm:min-h-10"
+      >
+        <span aria-hidden="true" className={cn('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', TONE_DOT[siteTone(s)])} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-text-primary">{s.name}</span>
+          <span className="block truncate text-xs text-text-secondary">
+            {siteLine(m, s)}{typeof s.lat === 'number' && typeof s.lng === 'number' ? '' : ` · ${m.assets.mapNoLocation}`}
+          </span>
+        </span>
+      </button>
+    ),
+  }], [m, selectedId]);
+
   return (
     <Drawer open={open} onClose={onClose} title={m.assets.mapTitle} closeLabel={m.common.close} className="w-[72rem]" header={header}>
       {error && !summary ? (
@@ -146,36 +170,25 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
                 </div>
               )}
             </div>
-            <ul aria-label={m.assets.mapSites} className="min-h-0 divide-y divide-border overflow-y-auto rounded-xl border border-border lg:w-72 lg:shrink-0">
-              {sites.map((s) => {
-                const tone = siteTone(s);
-                const located = typeof s.lat === 'number' && typeof s.lng === 'number';
-                return (
-                  <li key={s.assetId}>
-                    <button
-                      type="button"
-                      aria-current={s.assetId === selectedId ? 'true' : undefined}
-                      onClick={() => setSelectedId(s.assetId)}
-                      className={cn(
-                        'flex w-full min-w-0 items-start gap-2 px-3 py-2.5 text-left transition-colors hover:bg-surface-overlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-border-focus',
-                        s.assetId === selectedId && 'bg-surface-overlay',
-                      )}
-                    >
-                      <span aria-hidden="true" className={cn('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', TONE_DOT[tone])} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-text-primary">{s.name}</span>
-                        <span className="block truncate text-xs text-text-secondary">
-                          {siteLine(m, s)}{located ? '' : ` · ${m.assets.mapNoLocation}`}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
+            <div className="min-h-0 overflow-y-auto rounded-xl border border-border lg:w-72 lg:shrink-0" data-testid="assets-map-sites">
+              <DataTable<AssetSite>
+                mode="static"
+                variant="plain"
+                bordered={false}
+                density="compact"
+                caption={m.assets.mapSites}
+                columns={siteColumns}
+                rows={sites}
+                rowId={(s) => s.assetId}
+                rowClassName={(s) => (s.assetId === selectedId ? 'bg-surface-overlay' : undefined)}
+                emptyMessage={m.assets.mapNoSites}
+                messages={{ loading: m.common.loading, retry: m.common.retry }}
+                searchable={false}
+              />
               {summary.sitesTruncated && (
-                <li className="px-3 py-2 text-xs text-text-secondary">{fill(m.assets.mapTruncated, { n: summary.siteList.length })}</li>
+                <p className="border-t border-border px-3 py-2 text-xs text-text-secondary">{fill(m.assets.mapTruncated, { n: summary.siteList.length })}</p>
               )}
-            </ul>
+            </div>
           </div>
         </div>
       )}
