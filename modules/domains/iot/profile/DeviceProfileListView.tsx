@@ -90,6 +90,8 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
 
   function change(patch: Partial<ProfileListQuery>) {
     const next = { ...queryRef.current, ...patch, page: patch.page ?? 1 };
+    // at once, not in the effect: the table reports page 1 for a new filter before that effect runs, and must see this query
+    queryRef.current = next;
     setQuery(next);
     onQueryChange?.(next);
   }

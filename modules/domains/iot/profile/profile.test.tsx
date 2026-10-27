@@ -318,6 +318,24 @@ describe('DeviceProfileListView', () => {
     expect(screen.queryByRole('columnheader', { name: /Devices/ })).not.toHaveAttribute('aria-sort');
   });
 
+  it('keeps a filter applied from page 2', async () => {
+    const user = userEvent.setup();
+    const adapter = profilesAdapter();
+    const list = vi.spyOn(adapter.profiles!, 'list').mockImplementation(async (q) => ({ items: [profile({ isDefault: true, transportType: q.transportType ?? 'MQTT' })], total: 45 }));
+    const onQueryChange = vi.fn();
+    render(<IotAdapterProvider adapter={adapter} capabilities={ALL}><DeviceProfileListView hrefs={{ profile: (id) => `#${id}` }} onQueryChange={onQueryChange} /></IotAdapterProvider>);
+    await screen.findByText('Pumps');
+    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }), expect.anything()));
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const panel = screen.getByRole('form', { name: 'Filters' });
+    await user.selectOptions(within(panel).getByLabelText('Transport'), 'HTTP');
+    await user.click(within(panel).getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ transportType: 'HTTP', page: 1 }), expect.anything()));
+    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ transportType: 'HTTP', page: 1 }));
+    expect(screen.getByRole('button', { name: /Remove filter Transport/ })).toBeInTheDocument();
+  });
+
   it('offers no create, default or delete without canManageProfiles', async () => {
     render(<Wrap adapter={profilesAdapter()} caps={{}}><DeviceProfileListView hrefs={{ profile: (id) => `#${id}` }} /></Wrap>);
     await screen.findByText('Meters');

@@ -160,6 +160,31 @@ describe('DeviceListView', () => {
     expect(screen.getByRole('button', { name: /Remove filter Status/ })).toBeInTheDocument();
   });
 
+  it('keeps a filter applied from page 2: the list, the URL and the chip stay filtered on page 1', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    list.mockImplementation(async () => ({ items: DEVICES, total: 45 }));
+    const onQueryChange = vi.fn();
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} onQueryChange={onQueryChange} now={NOW} />, { adapter });
+    await screen.findByText('Pump 4');
+    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }), expect.anything()));
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const panel = screen.getByRole('form', { name: 'Filters' });
+    await user.selectOptions(within(panel).getByLabelText('Connection'), 'last_seen');
+    await user.click(within(panel).getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ online: 'last_seen', page: 1 }), expect.anything()));
+    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ online: 'last_seen', page: 1 }), 'replace');
+    expect(screen.getByRole('button', { name: /Remove filter Connection/ })).toBeInTheDocument();
+    // the Quarantined (n) quick filter from page 2 as well
+    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, online: 'last_seen' }), expect.anything()));
+    await user.click(screen.getByRole('button', { name: 'Quarantined (1)' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'QUARANTINED', online: 'last_seen', page: 1 }), expect.anything()));
+    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'QUARANTINED', page: 1 }), 'replace');
+  });
+
   it('offers the Quarantined (n) filter and bulk Activate only with the capability', async () => {
     const user = userEvent.setup();
     const adapter = createFakeAdapter();
@@ -282,6 +307,36 @@ describe('AlarmListView', () => {
     expect(screen.getByLabelText('Status')).toHaveValue('active');
     await user.selectOptions(screen.getByLabelText('Status'), 'any');
     await waitFor(() => expect(adapter.alarms!.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'any', from: expect.any(String) }), expect.anything()));
+  });
+
+  it('keeps a status, a count chip or a severity applied from page 2', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const list = adapter.alarms!.list as ReturnType<typeof vi.fn>;
+    list.mockResolvedValue({ items: [alarm('a1')], total: 45 });
+    const onQueryChange = vi.fn();
+    wrap(<AlarmListView hrefs={{ alarm: (id) => id }} onQueryChange={onQueryChange} now={NOW} />, { adapter });
+    await screen.findByText('Alarm a1');
+    const toPage2 = async () => {
+      await user.click(screen.getByRole('button', { name: 'Page 2' }));
+      await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }), expect.anything()));
+    };
+    await toPage2();
+    await user.selectOptions(screen.getByLabelText('Status'), 'any');
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'any', page: 1 }), expect.anything()));
+    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'any', page: 1 }));
+    expect(screen.getByLabelText('Status')).toHaveValue('any');
+    await toPage2();
+    await user.click(screen.getByRole('button', { name: 'Open (1)' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'OPEN', page: 1 }), expect.anything()));
+    expect(screen.getByLabelText('Status')).toHaveValue('OPEN');
+    await toPage2();
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const panel = screen.getByRole('form', { name: 'Filters' });
+    await user.click(within(panel).getByRole('checkbox', { name: 'Critical' }));
+    await user.click(within(panel).getByRole('button', { name: 'Apply' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'OPEN', severity: ['CRITICAL'], page: 1 }), expect.anything()));
+    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ severity: ['CRITICAL'], page: 1 }));
   });
 
   it('acknowledges every open alarm of its device with one note', async () => {
