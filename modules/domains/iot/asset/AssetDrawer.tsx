@@ -171,7 +171,7 @@ export function AssetDrawer({
           <Button variant="outline" size="sm" onClick={() => void load()}>{m.common.retry}</Button>
         </div>
       ) : !a ? (
-        <SkeletonText lines={6} />
+        <SkeletonText lines={6} label={m.common.loading} />
       ) : (
         <div className="min-w-0 space-y-5" data-asset-id={a.assetId}>
           <div className="space-y-1">

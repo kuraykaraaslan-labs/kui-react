@@ -93,7 +93,7 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
           {onRetry && <Button variant="outline" size="sm" onClick={onRetry}>{m.common.retry}</Button>}
         </div>
       ) : !summary ? (
-        <SkeletonText lines={6} />
+        <SkeletonText lines={6} label={m.common.loading} />
       ) : (
         <div className="flex min-h-0 flex-col gap-3 lg:h-full">
           {(alarms || markers.length > 0) && (

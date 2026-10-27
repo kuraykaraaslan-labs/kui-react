@@ -495,6 +495,23 @@ describe('AssetsMapDrawer', () => {
     for (const b of within(card).getAllByRole('button')) expect(b).toHaveClass('max-sm:min-h-10');
   });
 
+  it('names its loading skeleton, and the asset drawer\'s, from the kit messages', () => {
+    const messages = { common: { loading: 'Yükleniyor…' } };
+    const { unmount } = render(
+      <IotAdapterProvider adapter={{ assets: fakeAssets({ get: () => new Promise(() => undefined) }) }} messages={messages}>
+        <AssetsMapDrawer onClose={() => undefined} summary={null} onListAssets={() => undefined} onOpenSite={() => undefined} />
+      </IotAdapterProvider>,
+    );
+    expect(screen.getByLabelText('Yükleniyor…')).toHaveAttribute('aria-busy', 'true');
+    unmount();
+    render(
+      <IotAdapterProvider adapter={{ assets: fakeAssets({ get: () => new Promise(() => undefined) }) }} messages={messages}>
+        <AssetDrawer assetId="press-line" onClose={() => undefined} />
+      </IotAdapterProvider>,
+    );
+    expect(screen.getByLabelText('Yükleniyor…')).toHaveAttribute('aria-busy', 'true');
+  });
+
   it('says when no site has a location, and draws neutral markers without alarms', () => {
     const plain = { ...SUMMARY, alarms: false, siteList: SUMMARY.siteList.map((s) => ({ ...s, alarmCount: null, worstSeverity: null, alarmsBySeverity: null })) };
     const { unmount } = wrap(<AssetsMapDrawer onClose={() => undefined} summary={plain} onListAssets={() => undefined} onOpenSite={() => undefined} />, fakeAssets());
