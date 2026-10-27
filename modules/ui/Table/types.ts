@@ -87,6 +87,13 @@ export type Column<T> = {
   footer?: ReactNode;
   /** CSS width of the column (`'8rem'`, `'20%'`). */
   width?: string;
+  /**
+   * Column chooser (`DataTable` `columnChooser`): `false` keeps the column on screen and out of the chooser (the name a
+   * row is known by, a control column). Default `true`.
+   */
+  hideable?: boolean;
+  /** Column chooser: hidden until the viewer shows it. */
+  defaultHidden?: boolean;
 };
 
 export type ColumnBreakpoint = 'sm' | 'md' | 'lg';
@@ -343,6 +350,12 @@ export type DataTableMessages = {
   pageNumber?: string;
   /** Accessible name of the pagination landmark. */
   pagination?: string;
+  /** The column chooser's toolbar button and panel (`columnChooser`). */
+  columns?: string;
+  /** Column chooser: back to the default columns. */
+  resetColumns?: string;
+  /** Column chooser: accessible text of the button's count; `{count}` is the number of hidden columns. */
+  hiddenColumns?: string;
 };
 
 export const DEFAULT_MESSAGES: DataTableMessages = {
@@ -397,6 +410,9 @@ export const DEFAULT_MESSAGES: DataTableMessages = {
   lastPage: 'Last page',
   pageNumber: 'Page {page}',
   pagination: 'Pagination',
+  columns: 'Columns',
+  resetColumns: 'Reset',
+  hiddenColumns: '{count} hidden',
 };
 
 /** Fills `{name}` placeholders of a message. */

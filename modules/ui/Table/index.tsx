@@ -55,6 +55,7 @@ export { useServerTable } from './core/useServerTable';
 export { useManualTable } from './core/useManualTable';
 export type { UseManualTableArgs, UseManualTableReturn } from './core/useManualTable';
 export { useRowSelection, useRowExpansion } from './core/useRowState';
+export { columnChoicesKey, useColumnVisibility } from './core/columnVisibility';
 export {
   useFilterPanel,
   activeFilterValues,

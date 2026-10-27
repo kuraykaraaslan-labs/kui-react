@@ -30,6 +30,8 @@ import {
 } from './core/filterPanel';
 import { cellClassFor, densityCellClass, sortMappers } from './core/columnHelpers';
 import { FilterPanel, FilterToggle, ToolbarFilterControl } from './parts/FilterPanel';
+import { ColumnChooser } from './parts/ColumnChooser';
+import { isHideable, useColumnVisibility } from './core/columnVisibility';
 import type {
   Column,
   DataTableCardContext,
@@ -254,6 +256,18 @@ export type DataTableProps<T extends Record<string, unknown>> = {
   className?: string;
   /** Stable id used as a prefix for child element ids — falls back to React.useId(). */
   id?: string;
+  /**
+   * A "Columns" toolbar button: the viewer hides and shows columns (`Column.hideable: false` ones stay, the table
+   * always keeps one, `Column.defaultHidden` ones start hidden). Off by default. With `tableId` the choice is saved on
+   * this device (localStorage) and comes back on the next visit; without one it lasts while the table is mounted.
+   * Table layout only.
+   */
+  columnChooser?: boolean;
+  /**
+   * Stable name of this table across visits and pages (`'iot.devices'`), the key the column chooser saves this
+   * device's choice under. Unlike `id`, never generated.
+   */
+  tableId?: string;
   /**
    * Legacy ServerDataTable props.
    * @deprecated Server-controlled props — prefer the unified `mode="server"` + `fetchPage` flow.
@@ -678,7 +692,6 @@ function TableFrame<T extends Record<string, unknown>>({
 }) {
   const {
     id,
-    columns,
     caption,
     searchable: searchableProp,
     searchPlaceholder,
@@ -711,6 +724,13 @@ function TableFrame<T extends Record<string, unknown>>({
     className,
   } = props;
 
+  const isCard = variant === 'card';
+  const cards = layout === 'cards' && renderCard !== undefined;
+  // The column chooser hides columns of the table layout only; the cards draw no columns.
+  const chooser = (props.columnChooser ?? false) && !cards;
+  const visibility = useColumnVisibility(props.columns, chooser, props.tableId);
+  const columns = visibility.columns;
+
   const searchable = searchableProp ?? true;
   // Sort priority numbers show only once the user has built a multi-column sort, never for a default one.
   const [userSorted, setUserSorted] = useState(false);
@@ -725,8 +745,6 @@ function TableFrame<T extends Record<string, unknown>>({
   const extras = useRowExtras(props, msgs, id, model.shown);
   const filterParts = filterUi.parts(onFiltersApplied);
   const totalCols = extras.leadingCount + columns.length + (actions.enabled ? 1 : 0);
-  const isCard = variant === 'card';
-  const cards = layout === 'cards' && renderCard !== undefined;
 
   // Keyboard rows: the focused row while it exists, else the first, is the one in the tab order.
   const keyboard = props.keyboardNavigation ?? (onRowClick !== undefined || onRowDoubleClick !== undefined);
@@ -744,7 +762,8 @@ function TableFrame<T extends Record<string, unknown>>({
   }
 
   // Column header filters as chips too, so "Clear all" covers every filter.
-  const columnChips: FilterChip[] = columns
+  // A hidden column's filter still narrows the rows, so its chip stays.
+  const columnChips: FilterChip[] = props.columns
     .filter((c) => c.filter && model.columnFilters[String(c.key)])
     .map((c) => {
       const key = String(c.key);
@@ -759,7 +778,7 @@ function TableFrame<T extends Record<string, unknown>>({
   const chips = showFilterChips ? [...filterUi.chips, ...columnChips] : [];
 
   // Card layout: no header row to click, so a "Sort by" select.
-  const sortable = columns.filter((c) => c.sortable);
+  const sortable = props.columns.filter((c) => c.sortable);
   const sortBy =
     cards && sortable.length > 0
       ? {
@@ -783,18 +802,45 @@ function TableFrame<T extends Record<string, unknown>>({
         }
       : undefined;
 
+  const hideable = props.columns.filter(isHideable);
+  // The table keeps one column: the last one shown is locked when every column can be hidden.
+  const keepsOne = hideable.length === props.columns.length;
+  const columnChooser =
+    chooser && hideable.length > 0 ? (
+      <ColumnChooser
+        id={id}
+        label={msgs.columns ?? 'Columns'}
+        resetLabel={msgs.resetColumns ?? 'Reset'}
+        hiddenLabel={formatMessage(msgs.hiddenColumns ?? '{count} hidden', { count: visibility.hiddenCount })}
+        hiddenCount={visibility.hiddenCount}
+        changed={visibility.changed}
+        choices={hideable.map((c) => {
+          const shown = visibility.isShown(c);
+          return {
+            key: String(c.key),
+            label: columnHeaderText(c.header, String(c.key)),
+            shown,
+            locked: shown && keepsOne && columns.length <= 1,
+          };
+        })}
+        onChange={visibility.setShown}
+        onReset={visibility.reset}
+      />
+    ) : null;
+
   const showToolbar =
-    searchable || filterUi.enabled || toolbarStart !== undefined || toolbarEnd !== undefined || sortBy !== undefined || model.paginated;
+    searchable || filterUi.enabled || columnChooser !== null || toolbarStart !== undefined || toolbarEnd !== undefined || sortBy !== undefined || model.paginated;
   const toolbar = showToolbar ? (
     <Toolbar
       id={id}
       start={toolbarStart}
       end={toolbarEnd}
       extra={
-        filterParts.toolbar || filterParts.toggle ? (
+        filterParts.toolbar || filterParts.toggle || columnChooser ? (
           <>
             {filterParts.toolbar}
             {filterParts.toggle}
+            {columnChooser}
           </>
         ) : undefined
       }
