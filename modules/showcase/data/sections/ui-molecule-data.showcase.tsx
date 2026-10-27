@@ -961,6 +961,7 @@ const [selected, setSelected] = useState<DataTableRowId[]>([]);
           preview: <ColumnChooserDemo />,
           code: `// Opt-in: a "Columns" button in the toolbar. The viewer's choice is saved on this device
 // (localStorage) under tableId and comes back on the next visit; Reset returns to the defaults.
+// Hiding the column the rows are sorted by takes it out of the sort.
 <DataTable<Member>
   rows={members}
   columnChooser

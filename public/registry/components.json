@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-27T08:09:29.959Z",
+  "generatedAt": "2026-10-27T08:52:13.152Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2981,7 +2981,7 @@
         },
         {
           "title": "Column chooser (columnChooser, tableId)",
-          "code": "// Opt-in: a \"Columns\" button in the toolbar. The viewer's choice is saved on this device\n// (localStorage) under tableId and comes back on the next visit; Reset returns to the defaults.\n<DataTable<Member>\n  rows={members}\n  columnChooser\n  tableId=\"team.members\"\n  columns={[\n    { key: 'name', header: 'Name', hideable: false },          // always shown, not in the chooser\n    { key: 'role', header: 'Role' },\n    { key: 'lastActive', header: 'Last active', defaultHidden: true }, // hidden until shown\n  ]}\n/>"
+          "code": "// Opt-in: a \"Columns\" button in the toolbar. The viewer's choice is saved on this device\n// (localStorage) under tableId and comes back on the next visit; Reset returns to the defaults.\n// Hiding the column the rows are sorted by takes it out of the sort.\n<DataTable<Member>\n  rows={members}\n  columnChooser\n  tableId=\"team.members\"\n  columns={[\n    { key: 'name', header: 'Name', hideable: false },          // always shown, not in the chooser\n    { key: 'role', header: 'Role' },\n    { key: 'lastActive', header: 'Last active', defaultHidden: true }, // hidden until shown\n  ]}\n/>"
         },
         {
           "title": "Sticky header (stickyHeader)",

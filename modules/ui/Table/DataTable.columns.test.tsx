@@ -57,6 +57,7 @@ describe('DataTable column chooser', () => {
     const { unmount } = render(<DataTable mode="static" rows={ROWS} columns={COLUMNS} columnChooser tableId="pumps" />);
     const panel = await openChooser(user);
     await user.click(within(panel).getByLabelText('Status'));
+    expect(columnChoicesKey('pumps')).toBe('kui.dataTable.columns.v1.pumps');
     expect(JSON.parse(window.localStorage.getItem(columnChoicesKey('pumps'))!)).toEqual({ status: false });
     unmount();
 
@@ -106,6 +107,86 @@ describe('DataTable column chooser', () => {
     unmount();
     render(<DataTable mode="static" rows={ROWS} columns={columns} columnChooser tableId="bad" />);
     expect(headings()).toEqual(['Name', 'Status']);
+  });
+
+  it('a stored choice that hides every column gives way to the defaults, and the next change starts from them', async () => {
+    const columns: Column<Row>[] = [{ key: 'name', header: 'Name' }, { key: 'status', header: 'Status' }];
+    window.localStorage.setItem(columnChoicesKey('all'), JSON.stringify({ name: false, status: false }));
+    const user = userEvent.setup();
+    render(<DataTable mode="static" rows={ROWS} columns={columns} columnChooser tableId="all" />);
+    const panel = await openChooser(user);
+    await user.click(within(panel).getByLabelText('Status'));
+    expect(headings()).toEqual(['Name']);
+    expect(within(panel).getByLabelText('Status')).not.toBeChecked();
+    expect(JSON.parse(window.localStorage.getItem(columnChoicesKey('all'))!)).toEqual({ status: false });
+  });
+
+  it('keeps a column that shows on every screen: one with hideBelow does not count', async () => {
+    const columns: Column<Row>[] = [
+      { key: 'name', header: 'Name', hideBelow: 'md' },
+      { key: 'status', header: 'Status' },
+      { key: 'owner', header: 'Owner' },
+    ];
+    const user = userEvent.setup();
+    render(<DataTable mode="static" rows={ROWS} columns={columns} columnChooser />);
+    const panel = await openChooser(user);
+    await user.click(within(panel).getByLabelText('Owner'));
+    expect(headings()).toEqual(['Name', 'Status']);
+    expect(within(panel).getByLabelText('Status')).toBeDisabled();
+    expect(within(panel).getByLabelText('Name')).toBeEnabled();
+  });
+
+  it('a Reset in another table with the same tableId brings back the defaults here too', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <div data-testid="one"><DataTable mode="static" rows={ROWS} columns={COLUMNS} columnChooser tableId="x" /></div>
+        <div data-testid="two"><DataTable mode="static" rows={ROWS} columns={COLUMNS} columnChooser tableId="x" /></div>
+      </>,
+    );
+    const one = screen.getByTestId('one');
+    const two = screen.getByTestId('two');
+    const heads = (el: HTMLElement) => within(el).getAllByRole('columnheader').map((h) => h.textContent);
+    await user.click(within(one).getByRole('button', { name: /Columns/ }));
+    await user.click(within(one).getByLabelText('Status'));
+    expect(heads(two)).toEqual(['Name', 'Owner']);
+    await user.click(within(two).getByRole('button', { name: /Columns/ }));
+    await user.click(within(two).getByRole('button', { name: 'Reset' }));
+    expect(heads(one)).toEqual(['Name', 'Status', 'Owner']);
+    await user.click(within(one).getByRole('button', { name: /Columns/ }));
+    expect(within(one).getByRole('button', { name: 'Reset' })).toBeDisabled();
+  });
+
+  it('hiding the column the rows are sorted by takes it out of the sort', async () => {
+    const rows: Row[] = [
+      { id: 'a', name: 'Pump 1', status: 'Running', owner: 'Zed', serial: 'SN-1' },
+      { id: 'b', name: 'Pump 2', status: 'Stopped', owner: 'Ada', serial: 'SN-2' },
+    ];
+    const user = userEvent.setup();
+    render(<DataTable mode="static" rows={rows} columns={COLUMNS} columnChooser defaultSort={[{ key: 'owner', dir: 'asc' }]} />);
+    const firstName = () => within(screen.getAllByRole('row')[1]).getAllByRole('cell')[0].textContent;
+    expect(firstName()).toBe('Pump 2');
+    const panel = await openChooser(user);
+    await user.click(within(panel).getByLabelText('Owner'));
+    expect(firstName()).toBe('Pump 1');
+    // Shown again, the column is not sorted again by itself.
+    await user.click(within(panel).getByLabelText('Owner'));
+    expect(headings()).toEqual(['Name', 'Status', 'Owner']);
+    expect(firstName()).toBe('Pump 1');
+  });
+
+  it('a stored choice that hides the default sort column drops it from the sort', () => {
+    const rows: Row[] = [
+      { id: 'a', name: 'Pump 1', status: 'Running', owner: 'Zed', serial: 'SN-1' },
+      { id: 'b', name: 'Pump 2', status: 'Stopped', owner: 'Ada', serial: 'SN-2' },
+    ];
+    window.localStorage.setItem(columnChoicesKey('sorted'), JSON.stringify({ owner: false }));
+    render(
+      <DataTable mode="static" rows={rows} columns={COLUMNS} columnChooser tableId="sorted"
+        defaultSort={[{ key: 'owner', dir: 'asc' }]} />,
+    );
+    expect(headings()).toEqual(['Name', 'Status']);
+    expect(within(screen.getAllByRole('row')[1]).getAllByRole('cell')[0].textContent).toBe('Pump 1');
   });
 
   it('closes on Escape and gives focus back to its button; no chooser in the card layout', async () => {

@@ -1,6 +1,6 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
-import { Fragment, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Button } from '../Button';
 import { Pagination } from '../Pagination';
@@ -730,6 +730,14 @@ function TableFrame<T extends Record<string, unknown>>({
   const chooser = (props.columnChooser ?? false) && !cards;
   const visibility = useColumnVisibility(props.columns, chooser, props.tableId);
   const columns = visibility.columns;
+  // A column the viewer hides leaves the sort, so the rows are never ordered by a column nobody sees (a multi-sort keeps
+  // the rest in order). A stored choice that hides the default sort's column drops it the same way.
+  const hiddenKeys = JSON.stringify(chooser ? props.columns.filter((c) => !columns.includes(c)).map((c) => String(c.key)) : []);
+  const { sort: currentSort, setSort } = model;
+  useEffect(() => {
+    const hidden = new Set<string>(JSON.parse(hiddenKeys));
+    if (currentSort.some((s) => hidden.has(s.key))) setSort(currentSort.filter((s) => !hidden.has(s.key)));
+  }, [hiddenKeys, currentSort, setSort]);
 
   const searchable = searchableProp ?? true;
   // Sort priority numbers show only once the user has built a multi-column sort, never for a default one.
@@ -803,8 +811,6 @@ function TableFrame<T extends Record<string, unknown>>({
       : undefined;
 
   const hideable = props.columns.filter(isHideable);
-  // The table keeps one column: the last one shown is locked when every column can be hidden.
-  const keepsOne = hideable.length === props.columns.length;
   const columnChooser =
     chooser && hideable.length > 0 ? (
       <ColumnChooser
@@ -820,7 +826,7 @@ function TableFrame<T extends Record<string, unknown>>({
             key: String(c.key),
             label: columnHeaderText(c.header, String(c.key)),
             shown,
-            locked: shown && keepsOne && columns.length <= 1,
+            locked: visibility.isLocked(c),
           };
         })}
         onChange={visibility.setShown}

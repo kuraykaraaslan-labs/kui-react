@@ -169,7 +169,7 @@ describe('DeviceListView', () => {
     expect(within(panel).queryByLabelText('Name')).toBeNull();
     await user.click(within(panel).getByLabelText('Firmware'));
     expect(screen.queryByRole('columnheader', { name: /Firmware/ })).toBeNull();
-    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.iot.devices')!)).toEqual({ firmware: false });
+    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.v1.iot.devices')!)).toEqual({ firmware: false });
     window.localStorage.clear();
   });
 
@@ -423,13 +423,13 @@ describe('AlarmListView', () => {
     let panel = screen.getByRole('dialog', { name: 'Columns' });
     expect(within(panel).queryByLabelText('Alarm')).toBeNull();
     await user.click(within(panel).getByLabelText('Device'));
-    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.iot.alarms')!)).toEqual({ device: false });
+    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.v1.iot.alarms')!)).toEqual({ device: false });
     unmount();
     wrap(<AlarmListView hrefs={{ alarm: (id) => id }} deviceId="d1" now={NOW} />, { adapter: createFakeAdapter() });
     await user.click(await screen.findByRole('button', { name: /Columns/ }));
     panel = screen.getByRole('dialog', { name: 'Columns' });
     await user.click(within(panel).getByLabelText('Status'));
-    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.iot.device.alarms')!)).toEqual({ status: false });
+    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.v1.iot.device.alarms')!)).toEqual({ status: false });
     window.localStorage.clear();
   });
 
