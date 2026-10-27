@@ -13,7 +13,7 @@ import { AssetTree } from './AssetTree';
 import { MoveAssetDialog } from './MoveAssetDialog';
 import { AssetDrawer } from './AssetDrawer';
 import { AssetsView } from './AssetsView';
-import { AssetsMapDrawer } from './AssetsMapDrawer';
+import { AssetsMapDrawer, clusterAlarmText, siteMarkerSize, siteMarkerText } from './AssetsMapDrawer';
 import { AssetFormDrawer } from './AssetFormDrawer';
 import { DevicePlacementPanel } from './DevicePlacementPanel';
 import { PlaceDevicesDialog } from './PlaceDevicesDialog';
@@ -24,10 +24,10 @@ const mapMounts = vi.hoisted(() => ({ n: 0 }));
 vi.mock('@/modules/ui/MapView/MapCanvas', async () => {
   const { useEffect } = await import('react');
   return { MapCanvas: FakeMap };
-  function FakeMap({ markers, onMarkerClick, cluster }: { markers: Array<{ id: string }>; onMarkerClick?: (id: string) => void; cluster?: boolean }) {
+  function FakeMap({ markers, onMarkerClick, cluster, clusterText }: { markers: Array<{ id: string }>; onMarkerClick?: (id: string) => void; cluster?: boolean; clusterText?: (ms: Array<{ id: string }>) => string }) {
     useEffect(() => { mapMounts.n += 1; }, []);
     return (
-    <div data-testid="fake-map" data-markers={JSON.stringify(markers)} data-cluster={String(!!cluster)}>
+    <div data-testid="fake-map" data-markers={JSON.stringify(markers)} data-cluster={String(!!cluster)} data-cluster-text={clusterText?.(markers)}>
       {markers.map((mk) => <button key={mk.id} type="button" onClick={() => onMarkerClick?.(mk.id)}>{`marker ${mk.id}`}</button>)}
     </div>
     );
@@ -488,13 +488,13 @@ describe('AssetsView', () => {
 });
 
 describe('AssetsMapDrawer', () => {
-  it('colours the markers by the worst alarm, narrows to the sites with alarms, and opens a site from the map', async () => {
+  it('draws the sites as circles coloured by the worst alarm with the alarm count inside, narrows to the sites with alarms, and opens a site from the map', async () => {
     const user = userEvent.setup();
     const onOpenSite = vi.fn();
     wrap(<AssetsMapDrawer onClose={() => undefined} summary={SUMMARY} onListAssets={() => undefined} onOpenSite={onOpenSite} alarmsHref={(id) => `/alarms?site=${id}`} />, fakeAssets());
     const map = await screen.findByTestId('fake-map');
     expect(JSON.parse(map.getAttribute('data-markers')!)).toEqual([
-      { id: 'plant', position: [52.5, 13.4], variant: 'error', label: 'Berlin plant', tooltip: { title: 'Berlin plant', description: '3 devices · 3 active' } },
+      { id: 'plant', position: [52.5, 13.4], variant: 'error', shape: 'dot', size: 40, text: '3', label: 'Berlin plant', tooltip: { title: 'Berlin plant', description: '3 devices · 3 active' } },
     ]);
     // the kit's table (check:tables in NB), one site a row, each a button
     const list = screen.getByRole('table', { name: 'Sites' });
@@ -514,10 +514,27 @@ describe('AssetsMapDrawer', () => {
     expect(onOpenSite).toHaveBeenCalledWith('plant');
   });
 
+  it('sizes a site\'s circle by its devices (by area) and puts its active alarm count inside', () => {
+    expect(siteMarkerSize(0, 35)).toBe(22);
+    expect(siteMarkerSize(35, 35)).toBe(40);
+    // a quarter of the devices: half the extra width
+    expect(siteMarkerSize(9, 36)).toBe(31);
+    expect(siteMarkerSize(5, 0)).toBe(22);
+    expect(siteMarkerText(21)).toBe('21');
+    expect(siteMarkerText(0)).toBeUndefined();
+    expect(siteMarkerText(null)).toBeUndefined();
+    expect(siteMarkerText(1200)).toBe('999+');
+    // a cluster adds its sites' alarms up
+    expect(clusterAlarmText([21, 25, null])).toBe('46');
+    expect(clusterAlarmText([0, null])).toBe('');
+  });
+
   it('clusters overlapping sites, fits every site back into view, and gives each control a phone touch target', async () => {
     const user = userEvent.setup();
     wrap(<AssetsMapDrawer onClose={() => undefined} summary={SUMMARY} onListAssets={() => undefined} onOpenSite={() => undefined} />, fakeAssets());
     expect((await screen.findByTestId('fake-map')).getAttribute('data-cluster')).toBe('true');
+    // a cluster of every located site says their active alarms added up
+    expect(screen.getByTestId('fake-map').getAttribute('data-cluster-text')).toBe('3');
     const mounts = mapMounts.n;
     await user.click(screen.getByRole('button', { name: 'Fit all' }));
     // a new map fits itself to the markers

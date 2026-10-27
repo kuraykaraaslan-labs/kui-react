@@ -54,7 +54,7 @@ export default function VenueLeafletMap({
     >
       <RecenterMap lat={lat} lng={lng} />
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
       <Marker position={[lat, lng]} icon={markerIcon} keyboard={interactive} alt={name}>

@@ -8,6 +8,7 @@ vi.mock('@/modules/ui/MapView', async (orig) => ({
 }));
 
 import { MapWidgetView } from '../views/MapView';
+import { MapTilesProvider } from '@/modules/ui/MapView/MapTilesProvider';
 import { MAP } from '../templates/map';
 import { effective } from '../settings/engine';
 import { DEFAULT_WIDGET_KIT_MESSAGES } from '../messages';
@@ -64,6 +65,30 @@ describe('satellite imagery (25.4)', () => {
     expect(on.canvas.tiles).toBe(own);
     // The "theme" style does not use the imagery provider.
     expect(mapModel(settings(), { points: table([]) }, 'en', { ...input, imagery: own }).canvas.tiles).not.toBe(own);
+  });
+});
+
+describe('the installation\'s tile source', () => {
+  const source = { url: 'https://tiles.example.com/{z}/{x}/{y}.png', attribution: 'Example' };
+
+  it('"Follow the theme" draws the MapTilesProvider source (darkened in the dark theme); the host\'s tiles and the other styles win', () => {
+    const view = (over: Record<string, unknown> = {}, tiles?: { url: string; attribution: string }) => (
+      <MapTilesProvider source={source}>
+        <MapWidgetView settings={settings(over)} format={{}} data={{ points: table([]) }} {...(tiles ? { tiles } : {})} />
+      </MapTilesProvider>
+    );
+    const { rerender } = render(view());
+    expect(seen.props!.tiles).toEqual({ light: source, dark: { ...source, dim: true } });
+    rerender(view({ tileStyle: 'streets' }));
+    expect(seen.props!.tiles).toBe(TILE_PRESETS.streets);
+    const own = { url: 'https://own.example.com/{z}/{x}/{y}.png', attribution: 'Own' };
+    rerender(view({}, own));
+    expect(seen.props!.tiles).toBe(own);
+  });
+
+  it('without a source "Follow the theme" keeps its quiet basemap', () => {
+    render(<MapWidgetView settings={settings()} format={{}} data={{ points: table([]) }} />);
+    expect(seen.props!.tiles).toBe(TILE_PRESETS.auto);
   });
 });
 

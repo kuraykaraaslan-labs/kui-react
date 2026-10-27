@@ -15,7 +15,7 @@ export type MapCanvasProps = {
   image?: MapImage;
   center?: [number, number];
   zoom?: number;
-  /** One tile layer for both themes, or a light/dark pair. Default: Esri Light Gray / Dark Gray Canvas. */
+  /** One tile layer for both themes, or a light/dark pair. Default: the installation's `MapTileSource`, else OpenStreetMap. */
   tiles?: MapTilesConfig;
   /** Fit the view to the markers with this padding (px). Default = 32. */
   fitBoundsPadding?: number;

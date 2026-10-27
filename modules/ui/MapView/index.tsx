@@ -21,17 +21,21 @@ export type {
   MapViewProps,
   MapTiles,
   MapTilesConfig,
+  MapTileSource,
   MapMarkerShape,
   MapDisplayOptions,
 } from './types';
 export { safeMarkerColor, safeMarkerIcon, safeMarkerImage } from './types';
 export { MapCanvas } from './MapCanvas';
+export { MapTilesProvider, useMapTileSource } from './MapTilesProvider';
+export { OSM_TILES, OSM_ATTRIBUTION, safeAttribution, safeTileSource, tileSourceTiles } from './tiles';
 export type { MapCanvasProps } from './MapCanvas';
 
 /**
  * MapView — provider-agnostic interactive map.
  *
- * M1: leaflet provider with token-aware tiles (Esri Light Gray / Dark Gray Canvas),
+ * M1: leaflet provider with theme-aware tiles (OpenStreetMap by default, darkened in the dark theme; an
+ * installation's own source through `MapTilesProvider`),
  * fit-to-bounds, and IntersectionObserver-driven lazy loading. mapbox / google
  * adapters are stubbed — switching providers throws until M1+.
  */
@@ -56,13 +60,14 @@ export function MapView({
   tooltipTrigger,
   renderLink,
   clusterRadius,
+  clusterText,
   scrollWheelZoom,
   zoomControl,
   controlsPosition,
   fitMaxZoom,
   onMarkerMove,
 }: MapViewProps) {
-  const display = { minZoom, maxZoom, cluster, showLabels, tooltipTrigger, renderLink, clusterRadius, scrollWheelZoom, zoomControl, controlsPosition, fitMaxZoom, onMarkerMove };
+  const display = { minZoom, maxZoom, cluster, showLabels, tooltipTrigger, renderLink, clusterRadius, clusterText, scrollWheelZoom, zoomControl, controlsPosition, fitMaxZoom, onMarkerMove };
   const { ref, visible } = useInViewport<HTMLDivElement>();
   const [addMode, setAddMode] = useState(false);
   const [showZones, setShowZones] = useState(true);

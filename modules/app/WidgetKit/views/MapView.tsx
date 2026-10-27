@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { MapCanvas, type MapTilesConfig } from '@/modules/ui/MapView';
+import { useMapTileSource } from '@/modules/ui/MapView/MapTilesProvider';
+import { tileSourceTiles } from '@/modules/ui/MapView/tiles';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
 import { useKitMessages } from '../WidgetKitContext';
 import { expandLinkTemplate } from './DataTableView';
@@ -15,7 +17,7 @@ export type MapWidgetViewProps = WidgetViewProps & {
   onMarkerClick?: (row: Row) => void;
   /** Navigate to a marker's (validated, internal) link on click; without it, the link is offered in the tooltip only. */
   onNavigate?: (href: string) => void;
-  /** The platform's tile server, used by the "Follow the theme" style. */
+  /** The platform's tile server, used by the "Follow the theme" style (else the installation's `MapTilesProvider` source). */
   tiles?: MapTilesConfig;
   /** The platform's imagery provider, used by the "Satellite" style (else Esri's keyless imagery). */
   imagery?: MapTilesConfig;
@@ -28,9 +30,12 @@ export type MapWidgetViewProps = WidgetViewProps & {
 
 /** `map`: bound rows as markers on a card-less map that fills the card, with an optional colour legend. */
 export function MapWidgetView({
-  settings, data, locale, renderLink, onMarkerClick, onNavigate, tiles, imagery, loadingLabel, ariaLabel, legendLabel, layerLabels, resolveUrl, onControl, controlDisabledReason,
+  settings, data, locale, renderLink, onMarkerClick, onNavigate, tiles: tilesProp, imagery, loadingLabel, ariaLabel, legendLabel, layerLabels, resolveUrl, onControl, controlDisabledReason,
 }: MapWidgetViewProps) {
   const kit = useKitMessages();
+  // "Follow the theme": the host's tiles, else the installation's source, else the style's own (quiet) basemap.
+  const source = useMapTileSource();
+  const tiles = useMemo(() => tilesProp ?? (source ? tileSourceTiles(source) : undefined), [tilesProp, source]);
   const hasMarkerClick = !!onMarkerClick;
   const hasNavigate = !!onNavigate;
   // A dropped marker is written back through the placement's command, when there is one and it is allowed.

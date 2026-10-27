@@ -39,6 +39,8 @@ export type MapMarker = {
   icon?: string;
   /** Width of the marker in px (a pin is 1.5× as tall). Default = 24; clamped to 8..64. */
   size?: number;
+  /** A short text drawn inside a dot or circle marker (a count): at most 4 characters, escaped. Other shapes ignore it. */
+  text?: string;
   /** An internal path or https address for `shape: 'image'` (checked by `safeMarkerImage`); anything else falls back to a dot. */
   image?: string;
   /** The viewer may drag the marker; `onMarkerMove` is told where it was dropped. */
@@ -88,11 +90,26 @@ export type MapProviderId = 'leaflet' | 'mapbox' | 'google';
 /**
  * One raster tile layer. `url` is a Leaflet URL template ({s}/{z}/{x}/{y}/{r}); `attribution` may
  * contain HTML links. `labels` is an optional transparent overlay (place names) drawn above it.
+ * `subdomains` fills `{s}` (Leaflet's default `abc`); `maxZoom` is the deepest zoom the server has tiles for
+ * (default 16; closer zooms enlarge its tiles); `dim` draws the tiles darkened, a dark rendition of a light map.
  */
-export type MapTiles = { url: string; attribution: string; labels?: string };
+export type MapTiles = { url: string; attribution: string; labels?: string; subdomains?: string | string[]; maxZoom?: number; dim?: boolean };
 
-/** One tile layer for both themes, or a light/dark pair. Default: Esri Light Gray / Dark Gray Canvas. */
+/** One tile layer for both themes, or a light/dark pair. Default: the installation's `MapTileSource`, else OpenStreetMap. */
 export type MapTilesConfig = MapTiles | { light: MapTiles; dark: MapTiles };
+
+/**
+ * An installation's basemap, set once for every map (`MapTilesProvider`): a tile server's URL template (https, with
+ * {z} {x} {y}), its attribution, the `{s}` subdomains, its deepest zoom and, optionally, a dark rendition. Without
+ * `darkUrl` the dark theme draws the same tiles darkened. Default: OpenStreetMap's standard tiles (`OSM_TILES`).
+ */
+export type MapTileSource = {
+  url: string;
+  attribution: string;
+  subdomains?: string | string[];
+  maxZoom?: number;
+  darkUrl?: string;
+};
 
 export type MapViewProps = {
   /** Map provider implementation. Default: 'leaflet'. */
@@ -110,7 +127,7 @@ export type MapViewProps = {
   onMarkerClick?: (id: string) => void;
   height?: string | number;
   className?: string;
-  /** Custom tile server (e.g. a self-hosted or keyed provider). Default: Esri Light Gray / Dark Gray Canvas. */
+  /** Custom tile server (e.g. a self-hosted or keyed provider). Default: the installation's `MapTileSource`, else OpenStreetMap. */
   tiles?: MapTilesConfig;
   /** Text shown while the map chunk / viewport loads. Default = "Loading map…". */
   loadingLabel?: string;
@@ -129,6 +146,11 @@ export type MapDisplayOptions = {
   tooltipTrigger?: 'hover' | 'click' | 'none';
   /** Pixel distance within which `cluster` groups markers. Default = 40. */
   clusterRadius?: number;
+  /**
+   * What a cluster's bubble says (escaped, at most 4 characters; '' for none), from the markers it holds, e.g. the sum of
+   * their counts when each marker carries one in `text`. Default = how many markers it holds.
+   */
+  clusterText?: (markers: MapMarker[]) => string;
   /** Zoom with the mouse wheel. Default = true. */
   scrollWheelZoom?: boolean;
   /** Show the + / − zoom buttons. Default = true. */

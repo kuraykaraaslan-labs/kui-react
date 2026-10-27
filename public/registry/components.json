@@ -6713,8 +6713,8 @@
       "category": "Molecule",
       "filePath": "modules/ui/MapView/MapCanvas.tsx",
       "abbr": "Mc",
-      "description": "The card-less Leaflet canvas behind MapView: it fills its parent (give the parent a height), takes markers, zones and routes, and accepts a custom tile configuration (`tiles.url` + `tiles.attribution`). Use it inside a dashboard tile or panel that already has its own frame; use MapView for a standalone map card.",
-      "source": "'use client';\nimport { MapCanvas } from '@/modules/ui/MapView';\n\n<div className=\"h-72 overflow-hidden rounded-lg border border-border\">\n  <MapCanvas\n    center={[40.5, 30.5]}\n    zoom={6}\n    markers={[{ id: 'a', position: [41.015, 28.979], variant: 'success', tooltip: { title: 'Gateway 1' } }]}\n    tiles={{ url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' }}\n  />\n</div>",
+      "description": "The card-less Leaflet canvas behind MapView: it fills its parent (give the parent a height), takes markers, zones and routes, and draws OpenStreetMap's standard tiles by default (darkened in the dark theme). An installation sets its own tile source once with `MapTilesProvider` (URL template, attribution, subdomains, deepest zoom, optional dark URL); one map can still pass its own `tiles` (`tiles.url` + `tiles.attribution`). Use it inside a dashboard tile or panel that already has its own frame; use MapView for a standalone map card.",
+      "source": "'use client';\nimport { MapCanvas } from '@/modules/ui/MapView';\n\n<div className=\"h-72 overflow-hidden rounded-lg border border-border\">\n  <MapCanvas\n    center={[40.5, 30.5]}\n    zoom={6}\n    markers={[{ id: 'a', position: [41.015, 28.979], variant: 'success', tooltip: { title: 'Gateway 1' } }]}\n    tiles={{ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri' }}\n  />\n</div>",
       "variants": [
         {
           "title": "Default tiles",
@@ -6722,7 +6722,7 @@
         },
         {
           "title": "Custom tiles",
-          "code": "<div className=\"h-72\">\n  <MapCanvas markers={markers} tiles={{ url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' }} />\n</div>"
+          "code": "<div className=\"h-72\">\n  <MapCanvas markers={markers} tiles={{ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri' }} />\n</div>"
         }
       ],
       "status": "beta",

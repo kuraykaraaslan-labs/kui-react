@@ -209,7 +209,7 @@ function CanvasDemo({ tiles }: { tiles?: boolean }) {
         center={[40.5, 30.5]}
         zoom={6}
         markers={GATEWAYS}
-        {...(tiles ? { tiles: { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' } } : {})}
+        {...(tiles ? { tiles: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri' } } : {})}
         loadingLabel="Loading map…"
       />
     </div>
@@ -317,7 +317,7 @@ import { MapView } from '@/modules/ui/MapView';
       since: '2026-10',
       status: 'beta',
       description:
-        'The card-less Leaflet canvas behind MapView: it fills its parent (give the parent a height), takes markers, zones and routes, and accepts a custom tile configuration (`tiles.url` + `tiles.attribution`). Use it inside a dashboard tile or panel that already has its own frame; use MapView for a standalone map card.',
+        'The card-less Leaflet canvas behind MapView: it fills its parent (give the parent a height), takes markers, zones and routes, and draws OpenStreetMap\'s standard tiles by default (darkened in the dark theme). An installation sets its own tile source once with `MapTilesProvider` (URL template, attribution, subdomains, deepest zoom, optional dark URL); one map can still pass its own `tiles` (`tiles.url` + `tiles.attribution`). Use it inside a dashboard tile or panel that already has its own frame; use MapView for a standalone map card.',
       filePath: 'modules/ui/MapView/MapCanvas.tsx',
       relatedTo: ['map-view'],
       designTokens: ['--border', '--surface-raised', '--text-secondary'],
@@ -330,7 +330,7 @@ import { MapCanvas } from '@/modules/ui/MapView';
     center={[40.5, 30.5]}
     zoom={6}
     markers={[{ id: 'a', position: [41.015, 28.979], variant: 'success', tooltip: { title: 'Gateway 1' } }]}
-    tiles={{ url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' }}
+    tiles={{ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri' }}
   />
 </div>`,
       variants: [
@@ -344,7 +344,7 @@ import { MapCanvas } from '@/modules/ui/MapView';
           title: 'Custom tiles',
           layout: 'stack' as const,
           preview: <CanvasDemo tiles />,
-          code: `<div className="h-72">\n  <MapCanvas markers={markers} tiles={{ url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: '&copy; OpenStreetMap contributors' }} />\n</div>`,
+          code: `<div className="h-72">\n  <MapCanvas markers={markers} tiles={{ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Tiles &copy; Esri' }} />\n</div>`,
         },
       ],
     },
