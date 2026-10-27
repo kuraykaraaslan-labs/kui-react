@@ -354,6 +354,9 @@ All notable changes to this project will be documented here. Format follows [Kee
   take the same two. New tokens `--accent`, `--accent-hover`, `--accent-fg` (light and dark, in `styles/index.css`; a host maps
   them to `--color-accent*` as it maps the others), defaulting to the old secondary colours. The theme pages' coloured
   calls to action use `accent`. kui-ejs and KUInative follow.
+- `useFocusTrap` (Modal, Drawer, Popover): Tab with focus in another dialog layered over the overlay (one not on the trap's
+  stack, such as a host's confirm portaled to `<body>`) is left to that dialog; Shift+Tab pulled focus back into the
+  overlay before. Escape an inner control already handled (`defaultPrevented`) still leaves the overlay open.
 - `Select`: the native (non-searchable, icon-free) mode draws the chevron the custom Select and `MultiSelect` show
   (`faChevronDown`, `w-3 h-3 text-text-disabled`, `right-3`; the select is `pr-8`). `appearance-none` had removed the
   browser arrow, so a plain Select did not read as a dropdown.

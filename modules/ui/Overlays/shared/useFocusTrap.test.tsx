@@ -86,6 +86,28 @@ describe('useFocusTrap', () => {
     expect(screen.getByRole('button', { name: 'Last' })).toHaveFocus();
   });
 
+  it('leaves Tab to a dialog layered over it (one not on the stack, a confirm portaled to <body>), and still pulls stray focus back', async () => {
+    render(
+      <>
+        <TrapHarness active onEscape={() => {}} />
+        <div role="alertdialog" aria-label="Discard?"><button>Keep</button><button>Discard</button></div>
+      </>,
+    );
+    await waitFor(() => expect(screen.getByRole('button', { name: 'First' })).toHaveFocus());
+    const keep = screen.getByRole('button', { name: 'Keep' });
+    keep.focus();
+    const back = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+    keep.dispatchEvent(back);
+    expect(back.defaultPrevented).toBe(false);
+    expect(keep).toHaveFocus();
+    // focus outside every dialog is still the trap's to bring back
+    screen.getByRole('button', { name: 'Outside after' }).focus();
+    const stray = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(stray);
+    expect(stray.defaultPrevented).toBe(true);
+    expect(screen.getByRole('button', { name: 'Last' })).toHaveFocus();
+  });
+
   it('calls onEscape when Escape is pressed while active', async () => {
     const onEscape = vi.fn();
     const user = userEvent.setup();

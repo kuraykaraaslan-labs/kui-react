@@ -12,6 +12,9 @@ import { useEffect, useCallback } from 'react';
  *   topmost active trap reacts to Tab/Escape.
  * - An Escape whose `defaultPrevented` is set was handled by a control
  *   inside the overlay (an open dropdown) and does not dismiss it.
+ * - Tab with focus in another dialog layered over the overlay (one that is
+ *   not on this stack, e.g. a host's confirm portaled to <body>) is that
+ *   dialog's to move: the trap does not pull focus back.
  */
 
 const FOCUSABLE =
@@ -86,6 +89,11 @@ export function useFocusTrap(
 
       const container = ref.current;
       if (!container) return;
+
+      // Focus in a dialog layered over this one (not on the stack, so it is not the top layer here) is that dialog's to move.
+      const current = document.activeElement;
+      const layer = current?.closest('[role="dialog"], [role="alertdialog"]');
+      if (layer && !layer.contains(container) && !container.contains(current)) return;
 
       // Skip sentinel guards if present.
       const focusable = Array.from(
