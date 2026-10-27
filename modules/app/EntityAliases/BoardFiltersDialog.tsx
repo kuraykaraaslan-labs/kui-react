@@ -1,13 +1,15 @@
 'use client';
 // The board's filter list (TB's filters dialog): numbered rows with the name, the filter as one line, edit and remove;
 // "Add filter"; Save / Cancel. Edits stay local until Save. A filter a widget uses cannot be removed: the dialog names
-// the widgets instead (TB's "Unable to delete filter"), as the aliases dialog does.
+// the widgets instead (TB's "Unable to delete filter"), as the aliases dialog does. Closing with an unsaved edit (X, Escape,
+// Cancel) asks first: Discard, or Keep editing.
 
 import { useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFilter, faPen, faPlus, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
+import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { EmptyState } from '@/modules/ui/EmptyState';
 import { Modal } from '@/modules/ui/Modal';
 import { BoardFilterDialog } from './BoardFilterDialog';
@@ -58,6 +60,7 @@ export function BoardFiltersDialog({
   const [editing, setEditing] = useState<number | null>(null); // -1 = adding
   const [blocked, setBlocked] = useState<{ name: string; widgets: readonly string[] } | null>(null);
   const [rowErrors, setRowErrors] = useState<{ list?: string; byIndex: BoardFilterErrors[] } | null>(null);
+  const [confirmingClose, setConfirmingClose] = useState(false);
 
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
@@ -68,8 +71,15 @@ export function BoardFiltersDialog({
       setEditing(null);
       setBlocked(null);
       setRowErrors(null);
+      setConfirmingClose(false);
     }
   }
+
+  // An edit is never dropped silently: closing with one asks first.
+  const requestClose = () => {
+    if (dirty) setConfirmingClose(true);
+    else onClose();
+  };
 
   const change = (next: BoardFilter[]) => {
     setList(next);
@@ -106,7 +116,7 @@ export function BoardFiltersDialog({
     <>
       <Modal
         open={open}
-        onClose={onClose}
+        onClose={requestClose}
         title={heading}
         closeLabel={m.close}
         closeOnBackdropClick={false}
@@ -126,7 +136,7 @@ export function BoardFiltersDialog({
               </Button>
             )}
             <span className="flex-1" />
-            <Button variant="ghost" onClick={onClose}>{m.cancel}</Button>
+            <Button variant="ghost" onClick={requestClose}>{m.cancel}</Button>
             <Button onClick={save} disabled={!dirty}>{m.save}</Button>
           </div>
         }
@@ -226,6 +236,18 @@ export function BoardFiltersDialog({
         }}
         onClose={() => setEditing(null)}
         messages={messages}
+      />
+
+      <ConfirmDialog
+        open={open && confirmingClose}
+        tone="danger"
+        title={m.discardTitle}
+        message={m.discardFiltersBody}
+        confirmLabel={m.discard}
+        cancelLabel={m.keepEditing}
+        closeLabel={m.close}
+        onConfirm={() => { setConfirmingClose(false); onClose(); }}
+        onCancel={() => setConfirmingClose(false)}
       />
     </>
   );

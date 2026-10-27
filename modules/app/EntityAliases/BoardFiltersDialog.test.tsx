@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react';
 import { BoardFiltersDialog, filterRemovalBlockers } from './BoardFiltersDialog';
 import { BoardFilterDialog } from './BoardFilterDialog';
 import { demoAccess } from './demo-access';
@@ -84,6 +84,33 @@ describe('BoardFiltersDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit filter Pumps' }));
     expect(screen.getByRole('dialog', { name: 'Edit filter' })).toBeInTheDocument();
     expect((screen.getByLabelText(/^Filter name/) as HTMLInputElement).value).toBe('Pumps');
+  });
+
+  it('closes at once with nothing changed; with an unsaved edit, X, Escape and Cancel ask first', () => {
+    const clean = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(clean.onClose).toHaveBeenCalledTimes(1);
+    cleanup();
+
+    const { onClose, onSave } = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove filter Pumps' }));
+    for (const close of [
+      () => fireEvent.click(screen.getByRole('button', { name: 'Cancel' })),
+      () => fireEvent.keyDown(document, { key: 'Escape' }),
+      () => fireEvent.click(within(screen.getByRole('dialog', { name: 'Filters' })).getAllByRole('button', { name: 'Close' })[0]),
+    ]) {
+      close();
+      const ask = screen.getByRole('dialog', { name: 'Discard unsaved changes?' });
+      expect(onClose).not.toHaveBeenCalled();
+      fireEvent.click(within(ask).getByRole('button', { name: 'Keep editing' }));
+      expect(screen.queryByRole('dialog', { name: 'Discard unsaved changes?' })).toBeNull();
+      // the edit is still there
+      expect(screen.queryByText('Pumps')).toBeNull();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Discard unsaved changes?' })).getByRole('button', { name: 'Discard' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('hides "Add filter" with disableAdd and shows the empty state without filters', () => {

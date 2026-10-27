@@ -253,6 +253,11 @@ export interface EntityAliasesMessages {
   removeFilterBlocked: (name: string) => string;
   tooManyFilters: (max: number) => string;
   invalidFilters: string;
+  /** Asked when the filters dialog closes with an unsaved edit. */
+  discardTitle: string;
+  discardFiltersBody: string;
+  discard: string;
+  keepEditing: string;
 
   // ---- filter dialog (one filter) ----
   filterName: string;
@@ -667,6 +672,10 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   removeFilterBlocked: (name) => `Filter '${name}' can't be deleted as it is used by the following widgets:`,
   tooManyFilters: (max) => `A board holds at most ${max} filters.`,
   invalidFilters: 'Some filters are not valid. Edit the ones marked below before saving.',
+  discardTitle: 'Discard unsaved changes?',
+  discardFiltersBody: 'The changes you made to the filters are not saved. Discard them, or keep editing and save them.',
+  discard: 'Discard',
+  keepEditing: 'Keep editing',
 
   filterName: 'Filter name',
   filterKeyHint: 'Widgets refer to the filter by this key. It is derived from the name and does not change once the filter is added.',
