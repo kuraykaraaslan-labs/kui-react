@@ -1,7 +1,30 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { Button } from './Button';
+
+// WCAG relative luminance and contrast ratio of two #rrggbb colours.
+function luminance(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+// The value of a token in the first block of `css` that opens with `selector`.
+function token(css: string, selector: string, name: string): string {
+  const start = css.indexOf(`${selector} {`);
+  const block = css.slice(start, css.indexOf('}', start));
+  const match = block.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{6});`));
+  if (start < 0 || !match) throw new Error(`${name} not found in ${selector}`);
+  return match[1];
+}
 
 describe('Button', () => {
   it('renders children', () => {
@@ -40,6 +63,18 @@ describe('Button', () => {
     const accent = screen.getByRole('button').className;
     expect(accent).toContain('text-accent-fg');
     expect(accent).toContain('hover:bg-accent-hover');
+  });
+
+  it('the accent tokens keep their label readable (WCAG AA 4.5:1) at rest and on hover, light and dark', () => {
+    for (const file of ['styles/index.css', 'app/globals.css']) {
+      const css = readFileSync(join(process.cwd(), file), 'utf8');
+      for (const selector of [':root', '.dark']) {
+        const fg = token(css, selector, '--accent-fg');
+        for (const fill of ['--accent', '--accent-hover']) {
+          expect(contrast(token(css, selector, fill), fg), `${file} ${selector} ${fill}`).toBeGreaterThanOrEqual(4.5);
+        }
+      }
+    }
   });
 
   it('disabled sets the attribute and the disabled: classes', () => {

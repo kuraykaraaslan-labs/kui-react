@@ -54,7 +54,7 @@ const DESIGN_TOKENS: RegistryToken[] = [
   { name: '--primary-subtle',  light: '#eff6ff', purpose: 'Tinted backgrounds' },
   { name: '--primary-fg',      light: '#ffffff', purpose: 'Text on primary' },
   { name: '--secondary',       light: '#8b5cf6', purpose: 'Second palette colour (tints, charts)' },
-  { name: '--accent',          light: '#8b5cf6', purpose: 'Coloured alternative action (Button accent)' },
+  { name: '--accent',          light: '#7c3aed', purpose: 'Coloured alternative action (Button accent)' },
   { name: '--accent-fg',       light: '#ffffff', purpose: 'Text on accent' },
   { name: '--surface-base',    light: '#ffffff', purpose: 'Page background' },
   { name: '--surface-raised',  light: '#f9fafb', purpose: 'Cards' },

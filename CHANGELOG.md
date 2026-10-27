@@ -352,8 +352,9 @@ All notable changes to this project will be documented here. Format follows [Kee
   beside a primary (Cancel, Back) no longer takes the second brand colour. The new `accent` variant carries it
   (`bg-accent text-accent-fg hover:bg-accent-hover`) for an alternative that is meant to be coloured; `PageHeader` actions
   take the same two. New tokens `--accent`, `--accent-hover`, `--accent-fg` (light and dark, in `styles/index.css`; a host maps
-  them to `--color-accent*` as it maps the others), defaulting to the old secondary colours. The theme pages' coloured
-  calls to action use `accent`. kui-ejs and KUInative follow.
+  them to `--color-accent*` as it maps the others). Their defaults pass WCAG AA: light `#7c3aed` / hover `#6d28d9` with
+  white text, dark `#a78bfa` / hover `#c4b5fd` with `#0f172a` text (the old secondary pairs read 4.2:1 light and 2.7:1
+  dark, 1.85:1 on the dark hover). The theme pages' coloured calls to action use `accent`. kui-ejs and KUInative follow.
 - `useFocusTrap` (Modal, Drawer, Popover): Tab with focus in another dialog layered over the overlay (one not on the trap's
   stack, such as a host's confirm portaled to `<body>`) is left to that dialog; Shift+Tab pulled focus back into the
   overlay before. Escape an inner control already handled (`defaultPrevented`) still leaves the overlay open.
