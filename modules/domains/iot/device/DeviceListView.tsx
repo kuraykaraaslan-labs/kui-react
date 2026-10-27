@@ -1,18 +1,16 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faPowerOff } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column, DataTableRowId } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField, DataTableFilterValues, DataTableQuery, DataTableRowId } from '@/modules/ui/Table/types';
 import { PageHeader } from '@/modules/ui/PageHeader';
-import { Pagination } from '@/modules/ui/Pagination';
-import { SearchBar } from '@/modules/ui/SearchBar';
-import { Select } from '@/modules/ui/Select';
-import { errorMessage, type DeviceListQuery, type DeviceOnlineFilter } from '../api/adapter';
+import { errorMessage, DEVICE_SORT_KEYS, type DeviceListQuery, type DeviceOnlineFilter } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
+import { LIST_PAGE_SIZES, choiceOf, sameSort, toIotSort, toTableSort } from '../api/list-table';
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime, formatRelative, toDate } from '../format';
 import type { DeviceRecord, DeviceRegistryStatus, DeviceStatePatch } from '../types/device';
@@ -22,9 +20,10 @@ import { DeviceQuickView } from './DeviceQuickView';
 import { NewDeviceDrawer } from './NewDeviceDrawer';
 
 /**
- * DeviceListView — the device list (phase 01 §1.1, NB iot_device 05 §5.3), read through the adapter: search and filters
- * (profile, connection incl. "last seen only", status, gateway), server paging, the connection badge that follows the
- * profile's online rule, firmware and last seen. A "Quarantined (n)" quick filter (OD-1, counted toward the device limit,
+ * DeviceListView — the device list (phase 01 §1.1, NB iot_device 05 §5.3), read through the adapter, on the DataTable's own
+ * toolbar: search, the Filters panel (profile, connection incl. "last seen only", status, gateway), sortable columns (name,
+ * connection, last seen), rows per page and server paging; the connection badge that follows the profile's online rule,
+ * firmware and last seen. A "Quarantined (n)" quick filter (OD-1, counted toward the device limit,
  * OD-75) and, where the host offers activation, bulk "Activate" (at most 100). "New device" opens a drawer that shows the new
  * token once. Rows follow `deviceState('*')` live; without a live source the page re-reads every 30 s.
  *
@@ -43,6 +42,8 @@ export type DeviceListViewProps = {
 };
 
 const MAX_ACTIVATE = 100;
+const ONLINE: readonly DeviceOnlineFilter[] = ['online', 'offline', 'last_seen'];
+const STATUSES: readonly DeviceRegistryStatus[] = ['ACTIVE', 'QUARANTINED', 'DISABLED'];
 
 export function applyStatePatch(d: DeviceRecord, p: DeviceStatePatch): DeviceRecord {
   return {
@@ -66,7 +67,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
 
   const [query, setQuery] = useState<DeviceListQuery>(() => {
     const { device: _open, ...rest } = initialQuery ?? {};
-    return { page: 1, pageSize, ...rest };
+    return { ...rest, page: rest.page ?? 1, pageSize: rest.pageSize ?? pageSize };
   });
   // the quick view: which device is open (from the URL too), and a device that is not on this page, read on its own
   const urlDevice = initialQuery?.device ?? null;
@@ -88,7 +89,6 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [creating, setCreating] = useState(false);
   const [activating, setActivating] = useState(false);
-  const [searchText, setSearchText] = useState(query.search ?? '');
   const queryRef = useRef(query);
   useEffect(() => { queryRef.current = query; }, [query]);
   const openRef = useRef(openId);
@@ -143,7 +143,6 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
     return () => ctrl.abort();
   }, [api, openId, listed, onPage, m.detail.loadError]);
 
-  const changeRef = useRef<(patch: Partial<DeviceListQuery>) => void>(() => undefined);
   function change(patch: Partial<DeviceListQuery>) {
     const next = { ...queryRef.current, ...patch, page: patch.page ?? 1 };
     setQuery(next);
@@ -167,12 +166,23 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
       }, 0);
     }
   }
-  useEffect(() => { changeRef.current = change; });
-  useEffect(() => {
-    if ((queryRef.current.search ?? '') === searchText) return;
-    const t = setTimeout(() => changeRef.current({ search: searchText || undefined }), 300);
-    return () => clearTimeout(t);
-  }, [searchText]);
+  /** The table's page, rows per page, sort or search changed (it reports its query on mount too: nothing then). */
+  function tableQuery(t: DataTableQuery) {
+    const cur = queryRef.current;
+    const sort = toIotSort(t.sort, DEVICE_SORT_KEYS);
+    const search = t.search || undefined;
+    if (t.page === cur.page && t.pageSize === cur.pageSize && search === (cur.search || undefined) && sameSort(sort, cur.sort)) return;
+    change({ page: t.page, pageSize: t.pageSize, search, sort });
+  }
+  /** The Filters panel was applied (back to page 1). */
+  function filtersChanged(v: DataTableFilterValues) {
+    change({
+      profileId: typeof v.profileId === 'string' && v.profileId ? v.profileId : undefined,
+      online: choiceOf(v.online, ONLINE),
+      status: choiceOf(v.status, STATUSES),
+      gateway: v.gateway === 'true' ? true : v.gateway === 'false' ? false : undefined,
+    });
+  }
 
   const state = useLiveOrPoll({
     key: '*',
@@ -206,13 +216,30 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
 
   const profileName = (id: string, fallback?: string | null) => fallback ?? profiles.find((p) => p.id === id)?.name ?? '—';
   const canActivate = caps.canActivateDevice && !!api?.activate && query.status === 'QUARANTINED';
-  const pages = Math.max(1, Math.ceil(total / query.pageSize));
-  const any = { value: '', label: m.common.any };
+  const filterFields = useMemo((): DataTableFilterField<DeviceRecord>[] => [
+    { id: 'profileId', label: m.devices.profile, type: 'select', options: profiles.map((p) => ({ value: p.id, label: p.name })) },
+    {
+      id: 'online', label: m.devices.connection, type: 'select',
+      options: [{ value: 'online', label: m.device.online }, { value: 'offline', label: m.device.offline }, { value: 'last_seen', label: m.devices.lastSeenOnly }],
+    },
+    {
+      id: 'status', label: m.devices.status, type: 'select',
+      options: [{ value: 'ACTIVE', label: m.devices.active }, { value: 'QUARANTINED', label: m.device.quarantined }, { value: 'DISABLED', label: m.device.disabled }],
+    },
+    { id: 'gateway', label: m.devices.gateway, type: 'select', options: [{ value: 'true', label: m.common.yes }, { value: 'false', label: m.common.no }] },
+  ], [profiles, m]);
+  const filterValues = useMemo((): DataTableFilterValues => ({
+    ...(query.profileId ? { profileId: query.profileId } : {}),
+    ...(query.online ? { online: query.online } : {}),
+    ...(query.status ? { status: query.status } : {}),
+    ...(query.gateway !== undefined ? { gateway: String(query.gateway) } : {}),
+  }), [query.profileId, query.online, query.status, query.gateway]);
 
   const columns: Column<DeviceRecord>[] = [
     {
       key: 'name',
       header: m.devices.name,
+      sortable: true,
       render: (d) => (
         <a href={hrefs.device(d.deviceId)} className="flex min-w-0 flex-col rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <span className="flex items-center gap-1.5 truncate font-medium text-text-primary hover:text-primary">
@@ -226,6 +253,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
     {
       key: 'connection',
       header: m.devices.connection,
+      sortable: true,
       render: (d) => (
         <DeviceConnectionBadge online={d.online} status={d.status} lastActivityAt={d.lastActivityAt} lastDisconnectReason={d.lastDisconnectReason} size="sm" now={now} />
       ),
@@ -242,6 +270,7 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
       key: 'lastSeen',
       header: m.devices.lastSeen,
       hideBelow: 'sm',
+      sortable: true,
       render: (d) => <span className="text-xs text-text-secondary" title={formatDateTime(d.lastActivityAt, { locale })}>{formatRelative(d.lastActivityAt, { locale, now })}</span>,
     },
   ];
@@ -282,32 +311,20 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
         <span className="ml-auto text-xs text-text-secondary" aria-live="polite">{state === 'live' ? m.common.live : m.common.polling}</span>
       </div>
 
-      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))]">
-        <SearchBar placeholder={m.devices.search} value={searchText} onChange={setSearchText} onClear={() => setSearchText('')} />
-        <Select id="device-filter-profile" label={m.devices.profile} value={query.profileId ?? ''} onChange={(e) => change({ profileId: e.target.value || undefined })}
-          options={[any, ...profiles.map((p) => ({ value: p.id, label: p.name }))]} />
-        <Select id="device-filter-online" label={m.devices.connection} value={query.online ?? ''} onChange={(e) => change({ online: (e.target.value || undefined) as DeviceOnlineFilter | undefined })}
-          options={[any, { value: 'online', label: m.device.online }, { value: 'offline', label: m.device.offline }, { value: 'last_seen', label: m.devices.lastSeenOnly }]} />
-        <Select id="device-filter-status" label={m.devices.status} value={query.status ?? ''} onChange={(e) => change({ status: (e.target.value || undefined) as DeviceRegistryStatus | undefined })}
-          options={[any, { value: 'ACTIVE', label: m.devices.active }, { value: 'QUARANTINED', label: m.device.quarantined }, { value: 'DISABLED', label: m.device.disabled }]} />
-        <Select id="device-filter-gateway" label={m.devices.gateway} value={query.gateway === undefined ? '' : String(query.gateway)} onChange={(e) => change({ gateway: e.target.value === '' ? undefined : e.target.value === 'true' })}
-          options={[any, { value: 'true', label: m.common.yes }, { value: 'false', label: m.common.no }]} />
-      </div>
-
-      {canActivate && selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-overlay px-3 py-2">
-          <Button variant="primary" size="sm" loading={activating} onClick={() => void activate()} iconLeft={<FontAwesomeIcon icon={faPowerOff} className="h-3 w-3" aria-hidden="true" />}>
-            {fill(m.devices.activateSelected, { n: Math.min(selected.size, MAX_ACTIVATE) })}
-          </Button>
-        </div>
-      )}
-
       <DataTable<DeviceRecord>
         mode="manual"
-        variant="plain"
         caption={m.devices.title}
         columns={columns}
         rows={items}
+        total={total}
+        query={{ page: query.page, pageSize: query.pageSize, sort: toTableSort(query.sort), search: query.search ?? '' }}
+        onQueryChange={tableQuery}
+        multiSort={false}
+        searchPlaceholder={m.devices.search}
+        filterFields={filterFields}
+        filterValues={filterValues}
+        onFilterValuesChange={filtersChanged}
+        pageSizeOptions={LIST_PAGE_SIZES}
         rowId={(d) => d.deviceId}
         onRowClick={(d) => openDevice(d.deviceId, openRef.current ? 'replace' : 'push')}
         rowClassName={(d) => (d.deviceId === openId ? 'bg-surface-overlay' : undefined)}
@@ -316,21 +333,18 @@ export function DeviceListView({ hrefs, initialQuery, onQueryChange, pageSize = 
         onSelectionChange={canActivate ? (ids: DataTableRowId[]) => { const next = new Set(ids.map(String)); setSelected(new Set([...next].slice(0, MAX_ACTIVATE))); } : undefined}
         isRowSelectable={(d) => (d.status === 'QUARANTINED' ? true : m.devices.active)}
         rowSelectLabel={(d) => fill(m.common.selectRow, { name: d.name })}
+        bulkActions={canActivate ? () => (
+          <Button variant="primary" size="sm" loading={activating} onClick={() => void activate()} iconLeft={<FontAwesomeIcon icon={faPowerOff} className="h-3 w-3" aria-hidden="true" />}>
+            {fill(m.devices.activateSelected, { n: Math.min(selected.size, MAX_ACTIVATE) })}
+          </Button>
+        ) : undefined}
         loading={loadedKey !== JSON.stringify(query)}
         error={error || undefined}
         onRetry={() => void load(queryRef.current)}
         emptyMessage={m.devices.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
-        searchable={false}
-        pageSizeOptions={[]}
         keyboardNavigation
       />
-
-      {pages > 1 && (
-        <div className="flex justify-center">
-          <Pagination page={query.page} totalPages={pages} onPageChange={(page) => change({ page })} size="sm" />
-        </div>
-      )}
 
       {openId && (
         <DeviceQuickView

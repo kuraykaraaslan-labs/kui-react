@@ -1,26 +1,25 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlus, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField, DataTableFilterValues, DataTableQuery } from '@/modules/ui/Table/types';
 import { PageHeader } from '@/modules/ui/PageHeader';
-import { Pagination } from '@/modules/ui/Pagination';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
-import { SearchBar } from '@/modules/ui/SearchBar';
-import { Select } from '@/modules/ui/Select';
-import { errorMessage, type ProfileListQuery } from '../api/adapter';
+import { PROFILE_SORT_KEYS, errorMessage, type ProfileListQuery } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
+import { LIST_PAGE_SIZES, choiceOf, sameSort, toIotSort, toTableSort } from '../api/list-table';
 import { fill, formatDateTime, formatRelative } from '../format';
-import { ONLINE_RULES, type DeviceProfile, type DeviceProfileUsage, type OnlineRule, type ProfileTransport } from '../types/profile';
+import { ONLINE_RULES, type DeviceProfile, type DeviceProfileUsage, type ProfileTransport } from '../types/profile';
 import { NewDeviceProfileDrawer } from './NewDeviceProfileDrawer';
 
 /**
- * DeviceProfileListView — the device profiles of a workspace (phase 01 §1.4; NB iot_device_profile 03 §3.3), read through the adapter:
- * search, transport and online-rule filters, server paging; the default first with its star; the device count of each profile from the
+ * DeviceProfileListView — the device profiles of a workspace (phase 01 §1.4; NB iot_device_profile 03 §3.3), read through the adapter,
+ * on the DataTable's own toolbar: search, the Filters panel (transport, online rule), sortable columns (name, transport, online rule,
+ * updated), rows per page and server paging; without a sort the default first with its star; the device count of each profile from the
  * host's usage answer, refreshed every 30 s. With `canManageProfiles`: "New profile" (the online rule is chosen explicitly, OD-63),
  * "Make default" and delete. A delete names what still uses the profile; the default profile and a profile in use are refused by the
  * host, and its answer is shown as it comes.
@@ -45,15 +44,15 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
   const caps = useIotCapabilities();
   const notify = useIotNotify();
   const { m, locale } = useIotText();
-  const transports = api?.transports ?? (['MQTT', 'HTTP', 'ANY'] as ProfileTransport[]);
+  const hostTransports = api?.transports;
+  const transports = useMemo(() => hostTransports ?? (['MQTT', 'HTTP', 'ANY'] as ProfileTransport[]), [hostTransports]);
 
-  const [query, setQuery] = useState<ProfileListQuery>(() => ({ page: 1, pageSize, ...initialQuery }));
+  const [query, setQuery] = useState<ProfileListQuery>(() => ({ ...initialQuery, page: initialQuery?.page ?? 1, pageSize: initialQuery?.pageSize ?? pageSize }));
   const [items, setItems] = useState<DeviceProfile[]>([]);
   const [total, setTotal] = useState(0);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [usage, setUsage] = useState<Record<string, DeviceProfileUsage>>({});
-  const [searchText, setSearchText] = useState(query.search ?? '');
   const [creating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const queryRef = useRef(query);
@@ -89,18 +88,31 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
     return () => ctrl.abort();
   }, [load, query]);
 
-  const changeRef = useRef<(patch: Partial<ProfileListQuery>) => void>(() => undefined);
   function change(patch: Partial<ProfileListQuery>) {
     const next = { ...queryRef.current, ...patch, page: patch.page ?? 1 };
     setQuery(next);
     onQueryChange?.(next);
   }
-  useEffect(() => { changeRef.current = change; });
-  useEffect(() => {
-    if ((queryRef.current.search ?? '') === searchText) return;
-    const t = setTimeout(() => changeRef.current({ search: searchText || undefined }), 300);
-    return () => clearTimeout(t);
-  }, [searchText]);
+  /** The table's page, rows per page, sort or search changed (it reports its query on mount too: nothing then). */
+  function tableQuery(t: DataTableQuery) {
+    const cur = queryRef.current;
+    const sort = toIotSort(t.sort, PROFILE_SORT_KEYS);
+    const search = t.search || undefined;
+    if (t.page === cur.page && t.pageSize === cur.pageSize && search === (cur.search || undefined) && sameSort(sort, cur.sort)) return;
+    change({ page: t.page, pageSize: t.pageSize, search, sort });
+  }
+  /** The Filters panel was applied (back to page 1). */
+  function filtersChanged(v: DataTableFilterValues) {
+    change({ transportType: choiceOf(v.transportType, transports), onlineRule: choiceOf(v.onlineRule, ONLINE_RULES) });
+  }
+  const filterFields = useMemo((): DataTableFilterField<DeviceProfile>[] => [
+    { id: 'transportType', label: m.profiles.transport, type: 'select', options: transports.map((t) => ({ value: t, label: m.transport[t] })) },
+    { id: 'onlineRule', label: m.profiles.onlineRule, type: 'select', options: ONLINE_RULES.map((r) => ({ value: r, label: m.online[r] })) },
+  ], [transports, m]);
+  const filterValues = useMemo((): DataTableFilterValues => ({
+    ...(query.transportType ? { transportType: query.transportType } : {}),
+    ...(query.onlineRule ? { onlineRule: query.onlineRule } : {}),
+  }), [query.transportType, query.onlineRule]);
 
   // the device counts (and the list) follow every 30 s; there is no live topic for them
   useLiveOrPoll({ poll: () => { void load(queryRef.current); } });
@@ -138,6 +150,7 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
     {
       key: 'name',
       header: m.profiles.name,
+      sortable: true,
       render: (p) => (
         <a href={hrefs.profile(p.profileId)} className="flex min-w-0 flex-col rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <span className="flex items-center gap-1.5 truncate font-medium text-text-primary hover:text-primary">
@@ -149,8 +162,8 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
         </a>
       ),
     },
-    { key: 'transport', header: m.profiles.transport, hideBelow: 'sm', render: (p) => m.transport[p.transportType] },
-    { key: 'online', header: m.profiles.onlineRule, hideBelow: 'md', render: (p) => m.online[p.onlineRule] },
+    { key: 'transport', header: m.profiles.transport, hideBelow: 'sm', sortable: true, render: (p) => m.transport[p.transportType] },
+    { key: 'online', header: m.profiles.onlineRule, hideBelow: 'md', sortable: true, render: (p) => m.online[p.onlineRule] },
     {
       key: 'devices',
       header: m.profiles.devices,
@@ -164,6 +177,7 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
       key: 'updated',
       header: m.profiles.updated,
       hideBelow: 'lg',
+      sortable: true,
       render: (p) => <span className="text-xs text-text-secondary" title={formatDateTime(p.updatedAt, { locale })}>{formatRelative(p.updatedAt, { locale, now })}</span>,
     },
     ...(canManage ? [{
@@ -195,8 +209,6 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
   ];
 
   if (!api?.list) return null;
-  const pages = Math.max(1, Math.ceil(total / query.pageSize));
-  const any = { value: '', label: m.common.any };
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -208,37 +220,29 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
           onClick: () => setCreating(true),
         }] : undefined}
       />
-      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,2fr)_repeat(2,minmax(0,1fr))]">
-        <SearchBar placeholder={m.profiles.search} value={searchText} onChange={setSearchText} onClear={() => setSearchText('')} />
-        <Select id="profile-filter-transport" label={m.profiles.transport} value={query.transportType ?? ''}
-          onChange={(e) => change({ transportType: (e.target.value || undefined) as ProfileTransport | undefined })}
-          options={[any, ...transports.map((t) => ({ value: t, label: m.transport[t] }))]} />
-        <Select id="profile-filter-online" label={m.profiles.onlineRule} value={query.onlineRule ?? ''}
-          onChange={(e) => change({ onlineRule: (e.target.value || undefined) as OnlineRule | undefined })}
-          options={[any, ...ONLINE_RULES.map((r) => ({ value: r, label: m.online[r] }))]} />
-      </div>
       <DataTable<DeviceProfile>
         mode="manual"
-        variant="plain"
         caption={m.profiles.title}
         columns={columns}
         rows={items}
+        total={total}
+        query={{ page: query.page, pageSize: query.pageSize, sort: toTableSort(query.sort), search: query.search ?? '' }}
+        onQueryChange={tableQuery}
+        multiSort={false}
+        searchPlaceholder={m.profiles.search}
+        filterFields={filterFields}
+        filterValues={filterValues}
+        onFilterValuesChange={filtersChanged}
+        pageSizeOptions={LIST_PAGE_SIZES}
         rowId={(p) => p.profileId}
         loading={loadedKey !== JSON.stringify(query)}
         error={error || undefined}
         onRetry={() => void load(queryRef.current)}
         emptyMessage={m.profiles.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
-        searchable={false}
-        pageSizeOptions={[]}
         keyboardNavigation
       />
       {api.usage && <p className="text-xs text-text-secondary">{m.profiles.countsHint}</p>}
-      {pages > 1 && (
-        <div className="flex justify-center">
-          <Pagination page={query.page} totalPages={pages} onPageChange={(page) => change({ page })} size="sm" />
-        </div>
-      )}
       {creating && (
         <NewDeviceProfileDrawer
           open={creating}

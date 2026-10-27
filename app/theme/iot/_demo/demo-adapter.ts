@@ -1,4 +1,4 @@
-import { IotApiError, type IotAdapter, type AlarmLiveEvent, type AlarmTransition } from '@/modules/domains/iot/api/adapter';
+import { IotApiError, type IotAdapter, type AlarmLiveEvent, type AlarmTransition, type IotListSort } from '@/modules/domains/iot/api/adapter';
 import { ALARM_SEVERITIES, type Alarm, type AlarmBulkResult, type AlarmCounts, type AlarmEvent } from '@/modules/domains/iot/types/alarm';
 import type {
   AttributeEntry, AttributeScope, DeviceConnectionEvent, DeviceCredential, DeviceLogEntry, DeviceRecord, DeviceStatePatch, IssuedSecret,
@@ -20,6 +20,24 @@ import { createDemoTelemetry, demoLivePoint } from './demo-telemetry';
  */
 
 export const DEMO_PROFILES = DEVICE_PROFILES.map((p) => ({ id: p.profileId, name: p.name }));
+
+type SortValue = string | number | null | undefined;
+
+/** Rows in a list view's column order (one key); equal values keep their order, empty values last. Without a sort, as they are. */
+export function sortRows<T>(rows: T[], sort: IotListSort | undefined, values: Record<string, (row: T) => SortValue>): T[] {
+  const get = sort ? values[sort.key] : undefined;
+  if (!sort || !get) return rows;
+  const dir = sort.dir === 'desc' ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const x = get(a);
+    const y = get(b);
+    if (x === null || x === undefined || y === null || y === undefined) return x === y ? 0 : x === null || x === undefined ? 1 : -1;
+    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * dir;
+  });
+}
+
+const time = (v: string | number | Date | null | undefined): number | null => (v ? new Date(v).getTime() : null);
+const STATUS_RANK: Record<string, number> = { OPEN: 0, ACKNOWLEDGED: 1, RESOLVED: 2 };
 
 /** The alarm rules the demo profiles start with (the sensors: a two-severity temperature rule and the offline rule). */
 const DEMO_RULES: Record<string, AlarmRuleDefinition[]> = {
@@ -322,6 +340,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         if (q.search) rows = rows.filter((p) => p.name.toLowerCase().includes(q.search!.toLowerCase()));
         if (q.transportType) rows = rows.filter((p) => p.transportType === q.transportType);
         if (q.onlineRule) rows = rows.filter((p) => p.onlineRule === q.onlineRule);
+        rows = sortRows(rows, q.sort, { name: (p) => p.name, transport: (p) => p.transportType, online: (p) => p.onlineRule, updated: (p) => time(p.updatedAt) });
         return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize).map((p) => structuredClone(p)), total: rows.length };
       },
       async get(id) { await wait(); return structuredClone(profileOf(id)); },
@@ -411,6 +430,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         if (q.status) rows = rows.filter((d) => d.status === q.status);
         if (q.gateway !== undefined) rows = rows.filter((d) => d.isGateway === q.gateway);
         if (q.online) rows = rows.filter((d) => (q.online === 'last_seen' ? d.online === null : d.online === (q.online === 'online')));
+        rows = sortRows(rows, q.sort, { name: (d) => d.name, connection: (d) => (d.online === null || d.online === undefined ? null : Number(d.online)), lastSeen: (d) => time(d.lastActivityAt) });
         return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize).map((d) => ({ ...d })), total: rows.length };
       },
       async get(id) { await wait(); return { ...device(id) }; },
@@ -506,6 +526,10 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         if (q.search) rows = rows.filter((a) => a.title.toLowerCase().includes(q.search!.toLowerCase()));
         if (q.from) rows = rows.filter((a) => new Date(a.openedAt).getTime() >= new Date(q.from!).getTime());
         rows.sort((a, b) => new Date(b.openedAt).getTime() - new Date(a.openedAt).getTime());
+        rows = sortRows(rows, q.sort, {
+          severity: (a) => ALARM_SEVERITIES.length - ALARM_SEVERITIES.indexOf(a.severity), title: (a) => a.title, device: (a) => a.deviceName,
+          status: (a) => STATUS_RANK[a.status], opened: (a) => time(a.openedAt),
+        });
         return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize).map((a) => ({ ...a })), total: rows.length };
       },
       async get(id) { await wait(); return { ...alarmOf(id) }; },

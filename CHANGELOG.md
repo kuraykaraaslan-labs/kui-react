@@ -6,6 +6,14 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Fixed
 
+- IoT kit list views (`DeviceListView`, `DeviceProfileListView`, `AlarmListView`, the asset's devices tab, `PlaceDevicesDialog`) on
+  the DataTable's own toolbar: search, the Filters panel (the old labelled selects and the severity chips; the alarm status is a
+  toolbar choice), sortable columns, rows per page and pagination, server-side through the adapter. The query types carry
+  `sort` (`IotListSort`; `DEVICE_SORT_KEYS`, `PROFILE_SORT_KEYS`, `ALARM_SORT_KEYS`); `api/list-table.ts` maps the table's query and a
+  host URL's `sort` / `size`. Bulk Activate, acknowledge and clear sit in the table's selection bar; `PlacedDeviceTable` takes
+  `paging`. Before, a hand-made search box, selects and pagination sat beside the table: no sort arrows, no Filters panel, no rows
+  per page.
+
 - `ControlButton`: its status line takes room only while it has a status (its live region stays mounted, out of the
   flow), so the button centres in its card instead of sitting 22 px high; the `tile` layout, unframed, fills the height it
   is given (at least 96 px), so `control.button` can fill its card. New `ControlTile` props `fill` and `reserveStatus`

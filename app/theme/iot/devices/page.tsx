@@ -1,7 +1,8 @@
 'use client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DeviceListView } from '@/modules/domains/iot/device/DeviceListView';
-import type { DeviceListQuery, DeviceOnlineFilter } from '@/modules/domains/iot/api/adapter';
+import { DEVICE_SORT_KEYS, type DeviceListQuery, type DeviceOnlineFilter } from '@/modules/domains/iot/api/adapter';
+import { pageSizeFromParam, sortFromParam, sortToParam } from '@/modules/domains/iot/api/list-table';
 import type { DeviceRegistryStatus } from '@/modules/domains/iot/types/device';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 import { demoHrefs } from '../_demo/demo-hrefs';
@@ -9,7 +10,10 @@ import { demoHrefs } from '../_demo/demo-hrefs';
 const ONLINE: DeviceOnlineFilter[] = ['online', 'offline', 'last_seen'];
 const STATUS: DeviceRegistryStatus[] = ['ACTIVE', 'QUARANTINED', 'DISABLED'];
 
-/** /theme/iot/devices — a thin page over `DeviceListView` (phase 01 §1.1); the filters and the quick view's device live in the URL. */
+/**
+ * /theme/iot/devices — a thin page over `DeviceListView` (phase 01 §1.1); the filters, the sort, the rows per page and the quick
+ * view's device live in the URL.
+ */
 export default function DevicesPage() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -18,6 +22,8 @@ export default function DevicesPage() {
   const gw = sp.get('gateway');
   const initial: Partial<DeviceListQuery> = {
     page: Number(sp.get('page')) || 1,
+    pageSize: pageSizeFromParam(sp.get('size')),
+    sort: sortFromParam(sp.get('sort'), DEVICE_SORT_KEYS),
     search: sp.get('q') ?? undefined,
     profileId: sp.get('profile') ?? undefined,
     online: online && ONLINE.includes(online) ? online : undefined,
@@ -28,6 +34,8 @@ export default function DevicesPage() {
   function sync(q: DeviceListQuery, how: 'push' | 'replace' = 'replace') {
     const p = new URLSearchParams();
     if (q.page > 1) p.set('page', String(q.page));
+    if (q.pageSize !== 20) p.set('size', String(q.pageSize));
+    if (q.sort) p.set('sort', sortToParam(q.sort)!);
     if (q.search) p.set('q', q.search);
     if (q.profileId) p.set('profile', q.profileId);
     if (q.online) p.set('online', q.online);

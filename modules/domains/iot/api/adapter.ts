@@ -47,14 +47,26 @@ export function errorMessage(e: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * A list's order: one column of the view and its direction (the views sort by one column at a time). Absent: the host's own
+ * order (devices by name, profiles the default first, alarms newest first). A host maps the key onto its own sort field and
+ * refuses a key it cannot sort by.
+ */
+export type IotListSort<K extends string = string> = { key: K; dir: 'asc' | 'desc' };
+
 // ── devices ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export type DeviceOnlineFilter = 'online' | 'offline' | 'last_seen';
+
+/** The device list's sortable columns. */
+export const DEVICE_SORT_KEYS = ['name', 'connection', 'lastSeen'] as const;
+export type DeviceSortKey = (typeof DEVICE_SORT_KEYS)[number];
 
 export type DeviceListQuery = {
   page: number;
   pageSize: number;
   search?: string;
+  sort?: IotListSort<DeviceSortKey>;
   profileId?: string;
   online?: DeviceOnlineFilter;
   status?: DeviceRegistryStatus;
@@ -97,10 +109,15 @@ export interface IotDevicesApi {
   parseState?(payload: unknown): DeviceStatePatch | null;
 }
 
+/** The profile list's sortable columns. */
+export const PROFILE_SORT_KEYS = ['name', 'transport', 'online', 'updated'] as const;
+export type ProfileSortKey = (typeof PROFILE_SORT_KEYS)[number];
+
 export type ProfileListQuery = {
   page: number;
   pageSize: number;
   search?: string;
+  sort?: IotListSort<ProfileSortKey>;
   transportType?: ProfileTransport;
   onlineRule?: OnlineRule;
 };
@@ -160,9 +177,14 @@ export interface IotAttributesApi {
 /** `active` = not resolved (the default list); `any` needs a bounded time range (OD-31). */
 export type AlarmStatusFilter = 'active' | AlarmStatus | 'any';
 
+/** The alarm list's sortable columns (severity: the most severe first when descending). */
+export const ALARM_SORT_KEYS = ['severity', 'title', 'device', 'status', 'opened'] as const;
+export type AlarmSortKey = (typeof ALARM_SORT_KEYS)[number];
+
 export type AlarmListQuery = {
   page: number;
   pageSize: number;
+  sort?: IotListSort<AlarmSortKey>;
   status?: AlarmStatusFilter;
   severity?: AlarmSeverity[];
   deviceId?: string;

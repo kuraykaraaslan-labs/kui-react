@@ -171,6 +171,18 @@ describe('AssetDetailView', () => {
     await waitFor(() => expect(assets.setPlacement).toHaveBeenCalledWith('d1', null));
   });
 
+  it('pages the devices tab with the table\'s own pagination and rows per page', async () => {
+    const user = userEvent.setup();
+    const assets = fakeAssets({ devices: vi.fn().mockResolvedValue({ items: PLACED, total: 45 }) });
+    wrap(<AssetDetailView assetId="press-line" nodes={TREE} />, assets);
+    await user.click(await screen.findByRole('tab', { name: 'Devices' }));
+    await screen.findByText('Press sensor');
+    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', { page: 2, pageSize: 20, recursive: true }, expect.anything()));
+    await user.selectOptions(screen.getByLabelText(/Rows per page/), '50');
+    await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', { page: 1, pageSize: 50, recursive: true }, expect.anything()));
+  });
+
   it('lists the child assets in a DataTable that opens a child, and says when there are none', async () => {
     const user = userEvent.setup();
     const onOpenAsset = vi.fn();
@@ -245,6 +257,15 @@ describe('PlaceDevicesDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Place 1 devices' }));
     await waitFor(() => expect(assets.place).toHaveBeenCalledWith('press-3', ['d2']));
     expect(onPlaced).toHaveBeenCalledWith(['d2']);
+  });
+
+  it('searches the devices with the table\'s own search box', async () => {
+    const user = userEvent.setup();
+    const devices = { list: vi.fn().mockResolvedValue({ items: [DEVICE], total: 1 }), get: vi.fn(), connections: vi.fn() };
+    wrap(<PlaceDevicesDialog open asset={{ assetId: 'press-3', name: 'Press 3' }} onClose={() => undefined} />, fakeAssets(), undefined, { devices });
+    await screen.findByLabelText('Press sensor');
+    await user.type(within(screen.getByRole('dialog')).getByRole('searchbox'), 'probe');
+    await waitFor(() => expect(devices.list).toHaveBeenLastCalledWith({ page: 1, pageSize: 50, search: 'probe' }, expect.anything()));
   });
 });
 

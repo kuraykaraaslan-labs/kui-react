@@ -27,6 +27,13 @@ click, its device kept in the host's URL through `onQueryChange(query, how)` / `
 (`modules/iot_device_profile/ui/kui/iot/`), so they import generic pieces from `modules/ui` only and never the vertical's
 `types.ts` barrel (it pulls the rule editor in).
 
+The list views (`DeviceListView`, `DeviceProfileListView`, `AlarmListView`, the asset's devices tab, `PlaceDevicesDialog`) draw their search,
+filters, sorting, rows per page and pagination with the DataTable's own toolbar (`mode="manual"`): the old selects are fields of its
+Filters panel (the alarm status is a toolbar choice), a column the host can order by is `sortable` and the adapter query carries
+`sort` (`IotListSort`, one column; `DEVICE_SORT_KEYS`, `PROFILE_SORT_KEYS`, `ALARM_SORT_KEYS`) and `pageSize`. Never put a
+`SearchBar`, a filter `Select` or a `Pagination` beside a DataTable. `api/list-table.ts` maps between the table and the adapter query and
+reads / writes a host URL's `sort` and `size`.
+
 ## Rule chain editor
 
 `ruleset/` holds the rule chain editor, its block catalog, param forms, undo, groups, flows that run each other, validation and the

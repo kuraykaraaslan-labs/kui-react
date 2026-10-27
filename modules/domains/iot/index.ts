@@ -14,6 +14,7 @@ export type { LogLevel } from './telemetry/LogStreamRow';
 
 // ── Platform screens: adapter, live, texts (phase 00) ─────────────────────────────────────────────────────────────────
 export * from './api/adapter';
+export * from './api/list-table';
 export * from './api/live';
 export {
   IotAdapterProvider, useIotAdapter, useIotCapabilities, useIotLive, useIotLiveState, useIotNotify, useIotText, useLiveOrPoll,

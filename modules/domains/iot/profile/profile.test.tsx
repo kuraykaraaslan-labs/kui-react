@@ -308,8 +308,14 @@ describe('DeviceProfileListView', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
     await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'error', message: 'The device profile is still in use by 2 devices (iot_device).' }));
     expect(within(screen.getByText('Pumps').closest('tr')!).getByRole('button', { name: /Delete Pumps/ })).toBeDisabled();
-    await user.selectOptions(screen.getByLabelText('Transport'), 'HTTP');
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const panel = screen.getByRole('form', { name: 'Filters' });
+    await user.selectOptions(within(panel).getByLabelText('Transport'), 'HTTP');
+    await user.click(within(panel).getByRole('button', { name: 'Apply' }));
     await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ transportType: 'HTTP', page: 1 }), expect.anything()));
+    await user.click(within(screen.getByRole('columnheader', { name: /Updated/ })).getByRole('button'));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'updated', dir: 'asc' }, transportType: 'HTTP' }), expect.anything()));
+    expect(screen.queryByRole('columnheader', { name: /Devices/ })).not.toHaveAttribute('aria-sort');
   });
 
   it('offers no create, default or delete without canManageProfiles', async () => {

@@ -111,9 +111,53 @@ describe('DeviceListView', () => {
     const onQueryChange = vi.fn();
     wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} onQueryChange={onQueryChange} now={NOW} />, { adapter });
     expect(await screen.findByRole('link', { name: /Pump 4/ })).toHaveAttribute('href', '/d/d1');
-    await user.selectOptions(screen.getByLabelText('Connection'), 'last_seen');
+    // the DataTable's own Filters panel, not a select beside the table
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const panel = screen.getByRole('form', { name: 'Filters' });
+    await user.selectOptions(within(panel).getByLabelText('Connection'), 'last_seen');
+    await user.click(within(panel).getByRole('button', { name: 'Apply' }));
     await waitFor(() => expect(adapter.devices!.list).toHaveBeenLastCalledWith(expect.objectContaining({ online: 'last_seen', page: 1 }), expect.anything()));
     expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ online: 'last_seen' }), 'replace');
+    expect(screen.getByRole('button', { name: /Remove filter Connection/ })).toBeInTheDocument();
+  });
+
+  it('sorts, searches and pages on the server through the table\'s own toolbar', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    (adapter.devices!.list as ReturnType<typeof vi.fn>).mockImplementation(async () => ({ items: DEVICES, total: 45 }));
+    const onQueryChange = vi.fn();
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} onQueryChange={onQueryChange} now={NOW} />, { adapter });
+    await screen.findByText('Pump 4');
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    expect(list).toHaveBeenCalledTimes(1); // the table's first report is the query already read
+    expect(screen.queryByRole('columnheader', { name: /Profile/ })).not.toHaveAttribute('aria-sort');
+
+    await user.click(within(screen.getByRole('columnheader', { name: /Last seen/ })).getByRole('button'));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'lastSeen', dir: 'asc' }, page: 1 }), expect.anything()));
+    expect(screen.getByRole('columnheader', { name: /Last seen/ })).toHaveAttribute('aria-sort', 'ascending');
+    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'lastSeen', dir: 'asc' } }), 'replace');
+
+    await user.click(screen.getByRole('button', { name: 'Page 2' }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, sort: { key: 'lastSeen', dir: 'asc' } }), expect.anything()));
+
+    await user.selectOptions(screen.getByLabelText(/Rows per page/), '50');
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, pageSize: 50 }), expect.anything()));
+
+    await user.type(screen.getByRole('searchbox'), 'pump');
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'pump', page: 1, pageSize: 50 }), expect.anything()));
+  });
+
+  it('starts from the host\'s query (sort, rows per page, filters) and shows it in the table', async () => {
+    const adapter = createFakeAdapter();
+    wrap(
+      <DeviceListView hrefs={{ device: (id) => id }} initialQuery={{ page: 1, pageSize: 50, sort: { key: 'name', dir: 'desc' }, status: 'ACTIVE' }} now={NOW} />,
+      { adapter },
+    );
+    await screen.findByText('Pump 4');
+    expect(adapter.devices!.list).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 50, sort: { key: 'name', dir: 'desc' }, status: 'ACTIVE' }), expect.anything());
+    expect(screen.getByRole('columnheader', { name: /Name/ })).toHaveAttribute('aria-sort', 'descending');
+    expect(screen.getByLabelText(/Rows per page/)).toHaveValue('50');
+    expect(screen.getByRole('button', { name: /Remove filter Status/ })).toBeInTheDocument();
   });
 
   it('offers the Quarantined (n) filter and bulk Activate only with the capability', async () => {
@@ -229,8 +273,13 @@ describe('AlarmListView', () => {
     const adapter = createFakeAdapter();
     wrap(<AlarmListView hrefs={{ alarm: (id) => id }} now={NOW} />, { adapter });
     expect(await screen.findByRole('button', { name: 'Open (1)' })).toBeInTheDocument();
-    await user.click(within(screen.getByRole('group', { name: 'Severity' })).getByRole('button', { name: /Critical/ }));
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const panel = screen.getByRole('form', { name: 'Filters' });
+    await user.click(within(panel).getByRole('checkbox', { name: 'Critical' }));
+    await user.click(within(panel).getByRole('button', { name: 'Apply' }));
     await waitFor(() => expect(adapter.alarms!.list).toHaveBeenLastCalledWith(expect.objectContaining({ severity: ['CRITICAL'] }), expect.anything()));
+    // the status is the table's toolbar choice, always set
+    expect(screen.getByLabelText('Status')).toHaveValue('active');
     await user.selectOptions(screen.getByLabelText('Status'), 'any');
     await waitFor(() => expect(adapter.alarms!.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'any', from: expect.any(String) }), expect.anything()));
   });
@@ -262,6 +311,20 @@ describe('AlarmListView', () => {
     await user.click(screen.getByRole('button', { name: 'Page 2' }));
     act(() => live.publish('alarms', { alarm: alarm('a7'), transition: 'created' }));
     expect(await screen.findByRole('button', { name: '1 new alarms: show' })).toBeInTheDocument();
+  });
+
+  it('sorts on the server, and a new live alarm in another order only counts toward the pill', async () => {
+    const user = userEvent.setup();
+    const live = createFakeLive();
+    const adapter = createFakeAdapter();
+    (adapter.alarms!.list as ReturnType<typeof vi.fn>).mockResolvedValue({ items: [alarm('a1')], total: 1 });
+    wrap(<AlarmListView hrefs={{ alarm: (id) => id }} now={NOW} />, { adapter, live });
+    await screen.findByText('Alarm a1');
+    await user.click(within(screen.getByRole('columnheader', { name: /Severity/ })).getByRole('button'));
+    await waitFor(() => expect(adapter.alarms!.list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'severity', dir: 'asc' }, page: 1 }), expect.anything()));
+    act(() => live.publish('alarms', { alarm: alarm('a9', { title: 'Fresh one' }), transition: 'created' }));
+    expect(await screen.findByRole('button', { name: '1 new alarms: show' })).toBeInTheDocument();
+    expect(screen.queryByText('Fresh one')).toBeNull();
   });
 
   it('scopes to one device in its Alarms tab', async () => {

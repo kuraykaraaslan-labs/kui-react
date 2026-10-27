@@ -2,9 +2,8 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/modules/ui/Button';
 import { Modal } from '@/modules/ui/Modal';
-import { SearchBar } from '@/modules/ui/SearchBar';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableQuery } from '@/modules/ui/Table/types';
 import { errorMessage } from '../api/adapter';
 import { useIotAdapter, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { DeviceOnlineDot } from '../device/DeviceOnlineDot';
@@ -14,7 +13,8 @@ import { onlineStateOf, type DeviceRecord } from '../types/device';
 /**
  * PlaceDevicesDialog — "Place devices" on an asset (phase 08 §8.2): search the tenant's devices (the device list of the adapter),
  * tick several, place them in one call (at most 100). A device has one place (NB A-3): placing it here moves it from where it was.
- * Devices already placed here are shown ticked and locked (`isRowSelectionLocked`). The devices are a selectable DataTable (manual mode).
+ * Devices already placed here are shown ticked and locked (`isRowSelectionLocked`). The devices are a selectable DataTable (manual mode)
+ * whose own search box asks the adapter (after the table's pause).
  */
 export type PlaceDevicesDialogProps = {
   open: boolean;
@@ -41,13 +41,11 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
     const api = adapter.devices;
     if (!open || !api) return;
     const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      api.list({ page: 1, pageSize: 50, ...(search.trim() ? { search: search.trim() } : {}) }, ctrl.signal).then(
-        (p) => { if (!ctrl.signal.aborted) { setDevices(p.items); setError(null); } },
-        (e) => { if (!ctrl.signal.aborted) setError(errorMessage(e, m.devices.loadError)); },
-      );
-    }, search ? 250 : 0);
-    return () => { clearTimeout(t); ctrl.abort(); };
+    api.list({ page: 1, pageSize: 50, ...(search.trim() ? { search: search.trim() } : {}) }, ctrl.signal).then(
+      (p) => { if (!ctrl.signal.aborted) { setDevices(p.items); setError(null); } },
+      (e) => { if (!ctrl.signal.aborted) setError(errorMessage(e, m.devices.loadError)); },
+    );
+    return () => ctrl.abort();
   }, [adapter.devices, open, search, m.devices.loadError]);
 
   // At most MAX_PLACE devices: ticks past the limit are dropped; a device already here never joins the selection.
@@ -110,7 +108,6 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
       )}
     >
       <div className="space-y-3">
-        <SearchBar placeholder={m.asset.placeSearch} value={search} onChange={setSearch} onClear={() => setSearch('')} />
         {error && <p role="alert" className="text-sm text-error">{error}</p>}
         <DataTable<DeviceRecord>
           mode="manual"
@@ -118,6 +115,9 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
           caption={m.asset.devices}
           columns={columns}
           rows={devices ?? []}
+          query={{ search }}
+          onQueryChange={(q: DataTableQuery) => setSearch(q.search)}
+          searchPlaceholder={m.asset.placeSearch}
           rowId={(d) => d.deviceId}
           selectable
           selectedRowIds={[...selected]}
@@ -127,7 +127,6 @@ export function PlaceDevicesDialog({ open, asset, placedIds, onClose, onPlaced }
           loading={devices === null}
           emptyMessage={m.devices.empty}
           messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
-          searchable={false}
           pageSizeOptions={[]}
           density="compact"
           stickyHeader

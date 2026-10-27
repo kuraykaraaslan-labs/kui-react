@@ -1,12 +1,13 @@
 'use client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { DeviceProfileListView } from '@/modules/domains/iot/profile/DeviceProfileListView';
-import type { ProfileListQuery } from '@/modules/domains/iot/api/adapter';
+import { PROFILE_SORT_KEYS, type ProfileListQuery } from '@/modules/domains/iot/api/adapter';
+import { pageSizeFromParam, sortFromParam, sortToParam } from '@/modules/domains/iot/api/list-table';
 import { ONLINE_RULES, PROFILE_TRANSPORTS, type OnlineRule, type ProfileTransport } from '@/modules/domains/iot/types/profile';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 import { demoHrefs } from '../_demo/demo-hrefs';
 
-/** /theme/iot/profiles — a thin page over `DeviceProfileListView` (phase 01 §1.4); the filters live in the URL. */
+/** /theme/iot/profiles — a thin page over `DeviceProfileListView` (phase 01 §1.4); the filters, the sort and the rows per page live in the URL. */
 export default function DeviceProfilesPage() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -14,6 +15,8 @@ export default function DeviceProfilesPage() {
   const online = sp.get('online') as OnlineRule | null;
   const initial: Partial<ProfileListQuery> = {
     page: Number(sp.get('page')) || 1,
+    pageSize: pageSizeFromParam(sp.get('size')),
+    sort: sortFromParam(sp.get('sort'), PROFILE_SORT_KEYS),
     search: sp.get('q') ?? undefined,
     transportType: transport && PROFILE_TRANSPORTS.includes(transport) ? transport : undefined,
     onlineRule: online && ONLINE_RULES.includes(online) ? online : undefined,
@@ -21,6 +24,8 @@ export default function DeviceProfilesPage() {
   function sync(q: ProfileListQuery) {
     const p = new URLSearchParams();
     if (q.page > 1) p.set('page', String(q.page));
+    if (q.pageSize !== 20) p.set('size', String(q.pageSize));
+    if (q.sort) p.set('sort', sortToParam(q.sort)!);
     if (q.search) p.set('q', q.search);
     if (q.transportType) p.set('transport', q.transportType);
     if (q.onlineRule) p.set('online', q.onlineRule);

@@ -5,27 +5,27 @@ import { faArrowUp, faCheck, faCheckDouble, faXmark } from '@fortawesome/free-so
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column, DataTableRowId } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField, DataTableFilterValues, DataTableQuery, DataTableRowId } from '@/modules/ui/Table/types';
 import { Modal } from '@/modules/ui/Modal';
 import { PageHeader } from '@/modules/ui/PageHeader';
-import { Pagination } from '@/modules/ui/Pagination';
-import { SearchBar } from '@/modules/ui/SearchBar';
-import { Select } from '@/modules/ui/Select';
 import { Textarea } from '@/modules/ui/Textarea';
-import { errorMessage, type AlarmListQuery, type AlarmStatusFilter } from '../api/adapter';
+import { ALARM_SORT_KEYS, errorMessage, type AlarmListQuery, type AlarmStatusFilter } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
+import { LIST_PAGE_SIZES, choiceOf, sameSort, toIotSort, toTableSort } from '../api/list-table';
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime, formatRelative } from '../format';
-import { ALARM_SEVERITIES, type Alarm, type AlarmCounts, type AlarmSeverity } from '../types/alarm';
+import { ALARM_SEVERITIES, type Alarm, type AlarmCounts } from '../types/alarm';
 import { AlarmSeverityBadge } from './AlarmSeverityBadge';
 import { AlarmStatusPill } from './AlarmStatusPill';
 import { acknowledgeAllOpen } from './acknowledgeAll';
 
 /**
- * AlarmListView — the alarm list (phase 03 §3.2), read through the adapter: status count chips (clickable), status and
- * severity filters (the five OD-9 levels) and search, server paging, selection with bulk acknowledge / clear sharing one note
- * (per-id results: "47 done, 3 skipped"), "Acknowledge all" for every OPEN alarm of the list's scope (same note), and live arrivals: on the first page a new matching alarm appears at the top,
- * highlighted; elsewhere a "N new alarms" pill brings the viewer back. Without a live source it re-reads every 30 s. A
+ * AlarmListView — the alarm list (phase 03 §3.2), read through the adapter, on the DataTable's own toolbar: search, the status
+ * choice, the Filters panel (the five OD-9 severity levels), sortable columns, rows per page and server paging; status count
+ * chips (clickable), selection with bulk acknowledge / clear sharing one note (per-id results: "47 done, 3 skipped"),
+ * "Acknowledge all" for every OPEN alarm of the list's scope (same note), and live arrivals: on the first page of the newest-first
+ * order a new matching alarm appears at the top, highlighted; elsewhere (another page, a search, another order) a "N new alarms"
+ * pill brings the viewer back. Without a live source it re-reads every 30 s. A
  * resolved or all-status list always asks for a bounded range (last 7 days, OD-31). With `deviceId` it is a device's
  * Alarms tab.
  */
@@ -44,6 +44,7 @@ export type AlarmListViewProps = {
 };
 
 const WEEK_MS = 7 * 86_400_000;
+const STATUS_FILTERS: readonly AlarmStatusFilter[] = ['active', 'OPEN', 'ACKNOWLEDGED', 'RESOLVED', 'any'];
 const NEW_HIGHLIGHT_MS = 4_000;
 
 function bounded(q: AlarmListQuery): AlarmListQuery {
@@ -70,7 +71,7 @@ export function AlarmListView({
   const { m, locale } = useIotText();
 
   const [query, setQuery] = useState<AlarmListQuery>(() => ({
-    page: 1, pageSize, status: 'active', severity: [], search: '', ...initialQuery, deviceId,
+    status: 'active', severity: [], search: '', ...initialQuery, page: initialQuery?.page ?? 1, pageSize: initialQuery?.pageSize ?? pageSize, deviceId,
   }));
   const [items, setItems] = useState<Alarm[]>([]);
   const [total, setTotal] = useState(0);
@@ -85,7 +86,6 @@ export function AlarmListView({
   const [bulk, setBulk] = useState<'acknowledge' | 'acknowledgeAll' | 'clear' | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
-  const [searchText, setSearchText] = useState(query.search ?? '');
   const queryRef = useRef(query);
   useEffect(() => { queryRef.current = query; }, [query]);
   const itemsRef = useRef(items);
@@ -123,14 +123,6 @@ export function AlarmListView({
   }, [load, query]);
   useEffect(() => { loadCounts().catch(() => undefined); }, [loadCounts]);
 
-  // the search box writes the query after a pause
-  const changeRef = useRef<(patch: Partial<AlarmListQuery>) => void>(() => undefined);
-  useEffect(() => {
-    if ((queryRef.current.search ?? '') === searchText) return;
-    const t = setTimeout(() => changeRef.current({ search: searchText }), 300);
-    return () => clearTimeout(t);
-  }, [searchText]);
-
   function change(patch: Partial<AlarmListQuery>) {
     const next = { ...queryRef.current, ...patch, page: patch.page ?? 1 };
     setQuery(next);
@@ -138,7 +130,20 @@ export function AlarmListView({
     setPendingNew(0);
     onQueryChange?.(next);
   }
-  useEffect(() => { changeRef.current = change; });
+  /** The table's page, rows per page, sort or search changed (it reports its query on mount too: nothing then). */
+  function tableQuery(t: DataTableQuery) {
+    const cur = queryRef.current;
+    const sort = toIotSort(t.sort, ALARM_SORT_KEYS);
+    if (t.page === cur.page && t.pageSize === cur.pageSize && t.search === (cur.search ?? '') && sameSort(sort, cur.sort)) return;
+    change({ page: t.page, pageSize: t.pageSize, search: t.search, sort });
+  }
+  /** The status choice or the Filters panel was applied (back to page 1). */
+  function filtersChanged(v: DataTableFilterValues) {
+    change({
+      status: choiceOf(v.status, STATUS_FILTERS) ?? 'active',
+      severity: Array.isArray(v.severity) ? ALARM_SEVERITIES.filter((s) => (v.severity as unknown[]).includes(s)) : [],
+    });
+  }
 
   // live: new and changed alarms of the scope
   const countsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -164,7 +169,8 @@ export function AlarmListView({
       return;
     }
     if (ev.transition !== 'created' || !matches(alarm, q)) return;
-    if (q.page !== 1 || (q.search ?? '').trim()) {
+    const newestFirst = !q.sort || (q.sort.key === 'opened' && q.sort.dir === 'desc');
+    if (q.page !== 1 || (q.search ?? '').trim() || !newestFirst) {
       setPendingNew((n) => n + 1);
       return;
     }
@@ -231,14 +237,30 @@ export function AlarmListView({
   }
 
   const selectable = caps.canAcknowledge || caps.canClear;
-  const pages = Math.max(1, Math.ceil(total / query.pageSize));
-  const sevSet = useMemo(() => new Set(query.severity ?? []), [query.severity]);
+  const filterFields = useMemo((): DataTableFilterField<Alarm>[] => [
+    {
+      id: 'status', label: m.alarms.status, type: 'select', required: true, placement: 'toolbar', defaultValue: 'active',
+      options: [
+        { value: 'active', label: m.alarms.active },
+        { value: 'OPEN', label: m.status.OPEN },
+        { value: 'ACKNOWLEDGED', label: m.status.ACKNOWLEDGED },
+        { value: 'RESOLVED', label: m.status.RESOLVED },
+        { value: 'any', label: m.alarms.anyStatus },
+      ],
+    },
+    { id: 'severity', label: m.alarms.severity, type: 'checkboxes', options: ALARM_SEVERITIES.map((s) => ({ value: s, label: m.severity[s] })) },
+  ], [m]);
+  const filterValues = useMemo((): DataTableFilterValues => ({
+    status: query.status ?? 'active',
+    ...(query.severity?.length ? { severity: query.severity } : {}),
+  }), [query.status, query.severity]);
 
   const columns: Column<Alarm>[] = [
-    { key: 'severity', header: m.alarms.severity, render: (a) => <AlarmSeverityBadge severity={a.severity} size="sm" /> },
+    { key: 'severity', header: m.alarms.severity, sortable: true, render: (a) => <AlarmSeverityBadge severity={a.severity} size="sm" /> },
     {
       key: 'title',
       header: m.alarms.alarm,
+      sortable: true,
       render: (a) => (
         <a href={hrefs.alarm(a.alarmId)} className="block min-w-0 rounded font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <span className="block truncate">{a.title}</span>
@@ -250,15 +272,17 @@ export function AlarmListView({
       key: 'device',
       header: m.alarms.device,
       hideBelow: 'md' as const,
+      sortable: true,
       render: (a: Alarm) => (a.deviceId && hrefs.device
         ? <a href={hrefs.device(a.deviceId)} className="rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">{a.deviceName ?? a.deviceId}</a>
         : (a.deviceName ?? '—')),
     }]),
-    { key: 'status', header: m.alarms.status, hideBelow: 'sm', render: (a) => <AlarmStatusPill status={a.status} size="sm" /> },
+    { key: 'status', header: m.alarms.status, hideBelow: 'sm', sortable: true, render: (a) => <AlarmStatusPill status={a.status} size="sm" /> },
     {
       key: 'opened',
       header: m.alarms.opened,
       hideBelow: 'sm',
+      sortable: true,
       render: (a) => <time className="text-xs text-text-secondary" title={formatDateTime(a.openedAt, { locale })}>{formatRelative(a.openedAt, { locale, now })}</time>,
     },
   ];
@@ -288,39 +312,6 @@ export function AlarmListView({
         <span className="ml-auto text-xs text-text-secondary" aria-live="polite">{state === 'live' ? m.common.live : m.common.polling}</span>
       </div>
 
-      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_14rem]">
-        <SearchBar placeholder={m.alarms.search} value={searchText} onChange={setSearchText} onClear={() => setSearchText('')} />
-        <Select
-          id="alarm-status-filter"
-          label={m.alarms.status}
-          value={query.status ?? 'active'}
-          onChange={(e) => change({ status: e.target.value as AlarmStatusFilter })}
-          options={[
-            { value: 'active', label: m.alarms.active },
-            { value: 'OPEN', label: m.status.OPEN },
-            { value: 'ACKNOWLEDGED', label: m.status.ACKNOWLEDGED },
-            { value: 'RESOLVED', label: m.status.RESOLVED },
-            { value: 'any', label: m.alarms.anyStatus },
-          ]}
-        />
-      </div>
-      <div role="group" aria-label={m.alarms.severity} className="flex flex-wrap gap-1.5">
-        {ALARM_SEVERITIES.map((s: AlarmSeverity) => (
-          <button
-            key={s}
-            type="button"
-            aria-pressed={sevSet.has(s)}
-            onClick={() => change({ severity: sevSet.has(s) ? (query.severity ?? []).filter((x) => x !== s) : [...(query.severity ?? []), s] })}
-            className={cn(
-              'rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-              sevSet.size > 0 && !sevSet.has(s) && 'opacity-40',
-            )}
-          >
-            <AlarmSeverityBadge severity={s} size="sm" />
-          </button>
-        ))}
-      </div>
-
       {pendingNew > 0 && (
         <div className="flex justify-center">
           <Button variant="primary" size="sm" onClick={() => change({ page: 1, search: '' })} iconLeft={<FontAwesomeIcon icon={faArrowUp} className="h-3 w-3" aria-hidden="true" />}>
@@ -329,27 +320,20 @@ export function AlarmListView({
         </div>
       )}
 
-      {selected.size > 0 && (
-        <div role="region" aria-label={m.alarms.title} className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface-overlay px-3 py-2">
-          {caps.canAcknowledge && (
-            <Button variant="outline" size="sm" onClick={() => setBulk('acknowledge')} iconLeft={<FontAwesomeIcon icon={faCheck} className="h-3 w-3" aria-hidden="true" />}>
-              {fill(m.alarms.bulkAcknowledge, { n: selected.size })}
-            </Button>
-          )}
-          {caps.canClear && (
-            <Button variant="primary" size="sm" onClick={() => setBulk('clear')} iconLeft={<FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />}>
-              {fill(m.alarms.bulkClear, { n: selected.size })}
-            </Button>
-          )}
-        </div>
-      )}
-
       <DataTable<Alarm>
         mode="manual"
-        variant="plain"
         caption={m.alarms.title}
         columns={columns}
         rows={items}
+        total={total}
+        query={{ page: query.page, pageSize: query.pageSize, sort: toTableSort(query.sort), search: query.search ?? '' }}
+        onQueryChange={tableQuery}
+        multiSort={false}
+        searchPlaceholder={m.alarms.search}
+        filterFields={filterFields}
+        filterValues={filterValues}
+        onFilterValuesChange={filtersChanged}
+        pageSizeOptions={LIST_PAGE_SIZES}
         rowId={(a) => a.alarmId}
         rowState={(a) => (fresh.has(a.alarmId) ? 'new' : undefined)}
         selectable={selectable}
@@ -357,21 +341,27 @@ export function AlarmListView({
         onSelectionChange={selectable ? (ids: DataTableRowId[]) => setSelected(new Set(ids.map(String))) : undefined}
         isRowSelectable={(a) => (a.status === 'RESOLVED' ? m.status.RESOLVED : true)}
         rowSelectLabel={(a) => fill(m.common.selectRow, { name: a.title })}
+        bulkActions={() => (
+          <>
+            {caps.canAcknowledge && (
+              <Button variant="outline" size="sm" onClick={() => setBulk('acknowledge')} iconLeft={<FontAwesomeIcon icon={faCheck} className="h-3 w-3" aria-hidden="true" />}>
+                {fill(m.alarms.bulkAcknowledge, { n: selected.size })}
+              </Button>
+            )}
+            {caps.canClear && (
+              <Button variant="primary" size="sm" onClick={() => setBulk('clear')} iconLeft={<FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />}>
+                {fill(m.alarms.bulkClear, { n: selected.size })}
+              </Button>
+            )}
+          </>
+        )}
         loading={loadedKey !== JSON.stringify(query)}
         error={error || undefined}
         onRetry={() => void load(queryRef.current)}
         emptyMessage={m.alarms.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
-        searchable={false}
-        pageSizeOptions={[]}
         keyboardNavigation
       />
-
-      {pages > 1 && (
-        <div className="flex justify-center">
-          <Pagination page={query.page} totalPages={pages} onPageChange={(page) => change({ page })} size="sm" />
-        </div>
-      )}
 
       <Modal
         open={bulk !== null}

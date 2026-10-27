@@ -4,7 +4,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowsUpDownLeftRight, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
-import { Pagination } from '@/modules/ui/Pagination';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column } from '@/modules/ui/Table/types';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
@@ -227,7 +226,7 @@ function Overview({ asset }: { asset: AssetRecord }) {
   );
 }
 
-function DevicesTab({ asset, hrefs, pageSize, now, onChanged }: {
+function DevicesTab({ asset, hrefs, pageSize: firstPageSize, now, onChanged }: {
   asset: AssetRecord; hrefs: AssetDetailViewProps['hrefs'] & object; pageSize: number; now?: number; onChanged: () => void;
 }) {
   const api = useIotAdapter().assets!;
@@ -236,17 +235,18 @@ function DevicesTab({ asset, hrefs, pageSize, now, onChanged }: {
   const { m } = useIotText();
   const [recursive, setRecursive] = useState(true);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(firstPageSize);
   const [rows, setRows] = useState<PlacedDevice[]>([]);
   const [total, setTotal] = useState(0);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const key = `${recursive}:${page}`;
+  const key = `${recursive}:${page}:${pageSize}`;
 
   const load = useCallback((signal?: AbortSignal) => api.devices(asset.assetId, { page, pageSize, recursive }, signal).then(
-    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(`${recursive}:${page}`); } },
-    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(`${recursive}:${page}`); } },
+    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(`${recursive}:${page}:${pageSize}`); } },
+    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(`${recursive}:${page}:${pageSize}`); } },
   ), [api, asset.assetId, page, pageSize, recursive, m.asset.loadError]);
 
   useEffect(() => {
@@ -268,7 +268,6 @@ function DevicesTab({ asset, hrefs, pageSize, now, onChanged }: {
     }
   }
 
-  const pages = Math.max(1, Math.ceil(total / pageSize));
   const here = new Set(rows.filter((r) => r.placement.assetId === asset.assetId).map((r) => r.device.deviceId));
   return (
     <div className="space-y-3">
@@ -285,12 +284,12 @@ function DevicesTab({ asset, hrefs, pageSize, now, onChanged }: {
         assetHref={hrefs.asset}
         onUnplace={caps.canPlaceDevices ? (id) => void unplace(id) : undefined}
         busyId={busyId}
+        paging={{ page, pageSize, total, onChange: (p, size) => { setPage(size === pageSize ? p : 1); setPageSize(size); } }}
         loading={loadedKey !== key}
         error={error}
         onRetry={() => void load()}
         now={now}
       />
-      {pages > 1 && <div className="flex justify-center"><Pagination page={page} totalPages={pages} onPageChange={setPage} size="sm" /></div>}
       {placing && (
         <PlaceDevicesDialog open asset={{ assetId: asset.assetId, name: asset.name }} placedIds={here} onClose={() => setPlacing(false)} onPlaced={onChanged} />
       )}

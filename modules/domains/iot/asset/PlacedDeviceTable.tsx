@@ -4,8 +4,9 @@ import { faLinkSlash } from '@fortawesome/free-solid-svg-icons';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableQuery } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { DeviceAddress } from '../device/DeviceAddress';
 import { DeviceOnlineDot } from '../device/DeviceOnlineDot';
 import type { IotMessagesInput } from '../messages';
@@ -16,7 +17,8 @@ import { AssetKindBadge } from './AssetKindBadge';
 /**
  * PlacedDeviceTable — the devices placed under an asset (phase 08 §8.2): the device (a link), its connection (`DeviceOnlineDot`, OD-57)
  * and the address of its newest connect (`DeviceAddress`), and the node it sits on when that is a descendant. With `onUnplace`, each
- * row can lose its placement.
+ * row can lose its placement. With `paging` the rows are one page of `total` and the table's own pagination and rows per page
+ * move through them (the host reads each page).
  */
 export type PlacedDeviceTableProps = {
   rows: PlacedDevice[];
@@ -26,6 +28,8 @@ export type PlacedDeviceTableProps = {
   assetHref?: (assetId: string) => string;
   onUnplace?: (deviceId: string) => void;
   busyId?: string | null;
+  /** Server paging: the page shown, its size and every row's count; `onChange` reads another page or size. */
+  paging?: { page: number; pageSize: number; total: number; onChange: (page: number, pageSize: number) => void };
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -36,7 +40,7 @@ export type PlacedDeviceTableProps = {
 };
 
 export function PlacedDeviceTable({
-  rows, assetId, deviceHref, assetHref, onUnplace, busyId, loading, error, onRetry, now, locale, messages, className,
+  rows, assetId, deviceHref, assetHref, onUnplace, busyId, paging, loading, error, onRetry, now, locale, messages, className,
 }: PlacedDeviceTableProps) {
   const { m } = useIotText(messages, locale);
   const columns: Column<PlacedDevice>[] = [
@@ -104,6 +108,10 @@ export function PlacedDeviceTable({
       caption={m.asset.devices}
       columns={columns}
       rows={rows}
+      total={paging?.total}
+      query={paging ? { page: paging.page, pageSize: paging.pageSize } : undefined}
+      onQueryChange={paging ? (q: DataTableQuery) => { if (q.page !== paging.page || q.pageSize !== paging.pageSize) paging.onChange(q.page, q.pageSize); } : undefined}
+      pageSizeOptions={paging ? LIST_PAGE_SIZES : []}
       rowId={(r) => r.device.deviceId}
       loading={loading}
       error={error || undefined}
@@ -111,7 +119,6 @@ export function PlacedDeviceTable({
       emptyMessage={m.asset.noDevices}
       messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
       searchable={false}
-      pageSizeOptions={[]}
       keyboardNavigation
     />
   );
