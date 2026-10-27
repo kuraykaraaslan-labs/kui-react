@@ -263,6 +263,7 @@ export function AlarmListView({
       key: 'title',
       header: m.alarms.alarm,
       sortable: true,
+      hideable: false,
       render: (a) => (
         <a href={hrefs.alarm(a.alarmId)} className="block min-w-0 rounded font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <span className="block truncate">{a.title}</span>
@@ -326,6 +327,9 @@ export function AlarmListView({
         mode="manual"
         caption={m.alarms.title}
         columns={columns}
+        // The viewer's own columns, saved in this browser (the alarm stays); a device's tab has no Device column.
+        columnChooser
+        tableId={deviceId ? 'iot.device.alarms' : 'iot.alarms'}
         rows={items}
         total={total}
         query={{ page: query.page, pageSize: query.pageSize, sort: toTableSort(query.sort), search: query.search ?? '' }}

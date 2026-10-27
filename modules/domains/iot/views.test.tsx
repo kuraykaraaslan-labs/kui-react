@@ -160,6 +160,19 @@ describe('DeviceListView', () => {
     expect(screen.getByRole('button', { name: /Remove filter Status/ })).toBeInTheDocument();
   });
 
+  it('lets the viewer hide columns but the name, saved in this browser as iot.devices', async () => {
+    const user = userEvent.setup();
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} now={NOW} />, { adapter: createFakeAdapter() });
+    await screen.findByText('Pump 4');
+    await user.click(screen.getByRole('button', { name: /Columns/ }));
+    const panel = screen.getByRole('dialog', { name: 'Columns' });
+    expect(within(panel).queryByLabelText('Name')).toBeNull();
+    await user.click(within(panel).getByLabelText('Firmware'));
+    expect(screen.queryByRole('columnheader', { name: /Firmware/ })).toBeNull();
+    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.iot.devices')!)).toEqual({ firmware: false });
+    window.localStorage.clear();
+  });
+
   it('keeps a filter applied from page 2: the list, the URL and the chip stay filtered on page 1', async () => {
     const user = userEvent.setup();
     const adapter = createFakeAdapter();
@@ -401,6 +414,23 @@ describe('AlarmListView', () => {
     await user.click(within(panel).getByRole('button', { name: 'Apply' }));
     await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'OPEN', severity: ['CRITICAL'], page: 1 }), expect.anything()));
     expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ severity: ['CRITICAL'], page: 1 }));
+  });
+
+  it('lets the viewer hide columns but the alarm, the list and a device\'s tab saved apart', async () => {
+    const user = userEvent.setup();
+    const { unmount } = wrap(<AlarmListView hrefs={{ alarm: (id) => id }} now={NOW} />, { adapter: createFakeAdapter() });
+    await user.click(await screen.findByRole('button', { name: /Columns/ }));
+    let panel = screen.getByRole('dialog', { name: 'Columns' });
+    expect(within(panel).queryByLabelText('Alarm')).toBeNull();
+    await user.click(within(panel).getByLabelText('Device'));
+    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.iot.alarms')!)).toEqual({ device: false });
+    unmount();
+    wrap(<AlarmListView hrefs={{ alarm: (id) => id }} deviceId="d1" now={NOW} />, { adapter: createFakeAdapter() });
+    await user.click(await screen.findByRole('button', { name: /Columns/ }));
+    panel = screen.getByRole('dialog', { name: 'Columns' });
+    await user.click(within(panel).getByLabelText('Status'));
+    expect(JSON.parse(window.localStorage.getItem('kui.dataTable.columns.iot.device.alarms')!)).toEqual({ status: false });
+    window.localStorage.clear();
   });
 
   it('acknowledges every open alarm of its device with one note', async () => {

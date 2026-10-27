@@ -262,6 +262,7 @@ export function DeviceListView({
       key: 'name',
       header: m.devices.name,
       sortable: true,
+      hideable: false,
       render: (d) => (
         <a href={hrefs.device(d.deviceId)} className="flex min-w-0 flex-col rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <span className="flex items-center gap-1.5 truncate font-medium text-text-primary hover:text-primary">
@@ -358,6 +359,9 @@ export function DeviceListView({
         mode="manual"
         caption={m.devices.title}
         columns={columns}
+        // The viewer's own columns, saved in this browser (the name stays).
+        columnChooser
+        tableId="iot.devices"
         rows={items}
         total={total}
         query={{ page: query.page, pageSize: query.pageSize, sort: toTableSort(query.sort), search: query.search ?? '' }}
