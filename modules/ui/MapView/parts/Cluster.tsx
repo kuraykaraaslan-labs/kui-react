@@ -3,8 +3,8 @@ import { useCallback, useSyncExternalStore, type ReactNode } from 'react';
 import type * as LeafletLib from 'leaflet';
 import type { Map as LeafletMap } from 'leaflet';
 import type { LeafletBundle } from '../providers/leaflet';
-import { MarkerPart } from './Marker';
-import { VARIANT_HEX, safeMarkerColor, type MapMarker } from '../types';
+import { MarkerPart, markerText } from './Marker';
+import { VARIANT_HEX, safeMarkerColor, type MapMarker, type MapVariant } from '../types';
 
 export type MarkerGroup = { id: string; markers: MapMarker[]; position: [number, number] };
 
@@ -34,17 +34,27 @@ export function clusterMarkers(
   }));
 }
 
-/** A group's colour: the one its markers share, else the primary colour. Always a safe colour. */
+// The status variants a group shows before the others (worst first): a cluster never hides a marker in trouble.
+const SEVERE: MapVariant[] = ['error', 'warning', 'info'];
+
+/**
+ * A group's colour: the one its markers share; else, when one of them is drawn in a status variant (error, warning,
+ * info, by its variant and no own colour), the worst of those; else the primary colour. Always a safe colour.
+ */
 export function clusterColor(markers: MapMarker[]): string {
   const colors = new Set(markers.map((m) => safeMarkerColor(m.color) ?? VARIANT_HEX[m.variant ?? 'primary']));
-  return colors.size === 1 ? [...colors][0] : 'var(--primary, #3b82f6)';
+  if (colors.size === 1) return [...colors][0];
+  const variants = new Set(markers.filter((m) => !safeMarkerColor(m.color)).map((m) => m.variant));
+  const worst = SEVERE.find((v) => variants.has(v));
+  return worst ? VARIANT_HEX[worst] : 'var(--primary, #3b82f6)';
 }
 
-function clusterIcon(L: typeof LeafletLib, count: number, color: string) {
+function clusterIcon(L: typeof LeafletLib, count: number, color: string, text?: string) {
   const size = count < 10 ? 30 : count < 100 ? 36 : 42;
+  const label = text === undefined ? String(count) : markerText(text);
   return L.divIcon({
     className: '',
-    html: `<span style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:${color};color:#ffffff;font:600 12px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 0 4px color-mix(in srgb, ${color} 22%, transparent),0 1px 3px rgba(0,0,0,0.3);box-sizing:border-box">${count}</span>`,
+    html: `<span style="display:flex;align-items:center;justify-content:center;width:${size}px;height:${size}px;border-radius:9999px;background:${color};color:#ffffff;font:600 12px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 0 4px color-mix(in srgb, ${color} 22%, transparent),0 1px 3px rgba(0,0,0,0.3);box-sizing:border-box">${label}</span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
   });
@@ -60,10 +70,12 @@ type ClusteredMarkersProps = {
   renderLink?: (href: string, children: ReactNode, className?: string) => ReactNode;
   /** Pixel distance within which markers group. Default = 40. */
   radius?: number;
+  /** What a bubble says, from its markers. Default = how many markers it holds. */
+  text?: (markers: MapMarker[]) => string;
 };
 
 /** Markers grouped by overlap at the current zoom; a group is a count bubble that zooms in on click. */
-export function ClusteredMarkers({ bundle, markers, onMarkerClick, onMarkerMove, showLabels, tooltipTrigger, renderLink, radius = 40 }: ClusteredMarkersProps) {
+export function ClusteredMarkers({ bundle, markers, onMarkerClick, onMarkerMove, showLabels, tooltipTrigger, renderLink, radius = 40, text }: ClusteredMarkersProps) {
   const { useMap, Marker, Tooltip, Popup, L } = bundle;
   const map = useMap() as LeafletMap;
   // The zoom is read when the listener is registered as well as on every zoomend: the canvas's first fitBounds runs
@@ -93,9 +105,9 @@ export function ClusteredMarkers({ bundle, markers, onMarkerClick, onMarkerMove,
         />
       ) : (
         <Marker
-          key={`cluster-${g.id}-${g.markers.length}-${clusterColor(g.markers)}`}
+          key={`cluster-${g.id}-${g.markers.length}-${clusterColor(g.markers)}-${text?.(g.markers) ?? ''}`}
           position={g.position}
-          icon={clusterIcon(L, g.markers.length, clusterColor(g.markers))}
+          icon={clusterIcon(L, g.markers.length, clusterColor(g.markers), text?.(g.markers))}
           alt={`${g.markers.length} markers, zoom in`}
           eventHandlers={{
             click: () => map.fitBounds(L.latLngBounds(g.markers.map((m) => m.position)), { padding: [32, 32] }),

@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faExpand, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -18,12 +18,13 @@ import { AssetKindBadge } from './AssetKindBadge';
 
 /**
  * AssetsMapDrawer — the Sites & assets page's "Map" (owner 2026-10-27, option B): a wide right-side drawer with the sites (top-level
- * nodes) beside the kit's map. Each located site is a marker coloured by its worst active alarm (red critical or major, amber minor
- * or warning, green none; neutral when the host shows no alarms); the list on the side has every site, most severe and most alarms
+ * nodes) beside the kit's map. Each located site is a circle coloured by its worst active alarm (red critical or major, amber minor
+ * or warning, green none; neutral when the host shows no alarms), with its active alarm count inside and sized by its devices; the list on the side has every site, most severe and most alarms
  * first, with its devices and active alarms. Choosing a site (in the list or on the map) opens its summary over the map: nodes,
  * devices, active alarms per severity, and "List assets" (the table filtered to the site), "Details" (the site's drawer) and, when the
  * host gives one, "Alarms". "Only with active alarms" narrows both; "Fit all" brings every drawn site back into view (after a zoom or
- * a pan), and sites that overlap at the current zoom are drawn as one cluster that zooms in on a click. On a phone the map sits above
+ * a pan), and sites that overlap at the current zoom are drawn as one cluster (in the worst colour of its sites, with their active
+ * alarms added up inside) that splits as the map zooms in, and zooms in on a click. On a phone the map sits above
  * the list and every control is a 40 px touch target.
  *
  * The summary is the page's (`AssetsView` reads it once for the KPI row); the drawer reads nothing itself.
@@ -49,6 +50,21 @@ export function siteLine(m: IotMessages, s: Pick<AssetSite, 'deviceCount' | 'ala
     : fill(m.assets.mapSiteLine, { devices: s.deviceCount, alarms: s.alarmCount });
 }
 
+/** A site's circle: 22 px with no devices, up to 40 px for the site with the most (by area, so the size reads as the count). Pure. */
+export function siteMarkerSize(devices: number, mostDevices: number): number {
+  return mostDevices > 0 && devices > 0 ? Math.round(22 + 18 * Math.sqrt(Math.min(1, devices / mostDevices))) : 22;
+}
+
+/** The count inside a site's circle: its active alarms, none at zero or when the host shows no alarms; 999+ above that. Pure. */
+export function siteMarkerText(alarms: number | null): string | undefined {
+  return alarms && alarms > 0 ? (alarms > 999 ? '999+' : String(alarms)) : undefined;
+}
+
+/** The count inside a cluster's bubble: its sites' active alarms added up, none at zero. Pure. */
+export function clusterAlarmText(alarms: Array<number | null | undefined>): string {
+  return siteMarkerText(alarms.reduce<number>((a, n) => a + (n ?? 0), 0)) ?? '';
+}
+
 /** On a phone a control is at least 40 px each way (a touch target); from `sm` the control's own size. */
 const TOUCH = 'max-sm:min-h-10 max-sm:min-w-10';
 
@@ -67,14 +83,28 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
     () => (summary?.siteList ?? []).filter((s) => !onlyAlarmed || (s.alarmCount ?? 0) > 0),
     [summary, onlyAlarmed],
   );
-  const markers = useMemo((): MapMarker[] => locatedSites(sites).map((s) => ({
-    id: s.assetId,
-    position: [s.lat, s.lng],
-    variant: siteTone(s),
-    label: s.name,
-    tooltip: { title: s.name, description: siteLine(m, s) },
-  })), [sites, m]);
+  const markers = useMemo((): MapMarker[] => {
+    const located = locatedSites(sites);
+    const most = Math.max(0, ...located.map((s) => s.deviceCount));
+    return located.map((s) => {
+      const text = siteMarkerText(s.alarmCount);
+      return {
+        id: s.assetId,
+        position: [s.lat, s.lng],
+        variant: siteTone(s),
+        shape: 'dot',
+        size: siteMarkerSize(s.deviceCount, most),
+        ...(text ? { text } : {}),
+        label: s.name,
+        tooltip: { title: s.name, description: siteLine(m, s) },
+      };
+    });
+  }, [sites, m]);
   const selected = sites.find((s) => s.assetId === selectedId) ?? null;
+  const clusterText = useCallback(
+    (group: MapMarker[]) => clusterAlarmText(group.map((g) => sites.find((s) => s.assetId === g.id)?.alarmCount)),
+    [sites],
+  );
 
   const header = (
     <div className="min-w-0">
@@ -123,7 +153,7 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
           <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:flex-row-reverse">
             <div className="relative h-72 shrink-0 overflow-hidden rounded-xl border border-border sm:h-96 lg:h-auto lg:min-h-0 lg:flex-1" data-testid="assets-map">
               {markers.length ? (
-                <MapCanvas key={fitRound} markers={markers} onMarkerClick={setSelectedId} loadingLabel={m.common.loading} cluster />
+                <MapCanvas key={fitRound} markers={markers} onMarkerClick={setSelectedId} loadingLabel={m.common.loading} cluster clusterText={clusterText} />
               ) : (
                 <p className="flex h-full items-center justify-center p-6 text-center text-sm text-text-secondary">{m.assets.mapNoSites}</p>
               )}

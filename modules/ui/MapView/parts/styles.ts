@@ -34,3 +34,9 @@ export const CANVAS_CLASS = [
   '[&_.leaflet-bar_a:hover]:bg-surface-overlay! [&_.leaflet-bar_a.leaflet-disabled]:text-text-disabled!',
   '[&_.leaflet-bar_a:focus-visible]:outline-none [&_.leaflet-bar_a:focus-visible]:ring-2 [&_.leaflet-bar_a:focus-visible]:ring-inset [&_.leaflet-bar_a:focus-visible]:ring-border-focus',
 ].join(' ');
+
+/**
+ * A light basemap's dark rendition (a tile source without a dark URL): inverted with the hues turned back, so water
+ * stays blue and land dark, and softened so the markers keep the colour. Set on the tile layer's own container.
+ */
+export const DIM_TILES_CLASS = '[filter:invert(1)_hue-rotate(180deg)_brightness(0.95)_contrast(0.9)_saturate(0.6)]';

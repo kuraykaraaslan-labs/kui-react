@@ -53,20 +53,32 @@ export function markerIcon(marker: MapMarker): MarkerIconSpec {
       iconSize: [size, size], iconAnchor: [size / 2, size / 2], tooltipAnchor: [0, -size / 2 - 2],
     };
   }
+  // A dot or a circle may carry a short text (a count) in its middle.
+  const text = markerText(marker.text);
+  const inner = text
+    ? `display:flex;align-items:center;justify-content:center;font:600 ${Math.max(9, Math.round(size * 0.42))}px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;`
+    : 'display:block;';
   if (shape === 'circle') {
     return {
-      html: `<span style="display:block;width:${size}px;height:${size}px;border-radius:9999px;background:color-mix(in srgb, ${color} 28%, transparent);border:2px solid ${color};box-shadow:0 1px 2px rgba(0,0,0,0.25);box-sizing:border-box"></span>`,
+      html: `<span style="${inner}width:${size}px;height:${size}px;border-radius:9999px;background:color-mix(in srgb, ${color} 28%, transparent);border:2px solid ${color};box-shadow:0 1px 2px rgba(0,0,0,0.25);box-sizing:border-box${text ? `;color:${color}` : ''}">${text}</span>`,
       iconSize: [size, size], iconAnchor: [size / 2, size / 2], tooltipAnchor: [0, -size / 2 - 2],
     };
   }
   return {
-    html: `<span style="display:block;width:${size}px;height:${size}px;border-radius:9999px;background:${color};border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.4);box-sizing:border-box"></span>`,
+    html: `<span style="${inner}width:${size}px;height:${size}px;border-radius:9999px;background:${color};border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.4);box-sizing:border-box${text ? ';color:#ffffff;text-shadow:0 1px 1px rgba(0,0,0,0.45)' : ''}">${text}</span>`,
     iconSize: [size, size], iconAnchor: [size / 2, size / 2], tooltipAnchor: [0, -size / 2 - 2],
   };
 }
 
+/** A marker's inner text, escaped for its HTML: at most 4 characters, '' when there is none. Pure. */
+export function markerText(value: unknown): string {
+  if (typeof value !== 'string' && typeof value !== 'number') return '';
+  return [...String(value).trim()].slice(0, 4).join('')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 /**
- * Renders a single Leaflet marker (pin, dot or icon) with an optional tooltip, a permanent label
+ * Renders a single Leaflet marker (pin, dot, circle, icon or picture) with an optional tooltip, a permanent label
  * and a click-opened popup. Variant colours come from VARIANT_HEX; `marker.color` overrides them.
  */
 export function MarkerPart({

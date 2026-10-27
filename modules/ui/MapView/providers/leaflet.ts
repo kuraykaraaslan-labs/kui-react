@@ -7,6 +7,7 @@
 
 import type * as ReactLeaflet from 'react-leaflet';
 import type * as LeafletLib from 'leaflet';
+import { OSM_TILES, tileSourceTiles } from '../tiles';
 
 export type LeafletBundle = {
   MapContainer: typeof ReactLeaflet.MapContainer;
@@ -23,25 +24,15 @@ export type LeafletBundle = {
   L:            typeof LeafletLib;
 };
 
-// Keyless raster basemaps that follow the theme: Esri's Light Gray and Dark Gray Canvas, with their
-// place-name layers on top. (CARTO's basemaps, the previous default, now answer every keyless
-// request with an "API key required" tile.) A host with its own tile server passes `tiles`.
+// Esri's keyless Canvas basemaps, kept for hosts that pick them as their `tiles` (the map widget's styles do).
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services';
 export const ESRI_ATTRIBUTION = 'Tiles &copy; <a href="https://www.esri.com">Esri</a> &mdash; Esri, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 export const esriTiles = (service: string) => `${ESRI}/${service}/MapServer/tile/{z}/{y}/{x}`;
 
-export const LEAFLET_TILES = {
-  light: {
-    url: esriTiles('Canvas/World_Light_Gray_Base'),
-    labels: esriTiles('Canvas/World_Light_Gray_Reference'),
-    attribution: ESRI_ATTRIBUTION,
-  },
-  dark: {
-    url: esriTiles('Canvas/World_Dark_Gray_Base'),
-    labels: esriTiles('Canvas/World_Dark_Gray_Reference'),
-    attribution: ESRI_ATTRIBUTION,
-  },
-} as const;
+// The default basemap: OpenStreetMap's standard tiles, darkened in the dark theme. (CARTO's basemaps, an earlier
+// default, now answer every keyless request with an "API key required" tile.) An installation sets its own tile
+// source once with `MapTilesProvider`; a map's `tiles` prop wins over both.
+export const LEAFLET_TILES = tileSourceTiles(OSM_TILES);
 
 let _cached: Promise<LeafletBundle> | null = null;
 

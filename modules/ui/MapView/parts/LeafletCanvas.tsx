@@ -8,7 +8,9 @@ import { useFitBounds } from '../hooks/useFitBounds';
 import { MarkerPart } from './Marker';
 import { ClusteredMarkers } from './Cluster';
 import { ZoneShape, RouteShape } from './Shapes';
-import { CANVAS_CLASS } from './styles';
+import { CANVAS_CLASS, DIM_TILES_CLASS } from './styles';
+import { useMapTileSource } from '../MapTilesProvider';
+import { tileSourceTiles } from '../tiles';
 import type { MapDisplayOptions, MapImage, MapMarker, MapZone, MapRoute, MapTilesConfig } from '../types';
 
 type LeafletCanvasProps = {
@@ -36,8 +38,9 @@ type LeafletCanvasProps = {
  * package once (cached at module scope by providers/leaflet.ts) and re-mounts
  * the inner `<MapContainer>` only when the bundle resolves.
  *
- * Dark mode is reflected by swapping the tile layer URL — Leaflet recomputes
- * tiles in place, no remount needed.
+ * Dark mode is reflected by swapping the tile layer (its dark URL, or the light
+ * tiles darkened). The tiles are the `tiles` prop, else the installation's source
+ * (`MapTilesProvider`), else OpenStreetMap's.
  */
 export function LeafletCanvas(props: LeafletCanvasProps) {
   const [bundle, setBundle] = useState<LeafletBundle | null>(null);
@@ -153,6 +156,7 @@ function InnerMap({
   renderLink,
   onMarkerMove,
   clusterRadius,
+  clusterText,
   scrollWheelZoom = true,
   zoomControl = true,
   controlsPosition = 'topleft',
@@ -174,7 +178,8 @@ function InnerMap({
   } : undefined;
   const imageBounds: [[number, number], [number, number]] | null = image ? [[0, 0], [image.height, image.width]] : null;
   const isDark = useDarkMode();
-  const set = tilesProp ? ('url' in tilesProp ? { light: tilesProp, dark: tilesProp } : tilesProp) : LEAFLET_TILES;
+  const source = useMapTileSource();
+  const set = tilesProp ? ('url' in tilesProp ? { light: tilesProp, dark: tilesProp } : tilesProp) : source ? tileSourceTiles(source) : LEAFLET_TILES;
   const tiles = isDark ? set.dark : set.light;
 
   // Fitting frames the zones' and routes' vertices too, not only the markers: a map of zones alone was not framed.
@@ -204,9 +209,17 @@ function InnerMap({
         <ImageOverlay url={image.url} bounds={imageBounds} />
       ) : (
         <>
-          <TileLayer key={`${isDark ? 'dark' : 'light'}-${tiles.url}`} attribution={tiles.attribution} url={tiles.url} maxNativeZoom={16} maxZoom={20} />
-          {'labels' in tiles && tiles.labels && (
-            <TileLayer key={`labels-${tiles.labels}`} url={tiles.labels} maxNativeZoom={16} maxZoom={20} zIndex={2} />
+          <TileLayer
+            key={`${isDark ? 'dark' : 'light'}-${tiles.url}-${tiles.dim ? 'dim' : ''}`}
+            attribution={tiles.attribution}
+            url={tiles.url}
+            maxNativeZoom={tiles.maxZoom ?? 16}
+            maxZoom={20}
+            {...(tiles.subdomains ? { subdomains: tiles.subdomains } : {})}
+            {...(tiles.dim ? { className: DIM_TILES_CLASS } : {})}
+          />
+          {tiles.labels && (
+            <TileLayer key={`labels-${tiles.labels}`} url={tiles.labels} maxNativeZoom={tiles.maxZoom ?? 16} maxZoom={20} zIndex={2} />
           )}
         </>
       )}
@@ -242,6 +255,7 @@ function InnerMap({
           tooltipTrigger={tooltipTrigger}
           renderLink={renderLink}
           radius={clusterRadius}
+          text={clusterText}
         />
       ) : markers.map((marker) => (
         <MarkerPart

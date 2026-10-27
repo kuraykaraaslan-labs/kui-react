@@ -1,11 +1,13 @@
 import { useEffect, type ReactNode } from 'react';
 import { describe, it, expect } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
-import { markerIcon } from './parts/Marker';
+import { markerIcon, markerText } from './parts/Marker';
 import { ClusteredMarkers, clusterColor, clusterMarkers } from './parts/Cluster';
 import { Popup, isInternalHref } from './parts/Popup';
-import { safeMarkerColor, safeMarkerIcon, safeMarkerImage } from './types';
+import { VARIANT_HEX, safeMarkerColor, safeMarkerIcon, safeMarkerImage } from './types';
 import { LEAFLET_TILES, type LeafletBundle } from './providers/leaflet';
+import { OSM_ATTRIBUTION, safeAttribution, safeTileSource, tileSourceTiles } from './tiles';
+import { MapTilesProvider, useMapTileSource } from './MapTilesProvider';
 
 describe('marker drawing', () => {
   it('accepts plain colours and tokens, refuses anything that could break out of the HTML', () => {
@@ -74,11 +76,76 @@ describe('marker drawing', () => {
     expect(screen.getByText('10').tagName).toBe('DD');
   });
 
-  it('the default tiles need no API key and come with a place-name layer', () => {
-    for (const t of [LEAFLET_TILES.light, LEAFLET_TILES.dark]) {
-      expect(t.url).not.toMatch(/cartocdn/);
-      expect(t.labels).toMatch(/Reference/);
-    }
+  it('the default tiles are OpenStreetMap\'s, keyless, with their attribution, and darkened in the dark theme', () => {
+    expect(LEAFLET_TILES.light).toEqual({ url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', attribution: OSM_ATTRIBUTION, maxZoom: 19 });
+    expect(LEAFLET_TILES.dark).toEqual({ ...LEAFLET_TILES.light, dim: true });
+    for (const t of [LEAFLET_TILES.light, LEAFLET_TILES.dark]) expect(t.url).not.toMatch(/cartocdn|apikey/);
+    expect(OSM_ATTRIBUTION).toContain('OpenStreetMap</a> contributors');
+  });
+
+  it('a dot carries a short escaped text in its middle; other shapes leave it out', () => {
+    const dot = markerIcon({ id: '1', position: [0, 0], shape: 'dot', variant: 'error', size: 30, text: '21' });
+    expect(dot.html).toMatch(/display:flex;.*font:600 13px.*>21<\/span>$/);
+    expect(dot.html).toContain('text-shadow:');
+    expect(markerIcon({ id: '1', position: [0, 0], shape: 'circle', color: 'var(--error)', text: '7' }).html).toContain('color:var(--error)">7</span>');
+    expect(markerIcon({ id: '1', position: [0, 0], shape: 'dot' }).html).toMatch(/display:block;.*><\/span>$/);
+    expect(markerIcon({ id: '1', position: [0, 0], text: '9' }).html).not.toContain('>9<');
+    expect(markerText('<img src=x onerror=alert(1)>')).toBe('&lt;img');
+    expect(markerText('12345')).toBe('1234');
+    expect(markerText(7)).toBe('7');
+    expect(markerText({})).toBe('');
+  });
+
+  it('a mixed cluster takes the worst status variant among its markers, so it never hides an alarm', () => {
+    const at = [0, 0] as [number, number];
+    expect(clusterColor([{ id: 'a', position: at, variant: 'success' }, { id: 'b', position: at, variant: 'warning' }, { id: 'c', position: at, variant: 'error' }])).toBe(VARIANT_HEX.error);
+    expect(clusterColor([{ id: 'a', position: at, variant: 'success' }, { id: 'b', position: at, variant: 'info' }])).toBe(VARIANT_HEX.info);
+    expect(clusterColor([{ id: 'a', position: at, variant: 'success' }, { id: 'b', position: at, variant: 'neutral' }])).toMatch(/var\(--primary/);
+    // a marker with its own colour is not ranked by its variant
+    expect(clusterColor([{ id: 'a', position: at, variant: 'error', color: 'rgb(1, 2, 3)' }, { id: 'b', position: at, variant: 'success' }])).toMatch(/var\(--primary/);
+  });
+});
+
+describe('tile source', () => {
+  const SOURCE = { url: 'https://{s}.tiles.example.com/{z}/{x}/{y}.png?key=abc', attribution: '&copy; <a href="https://example.com">Example</a>', subdomains: 'abcd', maxZoom: 18 };
+
+  it('a source without a dark URL is darkened in the dark theme; with one, its dark tiles are used', () => {
+    const pair = tileSourceTiles(SOURCE);
+    expect(pair.light).toEqual({ url: SOURCE.url, attribution: SOURCE.attribution, subdomains: 'abcd', maxZoom: 18 });
+    expect(pair.dark).toEqual({ ...pair.light, dim: true });
+    const dark = tileSourceTiles({ ...SOURCE, darkUrl: 'https://dark.example.com/{z}/{x}/{y}.png' }).dark;
+    expect(dark.url).toBe('https://dark.example.com/{z}/{x}/{y}.png');
+    expect(dark.dim).toBeUndefined();
+  });
+
+  it('accepts an https template with {z} {x} {y} and drops what is unusable', () => {
+    expect(safeTileSource(SOURCE)).toEqual(SOURCE);
+    expect(safeTileSource({ ...SOURCE, url: 'http://tiles.example.com/{z}/{x}/{y}.png' })).toBeUndefined();
+    expect(safeTileSource({ ...SOURCE, url: 'https://tiles.example.com/{z}/{x}.png' })).toBeUndefined();
+    expect(safeTileSource({ ...SOURCE, url: 'https://tiles.example.com/{z}/{x}/{y}.png" onload="x' })).toBeUndefined();
+    expect(safeTileSource({ ...SOURCE, attribution: '  ' })).toBeUndefined();
+    expect(safeTileSource(null)).toBeUndefined();
+    expect(safeTileSource('https://tiles.example.com/{z}/{x}/{y}.png')).toBeUndefined();
+    // a bad optional field is dropped, not fatal
+    expect(safeTileSource({ ...SOURCE, subdomains: 'a.b', maxZoom: 40, darkUrl: 'javascript:alert(1)' })).toEqual({ url: SOURCE.url, attribution: SOURCE.attribution });
+    expect(safeTileSource({ ...SOURCE, subdomains: ['t0', 't1'], maxZoom: 20 })).toMatchObject({ subdomains: ['t0', 't1'], maxZoom: 20 });
+  });
+
+  it('keeps plain https links in the attribution and escapes any other markup', () => {
+    expect(safeAttribution('&copy; <a href="https://osm.org/copyright">OSM</a> contributors')).toBe('&copy; <a href="https://osm.org/copyright">OSM</a> contributors');
+    expect(safeAttribution('<img src=x onerror=alert(1)>')).toBe('&lt;img src=x onerror=alert(1)&gt;');
+    expect(safeAttribution('<a href="javascript:alert(1)">x</a>')).toBe('&lt;a href=&quot;javascript:alert(1)&quot;&gt;x&lt;/a&gt;');
+    expect(safeAttribution('<a href="https://a.test" onclick="x">a</a>')).not.toContain('<a ');
+  });
+
+  it('MapTilesProvider hands maps the checked source, and nothing for an unusable one', () => {
+    function Probe() { return <span data-testid="source">{JSON.stringify(useMapTileSource())}</span>; }
+    const { rerender } = render(<MapTilesProvider source={SOURCE}><Probe /></MapTilesProvider>);
+    expect(JSON.parse(screen.getByTestId('source').textContent!)).toEqual(SOURCE);
+    rerender(<MapTilesProvider source={{ url: 'ftp://x/{z}/{x}/{y}', attribution: 'x' }}><Probe /></MapTilesProvider>);
+    expect(screen.getByTestId('source').textContent).toBe('null');
+    rerender(<Probe />);
+    expect(screen.getByTestId('source').textContent).toBe('null');
   });
 });
 
@@ -116,7 +183,7 @@ describe('ClusteredMarkers zoom', () => {
   }
   const bundleOf = (map: ReturnType<typeof fakeMap>) => ({
     useMap: () => map,
-    Marker: ({ alt, children }: { alt?: string; children?: ReactNode }) => <div data-testid="marker" data-alt={alt}>{children}</div>,
+    Marker: ({ alt, icon, children }: { alt?: string; icon?: { html?: string }; children?: ReactNode }) => <div data-testid="marker" data-alt={alt} data-html={icon?.html}>{children}</div>,
     Tooltip: ({ children }: { children?: ReactNode }) => <>{children}</>,
     Popup: ({ children }: { children?: ReactNode }) => <>{children}</>,
     L: { divIcon: (o: object) => o },
@@ -130,6 +197,16 @@ describe('ClusteredMarkers zoom', () => {
     function FitFirst() { useEffect(() => { map.zoomTo(8); }, []); return null; }
     render(<><FitFirst /><ClusteredMarkers bundle={bundleOf(map)} markers={sites} /></>);
     expect(screen.getAllByTestId('marker')).toHaveLength(7);
+  });
+
+  it('a bubble says what clusterText makes of its markers (escaped), else how many it holds', () => {
+    const map = fakeMap(2);
+    const { rerender } = render(<ClusteredMarkers bundle={bundleOf(map)} markers={sites} text={(ms) => String(ms.length * 3)} />);
+    expect(screen.getByTestId('marker')).toHaveAttribute('data-html', expect.stringContaining('>21</span>'));
+    rerender(<ClusteredMarkers bundle={bundleOf(map)} markers={sites} text={() => '<b>'} />);
+    expect(screen.getByTestId('marker').getAttribute('data-html')).toContain('>&lt;b&gt;</span>');
+    rerender(<ClusteredMarkers bundle={bundleOf(map)} markers={sites} />);
+    expect(screen.getByTestId('marker')).toHaveAttribute('data-html', expect.stringContaining('>7</span>'));
   });
 
   it('regroups on every zoomend after that', () => {
