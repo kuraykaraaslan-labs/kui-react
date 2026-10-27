@@ -172,6 +172,21 @@ export function pruneEdges<N extends GraphNode, E extends GraphEdge>(graph: Grap
   return edges.length === graph.edges.length ? graph : { ...graph, edges };
 }
 
+/**
+ * After a node's outputs were reordered or removed (the outputs dialog): its connections follow their output. `map` is
+ * old port id to new port id; null drops the connections of that port; a port not in the map keeps its connections.
+ */
+export function remapOutputPorts<N extends GraphNode, E extends GraphEdge>(graph: Graph<N, E>, nodeId: string, map: Record<string, string | null>): Graph<N, E> {
+  if (!Object.keys(map).length) return graph;
+  const edges: E[] = [];
+  for (const e of graph.edges) {
+    if (e.sourceNodeId !== nodeId || !(e.sourcePort in map)) { edges.push(e); continue; }
+    const to = map[e.sourcePort];
+    if (to !== null) edges.push({ ...e, sourcePort: to });
+  }
+  return { ...graph, edges };
+}
+
 export function updateNode<N extends GraphNode, E extends GraphEdge>(graph: Graph<N, E>, nodeId: string, patch: Partial<GraphNode>): Graph<N, E> {
   return { ...graph, nodes: graph.nodes.map((n) => (n.nodeId === nodeId ? { ...n, ...patch } : n)) };
 }

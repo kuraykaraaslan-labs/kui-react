@@ -1,10 +1,11 @@
 'use client';
-import { useId, useState, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Ic } from './Ic';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
-import { faBug, faCircleInfo, faClock, faGaugeHigh, faRoute, faSliders, faTableList, faTriangleExclamation, faXmark } from '@fortawesome/free-solid-svg-icons';
+import { faBug, faCircleInfo, faClock, faEllipsis, faGaugeHigh, faRoute, faSliders, faTableList, faTriangleExclamation, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { MessagesProvider, useMergedMessages, useMessages, type EditorMessages } from '../messages';
+import { ContextMenu } from '../canvas/ContextMenu';
 import { BusiestTab } from './BusiestTab';
 import { DataTab, type DataTabProps } from './DataTab';
 import { DebugTab, type DebugTabProps } from './DebugTab';
@@ -64,6 +65,20 @@ const ICONS: Record<InsightTabId, IconDefinition> = {
 };
 const SLOT_IDS: readonly string[] = ['block', 'help', 'trace', 'runs'];
 
+/**
+ * The tabs the strip shows and the ones its "More tabs" menu holds: all when they fit (or the strip is not measured yet),
+ * else as many as fit next to the menu button, the open tab always among the shown ones. `fit` is how many tab widths
+ * the strip has room for.
+ */
+export function splitTabs<T extends { id: string }>(tabs: T[], open: string, fit: number | null): { shown: T[]; hidden: T[] } {
+  if (fit === null || tabs.length <= fit) return { shown: tabs, hidden: [] };
+  const cap = Math.max(1, fit - 1);
+  let shown = tabs.slice(0, cap);
+  const active = tabs.find((t) => t.id === open);
+  if (active && !shown.includes(active)) shown = [...shown.slice(0, cap - 1), active];
+  return { shown, hidden: tabs.filter((t) => !shown.includes(t)) };
+}
+
 function InsightBody(p: InsightPanelProps) {
   const m = useMessages();
   /* the order of the router's side bar: Block, Debug, Help, Trace, Errors, Runs, Data, Busiest (a slot the host does not fill has no tab) */
@@ -95,35 +110,82 @@ function InsightBody(p: InsightPanelProps) {
   const slot = SLOT_IDS.includes(tab) ? p.slots?.[tab as InsightSlotId] : undefined;
   const extra = p.extraTabs?.find((x) => x.id === tab);
   const showHeader = !!p.header && tab !== 'block' && tab !== 'help';
+  /* the strip never scrolls: the tabs are icons of one width (the name is the tooltip and the accessible name), and the
+     ones that do not fit go into a "More tabs" menu at its end */
+  const asideRef = useRef<HTMLElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<number | null>(null);
+  const [more, setMore] = useState<{ x: number; y: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = stripRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      const tabW = el.querySelector<HTMLElement>('[role="tab"]')?.offsetWidth || 32;
+      setFit(w > 0 ? Math.max(1, Math.floor(w / tabW)) : null);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const { shown, hidden } = splitTabs(tabs, tab, fit);
+  const hiddenCount = hidden.reduce<{ n: number; error: boolean }>((a, x) => {
+    const c = counts[x.id];
+    return c && c.n > 0 ? { n: a.n + c.n, error: a.error || !!c.error } : a;
+  }, { n: 0, error: false });
+  const openMore = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (more) { setMore(null); return; }
+    const b = e.currentTarget.getBoundingClientRect(), a = asideRef.current?.getBoundingClientRect();
+    setMore({ x: a ? b.left - a.left : 0, y: a ? b.bottom - a.top + 2 : 0 });
+  };
+  const countText = (n: number) => (n > 99 ? '99+' : String(n));
   return (
-    <aside aria-label={m.insPanel} className={cn('flex h-full min-h-0 flex-col overflow-hidden border-l border-border bg-surface-raised', p.className)}>
-      <div role="tablist" className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-2 pt-1.5">
-        {tabs.map(({ id, label, icon }) => {
-          const on = tab === id, count = counts[id];
-          return (
-            <button
-              key={id} type="button" role="tab" id={`${uid}-${id}`} aria-selected={on} aria-controls={`${uid}-panel`} data-testid={`insight-tab-${id}`}
-              title={label} aria-label={label} onClick={() => setTab(id)}
-              className={cn('-mb-px inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-t-[var(--radius-md)] border px-2.5 py-2 text-[0.8125rem] font-semibold leading-normal focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
-                on ? 'border-border border-b-surface-raised bg-surface-raised text-primary' : 'border-transparent bg-transparent text-text-secondary hover:text-text-primary')}
-            >
-              <Ic icon={icon} size=".8rem" />
-              {on && <span>{label}</span>}
-              {count && count.n > 0 && (
-                <span data-testid={id === 'errors' ? 'insight-err-count' : id === 'debug' ? 'insight-dbg-count' : `insight-${id}-count`}
-                  className={cn('min-w-[1.1rem] rounded-full px-[.3rem] text-center text-[0.625rem] leading-[1.1rem] text-primary-fg', count.error ? 'bg-error' : 'bg-primary')}>{count.n > 99 ? '99+' : count.n}</span>
-              )}
+    <aside ref={asideRef} aria-label={m.insPanel} className={cn('relative flex h-full min-h-0 flex-col overflow-hidden border-l border-border bg-surface-raised', p.className)}>
+      <div className="flex shrink-0 items-end gap-1 border-b border-border px-1.5 pt-1.5">
+        <div ref={stripRef} className="flex min-w-0 flex-1 items-end overflow-hidden">
+          <div role="tablist" aria-label={m.insPanel} className="flex items-end">
+            {shown.map(({ id, label, icon }) => {
+              const on = tab === id, count = counts[id];
+              return (
+                <button
+                  key={id} type="button" role="tab" id={`${uid}-${id}`} aria-selected={on} aria-controls={`${uid}-panel`} data-testid={`insight-tab-${id}`}
+                  title={label} aria-label={label} onClick={() => setTab(id)}
+                  className={cn('relative -mb-px inline-flex h-9 w-8 shrink-0 items-center justify-center rounded-t-[var(--radius-md)] border focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-border-focus',
+                    on ? 'border-border border-b-surface-raised bg-surface-raised text-primary' : 'border-transparent bg-transparent text-text-secondary hover:text-text-primary')}
+                >
+                  <Ic icon={icon} size=".8rem" />
+                  {count && count.n > 0 && (
+                    <span data-testid={id === 'errors' ? 'insight-err-count' : id === 'debug' ? 'insight-dbg-count' : `insight-${id}-count`}
+                      className={cn('absolute right-0 top-0.5 min-w-[0.95rem] rounded-full px-[.2rem] text-center text-[0.5625rem] font-semibold leading-[0.95rem] text-primary-fg', count.error ? 'bg-error' : 'bg-primary')}>{countText(count.n)}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {hidden.length > 0 && (
+            <button type="button" data-testid="insight-more" aria-label={m.insMoreTabs} title={m.insMoreTabs} aria-haspopup="menu" aria-expanded={!!more} onClick={openMore}
+              className="relative mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--radius-md)] text-text-secondary hover:bg-surface-overlay hover:text-text-primary focus-visible:outline-2 focus-visible:outline-border-focus">
+              <Ic icon={faEllipsis} size=".8rem" />
+              {hiddenCount.n > 0 && <span aria-hidden="true" className={cn('absolute right-1 top-1 h-1.5 w-1.5 rounded-full', hiddenCount.error ? 'bg-error' : 'bg-primary')} />}
             </button>
-          );
-        })}
-        <span className="flex-1" />
+          )}
+        </div>
         {p.onClose && (
           <button type="button" data-testid="insight-close" aria-label={m.panelClose} title={m.panelClose} onClick={p.onClose}
-            className="inline-flex h-9 min-h-9 w-9 min-w-9 flex-none items-center justify-center gap-2 rounded-[var(--radius-md)] border border-border bg-surface-base p-1 text-sm font-medium leading-[1.25] text-text-primary hover:bg-surface-overlay focus-visible:outline-2 focus-visible:outline-border-focus">
-            <Ic icon={faXmark} />
+            className="mb-1 inline-flex h-8 min-h-8 w-8 min-w-8 flex-none items-center justify-center rounded-[var(--radius-md)] border border-border bg-surface-base p-1 text-sm font-medium leading-[1.25] text-text-primary hover:bg-surface-overlay focus-visible:outline-2 focus-visible:outline-border-focus">
+            <Ic icon={faXmark} size=".85rem" />
           </button>
         )}
       </div>
+      {more && hidden.length > 0 && (
+        <ContextMenu x={more.x} y={more.y} onClose={() => setMore(null)}
+          items={hidden.map((x) => {
+            const c = counts[x.id];
+            return { kind: 'item' as const, label: c && c.n > 0 ? `${x.label} (${countText(c.n)})` : x.label, icon: x.icon, onSelect: () => setTab(x.id) };
+          })} />
+      )}
       <div role="tabpanel" id={`${uid}-panel`} aria-labelledby={`${uid}-${tab}`} className="flex min-h-0 flex-1 flex-col">
         {showHeader && <div data-testid="insight-header" className="shrink-0 border-b border-border">{p.header}</div>}
         {(slot || extra) && <div data-testid={`insight-slot-${tab}`} className="flex min-h-0 flex-1 flex-col overflow-y-auto">{(slot ?? extra)!.content}</div>}

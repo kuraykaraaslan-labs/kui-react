@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { catalogFromBlocks } from '../catalog';
 import {
   changeEdgePort, connect, connectProblem, edgeSourcePorts, insertOnEdge, MOVE_STEP, moveNodes, newNode, nodesBounds, pruneEdges, removeEdge, removeNodes,
-  placeNodes, rewireEdge, snapPos, toggleDisabled, updateNode,
+  placeNodes, remapOutputPorts, rewireEdge, snapPos, toggleDisabled, updateNode,
 } from './edit';
 import type { Graph, GraphEdge, GraphNode } from './types';
 
@@ -133,6 +133,19 @@ describe('pruneEdges and updateNode', () => {
   it('patches one node', () => {
     const g = graph([node('a', 'trigger.boot'), node('b', 'trigger.boot')]);
     expect(updateNode(g, 'b', { label: 'B!' }).nodes.map((n) => n.label)).toEqual(['a', 'B!']);
+  });
+});
+
+describe('remapOutputPorts', () => {
+  it('moves the connections of a node with their output, drops a removed one and leaves other ports and nodes alone', () => {
+    const g = graph(
+      [node('c', 'logic.script', 0, 0, { config: { outputs: 3 } }), node('d', 'logic.script', 0, 0, { config: { outputs: 3 } }), node('t', 'action.log')],
+      [edge('e1', 'c', 'o0', 't'), edge('e2', 'c', 'o1', 't'), edge('e3', 'c', 'o2', 't'), edge('e4', 'c', 'error', 't'), edge('e5', 'd', 'o0', 't')],
+    );
+    // output 3 moved to the top, output 1 removed: o2 → o0, o1 → o1 stays out of the map, o0 → gone
+    const next = remapOutputPorts(g, 'c', { o0: null, o2: 'o0' });
+    expect(next.edges.map((e) => `${e.edgeId}:${e.sourceNodeId}.${e.sourcePort}`)).toEqual(['e2:c.o1', 'e3:c.o0', 'e4:c.error', 'e5:d.o0']);
+    expect(remapOutputPorts(g, 'c', {})).toBe(g);
   });
 });
 

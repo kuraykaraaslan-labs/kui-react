@@ -93,7 +93,7 @@ demo.ts             sample catalog and flow for the showcase and the demo page
 | `activity` | `{ edges?, nodes?, window? }` (`CanvasActivity`): live counters from the host. A connection whose count (or `at`) goes up lights up for 400 ms, at most twice a second (`pulseStep`); its count shows on hover (`edgeCount`), a block's in / out / errors in its hover card and the node panel's Messages tab. A connection the host does not list takes its source port's count (`edgeActivityOf`). |
 | `nodeMessages`, `messageBodies`, `onTestMessage` | `{ [nodeId]: NodeMessage[] }`: the recent messages through each block (UI-33). The node panel gets a Messages tab (newest first, with a count). Bodies (`msg`) show only with `messageBodies` (the host's permission); `onTestMessage(nodeId, message)` adds "Test with this input" to a received message with a body. |
 | `onScriptTest`, `scriptTestSample` | `(request) => Promise<ScriptTestResult>`: a block whose code param has `api: 'automation-script'` gets "Test the script" in the node panel: a pane with the code (completion, hover, checks), the message (type, originator, payload, metadata) and an optional context. Run calls the host; the outputs (one per port), log, status, context writes and CPU time show, and an error with a line and column is marked in the code. Save writes the edited code back into the block (one undo step); nothing is deployed. `scriptTestSample(nodeId)` prefills it. |
-| `sideBar` | `RulesetSideBar`: one side bar as on the router (debug comparison item 6): the InsightPanel with the node panel as its Block tab (Settings, Messages) and Help tab, the host's `traceTab` and `runsTab`, and Debug, Errors, Data, Busiest fed by the same props as `InsightPanel`. Picking a block opens it on Block; the Errors tab lists the editor's validation errors, then the host's `deployProblems`. Without it the node panel stands alone. |
+| `sideBar` | `RulesetSideBar`: one side bar as on the router (debug comparison item 6): the InsightPanel with the node panel as its Block tab (Settings, Messages) and Help tab, the host's `traceTab` and `runsTab`, and Debug, Errors, Data, Busiest fed by the same props as `InsightPanel`. Picking a block opens it on Block; the Errors tab lists the editor's validation errors, then the host's `deployProblems`. Without it the node panel stands alone. The tabs are icons (the name is the tooltip and the accessible name) and the strip never scrolls: the tabs that do not fit go into a "More tabs" menu at its end, the open tab always shown. The X of the strip and the X and Close of the block panel close the whole bar (`onOpenChange(false)` for a host that keeps `open`); a button at the end of the zoom bar shows and hides it. |
 
 The ref has `getGraph()` (nodes, edges and groups; always the latest), `undo()`, `redo()`, `validate()`,
 `fit()` and `openRulesetDebug()`. `getGraph()` used to return only `{ nodes, edges }`; callers that read those two
@@ -127,12 +127,20 @@ of roltek-automation-1, so `catalogFromBlocks(files)` takes those files as they 
 
 A param (`ParamSpec`) has a `type` and, as needed: `label`, `hint`, `default`, `required`, `when`, `options`,
 `option_labels`, `empty_label`, `min`, `max`, `int`, `step`, `max_len`, `pattern`, `source`, `free`, `multiple`,
-`items`, `lang`, `pins`, `unit`, `suggest`, `scopes`, and `store`.
+`items`, `lang`, `pins`, `pin_notes`, `unit`, `suggest`, `scopes`, and `store`.
 
 - `when` is `{ param, value }` (one value or a list) or `{ param, not: [...] }`. The compared value falls back to the
   default of the other param. Hidden fields are not shown, not required and not validated.
 - `outputs` is a list of port ids, `{ dynamic: '<listParam>', prefix, max, extra }` (one port per item of a list
   param, plus the extra ports) or `{ count: '<numberParam>', prefix, max }` (a fixed number of ports).
+- A `number` param with `pins` (the count of `{ count }` outputs, naming the param that holds the comma list of
+  names) shows in the form as a short list of the outputs ("1 · alarm") with an "Edit outputs" dialog: one row per
+  output (name, and a Description column when `pin_notes` names a `list` param for one note per output), add, remove,
+  drag a row (or its handle and the arrow keys) to reorder, the count from the rows, names checked on their row (letters,
+  digits, `_`, `-`, unique, not a port id like `o1` or `error`) and a code example from the names. What is stored stays
+  the count and the comma list (an empty name in the middle keeps its place); in the editor the connections follow their
+  output when it moves or goes (`remapOutputPorts`). The canvas names the ports from the list. Pure part:
+  `catalog/outputs.ts`.
 - `errorPort: true` gives every block with an input an `error` output. It sits at the bottom of the node and its
   connections are dashed.
 - `store: 'script'` keeps the value in `node.script` instead of `node.config`. The ten built-in types use it for

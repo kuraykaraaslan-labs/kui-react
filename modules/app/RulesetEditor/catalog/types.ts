@@ -51,6 +51,8 @@ export type ParamSpec = {
   api?: 'automation-script';
   /** `number` that sets an output count: key of the param holding the pin names */
   pins?: string;
+  /** `number` with `pins`: key of an optional `list` param holding one note per output (the outputs dialog shows a Description column) */
+  pin_notes?: string;
   unit?: string;
   suggest?: string[];
   /** `value` / `path`: variable scopes the user can pick from */

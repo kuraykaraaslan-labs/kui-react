@@ -11,7 +11,8 @@ import { BUILTIN_CATALOG } from '../catalog/builtin';
 import { paletteGroups } from '../catalog/palette';
 import type { Catalog, ParamChoices } from '../catalog/types';
 import { addGroup, groupOf, ungroup, updateGroup } from '../graph/groups';
-import { changeEdgePort, edgeSourcePorts, insertOnEdge, newNode, placeNodes, pruneEdges, removeEdge, removeNodes, toggleDisabled, updateNode, type Point } from '../graph/edit';
+import { changeEdgePort, edgeSourcePorts, insertOnEdge, newNode, placeNodes, pruneEdges, remapOutputPorts, removeEdge, removeNodes, toggleDisabled, updateNode, type Point } from '../graph/edit';
+import { outputPortMap, outputPrefix } from '../catalog/outputs';
 import { autoLayout } from '../graph/layout';
 import { mergeSelection } from '../graph/boxselect';
 import { copyableIds, deletableIds, ensureFlowInput, fixedFlowInputId } from '../graph/flowInput';
@@ -435,6 +436,18 @@ export function RulesetEditor({
     setShowRequired(false);
   }
 
+  /* the side bar's X, the node panel's X and Close, and the tool bar button all close the whole bar (not only the block) */
+  function closeSide() {
+    setEditingNodeId(null);
+    setSideShown(false);
+    sideBar?.onOpenChange?.(false);
+  }
+  function toggleSide() {
+    if (sideShown || editingNodeId) { closeSide(); return; }
+    setSideShown(true);
+    sideBar?.onOpenChange?.(true);
+  }
+
   function loadPanel(node: RuleNode) {
     const values = formValues(catalog.blocks[node.type]?.params, node.config, node.script);
     panelSnap.current = nodeSnap(node);
@@ -444,7 +457,7 @@ export function RulesetEditor({
     setDraftValues(values);
   }
 
-  function writePanel(change: { label?: string; description?: string; values?: Record<string, unknown> }) {
+  function writePanel(change: { label?: string; description?: string; values?: Record<string, unknown> }, ports?: Record<string, string | null>) {
     const { label, description, values } = { ...panelDraft.current, ...change };
     panelDraft.current = { label, description, values };
     setDraftLabel(label);
@@ -462,7 +475,8 @@ export function RulesetEditor({
     };
     panelSnap.current = nodeSnap({ ...node, ...patch });
     setShowRequired(true);
-    ed.apply((g) => pruneEdges(updateNode(g, node.nodeId, patch), catalog), `edit:${node.nodeId}`);
+    // the outputs dialog moved or removed outputs: their connections go with them before the ports are checked
+    ed.apply((g) => pruneEdges(remapOutputPorts(updateNode(g, node.nodeId, patch), node.nodeId, ports ?? {}), catalog), `edit:${node.nodeId}`);
   }
 
   /* ── pointer handling ──────────────────────────────────────────────────── */
@@ -864,8 +878,12 @@ export function RulesetEditor({
     onDescriptionChange: (description: string) => writePanel({ description }),
     onValueChange: (key: string, value: unknown) => writePanel({ values: setField(panelDraft.current.values, key, value) }),
     onValuesChange: (values: Record<string, unknown>) => writePanel({ values }),
+    onOutputsChange: (patch: Record<string, unknown>, order: (number | null)[], before: number) => writePanel(
+      { values: Object.entries(patch).reduce((v, [k, x]) => setField(v, k, x), panelDraft.current.values) },
+      outputPortMap(order.map((from) => ({ from })), before, outputPrefix(editingDecl?.outputs)),
+    ),
     paramEditor: paramEditors?.[editingNode.type],
-    onClose: () => setEditingNodeId(null),
+    onClose: sideBar ? closeSide : () => setEditingNodeId(null),
     onDelete: () => deleteNodes([editingNode.nodeId]),
     canDelete: editingNode.nodeId !== fixedFlowInputId(nodes),
     onResetScript: defaultScriptOf(editingDecl?.params) !== undefined
@@ -979,6 +997,8 @@ export function RulesetEditor({
         onShowShortcuts={() => setShortcutsOpen(true)}
         search={searchState}
         toolbarExtra={toolbarExtra}
+        sidePanelOn={sideVisible}
+        onToggleSidePanel={sideBar ? toggleSide : undefined}
       >
         <IssuesPanel
           result={validation}
@@ -1009,7 +1029,7 @@ export function RulesetEditor({
       {!sideBar && panelProps && <NodeEditorPanel key={panelProps.node.nodeId} {...panelProps} />}
 
       {sideBar && sideVisible && (() => {
-        const { traceTab, runsTab, open: _open, onOpenChange, tab: _tab, onTabChange: _onTab, onReveal: hostReveal, nodeNames: _names, deployProblems: _dp, ...insight } = sideBar;
+        const { traceTab, runsTab, open: _open, onOpenChange: _onOpen, tab: _tab, onTabChange: _onTab, onReveal: hostReveal, nodeNames: _names, deployProblems: _dp, ...insight } = sideBar;
         const pick = <p className="p-4 text-xs text-text-secondary">{m.sideBarPickBlock}</p>;
         return (
           <InsightPanel
@@ -1022,7 +1042,7 @@ export function RulesetEditor({
             tab={sideTab}
             onTabChange={setSideTab}
             onReveal={(id) => { selectOnly(id); reveal(id); hostReveal?.(id); }}
-            onClose={() => { setEditingNodeId(null); setSideShown(false); onOpenChange?.(false); }}
+            onClose={closeSide}
             slots={{
               block: { content: panelProps ? <NodeEditorPanel key={panelProps.node.nodeId} {...panelProps} bare tabs={['settings', 'messages']} /> : pick },
               help: { content: panelProps ? <NodeEditorPanel key={`help-${panelProps.node.nodeId}`} {...panelProps} bare tabs={['help']} /> : pick },

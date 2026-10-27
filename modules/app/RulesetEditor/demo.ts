@@ -63,8 +63,9 @@ const BLOCKS: RawBlock[] = [
     outputs: { count: 'outputs', prefix: 'o', max: 4 },
     params: {
       code: { type: 'code', lang: 'js', store: 'script', required: true, label: 'Code', default: '// msg.payload is the incoming data\nreturn msg;' },
-      outputs: { type: 'number', int: true, min: 1, max: 4, default: 1, pins: 'labels' },
+      outputs: { type: 'number', int: true, min: 1, max: 4, default: 1, pins: 'labels', pin_notes: 'output_notes' },
       labels: { type: 'string', max_len: 128, default: '', label: 'Output names', hint: 'Comma separated, one per output' },
+      output_notes: { type: 'list', label: 'Output descriptions' },
     },
   },
   {

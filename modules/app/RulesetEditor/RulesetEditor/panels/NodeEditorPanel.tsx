@@ -16,6 +16,8 @@ import { fillTemplate, useMessages } from '../messages';
 import { portColor } from '../node-meta';
 import type { NodeLayout } from '../geometry';
 import { ParamForm } from '../../forms/ParamForm';
+import type { OutputsChange } from '../../forms/OutputsField';
+import { outputPrefix } from '../../catalog/outputs';
 import type { ParamValues } from '../../catalog/params';
 import type { BlockDecl, ParamChoices } from '../../catalog/types';
 import type { GraphIssue } from '../../graph/validate';
@@ -81,7 +83,7 @@ function PlaceholderDetails({ node }: { node: RuleNode }) {
 
 export function NodeEditorPanel({
   node, decl, layout, readOnly, draftLabel, draftDescription, draftValues, choices, issues = [], showRequired = false,
-  onLabelChange, onDescriptionChange, onValueChange, onValuesChange, paramEditor: ParamEditor, onClose, onDelete, canDelete = true, onResetScript, onDebug,
+  onLabelChange, onDescriptionChange, onValueChange, onValuesChange, onOutputsChange, paramEditor: ParamEditor, onClose, onDelete, canDelete = true, onResetScript, onDebug,
   nodeMessages, messageBodies = false, activity, activityWindow, onTestMessage, onTestScript, tabs: onlyTabs, bare = false, tab: tabProp, onTabChange,
 }: {
   node: RuleNode;
@@ -102,6 +104,8 @@ export function NodeEditorPanel({
   onValueChange: (key: string, value: unknown) => void;
   /** replaces all the params at once (a custom `paramEditor`) */
   onValuesChange?: (values: ParamValues) => void;
+  /** the outputs dialog of a block with a count of outputs: its params in one step, and the connections follow their output */
+  onOutputsChange?: OutputsChange;
   /** the host's own editor for this block type, shown in place of the generated form */
   paramEditor?: ComponentType<ParamEditorProps>;
   onClose: () => void; onDelete: () => void;
@@ -286,6 +290,7 @@ export function NodeEditorPanel({
               <ParamForm
                 schema={decl.params ?? {}} values={draftValues} onChange={onValueChange} readOnly={readOnly}
                 choices={choices} idPrefix={`node-${node.nodeId}`} showRequired={showRequired}
+                onOutputsChange={onOutputsChange} portPrefix={outputPrefix(decl.outputs)}
               />
             )}
           </div>

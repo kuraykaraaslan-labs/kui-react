@@ -140,6 +140,10 @@ describe('ports', () => {
     const outs = resolvePorts(catalog, 'logic.script', { outputs: 3, labels: 'alarm, normal' }).outputs;
     expect(outs.map((p) => p.id + '=' + p.label)).toEqual(['o0=alarm', 'o1=normal', 'o2=o2', 'error=error']);
   });
+  it('reads the pins list by position: an empty name leaves its port unnamed and the names after it in place', () => {
+    const outs = resolvePorts(catalog, 'logic.script', { outputs: 3, labels: 'alarm, , normal' }).outputs;
+    expect(outs.map((p) => p.id + '=' + p.label)).toEqual(['o0=alarm', 'o1=o1', 'o2=normal', 'error=error']);
+  });
   it('caps generated ports at max and counts at least one', () => {
     expect(outputIds({ count: 'n', max: 4 }, { n: 99 })).toHaveLength(4);
     expect(outputIds({ count: 'n' }, {})).toEqual(['o0']);

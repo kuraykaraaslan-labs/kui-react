@@ -1,6 +1,7 @@
 export * from './types';
 export * from './params';
 export * from './ports';
+export * from './outputs';
 export * from './palette';
 export { BUILTIN_CATALOG } from './builtin';
 export * from './fromBlocks';

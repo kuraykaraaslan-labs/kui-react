@@ -1,4 +1,4 @@
-import { createRef } from 'react';
+import { createRef, useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -191,6 +191,43 @@ describe('the side bar (debug comparison items 4 and 6)', () => {
     // picking another block brings the bar back to Block
     clickNode('Sink');
     expect(screen.getByLabelText('Sink settings')).toBeInTheDocument();
+  });
+
+  it('closes the whole bar with the X of the block panel or of the strip, and the tool bar button brings it back', async () => {
+    const user = userEvent.setup();
+    setup({ sideBar: { messages: [] } });
+    const toggle = screen.getByTestId('tool-side-panel');
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    clickNode('Gate');
+    await user.click(within(screen.getByLabelText('Gate settings')).getByRole('button', { name: 'Close panel' }));
+    expect(screen.queryByRole('complementary', { name: 'Runtime insight' })).toBeNull();
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(toggle).toHaveAccessibleName('Show the side panel');
+    await user.click(toggle);
+    expect(screen.getByRole('complementary', { name: 'Runtime insight' })).toBeInTheDocument();
+    await user.click(screen.getByTestId('insight-close'));
+    expect(screen.queryByRole('complementary', { name: 'Runtime insight' })).toBeNull();
+    // a picked block opens it again
+    clickNode('Sink');
+    expect(screen.getByLabelText('Sink settings')).toBeInTheDocument();
+    await user.click(screen.getByTestId('tool-side-panel'));
+    expect(screen.queryByRole('complementary', { name: 'Runtime insight' })).toBeNull();
+  });
+
+  it('tells a host that keeps the bar open state: the X of the block panel closes it there too', async () => {
+    const user = userEvent.setup();
+    function Host() {
+      const [open, setOpen] = useState(false);
+      return <RulesetEditor initialNodes={NODES} initialEdges={EDGES} chainName="Chain" sideBar={{ messages: [], open, onOpenChange: setOpen }} />;
+    }
+    render(<Host />);
+    expect(screen.queryByRole('complementary', { name: 'Runtime insight' })).toBeNull();
+    clickNode('Gate');
+    expect(screen.getByLabelText('Gate settings')).toBeInTheDocument();
+    await user.click(within(screen.getByLabelText('Gate settings')).getByRole('button', { name: 'Close panel' }));
+    expect(screen.queryByRole('complementary', { name: 'Runtime insight' })).toBeNull();
+    await user.click(screen.getByTestId('tool-side-panel'));
+    expect(screen.getByRole('complementary', { name: 'Runtime insight' })).toBeInTheDocument();
   });
 
   it('lists the problems that stop a deploy in Errors: the editor\'s own, then the host\'s, with links', async () => {

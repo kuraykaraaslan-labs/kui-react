@@ -1394,6 +1394,91 @@ describe('RulesetEditor: script block', () => {
   });
 });
 
+describe('RulesetEditor: the outputs of a script block (a count of outputs with names)', () => {
+  const SCRIPT = catalogFromBlocks([[
+    { type: 'logic.script', title: 'Script', outputs: { count: 'outputs', prefix: 'o', max: 4 }, params: {
+      code: { type: 'code', lang: 'js', label: 'Code' },
+      outputs: { type: 'number', int: true, min: 1, max: 4, default: 1, label: 'Outputs', pins: 'labels' },
+      labels: { type: 'string', max_len: 128, default: '', label: 'Output names' },
+    } },
+    { type: 'logic.change', title: 'Change' },
+  ]]);
+  const nodes = [
+    node('s', 'logic.script', 'Calc', 0, 0, { config: { code: 'return msg;', outputs: 2, labels: 'alarm, normal' } }),
+    node('a', 'logic.change', 'On alarm', 300, 0), node('b', 'logic.change', 'On normal', 300, 200),
+  ];
+  const edges = [edge('e1', 's', 'o0', 'a'), edge('e2', 's', 'o1', 'b')];
+  const panel = () => screen.getByRole('complementary', { name: /settings/ });
+  const dialog = () => screen.getByRole('dialog');
+
+  it('shows the outputs as a short list with an Edit outputs button, not a number and a comma field', () => {
+    setup({ catalog: SCRIPT, initialNodes: nodes, initialEdges: edges });
+    clickNode('Calc');
+    const list = within(panel()).getByTestId('outputs-list');
+    expect(within(list).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1·alarm', '2·normal']);
+    expect(within(panel()).getByRole('list', { name: 'Outputs' })).toBe(list);
+    expect(within(panel()).queryByRole('spinbutton', { name: 'Outputs' })).toBeNull();
+    expect(within(panel()).queryByRole('textbox', { name: 'Output names' })).toBeNull();
+    expect(within(panel()).getByRole('button', { name: /Edit outputs/ })).toBeInTheDocument();
+    // the ports on the canvas carry the names
+    expect(nodeEl('Calc')).toHaveTextContent('alarm');
+    expect(nodeEl('Calc')).toHaveTextContent('normal');
+  });
+
+  it('edits the outputs in a dialog: names checked on their row, add, move by keys, a live example; the connections follow their output', async () => {
+    const user = userEvent.setup();
+    const { last } = setup({ catalog: SCRIPT, initialNodes: nodes, initialEdges: edges });
+    clickNode('Calc');
+    await user.click(within(panel()).getByTestId('outputs-edit'));
+    const names = () => within(dialog()).getAllByTestId('outputs-name') as HTMLInputElement[];
+    expect(names().map((i) => i.value)).toEqual(['alarm', 'normal']);
+    expect(within(dialog()).getByTestId('outputs-example')).toHaveTextContent('return "alarm"; // → output 1');
+    // a name that is not usable in code, then one used twice: the error is on its row and Save waits
+    await user.clear(names()[1]);
+    await user.type(names()[1], 'too hot');
+    expect(names()[1]).toHaveAttribute('aria-invalid', 'true');
+    expect(within(dialog()).getByTestId('outputs-error')).toHaveTextContent('Use letters, digits, _ and -, starting with a letter or _.');
+    expect(within(dialog()).getByTestId('outputs-save')).toBeDisabled();
+    await user.clear(names()[1]);
+    await user.type(names()[1], 'ALARM');
+    expect(within(dialog()).getAllByTestId('outputs-error').map((e) => e.textContent)).toEqual(['Another output has this name.', 'Another output has this name.']);
+    await user.clear(names()[1]);
+    await user.type(names()[1], 'normal');
+    expect(within(dialog()).getByTestId('outputs-save')).toBeEnabled();
+    // a third output, then the second moved to the top with the keys on its handle
+    await user.click(within(dialog()).getByTestId('outputs-add'));
+    expect(names()[2]).toHaveFocus();
+    await user.type(names()[2], 'spare');
+    within(dialog()).getByRole('button', { name: 'Move output 2' }).focus();
+    await user.keyboard('{ArrowUp}');
+    expect(names().map((i) => i.value)).toEqual(['normal', 'alarm', 'spare']);
+    expect(within(dialog()).getByRole('button', { name: 'Move output 1' })).toHaveFocus();
+    expect(within(dialog()).getByTestId('outputs-example')).toHaveTextContent('return [normal, alarm, spare]; // → output 1 (normal), output 2 (alarm), output 3 (spare)');
+    await user.click(within(dialog()).getByTestId('outputs-save'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    const g = last()!;
+    expect(g.nodes.find((n) => n.nodeId === 's')!.config).toMatchObject({ outputs: 3, labels: 'normal, alarm, spare' });
+    expect(g.edges.map((e) => `${e.edgeId}:${e.sourcePort}`).sort()).toEqual(['e1:o1', 'e2:o0']);
+    expect(within(within(panel()).getByTestId('outputs-list')).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1·normal', '2·alarm', '3·spare']);
+  });
+
+  it('removes an output with its connections, never the last one, and Cancel changes nothing', async () => {
+    const user = userEvent.setup();
+    const { last, onChange } = setup({ catalog: SCRIPT, initialNodes: nodes, initialEdges: edges });
+    clickNode('Calc');
+    await user.click(within(panel()).getByTestId('outputs-edit'));
+    await user.click(within(dialog()).getByRole('button', { name: 'Cancel' }));
+    expect(onChange).not.toHaveBeenCalled();
+    await user.click(within(panel()).getByTestId('outputs-edit'));
+    await user.click(within(dialog()).getByRole('button', { name: 'Remove output 1' }));
+    expect(within(dialog()).getByRole('button', { name: 'Remove output 1' })).toBeDisabled();
+    await user.click(within(dialog()).getByTestId('outputs-save'));
+    const g = last()!;
+    expect(g.nodes.find((n) => n.nodeId === 's')!.config).toMatchObject({ outputs: 1, labels: 'normal' });
+    expect(g.edges.map((e) => `${e.edgeId}:${e.sourcePort}`)).toEqual(['e2:o0']);
+  });
+});
+
 describe('diffTint (a version compare)', () => {
   it('outlines and labels added, changed and removed blocks, and colours tinted connections', () => {
     const { container } = setup({ readOnly: true, diffTint: { nodes: { n1: 'added', n2: 'changed', n3: 'removed' }, edges: { 'n1\u0000out\u0000n2': 'added', 'n2\u0000true\u0000n3': 'removed' } } });

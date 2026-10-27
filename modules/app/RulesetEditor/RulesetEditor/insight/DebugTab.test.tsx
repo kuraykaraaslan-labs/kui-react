@@ -148,16 +148,16 @@ describe('Debug tab: the tools row', () => {
 });
 
 describe('InsightPanel: the tab strip', () => {
-  it('has the tabs in the order of the router (Debug, Errors, Data, Busiest), the open one with its name and the others as icons', () => {
+  it('has the tabs in the order of the router (Debug, Errors, Data, Busiest), as icons named by their tooltip and label', () => {
     render(<InsightPanel />);
     const tabs = screen.getAllByRole('tab');
     expect(tabs.map((t) => t.getAttribute('aria-label'))).toEqual(['Debug', 'Errors', 'Data', 'Busiest']);
-    expect(tabs[0]).toHaveTextContent('Debug');
-    expect(tabs[1].textContent).toBe('');
-    expect(tabs.every((t) => t.querySelector('svg'))).toBe(true);
+    expect(tabs.map((t) => t.getAttribute('title'))).toEqual(['Debug', 'Errors', 'Data', 'Busiest']);
+    expect(tabs.every((t) => t.textContent === '' && t.querySelector('svg'))).toBe(true);
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
     fireEvent.click(tabs[2]);
-    expect(screen.getByTestId('insight-tab-data')).toHaveTextContent('Data');
-    expect(screen.getByTestId('insight-tab-debug').textContent).toBe('');
+    expect(screen.getByTestId('insight-tab-data').getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('insight-tab-debug').getAttribute('aria-selected')).toBe('false');
   });
   it('counts the messages that came while another tab was open, until Debug is opened again', () => {
     const { rerender } = render(<InsightPanel messages={[msg(1)]} />);

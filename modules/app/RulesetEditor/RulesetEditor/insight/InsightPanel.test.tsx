@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { InsightPanel } from './InsightPanel';
+import { InsightPanel, splitTabs } from './InsightPanel';
 import type { DebugMessage } from './types';
 
 afterEach(() => cleanup());
@@ -104,8 +104,9 @@ describe('InsightPanel: uiMessages', () => {
   it('translates the tabs, the debug tab and its buttons, a message left out stays English', () => {
     render(<InsightPanel uiMessages={de} nodeNames={names} messages={[msg(1)]} />);
     expect(screen.getByRole('complementary', { name: 'Laufzeitübersicht' })).toBeTruthy();
-    expect(screen.getByTestId('insight-tab-debug').textContent).toBe('Fehlersuche'); // the open tab shows its name
-    expect(screen.getByTestId('insight-tab-busiest').getAttribute('aria-label')).toBe('Busiest'); // not given, and a closed tab is its icon
+    expect(screen.getByTestId('insight-tab-debug').getAttribute('aria-label')).toBe('Fehlersuche'); // a tab is its icon, named by its label
+    expect(screen.getByTestId('insight-tab-debug').getAttribute('title')).toBe('Fehlersuche');
+    expect(screen.getByTestId('insight-tab-busiest').getAttribute('aria-label')).toBe('Busiest'); // not given
     expect(screen.getByLabelText('Art der Nachrichten')).toBeTruthy();
     expect(within(screen.getByLabelText('Art der Nachrichten')).getByRole('option', { name: 'Fehler und Warnungen' })).toBeTruthy();
     expect(screen.getByTestId('insight-dbg-pause').getAttribute('aria-label')).toBe('Nachrichten anhalten');
@@ -157,5 +158,57 @@ describe('InsightPanel: one bar (debug comparison items 4 and 6)', () => {
     rerender(<InsightPanel nodeNames={names} header={<p>level</p>} tab="block" slots={{ block: { content: <p>block</p> } }} />);
     expect(screen.getByText('block')).toBeTruthy();
     expect(screen.queryByTestId('insight-header')).toBeNull();
+  });
+});
+
+describe('InsightPanel: the tab strip never scrolls', () => {
+  const t = (...ids: string[]) => ids.map((id) => ({ id }));
+  it('splitTabs keeps every tab while they fit or the strip is not measured, else keeps room for the menu and the open tab', () => {
+    const all = t('a', 'b', 'c', 'd', 'e', 'f');
+    expect(splitTabs(all, 'a', null)).toEqual({ shown: all, hidden: [] });
+    expect(splitTabs(all, 'a', 6)).toEqual({ shown: all, hidden: [] });
+    expect(splitTabs(all, 'b', 4)).toEqual({ shown: t('a', 'b', 'c'), hidden: t('d', 'e', 'f') });
+    // the open tab is in the menu's part: it takes the last place
+    expect(splitTabs(all, 'f', 4)).toEqual({ shown: t('a', 'b', 'f'), hidden: t('c', 'd', 'e') });
+    expect(splitTabs(all, 'f', 1)).toEqual({ shown: t('f'), hidden: t('a', 'b', 'c', 'd', 'e') });
+  });
+
+  it('puts the tabs that do not fit into a "More tabs" menu, with their counts, and picking one opens it', () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(160);
+    const tabW = vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(32);
+    try {
+      const onTabChange = vi.fn();
+      render(<InsightPanel nodeNames={names} onTabChange={onTabChange} deployProblems={[{ message: 'x' }]}
+        slots={{ block: { content: <p>block</p> }, help: { content: <p>help</p> }, trace: { content: <p>trace</p> }, runs: { content: <p>runs</p>, count: 4 } }}
+        extraTabs={[{ id: 'events', label: 'Events', content: <p>events</p> }]} />);
+      // 160 px hold five tabs of 32 px: four tabs and the menu button
+      expect(screen.getAllByRole('tab').map((x) => x.getAttribute('data-testid'))).toEqual(['insight-tab-block', 'insight-tab-debug', 'insight-tab-help', 'insight-tab-trace']);
+      const more = screen.getByTestId('insight-more');
+      expect(more.getAttribute('aria-label')).toBe('More tabs');
+      expect(more.parentElement!.className).toContain('overflow-hidden');
+      expect(document.querySelector('.overflow-x-auto')).toBeNull();
+      fireEvent.click(more);
+      const items = within(screen.getByRole('menu')).getAllByRole('menuitem').map((x) => x.textContent);
+      expect(items).toEqual(['Errors (1)', 'Runs (4)', 'Data', 'Busiest', 'Events']);
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Events' }));
+      expect(onTabChange).toHaveBeenCalledWith('events');
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(screen.getByText('events')).toBeTruthy();
+      expect(screen.getByTestId('insight-tab-events').getAttribute('aria-selected')).toBe('true');
+    } finally {
+      width.mockRestore();
+      tabW.mockRestore();
+    }
+  });
+
+  it('has no menu when every tab fits', () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+    try {
+      render(<InsightPanel nodeNames={names} />);
+      expect(screen.queryByTestId('insight-more')).toBeNull();
+      expect(screen.getAllByRole('tab')).toHaveLength(4);
+    } finally {
+      width.mockRestore();
+    }
   });
 });

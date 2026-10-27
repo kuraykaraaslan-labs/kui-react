@@ -1,14 +1,11 @@
 import type { BlockDecl, Catalog, NodePorts, OutputsSpec, PortDef } from './types';
 import type { ParamValues } from './params';
+import { splitPinNames } from './outputs';
 
 const DEFAULT_MAX_PORTS = 16;
 
 function portOf(decl: BlockDecl | undefined, id: string, label?: string): PortDef {
   return { id, label: decl?.port_labels?.[id] ?? label ?? id };
-}
-
-function splitNames(value: unknown): string[] {
-  return typeof value === 'string' ? value.split(',').map((s) => s.trim()).filter(Boolean) : [];
 }
 
 /** Output port ids of a declaration for these param values. */
@@ -29,7 +26,7 @@ export function outputIds(outputs: OutputsSpec | undefined, params: ParamValues)
   return ids.concat('extra' in outputs ? outputs.extra ?? [] : []);
 }
 
-/** Display name of a generated port: the label of a rule row, or an entry of the comma list a pins param holds. */
+/** Display name of a generated port: the label of a rule row, or an entry of the comma list a pins param holds (by position: an empty entry leaves its port unnamed, as the runtime does). */
 function generatedLabel(decl: BlockDecl, params: ParamValues, index: number): string | undefined {
   const outputs = decl.outputs;
   if (!outputs || Array.isArray(outputs)) return undefined;
@@ -38,7 +35,7 @@ function generatedLabel(decl: BlockDecl, params: ParamValues, index: number): st
     return typeof row?.label === 'string' && row.label ? row.label : undefined;
   }
   const pinsKey = decl.params?.[outputs.count]?.pins;
-  return pinsKey ? splitNames(params[pinsKey])[index] : undefined;
+  return pinsKey ? splitPinNames(params[pinsKey])[index] || undefined : undefined;
 }
 
 /**

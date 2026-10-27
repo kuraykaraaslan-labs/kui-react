@@ -11,6 +11,8 @@ import { Checkbox } from '@/modules/ui/Checkbox';
 import { CodeEditor } from '@/modules/ui/CodeEditor';
 import { isVisible, optionLabel, paramLabel, validateParams, type ParamValues } from '../catalog/params';
 import type { ParamChoices, ParamSpec } from '../catalog/types';
+import { outputParamsOf } from '../catalog/outputs';
+import { OutputsField, type OutputsChange } from './OutputsField';
 import { useMessages } from '../RulesetEditor/messages';
 import { SCRIPT_SIGNATURE, scriptHover, scriptSuggestions } from '../RulesetEditor/script/api';
 import { lintScript, tidyScript } from '../RulesetEditor/script/lint';
@@ -428,8 +430,11 @@ function Field(props: FieldProps) {
  * `script` is passed in `values` like any other). `onChange(key, undefined)` means the field was emptied.
  * A text field that suggests (the spec's `suggest`, or the host's `suggest` for it) gets its own `<datalist>`, in a
  * row of a `rules` field too.
+ * A number param with `pins` (an output count) and its names param show as one outputs list with an "Edit outputs" dialog;
+ * the dialog's change comes through `onOutputsChange` when given (one step, with the old index of each output so the
+ * connections can follow), else as `onChange` of each param, one after the other (apply each to the latest values).
  */
-export function ParamForm({ schema, values, onChange, readOnly = false, choices, idPrefix = 'param', showRequired = false, suggest }: {
+export function ParamForm({ schema, values, onChange, readOnly = false, choices, idPrefix = 'param', showRequired = false, suggest, onOutputsChange, portPrefix = 'o' }: {
   schema: Record<string, ParamSpec>;
   values: ParamValues;
   onChange: (key: string, value: unknown) => void;
@@ -443,16 +448,30 @@ export function ParamForm({ schema, values, onChange, readOnly = false, choices,
    * replaces the field's own `suggest` (an empty one turns it off), `undefined` keeps it.
    */
   suggest?: ParamSuggest;
+  /** the outputs dialog's change: the new params and, per new output, the index it had (null: added) */
+  onOutputsChange?: OutputsChange;
+  /** the prefix of the block's generated port ids (`o`), so an output name cannot take one */
+  portPrefix?: string;
 }) {
   const m = useMessages();
   const suggestOf = (key: string, spec: ParamSpec, row?: RowRef) => suggest?.({ key, spec, values, row }) ?? spec.suggest;
   const issues = validateParams({ params: schema }, values, m.paramIssueText);
   const errorOf = (key: string) => issues.find((i) => i.param === key && (showRequired || i.code !== 'required'))?.message;
-  const keys = Object.keys(schema).filter((key) => isVisible(schema[key], values, schema));
+  const outputs = outputParamsOf(schema);
+  const keys = Object.keys(schema).filter((key) => isVisible(schema[key], values, schema) && key !== outputs?.names && key !== outputs?.notes);
   if (!keys.length) return null;
   return (
     <div className="space-y-4">
-      {keys.map((key) => (
+      {keys.map((key) => outputs?.count === key ? (
+        <OutputsField
+          key={key} id={`${idPrefix}-${key}`} schema={schema} keys={outputs} values={values} readOnly={readOnly} prefix={portPrefix}
+          error={errorOf(key) ?? errorOf(outputs.names) ?? (outputs.notes ? errorOf(outputs.notes) : undefined)}
+          onApply={(patch, order, before) => {
+            if (onOutputsChange) onOutputsChange(patch, order, before);
+            else for (const [k, v] of Object.entries(patch)) onChange(k, v);
+          }}
+        />
+      ) : (
         <Field
           key={key} id={`${idPrefix}-${key}`} name={key} spec={schema[key]} value={values[key]} readOnly={readOnly} choices={choices}
           error={errorOf(key)} suggestOf={suggestOf} onChange={(v) => onChange(key, v)}

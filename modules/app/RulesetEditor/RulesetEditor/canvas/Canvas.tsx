@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faMagnifyingGlassMinus, faMagnifyingGlassPlus, faExpand, faTrash, faRotateLeft, faRotateRight, faDiagramProject, faBinoculars, faVectorPolygon, faMaximize, faMinimize, faKeyboard } from '@fortawesome/free-solid-svg-icons';
+import { faMagnifyingGlassMinus, faMagnifyingGlassPlus, faExpand, faTrash, faRotateLeft, faRotateRight, faDiagramProject, faBinoculars, faVectorPolygon, faMaximize, faMinimize, faKeyboard, faTableColumns } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { portColor } from '../node-meta';
 import { fillTemplate, useMessages } from '../messages';
@@ -27,7 +27,7 @@ export function Canvas({
   onPointerDown, onPointerDownCapture, onPointerMove, onPointerUp, onContextMenu, onWheel, onKeyDown, onDrop, onDragOver, children,
   onNodePointerDown, onOutputPortDown, onInputPortUp, onSelectEdge, onDeleteSelectedEdge, onGroupTabPointerDown, onGroupTabDoubleClick,
   onZoomIn, onZoomOut, onFit, canUndo, canRedo, onUndo, onRedo,
-  guides = [], onPointerCancel, onArrange, canArrange = true, boxMode = false, onToggleBoxMode, miniOn = false, onToggleMini, fullscreen = false, onToggleFullscreen, onShowShortcuts, search, toolbarExtra, diffTint,
+  guides = [], onPointerCancel, onArrange, canArrange = true, boxMode = false, onToggleBoxMode, miniOn = false, onToggleMini, fullscreen = false, onToggleFullscreen, onShowShortcuts, search, toolbarExtra, diffTint, sidePanelOn = false, onToggleSidePanel,
   edgeActivity, litEdges, nodeActivity, activityWindow, rewiring = null, onEdgeEndDown, onOutputPortUp,
 }: {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -92,6 +92,9 @@ export function Canvas({
   search?: { matches: ReadonlySet<string>; current: string | null } | null;
   /** extra controls at the start of the zoom bar */
   toolbarExtra?: React.ReactNode;
+  /** is the side bar showing; with `onToggleSidePanel` the zoom bar ends in a button that shows and hides it */
+  sidePanelOn?: boolean;
+  onToggleSidePanel?: () => void;
   /** a version compare: added, changed and removed blocks and connections are tinted */
   diffTint?: CanvasDiffTint;
   /** live counters per connection (shown on hover) and the connections lit just now */
@@ -327,6 +330,12 @@ export function Canvas({
           <button type="button" onClick={onToggleMini} aria-label={m.toolMiniMap} aria-pressed={miniOn} title={m.toolMiniMap}
             className={cn(zoomBtn, 'max-md:hidden', miniOn && 'border border-primary bg-primary-subtle text-primary')}>
             <FontAwesomeIcon icon={faBinoculars} className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        )}
+        {onToggleSidePanel && (
+          <button type="button" onClick={onToggleSidePanel} data-testid="tool-side-panel" aria-label={sidePanelOn ? m.toolSidePanelHide : m.toolSidePanelShow} aria-pressed={sidePanelOn}
+            title={sidePanelOn ? m.toolSidePanelHide : m.toolSidePanelShow} className={cn(zoomBtn, sidePanelOn && 'border border-primary bg-primary-subtle text-primary')}>
+            <FontAwesomeIcon icon={faTableColumns} className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         )}
       </div>

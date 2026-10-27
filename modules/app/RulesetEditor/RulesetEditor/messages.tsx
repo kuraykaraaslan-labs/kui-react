@@ -145,6 +145,19 @@ export type EditorMessages = {
   /* the side bar: deploy problems in Errors (item 4), the Block, Help, Trace and Runs tabs (item 6) */
   insDeployProblems: string; insProblemError: string; insProblemWarning: string;
   insTabBlock: string; insTabHelp: string; insTabTrace: string; insTabRuns: string; sideBarPickBlock: string;
+  /* the side bar's tab strip and the tool bar button that shows and hides it */
+  insMoreTabs: string; toolSidePanelShow: string; toolSidePanelHide: string;
+  /* the outputs of a block with a count of outputs (the script block): the list in the panel and its dialog */
+  outputsEdit: string; outputsTitle: string; outputsIntro: string; outputsName: string; outputsNamePlaceholder: string; outputsNote: string;
+  outputsAdd: string; outputsSave: string; outputsUnnamed: string; outputsExampleTitle: string; outputsExampleEach: string;
+  outputsNameChars: string; outputsNameDuplicate: string; outputsNameReserved: string;
+  outputsNameLong: (max: number) => string;
+  outputsTooLong: (max: number) => string;
+  outputsRow: (n: number) => string;
+  outputsRemove: (n: number) => string;
+  outputsMove: (n: number) => string;
+  outputsMoved: (n: number, to: number) => string;
+  outputsExampleTo: (n: number, name?: string) => string;
 };
 
 export const DEFAULT_MESSAGES: EditorMessages = {
@@ -282,6 +295,20 @@ export const DEFAULT_MESSAGES: EditorMessages = {
   scriptTestCpu: (ms) => `${ms} ms CPU`,
   insDeployProblems: 'Problems that stop a deploy', insProblemError: 'Error', insProblemWarning: 'Warning',
   insTabBlock: 'Block', insTabHelp: 'Help', insTabTrace: 'Trace', insTabRuns: 'Runs', sideBarPickBlock: 'Click a block on the canvas to edit it.',
+  insMoreTabs: 'More tabs', toolSidePanelShow: 'Show the side panel', toolSidePanelHide: 'Hide the side panel',
+  outputsEdit: 'Edit outputs', outputsTitle: 'Outputs',
+  outputsIntro: 'One row per output, in the order of the ports on the block. Drag a row by its handle, or focus the handle and use the arrow keys, to move it; its connections move with it.',
+  outputsName: 'Name', outputsNamePlaceholder: 'optional', outputsNote: 'Description', outputsAdd: 'Add output', outputsSave: 'Save',
+  outputsUnnamed: 'no name', outputsExampleTitle: 'In the code', outputsExampleEach: 'or one message per output, null for none',
+  outputsNameChars: 'Use letters, digits, _ and -, starting with a letter or _.', outputsNameDuplicate: 'Another output has this name.',
+  outputsNameReserved: 'The editor uses this name for a port of its own; choose another.',
+  outputsNameLong: (max) => `At most ${max} characters.`,
+  outputsTooLong: (max) => `The names together are too long: at most ${max} characters with the commas.`,
+  outputsRow: (n) => `Output ${n}`,
+  outputsRemove: (n) => `Remove output ${n}`,
+  outputsMove: (n) => `Move output ${n}`,
+  outputsMoved: (n, to) => `Output ${n} is now output ${to}.`,
+  outputsExampleTo: (n, name) => (name ? `output ${n} (${name})` : `output ${n}`),
 };
 
 const MessagesContext = createContext<EditorMessages>(DEFAULT_MESSAGES);

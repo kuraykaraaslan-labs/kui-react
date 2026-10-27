@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ParamForm, type ParamSuggest } from './ParamForm';
 import { setField } from './field-utils';
@@ -13,11 +13,14 @@ function Harness({ schema, initial = {}, onValues, readOnly, choices, showRequir
   readOnly?: boolean; choices?: ParamChoices; showRequired?: boolean; suggest?: ParamSuggest;
 }) {
   const [values, setValues] = useState(initial);
+  // the latest values, as the node panel keeps them: the outputs dialog sets two params in a row
+  const latest = useRef(values);
   return (
     <ParamForm
       schema={schema} values={values} readOnly={readOnly} choices={choices} showRequired={showRequired} suggest={suggest}
       onChange={(key, value) => {
-        const next = setField(values, key, value);
+        const next = setField(latest.current, key, value);
+        latest.current = next;
         setValues(next);
         onValues?.(next);
       }}
@@ -450,5 +453,65 @@ describe('ParamForm: a script field', () => {
   it('words its label from the messages', () => {
     render(<MessagesProvider value={{ ...DEFAULT_MESSAGES, scriptSignatureLabel: 'Was das Skript bekommt' }}><Harness schema={{ code: { type: 'code', lang: 'js', api: 'automation-script' } }} /></MessagesProvider>);
     expect(screen.getByTestId('script-signature')).toHaveAttribute('aria-label', 'Was das Skript bekommt');
+  });
+});
+
+describe('ParamForm: outputs (a count with pins)', () => {
+  const schema: Record<string, ParamSpec> = {
+    outputs: { type: 'number', int: true, min: 1, max: 3, default: 1, label: 'Outputs', pins: 'labels', pin_notes: 'notes' },
+    labels: { type: 'string', max_len: 20, label: 'Output names' },
+    notes: { type: 'list', label: 'Output descriptions' },
+  };
+
+  it('without onOutputsChange the dialog sets each param through onChange, notes in the Description column', async () => {
+    const user = userEvent.setup();
+    const onValues = vi.fn();
+    render(<Harness schema={schema} initial={{ outputs: 1, labels: 'alarm' }} onValues={onValues} />);
+    expect(screen.queryByRole('textbox', { name: 'Output descriptions' })).toBeNull();
+    await user.click(screen.getByTestId('outputs-edit'));
+    const dialog = screen.getByRole('dialog');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Description, Output 1' }), 'too hot');
+    await user.click(within(dialog).getByTestId('outputs-add'));
+    await user.type(within(dialog).getByRole('textbox', { name: 'Name, Output 2' }), 'normal');
+    expect(within(dialog).getByTestId('outputs-add')).toBeEnabled();
+    await user.click(within(dialog).getByTestId('outputs-save'));
+    expect(onValues).toHaveBeenLastCalledWith({ outputs: 2, labels: 'alarm, normal', notes: ['too hot'] });
+    expect(within(screen.getByTestId('outputs-list')).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1·alarm— too hot', '2·normal']);
+  });
+
+  it('stops at max rows and when the names together are longer than the names param allows', async () => {
+    const user = userEvent.setup();
+    render(<Harness schema={schema} initial={{ outputs: 2, labels: 'alarm_alarm, normal' }} />);
+    await user.click(screen.getByTestId('outputs-edit'));
+    const dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByTestId('outputs-add'));
+    expect(within(dialog).getByTestId('outputs-add')).toBeDisabled();
+    expect(within(dialog).getByText('3 / 3')).toBeInTheDocument();
+    await user.type(within(dialog).getByRole('textbox', { name: 'Name, Output 3' }), 'spare');
+    expect(within(dialog).getByTestId('outputs-too-long')).toHaveTextContent('at most 20 characters');
+    expect(within(dialog).getByTestId('outputs-save')).toBeDisabled();
+  });
+
+  it('moves a row by dragging its handle onto another row', async () => {
+    const user = userEvent.setup();
+    const onValues = vi.fn();
+    render(<Harness schema={schema} initial={{ outputs: 3, labels: 'a, b, c' }} onValues={onValues} />);
+    await user.click(screen.getByTestId('outputs-edit'));
+    const dialog = screen.getByRole('dialog');
+    const dataTransfer = { setData: vi.fn(), effectAllowed: '', dropEffect: '' };
+    const rows = within(dialog).getAllByTestId('outputs-row');
+    fireEvent.dragStart(within(dialog).getByRole('button', { name: 'Move output 3' }), { dataTransfer });
+    fireEvent.dragOver(rows[0], { dataTransfer });
+    expect(rows[0].className).toContain('border-primary');
+    fireEvent.drop(rows[0], { dataTransfer });
+    expect((within(dialog).getAllByTestId('outputs-name') as HTMLInputElement[]).map((i) => i.value)).toEqual(['c', 'a', 'b']);
+    await user.click(within(dialog).getByTestId('outputs-save'));
+    expect(onValues).toHaveBeenLastCalledWith({ outputs: 3, labels: 'c, a, b' });
+  });
+
+  it('read only: the list without the button', () => {
+    render(<Harness schema={schema} initial={{ outputs: 2 }} readOnly />);
+    expect(within(screen.getByTestId('outputs-list')).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1·no name', '2·no name']);
+    expect(screen.queryByTestId('outputs-edit')).toBeNull();
   });
 });
