@@ -4,18 +4,29 @@ import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotAssetsApi, type IotCapabilities } from '../api/adapter';
 import {
-  assetPath, devicesBelow, filterAssets, flattenAssets, subtreeIds, withoutAssets, type AssetNode, type AssetRecord, type PlacedDevice,
+  assetPath, devicesBelow, filterAssets, flattenAssets, locatedSites, siteTone, subtreeIds, withoutAssets,
+  type AssetNode, type AssetRecord, type AssetRow, type AssetSummary, type PlacedDevice,
 } from '../types/asset';
 import type { DeviceRecord } from '../types/device';
 import { AssetKindBadge } from './AssetKindBadge';
 import { AssetTree } from './AssetTree';
 import { MoveAssetDialog } from './MoveAssetDialog';
-import { AssetDetailView } from './AssetDetailView';
+import { AssetDrawer } from './AssetDrawer';
+import { AssetsView } from './AssetsView';
+import { AssetsMapDrawer } from './AssetsMapDrawer';
 import { AssetFormDrawer } from './AssetFormDrawer';
 import { DevicePlacementPanel } from './DevicePlacementPanel';
 import { PlaceDevicesDialog } from './PlaceDevicesDialog';
 import { assetKindLabel } from './asset-kind';
 import { mergeIotMessages } from '../messages';
+
+vi.mock('@/modules/ui/MapView/MapCanvas', () => ({
+  MapCanvas: ({ markers, onMarkerClick }: { markers: Array<{ id: string }>; onMarkerClick?: (id: string) => void }) => (
+    <div data-testid="fake-map" data-markers={JSON.stringify(markers)}>
+      {markers.map((mk) => <button key={mk.id} type="button" onClick={() => onMarkerClick?.(mk.id)}>{`marker ${mk.id}`}</button>)}
+    </div>
+  ),
+}));
 
 const NOW = new Date('2026-10-24T12:00:00Z').getTime();
 
@@ -41,10 +52,22 @@ const RECORD: AssetRecord = {
   childCount: 1, deviceCount: 2,
 };
 const PLACED: PlacedDevice[] = [{ device: DEVICE, placement: { assetId: 'press-3', code: 'PRESS-3', name: 'Press 3', kind: 'MACHINE' } }];
+const row = (assetId: string, name: string, kind: string, location: string[], childCount: number, deviceCount: number, alarmCount: number, worstSeverity: AssetRow['worstSeverity'] = null): AssetRow => ({
+  assetId, parentId: null, code: assetId.toUpperCase(), name, kind, location: location.map((l) => ({ assetId: l.toLowerCase(), name: l })), childCount, deviceCount, alarmCount, worstSeverity,
+});
+const ROWS: AssetRow[] = [
+  row('plant', 'Berlin plant', 'SITE', [], 2, 3, 3, 'CRITICAL'),
+  row('press-line', 'Press line', 'LINE', ['Berlin plant', 'Hall A'], 1, 2, 3, 'CRITICAL'),
+  row('hub', 'Logistics hub', 'SITE', [], 0, 0, 0),
+];
 
 function fakeAssets(over: Partial<IotAssetsApi> = {}): IotAssetsApi {
   return {
     tree: vi.fn().mockResolvedValue({ nodes: TREE, truncated: false }),
+    list: vi.fn().mockImplementation(async (q: { parentId?: string }) => (q.parentId
+      ? { items: [{ ...row('press-3', 'Press 3', 'MACHINE', ['Berlin plant', 'Hall A', 'Press line'], 0, 2, 0) }], total: 1, alarms: true }
+      : { items: ROWS, total: ROWS.length, alarms: true })),
+    summary: vi.fn().mockImplementation(async () => SUMMARY),
     get: vi.fn().mockResolvedValue(RECORD),
     create: vi.fn().mockResolvedValue({ assetId: 'new-1' }),
     update: vi.fn().mockResolvedValue(undefined),
@@ -157,72 +180,225 @@ describe('MoveAssetDialog (cycle prevention)', () => {
   });
 });
 
-describe('AssetDetailView', () => {
-  it('shows the path, the header, the inherited time zone, and the devices with their state and address', async () => {
+describe('AssetDrawer', () => {
+  it('shows the path, the header, the inherited time zone, and the devices with their state and address, as sections', async () => {
     const user = userEvent.setup();
     const assets = fakeAssets();
-    wrap(<AssetDetailView assetId="press-line" nodes={TREE} hrefs={{ asset: (id) => `/a/${id}`, device: (id) => `/d/${id}` }} now={NOW} />, assets);
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} hrefs={{ asset: (id) => `/a/${id}`, device: (id) => `/d/${id}` }} now={NOW} />, assets);
     expect(await screen.findByRole('heading', { name: 'Press line' })).toBeInTheDocument();
     const crumbs = screen.getByRole('navigation', { name: 'Asset path' });
     expect(within(crumbs).getByRole('link', { name: /Berlin plant/ })).toHaveAttribute('href', '/a/plant');
     expect(screen.getByText('Europe/Berlin (from Hall A)')).toBeInTheDocument();
     expect(within(screen.getByRole('table', { name: 'Attributes' })).getByText('tonnage')).toBeInTheDocument();
     expect(screen.getByText('800')).toBeInTheDocument();
-    await user.click(screen.getByRole('tab', { name: 'Devices' }));
+    // no tabs: every section is on the page at once
+    expect(screen.queryByRole('tab')).toBeNull();
+    for (const name of ['Overview', 'Attributes', 'Devices', 'Child assets (1)', 'Relations']) expect(screen.getByRole('heading', { level: 3, name })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: /Press sensor/ })).toHaveAttribute('href', '/d/d1');
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
     expect(screen.getByText('Online')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Press 3' })).toHaveAttribute('href', '/a/press-3');
-    expect(assets.devices).toHaveBeenCalledWith('press-line', { page: 1, pageSize: 20, recursive: true }, expect.anything());
+    expect(assets.devices).toHaveBeenCalledWith('press-line', { page: 1, pageSize: 10, recursive: true }, expect.anything());
+    expect(await screen.findByText('Coolant station')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Remove placement: Press sensor' }));
     await waitFor(() => expect(assets.setPlacement).toHaveBeenCalledWith('d1', null));
   });
 
-  it('pages the devices tab with the table\'s own pagination and rows per page', async () => {
+  it('pages the devices with the table\'s own pagination and rows per page', async () => {
     const user = userEvent.setup();
     const assets = fakeAssets({ devices: vi.fn().mockResolvedValue({ items: PLACED, total: 45 }) });
-    wrap(<AssetDetailView assetId="press-line" nodes={TREE} />, assets);
-    await user.click(await screen.findByRole('tab', { name: 'Devices' }));
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} />, assets);
     await screen.findByText('Press sensor');
     await user.click(screen.getByRole('button', { name: 'Page 2' }));
-    await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', { page: 2, pageSize: 20, recursive: true }, expect.anything()));
-    await user.selectOptions(screen.getByLabelText(/Rows per page/), '50');
+    await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', { page: 2, pageSize: 10, recursive: true }, expect.anything()));
+    await user.selectOptions(screen.getAllByLabelText(/Rows per page/)[0], '50');
     await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', { page: 1, pageSize: 50, recursive: true }, expect.anything()));
   });
 
-  it('lists the child assets in a DataTable that opens a child, and says when there are none', async () => {
+  it('reads the child assets through the list (parentId), opens a child and a path step in the drawer, and says when there are none', async () => {
     const user = userEvent.setup();
     const onOpenAsset = vi.fn();
-    const { unmount } = wrap(<AssetDetailView assetId="press-line" nodes={TREE} onOpenAsset={onOpenAsset} />, fakeAssets());
+    const assets = fakeAssets();
+    const { unmount } = wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} onOpenAsset={onOpenAsset} />, assets);
     await screen.findByRole('heading', { name: 'Press line' });
-    await user.click(screen.getByRole('tab', { name: 'Child assets' }));
+    expect(assets.list).toHaveBeenCalledWith({ page: 1, pageSize: 50, parentId: 'press-line', sort: { key: 'name', dir: 'asc' } }, expect.anything());
     const table = await screen.findByRole('table', { name: 'Child assets' });
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2));
     const row = within(table).getAllByRole('row')[1];
     expect(within(row).getAllByRole('cell').map((c) => c.textContent)).toEqual(['MachinePress 3', '0', '2']);
     await user.click(within(row).getByRole('button', { name: /Press 3/ }));
     expect(onOpenAsset).toHaveBeenCalledWith('press-3');
+    await user.click(within(screen.getByRole('navigation', { name: 'Asset path' })).getByRole('button', { name: 'Hall A' }));
+    expect(onOpenAsset).toHaveBeenCalledWith('hall-a');
     unmount();
-    wrap(<AssetDetailView assetId="hub" nodes={TREE} />, fakeAssets({ get: vi.fn().mockResolvedValue({ ...RECORD, assetId: 'hub', name: 'Logistics hub', ancestors: [], childCount: 0 }) }));
+    const none = fakeAssets({ get: vi.fn().mockResolvedValue({ ...RECORD, assetId: 'hub', name: 'Logistics hub', ancestors: [], childCount: 0 }) });
+    wrap(<AssetDrawer assetId="hub" onClose={() => undefined} />, none);
     await screen.findByRole('heading', { name: 'Logistics hub' });
-    await user.click(screen.getByRole('tab', { name: 'Child assets' }));
     expect(within(await screen.findByRole('table', { name: 'Child assets' })).getByText('No child assets.')).toBeInTheDocument();
+    expect(none.list).not.toHaveBeenCalled();
   });
 
-  it('says why a delete was refused, and hides every action without the capabilities', async () => {
+  it('keeps the actions in the header (labels fold to icons on a phone), moves with the tree read on demand, and says why a delete was refused', async () => {
     const user = userEvent.setup();
     const assets = fakeAssets({ remove: vi.fn().mockRejectedValue(new IotApiError('conflict', 'This asset still has child assets: move or delete them first.')) });
-    const { notify, unmount } = wrap(<AssetDetailView assetId="press-line" nodes={TREE} />, assets);
+    const { notify, unmount } = wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} />, assets);
     await screen.findByRole('heading', { name: 'Press line' });
-    await user.click(screen.getByRole('button', { name: 'Delete' }));
+    const header = screen.getByTestId('asset-drawer-header');
+    const add = within(header).getByRole('button', { name: 'Add child' });
+    expect(add.querySelector('span.hidden.sm\\:inline')).not.toBeNull();
+    expect(within(header).getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Asset Press line' }).querySelector('.max-w-full')).not.toBeNull();
+    expect(assets.tree).not.toHaveBeenCalled();
+    await user.click(within(header).getByRole('button', { name: 'More actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Move to…/ }));
+    await waitFor(() => expect(assets.tree).toHaveBeenCalled());
+    expect(await screen.findByRole('dialog', { name: /Move “Press line”/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(within(header).getByRole('button', { name: 'More actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: /Delete/ }));
     const confirm = await screen.findAllByRole('button', { name: 'Delete' });
-    expect(confirm.length).toBeGreaterThan(1);
     await user.click(confirm[confirm.length - 1]);
     await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'error', message: 'This asset cannot be deleted: This asset still has child assets: move or delete them first.' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     unmount();
-    wrap(<AssetDetailView assetId="press-line" nodes={TREE} />, fakeAssets(), {});
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} />, fakeAssets(), {});
     await screen.findByRole('heading', { name: 'Press line' });
-    for (const name of ['Add child', 'Edit', 'Move to…', 'Delete']) expect(screen.queryByRole('button', { name })).toBeNull();
+    for (const name of ['Add child', 'Edit', 'More actions']) expect(screen.queryByRole('button', { name })).toBeNull();
+  });
+});
+
+const SUMMARY: AssetSummary = {
+  sites: 2, sitesLocated: 1, assets: 6, devices: 4, placedDevices: 3, activeAlarms: 3, sitesWithAlarms: 1, sitesTruncated: false, alarms: true,
+  siteList: [
+    { assetId: 'plant', code: 'PLANT', name: 'Berlin plant', kind: 'SITE', lat: 52.5, lng: 13.4, assetCount: 5, deviceCount: 3, alarmCount: 3, worstSeverity: 'CRITICAL', alarmsBySeverity: { CRITICAL: 1, MINOR: 2 } },
+    { assetId: 'hub', code: 'HUB', name: 'Logistics hub', kind: 'SITE', lat: null, lng: null, assetCount: 1, deviceCount: 0, alarmCount: 0, worstSeverity: null, alarmsBySeverity: {} },
+  ],
+};
+
+describe('asset table helpers', () => {
+  it('keeps the located sites and colours a site by its worst active alarm', () => {
+    expect(locatedSites(SUMMARY.siteList).map((s) => s.assetId)).toEqual(['plant']);
+    expect(siteTone({ alarmCount: 3, worstSeverity: 'MAJOR' })).toBe('error');
+    expect(siteTone({ alarmCount: 1, worstSeverity: 'WARNING' })).toBe('warning');
+    expect(siteTone({ alarmCount: 1, worstSeverity: 'INFO' })).toBe('info');
+    expect(siteTone({ alarmCount: 0, worstSeverity: null })).toBe('success');
+    expect(siteTone({ alarmCount: null, worstSeverity: null })).toBe('neutral');
+  });
+});
+
+describe('AssetsView', () => {
+  it('draws the KPI row and the table with place, counts and alarms, and opens a row in the drawer (a history step)', async () => {
+    const user = userEvent.setup();
+    const assets = fakeAssets();
+    const onQueryChange = vi.fn();
+    wrap(<AssetsView onQueryChange={onQueryChange} now={NOW} />, assets);
+    const kpis = await screen.findByTestId('assets-kpis');
+    await waitFor(() => expect(within(kpis).getByText('6')).toBeInTheDocument());
+    expect(within(kpis).getByText('1 on the map')).toBeInTheDocument();
+    expect(within(kpis).getByText('3 placed on an asset')).toBeInTheDocument();
+    expect(within(kpis).getByText('Sites affected: 1')).toBeInTheDocument();
+    expect(assets.list).toHaveBeenCalledWith({ page: 1, pageSize: 20 }, expect.anything());
+    const table = await screen.findByRole('table', { name: 'Sites & assets' });
+    const head = within(table).getAllByRole('columnheader').map((h) => h.textContent);
+    expect(head.join('|')).toMatch(/Asset.*Kind.*Place.*Child assets.*Devices.*Alarms/);
+    const line = within(table).getByText('Press line').closest('tr')!;
+    expect(within(line).getAllByText('Berlin plant › Hall A').length).toBeGreaterThan(0);
+    expect(within(line).getByText('3 active')).toHaveAttribute('data-severity', 'CRITICAL');
+    expect(within(within(table).getByText('Logistics hub').closest('tr')!).getByText('No issues')).toBeInTheDocument();
+    await user.click(within(table).getByText('Press line'));
+    expect(onQueryChange).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, asset: 'press-line' }, 'push');
+    expect(await screen.findByRole('dialog', { name: 'Asset Press line' })).toBeInTheDocument();
+  });
+
+  it('sorts on the host, filters to alarms, and follows the asset and the map of the URL', async () => {
+    const user = userEvent.setup();
+    const assets = fakeAssets();
+    const onQueryChange = vi.fn();
+    const { rerender } = wrap(<AssetsView onQueryChange={onQueryChange} initialQuery={{ alarmed: true, sort: { key: 'alarms', dir: 'desc' } }} />, assets);
+    await screen.findByRole('table', { name: 'Sites & assets' });
+    expect(assets.list).toHaveBeenCalledWith({ page: 1, pageSize: 20, alarmed: true, sort: { key: 'alarms', dir: 'desc' } }, expect.anything());
+    await user.click(screen.getByRole('button', { name: /Devices/ }));
+    await waitFor(() => expect(assets.list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'devices', dir: 'asc' }, alarmed: true }), expect.anything()));
+    rerender(<IotAdapterProvider adapter={{ assets }} capabilities={{ canManageAssets: true }} notify={vi.fn()}><AssetsView initialQuery={{ asset: 'press-line' }} /></IotAdapterProvider>);
+    expect(await screen.findByRole('dialog', { name: 'Asset Press line' })).toBeInTheDocument();
+  });
+
+  it('leaves the alarm KPI, column and filter out when the host shows no alarms, and shows the empty state with New site', async () => {
+    const assets = fakeAssets({
+      list: vi.fn().mockResolvedValue({ items: ROWS.map((r) => ({ ...r, alarmCount: null, worstSeverity: null })), total: ROWS.length, alarms: false }),
+      summary: vi.fn().mockResolvedValue({ ...SUMMARY, alarms: false, activeAlarms: null, sitesWithAlarms: null }),
+    });
+    const { unmount } = wrap(<AssetsView />, assets);
+    const table = await screen.findByRole('table', { name: 'Sites & assets' });
+    await waitFor(() => expect(within(table).getByText('Press line')).toBeInTheDocument());
+    expect(within(table).queryByRole('columnheader', { name: /Alarms/ })).toBeNull();
+    await waitFor(() => expect(screen.getByTestId('assets-kpis').querySelector('[data-kpi="alarms"]')).toBeNull());
+    unmount();
+    wrap(<AssetsView />, fakeAssets({ list: vi.fn().mockResolvedValue({ items: [], total: 0, alarms: true }), summary: vi.fn().mockResolvedValue({ ...SUMMARY, sites: 0, assets: 0, siteList: [] }) }));
+    expect(await screen.findByText('No sites yet')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /New site/ }).length).toBeGreaterThan(1);
+  });
+
+  it('opens the map, lists the sites by alarm, and turns "List assets" into the site filter', async () => {
+    const user = userEvent.setup();
+    const assets = fakeAssets();
+    const onQueryChange = vi.fn();
+    wrap(<AssetsView onQueryChange={onQueryChange} />, assets);
+    await screen.findByRole('table', { name: 'Sites & assets' });
+    await user.click(screen.getByRole('button', { name: 'Map' }));
+    expect(onQueryChange).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, map: true }, 'push');
+    const map = await screen.findByRole('dialog', { name: 'Sites on the map' });
+    expect(within(map).getByText('2 sites · 1 with a location')).toBeInTheDocument();
+    await user.click(within(map).getByRole('button', { name: /Berlin plant/ }));
+    const card = await within(map).findByTestId('assets-map-site');
+    expect(within(card).getByText('5 assets · 3 devices')).toBeInTheDocument();
+    expect(card.querySelector('[data-severity="CRITICAL"]')).not.toBeNull();
+    await user.click(within(card).getByRole('button', { name: 'List assets' }));
+    await waitFor(() => expect(assets.list).toHaveBeenLastCalledWith(expect.objectContaining({ site: 'plant', page: 1 }), expect.anything()));
+    expect(onQueryChange).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, site: 'plant' }, 'replace');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Sites on the map' })).toBeNull());
+  });
+
+  it('wraps the header actions under the title and folds the place under the name on a phone', async () => {
+    wrap(<AssetsView moreActions={[{ id: 'devices', label: 'Device list', href: '/d' }]} />, fakeAssets());
+    const table = await screen.findByRole('table', { name: 'Sites & assets' });
+    const actions = screen.getByRole('button', { name: 'Map' }).parentElement!;
+    expect(actions).toHaveClass('flex-wrap');
+    expect(actions.parentElement).toHaveClass('flex-wrap');
+    expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument();
+    await waitFor(() => expect(within(table).getByText('Press line')).toBeInTheDocument());
+    expect(within(table).getAllByText('Berlin plant › Hall A').some((el) => el.classList.contains('md:hidden'))).toBe(true);
+    expect(screen.getByTestId('assets-kpis')).toHaveClass('grid-cols-2');
+  });
+});
+
+describe('AssetsMapDrawer', () => {
+  it('colours the markers by the worst alarm, narrows to the sites with alarms, and opens a site from the map', async () => {
+    const user = userEvent.setup();
+    const onOpenSite = vi.fn();
+    wrap(<AssetsMapDrawer onClose={() => undefined} summary={SUMMARY} onListAssets={() => undefined} onOpenSite={onOpenSite} alarmsHref={(id) => `/alarms?site=${id}`} />, fakeAssets());
+    const map = await screen.findByTestId('fake-map');
+    expect(JSON.parse(map.getAttribute('data-markers')!)).toEqual([
+      { id: 'plant', position: [52.5, 13.4], variant: 'error', label: 'Berlin plant', tooltip: { title: 'Berlin plant', description: '3 devices · 3 active' } },
+    ]);
+    const list = screen.getByRole('list', { name: 'Sites' });
+    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Berlin plant3 devices · 3 active', 'Logistics hub0 devices · 0 active · No location']);
+    await user.click(screen.getByRole('button', { name: 'Only with active alarms' }));
+    expect(within(list).getAllByRole('button')).toHaveLength(1);
+    await user.click(within(map).getByRole('button', { name: 'marker plant' }));
+    const card = await screen.findByTestId('assets-map-site');
+    expect(within(card).getByRole('link', { name: 'Alarms' })).toHaveAttribute('href', '/alarms?site=plant');
+    await user.click(within(card).getByRole('button', { name: 'Details' }));
+    expect(onOpenSite).toHaveBeenCalledWith('plant');
+  });
+
+  it('says when no site has a location, and draws neutral markers without alarms', () => {
+    const plain = { ...SUMMARY, alarms: false, siteList: SUMMARY.siteList.map((s) => ({ ...s, alarmCount: null, worstSeverity: null, alarmsBySeverity: null })) };
+    const { unmount } = wrap(<AssetsMapDrawer onClose={() => undefined} summary={plain} onListAssets={() => undefined} onOpenSite={() => undefined} />, fakeAssets());
+    expect(JSON.parse(screen.getByTestId('fake-map').getAttribute('data-markers')!)[0].variant).toBe('neutral');
+    expect(screen.queryByRole('button', { name: 'Only with active alarms' })).toBeNull();
+    unmount();
+    wrap(<AssetsMapDrawer onClose={() => undefined} summary={{ ...SUMMARY, siteList: [SUMMARY.siteList[1]] }} onListAssets={() => undefined} onOpenSite={() => undefined} />, fakeAssets());
+    expect(screen.getByText(/No site has a location yet/)).toBeInTheDocument();
   });
 });
 

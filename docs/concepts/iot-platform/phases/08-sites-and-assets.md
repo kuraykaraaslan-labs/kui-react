@@ -84,3 +84,29 @@ bounds the tree at 5 000 nodes); the alarm roll-up per node (8.1, OD-9 order) an
 source `iot_asset.tree` already gives sites with coordinates to a map widget); attributes edited through `KeyValueEditor` (9.9) and the
 location picked on a map; "delete with move children to parent"; creating free relations from the UI (the table lists and removes);
 the twin link (phase 09).
+
+## 2026-10-27 — the page becomes a table with drawers (owner, option B)
+
+> Owner (2026-10-27) on NB's /admin/iot/assets: "the left side gets very long and the right side is empty on first entry"; on a
+> phone a click drew the detail some 14 000 px below the tree. Of three mockups the owner chose option B: the tree and detail pane
+> go, the page becomes a table and drawers like the device list. Built kui-first; NB's copy is hand-applied (NB
+> `docs/audits/2026-10-27-assets-page.md`).
+
+- **`AssetsView`** is now a KPI row (sites with the located count, assets, devices with the placed count, active alarms at how many
+  sites) over one `DataTable` (`mode="manual"`): search over name, code or place; Filters: site (a subtree, the site included), kind,
+  "only with active alarms" (a checkbox field); sortable Asset, Kind, Place, Child assets, Devices, Alarms (`ASSET_SORT_KEYS`; no
+  sort = tree order); rows per page, server paging, the column chooser (`iot.assets`). Header: Map, the host's "⋯", New site. A row
+  opens `AssetDrawer`; `query.asset` / `query.map` live in the host's URL (`asset-query.ts`: `assetQueryFromParams`,
+  `assetQueryToParams`; the old `?asset=` link opens the drawer).
+- **`AssetDrawer`** replaces `AssetDetailView` (removed): the same content as sections, no tabs; Add child and Edit in the header
+  (labels fold to icons below `sm`), Move to… and Delete in its "⋯"; the path and the child rows open in the drawer; the children
+  come from `assets.list({ parentId })`; the Move dialog reads `assets.tree()` when it opens.
+- **`AssetsMapDrawer`**: the sites (top-level nodes) beside `MapCanvas` (under it on a phone), markers coloured by the worst active
+  alarm (`siteTone`), a site summary with List assets (the site filter), Details (its drawer) and the host's Alarms link, "only with
+  active alarms". Markers are the canvas pins: the circle sized by devices with the alarm count inside (the mockup) needs `MapCanvas`
+  shapes in NB's older map copy (open item there).
+- **Adapter:** `assets.list(AssetListQuery)` → `Page<AssetRow> & { alarms }` and `assets.summary()` → `AssetSummary` (required).
+  Rows and sites carry `alarmCount` / `worstSeverity` (null when the host shows no alarms: the column, filter, sort and KPI hide).
+- **Texts:** `assets.*` for the KPI row, columns, filters, map; `asset.actions`, `asset.drawerTitle`, `asset.childrenSection`.
+  `AssetTree` (with its Expand all / Collapse all, translated since 32bfa3a) stays in the kit; the page no longer uses it.
+

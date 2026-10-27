@@ -1,7 +1,9 @@
-import { IotApiError, type IotAssetsApi } from '@/modules/domains/iot/api/adapter';
+import { IotApiError, type AssetListQuery, type IotAssetsApi } from '@/modules/domains/iot/api/adapter';
 import type {
-  AssetCrumb, AssetNode, AssetRecord, AssetRelation, DevicePlacement, RelationEntityType,
+  AssetCrumb, AssetNode, AssetRecord, AssetRelation, AssetRow, AssetSite, AssetSummary, DevicePlacement, RelationEntityType,
 } from '@/modules/domains/iot/types/asset';
+import type { Alarm, AlarmSeverity } from '@/modules/domains/iot/types/alarm';
+import { ALARM_SEVERITIES } from '@/modules/domains/iot/types/alarm';
 import type { DeviceRecord } from '@/modules/domains/iot/types/device';
 import { DEMO_ASSETS, DEMO_PLACEMENTS, type DemoAsset } from '../iot.data';
 
@@ -9,7 +11,8 @@ import { DEMO_ASSETS, DEMO_PLACEMENTS, type DemoAsset } from '../iot.data';
  * The demo's sites and assets (docs/concepts/iot-platform/phases/08): an in-memory topology over `DEMO_ASSETS`, with the same rules
  * NB's `iot_asset` enforces, so the screens show the same refusals: a move under the asset itself or a descendant (validation), a
  * delete while children remain (conflict), one placement per device (a second one moves it), a code unique among live assets, asset →
- * asset CONTAINS never a relation. Changes last for the page's life (no browser storage).
+ * asset CONTAINS never a relation. Changes last for the page's life (no browser storage). The table (`list`) and the summary roll the
+ * devices and the active alarms of the demo's devices up through the tree, as NB's `iot_asset` table view does.
  */
 
 type Row = DemoAsset & { createdAt: Date };
@@ -21,7 +24,13 @@ export type DemoAssets = IotAssetsApi & {
 
 const MINUTE = 60_000;
 
-export function createDemoAssets(devices: () => DeviceRecord[], wait: () => Promise<void>): DemoAssets {
+const rankOf = (s: AlarmSeverity | null) => (s ? ALARM_SEVERITIES.length - ALARM_SEVERITIES.indexOf(s) : 0);
+
+export function createDemoAssets(
+  devices: () => DeviceRecord[],
+  wait: () => Promise<void>,
+  alarms: () => Array<Pick<Alarm, 'deviceId' | 'severity' | 'status'>> = () => [],
+): DemoAssets {
   let seq = 0;
   const rows: Row[] = DEMO_ASSETS.map((a, i) => ({ ...a, attributes: { ...(a.attributes ?? {}) }, createdAt: new Date(Date.now() - (400 - i) * 86_400_000) }));
   const relations: AssetRelation[] = [
@@ -61,8 +70,73 @@ export function createDemoAssets(devices: () => DeviceRecord[], wait: () => Prom
   };
   const nameOf = (type: RelationEntityType, id: string) => (type === 'ASSET' ? rows.find((r) => r.assetId === id)?.name : devices().find((d) => d.deviceId === id)?.name) ?? null;
 
+  /** Every node as a table row: place, direct children, devices and active alarms on it or below. */
+  const tableRows = (): AssetRow[] => {
+    const active = alarms().filter((a) => a.status !== 'RESOLVED' && a.deviceId);
+    return rows.map((r) => {
+      const ids = new Set(subtree(r.assetId));
+      const placed = placements().filter((x) => ids.has(x.fromId) && devices().some((d) => d.deviceId === x.toId)).map((x) => x.toId);
+      const hits = active.filter((a) => placed.includes(a.deviceId!));
+      const worst = hits.reduce<AlarmSeverity | null>((w, a) => (rankOf(a.severity) > rankOf(w) ? a.severity : w), null);
+      return {
+        assetId: r.assetId, parentId: r.parentId, code: r.code, name: r.name, kind: r.kind, lat: r.lat ?? null, lng: r.lng ?? null,
+        location: ancestors(r).map((a) => ({ assetId: a.assetId, name: a.name })), childCount: childrenOf(r.assetId).length,
+        deviceCount: placed.length, alarmCount: hits.length, worstSeverity: worst,
+      };
+    });
+  };
+  const place = (r: AssetRow) => r.location.map((l) => l.name).join(' › ');
+  const SORT: Record<NonNullable<AssetListQuery['sort']>['key'], (r: AssetRow) => string | number> = {
+    name: (r) => r.name.toLowerCase(), kind: (r) => r.kind, location: (r) => place(r).toLowerCase(), children: (r) => r.childCount,
+    devices: (r) => r.deviceCount, alarms: (r) => rankOf(r.worstSeverity) * 100_000 + (r.alarmCount ?? 0),
+  };
+  const treeOrder = (): string[] => {
+    const out: string[] = [];
+    const walk = (id: string | null) => childrenOf(id).forEach((c) => { out.push(c.assetId); walk(c.assetId); });
+    walk(null);
+    return out;
+  };
+
   return {
     placementOf,
+    async list(q) {
+      await wait();
+      const s = q.search?.trim().toLowerCase();
+      const inSite = q.site ? new Set(subtree(q.site)) : null;
+      let out = tableRows().filter((r) => (!s || r.name.toLowerCase().includes(s) || r.code.toLowerCase().includes(s) || place(r).toLowerCase().includes(s))
+        && (!q.kind || r.kind === q.kind) && (!q.parentId || r.parentId === q.parentId) && (!inSite || inSite.has(r.assetId))
+        && (!q.alarmed || (r.alarmCount ?? 0) > 0));
+      if (q.sort) {
+        const val = SORT[q.sort.key];
+        const dir = q.sort.dir === 'desc' ? -1 : 1;
+        out = [...out].sort((a, b) => (val(a) < val(b) ? -dir : val(a) > val(b) ? dir : a.name.localeCompare(b.name)));
+      } else {
+        const order = treeOrder();
+        out = [...out].sort((a, b) => order.indexOf(a.assetId) - order.indexOf(b.assetId));
+      }
+      return { items: out.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: out.length, alarms: true };
+    },
+    async summary() {
+      await wait();
+      const all = tableRows();
+      const active = alarms().filter((a) => a.status !== 'RESOLVED' && a.deviceId);
+      const siteList: AssetSite[] = all.filter((r) => !r.parentId).map((r) => {
+        const placed = new Set(placements().filter((x) => subtree(r.assetId).includes(x.fromId)).map((x) => x.toId));
+        const bySeverity: AssetSite['alarmsBySeverity'] = {};
+        for (const a of active) if (placed.has(a.deviceId!)) bySeverity[a.severity] = (bySeverity[a.severity] ?? 0) + 1;
+        return {
+          assetId: r.assetId, code: r.code, name: r.name, kind: r.kind, lat: r.lat, lng: r.lng, assetCount: subtree(r.assetId).length,
+          deviceCount: r.deviceCount, alarmCount: r.alarmCount, worstSeverity: r.worstSeverity, alarmsBySeverity: bySeverity,
+        };
+      }).sort((a, b) => rankOf(b.worstSeverity) - rankOf(a.worstSeverity) || (b.alarmCount ?? 0) - (a.alarmCount ?? 0) || a.name.localeCompare(b.name));
+      const summary: AssetSummary = {
+        sites: siteList.length, sitesLocated: siteList.filter((x) => x.lat != null && x.lng != null).length, assets: all.length,
+        devices: devices().length, placedDevices: placements().filter((x) => devices().some((d) => d.deviceId === x.toId)).length,
+        activeAlarms: siteList.reduce((n, x) => n + (x.alarmCount ?? 0), 0), sitesWithAlarms: siteList.filter((x) => (x.alarmCount ?? 0) > 0).length,
+        siteList, sitesTruncated: false, alarms: true,
+      };
+      return summary;
+    },
     async tree() {
       await wait();
       return { nodes: childrenOf(null).map(node), truncated: false };

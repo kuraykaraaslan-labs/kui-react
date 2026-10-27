@@ -1,3 +1,4 @@
+import type { AlarmSeverity } from './alarm';
 import type { DeviceRecord } from './device';
 
 /*
@@ -69,6 +70,56 @@ export type AssetInput = {
   lng?: number | null;
   timezone?: string | null;
   attributes?: Record<string, unknown>;
+};
+
+/**
+ * One row of the Sites & assets table (owner 2026-10-27, option B): the node, its place (the ancestors, root first), its direct
+ * children, the devices placed on it or below, and the active alarms of those devices and of the node and its descendants.
+ * `alarmCount` and `worstSeverity` are null when the host shows no alarms (no alarm module, or a viewer who may not read them).
+ */
+export type AssetRow = {
+  assetId: string;
+  parentId: string | null;
+  code: string;
+  name: string;
+  kind: string;
+  lat?: number | null;
+  lng?: number | null;
+  location: Array<{ assetId: string; name: string }>;
+  childCount: number;
+  deviceCount: number;
+  alarmCount: number | null;
+  worstSeverity: AlarmSeverity | null;
+};
+
+/** A site (a top-level node) as the map draws it: its nodes, devices and active alarms per severity (null: alarms not shown). */
+export type AssetSite = {
+  assetId: string;
+  code: string;
+  name: string;
+  kind: string;
+  lat?: number | null;
+  lng?: number | null;
+  assetCount: number;
+  deviceCount: number;
+  alarmCount: number | null;
+  worstSeverity: AlarmSeverity | null;
+  alarmsBySeverity: Partial<Record<AlarmSeverity, number>> | null;
+};
+
+/** The page's KPI row and its sites. `alarms` false: the host shows no alarm counts (the KPI and the column are hidden). */
+export type AssetSummary = {
+  sites: number;
+  sitesLocated: number;
+  assets: number;
+  devices: number;
+  placedDevices: number;
+  activeAlarms: number | null;
+  sitesWithAlarms: number | null;
+  /** Most severe and most alarms first. */
+  siteList: AssetSite[];
+  sitesTruncated: boolean;
+  alarms: boolean;
 };
 
 /** A device placed under an asset, with the node it sits on (the asset itself or a descendant). */
@@ -157,4 +208,20 @@ export function withoutAssets(nodes: readonly AssetNode[], excluded: ReadonlySet
 /** Total devices on a node and below it (from the tree's direct counts). */
 export function devicesBelow(node: AssetNode): number {
   return node.deviceCount + node.children.reduce((s, c) => s + devicesBelow(c), 0);
+}
+
+/** The sites the map can draw (with a location), in the order given. */
+export function locatedSites<T extends { lat?: number | null; lng?: number | null }>(sites: readonly T[]): Array<T & { lat: number; lng: number }> {
+  return sites.filter((s): s is T & { lat: number; lng: number } => typeof s.lat === 'number' && typeof s.lng === 'number' && Number.isFinite(s.lat) && Number.isFinite(s.lng));
+}
+
+/** A site's map colour from its worst active alarm: critical / major red, minor / warning amber, info blue, none green; unknown neutral. */
+export function siteTone(site: Pick<AssetSite, 'alarmCount' | 'worstSeverity'>): 'error' | 'warning' | 'info' | 'success' | 'neutral' {
+  if (site.alarmCount === null) return 'neutral';
+  switch (site.worstSeverity) {
+    case 'CRITICAL': case 'MAJOR': return 'error';
+    case 'MINOR': case 'WARNING': return 'warning';
+    case 'INFO': return 'info';
+    default: return 'success';
+  }
 }

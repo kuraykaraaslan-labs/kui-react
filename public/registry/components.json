@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-27T10:33:37.761Z",
+  "generatedAt": "2026-10-27T17:07:13.807Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -10574,12 +10574,12 @@
       "category": "Domain",
       "filePath": "modules/domains/iot/asset/AssetsView.tsx",
       "abbr": "AV",
-      "description": "The Sites & assets page through the IoT adapter: the tree with search on the left, the selected asset on the right, New site; the selection and tab belong to the host URL.",
-      "source": "<IotAdapterProvider adapter={adapter}><AssetsView selectedId={id} onSelect={toUrl} hrefs={{ asset, device }} /></IotAdapterProvider>",
+      "description": "The Sites & assets page through the IoT adapter: a KPI row, one DataTable of every site and asset (search over name, code or place; site, kind and alarm filters; sortable columns; server paging), a row opening the asset drawer, Map, ⋯ and New site; the filters and the open drawer belong to the host URL.",
+      "source": "<IotAdapterProvider adapter={adapter}><AssetsView initialQuery={fromUrl} onQueryChange={toUrl} hrefs={{ device, alarms }} /></IotAdapterProvider>",
       "variants": [
         {
           "title": "Fixture adapter",
-          "code": "<AssetsView selectedId={id} onSelect={setId} hrefs={hrefs} />"
+          "code": "<AssetsView initialQuery={q} onQueryChange={setQ} hrefs={hrefs} />"
         },
         {
           "title": "Failing adapter",
@@ -10591,22 +10591,45 @@
       "designTokens": []
     },
     {
-      "id": "iot-asset-detail-view",
-      "name": "AssetDetailView",
+      "id": "iot-asset-drawer",
+      "name": "AssetDrawer",
       "layer": "domain",
       "category": "Domain",
-      "filePath": "modules/domains/iot/asset/AssetDetailView.tsx",
+      "filePath": "modules/domains/iot/asset/AssetDrawer.tsx",
       "abbr": "AW",
-      "description": "One site or asset through the adapter: path, kind and code, add a child, edit, Move to… (never under itself), delete with the host refusal shown; tabs Overview (inherited time zone, attributes), Devices (placed here or below, online state and IP, Place devices), Child assets and Relations.",
-      "source": "<AssetDetailView assetId={id} nodes={tree} hrefs={{ asset, device }} onChanged={reloadTree} />",
+      "description": "One site or asset in a right-side drawer over the table: the actions in the header (add a child, edit; Move to… and delete in the ⋯ menu, labels folding to icons on a phone), then sections one under the other: path, Overview (inherited time zone, location), Attributes, Devices (placed here or below, Place devices), Child assets and Relations.",
+      "source": "<AssetDrawer assetId={id} onClose={close} onOpenAsset={open} onChanged={reread} hrefs={{ device }} />",
       "variants": [
         {
           "title": "A site",
-          "code": "<AssetDetailView assetId=\"plant\" nodes={tree} />"
+          "code": "<AssetDrawer assetId=\"plant\" onClose={close} />"
         },
         {
-          "title": "Devices tab",
-          "code": "<AssetDetailView assetId=\"bldg-a\" tab=\"devices\" />"
+          "title": "A building",
+          "code": "<AssetDrawer assetId=\"bldg-a\" onClose={close} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-assets-map-drawer",
+      "name": "AssetsMapDrawer",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/asset/AssetsMapDrawer.tsx",
+      "abbr": "MQ",
+      "description": "The sites on the map in a wide drawer: markers coloured by the worst active alarm, the sites listed by alarm beside the map (under it on a phone), a site summary with List assets, Details and Alarms, and \"Only with active alarms\".",
+      "source": "<AssetsMapDrawer summary={summary} onClose={close} onListAssets={filterTo} onOpenSite={openDrawer} />",
+      "variants": [
+        {
+          "title": "Fixture summary",
+          "code": "<AssetsMapDrawer summary={summary} onClose={close} onListAssets={filterTo} onOpenSite={open} />"
+        },
+        {
+          "title": "Without alarms",
+          "code": "<AssetsMapDrawer summary={{ ...summary, alarms: false }} onClose={close} onListAssets={filterTo} onOpenSite={open} />"
         }
       ],
       "status": "beta",

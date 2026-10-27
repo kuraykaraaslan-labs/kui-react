@@ -317,7 +317,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     });
   }
 
-  const assets = createDemoAssets(() => store.devices, wait);
+  const assets = createDemoAssets(() => store.devices, wait, () => store.alarms);
 
   const adapter: DemoAdapter = {
     name: 'Demo, in memory',
