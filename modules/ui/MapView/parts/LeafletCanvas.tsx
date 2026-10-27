@@ -10,7 +10,7 @@ import { ClusteredMarkers } from './Cluster';
 import { ZoneShape, RouteShape } from './Shapes';
 import { CANVAS_CLASS, DIM_TILES_CLASS } from './styles';
 import { useMapTileSource } from '../MapTilesProvider';
-import { tileSourceTiles } from '../tiles';
+import { TILE_REFERRER_POLICY, tileSourceTiles } from '../tiles';
 import type { MapDisplayOptions, MapImage, MapMarker, MapZone, MapRoute, MapTilesConfig } from '../types';
 
 type LeafletCanvasProps = {
@@ -213,13 +213,14 @@ function InnerMap({
             key={`${isDark ? 'dark' : 'light'}-${tiles.url}-${tiles.dim ? 'dim' : ''}`}
             attribution={tiles.attribution}
             url={tiles.url}
+            referrerPolicy={TILE_REFERRER_POLICY}
             maxNativeZoom={tiles.maxZoom ?? 16}
             maxZoom={20}
             {...(tiles.subdomains ? { subdomains: tiles.subdomains } : {})}
             {...(tiles.dim ? { className: DIM_TILES_CLASS } : {})}
           />
           {tiles.labels && (
-            <TileLayer key={`labels-${tiles.labels}`} url={tiles.labels} maxNativeZoom={tiles.maxZoom ?? 16} maxZoom={20} zIndex={2} />
+            <TileLayer key={`labels-${tiles.labels}`} url={tiles.labels} referrerPolicy={TILE_REFERRER_POLICY} maxNativeZoom={tiles.maxZoom ?? 16} maxZoom={20} zIndex={2} />
           )}
         </>
       )}

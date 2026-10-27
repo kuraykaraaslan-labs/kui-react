@@ -3,6 +3,10 @@ import 'leaflet/dist/leaflet.css';
 import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { useMapTileSource } from '@/modules/ui/MapView/MapTilesProvider';
+import { OSM_TILES, TILE_REFERRER_POLICY, tileSourceTiles } from '@/modules/ui/MapView/tiles';
+import { useDarkMode } from '@/modules/ui/MapView/hooks/useDarkMode';
+import { DIM_TILES_CLASS } from '@/modules/ui/MapView/parts/styles';
 
 const markerIcon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -41,6 +45,11 @@ export default function VenueLeafletMap({
   zoom = 15,
   interactive = true,
 }: VenueLeafletMapProps) {
+  // The installation's tile source (MapTilesProvider), else OpenStreetMap's; darkened in the dark theme without a dark URL.
+  const source = useMapTileSource();
+  const isDark = useDarkMode();
+  const set = tileSourceTiles(source ?? OSM_TILES);
+  const tiles = isDark ? set.dark : set.light;
   return (
     <MapContainer
       center={[lat, lng]}
@@ -54,8 +63,13 @@ export default function VenueLeafletMap({
     >
       <RecenterMap lat={lat} lng={lng} />
       <TileLayer
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        key={`${isDark ? 'dark' : 'light'}-${tiles.url}-${tiles.dim ? 'dim' : ''}`}
+        url={tiles.url}
+        attribution={tiles.attribution}
+        referrerPolicy={TILE_REFERRER_POLICY}
+        {...(tiles.maxZoom !== undefined ? { maxNativeZoom: tiles.maxZoom } : {})}
+        {...(tiles.subdomains ? { subdomains: tiles.subdomains } : {})}
+        {...(tiles.dim ? { className: DIM_TILES_CLASS } : {})}
       />
       <Marker position={[lat, lng]} icon={markerIcon} keyboard={interactive} alt={name}>
         <Popup>{name}</Popup>

@@ -15,6 +15,13 @@ export const OSM_TILES: MapTileSource = {
   maxZoom: 19,
 };
 
+/**
+ * The tile requests' referrer policy: the page's origin and never its path. A keyed provider may check the Referer
+ * (a browser key restricted to the installation's domains), and a page whose own policy is `no-referrer` (a display
+ * link with its token in the URL) would otherwise send none and get the provider's error tile.
+ */
+export const TILE_REFERRER_POLICY = 'strict-origin' as const;
+
 /** A source as the light / dark tile pair a map draws: `darkUrl` for the dark theme, else the light tiles darkened. */
 export function tileSourceTiles(source: MapTileSource): { light: MapTiles; dark: MapTiles } {
   const light: MapTiles = {

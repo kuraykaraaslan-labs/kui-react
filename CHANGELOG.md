@@ -16,6 +16,10 @@ All notable changes to this project will be documented here. Format follows [Kee
   mixed cluster takes the worst status variant among its markers instead of the primary colour.
 - `AssetsMapDrawer`: sites are circles coloured by the worst active alarm with the alarm count inside, sized by devices;
   clusters add their sites' alarms up and split as the map zooms in.
+- Map tiles send the page's origin only (`TILE_REFERRER_POLICY`, `strict-origin`) on every tile layer, so a keyed provider
+  that checks the Referer also answers a page whose own policy is `no-referrer` (a display link).
+- The event domain's `VenueLeafletMap` draws the installation's `MapTilesProvider` source, else OpenStreetMap's, darkened
+  in the dark theme, instead of always requesting OpenStreetMap.
 
 ### Fixed
 

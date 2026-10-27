@@ -28,7 +28,7 @@ export type {
 export { safeMarkerColor, safeMarkerIcon, safeMarkerImage } from './types';
 export { MapCanvas } from './MapCanvas';
 export { MapTilesProvider, useMapTileSource } from './MapTilesProvider';
-export { OSM_TILES, OSM_ATTRIBUTION, safeAttribution, safeTileSource, tileSourceTiles } from './tiles';
+export { OSM_TILES, OSM_ATTRIBUTION, TILE_REFERRER_POLICY, safeAttribution, safeTileSource, tileSourceTiles } from './tiles';
 export type { MapCanvasProps } from './MapCanvas';
 
 /**

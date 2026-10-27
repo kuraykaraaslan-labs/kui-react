@@ -6,7 +6,7 @@ import { ClusteredMarkers, clusterColor, clusterMarkers } from './parts/Cluster'
 import { Popup, isInternalHref } from './parts/Popup';
 import { VARIANT_HEX, safeMarkerColor, safeMarkerIcon, safeMarkerImage } from './types';
 import { LEAFLET_TILES, type LeafletBundle } from './providers/leaflet';
-import { OSM_ATTRIBUTION, safeAttribution, safeTileSource, tileSourceTiles } from './tiles';
+import { OSM_ATTRIBUTION, TILE_REFERRER_POLICY, safeAttribution, safeTileSource, tileSourceTiles } from './tiles';
 import { MapTilesProvider, useMapTileSource } from './MapTilesProvider';
 
 describe('marker drawing', () => {
@@ -81,6 +81,8 @@ describe('marker drawing', () => {
     expect(LEAFLET_TILES.dark).toEqual({ ...LEAFLET_TILES.light, dim: true });
     for (const t of [LEAFLET_TILES.light, LEAFLET_TILES.dark]) expect(t.url).not.toMatch(/cartocdn|apikey/);
     expect(OSM_ATTRIBUTION).toContain('OpenStreetMap</a> contributors');
+    // tiles send the page's origin, never its path, even on a no-referrer page (a display link with its token)
+    expect(TILE_REFERRER_POLICY).toBe('strict-origin');
   });
 
   it('a dot carries a short escaped text in its middle; other shapes leave it out', () => {
