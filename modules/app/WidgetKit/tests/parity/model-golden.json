@@ -9061,6 +9061,8 @@
        "src": "javascript:alert(1)"
       }
      ],
+     "presenceMinutes": "5",
+     "stopWhenHidden": true,
      "src": "/media/intro.mp4",
      "poster": "/media/intro.jpg"
     },
@@ -9089,7 +9091,10 @@
       }
      ],
      "locale": "en",
-     "loadingText": "Loading the player…"
+     "loadingText": "Loading the player…",
+     "preferAlternateInFullscreen": false,
+     "presence": null,
+     "stopWhenHidden": true
     }
    }
   },
@@ -9116,6 +9121,8 @@
      "theme": "broadcast",
      "showTitle": true,
      "subtitles": [],
+     "presenceMinutes": "5",
+     "stopWhenHidden": true,
      "src": "https://cdn.example.com/live/stream.m3u8?token=1"
     },
     "format": {}
@@ -9137,7 +9144,13 @@
      "subtitles": [],
      "locale": "tr-TR",
      "loadingText": "Loading the player…",
-     "language": "tr"
+     "language": "tr",
+     "preferAlternateInFullscreen": false,
+     "presence": {
+      "everyMs": 300000,
+      "graceMs": 30000
+     },
+     "stopWhenHidden": true
     }
    }
   },
@@ -9165,6 +9178,8 @@
      "theme": "minimal",
      "showTitle": false,
      "subtitles": [],
+     "presenceMinutes": "5",
+     "stopWhenHidden": true,
      "src": "https://cdn.example.com/default.mp4"
     },
     "format": {}
@@ -9184,7 +9199,13 @@
      "theme": "minimal",
      "subtitles": [],
      "locale": "en",
-     "loadingText": "Loading the player…"
+     "loadingText": "Loading the player…",
+     "preferAlternateInFullscreen": false,
+     "presence": {
+      "everyMs": 300000,
+      "graceMs": 30000
+     },
+     "stopWhenHidden": true
     }
    }
   },
@@ -9211,6 +9232,8 @@
      "theme": "minimal",
      "showTitle": false,
      "subtitles": [],
+     "presenceMinutes": "5",
+     "stopWhenHidden": true,
      "src": "https://cdn.example.com/default.mp4"
     },
     "format": {}
@@ -9230,7 +9253,180 @@
      "theme": "minimal",
      "subtitles": [],
      "locale": "en",
-     "loadingText": "Loading the player…"
+     "loadingText": "Loading the player…",
+     "preferAlternateInFullscreen": false,
+     "presence": null,
+     "stopWhenHidden": true
+    }
+   }
+  },
+  {
+   "id": "video.stream-two-addresses-every-15",
+   "kind": "content.video",
+   "settings": {
+    "presenceMinutes": "15"
+   },
+   "data": {
+    "source": {
+     "shape": "scalar",
+     "value": "https://cdn.example.com/cam/7/sub.m3u8",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    },
+    "sourceHigh": {
+     "shape": "scalar",
+     "value": "https://cdn.example.com/cam/7/main.m3u8",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "input": {
+    "settings": {
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "showTitle": false,
+     "subtitles": [],
+     "presenceMinutes": "15",
+     "stopWhenHidden": true
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": {
+     "src": "https://cdn.example.com/cam/7/sub.m3u8",
+     "hls": true,
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "subtitles": [],
+     "locale": "en",
+     "loadingText": "Loading the player…",
+     "sources": [
+      {
+       "label": "Standard",
+       "src": "https://cdn.example.com/cam/7/sub.m3u8"
+      },
+      {
+       "label": "High",
+       "src": "https://cdn.example.com/cam/7/main.m3u8"
+      }
+     ],
+     "preferAlternateInFullscreen": true,
+     "presence": {
+      "everyMs": 900000,
+      "graceMs": 30000
+     },
+     "stopWhenHidden": true
+    }
+   }
+  },
+  {
+   "id": "video.stream-presence-off-keeps-running",
+   "kind": "content.video",
+   "settings": {
+    "presenceMinutes": "off",
+    "stopWhenHidden": false
+   },
+   "data": {
+    "source": {
+     "shape": "scalar",
+     "value": "https://cdn.example.com/cam/8/live.m3u8",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "input": {
+    "settings": {
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "showTitle": false,
+     "subtitles": [],
+     "presenceMinutes": "off",
+     "stopWhenHidden": false
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": {
+     "src": "https://cdn.example.com/cam/8/live.m3u8",
+     "hls": true,
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "subtitles": [],
+     "locale": "en",
+     "loadingText": "Loading the player…",
+     "preferAlternateInFullscreen": false,
+     "presence": null,
+     "stopWhenHidden": false
+    }
+   }
+  },
+  {
+   "id": "video.high-alone-or-refused-is-ignored",
+   "kind": "content.video",
+   "settings": {
+    "src": "https://cdn.example.com/default.mp4"
+   },
+   "data": {
+    "sourceHigh": {
+     "shape": "scalar",
+     "value": "javascript:alert(1)",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "input": {
+    "settings": {
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "showTitle": false,
+     "subtitles": [],
+     "presenceMinutes": "5",
+     "stopWhenHidden": true,
+     "src": "https://cdn.example.com/default.mp4"
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": {
+     "src": "https://cdn.example.com/default.mp4",
+     "hls": false,
+     "autoPlay": false,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "subtitles": [],
+     "locale": "en",
+     "loadingText": "Loading the player…",
+     "preferAlternateInFullscreen": false,
+     "presence": null,
+     "stopWhenHidden": true
     }
    }
   },
@@ -9248,7 +9444,9 @@
      "fit": "contain",
      "theme": "minimal",
      "showTitle": false,
-     "subtitles": []
+     "subtitles": [],
+     "presenceMinutes": "5",
+     "stopWhenHidden": true
     },
     "format": {}
    },

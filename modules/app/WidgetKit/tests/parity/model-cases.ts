@@ -476,5 +476,20 @@ export const MODEL_CASES: ModelCase[] = [
     settings: { src: 'https://cdn.example.com/default.mp4' },
     data: { source: scalar('javascript:alert(1)') },
   },
+  {
+    id: 'video.stream-two-addresses-every-15', kind: 'content.video',
+    settings: { presenceMinutes: '15' },
+    data: { source: scalar('https://cdn.example.com/cam/7/sub.m3u8'), sourceHigh: scalar('https://cdn.example.com/cam/7/main.m3u8') },
+  },
+  {
+    id: 'video.stream-presence-off-keeps-running', kind: 'content.video',
+    settings: { presenceMinutes: 'off', stopWhenHidden: false },
+    data: { source: scalar('https://cdn.example.com/cam/8/live.m3u8') },
+  },
+  {
+    id: 'video.high-alone-or-refused-is-ignored', kind: 'content.video',
+    settings: { src: 'https://cdn.example.com/default.mp4' },
+    data: { sourceHigh: scalar('javascript:alert(1)') },
+  },
   { id: 'video.empty', kind: 'content.video', settings: {}, data: {} },
 ];

@@ -8165,5 +8165,79 @@
       "type": "data-key",
       "value": []
     }
+  },
+  "builtin:content.video@2": {
+    "src": {
+      "type": "url"
+    },
+    "poster": {
+      "type": "url"
+    },
+    "autoPlay": {
+      "type": "boolean",
+      "value": false
+    },
+    "startMuted": {
+      "type": "boolean",
+      "value": false
+    },
+    "loop": {
+      "type": "boolean",
+      "value": false
+    },
+    "autoHideControls": {
+      "type": "boolean",
+      "value": true
+    },
+    "fit": {
+      "type": "select",
+      "value": "contain",
+      "options": [
+        "contain",
+        "cover"
+      ]
+    },
+    "theme": {
+      "type": "select",
+      "value": "minimal",
+      "options": [
+        "minimal",
+        "broadcast",
+        "cinema"
+      ]
+    },
+    "showTitle": {
+      "type": "boolean",
+      "value": false
+    },
+    "subtitles": {
+      "type": "repeater",
+      "value": [],
+      "fields": {
+        "label": {
+          "type": "text"
+        },
+        "srclang": {
+          "type": "text"
+        },
+        "src": {
+          "type": "text"
+        }
+      }
+    },
+    "presenceMinutes": {
+      "type": "select",
+      "value": "5",
+      "options": [
+        "5",
+        "10",
+        "15",
+        "off"
+      ]
+    },
+    "stopWhenHidden": {
+      "type": "boolean",
+      "value": true
+    }
   }
 }

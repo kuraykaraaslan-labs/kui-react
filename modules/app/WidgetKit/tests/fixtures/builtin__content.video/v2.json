@@ -1,0 +1,26 @@
+{
+  "input": {
+    "autoPlay": false,
+    "startMuted": false,
+    "loop": false,
+    "autoHideControls": true,
+    "fit": "contain",
+    "theme": "minimal",
+    "showTitle": false,
+    "subtitles": [],
+    "presenceMinutes": "5",
+    "stopWhenHidden": true
+  },
+  "expected": {
+    "autoPlay": false,
+    "startMuted": false,
+    "loop": false,
+    "autoHideControls": true,
+    "fit": "contain",
+    "theme": "minimal",
+    "showTitle": false,
+    "subtitles": [],
+    "presenceMinutes": "5",
+    "stopWhenHidden": true
+  }
+}

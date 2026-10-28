@@ -17,6 +17,8 @@
     "fit": "contain",
     "theme": "minimal",
     "showTitle": false,
-    "subtitles": []
+    "subtitles": [],
+    "presenceMinutes": "5",
+    "stopWhenHidden": true
   }
 }

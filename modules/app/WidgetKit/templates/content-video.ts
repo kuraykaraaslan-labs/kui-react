@@ -7,10 +7,13 @@ import { safeMediaRule, safeSubtitlesRule } from '../views/content-logic';
  * `content.video`: a video played by kui-player, from an address in the settings or from a bound
  * value (e.g. a camera's stream address on a device attribute), which wins when it is a valid one.
  * MP4 / WebM play natively; HLS (`.m3u8`) through hls.js, loaded only for an HLS source.
+ *
+ * Version 2 adds the "Live" options (next-boilerplate iot-camera phase 05, OD-169): how often a stream asks "still
+ * watching?" and whether it stops loading while the card is out of view. Nothing here knows what the source is (OD-173).
  */
 export const CONTENT_VIDEO: SettingsTemplate = {
   id: 'builtin:content.video',
-  version: 1,
+  version: 2,
   namespace: '',
   label: 'Video player',
   format: false,
@@ -19,10 +22,12 @@ export const CONTENT_VIDEO: SettingsTemplate = {
   groups: [
     { id: 'video', label: 'Video', tab: 'Display', since: 1 },
     { id: 'playback', label: 'Playback', tab: 'Display', since: 1 },
+    { id: 'live', label: 'Live', tab: 'Display', since: 2 },
     { id: 'display', label: 'Display', tab: 'Display', since: 1 },
     { id: 'subtitles', label: 'Subtitles', tab: 'Display', since: 1 },
   ],
-  fields: since(1, {
+  fields: {
+    ...since(1, {
     src: {
       label: 'Video address', type: 'url', maxLength: 2000, placeholder: 'https://…/video.mp4 or …/stream.m3u8', group: 'video',
       description: 'MP4, WebM or an HLS stream (.m3u8); an internal path or an https / http address. A bound value, when valid, takes its place.',
@@ -33,7 +38,7 @@ export const CONTENT_VIDEO: SettingsTemplate = {
     },
     autoPlay: {
       label: 'Start playing on its own', type: 'boolean', value: false, group: 'playback',
-      description: 'Browsers allow this only for a muted video, so it starts muted.',
+      description: 'Browsers allow this only for a muted video, so it starts muted; for a live stream nothing is loaded until play is pressed when this is off.',
     },
     startMuted: { label: 'Start muted', type: 'boolean', value: false, group: 'playback' },
     loop: { label: 'Loop', type: 'boolean', value: false, group: 'playback' },
@@ -60,8 +65,27 @@ export const CONTENT_VIDEO: SettingsTemplate = {
       },
     },
   }),
+    // Version 2: the live options. Both apply to a stream (HLS); a video file is never asked and never stopped.
+    ...since(2, {
+    presenceMinutes: {
+      label: "Ask 'still watching?' every", type: 'select', display: 'segmented', value: '5', group: 'live', required: true,
+      options: [opt('5', '5 minutes'), opt('10', '10 minutes'), opt('15', '15 minutes'), opt('off', 'Off')],
+      description: 'After this much playing the viewer is asked; with no answer the stream stops loading, which saves what a running stream costs. All the video cards of a board share one question. Applies to streams, not to video files.',
+    },
+    stopWhenHidden: {
+      label: 'Stop the stream when the card is out of view', type: 'boolean', value: true, group: 'live',
+      description: 'A stream scrolled out of view, or in a hidden tab, stops loading and rejoins the live edge when it comes back.',
+    },
+    }),
+  },
   rules: [safeMediaRule('src', 'The video address'), safeMediaRule('poster', 'The poster image'), safeSubtitlesRule('subtitles')],
-  migrations: [],
+  migrations: [
+    {
+      from: 1, to: 2,
+      note: 'Live options: a stream asks "still watching?" every 5 minutes and stops while the card is out of view (both can be changed).',
+      ops: [{ op: 'materializeDefault', key: 'presenceMinutes', value: '5' }, { op: 'materializeDefault', key: 'stopWhenHidden', value: true }],
+    },
+  ],
 };
 
 export const CONTENT_VIDEO_KIND: BuiltinKindSpec = {
@@ -72,6 +96,9 @@ export const CONTENT_VIDEO_KIND: BuiltinKindSpec = {
   icon: 'fas fa-circle-play',
   defaultW: 6,
   defaultH: 6,
-  slots: [{ key: 'source', label: 'Video address', shape: 'scalar', required: false }],
+  slots: [
+    { key: 'source', label: 'Video address', shape: 'scalar', required: false },
+    { key: 'sourceHigh', label: 'Higher quality address', shape: 'scalar', required: false },
+  ],
   template: CONTENT_VIDEO,
 };
