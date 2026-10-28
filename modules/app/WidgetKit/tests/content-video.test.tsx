@@ -264,6 +264,13 @@ describe('videoPresence / videoModel: the live options', () => {
     expect(videoModel(effective(CONTENT_VIDEO, {}), { sourceHigh: stream().source }, undefined, undefined, 'en', MSG.content).player).toBeNull();
   });
 
+  it('holds a stream back until play is pressed, unless it starts on its own; a video file is never held', () => {
+    expect(model({}, stream()).loadOnPlay).toBe(true);
+    expect(model({ autoPlay: true }, stream()).loadOnPlay).toBe(false);
+    expect(model({ src: 'https://cdn.example.com/a.mp4' }, {}).loadOnPlay).toBe(false);
+    expect(model({ src: 'https://cdn.example.com/a.mp4' }, { sourceHigh: { shape: 'scalar', value: 'https://cdn.example.com/a.m3u8' } }).loadOnPlay).toBe(true);
+  });
+
   it('is a stream when either address is HLS, and uses the host texts for the two labels', () => {
     const mixed = videoModel(
       effective(CONTENT_VIDEO, { src: 'https://cdn.example.com/a.mp4' }),
@@ -302,6 +309,20 @@ describe('content.video view: sources, stopWhenHidden and the presence option of
     rerender(<View {...props({ data: { source: slot(cam(1)), sourceHigh: slot('https://cam.example.com/1/hd.m3u8') } })} />);
     await waitFor(() => expect(last().sources).toEqual([{ label: 'Standard', src: cam(1) }, { label: 'High', src: 'https://cam.example.com/1/hd.m3u8' }]));
     expect(h.players.length).toBeGreaterThan(before);
+  });
+
+  it('passes loadOnPlay to the player for a stream with autoPlay off, and not for autoPlay on or a video file', async () => {
+    for (const [settings, data, expected] of [
+      [{}, { source: slot(cam(1)) }, true],
+      [{ autoPlay: true }, { source: slot(cam(1)) }, false],
+      [{ src: 'https://cdn.example.com/a.mp4' }, {}, false],
+    ] as const) {
+      h.players = [];
+      cleanup();
+      render(<View {...props({ settings, data })} />);
+      await screen.findByTestId('player');
+      expect(last().loadOnPlay, JSON.stringify(settings)).toBe(expected);
+    }
   });
 
   it('keeps the stream loading while hidden only when the setting is off; the player default otherwise', async () => {

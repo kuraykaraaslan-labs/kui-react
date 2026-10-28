@@ -491,5 +491,10 @@ export const MODEL_CASES: ModelCase[] = [
     settings: { src: 'https://cdn.example.com/default.mp4' },
     data: { sourceHigh: scalar('javascript:alert(1)') },
   },
+  {
+    id: 'video.stream-autoplay-loads-at-once', kind: 'content.video',
+    settings: { autoPlay: true },
+    data: { source: scalar('https://cdn.example.com/cam/9/live.m3u8') },
+  },
   { id: 'video.empty', kind: 'content.video', settings: {}, data: {} },
 ];

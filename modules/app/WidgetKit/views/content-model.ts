@@ -378,6 +378,8 @@ export interface VideoPlayerProps {
   presence: { everyMs: number; graceMs: number } | null;
   /** A stream stops loading while the card is out of view or the tab is hidden. */
   stopWhenHidden: boolean;
+  /** Hold a stream back until play is pressed: no playlist or segment is requested before (HLS with autoPlay off). */
+  loadOnPlay: boolean;
 }
 
 /**
@@ -387,7 +389,8 @@ export interface VideoPlayerProps {
  *
  * Live options (template v2): `presence` is the "still watching?" interval for a stream, `stopWhenHidden` whether it stops
  * while out of view, `sources` the Standard / High pair when a `sourceHigh` is bound. Stream quality is otherwise the
- * player's own menu. Nothing here knows what the stream is.
+ * player's own menu. `loadOnPlay` holds a stream back until play is pressed (the "Start playing on its own" setting off).
+ * Nothing here knows what the stream is.
  */
 export function videoModel(
   s: VideoSettings, data: Data, resolveUrl: ((url: string) => string) | undefined, title: string | undefined,
@@ -420,6 +423,7 @@ export function videoModel(
     preferAlternateInFullscreen: alternate !== null,
     presence: videoPresence(s.presenceMinutes, hls),
     stopWhenHidden: s.stopWhenHidden !== false,
+    loadOnPlay: hls && s.autoPlay !== true,
   };
   return { empty: player === null, emptyText: m.videoEmpty, loadingText: m.videoLoading, player };
 }

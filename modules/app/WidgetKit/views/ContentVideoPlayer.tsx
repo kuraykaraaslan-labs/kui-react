@@ -14,7 +14,7 @@ const FIT = { contain: '[&_video]:object-contain', cover: '[&_video]:object-cove
 
 export function ContentVideoPlayer({
   src, hls, poster, title, autoPlay, startMuted, loop, autoHideControls, fit, theme, subtitles, locale, loadingText,
-  sources, preferAlternateInFullscreen, stopWhenHidden, presence,
+  sources, preferAlternateInFullscreen, stopWhenHidden, presence, loadOnPlay,
 }: {
   src: string;
   hls: boolean;
@@ -36,6 +36,8 @@ export function ContentVideoPlayer({
   stopWhenHidden?: boolean;
   /** "Still watching?": the board's shared group, this card's own interval, or false (never; also while the group loads). */
   presence?: PresenceGroup | { everyMs: number; graceMs: number } | false;
+  /** A stream requests nothing until play is pressed (autoPlay off); a video file is unaffected. */
+  loadOnPlay?: boolean;
 }) {
   // `null` while hls.js loads for a stream; `[]` for a source the browser plays itself.
   const [adapters, setAdapters] = useState<Adapter[] | null>(hls ? null : []);
@@ -77,6 +79,7 @@ export function ContentVideoPlayer({
       // Only a change from the player's default needs saying: it treats a stream's source as live by itself.
       live={hls && stopWhenHidden === false ? { stopWhenHidden: false } : undefined}
       presence={presence}
+      loadOnPlay={loadOnPlay}
       subtitles={subtitles}
       theme={theme}
       locale={dictionary}

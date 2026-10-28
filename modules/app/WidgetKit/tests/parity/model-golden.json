@@ -9094,7 +9094,8 @@
      "loadingText": "Loading the player…",
      "preferAlternateInFullscreen": false,
      "presence": null,
-     "stopWhenHidden": true
+     "stopWhenHidden": true,
+     "loadOnPlay": false
     }
    }
   },
@@ -9150,7 +9151,8 @@
       "everyMs": 300000,
       "graceMs": 30000
      },
-     "stopWhenHidden": true
+     "stopWhenHidden": true,
+     "loadOnPlay": false
     }
    }
   },
@@ -9205,7 +9207,8 @@
       "everyMs": 300000,
       "graceMs": 30000
      },
-     "stopWhenHidden": true
+     "stopWhenHidden": true,
+     "loadOnPlay": true
     }
    }
   },
@@ -9256,7 +9259,8 @@
      "loadingText": "Loading the player…",
      "preferAlternateInFullscreen": false,
      "presence": null,
-     "stopWhenHidden": true
+     "stopWhenHidden": true,
+     "loadOnPlay": false
     }
    }
   },
@@ -9324,7 +9328,8 @@
       "everyMs": 900000,
       "graceMs": 30000
      },
-     "stopWhenHidden": true
+     "stopWhenHidden": true,
+     "loadOnPlay": true
     }
    }
   },
@@ -9375,7 +9380,8 @@
      "loadingText": "Loading the player…",
      "preferAlternateInFullscreen": false,
      "presence": null,
-     "stopWhenHidden": false
+     "stopWhenHidden": false,
+     "loadOnPlay": true
     }
    }
   },
@@ -9426,7 +9432,62 @@
      "loadingText": "Loading the player…",
      "preferAlternateInFullscreen": false,
      "presence": null,
+     "stopWhenHidden": true,
+     "loadOnPlay": false
+    }
+   }
+  },
+  {
+   "id": "video.stream-autoplay-loads-at-once",
+   "kind": "content.video",
+   "settings": {
+    "autoPlay": true
+   },
+   "data": {
+    "source": {
+     "shape": "scalar",
+     "value": "https://cdn.example.com/cam/9/live.m3u8",
+     "fetchedAt": "2026-10-20T10:04:00.000Z"
+    }
+   },
+   "input": {
+    "settings": {
+     "autoPlay": true,
+     "startMuted": false,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "showTitle": false,
+     "subtitles": [],
+     "presenceMinutes": "5",
      "stopWhenHidden": true
+    },
+    "format": {}
+   },
+   "model": {
+    "empty": false,
+    "emptyText": "Set a video address in this widget’s settings, or bind one.",
+    "loadingText": "Loading the player…",
+    "player": {
+     "src": "https://cdn.example.com/cam/9/live.m3u8",
+     "hls": true,
+     "autoPlay": true,
+     "startMuted": true,
+     "loop": false,
+     "autoHideControls": true,
+     "fit": "contain",
+     "theme": "minimal",
+     "subtitles": [],
+     "locale": "en",
+     "loadingText": "Loading the player…",
+     "preferAlternateInFullscreen": false,
+     "presence": {
+      "everyMs": 300000,
+      "graceMs": 30000
+     },
+     "stopWhenHidden": true,
+     "loadOnPlay": false
     }
    }
   },

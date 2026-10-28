@@ -33,10 +33,13 @@ All notable changes to this project will be documented here. Format follows [Kee
   The model (`videoModel`) decides `presence` (`{ everyMs, graceMs: PRESENCE_GRACE_MS = 30 s }` or null; only a stream is ever asked, a
   video file is not), `stopWhenHidden`, `sources` and `preferAlternateInFullscreen`; `videoPresence` and `videoSourceHigh` are new.
   Messages: `content.videoQualityStandard` / `videoQualityHigh`.
+- `content.video` holds an HLS stream back until play is pressed when "Start playing on its own" is off: the model's new `loadOnPlay`
+  (true only for HLS with autoPlay off) goes to kui-player's `loadOnPlay`, so a camera's live link is not requested before. A video
+  file is unaffected. Needs kui-player 648328e (`loadOnPlay`).
 - `WidgetBoard` puts its video cards in one presence group (`VideoPresenceBoard`, `useVideoPresence`): a board of twelve streams asks
   "Still watching?" once, at the shortest interval among the cards that ask, and with no answer stops all of them; a card set to `off`
   never joins, a card outside a board asks inside its own player. kui-player's React subpath loads only when a card asks.
-- Dependency: `@kuraykaraaslan/kui-player` is pinned to the git revision `db9515259b9ffd03a0c4ef0d38419f8e8fad4c5c` (branch
+- Dependency: `@kuraykaraaslan/kui-player` is pinned to the git revision `648328efecc3286318d56966890f60f5e951a9b6` (branch
   `feat/iot-camera-live`: live mode, presence groups, alternate sources) until that release is published; switch to the released version then.
 
 - IoT `AssetDrawer` takes `actions` (the host's own buttons in the header, after "Open dashboard", shown once the asset has loaded) and `AssetsView` takes `drawerActions(assetId)` to fill it: a host module can put a button that opens a drawer of its own beside the asset's own actions (next-boilerplate's "Scene" button, phase 42).
