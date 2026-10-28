@@ -2,11 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
-import type { IotAdapter, IotCapabilities } from '../api/adapter';
+import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
 import {
-  alarmRuleIssues, describeCondition, isAlarmRuleKey, newInactivityRule, newThresholdRule, undeclaredRuleKeys, type AlarmRuleDefinition,
+  alarmRuleIssues, describeCondition, isAlarmRuleKey, newInactivityRule, newThresholdRule, renameAlarmRuleKeys, undeclaredRuleKeys, type AlarmRuleDefinition, type ThresholdAlarmRule,
 } from '../types/alarm-rule';
 import { blankProfileDraft, type DeviceProfile } from '../types/profile';
+import { announceProfileKeyRenames } from '../profile/profile-key-events';
 import { AlarmRuleSetEditor, changedRuleCount } from './AlarmRuleSetEditor';
 import { formatRuleValue, isFormable, parseRuleValue } from './AlarmRuleDrawer';
 
@@ -20,8 +21,11 @@ const COMPOUND: AlarmRuleDefinition = {
   severities: [{ severity: 'WARNING', condition: { any: [{ key: 'battery', op: '<', value: 20 }, { key: 'limit', op: '>', value: { attribute: 'max' } }] } }],
 };
 
-function setup(rules: AlarmRuleDefinition[], caps: Partial<IotCapabilities> = { canManageAlarmRules: true }, keys?: string[]) {
-  const replace = vi.fn(async (_p: string, next: AlarmRuleDefinition[]) => next.map((definition) => ({ definition })));
+function setup(rules: AlarmRuleDefinition[], caps: Partial<IotCapabilities> = { canManageAlarmRules: true }, keys?: string[], refuse?: IotApiError) {
+  const replace = vi.fn(async (_p: string, next: AlarmRuleDefinition[]) => {
+    if (refuse) throw refuse;
+    return next.map((definition) => ({ definition }));
+  });
   const profile = { ...blankProfileDraft('Pumps'), profileId: 'p1', isDefault: false, telemetrySchema: (keys ?? []).map((key) => ({ key })) } as DeviceProfile;
   const adapter: IotAdapter = {
     alarmRules: { list: async () => rules.map((definition, i) => ({ ruleId: `r${i}`, definition })), replace },
@@ -49,8 +53,8 @@ describe('alarm rule helpers', () => {
 
   it('UX-10: refuses a value or a spaced word as a key, and reports keys the profile does not declare without blocking', () => {
     const rule = (key: string): AlarmRuleDefinition => ({ ...newThresholdRule('t'), severities: [{ severity: 'MAJOR', condition: { key, op: '>', value: 4.8 } }] });
-    expect(['5.3', '-1', 'room temp', '.5'].map(isAlarmRuleKey)).toEqual([false, false, false, false]);
-    expect(['temperature', 'rom.value', 'k_1', 'sensors/hall-2:t'].map(isAlarmRuleKey)).toEqual([true, true, true, true]);
+    expect(['5.3', '-1', 'room temp', '.5'].map((k) => isAlarmRuleKey(k))).toEqual([false, false, false, false]);
+    expect(['temperature', 'rom.value', 'k_1', 'sensors/hall-2:t'].map((k) => isAlarmRuleKey(k))).toEqual([true, true, true, true]);
     expect(alarmRuleIssues(rule('5.3'))).toEqual(['key_invalid']);
     expect(alarmRuleIssues(rule('rom.value'))).toEqual([]);
     expect(undeclaredRuleKeys(rule('rom.value'), ['room.value', 'door'])).toEqual(['rom.value']);
@@ -58,6 +62,23 @@ describe('alarm rule helpers', () => {
     expect(undeclaredRuleKeys(rule('anything'), [])).toEqual([]);
     expect(undeclaredRuleKeys(COMPOUND, ['battery'])).toEqual(['limit']);
     expect(changedRuleCount([THRESHOLD, COMPOUND], [{ ...THRESHOLD, title: 'x' }, newInactivityRule()])).toBe(3);
+  });
+
+  it('takes a bare number as a key only when the profile declares it (a register number like 40001)', () => {
+    const rule = (key: string): AlarmRuleDefinition => ({ ...newThresholdRule('t'), severities: [{ severity: 'MAJOR', condition: { key, op: '>', value: 1 } }] });
+    expect(isAlarmRuleKey('40001', ['40001', 'door'])).toBe(true);
+    expect(isAlarmRuleKey('40002', ['40001'])).toBe(false);
+    expect(alarmRuleIssues(rule('40001'), [], ['40001'])).toEqual([]);
+    expect(alarmRuleIssues(rule('40001'))).toEqual(['key_invalid']);
+  });
+
+  it('renames the keys of a rule like the host does, everything else as it was', () => {
+    expect(renameAlarmRuleKeys(THRESHOLD, { temperature: 'temp_c' })).toEqual({
+      ...THRESHOLD,
+      severities: [{ severity: 'CRITICAL', condition: { key: 'temp_c', op: '>', value: 95 } }, { severity: 'MAJOR', condition: { key: 'temp_c', op: '>', value: 80, topic: 'sensors/hall-2' } }],
+    });
+    expect((renameAlarmRuleKeys(COMPOUND, { limit: 'max_level' }) as ThresholdAlarmRule).severities[0].condition).toEqual({ any: [{ key: 'battery', op: '<', value: 20 }, { key: 'max_level', op: '>', value: { attribute: 'max' } }] });
+    expect(renameAlarmRuleKeys(newInactivityRule(), { temperature: 'x' })).toEqual(newInactivityRule());
   });
 });
 
@@ -144,6 +165,34 @@ describe('AlarmRuleSetEditor', () => {
     const unsaved = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(unsaved);
     expect(unsaved.defaultPrevented).toBe(true);
+  });
+
+  it('takes renamed keys from the profile editor into its rules and unsaved edits, so a save keeps the new names', async () => {
+    const user = userEvent.setup();
+    const { replace } = setup([THRESHOLD, COMPOUND]);
+    await screen.findByText('temperature > 95');
+    await user.click(screen.getByRole('button', { name: 'Edit battery' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(screen.getAllByLabelText('Enabled')[1]);
+    announceProfileKeyRenames({ profileId: 'other', renames: { temperature: 'nope' } });
+    announceProfileKeyRenames({ profileId: 'p1', renames: { temperature: 'temp_c' } });
+    expect(await screen.findByText('temp_c > 95')).toBeInTheDocument();
+    expect(screen.getByText('1 rules changed and not saved yet: nothing applies until you save.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save rules' }));
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    const sent = replace.mock.calls[0][1] as AlarmRuleDefinition[];
+    expect(sent.map((r) => JSON.stringify(r)).join()).not.toContain('"temperature"');
+    expect(sent[1].enabled).toBe(false);
+  });
+
+  it('names the rule the host refused instead of its position', async () => {
+    const user = userEvent.setup();
+    setup([THRESHOLD, COMPOUND], { canManageAlarmRules: true }, undefined,
+      new IotApiError('validation', 'Validation error', { fieldErrors: { rules: '1.severities.0.condition.any.0.key: "5.3" is not a telemetry key' } }));
+    await screen.findByText('temperature > 95');
+    await user.click(screen.getAllByLabelText('Enabled')[0]);
+    await user.click(screen.getByRole('button', { name: 'Save rules' }));
+    expect(await screen.findByText('The rule battery was refused: severities.0.condition.any.0.key: "5.3" is not a telemetry key')).toBeInTheDocument();
   });
 
   it('is read-only without canManageAlarmRules', async () => {

@@ -17,7 +17,7 @@ import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { fill, formatDateTime } from '../format';
 import {
-  CFG_DRIFT_POLICIES, RATE_LIMIT_FAMILIES, draftOf, profileDraftIssues, profilePatch, telemetryKeyChanges,
+  CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isTelemetryKey, nextKeyOrigins, profileDraftIssues, profilePatch, telemetryKeyChanges,
   type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileKeyUsage, type ProfileTransport, type ProvisionStrategy,
 } from '../types/profile';
 import { AuthModeSelector } from './AuthModeSelector';
@@ -30,6 +30,7 @@ import { RateLimitEditor } from './RateLimitEditor';
 import { TelemetryKeySchemaTable } from './TelemetryKeySchemaTable';
 import { TransportPolicyCard } from './TransportPolicyCard';
 import { ProfileSection, RangeNumberField } from './profile-fields';
+import { announceProfileKeyRenames } from './profile-key-events';
 
 /**
  * DeviceProfileEditorView — one device profile (phase 01 §1.4; NB iot_device_profile 03 §3.2–3.3), read and written through the
@@ -43,6 +44,11 @@ import { ProfileSection, RangeNumberField } from './profile-fields';
  * A save that removed telemetry keys asks the host who still reads them (`profiles.keyUsage`: alarm rules, …). Keys renamed in place
  * are offered for a rewrite ("Update them to the new names", `profiles.renameKeys`) or kept as they are; a removed key with no new name,
  * or a viewer who may not rewrite, gets a notice naming what still reads it. The profile is saved either way: the question comes after.
+ * A rename is taken only from a row of the saved table whose key was changed in place (the rows are followed through additions and
+ * removals, never paired by position), and a mounted Alarm rules tab is told about it. When the question cannot be asked (more keys
+ * removed than the host takes in one question, or the host fails) a warning says so.
+ *
+ * Save can always be pressed: with something to fix it marks every field (new key rows nobody has typed in yet included) and sends nothing.
  */
 export type DeviceProfileEditorViewProps = {
   profileId: string;
@@ -81,7 +87,11 @@ export function DeviceProfileEditorView({
   const offered = transports ?? api?.transports ?? (['MQTT', 'HTTP', 'ANY'] as ProfileTransport[]);
 
   const [profile, setProfile] = useState<DeviceProfile | null>(null);
-  const [draft, setDraft] = useState<DeviceProfileDraft | null>(null);
+  const [draft, setDraftState] = useState<DeviceProfileDraft | null>(null);
+  // where each row of the draft's key table came from in the saved one (-1: added), for renames in place (`telemetryKeyChanges`)
+  const [keyOrigins, setKeyOrigins] = useState<number[]>([]);
+  // Save was pressed while something was wrong: every field is marked, new key rows included
+  const [showAllIssues, setShowAllIssues] = useState(false);
   const [usage, setUsage] = useState<DeviceProfileUsage | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -91,6 +101,12 @@ export function DeviceProfileEditorView({
   const [copied, setCopied] = useState(false);
 
   const base = useMemo(() => (profile ? draftOf(profile) : null), [profile]);
+  /** A draft read from the host or put back to it: its key rows are the saved rows. */
+  const setDraft = useCallback((d: DeviceProfileDraft | null) => {
+    setDraftState(d);
+    setKeyOrigins(d ? d.telemetrySchema.map((_, i) => i) : []);
+    setShowAllIssues(false);
+  }, []);
   const dirty = !!(base && draft && JSON.stringify(base) !== JSON.stringify(draft));
 
   const readUsage = useCallback((signal?: AbortSignal) => {
@@ -109,7 +125,7 @@ export function DeviceProfileEditorView({
       },
       (e) => { if (!signal?.aborted) setLoadError(errorMessage(e, m.profile.loadError)); },
     );
-  }, [api, profileId, m.profile.loadError]);
+  }, [api, profileId, m.profile.loadError, setDraft]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -123,20 +139,32 @@ export function DeviceProfileEditorView({
   const readOnly = !caps.canManageProfiles || !api?.update;
   const issues = draft ? profileDraftIssues(draft) : {};
   const blocking = Object.keys(issues).length > 0;
+  // the only thing wrong is a new key row nobody has typed in yet: nothing is marked before Save is pressed, so nothing is said either
+  const unmarkedOnly = !showAllIssues && Object.keys(issues).length === 1 && 'telemetrySchema' in issues && !!draft
+    && draft.telemetrySchema.some((k) => k.key === '')
+    && draft.telemetrySchema.every((k, i, all) => k.key === '' || (isTelemetryKey(k.key) && all.findIndex((x) => x.key === k.key) === i));
   const err = (field: string): string | undefined => {
     const issue = issues[field];
     return issue ? m.issue[issue] : serverErrors[field];
   };
   const set = (patch: Partial<DeviceProfileDraft>) => {
-    setDraft((d) => (d ? { ...d, ...patch } : d));
+    setDraftState((d) => (d ? { ...d, ...patch } : d));
     setSaveError(null);
   };
+  const setKeys = (next: DeviceProfileDraft['telemetrySchema']) => {
+    if (draft) setKeyOrigins((o) => nextKeyOrigins(draft.telemetrySchema, next, o));
+    set({ telemetrySchema: next });
+  };
+  function pressSave() {
+    if (blocking) { setShowAllIssues(true); return; }
+    void save();
+  }
 
   async function save() {
     if (!api?.update || !base || !draft || blocking) return;
     const patch = profilePatch(base, draft);
     if (!Object.keys(patch).length) return;
-    const keyChanges = telemetryKeyChanges(base.telemetrySchema, draft.telemetrySchema);
+    const keyChanges = telemetryKeyChanges(base.telemetrySchema, draft.telemetrySchema, keyOrigins);
     setSaving(true);
     setSaveError(null);
     setServerErrors({});
@@ -157,8 +185,10 @@ export function DeviceProfileEditorView({
   /** After a save that removed keys: what still reads them, and (for keys renamed in place) the offer to rewrite it. */
   async function followKeyChanges({ removed, renames }: { removed: string[]; renames: Record<string, string> }) {
     if (!api?.keyUsage) return;
+    const unchecked = () => notify({ tone: 'info', message: fill(m.profile.keyUsageUnchecked, { n: removed.length }) });
+    if (removed.length > KEY_USAGE_MAX_KEYS) { unchecked(); return; }
     let usage: ProfileKeyUsage[];
-    try { usage = (await api.keyUsage(profileId, removed)).filter((u) => u.count > 0); } catch { return; }
+    try { usage = (await api.keyUsage(profileId, removed)).filter((u) => u.count > 0); } catch { unchecked(); return; }
     if (!usage.length) return;
     const used = new Set(usage.flatMap((u) => u.keys));
     const mapped = Object.fromEntries(Object.entries(renames).filter(([from]) => used.has(from)));
@@ -180,6 +210,7 @@ export function DeviceProfileEditorView({
         errorMessage: (e) => errorMessage(e, m.profile.loadError),
       });
       if (done) {
+        announceProfileKeyRenames({ profileId, renames: mapped });
         notify({ tone: 'success', message: m.profile.keyUsageRenamed });
         return;
       }
@@ -234,7 +265,7 @@ export function DeviceProfileEditorView({
   }
   if (!profile || !draft || !base) return <SkeletonText lines={8} label={m.common.loading} className={className} />;
 
-  const issueTabs = new Set([...Object.keys(issues), ...Object.keys(serverErrors)].map(tabOf));
+  const issueTabs = new Set([...(unmarkedOnly ? [] : Object.keys(issues)), ...Object.keys(serverErrors)].map(tabOf));
   const badge = (id: string) => (issueTabs.has(id) ? <span className="ml-1 inline-block h-2 w-2 rounded-full bg-error" aria-label={m.profile.invalid} /> : undefined);
   const inUse = usageList(usage ?? undefined);
   const fromTemplate = !!profile.template && draft.onlineRule === base.onlineRule;
@@ -335,7 +366,7 @@ export function DeviceProfileEditorView({
       content: (
         <ProfileSection title={m.schema.telemetryTitle} hint={m.schema.telemetryHint}>
           <TelemetryKeySchemaTable value={draft.telemetrySchema} readOnly={readOnly} fromFirmware={profile.schemaSource?.label ?? null}
-            error={err('telemetrySchema')} onChange={(v) => set({ telemetrySchema: v })} />
+            error={err('telemetrySchema')} showAll={showAllIssues} onChange={setKeys} />
           <Toggle id="profile-strict-keys" label={m.schema.strictKeys} description={m.schema.strictKeysHint} checked={draft.strictKeys} disabled={readOnly}
             onChange={(v) => set({ strictKeys: v })} />
         </ProfileSection>
@@ -407,12 +438,12 @@ export function DeviceProfileEditorView({
           <div className="min-w-0 text-sm">
             <p className="font-medium text-text-primary">{m.profile.unsaved}</p>
             {saveError ? <p role="alert" className="text-xs text-error">{saveError}</p>
-              : blocking ? <p className="text-xs text-error">{m.profile.invalid}</p>
+              : blocking && !unmarkedOnly ? <p className="text-xs text-error">{m.profile.invalid}</p>
                 : <p className="text-xs text-text-secondary">{m.profile.leaveTab}</p>}
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" disabled={saving} onClick={() => { setDraft(base); setSaveError(null); setServerErrors({}); }}>{m.profile.discard}</Button>
-            <Button variant="primary" size="sm" loading={saving} disabled={blocking} onClick={() => void save()}>{m.profile.save}</Button>
+            <Button variant="primary" size="sm" loading={saving} onClick={pressSave}>{m.profile.save}</Button>
           </div>
         </div>
       )}

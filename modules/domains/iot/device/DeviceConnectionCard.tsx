@@ -6,13 +6,13 @@ import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { useIotText } from '../api/IotAdapterProvider';
 import { fill } from '../format';
-import type { CredentialType, DeviceConnectionInfo } from '../types/device';
+import type { CredentialType, DeviceConnectionInfo, DeviceTopics } from '../types/device';
 import type { IotMessagesInput } from '../messages';
 
 /**
  * DeviceConnectionCard — "Connection details" (NB phase 39 UX-23): what an integrator types into a device or a test client. The MQTT
- * endpoint (host, port, TLS or plain), how the credential logs in, the default topics (telemetry, attributes, commands and their
- * answers), the HTTPS telemetry URL with its bearer header, an example payload from the profile's keys, and ready `mosquitto_pub` and
+ * endpoint (host, port, TLS or plain), how the credential logs in, the topics of the device's profile (`info.topics`, default the `v1/`
+ * ones: telemetry, attributes, commands and their answers when the scheme has them), the HTTPS telemetry URL with its bearer header, an example payload from the profile's keys, and ready `mosquitto_pub` and
  * `curl` lines with a copy button each. The secret is filled in only while the one-time notice shows it (`secret`); otherwise the lines
  * carry a placeholder, so nothing secret ever sits in the page.
  */
@@ -29,11 +29,10 @@ export type DeviceConnectionCardProps = {
   className?: string;
 };
 
-export const TELEMETRY_TOPIC = 'v1/telemetry';
-export const ATTRIBUTES_TOPIC = 'v1/attributes';
-export const RPC_REQUEST_TOPIC = 'v1/rpc/req/+';
-export const RPC_RESPONSE_TOPIC = 'v1/rpc/res/{id}';
+/** The default `v1/` topics, for a host that does not name the profile's own. */
+export const DEFAULT_TOPICS: DeviceTopics = { telemetry: 'v1/telemetry', attributes: 'v1/attributes', rpcRequest: 'v1/rpc/req/+', rpcResponse: 'v1/rpc/res/{id}' };
 export const TELEMETRY_PATH = '/api/v1/telemetry';
+const topicsOf = (info: DeviceConnectionInfo): DeviceTopics => info.topics ?? DEFAULT_TOPICS;
 
 const SAMPLE: Record<string, unknown> = { number: 21.5, integer: 1, boolean: true, string: 'ok', json: {} };
 
@@ -59,7 +58,7 @@ export function connectionCommands(input: {
     const login = credentialType === 'MQTT_BASIC'
       ? `${clientId ? `-i ${shellQuote(clientId)} ` : ''}-u ${shellQuote(username || '<username>')} -P ${shellQuote(secret || placeholders.password)}`
       : `-u ${shellQuote(secret || placeholders.token)}`;
-    mqtt = `mosquitto_pub -h ${info.mqtt.host} -p ${info.mqtt.port}${info.mqtt.tls ? ' --capath /etc/ssl/certs' : ''} ${login} -t ${TELEMETRY_TOPIC} -m ${shellQuote(payload)}`;
+    mqtt = `mosquitto_pub -h ${info.mqtt.host} -p ${info.mqtt.port}${info.mqtt.tls ? ' --capath /etc/ssl/certs' : ''} ${login} -t ${topicsOf(info).telemetry} -m ${shellQuote(payload)}`;
   }
   const http = info.httpBase && credentialType === 'ACCESS_TOKEN'
     ? `curl -X POST ${info.httpBase}${TELEMETRY_PATH} -H ${shellQuote(`Authorization: Bearer ${secret || placeholders.token}`)} -H 'Content-Type: application/json' -d ${shellQuote(payload)}`
@@ -98,13 +97,18 @@ export function DeviceConnectionCard({ info, credentialType = 'ACCESS_TOKEN', se
   const c = m.connectionInfo;
   const cmd = connectionCommands({ info, credentialType, secret, username, clientId, placeholders: { token: c.tokenPlaceholder, password: c.passwordPlaceholder } });
   const rows: Array<[string, React.ReactNode]> = [];
+  const topics = topicsOf(info);
   if (info.mqtt) {
     rows.push([c.broker, <code key="b" className="font-mono">{`${info.mqtt.host}:${info.mqtt.port}`}</code>]);
     rows.push([c.security, info.mqtt.tls ? c.tls : c.plain]);
     rows.push([c.login, credentialType === 'X509_CERTIFICATE' ? c.loginX509 : credentialType === 'MQTT_BASIC' ? c.loginBasic : c.loginToken]);
-    rows.push([c.topicTelemetry, <code key="t" className="font-mono">{TELEMETRY_TOPIC}</code>]);
-    rows.push([c.topicAttributes, <code key="a" className="font-mono">{ATTRIBUTES_TOPIC}</code>]);
-    rows.push([c.topicCommands, <span key="r"><code className="font-mono">{RPC_REQUEST_TOPIC}</code>{' · '}{fill(c.answerOn, { topic: RPC_RESPONSE_TOPIC })}</span>]);
+    rows.push([c.topicTelemetry, <code key="t" className="font-mono">{topics.telemetry}</code>]);
+    rows.push([c.topicAttributes, <code key="a" className="font-mono">{topics.attributes}</code>]);
+    if (topics.rpcRequest) {
+      rows.push([c.topicCommands, (
+        <span key="r"><code className="font-mono">{topics.rpcRequest}</code>{topics.rpcResponse ? <>{' · '}{fill(c.answerOn, { topic: topics.rpcResponse })}</> : null}</span>
+      )]);
+    }
   }
   if (info.httpBase && credentialType === 'ACCESS_TOKEN') {
     rows.push([c.httpUrl, <code key="h" className="break-all font-mono">{`POST ${info.httpBase}${TELEMETRY_PATH}`}</code>]);

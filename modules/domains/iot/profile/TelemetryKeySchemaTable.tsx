@@ -19,7 +19,8 @@ import { isTelemetryKey, type TelemetryKeySpec } from '../types/profile';
  * with its inputs in the cells; a row's id is its position, so typing a key keeps the row.
  *
  * The type reads in words ("Number", "Yes / no", …; "Not set" for an untyped key) and a new row starts as a number. A row's key is
- * marked only once it was typed in or left, and the table's error waits for that too: a row just added is not red before any input.
+ * marked only once it was typed in or left (or `showAll`, after a Save press), and the table's error waits for that too: a row just added
+ * is not red before any input. Any other error (the host's refusal of a unit, a decimals value, the size of the table) shows at once.
  */
 export type TelemetryKeySchemaTableProps = {
   value: TelemetryKeySpec[];
@@ -28,6 +29,8 @@ export type TelemetryKeySchemaTableProps = {
   fromFirmware?: string | null;
   readOnly?: boolean;
   error?: string;
+  /** Mark every row, new empty ones included (the host's form after a Save press with something to fix). */
+  showAll?: boolean;
   messages?: IotMessagesInput;
   className?: string;
 };
@@ -38,16 +41,16 @@ const num = (raw: string): number | undefined => (raw.trim() === '' ? undefined 
 /** A row of the table: the key and its position (the row's id, so editing a key keeps its row). */
 type TelemetryRow = { i: number; k: TelemetryKeySpec };
 
-export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnly, error, messages, className }: TelemetryKeySchemaTableProps) {
+export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnly, error, showAll = false, messages, className }: TelemetryKeySchemaTableProps) {
   const { m } = useIotText(messages);
   const [touched, setTouched] = useState<ReadonlySet<number>>(() => new Set());
   const locked = readOnly || !!fromFirmware;
   const typeLabel = (t: TelemetryKeySpec['type']) => (t ? m.schema[`type_${t}`] : m.schema.notSet);
   // an empty key nobody has typed in or left yet is not an error yet (the save stays blocked by the host's checks all the same)
-  const pending = (i: number, k: TelemetryKeySpec) => k.key === '' && !touched.has(i);
+  const pending = (i: number, k: TelemetryKeySpec) => !showAll && k.key === '' && !touched.has(i);
   const isBad = (i: number, k: TelemetryKeySpec) => !pending(i, k) && (!isTelemetryKey(k.key) || value.findIndex((x) => x.key === k.key) !== i);
-  // the table's error is about its keys: it waits while the only bad keys are rows nobody has typed in or left yet
-  const shownError = error && value.some((k, i) => isBad(i, k)) ? error : undefined;
+  // an error waits only while rows nobody has typed in or left yet are all that is wrong with the keys (the error is then theirs)
+  const shownError = error && (value.some((k, i) => isBad(i, k)) || !value.some((k, i) => pending(i, k))) ? error : undefined;
   const set = (i: number, patch: Partial<TelemetryKeySpec>) => onChange?.(value.map((k, j) => (j === i ? clean({ ...k, ...patch }) : k)));
   // rows keep their position as id: a key being typed never remounts its row (and never loses the caret)
   const rows: TelemetryRow[] = value.map((k, i) => ({ i, k }));

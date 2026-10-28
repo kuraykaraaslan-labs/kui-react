@@ -45,6 +45,23 @@ describe('the parameter rows (UX-19)', () => {
       5: { range: 'range_invalid' },
     });
   });
+
+  it('keeps a text parameter\'s longest length (the host checks it on every send) and whatever a row does not draw for its type', () => {
+    const schema: RpcCommandInput['paramsSchema'] = {
+      host: { label: 'Host', type: 'text', required: true, max: 253 },
+      grep: { label: 'Filter', type: 'text', max: 120, min: 2 },
+    };
+    const rows = paramRowsOf(schema)!;
+    expect(rows.map((r) => r.max)).toEqual(['253', '120']);
+    expect(paramsSchemaOf(rows)).toEqual(schema);
+    expect(paramsSchemaOf(rows.map((r) => ({ ...r, label: `${r.label}!` })))).toEqual({
+      host: { label: 'Host!', type: 'text', required: true, max: 253 },
+      grep: { label: 'Filter!', type: 'text', max: 120, min: 2 },
+    });
+    // a type change draws the new type's fields from the row: a text's length becomes nothing on a yes/no
+    expect(paramsSchemaOf([{ ...rows[0], type: 'boolean' }])).toEqual({ host: { label: 'Host', type: 'boolean', required: true } });
+    expect(paramRowIssues([{ ...rows[0], max: '0' }, { ...rows[0], name: 'b', max: '2.5' }])).toEqual({ 0: { range: 'length_invalid' }, 1: { range: 'length_invalid' } });
+  });
 });
 
 describe('RpcCommandCatalogEditor', () => {
@@ -87,6 +104,22 @@ describe('RpcCommandCatalogEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Advanced (JSON)' }));
     expect((screen.getByLabelText('Advanced (JSON)') as HTMLTextAreaElement).value).toContain('"manual"');
     expect(api.update).not.toHaveBeenCalled();
+  });
+
+  it('shows a refusal of every other field under it, and names one the drawer has no box for', async () => {
+    const user = userEvent.setup();
+    const create = vi.fn(async () => {
+      throw new IotApiError('validation', 'Validation error', { fieldErrors: { defaultTimeoutMs: 'Too big: expected number to be <=600000', persistentDefault: 'Invalid input' } });
+    });
+    setup(undefined, true, { create });
+    await screen.findByText('System information');
+    await user.click(screen.getByRole('button', { name: 'Add command' }));
+    await user.type(screen.getByLabelText(/^Method/), 'pump.start');
+    await user.type(screen.getByLabelText(/^Label/), 'Start');
+    await user.click(screen.getByRole('button', { name: 'Save command' }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(await screen.findByText('Too big: expected number to be <=600000')).toBeInTheDocument();
+    expect(screen.getByText('Some fields were refused: see the messages under them. persistentDefault: Invalid input')).toBeInTheDocument();
   });
 
   it('adds a command and never accepts a factory reset (OD-8)', async () => {

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
 import {
-  blankProfileDraft, isNetwork, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, DEFAULT_RATE_LIMITS,
+  blankProfileDraft, isNetwork, nextKeyOrigins, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, DEFAULT_RATE_LIMITS,
   type DeviceProfile, type DeviceProfileDraft, type ProfileAuthMode, type ProfileRateLimits, type ProfileTransport,
 } from '../types/profile';
 import { OnlineRuleField, formatSeconds, type OnlineRuleValue } from './OnlineRuleField';
@@ -18,6 +18,7 @@ import { ProvisioningSettingsCard } from './ProvisioningSettingsCard';
 import { NewDeviceProfileDrawer } from './NewDeviceProfileDrawer';
 import { DeviceProfileEditorView } from './DeviceProfileEditorView';
 import { DeviceProfileListView } from './DeviceProfileListView';
+import { PROFILE_KEYS_RENAMED_EVENT } from './profile-key-events';
 
 const T0 = new Date('2026-10-24T12:00:00Z');
 const profile = (over: Partial<DeviceProfile> = {}): DeviceProfile => ({
@@ -242,15 +243,39 @@ describe('transport and auth pieces', () => {
     expect(screen.getByLabelText('Key 2')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('A key is not valid.')).toBeInTheDocument();
     cleanup();
+    // after a Save press every row is marked; an error that is not about a key row shows at once
+    render(<TelemetryKeySchemaTable value={[{ key: 'level' }, { key: '', type: 'number' }]} onChange={() => undefined} error="A key is not valid." showAll />);
+    expect(screen.getByLabelText('Key 2')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('A key is not valid.')).toBeInTheDocument();
+    cleanup();
+    render(<TelemetryKeySchemaTable value={[{ key: 'level', decimals: 11 }]} onChange={() => undefined} error="0.decimals: Too big: expected number to be <=10" />);
+    expect(screen.getByText('0.decimals: Too big: expected number to be <=10')).toBeInTheDocument();
+    cleanup();
     render(<TelemetryKeySchemaTable value={[{ key: 'flag', type: 'boolean' }, { key: 'x' }]} readOnly />);
     expect(screen.getByRole('cell', { name: 'Yes / no' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'Not set' })).toBeInTheDocument();
   });
 
   it('UX-11: a key renamed in place is a rename; a removal that shifts rows is never guessed into one', () => {
-    expect(telemetryKeyChanges([{ key: 'temp' }, { key: 'level' }], [{ key: 'temperature' }, { key: 'level' }])).toEqual({ removed: ['temp'], renames: { temp: 'temperature' } });
-    expect(telemetryKeyChanges([{ key: 'a' }, { key: 'b' }, { key: 'c' }], [{ key: 'b' }, { key: 'd' }])).toEqual({ removed: ['a', 'c'], renames: {} });
-    expect(telemetryKeyChanges([{ key: 'a' }], [{ key: 'a' }, { key: 'b' }])).toEqual({ removed: [], renames: {} });
+    expect(telemetryKeyChanges([{ key: 'temp' }, { key: 'level' }], [{ key: 'temperature' }, { key: 'level' }], [0, 1])).toEqual({ removed: ['temp'], renames: { temp: 'temperature' } });
+    expect(telemetryKeyChanges([{ key: 'a' }, { key: 'b' }, { key: 'c' }], [{ key: 'b' }, { key: 'd' }], [1, -1])).toEqual({ removed: ['a', 'c'], renames: {} });
+    expect(telemetryKeyChanges([{ key: 'a' }], [{ key: 'a' }, { key: 'b' }], [0, -1])).toEqual({ removed: [], renames: {} });
+    // without the rows' origins nothing is taken for a rename
+    expect(telemetryKeyChanges([{ key: 'temp' }], [{ key: 'temperature' }])).toEqual({ removed: ['temp'], renames: {} });
+  });
+
+  it('UX-11: rows are followed through removals and additions, so temp removed and hum renamed is hum → humidity', () => {
+    const base = [{ key: 'temp' }, { key: 'hum' }];
+    let rows = base;
+    let origins = [0, 1];
+    const step = (next: typeof rows) => { origins = nextKeyOrigins(rows, next, origins); rows = next; };
+    step(rows.filter((_, i) => i !== 0)); // the temp row removed
+    step(rows.map((k) => (k.key === 'hum' ? { key: 'humidity' } : k))); // hum renamed in place, now on row 0
+    step([...rows, { key: 'x' }]); // a row added
+    expect(origins).toEqual([1, -1]);
+    expect(telemetryKeyChanges(base, rows, origins)).toEqual({ removed: ['temp', 'hum'], renames: { hum: 'humidity' } });
+    // a table replaced at once loses every origin
+    expect(nextKeyOrigins(rows, [{ key: 'a' }, { key: 'b' }, { key: 'c' }, { key: 'd' }], origins)).toEqual([-1, -1, -1, -1]);
   });
 
   it('provisioning keys are a disabled placeholder without the host: no key, no secret, no button', () => {
@@ -313,7 +338,8 @@ describe('DeviceProfileEditorView', () => {
     await user.click(screen.getByRole('tab', { name: /Transport & auth/ }));
     await user.selectOptions(screen.getByLabelText('Transport'), 'LORAWAN');
     expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(adapter.profiles!.update).not.toHaveBeenCalled();
     await user.click(screen.getByRole('tab', { name: /Online status/ }));
     expect(screen.getByRole('alert')).toHaveTextContent('This transport cannot use the chosen online rule');
     await user.click(screen.getByRole('radio', { name: /Last seen only/ }));
@@ -349,6 +375,53 @@ describe('DeviceProfileEditorView', () => {
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'info', message: 'Still reading removed keys: 2 alarm rules read temp. They never match again until they are edited.' }));
     expect(renameKeys).toHaveBeenCalledTimes(1);
+  });
+
+  it('UX-85: an untouched new key row says nothing until Save is pressed, then the row is marked and nothing is sent', async () => {
+    const user = userEvent.setup();
+    const adapter = profilesAdapter({}, [profile({ telemetrySchema: [{ key: 'level' }] })]);
+    render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" tab="telemetry" /></Wrap>);
+    await screen.findByLabelText('Key 1');
+    await user.click(screen.getByRole('button', { name: 'Add key' }));
+    expect(screen.queryByText('Fix the marked fields before saving.')).toBeNull();
+    expect(screen.getByLabelText('Key 2')).not.toHaveAttribute('aria-invalid');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(screen.getByLabelText('Key 2')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByText('Fix the marked fields before saving.')).toBeInTheDocument();
+    expect(adapter.profiles!.update).not.toHaveBeenCalled();
+    await user.type(screen.getByLabelText('Key 2'), 'flow');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { telemetrySchema: [{ key: 'level' }, { key: 'flow', type: 'number' }] }));
+  });
+
+  it('UX-11: the rename reaches a mounted Alarm rules tab; a removal the host cannot be asked about gets a warning', async () => {
+    const user = userEvent.setup();
+    const notify = vi.fn();
+    const heard = vi.fn();
+    window.addEventListener(PROFILE_KEYS_RENAMED_EVENT, heard);
+    const keyUsage = vi.fn(async () => [{ moduleId: 'iot_alarm', label: 'alarm rules', count: 1, keys: ['temp'], canRename: true }]);
+    const renameKeys = vi.fn(async () => []);
+    const { unmount } = render(<IotAdapterProvider adapter={profilesAdapter({ keyUsage, renameKeys }, [profile({ telemetrySchema: [{ key: 'hum' }, { key: 'temp' }] })])} capabilities={ALL} notify={notify}><DeviceProfileEditorView profileId="p1" tab="telemetry" /></IotAdapterProvider>);
+    // hum removed, then temp (now row 1) renamed: the rename is temp → temperature, never hum → temperature
+    await user.click(await screen.findByRole('button', { name: 'Remove hum' }));
+    await user.clear(screen.getByLabelText('Key 1'));
+    await user.type(screen.getByLabelText('Key 1'), 'temperature');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Removed keys are still in use' });
+    expect(dialog).toHaveTextContent('temp → temperature');
+    await user.click(within(dialog).getByRole('button', { name: 'Update them to the new names' }));
+    await waitFor(() => expect(heard).toHaveBeenCalledTimes(1));
+    expect((heard.mock.calls[0][0] as CustomEvent).detail).toEqual({ profileId: 'p1', renames: { temp: 'temperature' } });
+    window.removeEventListener(PROFILE_KEYS_RENAMED_EVENT, heard);
+    unmount();
+
+    // the host cannot be asked (it failed, or more keys were removed than one question takes): the warning says so
+    notify.mockClear();
+    const failing = vi.fn(async () => { throw new IotApiError('validation', 'Validation error'); });
+    render(<IotAdapterProvider adapter={profilesAdapter({ keyUsage: failing, renameKeys }, [profile({ telemetrySchema: [{ key: 'hum' }, { key: 'temp' }] })])} capabilities={ALL} notify={notify}><DeviceProfileEditorView profileId="p1" tab="telemetry" /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'Remove hum' }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'info', message: expect.stringContaining('the 1 removed keys could not be checked') }));
   });
 
   it('shows the host\'s refusal as it comes', async () => {

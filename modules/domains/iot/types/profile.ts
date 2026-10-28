@@ -168,25 +168,47 @@ export type ProfileKeyUsage = {
   canRename: boolean;
 };
 
+/** The most keys one key-usage question names (NB `KEY_USAGE_MAX_KEYS`): a save that removed more is not asked about. */
+export const KEY_USAGE_MAX_KEYS = 100;
+
 /**
- * The telemetry keys an edit removed, and the ones it renamed in place: a row whose key changed from a removed key to a key that is new
- * (`temp` → `temperature` on the same row). A removed row shifts the rows after it, so a pair is only taken when the old key is gone and
- * the new one did not exist before; a move the rows cannot tell apart is a removal (nothing is renamed by a guess).
+ * Where each row of an edited key table came from: the index of its row in the saved table, or -1 for a row added since. `prev` and
+ * `next` are the table before and after one change of the key table (it edits a row in place, appends a row or removes one), `origins`
+ * the rows' origins before it. A change of any other shape (a table replaced at once) loses every origin: no row is then taken for a
+ * saved one.
  */
-export function telemetryKeyChanges(base: readonly TelemetryKeySpec[], draft: readonly TelemetryKeySpec[]): { removed: string[]; renames: Record<string, string> } {
+export function nextKeyOrigins(prev: readonly TelemetryKeySpec[], next: readonly TelemetryKeySpec[], origins: readonly number[]): number[] {
+  if (origins.length !== prev.length) return next.map(() => -1);
+  if (next.length === prev.length) return [...origins];
+  if (next.length === prev.length + 1 && prev.every((k, i) => next[i] === k)) return [...origins, -1];
+  if (next.length === prev.length - 1) {
+    let gone = prev.findIndex((k, i) => next[i] !== k);
+    if (gone < 0) gone = prev.length - 1;
+    if (next.every((k, i) => k === prev[i < gone ? i : i + 1])) return origins.filter((_, i) => i !== gone);
+  }
+  return next.map(() => -1);
+}
+
+/**
+ * The telemetry keys an edit removed, and the ones it renamed in place: a row of the saved table (`origins[i]`, see `nextKeyOrigins`)
+ * whose key changed from a key that is gone to a key that is new (`temp` → `temperature` on the same row). Without the rows' origins
+ * nothing is taken for a rename: a removed row shifts the rows after it, and a guess by position would rename the wrong key.
+ */
+export function telemetryKeyChanges(base: readonly TelemetryKeySpec[], draft: readonly TelemetryKeySpec[], origins?: readonly number[]): { removed: string[]; renames: Record<string, string> } {
   const before = new Set(base.map((k) => k.key).filter(Boolean));
   const after = new Set(draft.map((k) => k.key).filter(Boolean));
   const removed = [...before].filter((k) => !after.has(k));
   const renames: Record<string, string> = {};
+  if (!origins || origins.length !== draft.length) return { removed, renames };
   const taken = new Set<string>();
-  for (let i = 0; i < Math.min(base.length, draft.length); i++) {
-    const from = base[i].key;
-    const to = draft[i].key;
+  draft.forEach((row, i) => {
+    const from = origins[i] >= 0 ? base[origins[i]]?.key : undefined;
+    const to = row.key;
     if (from && to && from !== to && !after.has(from) && !before.has(to) && isTelemetryKey(to) && !taken.has(to)) {
       renames[from] = to;
       taken.add(to);
     }
-  }
+  });
   return { removed, renames };
 }
 

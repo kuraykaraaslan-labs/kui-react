@@ -66,7 +66,7 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
   const [json, setJson] = useState(() => JSON.stringify(rule, null, 2));
   const [jsonError, setJsonError] = useState<string | null>(null);
 
-  const issues = alarmRuleIssues(draft, others);
+  const issues = alarmRuleIssues(draft, others, telemetryKeys);
   const issueText = issues.map((i) => m.alarmRules[`issue_${i}`]);
   const undeclared = undeclaredRuleKeys(draft, telemetryKeys);
   const keyListId = `${id}-keys`;
@@ -96,7 +96,7 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
   function apply() {
     const next = mode === 'json' ? fromJson() : draft;
     if (!next) return;
-    if (alarmRuleIssues(next, others).length) { setDraft(next); return; }
+    if (alarmRuleIssues(next, others, telemetryKeys).length) { setDraft(next); return; }
     onApply(next);
   }
 
@@ -109,7 +109,7 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
   });
   const severityOptions = ALARM_SEVERITIES.map((s) => ({ value: s, label: m.severity[s] }));
   const known = new Set(telemetryKeys);
-  const keyError = (k: string) => (k.trim() && !isAlarmRuleKey(k.trim()) ? m.alarmRules.issue_key_invalid : undefined);
+  const keyError = (k: string) => (k.trim() && !isAlarmRuleKey(k.trim(), telemetryKeys) ? m.alarmRules.issue_key_invalid : undefined);
   const keyHint = (k: string) => (k.trim() && known.size > 0 && !known.has(k.trim()) ? fill(m.alarmRules.keyUndeclared, { key: k.trim() }) : m.alarmRules.keyHint);
   const holdMode = threshold?.debounce?.mode ?? 'count';
 

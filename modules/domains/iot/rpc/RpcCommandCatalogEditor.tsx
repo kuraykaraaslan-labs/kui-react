@@ -201,6 +201,8 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
   );
 }
 
+/** The command fields the drawer shows a host's refusal under; a refusal of any other field is named in the summary. */
+const SHOWN_FIELDS = new Set(['method', 'label', 'description', 'tier', 'confirmText', 'defaultTimeoutMs', 'paramsSchema', 'maskedParams']);
 const PARAMS_EXAMPLE = '{\n  "value": { "label": "Set-point", "type": "number", "min": 0, "max": 100, "required": true },\n  "mode": { "label": "Mode", "type": "select", "options": ["auto", "manual"] }\n}';
 
 function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: string; command: RpcCatalogCommand | null; onClose: () => void; onSaved: () => void }) {
@@ -297,8 +299,10 @@ function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: st
       if (e instanceof IotApiError && e.fieldErrors) {
         const { paramsSchema: paramsDetail, ...rest } = e.fieldErrors;
         setFieldErrors({ ...rest, ...(paramsDetail ? { paramsSchema: fill(m.rpcCatalog.paramsRejected, { detail: paramsDetail }) } : {}) });
-        // the host's field messages are shown on their fields: the summary says where to look, in the kit's words
-        setError(m.rpcCatalog.checkFields);
+        // the host's field messages are shown on their fields: the summary says where to look, in the kit's words, and carries the
+        // messages of fields the drawer has no box for
+        const unshown = Object.entries(rest).filter(([f]) => !SHOWN_FIELDS.has(f)).map(([f, msg]) => `${f}: ${msg}`);
+        setError(unshown.length ? `${m.rpcCatalog.checkFields} ${unshown.join(' ')}` : m.rpcCatalog.checkFields);
       } else {
         setError(errorMessage(e, m.rpcCatalog.loadError));
       }
@@ -331,18 +335,20 @@ function CommandDrawer({ profileId, command, onClose, onSaved }: { profileId: st
         <Input id={`${id}-method`} label={m.rpcCatalog.method} hint={m.rpcCatalog.methodHint} required readOnly={!!command} maxLength={64} className="font-mono"
           value={draft.method} error={fieldErrors.method} onChange={(e) => set({ method: e.target.value })} />
         <Input id={`${id}-label`} label={m.rpcCatalog.label} required maxLength={120} value={draft.label} error={fieldErrors.label} onChange={(e) => set({ label: e.target.value })} />
-        <Textarea id={`${id}-description`} label={m.rpcCatalog.description} rows={2} maxLength={500} value={draft.description ?? ''} onChange={(e) => set({ description: e.target.value })} />
-        <Select id={`${id}-tier`} label={m.rpcCatalog.tier} value={draft.tier} onChange={(e) => set({ tier: e.target.value as RpcCommandInput['tier'] })}
+        <Textarea id={`${id}-description`} label={m.rpcCatalog.description} rows={2} maxLength={500} value={draft.description ?? ''} error={fieldErrors.description}
+          onChange={(e) => set({ description: e.target.value })} />
+        <Select id={`${id}-tier`} label={m.rpcCatalog.tier} value={draft.tier} error={fieldErrors.tier} onChange={(e) => set({ tier: e.target.value as RpcCommandInput['tier'] })}
           options={TIERS.map((t) => ({ value: t, label: m.rpcCatalog[t] }))} />
         <Checkbox id={`${id}-high`} label={m.rpcCatalog.highImpact} checked={draft.highImpact} onChange={(e) => set({ highImpact: e.target.checked })} />
         {draft.highImpact && (
           <Input id={`${id}-confirm`} label={m.rpcCatalog.confirmText} hint={m.rpcCatalog.confirmTextHint} maxLength={120} value={draft.confirmText ?? ''}
-            onChange={(e) => set({ confirmText: e.target.value })} />
+            error={fieldErrors.confirmText} onChange={(e) => set({ confirmText: e.target.value })} />
         )}
         <Checkbox id={`${id}-oneway`} label={m.rpcCatalog.oneway} checked={draft.oneway} onChange={(e) => set({ oneway: e.target.checked })} />
         <Checkbox id={`${id}-long`} label={m.rpcCatalog.long} checked={!!draft.long} onChange={(e) => set({ long: e.target.checked })} />
         <Checkbox id={`${id}-persistent`} label={m.rpcCatalog.persistent} checked={!!draft.persistentDefault} onChange={(e) => set({ persistentDefault: e.target.checked })} />
-        <Input id={`${id}-timeout`} type="number" label={m.rpcCatalog.timeout} min={1000} step={1000} value={draft.defaultTimeoutMs ?? ''}
+        <Input id={`${id}-timeout`} type="number" label={m.rpcCatalog.timeout} min={1000} max={600_000} step={1000} value={draft.defaultTimeoutMs ?? ''}
+          error={fieldErrors.defaultTimeoutMs}
           onChange={(e) => set({ defaultTimeoutMs: e.target.value === '' ? null : Number(e.target.value) })} />
         <div className="space-y-2" role="group" aria-labelledby={`${id}-params-title`}>
           <div className="flex flex-wrap items-center justify-between gap-2">

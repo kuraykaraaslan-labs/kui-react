@@ -12,12 +12,13 @@ import { SkeletonText } from '@/modules/ui/Skeleton';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column } from '@/modules/ui/Table/types';
 import { Toggle } from '@/modules/ui/Toggle';
-import { errorMessage } from '../api/adapter';
+import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill } from '../format';
 import {
-  DEVICE_OFFLINE_RULE_TYPE, describeCondition, isInactivityRule, newInactivityRule, newThresholdRule, undeclaredRuleKeys, type AlarmRuleDefinition,
+  DEVICE_OFFLINE_RULE_TYPE, describeCondition, isInactivityRule, newInactivityRule, newThresholdRule, renameAlarmRuleKeys, undeclaredRuleKeys, type AlarmRuleDefinition,
 } from '../types/alarm-rule';
+import { onProfileKeyRenames } from '../profile/profile-key-events';
 import { AlarmRuleDrawer } from './AlarmRuleDrawer';
 import { AlarmSeverityBadge } from './AlarmSeverityBadge';
 
@@ -29,7 +30,9 @@ import { AlarmSeverityBadge } from './AlarmSeverityBadge';
  *
  * The profile's telemetry keys (read through `profiles.get` when the host offers it, again when a drawer opens, so keys renamed on the
  * Telemetry keys tab count) are offered in the drawer, and a rule reading a key the profile does not declare is marked "Unknown key".
- * While changes are unsaved the bar says how many rules changed and leaving or reloading the page asks first.
+ * While changes are unsaved the bar says how many rules changed and leaving or reloading the page asks first. When the profile editor
+ * renames keys and the host rewrites the rules (`onProfileKeyRenames`), the rules held here, unsaved edits included, take the new keys, so
+ * a later save never puts the old keys back. A refusal of one rule names that rule.
  */
 /** How many rules differ between the saved set and the edited one (added, removed or changed, by type). */
 export function changedRuleCount(base: readonly AlarmRuleDefinition[], rules: readonly AlarmRuleDefinition[]): number {
@@ -93,6 +96,14 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
     return () => ctrl.abort();
   }, [load, readKeys]);
 
+  // the host rewrote the rules onto renamed keys: the saved set and the edits take the same names (a save would revert them otherwise)
+  useEffect(() => onProfileKeyRenames(profileId, (renames) => {
+    setBase((cur) => (cur ? cur.map((r) => renameAlarmRuleKeys(r, renames)) : cur));
+    setRules((cur) => cur.map((r) => renameAlarmRuleKeys(r, renames)));
+    setEditing((cur) => (cur ? { ...cur, rule: renameAlarmRuleKeys(cur.rule, renames) } : cur));
+    readKeys();
+  }), [profileId, readKeys]);
+
   const canEdit = caps.canManageAlarmRules;
   const dirty = base !== null && JSON.stringify(base) !== JSON.stringify(rules);
 
@@ -121,10 +132,19 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
       setRules(defs);
       notify({ tone: 'success', message: m.alarmRules.saved });
     } catch (e) {
-      setSaveError(errorMessage(e, m.alarmRules.loadError));
+      setSaveError(refusalText(e));
     } finally {
       setSaving(false);
     }
+  }
+
+  /** The host's refusal; one about a rule (`rules.2.severities.0.condition.key: …`) names the rule instead of its position. */
+  function refusalText(e: unknown): string {
+    const detail = e instanceof IotApiError ? e.fieldErrors?.rules : undefined;
+    const at = detail ? /^(\d+)(?:\.([\s\S]*))?$/.exec(detail) : null;
+    const rule = at ? rules[Number(at[1])] : undefined;
+    if (detail && rule) return fill(m.alarmRules.ruleRefused, { type: rule.type, detail: at?.[2] ?? detail });
+    return errorMessage(e, m.alarmRules.loadError);
   }
 
   function add(kind: 'threshold' | 'offline') {

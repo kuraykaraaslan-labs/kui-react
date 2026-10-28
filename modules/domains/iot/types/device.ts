@@ -95,9 +95,23 @@ export type IssuedSecret = { token: string } | { password: string };
  * the routes are `/api/v1/…`) and the keys of the device's profile for an example payload. A part the host does not know is absent.
  */
 export type DeviceConnectionInfo = {
+  /** Absent or null when the device cannot use MQTT here (no public broker, a profile that is HTTP-only or needs TLS on a plain port). */
   mqtt?: { host: string; port: number; tls: boolean } | null;
   httpBase?: string | null;
+  /**
+   * The MQTT topics of the device's profile: telemetry, attributes and, when the profile's topic scheme has them, the command topics.
+   * Absent: the default `v1/` topics (`v1/telemetry`, `v1/attributes`, `v1/rpc/req/+`, `v1/rpc/res/{id}`).
+   */
+  topics?: DeviceTopics | null;
   telemetryKeys?: Array<{ key: string; type?: string | null }>;
+};
+
+export type DeviceTopics = {
+  telemetry: string;
+  attributes: string;
+  /** Null when the scheme has no commands (the ThingsBoard mapping: telemetry and attributes only). */
+  rpcRequest?: string | null;
+  rpcResponse?: string | null;
 };
 
 // ── attributes (01 §1.5) ─────────────────────────────────────────────────────────────────────────────────────────────

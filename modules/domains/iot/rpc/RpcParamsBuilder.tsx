@@ -13,8 +13,9 @@ import type { RpcCommandInput } from '../types/rpc';
 /**
  * RpcParamsBuilder — a command's parameters as rows (name, label, type, required; the range of a number, the choices of a select)
  * instead of a JSON box (NB phase 39 UX-19). It writes the same `paramsSchema` (`FieldSchema` by name) the JSON did; a schema the
- * rows cannot draw (another field type, choices with commas or `=`) stays in JSON. Fields a row does not draw (description, step,
- * placeholder, default, group) are kept as they were. The checks run before anything is sent and are shown on the field they are about.
+ * rows cannot draw (another field type, choices with commas or `=`) stays in JSON. A text parameter's longest length (`max`, which the
+ * host checks on every send) is drawn too. Fields a row does not draw for its type (description, step, placeholder, default, group, a
+ * text's `min`) are kept as they were. The checks run before anything is sent and are shown on the field they are about.
  */
 export const RPC_PARAM_TYPES = ['text', 'number', 'boolean', 'select', 'json'] as const;
 export type RpcParamType = (typeof RPC_PARAM_TYPES)[number];
@@ -26,18 +27,26 @@ export type RpcParamRow = {
   type: RpcParamType;
   required: boolean;
   min: string;
+  /** A number's largest value, a text's longest length. */
   max: string;
   /** Choices, comma separated: `value` or `value=Label`. */
   options: string;
   rest: Partial<FieldSchema>;
 };
 
-export type RpcParamIssue = 'name_invalid' | 'name_duplicate' | 'label_required' | 'options_required' | 'range_invalid';
+export type RpcParamIssue = 'name_invalid' | 'name_duplicate' | 'label_required' | 'options_required' | 'range_invalid' | 'length_invalid';
 
 /** A parameter name the host takes (NB `iot_rpc` PARAM_KEY). */
 export const RPC_PARAM_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 
-const DRAWN = new Set(['label', 'type', 'required', 'min', 'max', 'options']);
+/** The schema fields a row draws for a type (the rest of the field is kept in `rest` as it was). */
+const DRAWN: Record<RpcParamType, readonly string[]> = {
+  text: ['label', 'type', 'required', 'max'],
+  number: ['label', 'type', 'required', 'min', 'max'],
+  boolean: ['label', 'type', 'required'],
+  select: ['label', 'type', 'required', 'options'],
+  json: ['label', 'type', 'required'],
+};
 
 export const blankParamRow = (): RpcParamRow => ({ name: '', label: '', type: 'text', required: false, min: '', max: '', options: '', rest: {} });
 
@@ -53,12 +62,15 @@ export function paramRowsOf(schema: RpcCommandInput['paramsSchema'] | null | und
   const rows: RpcParamRow[] = [];
   for (const [name, f] of Object.entries(schema ?? {})) {
     if (!f || typeof f !== 'object' || !(RPC_PARAM_TYPES as readonly string[]).includes(f.type)) return null;
-    const options = (f.options ?? []).map(optionText);
+    const type = f.type as RpcParamType;
+    const drawn = DRAWN[type];
+    const options = type === 'select' ? (f.options ?? []).map(optionText) : [];
     if (options.some((o) => o === null)) return null;
-    const rest = Object.fromEntries(Object.entries(f).filter(([k]) => !DRAWN.has(k))) as Partial<FieldSchema>;
+    const rest = Object.fromEntries(Object.entries(f).filter(([k]) => !drawn.includes(k))) as Partial<FieldSchema>;
     rows.push({
-      name, label: f.label ?? '', type: f.type as RpcParamType, required: !!f.required,
-      min: typeof f.min === 'number' ? String(f.min) : '', max: typeof f.max === 'number' ? String(f.max) : '',
+      name, label: f.label ?? '', type, required: !!f.required,
+      min: drawn.includes('min') && typeof f.min === 'number' ? String(f.min) : '',
+      max: drawn.includes('max') && typeof f.max === 'number' ? String(f.max) : '',
       options: (options as string[]).join(', '), rest,
     });
   }
@@ -80,12 +92,16 @@ const numberOf = (raw: string): number | undefined => (raw.trim() === '' || !Num
 export function paramsSchemaOf(rows: readonly RpcParamRow[]): RpcCommandInput['paramsSchema'] {
   const out: RpcCommandInput['paramsSchema'] = {};
   for (const r of rows) {
-    const f: FieldSchema = { ...(r.rest as FieldSchema), label: r.label.trim(), type: r.type };
+    // what the row draws for its type comes from the row (a field kept from another type gives way to it)
+    const kept = Object.fromEntries(Object.entries(r.rest).filter(([k]) => !DRAWN[r.type].includes(k)));
+    const f: FieldSchema = { ...(kept as Partial<FieldSchema>), label: r.label.trim(), type: r.type };
     if (r.required) f.required = true;
     if (r.type === 'number') {
       const min = numberOf(r.min);
-      const max = numberOf(r.max);
       if (min !== undefined) f.min = min;
+    }
+    if (r.type === 'number' || r.type === 'text') {
+      const max = numberOf(r.max);
       if (max !== undefined) f.max = max;
     }
     if (r.type === 'select') f.options = parseOptions(r.options);
@@ -108,6 +124,10 @@ export function paramRowIssues(rows: readonly RpcParamRow[]): Record<number, Par
       const min = numberOf(r.min);
       const max = numberOf(r.max);
       if ((r.min.trim() && min === undefined) || (r.max.trim() && max === undefined) || (min !== undefined && max !== undefined && min > max)) issues.range = 'range_invalid';
+    }
+    if (r.type === 'text' && r.max.trim()) {
+      const max = numberOf(r.max);
+      if (max === undefined || !Number.isInteger(max) || max < 1) issues.range = 'length_invalid';
     }
     if (Object.keys(issues).length) out[i] = issues;
   });
@@ -157,6 +177,10 @@ export function RpcParamsBuilder({ rows, onChange, showIssues = false, disabled 
                 <Input id={`${id}-max-${i}`} type="number" step="any" label={m.rpcCatalog.paramMax} value={r.max} disabled={disabled}
                   onChange={(e) => set(i, { max: e.target.value })} />
               </>
+            )}
+            {r.type === 'text' && (
+              <Input id={`${id}-maxlength-${i}`} type="number" min={1} step={1} label={m.rpcCatalog.paramMaxLength} value={r.max} disabled={disabled}
+                error={word(issues[i]?.range)} onChange={(e) => set(i, { max: e.target.value })} />
             )}
             {r.type === 'select' && (
               <Input id={`${id}-options-${i}`} label={m.rpcCatalog.paramOptions} hint={m.rpcCatalog.paramOptionsHint} className="@md:col-span-2"

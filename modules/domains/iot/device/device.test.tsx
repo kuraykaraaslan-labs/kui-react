@@ -130,6 +130,16 @@ describe('DeviceCredentialPanel', () => {
     expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: { token: '<T>', password: '<P>' } })).toEqual({ mqtt: null, http: null });
   });
 
+  it('UX-23: names the topics of the device\'s profile (a ThingsBoard profile has no command topics)', () => {
+    const info = { mqtt: { host: 'mqtt.example.com', port: 8883, tls: true }, httpBase: null, topics: { telemetry: 'v1/devices/me/telemetry', attributes: 'v1/devices/me/attributes', rpcRequest: null } };
+    render(<DeviceCredentialPanel credential={{ type: 'ACCESS_TOKEN' }} connection={info} />);
+    const card = screen.getByRole('region', { name: 'Connection details' });
+    expect(card).toHaveTextContent('v1/devices/me/attributes');
+    expect(card).not.toHaveTextContent('v1/rpc/req/+');
+    expect(card).not.toHaveTextContent('Commands');
+    expect(card).toHaveTextContent("-t v1/devices/me/telemetry -m '{\"temperature\":21.5}'");
+  });
+
   it('lists non-secret fields and rotates behind a confirmation; X.509 has no rotate', async () => {
     const user = userEvent.setup();
     const onRotate = vi.fn().mockResolvedValue(undefined);
