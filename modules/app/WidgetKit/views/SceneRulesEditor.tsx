@@ -5,7 +5,6 @@
 // mark for whether it holds for the data right now. Every change is one `scene-rules-edit` operation through `ctx.apply`.
 import { useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
-import { FieldControl } from '../../SchemaForm/fields/FieldControl';
 import { MEDIUM_OPTIONS } from '../templates/scada';
 import { SCADA_SYMBOL_DEFS, isScadaSymbol, type SymbolDef } from './scada-logic';
 import { SCENE_COLUMNS } from './scada-scene-logic';
@@ -18,6 +17,7 @@ import {
 } from './scene-rules-edit';
 import { THINGS_TARGET, validateRules } from './scene-rules-logic';
 import { thingIdsOf } from './scene-editor-state';
+import { ColorField, Condition } from './scene-rules-form';
 
 export interface SceneRulesEditorProps {
   ctx: EditorCtx;
@@ -26,9 +26,6 @@ export interface SceneRulesEditorProps {
   className?: string;
 }
 
-const NEEDS_VALUE = new Set(['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'between', 'in']);
-const NUMERIC = new Set(['gt', 'gte', 'lt', 'lte', 'between']);
-const OPS = ['eq', 'ne', 'gt', 'gte', 'lt', 'lte', 'between', 'in', 'set', 'unset', 'true', 'false'] as const;
 const STATES = ['idle', 'running', 'warning', 'critical', 'off'] as const;
 const MODES = ['auto', 'manual', 'local', 'maintenance', 'lockout', 'simulation'] as const;
 const QUALITIES = ['good', 'stale', 'bad', 'offline'] as const;
@@ -363,81 +360,5 @@ function RuleForm({ env, index, rule }: { env: Env; index: number; rule: Rec }) 
         </label>
       </fieldset>
     </>
-  );
-}
-
-function ColorField({ id, title, value, onChange, error }: { id: string; title: string; value: string; onChange: (v: string | undefined) => void; error?: string }) {
-  return (
-    <PanelField id={id} label={title} error={error}>
-      <FieldControl id={id} field={{ label: title, type: 'color' }} value={value || undefined} onChange={(v) => onChange(typeof v === 'string' ? v : undefined)} invalid={!!error} />
-    </PanelField>
-  );
-}
-
-type Choices = (current: string, extra: Array<{ value: string; label: string }>) => Array<{ value: string; label: string }>;
-
-function Condition({
-  env, index, rule, n, set, choices, rowOptions,
-}: { env: Env; index: number; rule: Rec; n: '' | '2'; set: (patch: Rec, group?: string) => void; choices: Choices; rowOptions: Array<{ value: string; label: string }> }) {
-  const { m, base } = env;
-  const k = (name: string) => `${name}${n}`;
-  const id = (name: string) => `${base}-${index}-${k(name)}`;
-  const param = rule[k('source')] === 'param';
-  const op = str(rule[k('op')]);
-  const key = str(rule[k('key')]);
-  const suggestions = param ? env.params.map((p) => ({ key: p.key, label: p.label })) : env.columns;
-  const values = param ? env.params.find((p) => p.key === key)?.values ?? [] : [];
-  const err = (name: string) => env.issue(index, k(name));
-  const typing = (name: string, value: string) => set({ [k(name)]: value }, `rule:${index}:${k(name)}`);
-
-  return (
-    <div className="space-y-2" data-condition={n || '1'}>
-      <PanelField id={id('source')} label={m.read} error={err('source')}>
-        <select id={id('source')} className={CONTROL} value={param ? 'param' : 'column'} onChange={(e) => set({ [k('source')]: e.target.value })}>
-          <option value="column">{m.column}</option>
-          <option value="param">{m.parameter}</option>
-        </select>
-      </PanelField>
-      <PanelField id={id('key')} label={param ? m.parameterLabel : m.columnLabel} error={err('key')}>
-        <input
-          id={id('key')} type="text" list={`${id('key')}-list`} className={CONTROL} value={key} maxLength={64} autoComplete="off" spellCheck={false}
-          aria-invalid={!!err('key') || undefined} onChange={(e) => typing('key', e.target.value)}
-        />
-        <datalist id={`${id('key')}-list`}>
-          {suggestions.map((c) => <option key={c.key} value={c.key}>{c.label && c.label !== c.key ? c.label : undefined}</option>)}
-        </datalist>
-      </PanelField>
-      {!param && (
-        <PanelField id={id('of')} label={m.ofRow} error={err('of')}>
-          <select id={id('of')} className={CONTROL} value={str(rule[k('of')])} onChange={(e) => set({ [k('of')]: e.target.value })}>
-            {choices(str(rule[k('of')]), [{ value: '', label: m.ownRow }, ...rowOptions]).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </PanelField>
-      )}
-      <PanelField id={id('op')} label={m.operator} error={err('op')}>
-        <select id={id('op')} className={CONTROL} value={op} onChange={(e) => set({ [k('op')]: e.target.value })}>
-          {!n && <option value="">{m.alwaysOption}</option>}
-          {OPS.map((o) => <option key={o} value={o}>{m.opLabels[o]}</option>)}
-        </select>
-      </PanelField>
-      {NEEDS_VALUE.has(op) && (
-        <div className={cn('grid gap-2', op === 'between' ? 'grid-cols-2' : 'grid-cols-1')}>
-          <PanelField id={id('value')} label={op === 'in' ? m.list : m.value} error={err('value')}>
-            <input
-              id={id('value')} type="text" inputMode={NUMERIC.has(op) ? 'decimal' : undefined} className={CONTROL} value={str(rule[k('value')])} maxLength={80}
-              list={values.length ? `${id('value')}-list` : undefined} aria-invalid={!!err('value') || undefined} autoComplete="off"
-              onChange={(e) => typing('value', e.target.value)}
-            />
-            {values.length > 0 && <datalist id={`${id('value')}-list`}>{values.map((v) => <option key={v} value={v} />)}</datalist>}
-          </PanelField>
-          {op === 'between' && (
-            <PanelField id={id('to')} label={m.upTo} error={err('to')}>
-              <input id={id('to')} type="text" inputMode="decimal" className={CONTROL} value={str(rule[k('to')])} maxLength={40} aria-invalid={!!err('to') || undefined}
-                autoComplete="off" onChange={(e) => typing('to', e.target.value)} />
-            </PanelField>
-          )}
-        </div>
-      )}
-    </div>
   );
 }

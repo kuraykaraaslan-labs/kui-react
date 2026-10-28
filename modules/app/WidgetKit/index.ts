@@ -43,7 +43,18 @@ export { SAMPLE_BOARDS, SAMPLE_PLANT_BOARD, SAMPLE_SALES_BOARD, SAMPLE_ENERGY_BO
 export { SceneSetupDrawer } from './views/SceneSetupDrawer';
 export type { SceneSetupDrawerProps, SceneSetupDocument, SceneSetupDevice, SceneSetupSave } from './views/SceneSetupDrawer';
 export { DEFAULT_SCENE_SETUP_MESSAGES } from './views/scene-setup-messages';
-export type { SceneSetupMessages } from './views/scene-setup-messages';
+export type { SceneSetupMessages, SceneSetupRulesMessages } from './views/scene-setup-messages';
+// The rules of a 3D design (phase 42.6): the Rules step of the drawer, and the pure part the card evaluates them with.
+export { SceneSetupRules } from './views/SceneSetupRules';
+export type { SceneSetupRulesProps } from './views/SceneSetupRules';
+export {
+  DESIGN_RULE_EFFECTS, DESIGN_RULE_FIELDS, DESIGN_RULE_COLUMNS, DESIGN_ALL_TARGET, DEFAULT_DESIGN_RULE_WORDS, MAX_DESIGN_RULE_TARGETS, RULE_COLOR_LITERALS,
+  isDesignRule, viewerColor, statusOfColor, designRuleEffects, designResult, designRules, designRuleIssues, staleReferences,
+  newDesignRule, addDesignRule, updateDesignRule, removeDesignRule, moveDesignRule, duplicateDesignRule, describeDesignRule,
+} from './views/design-rules-logic';
+export type {
+  DesignEffects, DesignOverride, DesignRuleContext, DesignRuleResult, DesignStatus, DesignRuleWords, DescribeDesignOptions, StaleReference, RulesEdit,
+} from './views/design-rules-logic';
 export {
   KEY_GRAMMAR, ROLE_GRAMMAR, SLOT_GRAMMAR, KIND_GRAMMAR, UUID_GRAMMAR, DEFAULT_SLOT, MAX_SLOT_LENGTH, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAIN_ROLE, isSceneKey, isRoleName, splitKey, elementsForRole,
   autoMatch, roleFromCode, proposeRoles, bindingDraft, draftSignature, sameDraft, devicesFromRoles, validateDraft,

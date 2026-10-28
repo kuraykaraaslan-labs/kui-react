@@ -23,6 +23,18 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- WidgetKit `SceneSetupDrawer` gets a Rules step for a 3D design (next-boilerplate phase 42.6, D42-11): the fifth section lists the
+  binding's rules as sentence cards ("For heater: When value of this item is above 80, colour it red and pulse") with a form each.
+  A rule targets a scene key of the chosen document (or every item), reads up to two conditions (a column of the item's own row or
+  another key's, or a board parameter) and sets colour, hide, label (with `{value}`, `{label}`, `{id}`, `{param:name}` tokens), pulse
+  and outline. Rules are added, moved, duplicated, switched off and deleted in place; they go out in the draft's `rules`. A rule that
+  names a key the document does not have is flagged and kept; a saved row the 3D card does not read is listed as it is and holds
+  the save until it is deleted (`rule-invalid`). New props `rulesKinds` (default `['design']`), `ruleColumns`, `ruleParams`; texts
+  under `messages.rules`. The pure part is `views/design-rules-logic.ts`: the shared rules engine with a design effect spec
+  (`designRules` turns what the rules decided into kui-viewer 0.8.0's per-item `overrides`, the `hidden` keys and, for an older
+  viewer, `status` words), the edits, `designRuleIssues` (what the host's server repeats) and `staleReferences`. The condition form
+  and the colour control moved from `SceneRulesEditor` to `scene-rules-form.tsx` and are shared with the diagram editor (unchanged).
+
 - IoT `AssetDrawer` takes `actions` (the host's own buttons in the header, after "Open dashboard", shown once the asset has loaded) and `AssetsView` takes `drawerActions(assetId)` to fill it: a host module can put a button that opens a drawer of its own beside the asset's own actions (next-boilerplate's "Scene" button, phase 42).
 
 - WidgetKit `SceneSetupDrawer` (next-boilerplate phase 42.2.3): the scene setup as one right-side drawer, a scrolling form with no tabs.

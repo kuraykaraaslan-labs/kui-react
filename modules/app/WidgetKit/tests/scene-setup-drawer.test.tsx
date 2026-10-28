@@ -542,7 +542,7 @@ describe('SceneSetupDrawer: view and rules travel through', () => {
   it('come back in the payload unchanged, and are not a change of their own', async () => {
     const onSave = vi.fn();
     const view = { level: 'floor1', focus: 'pump' };
-    const rules = [{ id: 'r1', when: { a: 1 }, then: { b: 2 } }];
+    const rules = [{ target: 'heater', enabled: true, key: 'value', op: 'gt', value: '80', color: 'var(--error)', pulse: true }];
     const initial = { slot: 'main', kind: 'design', documentId: DOC_A, devices: { '': D1 }, view, rules };
     render(<SceneSetupDrawer {...props({ initial, onSave })} />);
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();

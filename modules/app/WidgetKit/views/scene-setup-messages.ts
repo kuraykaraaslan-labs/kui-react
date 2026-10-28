@@ -4,9 +4,68 @@
 
 import type { MatchHow, BindingIssueCode } from './scene-binding-logic';
 import { mergeMessages, type DeepPartial } from './scene-editor-messages-panels';
+import type { ConditionMessages } from './scene-rules-form';
+import { DEFAULT_DESIGN_RULE_WORDS, type DesignRuleWords } from './design-rules-logic';
 
 export type { DeepPartial };
 export { mergeMessages };
+
+/** The texts of the Rules step (5): the condition form's own (`ConditionMessages`, the diagram editor's words) and the step's. */
+export interface SceneSetupRulesMessages extends ConditionMessages {
+  section: string;
+  hint: string;
+  add: string;
+  empty: string;
+  /** Shown instead of the list until a document with scene keys is chosen. */
+  needKeys: string;
+  /** "2 rules, 1 problem". */
+  summary: (rules: number, problems: number) => string;
+  /** "rule 3", in the accessible name of a card's buttons. */
+  ruleN: (n: number) => string;
+  enabled: string;
+  moveUp: string;
+  moveDown: string;
+  duplicate: string;
+  delete: string;
+  appliesTo: string;
+  allItems: string;
+  /** A target or row the document has no key for, in the select. */
+  missing: (key: string) => string;
+  /** The badge on a rule that names a key the document does not have. */
+  staleBadge: string;
+  staleTarget: (key: string) => string;
+  staleOf: (key: string) => string;
+  when: string;
+  addSecond: string;
+  removeSecond: string;
+  secondCondition: string;
+  join: string;
+  joinAll: string;
+  joinAny: string;
+  then: string;
+  colour: string;
+  hidden: string;
+  pulse: string;
+  highlight: string;
+  label: string;
+  tokens: string;
+  insertToken: (token: string) => string;
+  noChange: string;
+  hide: string;
+  show: string;
+  pulseOn: string;
+  pulseOff: string;
+  highlightOn: string;
+  highlightOff: string;
+  stop: string;
+  stopHelp: string;
+  /** A stored row that is not a rule of the 3D card: kept as saved until removed. */
+  foreignTitle: string;
+  foreignBody: string;
+  problems: (n: number) => string;
+  /** What a card says of its rule. */
+  words: DesignRuleWords;
+}
 
 export interface SceneSetupMessages {
   title: string;
@@ -143,6 +202,9 @@ export interface SceneSetupMessages {
   acknowledge: (unmatched: number, proposals: number, stale: number) => string;
   reasonLabel: string;
   reasonPlaceholder: string;
+
+  // 5. Rules
+  rules: SceneSetupRulesMessages;
 
   // Conflict and errors
   conflictTitle: string;
@@ -290,6 +352,70 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     'key-invalid': (s) => `${s ?? ''} is not a valid key: letters, digits, _ . and -, at most 48, starting with a letter or _.`,
     'element-invalid': (s) => `The element of ${s ?? ''} is not a valid element id.`,
     'hidden-invalid': (s) => `${s ?? ''} is not a valid key.`,
+    'rule-invalid': (s) => `A rule needs attention: ${s ?? ''}`,
+  },
+  rules: {
+    section: '5. Rules',
+    hint: 'A rule makes an item of the scene follow the data: when a reading is above a limit, colour it, make it pulse or show a note. Rules are kept with this setup and run in the live view.',
+    add: 'Add rule',
+    empty: 'No rules yet.',
+    needKeys: 'Choose a document with scene keys to add rules.',
+    summary: (rules, problems) => `${rules === 1 ? '1 rule' : `${rules} rules`}${problems ? `, ${problems === 1 ? '1 problem' : `${problems} problems`}` : ''}`,
+    ruleN: (num) => `rule ${num}`,
+    enabled: 'On',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    duplicate: 'Duplicate',
+    delete: 'Delete',
+    appliesTo: 'Applies to',
+    allItems: 'Every item (*)',
+    missing: (key) => `${key} (not in the document)`,
+    staleBadge: 'Key not in the document',
+    staleTarget: (key) => `The document has no item with the key ${key}: the rule does nothing until it has one.`,
+    staleOf: (key) => `The document has no item with the key ${key}: the condition reads nothing.`,
+    when: 'When',
+    addSecond: 'Add a second condition',
+    removeSecond: 'Remove the second condition',
+    secondCondition: 'And / or when',
+    join: 'Both or either',
+    joinAll: 'Both hold (and)',
+    joinAny: 'Either holds (or)',
+    then: 'Then',
+    colour: 'Colour',
+    hidden: 'Hide',
+    pulse: 'Pulse',
+    highlight: 'Outline',
+    label: 'Label',
+    tokens: 'Insert a value into the label',
+    insertToken: (token) => `Insert ${token}`,
+    noChange: 'No change',
+    hide: 'Hide the item',
+    show: 'Show the item',
+    pulseOn: 'Pulse',
+    pulseOff: 'Do not pulse',
+    highlightOn: 'Outline it',
+    highlightOff: 'Do not outline',
+    stop: 'Stop here',
+    stopHelp: 'Later rules do not apply to the same item.',
+    foreignTitle: 'Not a rule of the 3D card',
+    foreignBody: 'This saved row has fields the 3D card does not read, so it is not shown as a rule. It is kept until you delete it; the save waits for that.',
+    problems: (num) => (num === 1 ? '1 problem' : `${num} problems`),
+    read: 'Read',
+    column: 'A column of a row',
+    parameter: 'A board parameter',
+    columnLabel: 'Column',
+    parameterLabel: 'Parameter',
+    ofRow: 'Of row',
+    ownRow: "The item's own row",
+    operator: 'Operator',
+    alwaysOption: 'Always (no condition)',
+    opLabels: {
+      eq: 'is', ne: 'is not', gt: 'is above', gte: 'is at least', lt: 'is below', lte: 'is at most', between: 'is between', in: 'is one of', set: 'is set', unset: 'is not set', true: 'is on', false: 'is off',
+    },
+    list: 'Values, separated by commas',
+    value: 'Value',
+    upTo: 'Up to',
+    words: DEFAULT_DESIGN_RULE_WORDS,
   },
   confirmTitle: 'Save the scene setup',
   confirmMessage: (kind, mapped, unmatched) =>

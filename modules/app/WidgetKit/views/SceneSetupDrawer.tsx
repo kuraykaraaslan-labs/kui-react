@@ -28,6 +28,8 @@ import {
   type BindingDraft, type BindingIssue, type DeviceElement, type DeviceRef, type MatchHow, type SceneKey,
 } from './scene-binding-logic';
 import { DEFAULT_SCENE_SETUP_MESSAGES, mergeMessages, type DeepPartial, type SceneSetupMessages } from './scene-setup-messages';
+import { SceneSetupRules } from './SceneSetupRules';
+import { DESIGN_RULE_COLUMNS } from './design-rules-logic';
 
 /** A scene document the host offers (name, when it last changed, how many subjects show it). */
 export interface SceneSetupDocument {
@@ -92,6 +94,16 @@ export interface SceneSetupDrawerProps {
   sceneKeysDocumentId?: string;
   elements: readonly DeviceElement[];
   elementsLoading?: boolean;
+
+  /**
+   * The kinds that have a Rules step (default `['design']`: the rules of a 3D design, phase 42.6). Another kind's rules stay in the payload
+   * untouched. The step needs the chosen document's `sceneKeys`.
+   */
+  rulesKinds?: readonly string[];
+  /** The columns a rule's condition may read (suggestions; default the process scene's columns). */
+  ruleColumns?: ReadonlyArray<{ key: string; label?: string }>;
+  /** The board parameters a rule's condition may read (suggestions; any name may be typed). */
+  ruleParams?: ReadonlyArray<{ key: string; label?: string }>;
 
   /** The host's preview canvas, drawn beside the matching table. */
   preview?: ReactNode;
@@ -203,6 +215,8 @@ interface Form {
   hidden: string[];
   /** Ids of the stale entries the user removed. */
   removedStale: Record<string, true>;
+  /** The rules as edited; undefined until the Rules step is used (the saved ones then pass through unchanged). */
+  rules?: unknown[];
   autoOn: boolean;
   note: string;
 }
@@ -215,6 +229,7 @@ const freshForm = (seed: Seed): Form => ({
 type StaleRow = { id: string; type: 'exception' | 'role' | 'hidden'; typeLabel: string; name: string; detail: string; state: 'kept' | 'removed' };
 
 const owns = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+const DEFAULT_RULES_KINDS: readonly string[] = ['design'];
 
 function SceneSetupSession(props: SceneSetupDrawerProps) {
   const {
@@ -357,6 +372,12 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   );
   const pending = rows.filter((r) => r.how === 'type');
 
+  // ── Rules (phase 42.6): edited only for a kind that has the step; otherwise, and until the step is used, the saved ones pass through ──
+  const rulesKinds = props.rulesKinds ?? DEFAULT_RULES_KINDS;
+  const rulesStep = rulesKinds.includes(kind);
+  const draftRules: BindingDraft['rules'] = rulesStep && form.rules !== undefined ? (form.rules.length > 0 ? (form.rules as Array<Record<string, unknown>>) : null) : seed.rules;
+  const ruleList: readonly unknown[] = form.rules ?? (Array.isArray(seed.rules) ? seed.rules : []);
+
   // ── The payload, what is open, what may be saved ──
   const accepted = useMemo(
     () => rows.filter((r) => r.element !== null && r.how !== 'type').map((r) => ({ key: r.key, element: r.element, deviceId: r.deviceId })),
@@ -364,9 +385,9 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   );
   const draft = useMemo(
     () => bindingDraft({
-      documentId, slot, kind, devices: devMap, matches: accepted, hidden: hiddenKeys, view: seed.view, rules: seed.rules, carryMap, carryDevices,
+      documentId, slot, kind, devices: devMap, matches: accepted, hidden: hiddenKeys, view: seed.view, rules: draftRules, carryMap, carryDevices,
     }),
-    [documentId, slot, kind, devMap, accepted, hiddenKeys, seed.view, seed.rules, carryMap, carryDevices],
+    [documentId, slot, kind, devMap, accepted, hiddenKeys, seed.view, draftRules, carryMap, carryDevices],
   );
   const baseline = useMemo<BindingDraft>(
     () => ({
@@ -800,6 +821,20 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
               )}
             </div>
           </section>
+
+          {/* 5. Rules (a 3D design) */}
+          {rulesStep && (
+            <section aria-labelledby={`${uid}-h5`} className="space-y-3">
+              <div>
+                <h3 id={`${uid}-h5`} className="text-sm font-semibold text-text-primary">{m.rules.section}</h3>
+                <p className="text-xs text-text-secondary">{m.rules.hint}</p>
+              </div>
+              <SceneSetupRules
+                rules={ruleList} onChange={(next) => edit((f) => ({ ...f, rules: next }))} keys={sceneKeys} keysLoading={!!(props.sceneKeysLoading || keysForOther)}
+                columns={props.ruleColumns ?? DESIGN_RULE_COLUMNS} params={props.ruleParams} messages={m.rules}
+              />
+            </section>
+          )}
         </div>
       </Drawer>
 

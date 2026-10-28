@@ -1,7 +1,8 @@
 // The pure part of the scene setup (next-boilerplate phase 42, D42-4 / D42-10): the keys of a scene, the elements of the
 // devices, how the one is matched to the other, the binding payload that comes out, and what is still open. No React, no
 // DOM, no fetching: the drawer (`SceneSetupDrawer.tsx`) and the host's server check use the same grammar and caps.
-//
+import { designRuleIssues } from './design-rules-logic';
+
 // The binding stores exceptions only. A scene key resolves by itself: its role prefix selects the device, the rest is the
 // element id on that device (`fryer.heater` -> role `fryer`, element `heater`; a key without a known role prefix belongs
 // to the main role, ''). So a match that is that identity is never written to `map`; only a hand pick, a label match or a
@@ -384,7 +385,8 @@ export type BindingIssueCode =
   | 'device-invalid'
   | 'key-invalid'
   | 'element-invalid'
-  | 'hidden-invalid';
+  | 'hidden-invalid'
+  | 'rule-invalid';
 
 export interface BindingIssue {
   code: BindingIssueCode;
@@ -442,6 +444,13 @@ export function validateDraft(d: BindingDraft): BindingIssue[] {
     else if (!UUID_GRAMMAR.test(e.deviceId)) issues.push({ code: 'device-invalid', subject: k });
   }
   for (const h of d.hidden) if (!isSceneKey(h)) issues.push({ code: 'hidden-invalid', subject: h });
+  // the rules of a design (phase 42.6): the host's server judges them the same way (`designRuleIssues`); other kinds' rules are opaque here
+  if (d.kind === 'design' && d.rules) {
+    for (const i of designRuleIssues(d.rules)) {
+      const at = /^rules\.(\d+)\./.exec(i.path);
+      issues.push({ code: 'rule-invalid', subject: at ? `${Number(at[1]) + 1}: ${i.message}` : i.message });
+    }
+  }
   return issues;
 }
 
