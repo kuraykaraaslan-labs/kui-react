@@ -22,6 +22,8 @@ import type { ComboBoxOption } from '@/modules/ui/ComboBox';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { DropdownMenu, type DropdownItem } from '@/modules/ui/DropdownMenu';
 import { Input } from '@/modules/ui/Input';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { Select } from '@/modules/ui/Select';
 import { useNow } from '../useNow';
 import {
@@ -85,6 +87,8 @@ export interface SymbolBindingPanelProps {
 
 const SEARCH_ROWS = 100;
 const KEY_ROWS = 100;
+/** A search box over the values appears once the device has more keys than this. */
+const VALUES_SEARCH_FROM = 8;
 const PREVIEW_DEBOUNCE_MS = 250;
 
 export function SymbolBindingPanel(props: SymbolBindingPanelProps) {
@@ -93,6 +97,16 @@ export function SymbolBindingPanel(props: SymbolBindingPanelProps) {
   // One form per symbol: moving to the next symbol starts its draft over.
   return <SymbolForm key={props.symbol.id} {...props} last={last} onRemember={setLast} />;
 }
+
+/** One row of the values table. */
+type ValueRow = {
+  key: string;
+  name: string;
+  feeds?: string;
+  value: string;
+  ts: number;
+  age: string;
+};
 
 type KeysState = { deviceId: string; status: 'ready' | 'error'; keys: DeviceKey[] };
 
@@ -335,7 +349,30 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   ];
 
   const busy = saving;
-  const visibleKeys = keys.slice(0, KEY_ROWS);
+  const valueRows = useMemo<ValueRow[]>(
+    () => keys.slice(0, KEY_ROWS).map((k) => ({
+      key: k.key,
+      name: k.label || k.key,
+      feeds: usedBy.get(k.key),
+      value: formatValue(k.value, k.unit),
+      ts: (typeof k.ts === 'number' ? k.ts : Date.parse(k.ts)) || 0,
+      age: ageText(k.ts, now, m.age),
+    })),
+    [keys, usedBy, now, m],
+  );
+  const valueColumns = useMemo<Column<ValueRow>[]>(() => [
+    {
+      key: 'name', header: m.valuesName, sortable: true, tdClass: 'max-w-0 w-[45%]',
+      render: (r) => (
+        <span className="block min-w-0">
+          <span className="block truncate text-sm text-text-primary">{r.name}</span>
+          {r.feeds !== undefined && <span className="block truncate text-xs text-primary">{m.feeds(r.feeds)}</span>}
+        </span>
+      ),
+    },
+    { key: 'value', header: m.valuesValue, searchable: false, tdClass: 'max-w-0 truncate text-text-secondary', render: (r) => r.value },
+    { key: 'ts', header: m.valuesUpdated, sortable: true, align: 'right', searchable: false, tdClass: 'whitespace-nowrap text-text-secondary', render: (r) => r.age },
+  ], [m]);
 
   return (
     <div
@@ -394,19 +431,26 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
 
           {keysStatus === 'ready' && keys.length > 0 && (
             <>
-              <ul aria-label={m.valuesSection} className="max-h-44 divide-y divide-border overflow-y-auto rounded-md border border-border">
-                {visibleKeys.map((k) => (
-                  <li key={k.key} className="flex items-baseline justify-between gap-3 px-3 py-1.5 text-sm">
-                    <span className="min-w-0">
-                      <span className="block truncate">{k.label || k.key}</span>
-                      {usedBy.has(k.key) && <span className="block truncate text-xs text-primary">{m.feeds(usedBy.get(k.key) ?? '')}</span>}
-                    </span>
-                    <span className="shrink-0 text-right text-xs text-text-secondary">
-                      {m.valueAndAge(formatValue(k.value, k.unit), ageText(k.ts, now, m.age))}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {/* The kit's DataTable (static mode, compact, no paging): the host's values sorted by name or age, a search box
+                  once the list is long, an internal scroll past ~8 rows. A row does nothing on click: the pickers below choose. */}
+              <DataTable<ValueRow>
+                id={`${uid}-values`}
+                mode="static"
+                density="compact"
+                caption={m.valuesSection}
+                columns={valueColumns}
+                rows={valueRows}
+                rowId={(r) => r.key}
+                searchable={valueRows.length > VALUES_SEARCH_FROM}
+                searchText={(r) => `${r.name} ${r.key}`}
+                searchPlaceholder={m.valuesSearch}
+                stickyHeader
+                defaultSort={[]}
+                multiSort={false}
+                scrollClassName="max-h-60 overflow-y-auto"
+                tableClassName="text-xs"
+                messages={{ tableLabel: m.valuesSection, search: m.valuesSearch }}
+              />
               {keys.length > KEY_ROWS && <p className="text-xs text-text-secondary">{m.valuesMore(keys.length - KEY_ROWS)}</p>}
             </>
           )}

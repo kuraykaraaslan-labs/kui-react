@@ -32,6 +32,11 @@ export interface SymbolBindingMessages {
   valuesRetry: string;
   /** "and 12 more", under a long list of keys. */
   valuesMore: (n: number) => string;
+  /** The values table's column headings, and its search box (a long list only). */
+  valuesName: string;
+  valuesValue: string;
+  valuesUpdated: string;
+  valuesSearch: string;
   /** Under a key in the list: the symbol field it feeds. */
   feeds: (field: string) => string;
   /** The picker's first choice: the field reads nothing. */
@@ -93,6 +98,10 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   valuesError: 'The values could not be loaded.',
   valuesRetry: 'Try again',
   valuesMore: (n) => `and ${n} more`,
+  valuesName: 'Name',
+  valuesValue: 'Value',
+  valuesUpdated: 'Updated',
+  valuesSearch: 'Search the values',
   feeds: (field) => `feeds ${field}`,
   notUsed: 'Not used',
   fieldPicker: (field) => field,
