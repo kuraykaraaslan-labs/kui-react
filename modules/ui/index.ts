@@ -97,6 +97,8 @@ export type {
 export { MapView, MapCanvas } from './MapView';
 export type { MapVariant, MapTooltipField, MapTooltipData, MapMarker, MapZone, MapRoute, MapTiles, MapTilesConfig, MapCanvasProps } from './MapView';
 export { Modal } from './Modal';
+export { AnnouncementDialog } from './AnnouncementDialog';
+export type { AnnouncementDialogProps, AnnouncementSeverity } from './AnnouncementDialog';
 export { MultiSelect, DEFAULT_MULTI_SELECT_MESSAGES } from './MultiSelect';
 export type { MultiSelectOption, MultiSelectMessages } from './MultiSelect';
 export { PageHeader } from './PageHeader';

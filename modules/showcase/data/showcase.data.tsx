@@ -37,6 +37,7 @@ import { buildAccordionData } from './sections/ui-molecule-accordion.showcase';
 import { buildRangeSliderData } from './sections/ui-molecule-range-slider.showcase';
 import { buildPopconfirmData } from './sections/ui-molecule-popconfirm.showcase';
 import { buildConfirmDialogData } from './sections/ui-molecule-confirm.showcase';
+import { buildAnnouncementDialogData } from './sections/ui-molecule-announcement.showcase';
 import { buildTimePickerData } from './sections/ui-molecule-time-picker.showcase';
 import { buildControlTileData } from './sections/ui-molecule-control-tile.showcase';
 import { buildTimeWindowPickerData } from './sections/ui-molecule-time-window-picker.showcase';
@@ -54,6 +55,7 @@ export function buildShowcaseData() {
     ...buildRangeSliderData(),
     ...buildPopconfirmData(),
     ...buildConfirmDialogData(),
+    ...buildAnnouncementDialogData(),
     ...buildTimePickerData(),
     ...buildControlTileData(),
     ...buildTimeWindowPickerData(),

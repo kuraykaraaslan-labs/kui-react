@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-27T17:07:13.807Z",
+  "generatedAt": "2026-10-28T06:51:33.781Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -243,6 +243,7 @@
         "--text-primary"
       ],
       "usedBy": [
+        "announcement-dialog",
         "color-picker",
         "comment-thread",
         "confirm-dialog",
@@ -1630,6 +1631,63 @@
           {
             "keys": "Escape",
             "action": "Cancel"
+          }
+        ]
+      },
+      "designTokens": []
+    },
+    {
+      "id": "announcement-dialog",
+      "name": "AnnouncementDialog",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/AnnouncementDialog.tsx",
+      "abbr": "Ao",
+      "description": "A message from the people who run the product to the person using it (a platform notice, planned maintenance), shown over the page until it is acknowledged. One answer, OK, which the host stores. A critical one (or required) has no close button and ignores Escape and the backdrop. Not a confirmation: questions go through ConfirmDialog.",
+      "source": "'use client';\nimport { AnnouncementDialog } from '@/modules/ui/AnnouncementDialog';\n\n<AnnouncementDialog\n  open={!!current}\n  title={current.title}\n  body={current.body}\n  severity={current.severity}          // 'info' | 'warning' | 'critical'\n  meta=\"Platform team · 28 Oct 2026, 14:00\"\n  link={{ href: '/status', label: 'Status page' }}\n  position={queue.length > 1 ? `1 of ${queue.length}` : undefined}\n  onAcknowledge={() => acknowledge(current.id)}   // stored: not shown to this person again\n  onDismiss={() => hideForNow(current.id)}        // shown again on the next page\n/>",
+      "variants": [
+        {
+          "title": "Info",
+          "code": "<AnnouncementDialog open title=\"Boards can be shared by link\" body=\"Open a board and choose Share.\" meta=\"Product team · 28 Oct 2026\" onAcknowledge={ack} onDismiss={later} />"
+        },
+        {
+          "title": "Planned maintenance",
+          "code": "<AnnouncementDialog open severity=\"warning\" severityLabel=\"Planned maintenance\" title=\"Saturday 02:00–04:00\" link={{ href: '/status', label: 'Status page' }} position=\"1 of 2\" onAcknowledge={ack} />"
+        },
+        {
+          "title": "Critical (must acknowledge)",
+          "code": "<AnnouncementDialog open severity=\"critical\" severityLabel=\"Critical\" title=\"Unplanned maintenance in progress\" acknowledgeLabel=\"I understand\" onAcknowledge={ack} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-10",
+      "composes": [
+        "button"
+      ],
+      "relatedTo": [
+        "modal",
+        "confirm-dialog",
+        "alert-banner",
+        "toast"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "dialog",
+          "alertdialog"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Tab",
+            "action": "Move between the link, the close button and OK"
+          },
+          {
+            "keys": "Enter",
+            "action": "Acknowledge from the OK button"
+          },
+          {
+            "keys": "Escape",
+            "action": "Close without acknowledging (not while it must be acknowledged)"
           }
         ]
       },

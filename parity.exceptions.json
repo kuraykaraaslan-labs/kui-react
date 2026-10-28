@@ -294,6 +294,20 @@
         "date presets relative to the client clock",
         "groupBy card headings"
       ]
+    },
+    {
+      "id": "announcement-dialog",
+      "name": "AnnouncementDialog",
+      "layer": "ui",
+      "path": "modules/ui/AnnouncementDialog.tsx",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "New for next-boilerplate phase 47 (announcements: the acknowledged popup of a platform notice or a maintenance notice). Its only consumer is next-boilerplate's admin shell, which vendors it from here; kui-ejs and KUInative get it when an app built on them shows announcements (express-boilerplate is parked, the mobile boilerplate has no announcement surface yet)."
     }
   ]
 }

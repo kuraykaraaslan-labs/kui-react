@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-27T17:07:13.807Z",
+  "generatedAt": "2026-10-28T06:51:33.781Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -188,6 +188,7 @@
         "--text-primary"
       ],
       "usedBy": [
+        "announcement-dialog",
         "color-picker",
         "comment-thread",
         "confirm-dialog",
@@ -974,6 +975,49 @@
       },
       "designTokens": [],
       "variantCount": 9
+    },
+    {
+      "id": "announcement-dialog",
+      "name": "AnnouncementDialog",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/AnnouncementDialog.tsx",
+      "abbr": "Ao",
+      "description": "A message from the people who run the product to the person using it (a platform notice, planned maintenance), shown over the page until it is acknowledged. One answer, OK, which the host stores. A critical one (or required) has no close button and ignores Escape and the backdrop. Not a confirmation: questions go through ConfirmDialog.",
+      "status": "stable",
+      "since": "2026-10",
+      "composes": [
+        "button"
+      ],
+      "relatedTo": [
+        "modal",
+        "confirm-dialog",
+        "alert-banner",
+        "toast"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "dialog",
+          "alertdialog"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Tab",
+            "action": "Move between the link, the close button and OK"
+          },
+          {
+            "keys": "Enter",
+            "action": "Acknowledge from the OK button"
+          },
+          {
+            "keys": "Escape",
+            "action": "Close without acknowledging (not while it must be acknowledged)"
+          }
+        ]
+      },
+      "designTokens": [],
+      "variantCount": 3
     },
     {
       "id": "time-picker",
@@ -4017,7 +4061,7 @@
       "category": "Molecule",
       "filePath": "modules/ui/MapView/MapCanvas.tsx",
       "abbr": "Mc",
-      "description": "The card-less Leaflet canvas behind MapView: it fills its parent (give the parent a height), takes markers, zones and routes, and accepts a custom tile configuration (`tiles.url` + `tiles.attribution`). Use it inside a dashboard tile or panel that already has its own frame; use MapView for a standalone map card.",
+      "description": "The card-less Leaflet canvas behind MapView: it fills its parent (give the parent a height), takes markers, zones and routes, and draws OpenStreetMap's standard tiles by default (darkened in the dark theme). An installation sets its own tile source once with `MapTilesProvider` (URL template, attribution, subdomains, deepest zoom, optional dark URL); one map can still pass its own `tiles` (`tiles.url` + `tiles.attribution`). Use it inside a dashboard tile or panel that already has its own frame; use MapView for a standalone map card.",
       "status": "beta",
       "since": "2026-10",
       "relatedTo": [

@@ -11,6 +11,7 @@ Core interactive element. Supports 6 visual styles (variants) and 5 sizes: secon
 
 ## Used by
 
+- `announcement-dialog`
 - `color-picker`
 - `comment-thread`
 - `confirm-dialog`

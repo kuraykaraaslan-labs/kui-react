@@ -203,6 +203,12 @@
     "category": "Molecule",
     "file": "confirm-dialog.md"
   },
+  "announcement-dialog": {
+    "name": "AnnouncementDialog",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "announcement-dialog.md"
+  },
   "time-picker": {
     "name": "TimePicker",
     "layer": "ui",

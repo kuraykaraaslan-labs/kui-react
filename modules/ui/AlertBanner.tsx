@@ -24,6 +24,7 @@ export function AlertBanner({
   title,
   message,
   dismissible = false,
+  onDismiss,
   action,
   icon,
   className,
@@ -32,6 +33,8 @@ export function AlertBanner({
   title?: string;
   message: string;
   dismissible?: boolean;
+  /** Called when the person dismisses it, so the host can remember that (a banner closed for good). */
+  onDismiss?: () => void;
   action?: AlertAction;
   icon?: React.ReactNode;
   className?: string;
@@ -81,7 +84,7 @@ export function AlertBanner({
         <button
           type="button"
           aria-label="Dismiss"
-          onClick={() => setDismissed(true)}
+          onClick={() => { setDismissed(true); onDismiss?.(); }}
           className="shrink-0 hover:opacity-70 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded"
         >
           <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
