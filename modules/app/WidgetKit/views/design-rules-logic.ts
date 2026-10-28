@@ -10,7 +10,7 @@
 
 import { asBoolean } from '@/modules/ui/ControlTile/control-logic';
 import { cssColor } from '../settings/style';
-import { MAX_RULE_LABEL, MAX_SCENE_RULES, evaluateRules, validateRules, type EffectSpec, type RuleIssue } from './scene-rules-logic';
+import { MAX_RULE_LABEL, MAX_SCENE_RULES, RULE_STATES, evaluateRules, validateRules, type EffectSpec, type RuleIssue } from './scene-rules-logic';
 
 /** The effects a 3D design's rules offer: a tint, hiding, a text in place of the label, a pulse and an outline. */
 export const DESIGN_RULE_EFFECTS: EffectSpec = {
@@ -20,6 +20,43 @@ export const DESIGN_RULE_EFFECTS: EffectSpec = {
   pulse: { kind: 'flag' },
   highlight: { kind: 'flag' },
 };
+
+/**
+ * The rules of a stored 2D diagram's binding (phase 42.5.4, D42-11 for the `diagram` kind): the same flat row, with the effects the process scene's
+ * own engine reads (`SCENE_RULE_EFFECTS`), a subset of them so one card draws what the Rules step offers: a state (`idle`, `running`, `warning`,
+ * `critical`, `off`), a colour, hiding, a blink and a text in place of the label. The card lays them after the document's own rules, so there is no
+ * second engine: a row of this dialect IS a scene rule.
+ */
+export const DIAGRAM_RULE_EFFECTS: EffectSpec = {
+  state: { kind: 'enum', options: RULE_STATES, message: 'Choose a state' },
+  color: { kind: 'color' },
+  hidden: { kind: 'flag' },
+  blink: { kind: 'flag' },
+  label: { kind: 'label' },
+};
+
+/** The kind a rule row belongs to: the 3D card's (`design`, the default) or the stored 2D diagram's (`diagram`). */
+export type RuleDialect = 'design' | 'diagram';
+
+const CONTROL_FIELDS = ['target', 'enabled', 'stop', 'source', 'key', 'of', 'op', 'value', 'to', 'join', 'source2', 'key2', 'of2', 'op2', 'value2', 'to2'];
+
+interface DialectSpec {
+  effects: EffectSpec;
+  fields: ReadonlySet<string>;
+  flags: readonly string[];
+  /** Whether a colour must be one kui-viewer takes (the 3D view), or any CSS colour the process scene draws. */
+  viewerColors: boolean;
+  /** "of the 3D card" in the message of a field the dialect does not have. */
+  name: string;
+}
+
+const DIALECTS: Record<RuleDialect, DialectSpec> = {
+  design: { effects: DESIGN_RULE_EFFECTS, fields: new Set([...CONTROL_FIELDS, ...Object.keys(DESIGN_RULE_EFFECTS)]), flags: ['enabled', 'stop', 'hidden', 'pulse', 'highlight'], viewerColors: true, name: 'the 3D card' },
+  diagram: { effects: DIAGRAM_RULE_EFFECTS, fields: new Set([...CONTROL_FIELDS, ...Object.keys(DIAGRAM_RULE_EFFECTS)]), flags: ['enabled', 'stop', 'hidden', 'blink'], viewerColors: false, name: 'the 2D diagram' },
+};
+
+/** The fields a rule row of a diagram binding may carry. */
+export const DIAGRAM_RULE_FIELDS: readonly string[] = [...DIALECTS.diagram.fields];
 
 /** What the rules that matched decided for one scene key. A missing field means "no rule said anything". */
 export interface DesignEffects {
@@ -38,8 +75,6 @@ export const DESIGN_RULE_FIELDS: readonly string[] = [
   'join', 'source2', 'key2', 'of2', 'op2', 'value2', 'to2',
   ...Object.keys(DESIGN_RULE_EFFECTS),
 ];
-const FIELD_SET: ReadonlySet<string> = new Set(DESIGN_RULE_FIELDS);
-const FLAGS = ['enabled', 'stop', 'hidden', 'pulse', 'highlight'] as const;
 const TEXT_FIELDS = ['target', 'source', 'key', 'of', 'op', 'join', 'source2', 'key2', 'of2', 'op2'] as const;
 
 /** The columns a rule's condition is offered for a 3D design's rows (the standard parameters an item reads, and the row's own label). Any name may still be typed. */
@@ -60,10 +95,11 @@ const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : typeof 
 const isScalar = (v: unknown): boolean => typeof v === 'string' || typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v));
 
 /** Whether a stored row is a rule of the design card: a flat record of known fields holding scalars. */
-export function isDesignRule(v: unknown): v is Rec {
+export function isDesignRule(v: unknown, dialect: RuleDialect = 'design'): v is Rec {
   if (!isRec(v)) return false;
+  const fields = DIALECTS[dialect].fields;
   for (const [k, val] of Object.entries(v)) {
-    if (!FIELD_SET.has(k) || !isScalar(val)) return false;
+    if (!fields.has(k) || !isScalar(val)) return false;
     if (typeof val === 'string' && val.length > MAX_DESIGN_RULE_TEXT) return false;
   }
   return true;
@@ -224,7 +260,8 @@ export function designRules(rules: unknown, ctx: DesignRuleContext): DesignRuleR
  * of every row (a flat record of known fields). The targets are NOT judged here, only the document knows them: `staleReferences`.
  * The server repeats this function, so what the drawer accepts the route accepts.
  */
-export function designRuleIssues(rules: unknown): RuleIssue[] {
+export function designRuleIssues(rules: unknown, dialect: RuleDialect = 'design'): RuleIssue[] {
+  const spec = DIALECTS[dialect];
   const list = Array.isArray(rules) ? rules : [];
   const issues: RuleIssue[] = [];
   if (list.length > MAX_SCENE_RULES) issues.push({ path: 'rules', message: `At most ${MAX_SCENE_RULES} rules` });
@@ -235,11 +272,11 @@ export function designRuleIssues(rules: unknown): RuleIssue[] {
       return;
     }
     for (const [k, v] of Object.entries(r)) {
-      if (!FIELD_SET.has(k)) issues.push({ path: at(k), message: `"${k}" is not a field of a rule of the 3D card` });
+      if (!spec.fields.has(k)) issues.push({ path: at(k), message: `"${k}" is not a field of a rule of ${spec.name}` });
       else if (!isScalar(v)) issues.push({ path: at(k), message: `${k} must be a text, a number or yes / no` });
       else if (typeof v === 'string' && v.length > MAX_DESIGN_RULE_TEXT) issues.push({ path: at(k), message: `${k} is at most ${MAX_DESIGN_RULE_TEXT} characters` });
     }
-    for (const f of FLAGS) {
+    for (const f of spec.flags) {
       const v = r[f];
       if (v !== undefined && v !== '' && asBoolean(v) === null) issues.push({ path: at(f), message: `${f} is yes or no` });
     }
@@ -248,13 +285,13 @@ export function designRuleIssues(rules: unknown): RuleIssue[] {
     }
     const c = r.color;
     if (c !== undefined && c !== '' && !cssColor(c)) issues.push({ path: at('color'), message: 'The colour is not a colour' });
-    else if (typeof c === 'string' && c !== '' && !viewerColor(c)) issues.push({ path: at('color'), message: 'The 3D view takes a hex, rgb or hsl colour or one of the theme colours' });
+    else if (spec.viewerColors && typeof c === 'string' && c !== '' && !viewerColor(c)) issues.push({ path: at('color'), message: 'The 3D view takes a hex, rgb or hsl colour or one of the theme colours' });
     if (text(r.target) === '') issues.push({ path: at('target'), message: 'Choose a scene key or *' });
     else if (RESERVED.has(text(r.target))) issues.push({ path: at('target'), message: 'A key may not be __proto__, constructor or prototype' });
   });
   // the engine's checks on the rows that have the shape of a rule, reported at their place in the list
   const rows = list.map((r) => (isRec(r) ? r : {}));
-  for (const i of validateRules(rows, { elementIds: [], fromData: true }, DESIGN_RULE_EFFECTS)) {
+  for (const i of validateRules(rows, { elementIds: [], fromData: true }, spec.effects)) {
     if (!/\.target$/.test(i.path) && !issues.some((x) => x.path === i.path)) issues.push(i);
   }
   return issues;
@@ -298,10 +335,11 @@ export interface RulesEdit {
 const refuse = (rules: unknown[], why: string): RulesEdit => ({ rules, refused: why });
 
 /** A field's value as it is stored, or why it cannot be (an empty one removes an optional field). */
-function normalise(field: string, v: unknown): { value: unknown } | string {
-  if (!FIELD_SET.has(field)) return `"${field}" is not a rule field`;
+function normalise(field: string, v: unknown, dialect: RuleDialect): { value: unknown } | string {
+  const spec = DIALECTS[dialect];
+  if (!spec.fields.has(field)) return `"${field}" is not a rule field`;
   if (v === undefined || v === null || v === '') return { value: undefined };
-  if ((FLAGS as readonly string[]).includes(field)) {
+  if (spec.flags.includes(field)) {
     const b = asBoolean(v);
     return b === null ? `${field} is yes or no` : { value: b };
   }
@@ -312,10 +350,10 @@ function normalise(field: string, v: unknown): { value: unknown } | string {
   return { value: s };
 }
 
-function patched(rule: Rec, patch: Rec): Rec | string {
+function patched(rule: Rec, patch: Rec, dialect: RuleDialect): Rec | string {
   const next: Rec = { ...rule };
   for (const [k, v] of Object.entries(patch)) {
-    const r = normalise(k, v);
+    const r = normalise(k, v, dialect);
     if (typeof r === 'string') return r;
     if (r.value === undefined) delete next[k];
     else next[k] = r.value;
@@ -324,16 +362,16 @@ function patched(rule: Rec, patch: Rec): Rec | string {
 }
 
 /** A new rule: on, aimed at `seed.target` if given, with whatever else `seed` says. */
-export function newDesignRule(seed: Rec = {}): Rec {
-  const row = patched({ enabled: true }, seed);
+export function newDesignRule(seed: Rec = {}, dialect: RuleDialect = 'design'): Rec {
+  const row = patched({ enabled: true }, seed, dialect);
   return typeof row === 'string' ? { enabled: true } : row;
 }
 
 /** Adds a rule at `at` (default last). Refused past the cap or for a bad field. */
-export function addDesignRule(rules: readonly unknown[], seed: Rec = {}, at?: number): RulesEdit {
+export function addDesignRule(rules: readonly unknown[], seed: Rec = {}, at?: number, dialect: RuleDialect = 'design'): RulesEdit {
   const list = [...rules];
   if (list.length >= MAX_SCENE_RULES) return refuse(list, `A scene holds at most ${MAX_SCENE_RULES} rules`);
-  const row = patched({ enabled: true }, seed);
+  const row = patched({ enabled: true }, seed, dialect);
   if (typeof row === 'string') return refuse(list, row);
   const index = at === undefined ? list.length : Math.min(list.length, Math.max(0, Math.trunc(at)));
   list.splice(index, 0, row);
@@ -341,11 +379,11 @@ export function addDesignRule(rules: readonly unknown[], seed: Rec = {}, at?: nu
 }
 
 /** Writes some fields of one rule; an empty value removes the field. Nothing changes (the same list comes back) when nothing differs. */
-export function updateDesignRule(rules: readonly unknown[], index: number, patch: Rec): RulesEdit {
+export function updateDesignRule(rules: readonly unknown[], index: number, patch: Rec, dialect: RuleDialect = 'design'): RulesEdit {
   const list = [...rules];
   const rule = list[index];
   if (!isRec(rule)) return refuse(list, 'No such rule');
-  const next = patched(rule, patch);
+  const next = patched(rule, patch, dialect);
   if (typeof next === 'string') return refuse(list, next);
   if (JSON.stringify(next) === JSON.stringify(rule)) return { rules: list, index };
   list[index] = next;
@@ -407,6 +445,10 @@ export interface DesignRuleWords {
   pulseOff: string;
   highlightOn: string;
   highlightOff: string;
+  /** The 2D diagram's effects (phase 42.5.4): "set it {state}", a blink on or off. */
+  stateIs: string;
+  blinkOn: string;
+  blinkOff: string;
   stop: string;
   nothing: string;
 }
@@ -419,7 +461,7 @@ export const DEFAULT_DESIGN_RULE_WORDS: DesignRuleWords = {
     between: 'is between {value} and {to}', in: 'is one of {list}', set: 'is set', unset: 'is not set', true: 'is on', false: 'is off',
   },
   color: 'colour it {color}', hide: 'hide it', show: 'show it', label: "show '{label}'", pulseOn: 'pulse', pulseOff: 'not pulse',
-  highlightOn: 'outline it', highlightOff: 'not outline it', stop: 'then stop', nothing: 'change nothing',
+  highlightOn: 'outline it', highlightOff: 'not outline it', stateIs: 'set it {state}', blinkOn: 'blink', blinkOff: 'not blink', stop: 'then stop', nothing: 'change nothing',
 };
 
 const fill = (t: string, vars: Record<string, string>) => t.replace(/\{(\w+)\}/g, (_m, k: string) => vars[k] ?? `{${k}}`);
@@ -465,7 +507,10 @@ export function describeDesignRule(rule: unknown, words: DesignRuleWords = DEFAU
   const yes = (v: unknown) => (v === undefined || v === '' ? undefined : asBoolean(v) ?? undefined);
   const hidden = yes(rule.hidden); if (hidden !== undefined) fx.push(hidden ? words.hide : words.show);
   if (text(rule.label)) fx.push(fill(words.label, { label: text(rule.label) }));
+  const state = text(rule.state);
+  if (state) fx.unshift(fill(words.stateIs, { state }));
   const pulse = yes(rule.pulse); if (pulse !== undefined) fx.push(pulse ? words.pulseOn : words.pulseOff);
+  const blink = yes(rule.blink); if (blink !== undefined) fx.push(blink ? words.blinkOn : words.blinkOff);
   const highlight = yes(rule.highlight); if (highlight !== undefined) fx.push(highlight ? words.highlightOn : words.highlightOff);
   const stop = rule.stop === true || rule.stop === 'true' ? `, ${words.stop}` : '';
   const target = text(rule.target);

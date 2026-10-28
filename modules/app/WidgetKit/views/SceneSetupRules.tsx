@@ -12,8 +12,9 @@ import { Badge, CONTROL, PanelField, SMALL_BUTTON } from './scene-panel-ui';
 import { ColorField, Condition, type ConditionEnv } from './scene-rules-form';
 import {
   DESIGN_ALL_TARGET, addDesignRule, describeDesignRule, designRuleIssues, duplicateDesignRule, isDesignRule, moveDesignRule, removeDesignRule,
-  staleReferences, updateDesignRule, type RulesEdit,
+  staleReferences, updateDesignRule, type RuleDialect, type RulesEdit,
 } from './design-rules-logic';
+import { RULE_STATES } from './scene-rules-logic';
 import type { SceneSetupRulesMessages } from './scene-setup-messages';
 import type { SceneKey } from './scene-binding-logic';
 
@@ -33,10 +34,12 @@ export interface SceneSetupRulesProps {
   /** The board parameters a condition may read (suggestions). */
   params?: ReadonlyArray<{ key: string; label?: string }>;
   messages: SceneSetupRulesMessages;
+  /** `design` (default): the 3D card's effects (colour, hide, label, pulse, outline). `diagram`: a stored 2D diagram's (state, colour, hide, blink, label). */
+  dialect?: RuleDialect;
   className?: string;
 }
 
-export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = [], params = [], messages: m, className }: SceneSetupRulesProps) {
+export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = [], params = [], messages: m, dialect = 'design', className }: SceneSetupRulesProps) {
   const base = useId();
   const [open, setOpen] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -44,7 +47,7 @@ export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = 
   const rowOptions = useMemo(() => keys.map((k) => ({ value: k.key, label: k.label && k.label !== k.key ? `${k.key} (${k.label})` : k.key })), [keys]);
   const issues = useMemo(() => {
     const out = new Map<number, Map<string, string>>();
-    for (const i of designRuleIssues(rules)) {
+    for (const i of designRuleIssues(rules, dialect)) {
       const hit = /^rules\.(\d+)(?:\.(\w+))?$/.exec(i.path);
       if (!hit) continue;
       const at = out.get(Number(hit[1])) ?? new Map<string, string>();
@@ -52,7 +55,7 @@ export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = 
       out.set(Number(hit[1]), at);
     }
     return out;
-  }, [rules]);
+  }, [rules, dialect]);
   const stale = useMemo(() => (keysLoading || keys.length === 0 ? [] : staleReferences(rules, keyNames)), [rules, keyNames, keys.length, keysLoading]);
   const staleOf = (index: number) => stale.filter((s) => s.index === index);
 
@@ -78,7 +81,7 @@ export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = 
   const canAdd = keys.length > 0;
 
   const add = () => {
-    const r = run(addDesignRule(rules, {}));
+    const r = run(addDesignRule(rules, {}, undefined, dialect));
     if (r.index !== undefined && !r.refused) setOpen(r.index);
   };
 
@@ -100,11 +103,11 @@ export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = 
         <ul className="space-y-2">
           {rules.map((rule, index) => {
             const name = m.ruleN(index + 1);
-            if (!isDesignRule(rule)) {
+            if (!isDesignRule(rule, dialect)) {
               return (
                 <li key={index} data-rule={index} data-foreign="true" className="rounded-lg border border-error bg-surface-raised p-2">
-                  <p className="text-sm font-medium text-text-primary">{m.foreignTitle} ({name})</p>
-                  <p className="text-xs text-text-secondary">{m.foreignBody}</p>
+                  <p className="text-sm font-medium text-text-primary">{dialect === 'diagram' ? m.foreignTitle2d : m.foreignTitle} ({name})</p>
+                  <p className="text-xs text-text-secondary">{dialect === 'diagram' ? m.foreignBody2d : m.foreignBody}</p>
                   <pre className="mt-1 max-h-24 overflow-auto rounded bg-surface-sunken p-1.5 text-[11px] text-text-secondary">{safeJson(rule)}</pre>
                   <button type="button" className={cn(SMALL_BUTTON, 'mt-1 hover:text-error')} aria-label={`${m.delete}: ${name}`} onClick={() => run(removeDesignRule(rules, index))}>{m.delete}</button>
                 </li>
@@ -119,7 +122,7 @@ export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = 
                   <input
                     type="checkbox" checked={rule.enabled !== false && rule.enabled !== 'false'} aria-label={`${m.enabled}: ${name}`}
                     className="mt-1 h-4 w-4 shrink-0 rounded accent-primary focus-visible:ring-2 focus-visible:ring-border-focus"
-                    onChange={(e) => run(updateDesignRule(rules, index, { enabled: e.target.checked }))}
+                    onChange={(e) => run(updateDesignRule(rules, index, { enabled: e.target.checked }, dialect))}
                   />
                   <button
                     type="button" aria-expanded={isOpen} aria-controls={`${base}-rule-${index}`} onClick={() => setOpen(isOpen ? null : index)}
@@ -145,7 +148,7 @@ export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = 
                 </div>
                 {isOpen && (
                   <div id={`${base}-rule-${index}`} className="space-y-3 border-t border-border p-3">
-                    <RuleForm env={env} index={index} rule={rule} rules={rules} rowOptions={rowOptions} stale={stales} run={run} />
+                    <RuleForm env={env} index={index} rule={rule} rules={rules} rowOptions={rowOptions} stale={stales} run={run} dialect={dialect} />
                   </div>
                 )}
               </li>
@@ -166,16 +169,16 @@ function safeJson(v: unknown): string {
 }
 
 function RuleForm({
-  env, index, rule, rules, rowOptions, stale, run,
+  env, index, rule, rules, rowOptions, stale, run, dialect,
 }: {
   env: ConditionEnv & { m: SceneSetupRulesMessages }; index: number; rule: Rec; rules: readonly unknown[]; rowOptions: Array<{ value: string; label: string }>;
-  stale: ReturnType<typeof staleReferences>; run: (edit: RulesEdit) => RulesEdit;
+  stale: ReturnType<typeof staleReferences>; run: (edit: RulesEdit) => RulesEdit; dialect: RuleDialect;
 }) {
   const { m, base } = env;
   const [second, setSecond] = useState(false);
   const label = useRef<HTMLInputElement>(null);
   const id = (k: string) => `${base}-${index}-${k}`;
-  const set = (patch: Rec) => run(updateDesignRule(rules, index, patch));
+  const set = (patch: Rec) => run(updateDesignRule(rules, index, patch, dialect));
   const hasSecond = !!str(rule.op2) || second;
   const target = str(rule.target);
 
@@ -183,7 +186,7 @@ function RuleForm({
     const known = new Set(extra.map((o) => o.value));
     return current && !known.has(current) ? [...extra, { value: current, label: m.missing(current) }] : extra;
   };
-  const tri = (key: 'hidden' | 'pulse' | 'highlight', title: string, yes: string, no: string) => {
+  const tri = (key: 'hidden' | 'pulse' | 'highlight' | 'blink', title: string, yes: string, no: string) => {
     const v = rule[key] === true || rule[key] === 'true' ? 'true' : rule[key] === false || rule[key] === 'false' ? 'false' : '';
     return (
       <PanelField id={id(key)} label={title} error={env.issue(index, key)}>
@@ -238,11 +241,23 @@ function RuleForm({
 
       <fieldset className="space-y-3 rounded-md border border-border p-2.5">
         <legend className="px-1 text-xs font-medium text-text-secondary">{m.then}</legend>
+        {dialect === 'diagram' && (
+          <PanelField id={id('state')} label={m.state} error={env.issue(index, 'state')}>
+            <select id={id('state')} className={CONTROL} value={str(rule.state)} onChange={(e) => set({ state: e.target.value })}>
+              <option value="">{m.noChange}</option>
+              {RULE_STATES.map((st) => <option key={st} value={st}>{m.states[st] ?? st}</option>)}
+            </select>
+          </PanelField>
+        )}
         <ColorField id={id('color')} title={m.colour} value={str(rule.color)} onChange={(v) => set({ color: v })} error={env.issue(index, 'color')} />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {tri('hidden', m.hidden, m.hide, m.show)}
-          {tri('pulse', m.pulse, m.pulseOn, m.pulseOff)}
-          {tri('highlight', m.highlight, m.highlightOn, m.highlightOff)}
+          {dialect === 'diagram' ? tri('blink', m.blink, m.blinkOn, m.blinkOff) : (
+            <>
+              {tri('pulse', m.pulse, m.pulseOn, m.pulseOff)}
+              {tri('highlight', m.highlight, m.highlightOn, m.highlightOff)}
+            </>
+          )}
         </div>
         <PanelField id={id('label')} label={m.label} error={env.issue(index, 'label')}>
           <input

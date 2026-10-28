@@ -23,6 +23,15 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- WidgetKit `SceneSetupDrawer` for kind `diagram` (next-boilerplate phase 42.5.4): `SceneSetupPreview2D` draws a stored 2D diagram read-only with the card's
+  own `ScadaSceneView` (every symbol a button, Enter and Space too, the picked one outlined, no rules, a locked-out symbol still pickable) and answers
+  a click with the symbol's id: the host passes it as `preview` and keeps `pickedKey`, so "Pick" works on a diagram as it does on a 3D design. The kind
+  is now a real choice: switching it starts the form over from that kind's saved setup (`onKindChange`, the host answers with `initial` and a new
+  `resetKey`; asked first through a ConfirmDialog when the form has edits; another kind's document, entries, view and rules never reach the draft),
+  and `kindLocked` fixes it for a card's menu entry. The Rules step is on for `diagram` as well (`rulesKinds` defaults to `['design', 'diagram']`): the
+  rows are scene rules of the process scene's own engine, with a state, a colour, hide, a blink and a label (`DIAGRAM_RULE_EFFECTS`, a `dialect`
+  argument on `designRuleIssues`, `isDesignRule`, `addDesignRule`, `updateDesignRule`; `validateDraft` judges a diagram's rules with it).
+
 - WidgetKit `SceneSetupDrawer` (next-boilerplate phase 42.2.3c, TK-6): the slot is a real field. `slots` lists the subject's slots and
   `allowNewSlot` adds "New slot…" with a name field that follows the server's slot grammar (lower-cased and dashed as it is typed,
   reported through `onSlotChange` on Enter or blur; the form starts over from the host's answer, after a ConfirmDialog when it has

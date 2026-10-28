@@ -81,11 +81,17 @@ export interface SceneSetupDrawerProps {
   documentChanged?: boolean;
   /** The kinds the host can bind, as values (`diagram`, `design`); labels come from `messages.kinds`. */
   kinds: readonly string[];
+  /** The kind cannot be changed: the card menu opened the drawer for the kind its card draws (phase 42.5.4). */
+  kindLocked?: boolean;
   /**
    * A slot was chosen (a listed one at once, a new one when its name is complete: on Enter or leaving the field). The host reads that slot's saved
    * setup and passes it as `initial` with a new `resetKey` (the form starts over from it). With edits in the form, the drawer asks first.
    */
   onSlotChange?: (slot: string) => void;
+  /**
+   * A kind was chosen. A binding is one row per (subject, slot, KIND), so the form starts over from that kind's saved setup, as a slot switch does: the host
+   * reads it and passes it as `initial` with a new `resetKey` (the documents and keys are the new kind's). With edits in the form, the drawer asks first.
+   */
   onKindChange?: (kind: string) => void;
 
   documents: readonly SceneSetupDocument[];
@@ -115,8 +121,8 @@ export interface SceneSetupDrawerProps {
   elementsLoading?: boolean;
 
   /**
-   * The kinds that have a Rules step (default `['design']`: the rules of a 3D design, phase 42.6). Another kind's rules stay in the payload
-   * untouched. The step needs the chosen document's `sceneKeys`.
+   * The kinds that have a Rules step (default `['design', 'diagram']`: the rules of a 3D design, phase 42.6, and of a stored 2D diagram, phase 42.5.4; the
+   * step's effects follow the kind). Another kind's rules stay in the payload untouched. The step needs the chosen document's `sceneKeys`.
    */
   rulesKinds?: readonly string[];
   /** The columns a rule's condition may read (suggestions; default the process scene's columns). */
@@ -248,7 +254,7 @@ const freshForm = (seed: Seed): Form => ({
 type StaleRow = { id: string; type: 'exception' | 'role' | 'hidden'; typeLabel: string; name: string; detail: string; state: 'kept' | 'removed' };
 
 const owns = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
-const DEFAULT_RULES_KINDS: readonly string[] = ['design'];
+const DEFAULT_RULES_KINDS: readonly string[] = ['design', 'diagram'];
 
 function SceneSetupSession(props: SceneSetupDrawerProps) {
   const {
@@ -281,12 +287,19 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     setSlotTyped(false);
   };
   const { slot, kind, documentId, manual, autoOn, note } = form;
+  // What the saved setup holds for the kind the form is on: another kind's document, entries, view and rules are not this one's (a kind switch the host has not
+  // answered yet, or a host that never answers, starts from nothing, not from the other kind's matching).
+  const ks: Seed = useMemo(
+    () => (kind === seed.kind ? seed : { ...seed, kind, documentId: '', map: {}, hidden: [], view: undefined, rules: undefined }),
+    [kind, seed],
+  );
   const [pickingKey, setPickingKey] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   // the slot field: a listed slot in the select, or "New slot…" with its own text field (a slot the host does not list starts there)
   const canNewSlot = !!(props.allowNewSlot && slots);
   const [newSlotMode, setNewSlotMode] = useState(() => canNewSlot && !slots!.some((o) => o.value === latest.slot));
   const [pendingSlot, setPendingSlot] = useState<string | null>(null);
+  const [pendingKind, setPendingKind] = useState<string | null>(null);
 
   // ── Devices in the scene and their roles ──
   const savedDeviceIds = useMemo(() => new Set(Object.values(seed.devices)), [seed.devices]);
@@ -318,15 +331,15 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
 
   // ── Saved entries the scene has no row for ──
   const stale = useMemo(
-    () => staleEntries({ sceneKeys, deviceIds: devices.map((d) => d.id), map: seed.map, devices: seed.devices, hidden: seed.hidden }),
-    [sceneKeys, devices, seed],
+    () => staleEntries({ sceneKeys, deviceIds: devices.map((d) => d.id), map: ks.map, devices: seed.devices, hidden: ks.hidden }),
+    [sceneKeys, devices, seed.devices, ks],
   );
   const staleRows: StaleRow[] = useMemo(() => {
     if (loading) return [];
     const rows: StaleRow[] = [];
     const state = (id: string): 'kept' | 'removed' => (form.removedStale[id] ? 'removed' : 'kept');
     for (const k of stale.exceptions) {
-      const ref = seed.map[k];
+      const ref = ks.map[k];
       rows.push({ id: `exception:${k}`, type: 'exception', typeLabel: m.staleKind.exception, name: k, detail: m.staleExceptionDetail(ref.deviceId, ref.element), state: state(`exception:${k}`) });
     }
     for (const r of stale.roles) {
@@ -336,11 +349,11 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
       rows.push({ id: `hidden:${k}`, type: 'hidden', typeLabel: m.staleKind.hidden, name: k, detail: m.staleHiddenDetail, state: state(`hidden:${k}`) });
     }
     return rows;
-  }, [loading, stale, seed, form.removedStale, m]);
+  }, [loading, stale, seed.devices, ks, form.removedStale, m]);
   const staleKept = staleRows.filter((r) => r.state === 'kept');
   const carryMap = useMemo(
-    () => Object.fromEntries(staleKept.filter((r) => r.type === 'exception').map((r) => [r.name, seed.map[r.name]])),
-    [staleKept, seed.map],
+    () => Object.fromEntries(staleKept.filter((r) => r.type === 'exception').map((r) => [r.name, ks.map[r.name]])),
+    [staleKept, ks.map],
   );
   const carryDevices = useMemo(
     () => Object.fromEntries(staleKept.filter((r) => r.type === 'role').map((r) => [r.name, seed.devices[r.name]])),
@@ -401,8 +414,9 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   // ── Rules (phase 42.6): edited only for a kind that has the step; otherwise, and until the step is used, the saved ones pass through ──
   const rulesKinds = props.rulesKinds ?? DEFAULT_RULES_KINDS;
   const rulesStep = rulesKinds.includes(kind);
-  const draftRules: BindingDraft['rules'] = rulesStep && form.rules !== undefined ? (form.rules.length > 0 ? (form.rules as Array<Record<string, unknown>>) : null) : seed.rules;
-  const ruleList: readonly unknown[] = form.rules ?? (Array.isArray(seed.rules) ? seed.rules : []);
+  const draftRules: BindingDraft['rules'] = rulesStep && form.rules !== undefined ? (form.rules.length > 0 ? (form.rules as Array<Record<string, unknown>>) : null) : ks.rules;
+  const ruleList: readonly unknown[] = form.rules ?? (Array.isArray(ks.rules) ? ks.rules : []);
+  const ruleDialect = kind === 'diagram' ? 'diagram' : 'design';
 
   // ── The payload, what is open, what may be saved ──
   const accepted = useMemo(
@@ -411,9 +425,9 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   );
   const draft = useMemo(
     () => bindingDraft({
-      documentId, slot, kind, devices: devMap, matches: accepted, hidden: hiddenKeys, view: seed.view, rules: draftRules, carryMap, carryDevices,
+      documentId, slot, kind, devices: devMap, matches: accepted, hidden: hiddenKeys, view: ks.view, rules: draftRules, carryMap, carryDevices,
     }),
-    [documentId, slot, kind, devMap, accepted, hiddenKeys, seed.view, draftRules, carryMap, carryDevices],
+    [documentId, slot, kind, devMap, accepted, hiddenKeys, ks.view, draftRules, carryMap, carryDevices],
   );
   const baseline = useMemo<BindingDraft>(
     () => ({
@@ -424,7 +438,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   );
   const changed = !sameDraft(draft, baseline);
   // a changed drawing is a reason to save an otherwise unchanged setup (the fingerprint is renewed), until another document is chosen
-  const reviewDrawing = !!props.documentChanged && documentId === seed.documentId && !!documentId;
+  const reviewDrawing = !!props.documentChanged && documentId === ks.documentId && !!documentId;
   const left = useMemo(
     () => unresolved({ sceneKeys, elements, devices: devMap, roles: sceneRoles, hidden: hiddenKeys, matches: accepted }),
     [sceneKeys, elements, devMap, sceneRoles, hiddenKeys, accepted],
@@ -446,7 +460,21 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const unmatchedStaying = left.keys.length - pending.length;
 
   // ── Handlers ──
-  const setKindTo = (k: string) => { edit((f) => ({ ...f, kind: k })); props.onKindChange?.(k); };
+  // A kind is, like a slot, a choice of which setup this is: the form starts over from the saved setup of that kind (the host answers with `initial` and a new
+  // `resetKey`; without an answer the form shows an empty one). With edits in the form that is asked first.
+  const applyKind = (k: string) => {
+    setForm((f) => ({
+      ...f, kind: k, documentId: k === seed.kind ? seed.documentId : '', manual: k === seed.kind ? { ...seed.map } : {}, hidden: k === seed.kind ? [...seed.hidden] : [],
+      removedStale: {}, rules: undefined, autoOn: false, note: '',
+    }));
+    setPickingKey(null);
+    props.onKindChange?.(k);
+  };
+  const requestKind = (k: string) => {
+    if (k === kind || props.kindLocked) return;
+    if (touched) { setPendingKind(k); return; }
+    applyKind(k);
+  };
   // A slot is a choice of which setup this is, not an edit of it: the form does not count as touched. A new slot starts over from the host's answer
   // (its saved setup, or none) and so does a listed one; with edits in the form that is asked first (the edits are lost).
   const applySlot = (v: string) => { setSlotTyped(false); setForm((f) => ({ ...f, slot: v })); props.onSlotChange?.(v); };
@@ -772,9 +800,10 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
               <div role="group" aria-labelledby={`${uid}-kind`} className="space-y-1">
                 <span id={`${uid}-kind`} className="block text-sm font-medium text-text-primary">{m.kindLabel}</span>
                 <ButtonGroup
-                  size="sm" variant="outline" value={kind} onChange={setKindTo}
-                  items={kinds.map((k) => ({ value: k, label: m.kinds[k] ?? k }))}
+                  size="sm" variant="outline" value={kind} onChange={requestKind}
+                  items={(props.kindLocked ? kinds.filter((k) => k === kind) : kinds).map((k) => ({ value: k, label: m.kinds[k] ?? k }))}
                 />
+                {props.kindLocked && <p className="text-xs text-text-secondary">{m.kindLockedHint}</p>}
               </div>
             </div>
           </section>
@@ -893,16 +922,16 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
             </div>
           </section>
 
-          {/* 5. Rules (a 3D design) */}
+          {/* 5. Rules (a 3D design, or a stored 2D diagram) */}
           {rulesStep && (
             <section aria-labelledby={`${uid}-h5`} className="space-y-3">
               <div>
                 <h3 id={`${uid}-h5`} className="text-sm font-semibold text-text-primary">{m.rules.section}</h3>
-                <p className="text-xs text-text-secondary">{m.rules.hint}</p>
+                <p className="text-xs text-text-secondary">{ruleDialect === 'diagram' ? m.rules.hint2d : m.rules.hint}</p>
               </div>
               <SceneSetupRules
                 rules={ruleList} onChange={(next) => edit((f) => ({ ...f, rules: next }))} keys={sceneKeys} keysLoading={!!(props.sceneKeysLoading || keysForOther)}
-                columns={props.ruleColumns ?? DESIGN_RULE_COLUMNS} params={props.ruleParams} messages={m.rules}
+                columns={props.ruleColumns ?? DESIGN_RULE_COLUMNS} params={props.ruleParams} messages={m.rules} dialect={ruleDialect}
               />
             </section>
           )}
@@ -922,6 +951,22 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           const next = pendingSlot;
           setPendingSlot(null);
           if (next !== null) applySlot(next);
+        }}
+      />
+
+      <ConfirmDialog
+        open={pendingKind !== null && open}
+        portalTarget={props.portalTarget}
+        title={m.kindSwitchTitle}
+        message={m.kindSwitchBody(m.kinds[pendingKind ?? ''] ?? pendingKind ?? '')}
+        tone="warning"
+        confirmLabel={m.kindSwitchConfirm}
+        cancelLabel={m.cancel}
+        onCancel={() => setPendingKind(null)}
+        onConfirm={() => {
+          const next = pendingKind;
+          setPendingKind(null);
+          if (next !== null) applyKind(next);
         }}
       />
 

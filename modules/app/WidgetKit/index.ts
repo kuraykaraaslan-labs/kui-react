@@ -47,13 +47,16 @@ export type { SceneSetupMessages, SceneSetupRulesMessages } from './views/scene-
 // The rules of a 3D design (phase 42.6): the Rules step of the drawer, and the pure part the card evaluates them with.
 export { SceneSetupRules } from './views/SceneSetupRules';
 export type { SceneSetupRulesProps } from './views/SceneSetupRules';
+// The 2D preview of the drawer (phase 42.5.4): a stored diagram drawn read-only, a click on a symbol picks its id.
+export { SceneSetupPreview2D, previewSettings } from './views/SceneSetupPreview2D';
+export type { SceneSetupPreview2DProps, SceneSetupPreview2DMessages } from './views/SceneSetupPreview2D';
 export {
-  DESIGN_RULE_EFFECTS, DESIGN_RULE_FIELDS, DESIGN_RULE_COLUMNS, DESIGN_ALL_TARGET, DEFAULT_DESIGN_RULE_WORDS, MAX_DESIGN_RULE_TARGETS, RULE_COLOR_LITERALS,
+  DESIGN_RULE_EFFECTS, DESIGN_RULE_FIELDS, DIAGRAM_RULE_EFFECTS, DIAGRAM_RULE_FIELDS, DESIGN_RULE_COLUMNS, DESIGN_ALL_TARGET, DEFAULT_DESIGN_RULE_WORDS, MAX_DESIGN_RULE_TARGETS, RULE_COLOR_LITERALS,
   isDesignRule, viewerColor, statusOfColor, designRuleEffects, designResult, designRules, designRuleIssues, staleReferences,
   newDesignRule, addDesignRule, updateDesignRule, removeDesignRule, moveDesignRule, duplicateDesignRule, describeDesignRule,
 } from './views/design-rules-logic';
 export type {
-  DesignEffects, DesignOverride, DesignRuleContext, DesignRuleResult, DesignStatus, DesignRuleWords, DescribeDesignOptions, StaleReference, RulesEdit,
+  RuleDialect, DesignEffects, DesignOverride, DesignRuleContext, DesignRuleResult, DesignStatus, DesignRuleWords, DescribeDesignOptions, StaleReference, RulesEdit,
 } from './views/design-rules-logic';
 export {
   KEY_GRAMMAR, ROLE_GRAMMAR, SLOT_GRAMMAR, KIND_GRAMMAR, UUID_GRAMMAR, DEFAULT_SLOT, MAX_SLOT_LENGTH, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAIN_ROLE, isSceneKey, isRoleName, splitKey, elementsForRole,

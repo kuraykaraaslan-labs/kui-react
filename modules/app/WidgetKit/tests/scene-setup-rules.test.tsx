@@ -47,13 +47,13 @@ describe('Rules step: where it shows', () => {
   it('is absent for a kind that has no step, and that kind\'s rules pass through untouched', async () => {
     const onSave = vi.fn();
     const rules = [{ anything: { nested: true } }];
-    render(<SceneSetupDrawer {...props({ onSave, initial: initial({ kind: 'diagram', rules, hidden: [] }) })} />);
+    render(<SceneSetupDrawer {...props({ onSave, initial: initial({ kind: 'other', rules, hidden: [] }) })} />);
     expect(screen.queryByRole('heading', { name: '5. Rules' })).toBeNull();
     await userEvent.setup().click(screen.getAllByRole('button', { name: /Do not bind heater/ })[0]);
     expect((await saveIt(onSave)).rules).toEqual(rules);
   });
   it('rulesKinds can switch the step on for another kind', () => {
-    render(<SceneSetupDrawer {...props({ rulesKinds: ['diagram'], initial: initial({ kind: 'diagram' }) })} />);
+    render(<SceneSetupDrawer {...props({ rulesKinds: ['other'], initial: initial({ kind: 'other' }) })} />);
     expect(screen.getByRole('heading', { name: '5. Rules' })).toBeInTheDocument();
   });
   it('needs keys before a rule can be added', () => {
@@ -198,7 +198,7 @@ describe('Rules step: what is wrong', () => {
     const base: BindingDraft = { documentId: DOC_A, slot: 'main', kind: 'design', devices: { '': D1 }, map: {}, hidden: [] };
     expect(validateDraft({ ...base, rules: [RULE] })).toEqual([]);
     expect(validateDraft({ ...base, rules: [{ target: 'a', op: 'gt', key: 'v', value: 'x' }] }).map((i) => i.code)).toEqual(['rule-invalid']);
-    expect(validateDraft({ ...base, kind: 'diagram', rules: [{ anything: { nested: 1 } }] })).toEqual([]);
+    expect(validateDraft({ ...base, kind: 'other', rules: [{ anything: { nested: 1 } }] })).toEqual([]);
     expect(validateDraft({ ...base, rules: null })).toEqual([]);
   });
   it('takes its texts from the messages prop', () => {

@@ -479,9 +479,10 @@ export function validateDraft(d: BindingDraft): BindingIssue[] {
     else if (!UUID_GRAMMAR.test(e.deviceId)) issues.push({ code: 'device-invalid', subject: k });
   }
   for (const h of d.hidden) if (!isSceneKey(h)) issues.push({ code: 'hidden-invalid', subject: h });
-  // the rules of a design (phase 42.6): the host's server judges them the same way (`designRuleIssues`); other kinds' rules are opaque here
-  if (d.kind === 'design' && d.rules) {
-    for (const i of designRuleIssues(d.rules)) {
+  // the rules of a design (phase 42.6) and of a stored 2D diagram (phase 42.5.4): the host's server judges them the same way (`designRuleIssues`);
+  // another kind's rules are opaque here
+  if ((d.kind === 'design' || d.kind === 'diagram') && d.rules) {
+    for (const i of designRuleIssues(d.rules, d.kind)) {
       const at = /^rules\.(\d+)\./.exec(i.path);
       issues.push({ code: 'rule-invalid', subject: at ? `${Number(at[1]) + 1}: ${i.message}` : i.message });
     }

@@ -62,6 +62,18 @@ export interface SceneSetupRulesMessages extends ConditionMessages {
   /** A stored row that is not a rule of the 3D card: kept as saved until removed. */
   foreignTitle: string;
   foreignBody: string;
+  /** The same for a stored 2D diagram's rules (phase 42.5.4). */
+  foreignTitle2d: string;
+  foreignBody2d: string;
+  /** The step's hint for a 2D diagram. */
+  hint2d: string;
+  /** The effects of a 2D diagram's rule: a state, and a blink. */
+  state: string;
+  /** By state word (`idle`, `running`, `warning`, `critical`, `off`). */
+  states: Record<string, string>;
+  blink: string;
+  blinkOn: string;
+  blinkOff: string;
   problems: (n: number) => string;
   /** What a card says of its rule. */
   words: DesignRuleWords;
@@ -87,6 +99,12 @@ export interface SceneSetupMessages {
   slotSwitchBody: (slot: string) => string;
   slotSwitchConfirm: string;
   kindLabel: string;
+  /** The hint when the kind cannot be changed (the card's own). */
+  kindLockedHint: string;
+  /** Switching the kind with edits in the form (it starts over from the saved setup of that kind, or an empty one). */
+  kindSwitchTitle: string;
+  kindSwitchBody: (kind: string) => string;
+  kindSwitchConfirm: string;
   /** The segmented choice's label by kind value; a kind with no entry shows its value. */
   kinds: Record<string, string>;
 
@@ -247,6 +265,10 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   slotSwitchBody: (slot) => `Your edits in this form are lost: it starts over from the saved setup of the slot ${slot} (or from an empty one).`,
   slotSwitchConfirm: 'Switch slot',
   kindLabel: 'Kind',
+  kindLockedHint: 'The card you opened this from draws this kind.',
+  kindSwitchTitle: 'Switch kind',
+  kindSwitchBody: (kind) => `Your edits in this form are lost: it starts over from the saved setup of the ${kind} kind (or from an empty one).`,
+  kindSwitchConfirm: 'Switch kind',
   kinds: { diagram: '2D diagram', scene: '2D diagram', design: '3D design' },
 
   documentSection: '2. Document',
@@ -419,6 +441,14 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     stopHelp: 'Later rules do not apply to the same item.',
     foreignTitle: 'Not a rule of the 3D card',
     foreignBody: 'This saved row has fields the 3D card does not read, so it is not shown as a rule. It is kept until you delete it; the save waits for that.',
+    foreignTitle2d: 'Not a rule of the 2D diagram',
+    foreignBody2d: 'This saved row has fields the 2D diagram does not read, so it is not shown as a rule. It is kept until you delete it; the save waits for that.',
+    hint2d: 'A rule makes a symbol of the diagram follow the data: when a reading is above a limit, set its state, colour it, make it blink or show a note. These rules are kept with this setup and run after the diagram\'s own rules, only for this subject.',
+    state: 'State',
+    states: { idle: 'Idle', running: 'Running', warning: 'Warning', critical: 'Critical', off: 'Off' },
+    blink: 'Blink',
+    blinkOn: 'Blink',
+    blinkOff: 'Do not blink',
     problems: (num) => (num === 1 ? '1 problem' : `${num} problems`),
     read: 'Read',
     column: 'A column of a row',
