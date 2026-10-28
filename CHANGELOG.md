@@ -23,6 +23,13 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `DropdownMenu` `placement` (`bottom` default, `top`): a menu on a trigger at the bottom edge opens upward; with `portal` it is also capped
+  to the space above the trigger and scrolls inside it. The symbol binding panel's footer "…" menu uses it (Clear was cut off by
+  the bottom of the viewport).
+- `SymbolBindingPanel`: a field whose source the host found by the drawing's own naming (`currentSource.automatic`) is shown filled in
+  with a grey "automatic" instead of "Not used", and saving leaves an untouched automatic field out of the entry (`FieldDraft.automatic`,
+  `hasOwnEntry`, message `automatic`).
+
 - **WidgetKit `SymbolBindingPanel`** (next-boilerplate phase 45.4, D45-10; decisions SP2-1..13 in `modules/app/WidgetKit/docs/symbol-binding-panel.md`): click a symbol, pick the device, pick which of its values feeds each thing the symbol draws, convert with a one-liner (`!value`, `value / 10`) with a live "1 → true" preview, save, next symbol. One column that fits a 360 px side panel, props-driven (`searchDevices`, `loadKeys` polled for live values, `previewScript` from the host's sandbox, `onSave`, `onNext`, `onClear`), no scene key, slot, kind, role or match on screen. `onSave` receives the map v2 field map (`FieldRead` of `scene-binding-logic`, its grammars and caps reused) with an additive per-field `script`. The pure part (`symbol-binding-logic.ts`: `suggestKeyForField`, `ageText`, `scriptTemplates`, `entryFromDraft`, `draftFromSymbol`, `isDirty`, `nextUnbound`) and the English texts (`symbol-binding-messages.ts`) are exported from the WidgetKit index.
 
 - **SchemaForm `hidden` field flag.** A field marked `hidden` is never drawn, in any mode, and its stored value is handed back unchanged on every edit: for a setting another screen owns (next-boilerplate's scene setup drawer writes the element map of a 3D card; a person should not edit it by hand).

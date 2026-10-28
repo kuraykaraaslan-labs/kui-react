@@ -25,7 +25,7 @@ import { Input } from '@/modules/ui/Input';
 import { Select } from '@/modules/ui/Select';
 import { useNow } from '../useNow';
 import {
-  ageText, draftFromSymbol, entryFromDraft, entryFromSymbol, formatValue, isBound, isDirty, previewLine, scriptTemplates,
+  ageText, draftFromSymbol, entryFromDraft, entryFromSymbol, formatValue, hasOwnEntry, isDirty, previewLine, scriptTemplates,
   suggestKeysForFields, MAX_SCRIPT_LENGTH,
   type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type ScriptOutcome, type SymbolSpec,
 } from './symbol-binding-logic';
@@ -120,11 +120,15 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   const [seenSig, setSeenSig] = useState(symbolSig);
   if (seenSig !== symbolSig) {
     setSeenSig(symbolSig);
+    // With nothing unsaved the fields follow what the host now says (a save or a clear came back: a field that is no longer
+    // automatic, or is again, shows so). The device the person is on stays.
+    if (!isDirty(draft, baseline)) setDraft({ ...draftFromSymbol(symbol, null), deviceId: draft.deviceId, deviceName: draft.deviceName });
     setBaseline(symbolEntry);
   }
   const [suggested, setSuggested] = useState<ReadonlySet<string>>(new Set());
   const dirty = isDirty(draft, baseline);
-  const bound = isBound(symbol) || Object.keys(baseline.fields).length > 0;
+  // Clear has something to clear when the symbol has settings of its own (an automatic source is not a setting).
+  const bound = hasOwnEntry(symbol) || Object.keys(baseline.fields).length > 0;
 
   // ─── The device ────────────────────────────────────────────────────────────
   const known = useRef(new Map<string, DeviceOption>());
@@ -154,7 +158,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
       for (const [name, f] of Object.entries(d.fields)) {
         // A field that read the old device has nothing to read on the new one until a key is picked; another device's field stays.
         const oldOnes = f.deviceId === '' || f.deviceId === d.deviceId;
-        fields[name] = oldOnes ? { ...f, deviceId: '', deviceName: '', key: '', label: '', script: f.script } : f;
+        fields[name] = oldOnes ? { ...f, deviceId: '', deviceName: '', key: '', label: '', script: f.script, automatic: false } : f;
       }
       return { deviceId: id, deviceName: picked?.name ?? '', fields };
     });
@@ -209,7 +213,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     if (names.length > 0) {
       const fields = { ...draft.fields };
       for (const name of names) {
-        fields[name] = { ...fields[name], deviceId: draft.deviceId, deviceName: draft.deviceName, key: picks[name], label: labelOfKey(keyByName.get(picks[name])) };
+        fields[name] = { ...fields[name], deviceId: draft.deviceId, deviceName: draft.deviceName, key: picks[name], label: labelOfKey(keyByName.get(picks[name])), automatic: false };
       }
       setDraft({ ...draft, fields });
       setSuggested(new Set(names));
@@ -226,9 +230,15 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     setDraft((d) => {
       const f = d.fields[name];
       if (!f) return d;
-      const next: FieldDraft = key === ''
-        ? { deviceId: '', deviceName: '', key: '', label: '', script: '' }
-        : { ...f, deviceId: d.deviceId, deviceName: d.deviceName, key, label: labelOfKey(keyByName.get(key)) };
+      // "Not used" on a field the drawing fills automatically, still on that device, goes back to the automatic source: an entry
+      // cannot switch the automatic match off, so the picker must not pretend it did.
+      const auto = symbol.fields.find((sf) => sf.name === name)?.currentSource;
+      const backToAuto = key === '' && auto?.automatic === true && auto.key !== '' && auto.deviceId === d.deviceId;
+      const next: FieldDraft = backToAuto
+        ? { deviceId: auto.deviceId, deviceName: auto.deviceName, key: auto.key, label: labelOfKey(keyByName.get(auto.key)), script: f.script, automatic: true }
+        : key === ''
+          ? { deviceId: '', deviceName: '', key: '', label: '', script: '' }
+          : { ...f, deviceId: d.deviceId, deviceName: d.deviceName, key, label: labelOfKey(keyByName.get(key)), automatic: false };
       return { ...d, fields: { ...d.fields, [name]: next } };
     });
   }
@@ -274,9 +284,16 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     }
     if (!ok || !alive.current) return;
     setBaseline({ fields: {} });
+    // Fields the drawing fills automatically go back to that; the rest read nothing.
     setDraft((d) => ({
       ...d,
-      fields: Object.fromEntries(Object.entries(d.fields).map(([n, f]) => [n, { ...f, deviceId: '', deviceName: '', key: '', label: '', script: '' }])),
+      fields: Object.fromEntries(Object.entries(d.fields).map(([n, f]) => {
+        const auto = symbol.fields.find((sf) => sf.name === n)?.currentSource;
+        const empty: FieldDraft = { ...f, deviceId: '', deviceName: '', key: '', label: '', script: '', automatic: false };
+        return [n, auto?.automatic === true && auto.key !== '' && auto.deviceId === d.deviceId
+          ? { ...empty, deviceId: auto.deviceId, deviceName: auto.deviceName, key: auto.key, automatic: true }
+          : empty];
+      })),
     }));
     setSuggested(new Set());
   }
@@ -406,6 +423,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{field.label}</span>
                   {suggested.has(field.name) && <Badge size="sm" variant="primary">{m.suggested}</Badge>}
+                  {f.automatic && <span className="text-xs text-text-secondary">{m.automatic}</span>}
                   {other && <span className="truncate text-xs text-text-secondary">{m.fromOtherDevice(f.deviceName)}</span>}
                 </div>
                 <Select
@@ -497,6 +515,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
           {!readOnly && (
             <DropdownMenu
               align="right"
+              placement="top"
               portal
               items={menuItems}
               trigger={

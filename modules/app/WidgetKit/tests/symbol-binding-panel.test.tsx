@@ -527,3 +527,139 @@ describe('SymbolBindingPanel: read only', () => {
     expect(field('Running').value).toBe('');
   });
 });
+
+// A symbol that draws live data through the drawing's own naming (no entry of its own).
+const TEA_KEYS: DeviceKey[] = [
+  { key: 'water_kettle.running', value: true, ts: NOW - 2000 },
+  { key: 'water_kettle.value', unit: '%', value: 57, ts: NOW - 2000 },
+  { key: 'water_kettle.status', value: 'heating', ts: NOW - 2000 },
+  { key: 'other.value', value: 3, ts: NOW - 2000 },
+];
+const AUTO = (key: string) => ({ deviceId: D2, deviceName: 'Roof unit', key, automatic: true });
+const KETTLE: SymbolBindingSymbol = symbol({
+  id: 'tea.water_kettle',
+  label: 'Kettle',
+  fields: [
+    { name: 'running', label: 'Running', currentSource: AUTO('water_kettle.running'), live: true },
+    { name: 'value', label: 'Reading', currentSource: AUTO('water_kettle.value'), live: 57 },
+    { name: 'status', label: 'Status', currentSource: AUTO('water_kettle.status'), live: 'heating' },
+  ],
+});
+const teaProps = (over: Partial<SymbolBindingPanelProps> = {}) =>
+  props({ symbol: KETTLE, loadKeys: vi.fn(async () => TEA_KEYS), ...over });
+
+describe('SymbolBindingPanel: a symbol the drawing fills automatically', () => {
+  it('opens on the device of the match with every picker filled, and says "automatic" instead of "Not used"', async () => {
+    render(<SymbolBindingPanel {...teaProps()} />);
+    expect(deviceBox()).toHaveValue('Roof unit');
+    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    expect(field('Running').value).toBe('water_kettle.running');
+    expect(field('Status').value).toBe('water_kettle.status');
+    expect(screen.getAllByText('automatic')).toHaveLength(3);
+    expect(screen.queryByText('Suggested')).toBeNull();
+  });
+  it('saving is off until something changes, and Clear has nothing to clear', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...teaProps()} />);
+    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'More' }));
+    expect(screen.getByRole('menuitem', { name: 'Clear what this symbol reads' })).toBeDisabled();
+  });
+  it('writes only the field the person changed, not the automatic ones', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...teaProps({ onSave })} />);
+    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    await user.selectOptions(field('Reading'), 'other.value');
+    expect(screen.getAllByText('automatic')).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D2, key: 'other.value' } } });
+  });
+  it('a one-liner on an automatic field writes that field with its key', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...teaProps({ onSave })} />);
+    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    await user.click(screen.getByRole('button', { name: 'Convert' }));
+    await user.type(screen.getByLabelText('Convert Reading'), 'value / 10');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D2, key: 'water_kettle.value', script: 'value / 10' } } }));
+  });
+  it('"Not used" on an automatic field goes back to the automatic source: the match cannot be switched off', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...teaProps()} />);
+    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    await user.selectOptions(field('Reading'), 'other.value');
+    await user.selectOptions(field('Reading'), '');
+    expect(field('Reading').value).toBe('water_kettle.value');
+    expect(screen.getAllByText('automatic')).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+  it('a device change drops the automatic fields to empty and proposes keys of the new device', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...teaProps({ loadKeys: vi.fn(async (id: string) => (id === D2 ? TEA_KEYS : KEYS_CLEAR)) })} />);
+    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    await pickDevice(user, 'Boiler room');
+    await waitFor(() => expect(screen.queryAllByText('automatic')).toHaveLength(0));
+  });
+  it('after a save the saved field is no longer automatic, the others still are', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+    const { rerender } = render(<SymbolBindingPanel {...teaProps({ onSave })} />);
+    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    await user.selectOptions(field('Reading'), 'other.value');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    rerender(<SymbolBindingPanel {...teaProps({ onSave, symbol: { ...KETTLE, fields: KETTLE.fields.map((f) => (f.name === 'value' ? { ...f, currentSource: { deviceId: D2, deviceName: 'Roof unit', key: 'other.value' } } : f)) } })} />);
+    await waitFor(() => expect(screen.getAllByText('automatic')).toHaveLength(2));
+    expect(field('Reading').value).toBe('other.value');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+  it('Clear puts an automatic field back on its automatic source', async () => {
+    const onSave = vi.fn();
+    const user = userEvent.setup();
+    const sym: SymbolBindingSymbol = { ...KETTLE, fields: KETTLE.fields.map((f) => (f.name === 'value' ? { ...f, currentSource: { deviceId: D2, deviceName: 'Roof unit', key: 'other.value' } } : f)) };
+    // The symbol has an entry of its own on one field, and the drawing's naming on the others.
+    render(<SymbolBindingPanel {...teaProps({ symbol: sym, onSave })} />);
+    await waitFor(() => expect(field('Reading').value).toBe('other.value'));
+    await user.click(screen.getByRole('button', { name: 'More' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Clear what this symbol reads' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Clear this symbol' })).getByRole('button', { name: 'Clear' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ fields: {} }));
+    // Reading had no automatic source of its own to return to (its current source is the entry), so it empties; the others stay.
+    await waitFor(() => expect(field('Reading').value).toBe(''));
+    expect(field('Running').value).toBe('water_kettle.running');
+  });
+});
+
+describe('SymbolBindingPanel: the "…" menu opens upward', () => {
+  it('asks the menu to open on top of its trigger, inside the viewport', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
+    await screen.findByRole('list', { name: 'Values' });
+    await user.click(screen.getByRole('button', { name: 'More' }));
+    const menu = screen.getByRole('menu');
+    expect(menu).toHaveAttribute('data-placement', 'top');
+    expect(menu.style.bottom).not.toBe('');
+    expect(menu.style.top).toBe('');
+  });
+  it('works from the keyboard: Enter opens, arrows move, Escape closes and returns focus to the trigger', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, menuActions: [{ id: 'bulk', label: 'Bind every symbol to this device', onClick: vi.fn() }] })} />);
+    await screen.findByRole('list', { name: 'Values' });
+    const trigger = screen.getByRole('button', { name: 'More' });
+    trigger.focus();
+    await user.keyboard('{Enter}');
+    const first = await screen.findByRole('menuitem', { name: 'Bind every symbol to this device' });
+    await waitFor(() => expect(first).toHaveFocus());
+    await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('menuitem', { name: 'Clear what this symbol reads' })).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(first).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).toBeNull();
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+});

@@ -192,6 +192,80 @@ describe('DropdownMenu', () => {
     });
   });
 
+  describe('placement', () => {
+    const rect = (r: Partial<DOMRect>) => vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, toJSON() {}, ...r } as DOMRect);
+
+    it('opens below its trigger by default', async () => {
+      const user = userEvent.setup();
+      render(<DropdownMenu trigger={<button>Options</button>} items={ITEMS} />);
+      await user.click(screen.getByText('Options'));
+      const menu = screen.getByRole('menu');
+      expect(menu).toHaveAttribute('data-placement', 'bottom');
+      expect(menu.className).toContain('mt-1');
+      expect(menu.className).not.toContain('bottom-full');
+    });
+
+    it('top places an in-place menu above the trigger', async () => {
+      const user = userEvent.setup();
+      render(<DropdownMenu placement="top" trigger={<button>Options</button>} items={ITEMS} />);
+      await user.click(screen.getByText('Options'));
+      const menu = screen.getByRole('menu');
+      expect(menu).toHaveAttribute('data-placement', 'top');
+      expect(menu.className).toContain('bottom-full');
+      expect(menu.className).not.toContain('mt-1');
+    });
+
+    it('top with portal anchors the menu\'s bottom edge above the trigger and caps its height to the space above', async () => {
+      const spy = rect({ top: 600, bottom: 632, left: 300, right: 332 });
+      const user = userEvent.setup();
+      render(<DropdownMenu placement="top" portal align="right" trigger={<button>Options</button>} items={ITEMS} />);
+      await user.click(screen.getByText('Options'));
+      const menu = screen.getByRole('menu');
+      const vh = document.documentElement.clientHeight;
+      expect(menu.className).toContain('fixed');
+      expect(menu.style.top).toBe('');
+      expect(menu.style.bottom).toBe(`${vh - 600 + 4}px`);
+      expect(menu.style.maxHeight).toBe('588px');
+      expect(menu.className).toContain('overflow-y-auto');
+      spy.mockRestore();
+    });
+
+    it('top with portal never gets a negative cap when the trigger is at the very top', async () => {
+      const spy = rect({ top: 2, bottom: 20, left: 10, right: 30 });
+      const user = userEvent.setup();
+      render(<DropdownMenu placement="top" portal trigger={<button>Options</button>} items={ITEMS} />);
+      await user.click(screen.getByText('Options'));
+      expect(screen.getByRole('menu').style.maxHeight).toBe('0px');
+      spy.mockRestore();
+    });
+
+    it('portal with the default placement still hangs below the trigger', async () => {
+      const spy = rect({ top: 10, bottom: 40, left: 10, right: 50 });
+      const user = userEvent.setup();
+      render(<DropdownMenu portal trigger={<button>Options</button>} items={ITEMS} />);
+      await user.click(screen.getByText('Options'));
+      const menu = screen.getByRole('menu');
+      expect(menu.style.top).toBe('44px');
+      expect(menu.style.bottom).toBe('');
+      spy.mockRestore();
+    });
+
+    it('keyboard: Enter opens an upward menu, arrows wrap, Escape closes and returns focus to the trigger', async () => {
+      const user = userEvent.setup();
+      render(<DropdownMenu placement="top" portal trigger={<button>Options</button>} items={[{ label: 'One' }, { label: 'Two' }]} />);
+      const trigger = screen.getByRole('button', { name: 'Options' });
+      trigger.focus();
+      await user.keyboard('{Enter}');
+      const one = await screen.findByRole('menuitem', { name: 'One' });
+      await waitFor(() => expect(one).toHaveFocus());
+      await user.keyboard('{ArrowUp}');
+      expect(screen.getByRole('menuitem', { name: 'Two' })).toHaveFocus();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      await waitFor(() => expect(trigger).toHaveFocus());
+    });
+  });
+
   describe('page menu extensions', () => {
     function pages(onWater = vi.fn()): DropdownItem[] {
       return [

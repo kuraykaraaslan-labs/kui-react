@@ -146,7 +146,11 @@ export function mergeMenuItems(base: readonly DropdownItem[], extra: readonly Dr
   return out;
 }
 
-type Anchor = { bottom: number; left: number; right: number };
+type Anchor = { top: number; bottom: number; left: number; right: number };
+
+/** Gap between the trigger and the open menu (px), and the margin kept to the viewport edge when a menu is capped to the space it has. */
+const MENU_GAP = 4;
+const MENU_EDGE = 8;
 
 const MENU_ITEM = '[role="menuitem"]:not([disabled])';
 
@@ -156,6 +160,7 @@ export function DropdownMenu({
   header,
   footer,
   align = 'left',
+  placement = 'bottom',
   portal = false,
   groupLabels,
   search,
@@ -170,6 +175,12 @@ export function DropdownMenu({
   /** Rendered under the entries, above a top border (a "Manage…" link, a hint). */
   footer?: React.ReactNode;
   align?: 'left' | 'right';
+  /**
+   * Which side of the trigger the menu opens on. `top` is for a trigger at the bottom edge (a panel footer, a bottom bar): the
+   * menu opens upward. With `portal` the menu is also capped to the space above the trigger and scrolls inside that, so it can
+   * never leave the viewport. Default `bottom`.
+   */
+  placement?: 'bottom' | 'top';
   /**
    * Render the open menu in `document.body` with fixed positioning, so a scrolling or
    * clipping parent (a table's overflow wrapper) cannot cut it off.
@@ -238,7 +249,7 @@ export function DropdownMenu({
 
   const place = useCallback(() => {
     const rect = containerRef.current?.getBoundingClientRect();
-    if (rect) setAnchor({ bottom: rect.bottom, left: rect.left, right: rect.right });
+    if (rect) setAnchor({ top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right });
   }, []);
 
   // A menu opened from outside (controlled `open`) measures its trigger before it paints.
@@ -399,25 +410,31 @@ export function DropdownMenu({
   // With a search box or a footer the panel is a plain container and the entries sit in their
   // own role="menu" list (a menu may only own items); otherwise the panel is the menu, as before.
   const split = searching || present(footer);
+  const up = placement === 'top';
+  const floatingStyle = (a: Anchor): React.CSSProperties => {
+    const side: React.CSSProperties = align === 'right' ? { right: document.documentElement.clientWidth - a.right } : { left: a.left };
+    if (!up) return { top: a.bottom + MENU_GAP, ...side };
+    return {
+      bottom: document.documentElement.clientHeight - a.top + MENU_GAP,
+      maxHeight: Math.max(0, a.top - MENU_GAP - MENU_EDGE),
+      ...side,
+    };
+  };
   const menu = open && (
     <div
       ref={menuRef}
       role={split ? undefined : 'menu'}
+      data-placement={placement}
       onKeyDown={onMenuKeyDown}
       className={cn(
         floating
           ? 'fixed z-[60] min-w-[10rem] rounded-lg border border-border bg-surface-raised shadow-lg py-1'
-          : 'absolute z-[60] mt-1 min-w-[10rem] rounded-lg border border-border bg-surface-raised shadow-lg py-1',
+          : cn('absolute z-[60] min-w-[10rem] rounded-lg border border-border bg-surface-raised shadow-lg py-1', up ? 'bottom-full mb-1' : 'mt-1'),
+        floating && up && 'overflow-y-auto',
         !floating && (align === 'right' ? 'right-0' : 'left-0'),
         menuClassName
       )}
-      style={
-        floating && anchor
-          ? align === 'right'
-            ? { top: anchor.bottom + 4, right: document.documentElement.clientWidth - anchor.right }
-            : { top: anchor.bottom + 4, left: anchor.left }
-          : undefined
-      }
+      style={floating && anchor ? floatingStyle(anchor) : undefined}
     >
       {header && (
         <div className="border-b border-border mb-1">

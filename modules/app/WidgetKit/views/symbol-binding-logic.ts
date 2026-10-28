@@ -16,6 +16,11 @@ export interface FieldSource {
   deviceId: string;
   deviceName: string;
   key: string;
+  /**
+   * The field has no entry of its own: the host found its source by the drawing's own rule (the symbol's group → the device,
+   * the symbol's name → the value). The panel shows it filled in and says "automatic"; saving it unchanged writes nothing.
+   */
+  automatic?: boolean;
 }
 
 /** One thing a symbol draws, in the symbol's own words (`running`, `value`, `status`, a 3D item's own parameter). */
@@ -73,6 +78,8 @@ export interface FieldDraft {
   key: string;
   label: string;
   script: string;
+  /** The key is the automatic one the person has not touched: it is shown, but not written to the entry (unless it has a one-liner). */
+  automatic?: boolean;
 }
 
 /** What the person is editing: the device the panel is on, and one draft per field name. */
@@ -322,6 +329,7 @@ export function draftFromSymbol(symbol: Pick<SymbolSpec, 'fields'>, fallback?: {
       key: f.currentSource?.key ?? '',
       label: '',
       script: f.currentScript ?? '',
+      ...(f.currentSource?.automatic && f.currentSource.key !== '' ? { automatic: true } : {}),
     };
   }
   return { deviceId: device.id, deviceName: device.name, fields };
@@ -331,7 +339,8 @@ export function draftFromSymbol(symbol: Pick<SymbolSpec, 'fields'>, fallback?: {
  * The entry a draft saves. Fields with no key are dropped, texts are trimmed, a script is cut at 200 characters and a label at 60.
  * What the map v2 grammars refuse is left out, never cut (a cut key is another key): a field name that is not a symbol field
  * (prototype names too), a key that is not a telemetry key, a device id that is not a UUID. At most 16 fields. `deviceId` is
- * written on every field that has one.
+ * written on every field that has one. A field still on its `automatic` source (see `FieldSource`) is left out unless it has a
+ * one-liner: only what the person changed or filled is written.
  */
 export function entryFromDraft(draft: BindingDraft): BindingEntry {
   const fields: Record<string, BindingEntryField> = {};
@@ -342,6 +351,8 @@ export function entryFromDraft(draft: BindingDraft): BindingEntry {
     if (!isSymbolField(name)) continue;
     const key = f.key.trim();
     if (!isTelemetryKey(key)) continue;
+    // An automatic key the person has not touched is not theirs to write; with a one-liner on it, it is.
+    if (f.automatic && f.script.trim() === '') continue;
     const deviceId = (f.deviceId || draft.deviceId || '').trim();
     if (deviceId && !UUID_GRAMMAR.test(deviceId)) continue;
     const out: BindingEntryField = { key };
@@ -380,9 +391,14 @@ export function entryFromSymbol(symbol: Pick<SymbolSpec, 'fields'>): BindingEntr
   return entryFromDraft(draftFromSymbol(symbol));
 }
 
-/** Whether the symbol reads from anything now. */
+/** Whether the symbol reads from anything now (an automatic source counts: the symbol draws live data). */
 export function isBound(symbol: Pick<SymbolSpec, 'fields'>): boolean {
   return symbol.fields.some((f) => f.currentSource && f.currentSource.key !== '');
+}
+
+/** Whether the symbol has an entry of its own: some field reads from a source the person (or a bulk action) set, not an automatic one. */
+export function hasOwnEntry(symbol: Pick<SymbolSpec, 'fields'>): boolean {
+  return symbol.fields.some((f) => f.currentSource && f.currentSource.key !== '' && !f.currentSource.automatic);
 }
 
 /**

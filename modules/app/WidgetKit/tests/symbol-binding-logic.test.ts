@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ageText, draftFromSymbol, entryFromDraft, entryFromSymbol, formatSample, formatValue, isBooleanish, isBound, isDirty, nextUnbound,
+  ageText, draftFromSymbol, entryFromDraft, entryFromSymbol, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty, nextUnbound,
   previewLine, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields,
   MAX_SCRIPT_LENGTH,
   type BindingDraft, type DeviceKey, type SymbolSpec,
@@ -277,5 +277,54 @@ describe('nextUnbound', () => {
   });
   it('starts from the top when the current symbol is not in the list', () => {
     expect(nextUnbound(list, 'zzz')).toBe('b');
+  });
+});
+
+describe('automatic fields (a source found by the drawing\'s own naming, no entry of its own)', () => {
+  const auto = (k: string) => ({ deviceId: D2, deviceName: 'Tea', key: k, automatic: true as const });
+  const KETTLE = {
+    fields: [
+      { name: 'running', label: 'Running', currentSource: auto('water_kettle.running') },
+      { name: 'value', label: 'Reading', currentSource: auto('water_kettle.value') },
+      { name: 'status', label: 'Status' },
+    ],
+  };
+  it('pre-fills the draft with the automatic key and the device of the match, flagged', () => {
+    const d = draftFromSymbol(KETTLE);
+    expect(d.deviceId).toBe(D2);
+    expect(d.fields.running).toMatchObject({ deviceId: D2, key: 'water_kettle.running', automatic: true });
+    expect(d.fields.status.automatic).toBeUndefined();
+  });
+  it('an untouched automatic field is omitted from the entry, so a symbol with only automatic fields saves nothing', () => {
+    expect(entryFromDraft(draftFromSymbol(KETTLE))).toEqual({ fields: {} });
+    expect(entryFromSymbol(KETTLE)).toEqual({ fields: {} });
+    expect(isDirty(draftFromSymbol(KETTLE), entryFromSymbol(KETTLE))).toBe(false);
+  });
+  it('a field the person picked, even the same key, is written (the flag is off)', () => {
+    const d = draftFromSymbol(KETTLE);
+    d.fields.running = { ...d.fields.running, automatic: false };
+    expect(entryFromDraft(d)).toEqual({ fields: { running: { deviceId: D2, key: 'water_kettle.running' } } });
+    expect(isDirty(d, entryFromSymbol(KETTLE))).toBe(true);
+  });
+  it('a one-liner typed on an automatic field makes it the person\'s: the key and the script are written', () => {
+    const d = draftFromSymbol(KETTLE);
+    d.fields.value = { ...d.fields.value, script: 'value / 10' };
+    expect(entryFromDraft(d)).toEqual({ fields: { value: { deviceId: D2, key: 'water_kettle.value', script: 'value / 10' } } });
+    expect(isDirty(d, entryFromSymbol(KETTLE))).toBe(true);
+  });
+  it('only the changed field is written next to untouched automatic ones', () => {
+    const d = draftFromSymbol(KETTLE);
+    d.fields.status = { deviceId: D2, deviceName: 'Tea', key: 'water_kettle.mode', label: '', script: '' };
+    expect(entryFromDraft(d)).toEqual({ fields: { status: { deviceId: D2, key: 'water_kettle.mode' } } });
+  });
+  it('an automatic source counts as bound (it draws live data) but is not an entry of its own', () => {
+    expect(isBound(KETTLE)).toBe(true);
+    expect(hasOwnEntry(KETTLE)).toBe(false);
+    expect(hasOwnEntry(SYMBOL)).toBe(true);
+    expect(hasOwnEntry({ fields: [{ name: 'value', label: 'V' }] })).toBe(false);
+  });
+  it('an automatic source with an empty key is not pre-filled', () => {
+    const d = draftFromSymbol({ fields: [{ name: 'value', label: 'V', currentSource: { deviceId: D2, deviceName: 'Tea', key: '', automatic: true } }] });
+    expect(d.fields.value.automatic).toBeUndefined();
   });
 });

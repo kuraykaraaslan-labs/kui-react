@@ -23,7 +23,7 @@ interface SymbolBindingPanelProps {
     fields: Array<{
       name: string;        // 'running' | 'value' | 'status' | the symbol's own field (map v2 symbol field grammar)
       label: string;       // "Running"
-      currentSource?: { deviceId: string; deviceName: string; key: string };
+      currentSource?: { deviceId: string; deviceName: string; key: string; automatic?: boolean };
       currentScript?: string;
       live?: unknown;
     }>;
@@ -70,6 +70,8 @@ interface BindingEntry {
 | SP2-11 | **No internal word on screen.** The symbol's id appears only in `data-symbol-id` (no `title`). Scene key, slot, kind, role, match and unmatched are not in the messages. The device's own telemetry keys are shown: they are the device's vocabulary, which is what a person picks from. |
 | SP2-12 | **Tokens and primitives only.** Select (native), ComboBox (async, debounced by the kit), Input, Button, Badge, AlertBanner, DropdownMenu and ConfirmDialog of the kit; no new colour. The device search is the kit's ComboBox (not clearable: a symbol's device is changed, and "Clear" removes the binding). |
 | SP2-13 | **No demo page.** The scene setup drawer has none in this repo, so none is added; the tests are the usage examples. |
+| SP2-14 | **The "…" menu opens upward.** The footer sits at the bottom of the side dock, so the menu is `DropdownMenu` with `placement="top"` and `portal`: it hangs above the trigger, is capped to the space above it (it scrolls inside that) and is kept inside the width of the viewport, a 360 x 640 phone sheet included. Enter opens it, the arrows move, Escape closes it and focus returns to the trigger. |
+| SP2-15 | **Automatic fields.** A field whose source the host found by the drawing's own naming (a `currentSource` with `automatic: true`, no entry of its own) is drawn as any other: its picker is pre-filled, the device is the one of the match, and a small grey "automatic" stands beside the label, so a symbol that draws live data never reads "Not used". Saving writes only what the person changed or filled: an untouched automatic field is left out of the entry (`entryFromDraft`), one the person picked is written (even the same key as the match), and a one-liner on an automatic field writes the field with its key. "Not used" on an automatic field goes back to the automatic source (an entry cannot switch the match off); picking another device, or Clear, leaves the automatic source of the old device behind. An automatic source is bound (`isBound`) but is not an entry of its own (`hasOwnEntry`: Clear has nothing to clear on a symbol with only automatic fields). When the host answers with a changed symbol and nothing is unsaved, the fields follow it (a saved field stops being automatic). |
 
 ## What the host does (next-boilerplate 45.4.4)
 

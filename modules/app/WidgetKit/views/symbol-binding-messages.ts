@@ -39,6 +39,8 @@ export interface SymbolBindingMessages {
   /** The accessible name of a field's picker. */
   fieldPicker: (field: string) => string;
   suggested: string;
+  /** Beside a field whose value is found by the drawing's own naming, with no setting of its own. */
+  automatic: string;
   /** A field that reads another device than the one picked. */
   fromOtherDevice: (device: string) => string;
   /** A picked key the device has not sent a value for. */
@@ -95,6 +97,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   notUsed: 'Not used',
   fieldPicker: (field) => field,
   suggested: 'Suggested',
+  automatic: 'automatic',
   fromOtherDevice: (device) => `from ${device}`,
   noValueYet: 'No value yet',
   valueAndAge: (value, age) => (age ? `${value} · ${age}` : value),

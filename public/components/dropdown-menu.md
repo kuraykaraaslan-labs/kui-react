@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-03
 
-Accessible dropdown using role="menu" + role="menuitem". Closes on Escape and outside click. Supports left/right alignment, icons, separators, danger and disabled items, and arrow-key navigation. Items take an optional id, href, group, order, hidden and disabledReason so other modules can contribute entries; `portal` escapes clipping parents. Page-menu extras: heading entries (or `groupLabels` per group), `selected` and `trailing` items, a `search` box once the list is long, a `footer`, `menuClassName`, and controlled `open` / `onOpenChange`.
+Accessible dropdown using role="menu" + role="menuitem". Closes on Escape and outside click. Supports left/right alignment, icons, separators, danger and disabled items, and arrow-key navigation. Items take an optional id, href, group, order, hidden and disabledReason so other modules can contribute entries; `portal` escapes clipping parents; `placement="top"` opens the menu upward from a trigger at the bottom edge (with `portal` it is capped to the space above). Page-menu extras: heading entries (or `groupLabels` per group), `selected` and `trailing` items, a `search` box once the list is long, a `footer`, `menuClassName`, and controlled `open` / `onOpenChange`.
 
 ## Design tokens consumed
 
