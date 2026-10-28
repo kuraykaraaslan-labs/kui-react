@@ -27,6 +27,21 @@ export const UUID_GRAMMAR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 /** The slot field's length (the grammar's own cap). */
 export const MAX_SLOT_LENGTH = 32;
 
+// ─── The field map (next-boilerplate phase 45, D45-3) ───────────────────────
+// A map entry may name, beside or instead of the element shortcut, which telemetry KEY of which device feeds each FIELD of the
+// symbol (`running`, `value`, `status`, a 3D item's own parameter). The grammars are the host's server's (`scene-binding.ts`).
+
+/** A symbol field: the symbol's own vocabulary (`running`, `value2`, `position`) or a 3D item's own parameter (`doorOpen`). */
+export const SYMBOL_FIELD_GRAMMAR = /^[a-z][a-zA-Z0-9_]{0,31}$/;
+/** A telemetry key as the host's telemetry store accepts one. */
+export const TELEMETRY_KEY_GRAMMAR = /^[A-Za-z0-9_.\-]{1,64}$/;
+/** At most this many fields on one map entry. */
+export const MAX_FIELDS_PER_KEY = 16;
+/** The longest label a field may carry. */
+export const MAX_FIELD_LABEL = 60;
+/** The columns a row is identified by: never a field, since a field's value lands on the row under its name. */
+export const RESERVED_FIELDS: ReadonlySet<string> = new Set(['id', 'element', 'deviceId', 'ts', 'updatedAt']);
+
 /** Names a plain object would answer for without owning them; never a key, a role or an element. */
 const RESERVED = new Set(['__proto__', 'prototype', 'constructor']);
 
@@ -35,6 +50,8 @@ const own = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.c
 export const isSceneKey = (s: unknown): s is string => typeof s === 'string' && KEY_GRAMMAR.test(s) && !RESERVED.has(s);
 /** A named role (not the main one). */
 export const isRoleName = (s: unknown): s is string => typeof s === 'string' && ROLE_GRAMMAR.test(s) && !RESERVED.has(s);
+export const isSymbolField = (s: unknown): s is string => typeof s === 'string' && SYMBOL_FIELD_GRAMMAR.test(s) && !RESERVED.has(s) && !RESERVED_FIELDS.has(s);
+export const isTelemetryKey = (s: unknown): s is string => typeof s === 'string' && TELEMETRY_KEY_GRAMMAR.test(s) && !RESERVED.has(s);
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -61,6 +78,52 @@ export interface DeviceElement {
 export interface DeviceRef {
   deviceId: string;
   element: string;
+}
+
+/** One field of a symbol read from one telemetry key (phase 45, D45-3): the key, the device it is read from (absent: the entry's, else the key's role device) and a name to show. */
+export interface FieldRead {
+  deviceId?: string;
+  key: string;
+  label?: string;
+}
+
+/** The fields of one scene key, by symbol field. */
+export type FieldMap = Record<string, FieldRead>;
+
+/**
+ * One entry of the binding's `map` (v2, phase 45): the element shortcut (`deviceId` + `element`, the whole row of that element, as before), the
+ * field map (`fields`: each named field read from a telemetry key), or both. An entry with neither is refused.
+ */
+export interface MapEntry {
+  deviceId?: string;
+  element?: string;
+  fields?: FieldMap;
+}
+
+/** The element part of a map entry, when it has one. */
+export const elementRefOf = (e: MapEntry | null | undefined): DeviceRef | null => (e && typeof e.element === 'string' && e.element ? { deviceId: e.deviceId ?? '', element: e.element } : null);
+
+/** Whether a field map has at least one field. */
+export const hasFields = (e: MapEntry | null | undefined): e is MapEntry & { fields: FieldMap } => !!e?.fields && Object.keys(e.fields).length > 0;
+
+/** The field maps of a saved `map`, by scene key: the entries that carry fields. */
+export function fieldsOfMap(map: Readonly<Record<string, MapEntry>> | null | undefined): Record<string, FieldMap> {
+  const out: Record<string, FieldMap> = {};
+  for (const k of Object.keys(map ?? {})) {
+    const e = map![k];
+    if (hasFields(e)) out[k] = e.fields;
+  }
+  return out;
+}
+
+/** The element picks of a saved `map` (the entries with an element), as the drawer's hand picks. */
+export function manualOfMap(map: Readonly<Record<string, MapEntry>> | null | undefined): Record<string, DeviceRef> {
+  const out: Record<string, DeviceRef> = {};
+  for (const k of Object.keys(map ?? {})) {
+    const ref = elementRefOf(map![k]);
+    if (ref) out[k] = ref;
+  }
+  return out;
 }
 
 /** How a match was found. `none` = no element. */
@@ -315,8 +378,8 @@ export interface BindingDraft {
   kind: string;
   /** Role -> device id. */
   devices: Record<string, string>;
-  /** Scene key -> the element it reads, when that is not the identity the role table gives. */
-  map: Record<string, DeviceRef>;
+  /** Scene key -> the element it reads, when that is not the identity the role table gives, and/or the fields it reads by telemetry key (phase 45). */
+  map: Record<string, MapEntry>;
   /** Keys the scene leaves out. */
   hidden: string[];
   /**
@@ -349,20 +412,26 @@ export interface DraftInput {
    * Saved entries the scene no longer matches (a stale exception, a stale role) that the user keeps: written out as they are,
    * after the live ones. A live match wins over a carried entry of the same key or role.
    */
-  carryMap?: Readonly<Record<string, DeviceRef>>;
+  carryMap?: Readonly<Record<string, MapEntry>>;
   carryDevices?: Readonly<Record<string, string>>;
+  /**
+   * The field maps of the scene's LIVE keys (phase 45, D45-3), by key, written out as they are on top of the key's match: the drawer of this
+   * slice does not edit them, so what the saved binding holds comes back untouched. A key whose match is the identity (no exception) is
+   * written with its fields alone. A stale key's field map travels in `carryMap` (the whole entry), never here, so its removal removes it.
+   */
+  fields?: Readonly<Record<string, FieldMap>>;
 }
 
 /**
  * Builds the payload. A match that is the identity (the key's role device, the key's local part as the element) is left
  * out: `map` carries exceptions only. Unmatched keys are left out too. Keys are written in the scene's order. A match with an
  * empty device id is a match with no device: it falls back to the role's device, and with none it is skipped (a map entry
- * never carries an empty `deviceId`).
+ * never carries an empty `deviceId`). A key with a field map (`fields`) always has an entry: the match part when there is one, and its fields.
  */
 export function bindingDraft(input: DraftInput): BindingDraft {
   const devices = Object.fromEntries(Object.entries({ ...input.carryDevices, ...input.devices }));
   const roleNames = Object.keys(devices);
-  const entries: Array<[string, DeviceRef]> = [];
+  const entries: Array<[string, MapEntry]> = [];
   for (const m of input.matches) {
     if (m.element === null) continue;
     const { role, local } = splitKey(m.key, roleNames);
@@ -373,7 +442,13 @@ export function bindingDraft(input: DraftInput): BindingDraft {
     entries.push([m.key, { deviceId, element: m.element }]);
   }
   const seen = new Set(entries.map(([k]) => k));
-  for (const [k, ref] of Object.entries(input.carryMap ?? {})) if (!seen.has(k)) entries.push([k, { deviceId: ref.deviceId, element: ref.element }]);
+  for (const [k, ref] of Object.entries(input.carryMap ?? {})) if (!seen.has(k)) { entries.push([k, { ...ref }]); seen.add(k); }
+  for (const [k, fields] of Object.entries(input.fields ?? {})) {
+    if (!fields || Object.keys(fields).length === 0) continue;
+    const at = entries.findIndex(([key]) => key === k);
+    if (at >= 0) entries[at] = [k, { ...entries[at][1], fields }];
+    else entries.push([k, { fields }]);
+  }
   const out: BindingDraft = {
     documentId: input.documentId,
     slot: input.slot,
@@ -393,7 +468,7 @@ export function draftSignature(d: BindingDraft): string {
   return JSON.stringify([
     d.documentId, d.slot, d.kind,
     sorted(d.devices),
-    sorted(d.map).map(([k, v]) => [k, v.deviceId, v.element]),
+    sorted(d.map).map(([k, v]) => [k, v.deviceId ?? null, v.element ?? null, v.fields ? sorted(v.fields).map(([f, r]) => [f, r.deviceId ?? null, r.key, r.label ?? null]) : null]),
     [...d.hidden].sort(),
     d.view ?? null,
     d.rules ?? null,
@@ -421,7 +496,13 @@ export type BindingIssueCode =
   | 'key-invalid'
   | 'element-invalid'
   | 'hidden-invalid'
-  | 'rule-invalid';
+  | 'rule-invalid'
+  // the field map (phase 45): an entry with neither an element nor a field, too many fields, a field name, a telemetry key or a label the grammar refuses
+  | 'entry-empty'
+  | 'too-many-fields'
+  | 'field-invalid'
+  | 'field-key-invalid'
+  | 'field-label-invalid';
 
 export interface BindingIssue {
   code: BindingIssueCode;
@@ -474,9 +555,27 @@ export function validateDraft(d: BindingDraft): BindingIssue[] {
   for (const k of mapKeys) {
     if (!isSceneKey(k)) issues.push({ code: 'key-invalid', subject: k });
     const e = d.map[k];
-    if (!isSceneKey(e.element)) issues.push({ code: 'element-invalid', subject: k });
-    if (!e.deviceId) issues.push({ code: 'device-missing', subject: k });
-    else if (!UUID_GRAMMAR.test(e.deviceId)) issues.push({ code: 'device-invalid', subject: k });
+    const withElement = e.element !== undefined;
+    const withFields = hasFields(e);
+    if (!withElement && !withFields) issues.push({ code: 'entry-empty', subject: k });
+    if (withElement) {
+      // the element shortcut always names its device (the whole row of that element is read from it)
+      if (!isSceneKey(e.element)) issues.push({ code: 'element-invalid', subject: k });
+      if (!e.deviceId) issues.push({ code: 'device-missing', subject: k });
+      else if (!UUID_GRAMMAR.test(e.deviceId)) issues.push({ code: 'device-invalid', subject: k });
+    } else if (e.deviceId !== undefined && !UUID_GRAMMAR.test(e.deviceId)) issues.push({ code: 'device-invalid', subject: k });
+    if (withFields) {
+      const names = Object.keys(e.fields);
+      if (names.length > MAX_FIELDS_PER_KEY) issues.push({ code: 'too-many-fields', subject: k });
+      for (const f of names) {
+        const at = `${k}.${f}`;
+        if (!isSymbolField(f)) issues.push({ code: 'field-invalid', subject: at });
+        const r = e.fields[f];
+        if (!r || !isTelemetryKey(r.key)) issues.push({ code: 'field-key-invalid', subject: at });
+        if (r?.label !== undefined && (typeof r.label !== 'string' || r.label.length > MAX_FIELD_LABEL)) issues.push({ code: 'field-label-invalid', subject: at });
+        if (r?.deviceId !== undefined && !UUID_GRAMMAR.test(r.deviceId)) issues.push({ code: 'device-invalid', subject: at });
+      }
+    }
   }
   for (const h of d.hidden) if (!isSceneKey(h)) issues.push({ code: 'hidden-invalid', subject: h });
   // the rules of a design (phase 42.6) and of a stored 2D diagram (phase 42.5.4): the host's server judges them the same way (`designRuleIssues`);
@@ -501,6 +600,8 @@ export interface UnresolvedInput {
   /** The roles the scene needs (its keys' prefixes) when they are known; each must have a device. */
   roles?: readonly string[];
   hidden?: readonly string[];
+  /** The field maps of the keys (phase 45): a key that reads its fields by telemetry key is not open, and the devices its fields name are used. */
+  fields?: Readonly<Record<string, FieldMap>>;
 }
 
 export interface Unresolved {
@@ -517,11 +618,23 @@ export interface Unresolved {
 export function unresolved(input: UnresolvedInput): Unresolved {
   const hidden = new Set(input.hidden ?? []);
   const byKey = new Map(input.matches.map((m) => [m.key, m] as const));
-  const keys = input.sceneKeys.filter((k) => !hidden.has(k.key) && (byKey.get(k.key)?.element ?? null) === null).map((k) => k.key);
+  const fieldsOf = (key: string): FieldMap | undefined => (input.fields && own(input.fields, key) && Object.keys(input.fields[key]).length > 0 ? input.fields[key] : undefined);
+  const keys = input.sceneKeys.filter((k) => !hidden.has(k.key) && (byKey.get(k.key)?.element ?? null) === null && !fieldsOf(k.key)).map((k) => k.key);
 
   const bound = new Set(Object.values(input.devices));
   const used = new Set<string>();
   const usedDevices = new Set<string>();
+  // a field read from a device uses that device (the role device of the key when the field names none)
+  for (const k of input.sceneKeys) {
+    const fields = fieldsOf(k.key);
+    if (!fields || hidden.has(k.key)) continue;
+    const role = splitKey(k.key, Object.keys(input.devices)).role;
+    const roleDevice = own(input.devices, role) ? input.devices[role] : undefined;
+    for (const f of Object.keys(fields)) {
+      const d = fields[f].deviceId || roleDevice;
+      if (d) usedDevices.add(d);
+    }
+  }
   for (const m of input.matches) {
     if (m.element === null || m.element === undefined) continue;
     const role = splitKey(m.key, Object.keys(input.devices)).role;
@@ -552,7 +665,7 @@ export interface StaleInput {
   /** Every device the host lists (included in the scene or not). */
   deviceIds: Iterable<string>;
   /** The saved binding's `map`, `devices` and `hidden`. */
-  map: Readonly<Record<string, DeviceRef>>;
+  map: Readonly<Record<string, MapEntry>>;
   devices: Readonly<Record<string, string>>;
   hidden: readonly string[];
 }

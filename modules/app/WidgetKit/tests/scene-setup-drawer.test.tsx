@@ -387,6 +387,26 @@ describe('SceneSetupDrawer: save', () => {
     expect(confirm).not.toHaveBeenCalled();
     confirm.mockRestore();
   });
+  it('carries a saved field map (phase 45, D45-3) through untouched: on its key\'s element pick, alone for an identity, and the auto match leaves it alone', async () => {
+    const onSave = vi.fn();
+    const fields = { value: { key: 'temperature', label: 'Water' }, running: { key: 'pump_on', deviceId: D2 } };
+    const map = {
+      heater: { fields },                                              // identity match + fields: stays a fields-only entry
+      pump: { deviceId: D1, element: 'p_main', fields: { value: { key: 'flow' } } },  // a pick + fields
+      ghost: { deviceId: D1, element: 'spare' },                       // a plain pick, as before
+    };
+    render(<SceneSetupDrawer {...props({ onSave, initial: { slot: 'main', kind: 'design', documentId: DOC_A, devices: { '': D1 }, map, hidden: [] } })} />);
+    const user = userEvent.setup();
+    // the saved picks show as picks; a fields-only key keeps its identity match and is not open
+    expect(statusOf('heater')).toMatch(/Matched by/);
+    expect(statusOf('pump')).toMatch(/Set by hand/);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled(); // nothing changed yet: the round trip is the saved binding
+    await user.click(screen.getByRole('button', { name: 'Match automatically' }));
+    await user.click(screen.getByRole('button', { name: 'Accept the proposal for fan' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Save the scene setup' })).getByRole('button', { name: 'Save setup' }));
+    expect(onSave.mock.calls[0][0].map).toEqual({ ...map, fan: { deviceId: D1, element: 'blower' } });
+  });
   it('does not store a proposal that was not accepted, and asks to acknowledge what stays open', async () => {
     const onSave = vi.fn();
     render(<SceneSetupDrawer {...props({ onSave })} />);

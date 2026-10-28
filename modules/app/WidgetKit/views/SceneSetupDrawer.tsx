@@ -24,8 +24,8 @@ import { Input } from '@/modules/ui/Input';
 import { Select, type SelectOption } from '@/modules/ui/Select';
 import {
   DEFAULT_SLOT, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_SLOT_LENGTH, NEW_SLOT_VALUE, autoMatch, bindingDraft, devicesFromRoles, draftSignature,
-  elementsForRole, normalizeSlotInput, proposeRoles, sameDraft, slotIssue, staleEntries, unresolved, validateDraft,
-  type BindingDraft, type BindingIssue, type DeviceElement, type DeviceRef, type MatchHow, type SceneKey,
+  elementsForRole, fieldsOfMap, manualOfMap, normalizeSlotInput, proposeRoles, sameDraft, slotIssue, staleEntries, unresolved, validateDraft,
+  type BindingDraft, type BindingIssue, type DeviceElement, type DeviceRef, type MapEntry, type MatchHow, type SceneKey,
 } from './scene-binding-logic';
 import { DEFAULT_SCENE_SETUP_MESSAGES, mergeMessages, type DeepPartial, type SceneSetupMessages } from './scene-setup-messages';
 import { SceneSetupRules } from './SceneSetupRules';
@@ -211,7 +211,8 @@ interface Seed {
   kind: string;
   documentId: string;
   devices: Record<string, string>;
-  map: Record<string, DeviceRef>;
+  /** The saved entries as they are: element picks and, since phase 45, field maps (which this drawer carries through untouched). */
+  map: Record<string, MapEntry>;
   hidden: string[];
   view: BindingDraft['view'];
   rules: BindingDraft['rules'];
@@ -254,8 +255,9 @@ interface Form {
   note: string;
 }
 
+// the hand picks are the saved entries' ELEMENT parts; a saved field map is no pick (it is carried through the payload as it is, phase 45)
 const freshForm = (seed: Seed): Form => ({
-  slot: seed.slot, kind: seed.kind, documentId: seed.documentId, roleEdits: {}, include: {}, manual: { ...seed.map }, hidden: [...seed.hidden],
+  slot: seed.slot, kind: seed.kind, documentId: seed.documentId, roleEdits: {}, include: {}, manual: manualOfMap(seed.map), hidden: [...seed.hidden],
   removedStale: {}, autoOn: false, note: '',
 });
 
@@ -349,7 +351,8 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     const state = (id: string): 'kept' | 'removed' => (form.removedStale[id] ? 'removed' : 'kept');
     for (const k of stale.exceptions) {
       const ref = ks.map[k];
-      rows.push({ id: `exception:${k}`, type: 'exception', typeLabel: m.staleKind.exception, name: k, detail: m.staleExceptionDetail(ref.deviceId, ref.element), state: state(`exception:${k}`) });
+      // a stale entry with a field map and no element names its fields where the element would be (the drawer of phase 45.4 shows them properly)
+      rows.push({ id: `exception:${k}`, type: 'exception', typeLabel: m.staleKind.exception, name: k, detail: m.staleExceptionDetail(ref.deviceId ?? '', ref.element ?? Object.keys(ref.fields ?? {}).join(', ')), state: state(`exception:${k}`) });
     }
     for (const r of stale.roles) {
       rows.push({ id: `role:${r}`, type: 'role', typeLabel: m.staleKind.role, name: r, detail: m.staleRoleDetail(seed.devices[r]), state: state(`role:${r}`) });
@@ -371,6 +374,11 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   // A removed stale hidden key leaves `hidden`; the others stay (a live key's hide is the user's own choice).
   const hiddenKeys = useMemo(() => form.hidden.filter((k) => !form.removedStale[`hidden:${k}`]), [form.hidden, form.removedStale]);
   const hiddenSet = useMemo(() => new Set(hiddenKeys), [hiddenKeys]);
+  // The field maps of the LIVE keys (phase 45, D45-3): not edited here, written out as they are on top of each key's match; a stale key's goes with its whole entry (`carryMap`).
+  const liveFields = useMemo(() => {
+    const live = new Set(sceneKeys.map((k) => k.key));
+    return Object.fromEntries(Object.entries(fieldsOfMap(ks.map)).filter(([k]) => live.has(k)));
+  }, [sceneKeys, ks.map]);
 
   // ── Matching ──
   const sceneRoles = props.roles;
@@ -434,9 +442,9 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   );
   const draft = useMemo(
     () => bindingDraft({
-      documentId, slot, kind, devices: devMap, matches: accepted, hidden: hiddenKeys, view: ks.view, rules: draftRules, carryMap, carryDevices,
+      documentId, slot, kind, devices: devMap, matches: accepted, hidden: hiddenKeys, view: ks.view, rules: draftRules, carryMap, carryDevices, fields: liveFields,
     }),
-    [documentId, slot, kind, devMap, accepted, hiddenKeys, ks.view, draftRules, carryMap, carryDevices],
+    [documentId, slot, kind, devMap, accepted, hiddenKeys, ks.view, draftRules, carryMap, carryDevices, liveFields],
   );
   const baseline = useMemo<BindingDraft>(
     () => ({
@@ -449,8 +457,8 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   // a changed drawing is a reason to save an otherwise unchanged setup (the fingerprint is renewed), until another document is chosen
   const reviewDrawing = !!props.documentChanged && documentId === ks.documentId && !!documentId;
   const left = useMemo(
-    () => unresolved({ sceneKeys, elements, devices: devMap, roles: sceneRoles, hidden: hiddenKeys, matches: accepted }),
-    [sceneKeys, elements, devMap, sceneRoles, hiddenKeys, accepted],
+    () => unresolved({ sceneKeys, elements, devices: devMap, roles: sceneRoles, hidden: hiddenKeys, matches: accepted, fields: liveFields }),
+    [sceneKeys, elements, devMap, sceneRoles, hiddenKeys, accepted, liveFields],
   );
   const issues = useMemo(() => {
     const all: BindingIssue[] = [...roleIssues, ...validateDraft(draft)];
@@ -475,7 +483,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   // `resetKey`; without an answer the form shows an empty one). With edits in the form that is asked first.
   const applyKind = (k: string) => {
     setForm((f) => ({
-      ...f, kind: k, documentId: k === seed.kind ? seed.documentId : '', manual: k === seed.kind ? { ...seed.map } : {}, hidden: k === seed.kind ? [...seed.hidden] : [],
+      ...f, kind: k, documentId: k === seed.kind ? seed.documentId : '', manual: k === seed.kind ? manualOfMap(seed.map) : {}, hidden: k === seed.kind ? [...seed.hidden] : [],
       removedStale: {}, rules: undefined, autoOn: false, note: '',
     }));
     setPickingKey(null);

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
-  KEY_GRAMMAR, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_BINDING_MAP, NEW_SLOT_VALUE, autoMatch, bindingDraft, devicesFromRoles, documentChanged, normalizeSlotInput, slotChoices, slotIssue, draftSignature, elementsForRole,
-  isRoleName, isSceneKey, proposeRoles, roleFromCode, sameDraft, splitKey, staleEntries, unresolved, validateDraft,
-  type BindingDraft, type DeviceElement, type SceneKey,
+  KEY_GRAMMAR, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAX_FIELDS_PER_KEY, NEW_SLOT_VALUE, autoMatch, bindingDraft, devicesFromRoles, documentChanged, normalizeSlotInput, slotChoices, slotIssue, draftSignature, elementsForRole,
+  elementRefOf, fieldsOfMap, hasFields, isRoleName, isSceneKey, isSymbolField, isTelemetryKey, manualOfMap, proposeRoles, roleFromCode, sameDraft, splitKey, staleEntries, unresolved, validateDraft,
+  type BindingDraft, type DeviceElement, type MapEntry, type SceneKey,
 } from '../views/scene-binding-logic';
 
 const key = (k: string, extra: Partial<SceneKey> = {}): SceneKey => ({ key: k, kind: 'symbol', ...extra });
@@ -415,5 +415,109 @@ describe('documentChanged', () => {
     expect(documentChanged('a', null)).toBe(false);
     expect(documentChanged(undefined, undefined)).toBe(false);
     expect(documentChanged('', 'b')).toBe(false);
+  });
+});
+
+describe('the field map (next-boilerplate phase 45, D45-3)', () => {
+  const U2 = '22222222-2222-4222-8222-222222222222';
+  const fields = { running: { key: 'pump_on' }, value: { key: 'temperature', deviceId: U2, label: 'Water' } };
+
+  it('grammar: a field is a lower-case word of the symbol vocabulary or an item parameter, never a row column; a key is a telemetry key', () => {
+    for (const ok of ['running', 'value2', 'status', 'position', 'speed', 'direction', 'mode', 'quality', 'doorOpen', 'fill_level', 'a'.repeat(32)]) expect(isSymbolField(ok)).toBe(true);
+    for (const bad of ['', 'Running', '1a', 'a-b', 'a.b', 'a'.repeat(33), 'id', 'element', 'deviceId', 'ts', 'updatedAt', '__proto__', 'constructor']) expect(isSymbolField(bad)).toBe(false);
+    for (const ok of ['temperature', 'battery.level', 'pdu1.running', 'a-b_c', 'A'.repeat(64)]) expect(isTelemetryKey(ok)).toBe(true);
+    for (const bad of ['', 'a b', 'a/b', 'é', 'A'.repeat(65), '__proto__']) expect(isTelemetryKey(bad)).toBe(false);
+  });
+
+  it('reads a saved map apart: the element picks become hand picks, the field maps are carried', () => {
+    const map: Record<string, MapEntry> = {
+      fan: { deviceId: U1, element: 'blower' },
+      heater: { fields },
+      both: { deviceId: U1, element: 'x', fields: { value: { key: 'k' } } },
+      empty: { fields: {} },
+    };
+    expect(manualOfMap(map)).toEqual({ fan: { deviceId: U1, element: 'blower' }, both: { deviceId: U1, element: 'x' } });
+    expect(fieldsOfMap(map)).toEqual({ heater: fields, both: { value: { key: 'k' } } });
+    expect(elementRefOf({ fields })).toBeNull();
+    expect(elementRefOf({ element: 'e' })).toEqual({ deviceId: '', element: 'e' });
+    expect(hasFields({ fields: {} })).toBe(false);
+    expect(manualOfMap(undefined)).toEqual({});
+  });
+
+  describe('bindingDraft', () => {
+    const base = { documentId: DOC, slot: 'main', kind: 'design', devices: { '': U1 } };
+    it('writes a key\'s field map on top of its match, and alone for an identity match or no match: a fields entry is never dropped', () => {
+      const d = bindingDraft({
+        ...base,
+        matches: [{ key: 'heater', element: 'heater', deviceId: U1 }, { key: 'fan', element: 'blower', deviceId: U1 }, { key: 'ghost', element: null }],
+        fields: { heater: fields, fan: { value: { key: 'k' } }, ghost: { running: { key: 'on' } }, none: {} },
+      });
+      expect(d.map).toEqual({
+        fan: { deviceId: U1, element: 'blower', fields: { value: { key: 'k' } } },
+        heater: { fields },
+        ghost: { fields: { running: { key: 'on' } } },
+      });
+    });
+    it('round-trips an entry with fields through the drawer\'s reading (manual picks + fields) unchanged, and a carried stale entry keeps its fields', () => {
+      const saved: Record<string, MapEntry> = { fan: { deviceId: U1, element: 'blower', fields: { value: { key: 'k' } } }, heater: { fields }, old: { fields: { value: { key: 'gone' } } } };
+      const manual = manualOfMap(saved);
+      const live = ['fan', 'heater'];
+      const liveFields = Object.fromEntries(Object.entries(fieldsOfMap(saved)).filter(([k]) => live.includes(k)));
+      const d = bindingDraft({
+        ...base, matches: Object.entries(manual).map(([key, r]) => ({ key, element: r.element, deviceId: r.deviceId })), fields: liveFields, carryMap: { old: saved.old },
+      });
+      expect(d.map).toEqual(saved);
+      expect(sameDraft(d, { ...base, map: saved, hidden: [] })).toBe(true);
+    });
+    it('the signature sees a changed field map', () => {
+      const a = bindingDraft({ ...base, matches: [], fields: { heater: fields } });
+      const b = bindingDraft({ ...base, matches: [], fields: { heater: { ...fields, value: { ...fields.value, key: 'other' } } } });
+      expect(sameDraft(a, b)).toBe(false);
+      expect(sameDraft(a, bindingDraft({ ...base, matches: [], fields: { heater: { value: fields.value, running: fields.running } } }))).toBe(true);
+    });
+  });
+
+  it('autoMatch knows nothing of fields: a key with a field map still matches its element by key, and a field map is not an element', () => {
+    const r = autoMatch([key('heater'), key('flat')], [el('heater', { deviceId: U1 })], { devices: { '': U1 } });
+    expect(how(r)).toEqual(['heater:heater:key', 'flat:-:none']);
+  });
+
+  describe('validateDraft', () => {
+    const ok: BindingDraft = { documentId: DOC, slot: 's', kind: 'design', devices: { '': U1 }, map: { heater: { fields } }, hidden: [] };
+    const codes = (map: Record<string, MapEntry>) => validateDraft({ ...ok, map }).map((i) => `${i.code}${i.subject ? `:${i.subject}` : ''}`);
+    it('a fields-only entry, with or without a device of its own, is fine; both parts together are fine', () => {
+      expect(validateDraft(ok)).toEqual([]);
+      expect(codes({ heater: { deviceId: U2, fields } })).toEqual([]);
+      expect(codes({ heater: { deviceId: U1, element: 'x', fields } })).toEqual([]);
+    });
+    it('an entry with neither part, an element without its device, too many fields, and every field grammar are named', () => {
+      expect(codes({ heater: {} })).toEqual(['entry-empty:heater']);
+      expect(codes({ heater: { fields: {} } })).toEqual(['entry-empty:heater']);
+      expect(codes({ heater: { element: 'x' } })).toEqual(['device-missing:heater']);
+      expect(codes({ heater: { deviceId: 'bad', fields } })).toEqual(['device-invalid:heater']);
+      const many = Object.fromEntries(Array.from({ length: MAX_FIELDS_PER_KEY + 1 }, (_, i) => [`f${i}`, { key: 'k' }]));
+      expect(codes({ heater: { fields: many } })).toEqual(['too-many-fields:heater']);
+      expect(codes({ heater: { fields: { Running: { key: 'k' } } } })).toEqual(['field-invalid:heater.Running']);
+      expect(codes({ heater: { fields: { id: { key: 'k' } } } })).toEqual(['field-invalid:heater.id']);
+      expect(codes({ heater: { fields: { value: { key: 'a b' } } } })).toEqual(['field-key-invalid:heater.value']);
+      expect(codes({ heater: { fields: { value: { key: 'k', label: 'x'.repeat(61) } } } })).toEqual(['field-label-invalid:heater.value']);
+      expect(codes({ heater: { fields: { value: { key: 'k', deviceId: 'nope' } } } })).toEqual(['device-invalid:heater.value']);
+    });
+  });
+
+  it('unresolved: a key read by fields is not open, and the devices its fields name (or its role device) are used', () => {
+    const u = unresolved({
+      sceneKeys: [key('heater'), key('flat'), key('oven.door')], elements: [el('heater', { deviceId: U1 })], devices: { '': U1, oven: U2, spare: DOC },
+      matches: [{ key: 'heater', element: 'heater', deviceId: U1 }],
+      fields: { flat: { value: { key: 'temperature' } }, 'oven.door': { running: { key: 'open' } } },
+    });
+    expect(u.keys).toEqual([]);
+    expect(u.devices).toEqual([DOC]);
+    const v = unresolved({ sceneKeys: [key('flat')], elements: [], devices: { '': U1 }, matches: [], fields: { flat: {} } });
+    expect(v.keys).toEqual(['flat']);
+  });
+
+  it('staleEntries lists a fields-only entry whose key left the document like any other exception', () => {
+    expect(staleEntries({ sceneKeys: [key('heater')], deviceIds: [U1], map: { gone: { fields } }, devices: { '': U1 }, hidden: [] }).exceptions).toEqual(['gone']);
   });
 });

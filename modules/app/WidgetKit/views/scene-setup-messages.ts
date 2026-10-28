@@ -404,6 +404,11 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     'element-invalid': (s) => `The element of ${s ?? ''} is not a valid element id.`,
     'hidden-invalid': (s) => `${s ?? ''} is not a valid key.`,
     'rule-invalid': (s) => `A rule needs attention: ${s ?? ''}`,
+    'entry-empty': (s) => `${s ?? ''} reads neither an element nor a field.`,
+    'too-many-fields': (s) => `${s ?? ''} reads more than 16 fields.`,
+    'field-invalid': (s) => `${s ?? ''} is not a valid field name: a lower-case letter, then letters, digits and _, at most 32; not a row column.`,
+    'field-key-invalid': (s) => `The telemetry key of ${s ?? ''} is not valid: letters, digits, _ . and -, at most 64.`,
+    'field-label-invalid': (s) => `The label of ${s ?? ''} is too long (at most 60).`,
   },
   rules: {
     section: '5. Rules',
