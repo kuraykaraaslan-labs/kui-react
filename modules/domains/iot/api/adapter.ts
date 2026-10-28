@@ -82,6 +82,13 @@ export type NewDeviceInput = {
   isGateway?: boolean;
 };
 
+/** The fields of a device an operator edits in place (the device page's Edit drawer); `null` clears a label or a type. */
+export type UpdateDeviceInput = {
+  name?: string;
+  label?: string | null;
+  type?: string | null;
+};
+
 export type CreatedDevice = {
   device: DeviceRecord;
   credential: DeviceCredential | null;
@@ -97,6 +104,8 @@ export interface IotDevicesApi {
   get(deviceId: string, signal?: AbortSignal): Promise<DeviceRecord>;
   create?(input: NewDeviceInput): Promise<CreatedDevice>;
   remove?(deviceId: string): Promise<void>;
+  /** Edits the name, label and type of a device (only the sent fields change); answers the device as it is now. Absent when the host cannot edit. */
+  update?(deviceId: string, patch: UpdateDeviceInput): Promise<DeviceRecord>;
   /** OD-1: quarantined → active (single and bulk, at most 100). Absent when the host has no provisioning. */
   activate?(deviceIds: string[]): Promise<{ activated: number }>;
   /** The connection log alone. Kept for hosts without `log`: the Log tab then shows connection entries only. */

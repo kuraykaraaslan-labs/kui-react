@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faCopy, faPowerOff, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faCopy, faPenToSquare, faPowerOff, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
@@ -18,6 +18,7 @@ import { DeviceAttributeTable } from './DeviceAttributeTable';
 import { DeviceLogTimeline } from './DeviceLogTimeline';
 import { DeviceCredentialPanel } from './DeviceCredentialPanel';
 import { DeviceDetailHeader } from './DeviceDetailHeader';
+import { EditDeviceDrawer } from './EditDeviceDrawer';
 import { applyStatePatch } from './DeviceListView';
 import { useDeviceLog } from './useDeviceLog';
 
@@ -26,7 +27,8 @@ import { useDeviceLog } from './useDeviceLog';
  * tabs Overview, Attributes (with `canReadAttributes`), Credentials (only with `canViewCredentials`; rotate shows the new
  * secret once) and Log (the connection log and the audited changes in one timeline, `DeviceLogTimeline`; a `connections` link opens
  * it too), plus the host's `extraTabs` (tabs other modules contribute: Alarms, Telemetry, RPC, …, ordered
- * by `order`). The header's actions: copy id, Activate for a quarantined device (`canActivateDevice`, OD-1), delete
+ * by `order`). The header's actions: copy id, Edit (name, label and type, `canEditDevice` and `devices.update`: `EditDeviceDrawer`), Activate
+ * for a quarantined device (`canActivateDevice`, OD-1), delete
  * (`canDeleteDevice`), and the host's `actions`. No factory reset exists (OD-8). The connection follows `deviceState(id)` live;
  * without a live source the device is re-read every 30 s.
  */
@@ -60,6 +62,7 @@ export function DeviceDetailView({
   const [device, setDevice] = useState<DeviceRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const load = useCallback((signal?: AbortSignal): Promise<void> => {
     if (!api) return Promise.resolve();
@@ -147,6 +150,11 @@ export function DeviceDetailView({
             <Button variant="ghost" size="sm" onClick={() => void copyId()} iconLeft={<FontAwesomeIcon icon={copied ? faCheck : faCopy} className="h-3 w-3" aria-hidden="true" />}>
               {copied ? m.common.copied : m.device.copyId}
             </Button>
+            {caps.canEditDevice && api.update && (
+              <Button variant="ghost" size="sm" onClick={() => setEditing(true)} iconLeft={<FontAwesomeIcon icon={faPenToSquare} className="h-3 w-3" aria-hidden="true" />}>
+                {m.editDevice.action}
+              </Button>
+            )}
             {device.status === 'QUARANTINED' && caps.canActivateDevice && api.activate && (
               <Button variant="primary" size="sm" onClick={() => void activate()} iconLeft={<FontAwesomeIcon icon={faPowerOff} className="h-3 w-3" aria-hidden="true" />}>
                 {m.device.activate}
@@ -161,6 +169,9 @@ export function DeviceDetailView({
           </>
         )}
       />
+      {caps.canEditDevice && api.update && (
+        <EditDeviceDrawer open={editing} device={device} onClose={() => setEditing(false)} onSaved={() => { void load(); }} />
+      )}
       <TabGroup tabs={tabs} defaultTab={tab ? (TAB_ALIASES[tab] ?? tab) : undefined} onTabChange={onTabChange} label={m.detail.tabs} lazy isolate retryLabel={m.common.retry} errorLabel={m.common.loadFailed} errorDetail={m.common.loadFailedDetail} />
     </div>
   );

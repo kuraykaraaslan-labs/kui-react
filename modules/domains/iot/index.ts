@@ -67,6 +67,8 @@ export { DeviceTable } from './device/DeviceTable';
 export type { DeviceTableProps, DeviceTableRow, DeviceTableKeyColumn, DeviceTableColumnId } from './device/DeviceTable';
 export { DeviceListView } from './device/DeviceListView';
 export { DeviceDetailView } from './device/DeviceDetailView';
+export { EditDeviceDrawer } from './device/EditDeviceDrawer';
+export type { EditDeviceDrawerProps } from './device/EditDeviceDrawer';
 export { NewDeviceDrawer } from './device/NewDeviceDrawer';
 export type { DeviceAddChoice, NewDeviceDrawerProps } from './device/NewDeviceDrawer';
 export type { DeviceListViewProps } from './device/DeviceListView';

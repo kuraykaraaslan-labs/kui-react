@@ -51,6 +51,7 @@ function createFakeAdapter(over: Partial<IotAdapter> = {}): IotAdapter {
       get: vi.fn().mockImplementation(async (id: string) => ({ ...DEVICES.find((d) => d.deviceId === id)! })),
       create: vi.fn().mockResolvedValue({ device: { ...DEVICES[0], deviceId: 'd9', name: 'New' }, credential: { type: 'ACCESS_TOKEN' }, secret: { token: 'TOKEN-ONCE' } }),
       activate: vi.fn().mockResolvedValue({ activated: 1 }),
+      update: vi.fn().mockImplementation(async (id: string, patch: Record<string, unknown>) => ({ ...DEVICES.find((d) => d.deviceId === id)!, ...patch })),
       connections: vi.fn().mockResolvedValue({ items: [], total: 0 }),
       quarantinedCount: vi.fn().mockResolvedValue(1),
       parseState: (p: unknown) => p as never,
@@ -72,7 +73,7 @@ function createFakeAdapter(over: Partial<IotAdapter> = {}): IotAdapter {
 }
 
 const ALL: Partial<IotCapabilities> = {
-  canCreateDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true,
+  canCreateDevice: true, canEditDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true,
   canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canDeleteDevice: true,
 };
 
@@ -335,6 +336,56 @@ describe('DeviceDetailView', () => {
     expect(screen.getByTestId('issued-secret')).toHaveTextContent('NEW-ONE');
     await user.click(screen.getByRole('button', { name: 'I have stored it' }));
     expect(screen.queryByTestId('issued-secret')).toBeNull();
+  });
+
+  it('edits the name, label and type of a device and sends only what changed; the page then reads the device again', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    wrap(<DeviceDetailView deviceId="d1" />, { adapter });
+    await screen.findByRole('heading', { name: 'Pump 4' });
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const drawer = await screen.findByRole('dialog');
+    const name = within(drawer).getByLabelText(/^Name/);
+    expect(name).toHaveValue('Pump 4');
+    await user.clear(name);
+    await user.type(name, 'Pump 5');
+    expect(within(drawer).getByText(/ends the device's live connection/)).toBeInTheDocument();
+    await user.type(within(drawer).getByLabelText('Label'), 'Boiler room');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(adapter.devices!.update).toHaveBeenCalledWith('d1', { name: 'Pump 5', label: 'Boiler room' }));
+    await waitFor(() => expect(adapter.devices!.get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('keeps the edit drawer open with the host\'s field error, refuses an empty name and offers Edit only with the capability', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    (adapter.devices!.update as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new IotApiError('validation', 'The label is too long.', { fieldErrors: { label: 'Too long.' } }));
+    wrap(<DeviceDetailView deviceId="d1" />, { adapter });
+    await screen.findByRole('heading', { name: 'Pump 4' });
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const drawer = await screen.findByRole('dialog');
+    await user.clear(within(drawer).getByLabelText(/^Name/));
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(within(drawer).getByText('A name is required.')).toBeInTheDocument();
+    expect(adapter.devices!.update).not.toHaveBeenCalled();
+    await user.type(within(drawer).getByLabelText(/^Name/), 'Pump 4');
+    await user.type(within(drawer).getByLabelText('Label'), 'x');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(await within(drawer).findByText('The label is too long.')).toBeInTheDocument();
+    expect(within(drawer).getByText('Too long.')).toBeInTheDocument();
+  });
+
+  it('offers no Edit without the capability or without devices.update', async () => {
+    const { unmount } = wrap(<DeviceDetailView deviceId="d1" />, { caps: { ...ALL, canEditDevice: false } });
+    await screen.findByRole('heading', { name: 'Pump 4' });
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
+    unmount();
+    const adapter = createFakeAdapter();
+    delete (adapter.devices as { update?: unknown }).update;
+    wrap(<DeviceDetailView deviceId="d1" />, { adapter });
+    await screen.findByRole('heading', { name: 'Pump 4' });
+    expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });
 
   it('activates a quarantined device and follows its state live', async () => {
