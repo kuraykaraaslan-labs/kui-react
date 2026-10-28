@@ -24,6 +24,7 @@ import type { Sparse } from './settings/types';
 import { SettingIcon, useKitMessages, useWidgetKit } from './WidgetKitContext';
 import { localizeKind } from './localize';
 import { cardCellResponsive } from './board-cell';
+import { VideoPresenceBoard } from './views/video-presence';
 import type { WidgetBoardMessages } from './messages';
 
 export interface WidgetBoardProps {
@@ -72,9 +73,18 @@ const newId = (placements: BoardPlacement[]) => {
  * (`core:board`). Changing the column count in the board settings rescales every card's `x`/`w`. With `onChange` it has an edit mode: add,
  * duplicate, remove, move and resize cards, ThingsBoard-depth card and board settings, and JSON
  * export/import of the whole board with every card (owner decision D-21.4). Its texts come from the
- * host's `messages.board`; the widget picker's type texts from its `kindText`.
+ * host's `messages.board`; the widget picker's type texts from its `kindText`. All the video cards of a board share
+ * one "Still watching?" (`VideoPresenceBoard`): the board asks once, whatever the number of streams.
  */
-export function WidgetBoard({
+export function WidgetBoard(props: WidgetBoardProps) {
+  return (
+    <VideoPresenceBoard>
+      <BoardGrid {...props} />
+    </VideoPresenceBoard>
+  );
+}
+
+function BoardGrid({
   doc, onChange, data = {}, kinds, views, onControl, renderDataEditor, controlDisabledReason, now, className,
 }: WidgetBoardProps) {
   const [editing, setEditing] = useState(false);

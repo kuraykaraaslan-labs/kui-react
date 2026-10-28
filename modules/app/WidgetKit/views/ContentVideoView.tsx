@@ -5,8 +5,9 @@ import { useKitMessages } from '../WidgetKitContext';
 import { ContributionBoundary } from '@/modules/ui/ContributionBoundary';
 import { cn } from '@/libs/utils/cn';
 import { videoModel, videoSource, type VideoSettings } from './content-model';
+import { useVideoPresence } from './video-presence';
 
-export { isHls, videoSource, type VideoSettings } from './content-model';
+export { isHls, videoSource, videoSourceHigh, type VideoSettings } from './content-model';
 
 // kui-player (and hls.js for a stream) load only in the browser, only when a card shows a video.
 const ContentVideoPlayer = lazy(() => import('./ContentVideoPlayer').then((m) => ({ default: m.ContentVideoPlayer })));
@@ -27,6 +28,8 @@ export function ContentVideoView({ settings, data, resolveUrl, title, locale }: 
   const m = useKitMessages().content;
   const client = useSyncExternalStore(noop, () => true, () => false);
   const v = videoModel(settings as VideoSettings, data, resolveUrl, title, locale, m);
+  // Hooks run before the early returns. In a board every video card that asks shares one group and one prompt.
+  const presence = useVideoPresence(v.player?.presence ?? null, locale);
   if (!v.player) return <VideoStatus text={v.emptyText} />;
   if (!client) return <VideoStatus text={v.loadingText} />;
   return (
@@ -34,7 +37,7 @@ export function ContentVideoView({ settings, data, resolveUrl, title, locale }: 
       <ContributionBoundary fallback={({ error }) => <VideoStatus error text={m.videoFailed(error.message ?? '')} />}>
         <Suspense fallback={<VideoStatus text={v.loadingText} />}>
           {/* A new address is a new player: no state carries over from the previous source. */}
-          <ContentVideoPlayer key={v.player.src} {...v.player} />
+          <ContentVideoPlayer key={`${v.player.src}|${v.player.sources?.[1]?.src ?? ''}`} {...v.player} presence={presence} />
         </Suspense>
       </ContributionBoundary>
     </div>

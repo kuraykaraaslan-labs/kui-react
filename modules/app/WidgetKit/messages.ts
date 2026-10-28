@@ -286,6 +286,9 @@ export interface ContentViewMessages {
   videoEmpty: string;
   videoLoading: string;
   videoFailed: (detail: string) => string;
+  /** The two addresses of one stream, in the player's quality menu (the bound "Higher quality address" slot). */
+  videoQualityStandard: string;
+  videoQualityHigh: string;
 }
 
 export interface StatViewMessages {
@@ -544,6 +547,8 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     videoEmpty: 'Set a video address in this widget’s settings, or bind one.',
     videoLoading: 'Loading the player…',
     videoFailed: (detail) => `The video player could not start. ${detail}`.trim(),
+    videoQualityStandard: 'Standard',
+    videoQualityHigh: 'High',
   },
   stat: {
     justNow: 'just now',

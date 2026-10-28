@@ -296,6 +296,10 @@ export type VideoSettings = {
   theme?: 'minimal' | 'broadcast' | 'cinema';
   showTitle?: boolean;
   subtitles?: Array<{ label?: string; srclang?: string; src?: string }>;
+  /** Minutes of playing before "still watching?" is asked ('off' = never). A stream only. */
+  presenceMinutes?: '5' | '10' | '15' | 'off';
+  /** Stop loading while the card is out of view (default on). A stream only. */
+  stopWhenHidden?: boolean;
 };
 
 /**
@@ -306,6 +310,30 @@ export type VideoSettings = {
 export function videoSource(settings: VideoSettings, data: Data, resolveUrl?: (url: string) => string): string | null {
   const bound = data.source?.value;
   return (typeof bound === 'string' ? hostImageSrc(bound.trim(), resolveUrl) : null) ?? hostImageSrc(settings.src, resolveUrl);
+}
+
+/**
+ * The second, higher quality address: the bound `sourceHigh` slot, when it passes the same allow-list. There is no typed
+ * address for it; it exists only as a binding (two links of one stream, e.g. a camera's sub and main stream).
+ */
+export function videoSourceHigh(data: Data, resolveUrl?: (url: string) => string): string | null {
+  const bound = data.sourceHigh?.value;
+  return typeof bound === 'string' ? hostImageSrc(bound.trim(), resolveUrl) : null;
+}
+
+/** How long the viewer has to answer "still watching?" before a stream stops, ms. */
+export const PRESENCE_GRACE_MS = 30_000;
+
+const PRESENCE_MINUTES = { '5': 5, '10': 10, '15': 15 } as const;
+
+/**
+ * "Still watching?" every N minutes of playing, as the player's `presence` option, or null for 'off'. Only a stream asks
+ * (a video file has an end and costs nothing to keep open); a missing or unknown value is the default, 5 minutes.
+ */
+export function videoPresence(minutes: unknown, hls: boolean): { everyMs: number; graceMs: number } | null {
+  if (!hls || minutes === 'off') return null;
+  const n = typeof minutes === 'string' && Object.hasOwn(PRESENCE_MINUTES, minutes) ? PRESENCE_MINUTES[minutes as keyof typeof PRESENCE_MINUTES] : 5;
+  return { everyMs: n * 60_000, graceMs: PRESENCE_GRACE_MS };
 }
 
 /** HLS by its extension (`.m3u8`, query and fragment allowed). */
@@ -338,21 +366,44 @@ export interface VideoPlayerProps {
   loadingText: string;
   /** kui-player's own translation for the locale. */
   language?: (typeof PLAYER_LANGUAGES)[number];
+  /**
+   * Two addresses of one stream, Standard and High, listed in the player's quality menu; only when both a source and a
+   * higher quality address are valid. `src` stays the first (the default); without a second one this is absent and the
+   * card behaves as before.
+   */
+  sources?: Array<{ label: string; src: string }>;
+  /** With `sources`: the second plays in full screen, the first in the card. */
+  preferAlternateInFullscreen: boolean;
+  /** Ask "still watching?" this often while a stream plays; null = never (off, or not a stream). */
+  presence: { everyMs: number; graceMs: number } | null;
+  /** A stream stops loading while the card is out of view or the tab is hidden. */
+  stopWhenHidden: boolean;
+  /** Hold a stream back until play is pressed: no playlist or segment is requested before (HLS with autoPlay off). */
+  loadOnPlay: boolean;
 }
 
 /**
  * Everything content.video draws: the player's props, or the empty text. A bound `source` wins over the typed address
  * when it passes the media allow-list; a subtitle track needs a label, a language and an allowed address. Autoplay
  * implies muted (browsers refuse to start a video with sound on their own). A new `src` is a new player.
+ *
+ * Live options (template v2): `presence` is the "still watching?" interval for a stream, `stopWhenHidden` whether it stops
+ * while out of view, `sources` the Standard / High pair when a `sourceHigh` is bound. Stream quality is otherwise the
+ * player's own menu. `loadOnPlay` holds a stream back until play is pressed (the "Start playing on its own" setting off).
+ * Nothing here knows what the stream is.
  */
 export function videoModel(
   s: VideoSettings, data: Data, resolveUrl: ((url: string) => string) | undefined, title: string | undefined,
-  locale: string | undefined, m: Pick<ContentViewMessages, 'videoEmpty' | 'videoLoading'>,
+  locale: string | undefined, m: Pick<ContentViewMessages, 'videoEmpty' | 'videoLoading' | 'videoQualityStandard' | 'videoQualityHigh'>,
 ) {
   const src = videoSource(s, data, resolveUrl);
+  // A higher quality address only counts beside a source, and only when it is another address.
+  const high = src === null ? null : videoSourceHigh(data, resolveUrl);
+  const alternate = high !== null && high !== src ? high : null;
+  const hls = src !== null && (isHls(src) || (alternate !== null && isHls(alternate)));
   const player: VideoPlayerProps | null = src === null ? null : {
     src,
-    hls: isHls(src),
+    hls,
     poster: hostImageSrc(s.poster, resolveUrl) ?? undefined,
     title: s.showTitle && title ? title : undefined,
     autoPlay: s.autoPlay === true,
@@ -368,6 +419,11 @@ export function videoModel(
     locale,
     loadingText: m.videoLoading,
     language: playerLanguage(locale),
+    sources: alternate === null ? undefined : [{ label: m.videoQualityStandard, src }, { label: m.videoQualityHigh, src: alternate }],
+    preferAlternateInFullscreen: alternate !== null,
+    presence: videoPresence(s.presenceMinutes, hls),
+    stopWhenHidden: s.stopWhenHidden !== false,
+    loadOnPlay: hls && s.autoPlay !== true,
   };
   return { empty: player === null, emptyText: m.videoEmpty, loadingText: m.videoLoading, player };
 }

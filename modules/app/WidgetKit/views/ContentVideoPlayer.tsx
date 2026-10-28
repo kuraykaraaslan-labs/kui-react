@@ -3,25 +3,18 @@
 // and hls.js only for an HLS source.
 import { useEffect, useState } from 'react';
 import { VideoPlayer } from '@kuraykaraaslan/kui-player/react';
-import { createHlsAdapter } from '@kuraykaraaslan/kui-player';
+import { createHlsAdapter, type PresenceGroup } from '@kuraykaraaslan/kui-player';
 import type { PartialDictionary } from '@kuraykaraaslan/kui-player/locales';
 import { cn } from '@/libs/utils/cn';
-import { playerLanguage } from './content-model';
+import { playerLocale } from './video-player-locale';
 
 type Adapter = ReturnType<typeof createHlsAdapter>;
 
 const FIT = { contain: '[&_video]:object-contain', cover: '[&_video]:object-cover' } as const;
 
-/** kui-player's own translations by the kit's locale (`playerLanguage`, the base language); English needs none. */
-async function playerLocale(locale: string | undefined): Promise<PartialDictionary | undefined> {
-  const lang = playerLanguage(locale);
-  if (!lang) return undefined;
-  const all = await import('@kuraykaraaslan/kui-player/locales');
-  return all[lang];
-}
-
 export function ContentVideoPlayer({
   src, hls, poster, title, autoPlay, startMuted, loop, autoHideControls, fit, theme, subtitles, locale, loadingText,
+  sources, preferAlternateInFullscreen, stopWhenHidden, presence, loadOnPlay,
 }: {
   src: string;
   hls: boolean;
@@ -36,6 +29,15 @@ export function ContentVideoPlayer({
   subtitles: Array<{ label: string; srclang: string; src: string }>;
   locale?: string;
   loadingText: string;
+  /** Standard and High addresses of one stream, in the player's quality menu. */
+  sources?: Array<{ label: string; src: string }>;
+  preferAlternateInFullscreen?: boolean;
+  /** A stream stops loading while out of view or in a hidden tab (the player's default); false keeps it running. */
+  stopWhenHidden?: boolean;
+  /** "Still watching?": the board's shared group, this card's own interval, or false (never; also while the group loads). */
+  presence?: PresenceGroup | { everyMs: number; graceMs: number } | false;
+  /** A stream requests nothing until play is pressed (autoPlay off); a video file is unaffected. */
+  loadOnPlay?: boolean;
 }) {
   // `null` while hls.js loads for a stream; `[]` for a source the browser plays itself.
   const [adapters, setAdapters] = useState<Adapter[] | null>(hls ? null : []);
@@ -65,6 +67,8 @@ export function ContentVideoPlayer({
   return (
     <VideoPlayer
       src={src}
+      sources={sources}
+      preferAlternateInFullscreen={preferAlternateInFullscreen}
       poster={poster}
       title={title}
       autoPlay={autoPlay}
@@ -72,6 +76,10 @@ export function ContentVideoPlayer({
       loop={loop}
       autoHideControls={autoHideControls}
       adapters={adapters}
+      // Only a change from the player's default needs saying: it treats a stream's source as live by itself.
+      live={hls && stopWhenHidden === false ? { stopWhenHidden: false } : undefined}
+      presence={presence}
+      loadOnPlay={loadOnPlay}
       subtitles={subtitles}
       theme={theme}
       locale={dictionary}
