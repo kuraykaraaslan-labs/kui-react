@@ -89,6 +89,11 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       it shows a "saved version changed" notice with Reload, and a changed `resetKey` always restarts it. A role with no
                       device matches nothing: an element with no `deviceId` belongs to the main role only when the main role has a device,
                       and an empty `deviceId` counts as no device.
+                      Symbol binding (`SymbolBindingPanel.tsx`, phase 45.4, D45-10): the one-symbol side panel of the drawing (device, its
+                      live values, one key per field the symbol draws, a one-liner with a live preview, save, next symbol); props-driven,
+                      the host answers `searchDevices` / `loadKeys` / `previewScript` / `onSave`. `symbol-binding-logic.ts` is the pure part
+                      (`suggestKeyForField`, `entryFromDraft` = the map v2 field map plus `script`, `isDirty`, `ageText`, `nextUnbound`),
+                      `symbol-binding-messages.ts` its texts. Decisions SP2-1..13: `docs/symbol-binding-panel.md`.
 card-logic.ts         cardModel (the frame's classes, styles, body state), formatUpdated, styleAttribute (pure)
 placement-logic.ts    placementStatus: bound slots, stale, the card state (pure)
 tests/parity/         the reference rendering: cases.ts (49+ widget cases as JSON), golden.json (the HTML kui-react

@@ -44,6 +44,23 @@ export { SceneSetupDrawer } from './views/SceneSetupDrawer';
 export type { SceneSetupDrawerProps, SceneSetupDocument, SceneSetupDevice, SceneSetupSave } from './views/SceneSetupDrawer';
 export { DEFAULT_SCENE_SETUP_MESSAGES } from './views/scene-setup-messages';
 export type { SceneSetupMessages, SceneSetupRulesMessages } from './views/scene-setup-messages';
+// The symbol binding panel (phase 45.4, D45-10): click a symbol, pick its device and which values feed it, convert with a one-liner, see
+// it live, next symbol. Props-driven: the host answers the device search, the values, the sandbox preview and the save; the pure part
+// (suggested keys, the entry, the age, the templates) is exported for the other kits and the host's own order of symbols.
+export { SymbolBindingPanel } from './views/SymbolBindingPanel';
+export type { SymbolBindingPanelProps, SymbolBindingSymbol, SymbolBindingMenuAction } from './views/SymbolBindingPanel';
+export { DEFAULT_SYMBOL_BINDING_MESSAGES } from './views/symbol-binding-messages';
+export type { SymbolBindingMessages } from './views/symbol-binding-messages';
+export {
+  suggestKeyForField, suggestKeysForFields, ageText, formatValue as formatSymbolValue, formatSample, scriptTemplates, scriptErrorKind, previewLine,
+  entryFromDraft, entryFromSymbol, draftFromSymbol, isDirty as isSymbolBindingDirty, sameEntry as sameSymbolEntry, isBound as isSymbolBound,
+  nextUnbound, isBooleanish, DEFAULT_AGE_WORDS, MAX_SCRIPT_LENGTH,
+} from './views/symbol-binding-logic';
+export type {
+  SymbolSpec, SymbolFieldSpec, FieldSource, DeviceOption as SymbolDeviceOption, DeviceKey as SymbolDeviceKey, BindingEntry as SymbolBindingEntry,
+  BindingEntryField as SymbolBindingEntryField, BindingDraft as SymbolBindingDraft, FieldDraft as SymbolFieldDraft, AgeWords, ScriptOutcome,
+  ScriptTemplate, ScriptTemplateId, ScriptErrorKind, PreviewLine,
+} from './views/symbol-binding-logic';
 // The rules of a 3D design (phase 42.6): the Rules step of the drawer, and the pure part the card evaluates them with.
 export { SceneSetupRules } from './views/SceneSetupRules';
 export type { SceneSetupRulesProps } from './views/SceneSetupRules';
