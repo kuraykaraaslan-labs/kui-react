@@ -208,3 +208,30 @@ describe('Rules step: what is wrong', () => {
     expect(rulesPanel().getByText('Kural yok.')).toBeInTheDocument();
   });
 });
+
+describe('Rules step: accessibility', () => {
+  it('every control of an open rule with two conditions has an accessible name, and the cards are a list', async () => {
+    const rule = { enabled: true, target: 'heater', key: 'value', op: 'gt', value: '80', op2: 'eq', key2: 'status', value2: 'alarm', join: 'any', color: 'var(--error)', pulse: true, label: 'Hot' };
+    render(<SceneSetupDrawer {...props({ initial: initial({ rules: [rule] }), ruleParams: [{ key: 'mode' }] })} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: /For heater/ }));
+    const panel = document.querySelector('[data-panel="design-rules"]') as HTMLElement;
+    expect(within(panel).getByRole('list')).toBeInTheDocument();
+    const nameOf = (el: HTMLElement): string => {
+      const own = el.getAttribute('aria-label');
+      if (own) return own.trim();
+      const by = el.getAttribute('aria-labelledby');
+      if (by) return by.split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
+      const labels = (el as HTMLInputElement).labels;
+      if (labels && labels.length) return [...labels].map((l) => l.textContent ?? '').join(' ').trim();
+      return (el.textContent ?? '').trim();
+    };
+    const controls = [...panel.querySelectorAll<HTMLElement>('button, input, select, textarea')].filter((el) => el.getAttribute('type') !== 'hidden');
+    expect(controls.length).toBeGreaterThan(15);
+    for (const el of controls) expect(nameOf(el), el.outerHTML.slice(0, 120)).not.toBe('');
+    // the open card is tied to its button
+    const toggle = screen.getByRole('button', { name: /For heater/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(toggle.getAttribute('aria-controls')!)).not.toBeNull();
+  });
+});
+
