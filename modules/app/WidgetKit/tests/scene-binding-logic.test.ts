@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  KEY_GRAMMAR, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_BINDING_MAP, autoMatch, bindingDraft, devicesFromRoles, draftSignature, elementsForRole,
+  KEY_GRAMMAR, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_BINDING_MAP, NEW_SLOT_VALUE, autoMatch, bindingDraft, devicesFromRoles, documentChanged, normalizeSlotInput, slotChoices, slotIssue, draftSignature, elementsForRole,
   isRoleName, isSceneKey, proposeRoles, roleFromCode, sameDraft, splitKey, staleEntries, unresolved, validateDraft,
   type BindingDraft, type DeviceElement, type SceneKey,
 } from '../views/scene-binding-logic';
@@ -375,5 +375,45 @@ describe('staleEntries', () => {
   it('nothing is stale when everything has its row', () => {
     expect(staleEntries({ sceneKeys: keys, deviceIds: ['d1'], map: { fan: { deviceId: 'd1', element: 'x' } }, devices: { '': 'd1' }, hidden: [] }))
       .toEqual({ exceptions: [], roles: [], hidden: [] });
+  });
+});
+
+describe('slots (phase 42.2.3c)', () => {
+  it('normalizes what is typed to the slot grammar', () => {
+    expect(normalizeSlotInput('Second View')).toBe('second-view');
+    expect(normalizeSlotInput('  a.b ')).toBe('a-b-');
+    expect(normalizeSlotInput('Side View')).toBe('side-view');
+    expect(normalizeSlotInput('Café_1')).toBe('caf_1');
+    expect(normalizeSlotInput('x'.repeat(40))).toHaveLength(32);
+    expect(normalizeSlotInput('')).toBe('');
+  });
+  it('judges a slot by the server grammar', () => {
+    expect(slotIssue('')).toBe('missing');
+    expect(slotIssue('  ')).toBe('missing');
+    expect(slotIssue('1a')).toBe('invalid');
+    expect(slotIssue('A')).toBe('invalid');
+    expect(slotIssue('-a')).toBe('invalid');
+    expect(slotIssue('main')).toBeNull();
+    expect(slotIssue('side_2-b')).toBeNull();
+    expect(slotIssue('a'.repeat(33))).toBe('invalid');
+    expect(slotIssue('a'.repeat(32))).toBeNull();
+  });
+  it('lists main always, first, then the subject\'s slots sorted, without duplicates or names the grammar refuses', () => {
+    expect(slotChoices([])).toEqual(['main']);
+    expect(slotChoices(['side', 'detail', 'main', 'side', 'Bad', '9x'])).toEqual(['main', 'detail', 'side']);
+  });
+  it('the new-slot select value can never be a slot', () => {
+    expect(slotIssue(NEW_SLOT_VALUE)).toBe('invalid');
+  });
+});
+
+describe('documentChanged', () => {
+  it('needs both fingerprints, and a difference', () => {
+    expect(documentChanged('a', 'b')).toBe(true);
+    expect(documentChanged('a', 'a')).toBe(false);
+    expect(documentChanged(null, 'b')).toBe(false);
+    expect(documentChanged('a', null)).toBe(false);
+    expect(documentChanged(undefined, undefined)).toBe(false);
+    expect(documentChanged('', 'b')).toBe(false);
   });
 });

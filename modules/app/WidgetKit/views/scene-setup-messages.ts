@@ -76,6 +76,16 @@ export interface SceneSetupMessages {
   slotSection: string;
   slotLabel: string;
   slotHint: string;
+  /** The hint when the slot cannot be changed (the card's own). */
+  slotLockedHint: string;
+  /** The last choice of the slot select. */
+  slotNew: string;
+  slotNewLabel: string;
+  slotNewHint: string;
+  /** The confirmation before a slot is switched while the form has edits. */
+  slotSwitchTitle: string;
+  slotSwitchBody: (slot: string) => string;
+  slotSwitchConfirm: string;
   kindLabel: string;
   /** The segmented choice's label by kind value; a kind with no entry shows its value. */
   kinds: Record<string, string>;
@@ -213,6 +223,9 @@ export interface SceneSetupMessages {
   /** The saved binding the form started from changed (the host passed a new `initial`) while the form has edits. */
   savedChangedTitle: string;
   savedChangedBody: string;
+  /** The drawing changed since the setup was saved (`documentChanged`); `stale` = saved entries the drawing no longer has. */
+  documentChangedTitle: string;
+  documentChangedBody: (stale: number) => string;
   saveFailed: string;
 }
 
@@ -225,7 +238,14 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
 
   slotSection: '1. Slot and kind',
   slotLabel: 'Slot',
-  slotHint: 'The place on the page this scene is shown.',
+  slotHint: 'The place on the page this scene is shown. A page that draws several scenes of one subject gives each its own slot.',
+  slotLockedHint: 'The card you opened this from draws this slot.',
+  slotNew: 'New slot…',
+  slotNewLabel: 'New slot name',
+  slotNewHint: 'Lower-case letters, digits, _ and -, at most 32, starting with a letter. A card draws it by this name in its settings.',
+  slotSwitchTitle: 'Switch slot',
+  slotSwitchBody: (slot) => `Your edits in this form are lost: it starts over from the saved setup of the slot ${slot} (or from an empty one).`,
+  slotSwitchConfirm: 'Switch slot',
   kindLabel: 'Kind',
   kinds: { diagram: '2D diagram', scene: '2D diagram', design: '3D design' },
 
@@ -437,5 +457,8 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   reload: 'Reload',
   savedChangedTitle: 'The saved version changed',
   savedChangedBody: 'A newer saved setup arrived while you were editing. Reload to start over from it and lose your edits, or keep editing.',
+  documentChangedTitle: 'The drawing changed since this was set up',
+  documentChangedBody: (stale) =>
+    `Review the matching below.${stale ? ` ${n(stale, 'saved entry', 'saved entries')} no longer match the drawing and ${stale === 1 ? 'is' : 'are'} listed under the table.` : ''} If it is still right, Save renews the setup against the drawing as it is now.`,
   saveFailed: 'The setup could not be saved.',
 };

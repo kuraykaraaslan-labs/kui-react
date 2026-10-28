@@ -23,8 +23,8 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { Input } from '@/modules/ui/Input';
 import { Select, type SelectOption } from '@/modules/ui/Select';
 import {
-  DEFAULT_SLOT, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_SLOT_LENGTH, autoMatch, bindingDraft, devicesFromRoles, draftSignature, elementsForRole,
-  proposeRoles, sameDraft, staleEntries, unresolved, validateDraft,
+  DEFAULT_SLOT, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_SLOT_LENGTH, NEW_SLOT_VALUE, autoMatch, bindingDraft, devicesFromRoles, draftSignature,
+  elementsForRole, normalizeSlotInput, proposeRoles, sameDraft, slotIssue, staleEntries, unresolved, validateDraft,
   type BindingDraft, type BindingIssue, type DeviceElement, type DeviceRef, type MatchHow, type SceneKey,
 } from './scene-binding-logic';
 import { DEFAULT_SCENE_SETUP_MESSAGES, mergeMessages, type DeepPartial, type SceneSetupMessages } from './scene-setup-messages';
@@ -65,10 +65,26 @@ export interface SceneSetupDrawerProps {
    */
   initial?: Partial<BindingDraft>;
 
-  /** Slot choices; without them the slot is a text field. */
+  /** Slot choices (the slots the subject already has a setup in); without them the slot is a text field. */
   slots?: readonly { value: string; label: string }[];
+  /**
+   * With `slots`: a "New slot…" choice after them that opens a text field for a name (the server's slot grammar, lower-cased as typed). A slot
+   * that is not in `slots` when the drawer opens (a card's, or one just created) starts in that field.
+   */
+  allowNewSlot?: boolean;
+  /** The slot cannot be changed: the card menu opened the drawer for the slot its card draws. */
+  slotLocked?: boolean;
+  /**
+   * The drawing the saved setup names changed since the setup was made (the host compares the fingerprints, `documentChanged`): a notice at the top
+   * asks for a review, and the setup can be saved as it is to confirm it, so the fingerprint is renewed. Ignored once another document is chosen.
+   */
+  documentChanged?: boolean;
   /** The kinds the host can bind, as values (`diagram`, `design`); labels come from `messages.kinds`. */
   kinds: readonly string[];
+  /**
+   * A slot was chosen (a listed one at once, a new one when its name is complete: on Enter or leaving the field). The host reads that slot's saved
+   * setup and passes it as `initial` with a new `resetKey` (the form starts over from it). With edits in the form, the drawer asks first.
+   */
   onSlotChange?: (slot: string) => void;
   onKindChange?: (kind: string) => void;
 
@@ -244,8 +260,10 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const [seed, setSeed] = useState<Seed>(latest);
   const [form, setForm] = useState<Form>(() => freshForm(latest));
   const [touched, setTouched] = useState(false);
+  // a slot name typed but not yet chosen is the user's too: a newer saved version does not take the form over while it is there
+  const [slotTyped, setSlotTyped] = useState(false);
   const newerSaved = latest.sig !== seed.sig;
-  if (newerSaved && !touched) {
+  if (newerSaved && !touched && !slotTyped) {
     setSeed(latest);
     setForm(freshForm(latest));
   }
@@ -257,10 +275,15 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     setSeed(latest);
     setForm(freshForm(latest));
     setTouched(false);
+    setSlotTyped(false);
   };
   const { slot, kind, documentId, manual, autoOn, note } = form;
   const [pickingKey, setPickingKey] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  // the slot field: a listed slot in the select, or "New slot…" with its own text field (a slot the host does not list starts there)
+  const canNewSlot = !!(props.allowNewSlot && slots);
+  const [newSlotMode, setNewSlotMode] = useState(() => canNewSlot && !slots!.some((o) => o.value === latest.slot));
+  const [pendingSlot, setPendingSlot] = useState<string | null>(null);
 
   // ── Devices in the scene and their roles ──
   const savedDeviceIds = useMemo(() => new Set(Object.values(seed.devices)), [seed.devices]);
@@ -397,6 +420,8 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     [seed],
   );
   const changed = !sameDraft(draft, baseline);
+  // a changed drawing is a reason to save an otherwise unchanged setup (the fingerprint is renewed), until another document is chosen
+  const reviewDrawing = !!props.documentChanged && documentId === seed.documentId && !!documentId;
   const left = useMemo(
     () => unresolved({ sceneKeys, elements, devices: devMap, roles: sceneRoles, hidden: hiddenKeys, matches: accepted }),
     [sceneKeys, elements, devMap, sceneRoles, hiddenKeys, accepted],
@@ -413,13 +438,32 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
       return true;
     });
   }, [draft, roleIssues, staleKept, devMap]);
-  const canSave = changed && issues.length === 0 && !loading && !saving;
-  const stuck = loading ? m.waitForData : issues.length ? m.issue[issues[0].code](issues[0].subject) : !changed ? m.nothingChanged : '';
+  const canSave = (changed || reviewDrawing) && issues.length === 0 && !loading && !saving;
+  const stuck = loading ? m.waitForData : issues.length ? m.issue[issues[0].code](issues[0].subject) : !changed && !reviewDrawing ? m.nothingChanged : '';
   const unmatchedStaying = left.keys.length - pending.length;
 
   // ── Handlers ──
   const setKindTo = (k: string) => { edit((f) => ({ ...f, kind: k })); props.onKindChange?.(k); };
-  const setSlotTo = (v: string) => { edit((f) => ({ ...f, slot: v })); props.onSlotChange?.(v); };
+  // A slot is a choice of which setup this is, not an edit of it: the form does not count as touched. A new slot starts over from the host's answer
+  // (its saved setup, or none) and so does a listed one; with edits in the form that is asked first (the edits are lost).
+  const applySlot = (v: string) => { setSlotTyped(false); setForm((f) => ({ ...f, slot: v })); props.onSlotChange?.(v); };
+  const requestSlot = (v: string) => {
+    if (v === seed.slot) { setForm((f) => ({ ...f, slot: v })); return; }
+    if (touched) { setPendingSlot(v); return; }
+    applySlot(v);
+  };
+  const pickSlot = (v: string) => {
+    if (v === NEW_SLOT_VALUE) { setNewSlotMode(true); setForm((f) => ({ ...f, slot: '' })); return; }
+    setNewSlotMode(false);
+    requestSlot(v);
+  };
+  const typeSlot = (raw: string) => { setSlotTyped(true); setForm((f) => ({ ...f, slot: normalizeSlotInput(raw) })); };
+  const commitNewSlot = () => { if (slot !== seed.slot && slotIssue(slot) === null) requestSlot(slot); };
+  const cancelSlotSwitch = () => {
+    setPendingSlot(null);
+    setForm((f) => ({ ...f, slot: seed.slot }));
+    setNewSlotMode(canNewSlot && !slots!.some((o) => o.value === seed.slot));
+  };
   const selectDocument = (id: string) => {
     if (id === documentId) return;
     edit((f) => ({ ...f, documentId: id }));
@@ -684,20 +728,36 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
             />
           )}
           {saveError && !conflict && <AlertBanner variant="error" title={m.saveFailed} message={saveError} />}
+          {reviewDrawing && (
+            <div data-testid="drawing-changed">
+              <AlertBanner variant="warning" title={m.documentChangedTitle} message={m.documentChangedBody(loading ? 0 : staleKept.length)} />
+            </div>
+          )}
 
           {/* 1. Slot and kind */}
           <section aria-labelledby={`${uid}-h1`} className="space-y-3">
             <h3 id={`${uid}-h1`} className="text-sm font-semibold text-text-primary">{m.slotSection}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              {slots ? (
-                <Select id={`${uid}-slot`} label={m.slotLabel} hint={m.slotHint} options={[...slots]} value={slot} onChange={(e) => setSlotTo(e.target.value)} />
-              ) : (
-                // The server's slot grammar is lower case and at most 32 long, so what is typed is lower-cased.
-                <Input
-                  id={`${uid}-slot`} label={m.slotLabel} hint={m.slotHint} value={slot} maxLength={MAX_SLOT_LENGTH} spellCheck={false} autoComplete="off"
-                  onChange={(e) => setSlotTo(e.target.value.toLowerCase())}
-                />
-              )}
+              <div className="space-y-2">
+                {slots && (
+                  <Select
+                    id={`${uid}-slot`} label={m.slotLabel} hint={props.slotLocked ? m.slotLockedHint : m.slotHint} disabled={props.slotLocked}
+                    options={[...slots, ...(canNewSlot ? [{ value: NEW_SLOT_VALUE, label: m.slotNew }] : [])]}
+                    value={newSlotMode ? NEW_SLOT_VALUE : slot} onChange={(e) => pickSlot(e.target.value)}
+                  />
+                )}
+                {(!slots || newSlotMode) && (
+                  // The server's slot grammar is lower case and at most 32 long: what is typed is made one (spaces become -), and the host is told
+                  // when the name is complete (Enter or leaving the field), not on every key.
+                  <Input
+                    id={`${uid}-slot-new`} label={slots ? m.slotNewLabel : m.slotLabel} hint={slots ? m.slotNewHint : m.slotHint}
+                    value={slot} maxLength={MAX_SLOT_LENGTH} spellCheck={false} autoComplete="off" disabled={props.slotLocked}
+                    error={slot !== '' && slotIssue(slot) ? m.issue['slot-invalid'](slot) : undefined}
+                    onChange={(e) => typeSlot(e.target.value)} onBlur={commitNewSlot}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitNewSlot(); } }}
+                  />
+                )}
+              </div>
               <div role="group" aria-labelledby={`${uid}-kind`} className="space-y-1">
                 <span id={`${uid}-kind`} className="block text-sm font-medium text-text-primary">{m.kindLabel}</span>
                 <ButtonGroup
@@ -837,6 +897,22 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           )}
         </div>
       </Drawer>
+
+      <ConfirmDialog
+        open={pendingSlot !== null && open}
+        portalTarget={props.portalTarget}
+        title={m.slotSwitchTitle}
+        message={m.slotSwitchBody(pendingSlot ?? '')}
+        tone="warning"
+        confirmLabel={m.slotSwitchConfirm}
+        cancelLabel={m.cancel}
+        onCancel={cancelSlotSwitch}
+        onConfirm={() => {
+          const next = pendingSlot;
+          setPendingSlot(null);
+          if (next !== null) applySlot(next);
+        }}
+      />
 
       <ConfirmDialog
         open={confirming && open}

@@ -271,6 +271,41 @@ export function proposeRoles(
   return out;
 }
 
+// ─── Slots ───────────────────────────────────────────────────────────────────
+
+/** The value the slot select gives its "New slot…" option. It is not a slot (it starts with an underscore), so it can never collide with one. */
+export const NEW_SLOT_VALUE = '__new_slot__';
+
+/**
+ * What is typed into the new-slot field, made a slot as far as it can be: lower case, spaces and dots become `-`, anything else the
+ * grammar refuses is dropped, cut to the grammar's length. A name that still breaks the grammar (it starts with a digit, it is empty)
+ * is `slotIssue`'s to say.
+ */
+export function normalizeSlotInput(raw: string): string {
+  return raw.trimStart().toLowerCase().replace(/[\s.]+/g, '-').replace(/[^a-z0-9_-]/g, '').slice(0, MAX_SLOT_LENGTH);
+}
+
+/** What is wrong with a slot name, or null: the server's grammar (`SLOT_GRAMMAR`). */
+export function slotIssue(slot: string): 'missing' | 'invalid' | null {
+  if (!slot.trim()) return 'missing';
+  return SLOT_GRAMMAR.test(slot) ? null : 'invalid';
+}
+
+/**
+ * The slots the drawer lists for a subject: the ones it already has a setup in (from its bindings), `main` always (it is the default
+ * slot every card draws unless it names another), sorted with `main` first. Names the grammar refuses are left out.
+ */
+export function slotChoices(existing: readonly string[]): string[] {
+  const set = new Set<string>([DEFAULT_SLOT]);
+  for (const s of existing) if (SLOT_GRAMMAR.test(s)) set.add(s);
+  return [...set].sort((a, b) => (a === DEFAULT_SLOT ? -1 : b === DEFAULT_SLOT ? 1 : a < b ? -1 : a > b ? 1 : 0));
+}
+
+/** Whether the drawing changed since a binding was saved: both fingerprints are known and differ. A binding or a document without one (null, '') cannot be told, so it is not stale. */
+export function documentChanged(savedHash: string | null | undefined, currentHash: string | null | undefined): boolean {
+  return !!savedHash && !!currentHash && savedHash !== currentHash;
+}
+
 // ─── The payload ─────────────────────────────────────────────────────────────
 
 /** The binding as the host's server stores it (one row per slot). `map` holds the exceptions only. */
