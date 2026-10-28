@@ -23,6 +23,8 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- IoT `AssetDrawer` takes `actions` (the host's own buttons in the header, after "Open dashboard", shown once the asset has loaded) and `AssetsView` takes `drawerActions(assetId)` to fill it: a host module can put a button that opens a drawer of its own beside the asset's own actions (next-boilerplate's "Scene" button, phase 42).
+
 - WidgetKit `SceneSetupDrawer` (next-boilerplate phase 42.2.3): the scene setup as one right-side drawer, a scrolling form with no tabs.
   Slot (text or select) and kind (segmented, only the kinds the host passes); the document in a DataTable (name, updated, used by,
   with search, sort and a use filter) and an optional "New from this device" button; the devices in a DataTable with an editable

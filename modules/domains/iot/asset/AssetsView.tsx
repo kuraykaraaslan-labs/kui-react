@@ -48,12 +48,14 @@ export type AssetsViewProps = {
   };
   /** The header's "⋯" menu (e.g. links to related lists). */
   moreActions?: readonly DropdownItem[];
+  /** The host's buttons in an asset drawer's header (e.g. another module's button that opens a drawer of its own), by asset id. */
+  drawerActions?: (assetId: string) => React.ReactNode;
   pageSize?: number;
   now?: number;
   className?: string;
 };
 
-export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreActions = [], pageSize = 20, now, className }: AssetsViewProps) {
+export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreActions = [], drawerActions, pageSize = 20, now, className }: AssetsViewProps) {
   const api = useIotAdapter().assets;
   const caps = useIotCapabilities();
   const { m } = useIotText();
@@ -292,6 +294,7 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
           onChanged={reread}
           onDeleted={(parentId) => openAsset(parentId, 'replace')}
           onOpenAsset={(id) => openAsset(id, 'replace')}
+          actions={drawerActions?.(openId)}
           now={now}
         />
       )}

@@ -45,12 +45,14 @@ export type AssetDrawerProps = {
   onDeleted?: (parentId: string | null) => void;
   /** Open another asset in the drawer (a path step, a child). Without it the `hrefs.asset` links are used. */
   onOpenAsset?: (assetId: string) => void;
+  /** The host's own buttons in the header, after "Open dashboard" (e.g. another module's button that opens a drawer of its own). Shown once the asset has loaded. */
+  actions?: React.ReactNode;
   pageSize?: number;
   now?: number;
 };
 
 export function AssetDrawer({
-  assetId, open = true, onClose, hrefs = {}, onChanged, onDeleted, onOpenAsset, pageSize = 10, now,
+  assetId, open = true, onClose, hrefs = {}, onChanged, onDeleted, onOpenAsset, actions, pageSize = 10, now,
 }: AssetDrawerProps) {
   const api = useIotAdapter().assets;
   const caps = useIotCapabilities();
@@ -117,7 +119,7 @@ export function AssetDrawer({
     <div className="flex min-w-0 items-center gap-2" data-testid="asset-drawer-header">
       <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-text-primary" title={name}>{name}</h2>
       {a && <AssetKindBadge kind={a.kind} className="hidden shrink-0 sm:inline-flex" />}
-      {a && (manage || dashboardHref) && (
+      {a && (manage || dashboardHref || actions) && (
         <div className="flex shrink-0 items-center gap-1" role="group" aria-label={m.asset.actions}>
           {manage && (
             <>
@@ -141,6 +143,7 @@ export function AssetDrawer({
               <span className={actionLabel}>{m.asset.openDashboard}</span>
             </Button>
           )}
+          {actions}
           {manage && <DropdownMenu
             align="right"
             items={[

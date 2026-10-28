@@ -309,6 +309,18 @@ describe('AssetDrawer', () => {
     expect(screen.queryByRole('link', { name: 'Open dashboard' })).toBeNull();
   });
 
+  it('puts the host\'s own buttons in the header once the asset has loaded, for a viewer who may not manage assets too', async () => {
+    const { unmount } = wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} actions={<button type="button">Host action</button>} />, fakeAssets(), {});
+    // nothing before the asset has loaded
+    expect(screen.queryByRole('button', { name: 'Host action' })).toBeNull();
+    await screen.findByRole('heading', { name: 'Press line' });
+    expect(within(screen.getByTestId('asset-drawer-header')).getByRole('button', { name: 'Host action' })).toBeInTheDocument();
+    unmount();
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} />, fakeAssets(), {});
+    await screen.findByRole('heading', { name: 'Press line' });
+    expect(screen.queryByRole('button', { name: 'Host action' })).toBeNull();
+  });
+
   it('keeps the actions in the header (labels fold to icons on a phone), moves with the tree read on demand, and says why a delete was refused', async () => {
     const user = userEvent.setup();
     const assets = fakeAssets({ remove: vi.fn().mockRejectedValue(new IotApiError('conflict', 'This asset still has child assets: move or delete them first.')) });
