@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEllipsis, faPlus, faPowerOff } from '@fortawesome/free-solid-svg-icons';
+import { faEllipsis, faPenToSquare, faPlus, faPowerOff } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
@@ -19,6 +19,7 @@ import type { DeviceRecord, DeviceRegistryStatus, DeviceStatePatch } from '../ty
 import { DeviceAddress } from './DeviceAddress';
 import { DeviceConnectionBadge } from './DeviceConnectionBadge';
 import { DeviceQuickView } from './DeviceQuickView';
+import { EditDeviceDrawer } from './EditDeviceDrawer';
 import { NewDeviceDrawer, type DeviceAddChoice } from './NewDeviceDrawer';
 
 /**
@@ -37,7 +38,8 @@ import { NewDeviceDrawer, type DeviceAddChoice } from './NewDeviceDrawer';
  * The header's actions beside "New device", all from the host: `addChoices` (more ways to add a device, offered in the New device
  * drawer before "Other device", the create form; "New device" shows with either), `renderQuarantine` (the host's approval view
  * for the devices waiting in quarantine: an "Awaiting approval (n)" button opens it in a drawer, in place of the "Quarantined (n)"
- * quick filter) and `moreActions` (a "⋯" menu).
+ * quick filter) and `moreActions` (a "⋯" menu). A row has an Edit button (`canEditDevice` and `devices.update`) that opens the
+ * `EditDeviceDrawer` without opening the quick view.
  */
 export type DeviceListViewProps = {
   hrefs: { device: (deviceId: string) => string };
@@ -102,6 +104,7 @@ export function DeviceListView({
   const [profiles, setProfiles] = useState<Array<{ id: string; name: string }>>([]);
   const [quarantined, setQuarantined] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState<DeviceRecord | null>(null);
   const [creating, setCreating] = useState(false);
   const [approving, setApproving] = useState(false);
   const [activating, setActivating] = useState(false);
@@ -238,6 +241,7 @@ export function DeviceListView({
   const profileName = (id: string, fallback?: string | null) => fallback ?? profiles.find((p) => p.id === id)?.name ?? '—';
   const canActivate = caps.canActivateDevice && !!api?.activate && query.status === 'QUARANTINED';
   const canCreate = caps.canCreateDevice && !!api?.create;
+  const canEdit = caps.canEditDevice && !!api?.update;
   const filterFields = useMemo((): DataTableFilterField<DeviceRecord>[] => [
     { id: 'profileId', label: m.devices.profile, type: 'select', options: profiles.map((p) => ({ value: p.id, label: p.name })) },
     {
@@ -296,6 +300,23 @@ export function DeviceListView({
       sortable: true,
       render: (d) => <span className="text-xs text-text-secondary" title={formatDateTime(d.lastActivityAt, { locale })}>{formatRelative(d.lastActivityAt, { locale, now })}</span>,
     },
+    ...(canEdit ? [{
+      key: 'actions',
+      header: <span className="sr-only">{m.devices.actions}</span>,
+      align: 'right' as const,
+      hideable: false,
+      render: (d: DeviceRecord) => (
+        <Button
+          variant="ghost"
+          size="xs"
+          aria-label={fill(m.editDevice.rowAction, { name: d.name })}
+          onClick={(e: React.MouseEvent) => { e.stopPropagation(); setEditing(d); }}
+          iconLeft={<FontAwesomeIcon icon={faPenToSquare} className="h-3 w-3" aria-hidden="true" />}
+        >
+          <span className="sr-only">{m.editDevice.action}</span>
+        </Button>
+      ),
+    }] : []),
   ];
 
   if (!api) return null;
@@ -406,6 +427,16 @@ export function DeviceListView({
           href={hrefs.device(openId)}
           profileName={openDeviceRecord ? profileName(openDeviceRecord.deviceProfileId, openDeviceRecord.profileName) : null}
           now={now}
+        />
+      )}
+
+      {editing && (
+        <EditDeviceDrawer
+          open
+          device={editing}
+          profiles={profiles}
+          onClose={() => setEditing(null)}
+          onSaved={() => { void load(queryRef.current); }}
         />
       )}
 

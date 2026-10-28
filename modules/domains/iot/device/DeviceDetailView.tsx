@@ -27,7 +27,7 @@ import { useDeviceLog } from './useDeviceLog';
  * tabs Overview, Attributes (with `canReadAttributes`), Credentials (only with `canViewCredentials`; rotate shows the new
  * secret once) and Log (the connection log and the audited changes in one timeline, `DeviceLogTimeline`; a `connections` link opens
  * it too), plus the host's `extraTabs` (tabs other modules contribute: Alarms, Telemetry, RPC, …, ordered
- * by `order`). The header's actions: copy id, Edit (name, label and type, `canEditDevice` and `devices.update`: `EditDeviceDrawer`), Activate
+ * by `order`). The header's actions: copy id, Edit (name, label, type, profile, status and additional info, `canEditDevice` and `devices.update`: `EditDeviceDrawer`), Activate
  * for a quarantined device (`canActivateDevice`, OD-1), delete
  * (`canDeleteDevice`), and the host's `actions`. No factory reset exists (OD-8). The connection follows `deviceState(id)` live;
  * without a live source the device is re-read every 30 s.

@@ -122,6 +122,28 @@ describe('DeviceListView', () => {
     expect(screen.getByRole('button', { name: /Remove filter Connection/ })).toBeInTheDocument();
   });
 
+  it('edits a device from its row without opening the quick view, and the list reads again after the save', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const onQueryChange = vi.fn();
+    wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} onQueryChange={onQueryChange} now={NOW} />, { adapter });
+    await screen.findByRole('link', { name: /Pump 4/ });
+    await user.click(screen.getByRole('button', { name: 'Edit Pump 4' }));
+    const drawer = await screen.findByRole('dialog', { name: 'Edit device' });
+    expect(onQueryChange).not.toHaveBeenCalledWith(expect.objectContaining({ device: 'd1' }), expect.anything());
+    await user.type(within(drawer).getByLabelText('Label'), 'Boiler room');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(adapter.devices!.update).toHaveBeenCalledWith('d1', { label: 'Boiler room' }));
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    await waitFor(() => expect(list.mock.calls.length).toBeGreaterThan(1));
+  });
+
+  it('shows no row Edit without the capability', async () => {
+    wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} now={NOW} />, { caps: { ...ALL, canEditDevice: false } });
+    await screen.findByRole('link', { name: /Pump 4/ });
+    expect(screen.queryByRole('button', { name: 'Edit Pump 4' })).toBeNull();
+  });
+
   it('sorts, searches and pages on the server through the table\'s own toolbar', async () => {
     const user = userEvent.setup();
     const adapter = createFakeAdapter();
@@ -341,7 +363,7 @@ describe('DeviceDetailView', () => {
   it('edits the name, label and type of a device and sends only what changed; the page then reads the device again', async () => {
     const user = userEvent.setup();
     const adapter = createFakeAdapter();
-    wrap(<DeviceDetailView deviceId="d1" />, { adapter });
+    wrap(<><ConfirmHost /><DeviceDetailView deviceId="d1" /></>, { adapter });
     await screen.findByRole('heading', { name: 'Pump 4' });
     await user.click(screen.getByRole('button', { name: 'Edit' }));
     const drawer = await screen.findByRole('dialog');
@@ -352,9 +374,50 @@ describe('DeviceDetailView', () => {
     expect(within(drawer).getByText(/ends the device's live connection/)).toBeInTheDocument();
     await user.type(within(drawer).getByLabelText('Label'), 'Boiler room');
     await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    // a new name ends the live session: the ConfirmDialog asks first, and a "no" sends nothing
+    const confirm = await screen.findByRole('dialog', { name: 'Save changes to Pump 4?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
+    expect(adapter.devices!.update).not.toHaveBeenCalled();
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Save changes to Pump 4?' })).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(adapter.devices!.update).toHaveBeenCalledWith('d1', { name: 'Pump 5', label: 'Boiler room' }));
     await waitFor(() => expect(adapter.devices!.get).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('edits the profile, the status and the additional info; disabling asks first, a quarantined device keeps its status', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    (adapter.profiles!.options as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 'p1', name: 'Pumps' }, { id: 'p2', name: 'Meters' }]);
+    (adapter.devices!.get as ReturnType<typeof vi.fn>).mockImplementation(async (id: string) => ({ ...DEVICES.find((d) => d.deviceId === id)!, additionalInfo: { room: 'B2' } }));
+    wrap(<><ConfirmHost /><DeviceDetailView deviceId="d1" /></>, { adapter });
+    await screen.findByRole('heading', { name: 'Pump 4' });
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const drawer = await screen.findByRole('dialog');
+    const info = within(drawer).getByLabelText('Additional info');
+    expect((info as HTMLTextAreaElement).value).toContain('"room": "B2"');
+    await user.clear(info);
+    await user.type(info, 'not json');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    expect(within(drawer).getByText(/must be a JSON object/)).toBeInTheDocument();
+    expect(adapter.devices!.update).not.toHaveBeenCalled();
+    await user.clear(info);
+    await user.selectOptions(within(drawer).getByLabelText('Status'), 'DISABLED');
+    await user.selectOptions(within(drawer).getByLabelText(/^Profile/), 'p2');
+    await user.click(within(drawer).getByRole('button', { name: 'Save' }));
+    const confirm = await screen.findByRole('dialog', { name: 'Disable Pump 4?' });
+    await user.click(within(confirm).getByRole('button', { name: 'Disable' }));
+    await waitFor(() => expect(adapter.devices!.update).toHaveBeenCalledWith('d1', { profileId: 'p2', status: 'DISABLED', additionalInfo: null }));
+  });
+
+  it('offers no status choice for a quarantined device', async () => {
+    const user = userEvent.setup();
+    wrap(<DeviceDetailView deviceId="d2" />);
+    await screen.findByRole('heading', { name: 'Probe 12' });
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).queryByLabelText('Status')).toBeNull();
+    expect(within(drawer).getByText(/Approve it with Activate/)).toBeInTheDocument();
   });
 
   it('keeps the edit drawer open with the host\'s field error, refuses an empty name and offers Edit only with the capability', async () => {

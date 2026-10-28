@@ -34,6 +34,8 @@ export const DeviceRecordSchema = z.object({
   label: z.string().nullable().optional(),
   type: z.string().nullable().optional(),
   serial: z.string().nullable().optional(),
+  /** A small free-form object the operator keeps on the device (a location, a note); absent when the host does not carry it. */
+  additionalInfo: z.record(z.string(), z.unknown()).nullable().optional(),
   deviceProfileId: z.string(),
   profileName: z.string().nullable().optional(),
   status: DeviceRegistryStatusEnum,

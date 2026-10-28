@@ -82,11 +82,17 @@ export type NewDeviceInput = {
   isGateway?: boolean;
 };
 
-/** The fields of a device an operator edits in place (the device page's Edit drawer); `null` clears a label or a type. */
+/**
+ * The fields of a device an operator edits in place (the Edit drawer of the device page and of the list); `null` clears a label, a type
+ * or the additional info. `status` moves between `ACTIVE` and `DISABLED` only (a quarantined device is approved through `activate`).
+ */
 export type UpdateDeviceInput = {
   name?: string;
   label?: string | null;
   type?: string | null;
+  profileId?: string;
+  status?: 'ACTIVE' | 'DISABLED';
+  additionalInfo?: Record<string, unknown> | null;
 };
 
 export type CreatedDevice = {
@@ -104,7 +110,7 @@ export interface IotDevicesApi {
   get(deviceId: string, signal?: AbortSignal): Promise<DeviceRecord>;
   create?(input: NewDeviceInput): Promise<CreatedDevice>;
   remove?(deviceId: string): Promise<void>;
-  /** Edits the name, label and type of a device (only the sent fields change); answers the device as it is now. Absent when the host cannot edit. */
+  /** Edits a device (only the sent fields change); answers the device as it is now. Absent when the host cannot edit. */
   update?(deviceId: string, patch: UpdateDeviceInput): Promise<DeviceRecord>;
   /** OD-1: quarantined → active (single and bulk, at most 100). Absent when the host has no provisioning. */
   activate?(deviceIds: string[]): Promise<{ activated: number }>;

@@ -24,8 +24,11 @@ All notable changes to this project will be documented here. Format follows [Kee
 ### Added
 
 - `EditDeviceDrawer` and `IotDevicesApi.update` (IoT kit): the device page's header gets an Edit button (with `canEditDevice` and a host that
-  implements `devices.update`) opening a drawer for the name, label and type; only the changed fields are sent, the host's field errors
-  show under the fields, and a new name says it ends the device's live session. `IOT_MESSAGES.editDevice` carries the texts.
+  implements `devices.update`) opening a drawer for the name, label, type, profile, status (active or disabled; a quarantined device is
+  approved with Activate) and the additional info (a JSON object, `DeviceRecord.additionalInfo`); only the changed fields are sent, the
+  host's field errors show under the fields, and a change that ends a connected device's session (a new name, a new profile, disabling it)
+  asks through the ConfirmDialog first. The device list gets the same drawer as a row action (an Edit button per row, with `canEditDevice`
+  and `devices.update`). `IOT_MESSAGES.editDevice` carries the texts.
 - `DropdownMenu` `placement` (`bottom` default, `top`): a menu on a trigger at the bottom edge opens upward; with `portal` it is also capped
   to the space above the trigger and scrolls inside it. The symbol binding panel's footer "…" menu uses it (Clear was cut off by
   the bottom of the viewport).
