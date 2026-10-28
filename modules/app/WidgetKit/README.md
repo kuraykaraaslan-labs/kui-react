@@ -35,7 +35,10 @@ views/*-logic.ts      the pure part of a view (no React, no DOM): `*Model` funct
                       control-button-logic, control-switch-logic, control-slider-logic, control-setpoint-logic
                       (`control*Model(settings, value?, format?, host)`: the static look and the request a
                       control would send; the host answers `onControl`).
-                      Video: `videoModel` in content-model.ts (player props, subtitles, autoplay rules).
+                      Video: `videoModel` in content-model.ts (player props, subtitles, autoplay rules; template v2 adds
+                      the Live options: `presence` from `presenceMinutes` 5 / 10 / 15 / off (a stream only, 30 s to
+                      answer), `stopWhenHidden`, and `sources` Standard + High with `preferAlternateInFullscreen` when the
+                      bound `sourceHigh` slot is valid beside `source`).
                       Process symbols (`scada.symbol`) and diagrams (`scada.scene`): `svg-node.ts` (an SVG element tree
                       as plain data, `svgToString` for kui-ejs, `SvgTree.tsx` for React), `scada-draw.ts` (the shared
                       pen, see SCADA_STYLE.md, and the pipe and wire builders), `scada-symbols-home.ts` (the four home
@@ -102,7 +105,9 @@ zoom-logic.ts         its steps (1-8x, 1.25 a step, a mouse notch = a step), lim
 WidgetSettingsEditor.tsx  tabs (Display, Data, Card, Actions), Basic/Advanced, read-only newer parts
 previews.tsx          layout thumbnails: renderWidgetPreview(id), one inline SVG per option `preview` id;
                       type thumbnails for a catalog/picker: renderWidgetTypePreview(type, settings?) (static, no view mounts)
-WidgetBoard.tsx       a whole board: grid, edit mode, card + board settings, export/import
+WidgetBoard.tsx       a whole board: grid, edit mode, card + board settings, export/import; its video cards share one
+                      "Still watching?" (views/video-presence.tsx: one kui-player presence group and one page prompt,
+                      the shortest interval of the cards that ask; a card outside a board asks on its own)
 board-cell.ts         cardCellResponsive: a card's small-screen settings on its grid cell (pure)
 WidgetKitContext.tsx  host hooks: icon resolver, field overrides, layout thumbnails (`renderPreview`), locale, embed site allow-list (`embedHosts`),
                       the kit's texts (`messages`, `useKitMessages`), template and type texts (`templateText`, `kindText`)
