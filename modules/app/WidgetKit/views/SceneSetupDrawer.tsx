@@ -92,8 +92,11 @@ export interface SceneSetupDrawerProps {
   documentsLoading?: boolean;
   /** A document was chosen: load its keys into `sceneKeys`. */
   onDocumentChange?: (documentId: string) => void;
-  /** Adds the "New from this device" button. */
-  onNewFromDevice?: () => void;
+  /**
+   * Adds the "New from this device" button. The host makes the document; when it answers with the new document's id (the document is then in
+   * `documents`), the drawer chooses it, keeping the form's edits. An answer of nothing, or a failure (the host says why), chooses nothing.
+   */
+  onNewFromDevice?: () => void | string | undefined | Promise<void | string | undefined>;
   newFromDeviceBusy?: boolean;
 
   devices: readonly SceneSetupDevice[];
@@ -469,6 +472,14 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     edit((f) => ({ ...f, documentId: id }));
     props.onDocumentChange?.(id);
   };
+  const newFromDevice = async (): Promise<void> => {
+    try {
+      const id = await props.onNewFromDevice?.();
+      if (typeof id === 'string' && id) selectDocument(id);
+    } catch {
+      // the host reports its own failure; nothing is chosen
+    }
+  };
   const refsFor = (r: KeyRow): DeviceRef[] =>
     elementsForRole(r.role, elements, devMap).flatMap((e) => {
       const deviceId = e.deviceId || (owns(devMap, r.role) ? devMap[r.role] : undefined);
@@ -776,7 +787,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
                 <p className="text-xs text-text-secondary">{m.documentHint}</p>
               </div>
               {props.onNewFromDevice && (
-                <Button size="sm" variant="outline" loading={props.newFromDeviceBusy} iconLeft={<FontAwesomeIcon icon={faPlus} aria-hidden="true" />} onClick={props.onNewFromDevice}>
+                <Button size="sm" variant="outline" loading={props.newFromDeviceBusy} iconLeft={<FontAwesomeIcon icon={faPlus} aria-hidden="true" />} onClick={() => void newFromDevice()}>
                   {m.newFromDevice}
                 </Button>
               )}

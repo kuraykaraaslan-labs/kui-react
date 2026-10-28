@@ -133,6 +133,23 @@ describe('SceneSetupDrawer: document', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'New from this device' }));
     expect(onNewFromDevice).toHaveBeenCalled();
   });
+  it('chooses the document the host answers with, and nothing when it answers none or fails', async () => {
+    const onDocumentChange = vi.fn();
+    const user = userEvent.setup();
+    const ok = render(<SceneSetupDrawer {...props({ onDocumentChange, onNewFromDevice: async () => DOC_B })} />);
+    await user.click(screen.getByRole('button', { name: 'New from this device' }));
+    expect(onDocumentChange).toHaveBeenCalledExactlyOnceWith(DOC_B);
+    expect(screen.getByRole('radio', { name: 'Use Grill station' })).toBeChecked();
+    ok.unmount();
+    onDocumentChange.mockClear();
+    const none = render(<SceneSetupDrawer {...props({ onDocumentChange, onNewFromDevice: async () => undefined })} />);
+    await user.click(screen.getByRole('button', { name: 'New from this device' }));
+    none.unmount();
+    render(<SceneSetupDrawer {...props({ onDocumentChange, onNewFromDevice: async () => { throw new Error('refused'); } })} />);
+    await user.click(screen.getByRole('button', { name: 'New from this device' }));
+    expect(onDocumentChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('radio', { name: 'Use Fryer line' })).toBeChecked();
+  });
   it('empty and loading states', () => {
     const a = render(<SceneSetupDrawer {...props({ documents: [], initial: {} })} />);
     expect(screen.getByText('No document of this kind yet.')).toBeInTheDocument();

@@ -29,6 +29,7 @@ All notable changes to this project will be documented here. Format follows [Kee
   edits); `slotLocked` fixes it for a card that opened the drawer. `documentChanged` shows "The drawing changed since this was set up"
   with the number of saved entries the drawing no longer has, and lets an unchanged setup be saved to renew it. Pure helpers in
   `scene-binding-logic`: `slotChoices`, `normalizeSlotInput`, `slotIssue`, `documentChanged`.
+  `onNewFromDevice` may answer with the new document's id (a promise is awaited): the drawer then chooses it, keeping the form's edits.
 - WidgetKit `SceneSetupDrawer` gets a Rules step for a 3D design (next-boilerplate phase 42.6, D42-11): the fifth section lists the
   binding's rules as sentence cards ("For heater: When value of this item is above 80, colour it red and pulse") with a form each.
   A rule targets a scene key of the chosen document (or every item), reads up to two conditions (a column of the item's own row or
