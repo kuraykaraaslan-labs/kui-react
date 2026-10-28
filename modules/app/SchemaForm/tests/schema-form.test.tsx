@@ -25,6 +25,18 @@ describe('SchemaForm', () => {
     expect(screen.getByText('Appearance')).toBeTruthy();
   });
 
+  it('never draws a hidden field and hands its stored value back unchanged when another field is edited', () => {
+    const onChange = vi.fn();
+    const hiddenSchema: Record<string, FieldSchema> = {
+      title: { label: 'Title', type: 'text' },
+      map: { label: 'Element to item map', type: 'json', advanced: true, hidden: true },
+    };
+    render(<SchemaForm schema={hiddenSchema} values={{ title: 'a', map: { cb: 'i2' } }} onChange={onChange} debounceMs={0} />);
+    expect(screen.queryByText('Element to item map')).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'b' } });
+    expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'b', map: { cb: 'i2' } }));
+  });
+
   it('debounces onChange', () => {
     vi.useFakeTimers();
     const onChange = vi.fn();

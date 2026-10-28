@@ -92,7 +92,7 @@ export function SchemaForm({
 
   const q = search.trim().toLowerCase();
   const visible = Object.entries(schema)
-    .filter(([, f]) => shouldShow(f, local))
+    .filter(([, f]) => !f.hidden && shouldShow(f, local))
     .filter(([k, f]) => !fieldFilter || fieldFilter(k, f, local[k], defaults[k] ?? f.value))
     .filter(([k, f]) => !q || f.label.toLowerCase().includes(q) || k.toLowerCase().includes(q));
   const ungrouped = visible.filter(([, f]) => !f.group);

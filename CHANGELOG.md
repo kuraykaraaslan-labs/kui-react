@@ -23,6 +23,8 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- **SchemaForm `hidden` field flag.** A field marked `hidden` is never drawn, in any mode, and its stored value is handed back unchanged on every edit: for a setting another screen owns (next-boilerplate's scene setup drawer writes the element map of a 3D card; a person should not edit it by hand).
+
 - WidgetKit `SceneSetupDrawer` for kind `diagram` (next-boilerplate phase 42.5.4): `SceneSetupPreview2D` draws a stored 2D diagram read-only with the card's
   own `ScadaSceneView` (every symbol a button, Enter and Space too, the picked one outlined, no rules, a locked-out symbol still pickable) and answers
   a click with the symbol's id: the host passes it as `preview` and keeps `pickedKey`, so "Pick" works on a diagram as it does on a 3D design. The kind

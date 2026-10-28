@@ -118,6 +118,11 @@ export interface FieldSchema {
   // ── Presentation and extra constraints (widget settings, phase 21) ──────────
   /** Hidden in a "Basic" editor unless its value differs from the default. Presentation only. */
   advanced?: boolean
+  /**
+   * Never drawn, in any mode: a setting another screen owns (a value a drawer writes, a map no person should edit by hand). Its stored value is
+   * kept as it is: the form hands it back unchanged on save, and validation still reads it. Presentation only, like `advanced`.
+   */
+  hidden?: boolean
   /** Renderer hint. select: 'dropdown' (default) | 'segmented' | 'cards'; number: 'input' never shows a slider. */
   display?: 'dropdown' | 'segmented' | 'cards' | 'input'
   /** number: an empty input is a valid value (absent = automatic / inherit). */
