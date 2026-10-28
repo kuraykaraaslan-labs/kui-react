@@ -93,6 +93,14 @@ export interface SceneSetupDrawerProps {
    * reads it and passes it as `initial` with a new `resetKey` (the documents and keys are the new kind's). With edits in the form, the drawer asks first.
    */
   onKindChange?: (kind: string) => void;
+  /**
+   * Adds "Remove this setup" to the footer, offered while the form is on a SAVED setup (the one `initial` holds: it has a document, and the form's slot and kind
+   * are its own, so a slot or kind typed but not yet answered offers nothing). The drawer asks first through the kit's ConfirmDialog, which names the kind and the
+   * slot; on confirm the host removes THAT binding and answers (a promise is awaited; the host closes the drawer or reloads `initial`).
+   */
+  onRemove?: (target: { slot: string; kind: string }) => void | Promise<void>;
+  /** A removal is running: the button waits. */
+  removing?: boolean;
 
   documents: readonly SceneSetupDocument[];
   documentsLoading?: boolean;
@@ -300,6 +308,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const [newSlotMode, setNewSlotMode] = useState(() => canNewSlot && !slots!.some((o) => o.value === latest.slot));
   const [pendingSlot, setPendingSlot] = useState<string | null>(null);
   const [pendingKind, setPendingKind] = useState<string | null>(null);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
 
   // ── Devices in the scene and their roles ──
   const savedDeviceIds = useMemo(() => new Set(Object.values(seed.devices)), [seed.devices]);
@@ -458,6 +467,8 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const canSave = (changed || reviewDrawing) && issues.length === 0 && !loading && !saving;
   const stuck = loading ? m.waitForData : issues.length ? m.issue[issues[0].code](issues[0].subject) : !changed && !reviewDrawing ? m.nothingChanged : '';
   const unmatchedStaying = left.keys.length - pending.length;
+  // a saved setup is what the form is on: the one `initial` holds (a document), under the slot and kind it names
+  const removable = !!props.onRemove && !!seed.documentId && slot === seed.slot && kind === seed.kind;
 
   // ── Handlers ──
   // A kind is, like a slot, a choice of which setup this is: the form starts over from the saved setup of that kind (the host answers with `initial` and a new
@@ -747,6 +758,9 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p role="status" className="min-w-0 flex-1 text-xs text-text-secondary">{stuck}</p>
             <div className="flex shrink-0 gap-2">
+              {removable && (
+                <Button variant="ghost" disabled={saving || props.removing} loading={props.removing} onClick={() => setConfirmingRemove(true)}>{m.removeButton}</Button>
+              )}
               <Button variant="ghost" onClick={onClose}>{m.cancel}</Button>
               <Button disabled={!canSave} loading={saving} onClick={() => setConfirming(true)}>{saving ? m.saving : m.save}</Button>
             </div>
@@ -967,6 +981,21 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           const next = pendingKind;
           setPendingKind(null);
           if (next !== null) applyKind(next);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmingRemove && open}
+        portalTarget={props.portalTarget}
+        title={m.removeTitle}
+        message={m.removeBody(m.kinds[seed.kind] ?? seed.kind, seed.slot)}
+        tone="danger"
+        confirmLabel={m.removeConfirm}
+        cancelLabel={m.cancel}
+        onCancel={() => setConfirmingRemove(false)}
+        onConfirm={() => {
+          setConfirmingRemove(false);
+          void props.onRemove?.({ slot: seed.slot, kind: seed.kind });
         }}
       />
 

@@ -929,3 +929,48 @@ describe('SceneSetupDrawer: the drawing changed since the setup (TK-6)', () => {
     expect(screen.queryByTestId('drawing-changed')).toBeNull();
   });
 });
+
+describe('SceneSetupDrawer: remove this setup (SP-10)', () => {
+  const initial = { slot: 'main', kind: 'design', documentId: DOC_A };
+  const user = () => userEvent.setup();
+
+  it('offers nothing without a host callback, or while the form is on no saved setup', () => {
+    const { rerender } = render(<SceneSetupDrawer {...props({ initial })} />);
+    expect(screen.queryByRole('button', { name: 'Remove this setup' })).toBeNull();
+    rerender(<SceneSetupDrawer {...props({ initial: { slot: 'main', kind: 'design' }, onRemove: vi.fn() })} />);
+    expect(screen.queryByRole('button', { name: 'Remove this setup' })).toBeNull();
+  });
+
+  it('asks first, naming the kind and the slot, and removes exactly that binding on confirm', async () => {
+    const onRemove = vi.fn();
+    render(<SceneSetupDrawer {...props({ initial: { slot: 'side', kind: 'design', documentId: DOC_A }, onRemove, slots: [{ value: 'main', label: 'main' }, { value: 'side', label: 'side' }] })} />);
+    const u = user();
+    await u.click(screen.getByRole('button', { name: 'Remove this setup' }));
+    expect(onRemove).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('dialog', { name: 'Remove the scene setup' });
+    expect(within(dialog).getByText(/Removes the saved 3D design setup of the slot side/)).toBeInTheDocument();
+    await u.click(within(dialog).getByRole('button', { name: 'Remove setup' }));
+    expect(onRemove).toHaveBeenCalledWith({ slot: 'side', kind: 'design' });
+  });
+
+  it('Cancel removes nothing', async () => {
+    const onRemove = vi.fn();
+    render(<SceneSetupDrawer {...props({ initial, onRemove })} />);
+    const u = user();
+    await u.click(screen.getByRole('button', { name: 'Remove this setup' }));
+    await u.click(within(screen.getByRole('dialog', { name: 'Remove the scene setup' })).getByRole('button', { name: 'Cancel' }));
+    expect(onRemove).not.toHaveBeenCalled();
+  });
+
+  it('goes away when the form is on another kind than the saved one (the host has not answered the switch yet)', async () => {
+    render(<SceneSetupDrawer {...props({ initial, onRemove: vi.fn(), onKindChange: vi.fn() })} />);
+    expect(screen.getByRole('button', { name: 'Remove this setup' })).toBeInTheDocument();
+    await user().click(screen.getByRole('button', { name: '2D diagram' }));
+    expect(screen.queryByRole('button', { name: 'Remove this setup' })).toBeNull();
+  });
+
+  it('waits while a removal runs', () => {
+    render(<SceneSetupDrawer {...props({ initial, onRemove: vi.fn(), removing: true })} />);
+    expect(screen.getByRole('button', { name: /Remove this setup/ })).toBeDisabled();
+  });
+});

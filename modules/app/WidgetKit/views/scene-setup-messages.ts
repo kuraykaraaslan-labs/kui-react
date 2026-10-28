@@ -105,6 +105,11 @@ export interface SceneSetupMessages {
   kindSwitchTitle: string;
   kindSwitchBody: (kind: string) => string;
   kindSwitchConfirm: string;
+  /** "Remove this setup": the footer button and its confirmation, which names the kind (as `kinds` has it) and the slot. */
+  removeButton: string;
+  removeTitle: string;
+  removeBody: (kind: string, slot: string) => string;
+  removeConfirm: string;
   /** The segmented choice's label by kind value; a kind with no entry shows its value. */
   kinds: Record<string, string>;
 
@@ -269,6 +274,10 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   kindSwitchTitle: 'Switch kind',
   kindSwitchBody: (kind) => `Your edits in this form are lost: it starts over from the saved setup of the ${kind} kind (or from an empty one).`,
   kindSwitchConfirm: 'Switch kind',
+  removeButton: 'Remove this setup',
+  removeTitle: 'Remove the scene setup',
+  removeBody: (kind, slot) => `Removes the saved ${kind} setup of the slot ${slot} of this subject. Its boards go back to the scene they would show without it. Other slots and the other kind are not touched.`,
+  removeConfirm: 'Remove setup',
   kinds: { diagram: '2D diagram', scene: '2D diagram', design: '3D design' },
 
   documentSection: '2. Document',

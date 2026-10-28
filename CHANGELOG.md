@@ -25,6 +25,10 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 - **SchemaForm `hidden` field flag.** A field marked `hidden` is never drawn, in any mode, and its stored value is handed back unchanged on every edit: for a setting another screen owns (next-boilerplate's scene setup drawer writes the element map of a 3D card; a person should not edit it by hand).
 
+- WidgetKit `SceneSetupDrawer`: "Remove this setup" (next-boilerplate phase 42, SP-10). With `onRemove` the footer offers it while the form is on a SAVED
+  setup (a document in `initial`, under the slot and kind the form is on, so a kind or slot switch the host has not answered offers nothing). The drawer asks
+  first through the kit's ConfirmDialog, which names the kind and the slot (`messages.removeBody(kind, slot)`), and on confirm calls
+  `onRemove({ slot, kind })`; the host removes that binding. `removing` makes the button wait. New messages: `removeButton`, `removeTitle`, `removeBody`, `removeConfirm`.
 - WidgetKit `SceneSetupDrawer` for kind `diagram` (next-boilerplate phase 42.5.4): `SceneSetupPreview2D` draws a stored 2D diagram read-only with the card's
   own `ScadaSceneView` (every symbol a button, Enter and Space too, the picked one outlined, no rules, a locked-out symbol still pickable) and answers
   a click with the symbol's id: the host passes it as `preview` and keeps `pickedKey`, so "Pick" works on a diagram as it does on a 3D design. The kind
