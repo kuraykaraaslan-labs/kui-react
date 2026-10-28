@@ -35,6 +35,8 @@ export type AlarmDetailHeaderProps = {
   openedAt: TimeInput;
   occurrences?: number;
   flapping?: boolean;
+  /** Opened from late readings (after an outage): a neutral mark beside the status. */
+  backfilled?: boolean;
   type?: string;
   topic?: string | null;
   onAcknowledge?: (note?: string) => Promise<void> | void;
@@ -51,7 +53,7 @@ export type AlarmDetailHeaderProps = {
 type Action = 'acknowledge' | 'clear';
 
 export function AlarmDetailHeader({
-  title, message, severity, status, deviceName, deviceHref, openedAt, occurrences, flapping, type, topic,
+  title, message, severity, status, deviceName, deviceHref, openedAt, occurrences, flapping, backfilled, type, topic,
   onAcknowledge, onClear, onResolve, onOpenRunbook, locale, now, messages, className,
 }: AlarmDetailHeaderProps) {
   const { m, locale: lang } = useIotText(messages, locale);
@@ -105,6 +107,7 @@ export function AlarmDetailHeader({
         <AlarmSeverityBadge severity={severity} />
         <AlarmStatusPill status={status} />
         {flapping && <Badge variant="warning" size="sm">{m.alarm.flapping}</Badge>}
+        {backfilled && <Badge variant="neutral" size="sm">{m.alarm.backfilled}</Badge>}
       </div>
 
       <h1 className="mt-3 break-words text-xl font-bold leading-snug text-text-primary">{title}</h1>

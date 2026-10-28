@@ -129,6 +129,7 @@ export function AlarmDetailView({ alarmId, hrefs = {}, now, className }: AlarmDe
           openedAt={alarm.openedAt}
           occurrences={alarm.occurrences}
           flapping={alarm.flapping}
+          backfilled={alarm.backfilled}
           type={alarm.type}
           topic={alarm.topic}
           onAcknowledge={caps.canAcknowledge ? (note) => act('acknowledge', note) : undefined}

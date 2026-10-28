@@ -52,6 +52,8 @@ export const AlarmSchema = z.object({
   flapping: z.boolean().default(false),
   /** Runbook text of the rule that raised it, when there is one (plain text). */
   runbook: z.string().nullable().optional(),
+  /** Opened from readings that arrived late (after an outage) and recorded as history: nobody was told when it happened. */
+  backfilled: z.boolean().optional(),
 });
 export type Alarm = z.infer<typeof AlarmSchema>;
 
@@ -75,6 +77,8 @@ export type AlarmEvent = {
   /** For `severity_changed`. */
   from?: AlarmSeverity;
   to?: AlarmSeverity;
+  /** The step was recorded from readings that arrived late (after an outage), dated by the readings. */
+  backfilled?: boolean;
 };
 
 /** Counts of the alarms that are not resolved, by status and severity (`alarms.counts`). */

@@ -7,6 +7,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import { cn } from '@/libs/utils/cn';
+import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { Textarea } from '@/modules/ui/Textarea';
 import { Timeline, type TimelineItem } from '@/modules/ui/Timeline';
@@ -62,7 +63,7 @@ export function AlarmEventTimeline({
     }
     if (e.kind === 'severity_changed') return fill(m.event.severity_changed, { from: '?', to: '?' });
     const t = (m.event as Record<string, string>)[e.kind];
-    return t && !['by', 'label', 'addNote', 'notePlaceholder', 'post', 'noteAdded', 'empty', 'other'].includes(e.kind) ? t : m.event.other;
+    return t && !['by', 'label', 'addNote', 'notePlaceholder', 'post', 'noteAdded', 'empty', 'other', 'backfilled'].includes(e.kind) ? t : m.event.other;
   };
 
   const items: TimelineItem[] = events.map((e) => {
@@ -74,6 +75,7 @@ export function AlarmEventTimeline({
         <span>
           {titleOf(e)}
           {e.by && <span className="ml-1.5 font-normal text-text-secondary">{fill(m.event.by, { by: e.by })}</span>}
+          {e.backfilled && <Badge variant="neutral" size="sm" className="ml-1.5 align-middle">{m.event.backfilled}</Badge>}
         </span>
       ),
       body: e.note ? <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">{e.note}</p> : undefined,

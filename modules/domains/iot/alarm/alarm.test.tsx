@@ -55,6 +55,13 @@ describe('AlarmSeverityBadge and AlarmStatusPill', () => {
 });
 
 describe('AlarmDetailHeader', () => {
+  it('marks an alarm opened from late readings', () => {
+    const { rerender } = render(<AlarmDetailHeader title="Hot" severity="MAJOR" status="RESOLVED" openedAt={ago(60_000)} now={NOW} backfilled />);
+    expect(screen.getByText('Backfilled')).toBeInTheDocument();
+    rerender(<AlarmDetailHeader title="Hot" severity="MAJOR" status="RESOLVED" openedAt={ago(60_000)} now={NOW} />);
+    expect(screen.queryByText('Backfilled')).toBeNull();
+  });
+
   it('shows Acknowledge only while OPEN and Clear unless RESOLVED, and nothing without handlers', () => {
     const { rerender } = render(<AlarmDetailHeader title="Hot" severity="MAJOR" status="ACKNOWLEDGED" openedAt={ago(60_000)} now={NOW} onAcknowledge={vi.fn()} onClear={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Acknowledge' })).toBeNull();
@@ -101,6 +108,20 @@ describe('AlarmDetailHeader', () => {
 });
 
 describe('AlarmEventTimeline', () => {
+  it('marks a step recorded from late readings, and only that one; a kind named like the mark stays an unknown kind', () => {
+    render(
+      <AlarmEventTimeline
+        events={[
+          { eventId: '1', kind: 'opened', by: 'platform', at: ago(10_000), backfilled: true },
+          { eventId: '2', kind: 'resolved', by: 'platform', at: ago(9_000) },
+          { eventId: '3', kind: 'backfilled', by: 'platform', at: ago(8_000) },
+        ]}
+      />,
+    );
+    expect(screen.getAllByText('from late readings')).toHaveLength(1);
+    expect(screen.getByText('Event')).toBeInTheDocument();
+  });
+
   it('names each kind, a severity change and an unknown kind, and posts a note', async () => {
     const user = userEvent.setup();
     const onAddNote = vi.fn().mockResolvedValue(undefined);
