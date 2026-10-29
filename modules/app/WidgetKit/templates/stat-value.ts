@@ -64,7 +64,7 @@ export const STAT_VALUE_KIND: BuiltinKindSpec = {
   description: 'One bound number with a label, an icon, colour ranges and an optional comparison.',
   icon: 'fas fa-hashtag',
   defaultW: 3,
-  defaultH: 2,
+  defaultH: 3,
   slots: [
     { key: 'value', label: 'Value', shape: 'scalar', required: true },
     { key: 'compare', label: 'Compare with', shape: 'scalar', required: false },

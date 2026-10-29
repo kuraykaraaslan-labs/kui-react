@@ -6,6 +6,9 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- `DeviceTelemetryView` (IoT kit): the chart starts on the freshest numeric key, not the first by name (an hours-old leftover key sat under
+  "Live" with "No values in this window"); `stat.value` and `state` cards start three rows high so the big number is not cut off; the diagram
+  editor's button reads **Save** / **Saving** (it was Apply).
 - `SymbolBindingPanel` (after next-boilerplate's e2e round 3): a connected row has a **Disconnect** button and an empty one says "Not connected"
   (the picker's bare x was the only way out); switching a row's source back to "A device value" also drops the value the expression was built
   on, so a flow meter never shows a temperature by accident; the host's save error is shown only while the draft that failed stands; a syntax

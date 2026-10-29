@@ -587,7 +587,7 @@ describe('Apply and Close', () => {
     key(m.canvas, 'Delete');
     fireEvent.click(screen.getByTestId('editor-apply'));
     expect(screen.getByTestId('editor-apply')).toBeDisabled();
-    expect(screen.getByTestId('editor-apply')).toHaveTextContent('Applying');
+    expect(screen.getByTestId('editor-apply')).toHaveTextContent('Saving');
     fireEvent.click(screen.getByTestId('editor-apply'));
     expect(onApply).toHaveBeenCalledTimes(1);
     await act(async () => { finish(); });

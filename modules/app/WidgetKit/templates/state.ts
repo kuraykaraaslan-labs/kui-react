@@ -78,7 +78,7 @@ export const STATE_KIND: BuiltinKindSpec = {
   description: 'A bound value mapped to a labelled, coloured state.',
   icon: 'fas fa-circle-dot',
   defaultW: 3,
-  defaultH: 2,
+  defaultH: 3,
   slots: [{ key: 'value', label: 'Value', shape: 'scalar', required: true }],
   template: STATE,
 };

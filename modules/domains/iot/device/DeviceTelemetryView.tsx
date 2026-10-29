@@ -115,8 +115,9 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
     }),
   });
 
-  // the keys charted: the first numeric key until the viewer ticks others
-  const numeric = useMemo(() => (rows ?? []).filter((r) => r.kind === 'number').map((r) => r.key).sort(), [rows]);
+  // the keys charted: the freshest numeric key until the viewer ticks others (next-boilerplate e2e round 3, m-R3-04: the first key by name was an
+  // 11-hour-old leftover, and the chart under "Live" said "No values in this window")
+  const numeric = useMemo(() => (rows ?? []).filter((r) => r.kind === 'number').sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0) || a.key.localeCompare(b.key)).map((r) => r.key), [rows]);
   const [ticked, setTicked] = useState<string[] | null>(null);
   const charted = (ticked ?? numeric.slice(0, 1)).filter((k) => numeric.includes(k)).slice(0, maxCharted);
   const [win, setWin] = useState<WindowKey>('6h');

@@ -62,7 +62,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   problemsCount: '{count} problems', problemsOne: '1 problem', noProblems: 'No problems',
   panelPalette: 'Symbols', panelInspector: 'Inspector', collapse: 'Collapse {panel}', expand: 'Expand {panel}',
   actionsHint: 'Select one symbol to edit its actions.', tabProperties: 'Properties', tabRules: 'Rules', tabActions: 'Actions', tabProblems: 'Problems', tabWhatIf: 'What-if', tabs: 'Inspector sections',
-  apply: 'Apply', applying: 'Applying', close: 'Close',
+  apply: 'Save', applying: 'Saving', close: 'Close',
   dirtyTitle: 'Discard your changes?', dirtyBody: 'The diagram has changes that were not applied.', dirtyDiscard: 'Discard changes', dirtyKeep: 'Keep editing',
   applyFailed: 'The diagram could not be applied.', applied: 'Applied',
   pasteTitle: 'Paste a diagram piece', pasteBody: 'This browser did not let the editor read the clipboard. Paste the copied text here.',
