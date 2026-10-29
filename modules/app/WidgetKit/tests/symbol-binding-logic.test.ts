@@ -454,7 +454,9 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
 
 describe('defaultInputName', () => {
   it('makes a readable name from a label or key, never a reserved word, never one taken', () => {
-    expect(defaultInputName('Supply temperature')).toBe('supply_temperatu');
+    // a text too long for 16 characters loses its LEADING words, never its tail mid-word (E2E-2.12)
+    expect(defaultInputName('Supply temperature')).toBe('temperature');
+    expect(defaultInputName('supply_temp')).toBe('supply_temp');
     expect(defaultInputName('return_temp')).toBe('return_temp');
     expect(defaultInputName('Return')).toBe('return_in');
     expect(defaultInputName('value')).toBe('value_in');
@@ -463,7 +465,8 @@ describe('defaultInputName', () => {
     expect(defaultInputName('???')).toBe('input');
     expect(defaultInputName('temp', ['temp'])).toBe('temp_2');
     expect(defaultInputName('temp', ['temp', 'temp_2'])).toBe('temp_3');
-    expect(defaultInputName('supply_temperature_x', ['supply_temperatu'])).toBe('supply_tempera_2');
+    expect(defaultInputName('supply_temperature_x')).toBe('temperature_x');
+    expect(defaultInputName('supply_temperature_x', ['temperature_x'])).toBe('temperature_x_2');
     expect(expressionNames([{ name: 'a' }, { name: 'b' }])).toEqual(['value', 'row', 'now', 'a', 'b']);
   });
 });
@@ -549,5 +552,55 @@ describe('a key\'s own words say what it measures (slice 16)', () => {
     expect(suggestKeyForField({ name: 'value', label: 'Reading' }, [k('temp_1', 21.5), k('pump_on', true)], undefined, ['Thermometer'])).toBe('temp_1');
     expect(suggestKeyForField({ name: 'value', label: 'Humidity' }, [k('t', 21.5), k('rh', 40)])).toBe('rh');
     expect(suggestKeyForField({ name: 'value', label: 'Humidity' }, [k('t', 21.5), k('x', 40)])).toBeNull();
+  });
+});
+
+describe('rankKeysForField: another piece of equipment of the same device (e2e round 2, E2E-2.11)', () => {
+  const pool: DeviceKey[] = [
+    key('pool.value', 84.2, { label: 'Pool · level' }), key('drain_valve.running', true, { label: 'Drain valve · running' }),
+    key('circulation_pump.status', 'ok', { label: 'Circulation pump · status' }), key('circulation_pump.running', true),
+    key('meter_flow.running', false, { label: 'Flow meter · running' }), key('temp', 33.9),
+  ];
+  it('a basin\'s Running is not the drain valve\'s by itself: the key under another prefix is offered, never confident', () => {
+    const ranked = rankKeysForField({ name: 'running', label: 'Running' }, pool, 'tank1', [], ['Open basin', 'Open basin']);
+    const top = ranked[0];
+    expect(top.key.endsWith('.running')).toBe(true);
+    expect(top.foreign).toBe(true);
+    expect(top.confident).toBe(false);
+    expect(suggestKeyForField({ name: 'running', label: 'Running' }, pool, 'tank1', ['Open basin', 'Open basin'])).toBeNull();
+  });
+  it('a flow meter\'s Status is not the circulation pump\'s; its own Running (the meter_flow prefix shares its words) is confident', () => {
+    const status = rankKeysForField({ name: 'status', label: 'Status' }, pool, 'meter1', [], ['Flow meter', 'Flow meter']);
+    expect(status.find((r) => r.key === 'circulation_pump.status')).toMatchObject({ foreign: true, confident: false });
+    const running = rankKeysForField({ name: 'running', label: 'Running' }, pool, 'meter1', [], ['Flow meter', 'Flow meter']);
+    expect(running[0]).toMatchObject({ key: 'meter_flow.running', confident: true });
+    expect(running[0].foreign).toBeUndefined();
+  });
+  it('the element rule overrides it, and a flat key (no prefix) is never foreign', () => {
+    const own = rankKeysForField({ name: 'running' }, [key('drain_valve.running', true)], 'drain_valve', [], ['Open basin']);
+    expect(own[0]).toMatchObject({ key: 'drain_valve.running', confident: true });
+    expect(own[0].foreign).toBeUndefined();
+    const flat = rankKeysForField({ name: 'value', label: 'Temperature' }, [key('temp', 33.9), key('hum', 40)], 'tank1', [], ['Open basin']);
+    expect(flat[0]).toMatchObject({ key: 'temp', confident: true });
+  });
+  it('the symbol\'s own words are read as written: "open" does not reach "valve" through a synonym', () => {
+    const ranked = rankKeysForField({ name: 'running' }, [key('drain_valve.running', true), key('temp', 1.5)], 'tank1', [], ['Open basin']);
+    expect(ranked[0]).toMatchObject({ key: 'drain_valve.running', foreign: true });
+  });
+});
+
+describe('defaultInputName: the key, not a cut of the label (e2e round 2, E2E-2.12)', () => {
+  it('keeps a key as it is, turns a dot into _, and drops leading words of a long dotted key', () => {
+    expect(defaultInputName('temp_24h')).toBe('temp_24h');
+    expect(defaultInputName('pool.value')).toBe('pool_value');
+    expect(defaultInputName('circulation_pump.status')).toBe('status');
+    expect(defaultInputName('tank.value', ['pool_value'])).toBe('tank_value');
+    expect(defaultInputName('oven.door_open', ['door_open'])).toBe('oven_door_open');
+    expect(defaultInputName('Pool temperature (24 h ago)')).toBe('v_24_h_ago');
+  });
+  it('two keys give two names without a cut mid-word', () => {
+    const a = defaultInputName('temp_24h');
+    const b = defaultInputName('temp', [a]);
+    expect([a, b]).toEqual(['temp_24h', 'temp']);
   });
 });

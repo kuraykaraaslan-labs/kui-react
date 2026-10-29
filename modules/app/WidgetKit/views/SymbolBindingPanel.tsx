@@ -261,7 +261,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
         fields[f.name] = { ...fields[f.name], deviceId: draft.deviceId, deviceName: draft.deviceName, key: top.key, label: labelOfKey(keyByName.get(top.key)), automatic: false };
         taken.add(top.key);
         sure.add(f.name);
-      } else if (top.score >= MIN_PROPOSAL_SCORE && (!second || top.score > second.score)) maybe[f.name] = top; // a tie, or a kind alone, is no suggestion: the row says what to do instead
+      } else if (top.score >= MIN_PROPOSAL_SCORE && !top.mismatch && (!second || top.score > second.score)) maybe[f.name] = top; // a tie, a kind alone or a value of the wrong kind is no suggestion (E2E-2.11): the row says what to do instead
     }
     if (sure.size > 0) setDraft({ ...draft, fields });
     setSuggested(sure);
@@ -318,7 +318,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     setField(name, (f) => {
       if (f.inputs.length >= MAX_INPUTS_PER_FIELD || f.inputs.some((i) => i.key === key && i.deviceId === draft.deviceId)) return f;
       const taken = expressionNames(f.inputs);
-      const input: InputDraft = { name: defaultInputName(info?.label || key, taken), deviceId: draft.deviceId, deviceName: draft.deviceName, key, label: labelOfKey(info) };
+      // the name is the KEY's (`temp_24h`), never a cut of the label (E2E-2.12)
+      const input: InputDraft = { name: defaultInputName(key, taken), deviceId: draft.deviceId, deviceName: draft.deviceName, key, label: labelOfKey(info) };
       return { ...f, mode: 'expression', inputs: [...f.inputs, input] };
     });
   }

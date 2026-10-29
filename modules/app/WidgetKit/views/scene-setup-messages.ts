@@ -84,6 +84,21 @@ export interface SceneSetupMessages {
   close: string;
   loading: string;
 
+  // The `choose` mode (next-boilerplate D45-10, e2e round 2 E2E-2.1): the drawer is only "which drawing?"; everything else sits under Advanced
+  /** The title in `choose` mode (the host passes the kind's word: "Choose a 3D view"). */
+  chooseTitle: string;
+  /** The heading over the document table in `choose` mode. */
+  chooseSection: string;
+  /** What choosing does, in words: the drawing is shown on this page, its symbols are connected there, every page that shows the subject's drawing follows. */
+  chooseHint: string;
+  /** The one line about the saved connections of another drawing kept in the setup (`choose` mode; the table itself is under Advanced). */
+  staleChooseLine: (count: number) => string;
+  /** The Advanced fold's summary and its hint. */
+  advanced: string;
+  advancedHint: string;
+  /** A device the setup names that is not in the host's list (a stale entry's device, by name when known). */
+  unknownDevice: string;
+
   // 1. Slot and kind
   slotSection: string;
   slotLabel: string;
@@ -211,9 +226,9 @@ export interface SceneSetupMessages {
   staleRemoveOf: (kind: string, name: string) => string;
   staleKeep: string;
   staleKeepOf: (kind: string, name: string) => string;
-  /** "Stale exception for fryer.heater: the device e2... is not listed". */
-  staleExceptionDetail: (deviceId: string, element: string) => string;
-  staleRoleDetail: (deviceId: string) => string;
+  /** "Reads hatch of Fryer 1": the device by NAME when the host lists it (e2e round 2, E2E-2.18), else `unknownDevice`; never a bare id. */
+  staleExceptionDetail: (device: string, element: string) => string;
+  staleRoleDetail: (device: string) => string;
   staleHiddenDetail: string;
   staleSearch: string;
   staleEmpty: string;
@@ -268,6 +283,14 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   title: 'Scene',
   close: 'Close',
   loading: 'Loading',
+
+  chooseTitle: 'Choose a drawing',
+  chooseSection: 'Which drawing?',
+  chooseHint: 'The drawing this device is shown as. After saving it is on this page: connect each symbol there by clicking it. Every page that shows this device\'s drawing shows the one you choose. The same drawing can serve several devices; each device connects its own values.',
+  staleChooseLine: (count) => `${n(count, 'connection', 'connections')} made for another drawing ${count === 1 ? 'is' : 'are'} kept in case you switch back.`,
+  advanced: 'Advanced',
+  advancedHint: 'Slots, roles, the matching table and rules. Nothing here is needed to show a drawing or to connect its symbols.',
+  unknownDevice: 'another device',
 
   slotSection: '1. Slot and kind',
   slotLabel: 'Slot',
@@ -378,8 +401,8 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   staleRemoveOf: (kind, name) => `Remove the ${kind.toLowerCase()} ${name}`,
   staleKeep: 'Keep',
   staleKeepOf: (kind, name) => `Keep the ${kind.toLowerCase()} ${name}`,
-  staleExceptionDetail: (deviceId, element) => `Reads ${element} of device ${deviceId}`,
-  staleRoleDetail: (deviceId) => `Device ${deviceId} is not in the list`,
+  staleExceptionDetail: (device, element) => `Reads ${element} of ${device}`,
+  staleRoleDetail: (device) => `${device} is not in the list`,
   staleHiddenDetail: 'Left out of the scene',
   staleSearch: 'Search saved entries',
   staleEmpty: 'Nothing stale.',
@@ -477,12 +500,12 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     blinkOff: 'Do not blink',
     problems: (num) => (num === 1 ? '1 problem' : `${num} problems`),
     read: 'Read',
-    column: 'A column of a row',
+    column: 'A value of a symbol',
     parameter: 'A board parameter',
-    columnLabel: 'Column',
+    columnLabel: 'Which value',
     parameterLabel: 'Parameter',
-    ofRow: 'Of row',
-    ownRow: "The item's own row",
+    ofRow: 'Of symbol',
+    ownRow: 'This symbol',
     operator: 'Operator',
     alwaysOption: 'Always (no condition)',
     opLabels: {

@@ -1026,3 +1026,87 @@ describe('SceneSetupDrawer: remove this setup (SP-10)', () => {
     expect(screen.getByRole('button', { name: /Remove this setup/ })).toBeDisabled();
   });
 });
+
+describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 2 E2E-2.1)', () => {
+  const user = () => userEvent.setup();
+  const KEYS2 = [{ key: 'heater', kind: 'symbol' }, { key: 'ghost', kind: 'symbol' }];
+  const stale = {
+    slot: 'main', kind: 'design', documentId: DOC_A, devices: { '': D1, oven: D3 },
+    map: { oldkey: { deviceId: D1, element: 'gone' }, other: { deviceId: D3, fields: { value: { key: 'x' } } } }, hidden: [],
+  };
+
+  it('shows only "which drawing?" with its hint, no numbered sections, no slot, no kind, no match table and no rules; the Advanced fold holds them', async () => {
+    render(<SceneSetupDrawer {...props({ mode: 'choose', kindLocked: true, slots: [{ value: 'main', label: 'main' }], allowNewSlot: true })} />);
+    expect(screen.getByRole('dialog', { name: 'Choose a drawing' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Which drawing?' })).toBeInTheDocument();
+    expect(screen.getByText(/After saving it is on this page/)).toBeInTheDocument();
+    for (const h of ['1. Slot and kind', '2. Document', '3. Devices and roles', '4. Match', '5. Rules']) expect(screen.queryByRole('heading', { name: h })).toBeNull();
+    expect(screen.queryByLabelText('Slot')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Match automatically' })).toBeNull();
+    expect(screen.queryByText(/scene key|Unmatched|Set by hand/)).toBeNull();
+    const fold = screen.getByTestId('scene-advanced');
+    expect(within(fold).getByText('Advanced')).toBeInTheDocument();
+    await user().click(within(fold).getByText('Advanced'));
+    for (const h of ['1. Slot and kind', '3. Devices and roles', '4. Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
+    expect(screen.getByLabelText('Slot')).toHaveValue('main');
+    // the kind the host locked is the host's choice: not even named
+    expect(screen.queryByRole('button', { name: '3D design' })).toBeNull();
+  });
+
+  it('a locked kind is named only when the host does not lock it', async () => {
+    render(<SceneSetupDrawer {...props({ mode: 'choose' })} />);
+    await user().click(within(screen.getByTestId('scene-advanced')).getByText('Advanced'));
+    expect(screen.getByRole('button', { name: '3D design' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Save writes at once, with no confirmation and no acknowledgement, even while symbols read nothing yet', async () => {
+    const onSave = vi.fn();
+    render(<SceneSetupDrawer {...props({ mode: 'choose', onSave, initial: { slot: 'main', kind: 'design' } })} />);
+    const u = user();
+    await u.click(screen.getByRole('radio', { name: 'Use Grill station' }));
+    await u.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.queryByRole('dialog', { name: 'Save the scene setup' })).toBeNull();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0]).toMatchObject({ documentId: DOC_B, slot: 'main', kind: 'design' });
+    expect(onSave.mock.calls[0][1]).toEqual({ reason: '' });
+  });
+
+  it('still asks when the saved setup is newer than the one the form started from (a conflict)', async () => {
+    const onSave = vi.fn();
+    render(<SceneSetupDrawer {...props({ mode: 'choose', onSave, conflict: true, initial: { slot: 'main', kind: 'design' } })} />);
+    const u = user();
+    await u.click(screen.getByRole('radio', { name: 'Use Grill station' }));
+    await u.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('dialog', { name: 'Save the scene setup' })).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('says in one line that connections made for another drawing are kept, and names their devices by NAME under Advanced, never by id (E2E-2.18)', async () => {
+    render(<SceneSetupDrawer {...props({ mode: 'choose', initial: stale, sceneKeys: KEYS2, devices: [{ id: D1, label: 'Fryer 1', code: 'FRY-1' }] })} />);
+    expect(screen.getByTestId('stale-choose-line').textContent).toBe('3 connections made for another drawing are kept in case you switch back.');
+    expect(screen.queryByRole('table', { name: 'Saved entries the scene no longer has' })).toBeNull();
+    await user().click(within(screen.getByTestId('scene-advanced')).getByText('Advanced'));
+    const t = within(screen.getByRole('table', { name: 'Saved entries the scene no longer has' }));
+    expect(t.getByText('Reads gone of Fryer 1')).toBeInTheDocument();
+    expect(t.getByText('Reads value of another device')).toBeInTheDocument();
+    expect(t.getByText('another device is not in the list')).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(D1))).toBeNull();
+    expect(screen.queryByText(new RegExp(D3))).toBeNull();
+  });
+
+  it('the host\'s preview is drawn under the document table in choose mode', () => {
+    render(<SceneSetupDrawer {...props({ mode: 'choose', preview: <div data-testid="pv" /> })} />);
+    expect(screen.getByRole('region', { name: 'Scene preview' })).toContainElement(screen.getByTestId('pv'));
+  });
+
+  it('the full mode is the default and unchanged: numbered sections, the slot, the kind and the confirmation', async () => {
+    const onSave = vi.fn();
+    render(<SceneSetupDrawer {...props({ onSave, initial: { slot: 'main', kind: 'design' } })} />);
+    for (const h of ['1. Slot and kind', '2. Document', '3. Devices and roles', '4. Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
+    const u = user();
+    await u.click(screen.getByRole('radio', { name: 'Use Grill station' }));
+    await u.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('dialog', { name: 'Save the scene setup' })).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+});

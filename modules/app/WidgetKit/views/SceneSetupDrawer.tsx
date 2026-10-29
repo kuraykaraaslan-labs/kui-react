@@ -53,9 +53,18 @@ export interface SceneSetupSave {
   reason: string;
 }
 
+/**
+ * How much of the form a person sees (next-boilerplate D45-10, e2e round 2 E2E-2.1): `full` is every section; `choose` is "which drawing?"
+ * alone (the document table, the host's preview and one line about kept connections), with the slot and kind, the devices and roles, the
+ * matching table and the rules folded under Advanced, and a Save that asks nothing (the symbols are connected on the drawing afterwards).
+ */
+export type SceneSetupMode = 'full' | 'choose';
+
 export interface SceneSetupDrawerProps {
   open: boolean;
   onClose: () => void;
+  /** Default `full`. See `SceneSetupMode`. */
+  mode?: SceneSetupMode;
   /**
    * The saved binding when there is one, or what the card menu pre-sets (slot, kind). Read when the drawer opens; a changed
    * `initial` after that restarts the form while it is untouched, and shows a "saved version changed" notice with Reload once it
@@ -355,19 +364,24 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     if (loading) return [];
     const rows: StaleRow[] = [];
     const state = (id: string): 'kept' | 'removed' => (form.removedStale[id] ? 'removed' : 'kept');
+    // a device by its NAME when the host lists it (never a bare id on screen, E2E-2.18); the subject's one device when the entry names none
+    const nameOf = (deviceId: string | undefined): string => {
+      const id = deviceId ?? (devices.length === 1 ? devices[0].id : '');
+      return devices.find((d) => d.id === id)?.label ?? m.unknownDevice;
+    };
     for (const k of stale.exceptions) {
       const ref = ks.map[k];
       // a stale entry with a field map and no element names its fields where the element would be (the drawer of phase 45.4 shows them properly)
-      rows.push({ id: `exception:${k}`, type: 'exception', typeLabel: m.staleKind.exception, name: k, detail: m.staleExceptionDetail(ref.deviceId ?? '', ref.element ?? Object.keys(ref.fields ?? {}).join(', ')), state: state(`exception:${k}`) });
+      rows.push({ id: `exception:${k}`, type: 'exception', typeLabel: m.staleKind.exception, name: k, detail: m.staleExceptionDetail(nameOf(ref.deviceId), ref.element ?? Object.keys(ref.fields ?? {}).join(', ')), state: state(`exception:${k}`) });
     }
     for (const r of stale.roles) {
-      rows.push({ id: `role:${r}`, type: 'role', typeLabel: m.staleKind.role, name: r, detail: m.staleRoleDetail(seed.devices[r]), state: state(`role:${r}`) });
+      rows.push({ id: `role:${r}`, type: 'role', typeLabel: m.staleKind.role, name: r, detail: m.staleRoleDetail(nameOf(seed.devices[r])), state: state(`role:${r}`) });
     }
     for (const k of stale.hidden) {
       rows.push({ id: `hidden:${k}`, type: 'hidden', typeLabel: m.staleKind.hidden, name: k, detail: m.staleHiddenDetail, state: state(`hidden:${k}`) });
     }
     return rows;
-  }, [loading, stale, seed.devices, ks, form.removedStale, m]);
+  }, [loading, stale, seed.devices, ks, form.removedStale, m, devices]);
   const staleKept = staleRows.filter((r) => r.state === 'kept');
   const carryMap = useMemo(
     () => Object.fromEntries(staleKept.filter((r) => r.type === 'exception').map((r) => [r.name, ks.map[r.name]])),
@@ -759,13 +773,202 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const confirmText = m.confirmMessage(kind, Object.keys(draft.map).length, left.keys.length);
   // the devices offer nothing this table matches (flat keys, or nothing sent yet): say where the symbols are connected instead of a greyed table
   const noElements = !loading && !!documentId && sceneKeys.length > 0 && includedDevices.length > 0 && elements.length === 0;
+  // `choose` mode (E2E-2.1): the form is "which drawing?"; Save writes at once (nothing to acknowledge: the symbols are connected on the drawing),
+  // unless the saved setup is newer than the one the form started from, which still asks
+  const chooseMode = (props.mode ?? 'full') === 'choose';
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const saveNow = (): void => {
+    if (chooseMode && !conflict) props.onSave(draft, { reason: '' });
+    else setConfirming(true);
+  };
+
+  const slotAndKind = (
+    <section aria-labelledby={`${uid}-h1`} className="space-y-3">
+      <h3 id={`${uid}-h1`} className="text-sm font-semibold text-text-primary">{m.slotSection}</h3>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          {slots && (
+            <Select
+              id={`${uid}-slot`} label={m.slotLabel} hint={props.slotLocked ? m.slotLockedHint : m.slotHint} disabled={props.slotLocked}
+              options={[...slots, ...(canNewSlot ? [{ value: NEW_SLOT_VALUE, label: m.slotNew }] : [])]}
+              value={newSlotMode ? NEW_SLOT_VALUE : slot} onChange={(e) => pickSlot(e.target.value)}
+            />
+          )}
+          {(!slots || newSlotMode) && (
+            // The server's slot grammar is lower case and at most 32 long: what is typed is made one (spaces become -), and the host is told
+            // when the name is complete (Enter or leaving the field), not on every key.
+            <Input
+              id={`${uid}-slot-new`} label={slots ? m.slotNewLabel : m.slotLabel} hint={slots ? m.slotNewHint : m.slotHint}
+              value={slot} maxLength={MAX_SLOT_LENGTH} spellCheck={false} autoComplete="off" disabled={props.slotLocked}
+              error={slot !== '' && slotIssue(slot) ? m.issue['slot-invalid'](slot) : undefined}
+              onChange={(e) => typeSlot(e.target.value)} onBlur={commitNewSlot}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitNewSlot(); } }}
+            />
+          )}
+        </div>
+        {/* in `choose` mode a locked kind is the host's choice and is not even named */}
+        {!(chooseMode && props.kindLocked) && (
+          <div role="group" aria-labelledby={`${uid}-kind`} className="space-y-1">
+            <span id={`${uid}-kind`} className="block text-sm font-medium text-text-primary">{m.kindLabel}</span>
+            <ButtonGroup
+              size="sm" variant="outline" value={kind} onChange={requestKind}
+              items={(props.kindLocked ? kinds.filter((k) => k === kind) : kinds).map((k) => ({ value: k, label: m.kinds[k] ?? k }))}
+            />
+            {props.kindLocked && <p className="text-xs text-text-secondary">{m.kindLockedHint}</p>}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  const documentSection = (
+    <section aria-labelledby={`${uid}-h2`} className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 id={`${uid}-h2`} className="text-sm font-semibold text-text-primary">{chooseMode ? m.chooseSection : m.documentSection}</h3>
+          <p className="text-xs text-text-secondary">{chooseMode ? m.chooseHint : m.documentHint}</p>
+        </div>
+        {props.onNewFromDevice && (
+          <Button size="sm" variant="outline" loading={props.newFromDeviceBusy} iconLeft={<FontAwesomeIcon icon={faPlus} aria-hidden="true" />} onClick={() => void newFromDevice()}>
+            {m.newFromDevice}
+          </Button>
+        )}
+      </div>
+      <DataTable<DocRow>
+        id={`${uid}-docs`} mode="paginated" caption={chooseMode ? m.chooseSection : m.documentSection} columns={docColumns} rows={docRows} rowId={(r) => r.id}
+        searchable searchPlaceholder={m.documentSearch} filterFields={docFilters} filtersLive
+        pageSize={5} pageSizeOptions={[5, 10, 25]} initialSort={[{ key: 'updatedAt', dir: 'desc' }]} multiSort={false}
+        density="compact" state={props.documentsLoading ? 'loading' : undefined} emptyMessage={m.documentsEmpty}
+        messages={{ loading: m.loading, ...props.tableMessages, search: m.documentSearch }} onRowClick={(r) => selectDocument(r.id)}
+        rowClassName={(r) => (r.id === documentId ? 'bg-primary-subtle' : undefined)}
+      />
+      <p className="text-xs text-text-secondary">
+        {documentId ? m.documentChosen(documents.find((d) => d.id === documentId)?.name ?? documentId) : m.noDocumentChosen}
+      </p>
+      {chooseMode && staleKept.length > 0 && <p className="text-xs text-text-secondary" data-testid="stale-choose-line">{m.staleChooseLine(staleKept.length)}</p>}
+      {chooseMode && preview && (
+        <div role="region" aria-label={m.previewLabel} className="min-w-0 rounded-lg border border-border bg-surface-base p-2">
+          {preview}
+        </div>
+      )}
+    </section>
+  );
+
+  const devicesSection = (
+    <section aria-labelledby={`${uid}-h3`} className="space-y-3">
+      <div>
+        <h3 id={`${uid}-h3`} className="text-sm font-semibold text-text-primary">{m.devicesSection}</h3>
+        <p className="text-xs text-text-secondary">{m.devicesHint}</p>
+      </div>
+      <DataTable<DeviceRow>
+        id={`${uid}-devices`} mode="paginated" caption={m.devicesSection} columns={deviceColumns} rows={deviceRows} rowId={(r) => r.id}
+        searchable searchPlaceholder={m.deviceSearch} filterFields={deviceFilters} filtersLive
+        pageSize={10} pageSizeOptions={[10, 25, 100]} density="compact"
+        state={props.devicesLoading ? 'loading' : undefined} emptyMessage={m.devicesEmpty}
+        messages={{ loading: m.loading, ...props.tableMessages, search: m.deviceSearch }}
+      />
+      <p className="text-xs text-text-secondary">{m.roleHint}</p>
+      <p role="status" className="text-xs text-text-secondary">{m.devicesIncluded(Object.keys(draft.devices).length, MAX_BINDING_DEVICES)}</p>
+    </section>
+  );
+
+  const matchSection = (
+    <section aria-labelledby={`${uid}-h4`} className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h3 id={`${uid}-h4`} className="text-sm font-semibold text-text-primary">{m.matchSection}</h3>
+          <p className="text-xs text-text-secondary">{m.matchHint}</p>
+        </div>
+        <Button
+          size="sm" variant="outline" disabled={sceneKeys.length === 0 || elements.length === 0}
+          iconLeft={<FontAwesomeIcon icon={faWandMagicSparkles} aria-hidden="true" />} onClick={runAuto}
+        >
+          {m.matchAuto}
+        </Button>
+      </div>
+
+      {noElements && (
+        <div data-testid="match-no-elements">
+          <AlertBanner variant="info" message={m.matchNoElements} />
+        </div>
+      )}
+
+      <div className={cn('grid gap-4', preview && !chooseMode ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]' : undefined)}>
+        <div className="min-w-0 space-y-3">
+          {pickedRow && (
+            <div ref={strip} className="rounded-lg border border-primary bg-primary-subtle p-3 space-y-2" data-testid="picked-strip">
+              <p className="text-xs text-text-secondary">{m.pickedHint}</p>
+              {elementField(pickedRow, `${uid}-picked`, false, m.picked(pickedRow.key))}
+            </div>
+          )}
+          <DataTable<KeyRow>
+            id={`${uid}-keys`} mode="paginated" caption={m.matchSection} columns={keyColumns} rows={rows} rowId={(r) => r.key}
+            searchable searchText={(r) => r.find} searchPlaceholder={m.keySearch} filterFields={keyFilters} filtersLive
+            pageSize={10} pageSizeOptions={[10, 25, 50]} density="compact"
+            state={props.sceneKeysLoading ? 'loading' : undefined} emptyMessage={m.keysEmpty}
+            messages={{ loading: m.loading, ...props.tableMessages, search: m.keySearch }}
+            rowClassName={(r) => (r.key === pickedKey ? 'bg-primary-subtle' : undefined)}
+          />
+        </div>
+        {preview && !chooseMode && (
+          <div role="region" aria-label={m.previewLabel} className="min-w-0 rounded-lg border border-border bg-surface-base p-2">
+            {preview}
+          </div>
+        )}
+      </div>
+
+      {staleRows.length > 0 && (
+        <div className="space-y-2" data-testid="stale-entries">
+          <div>
+            <h4 className="text-sm font-medium text-text-primary">{m.staleSection}</h4>
+            <p className="text-xs text-text-secondary">{m.staleHint}</p>
+          </div>
+          <DataTable<StaleRow>
+            id={`${uid}-stale`} mode="paginated" caption={m.staleSection} columns={staleColumns} rows={staleRows} rowId={(r) => r.id}
+            searchable searchPlaceholder={m.staleSearch} pageSize={10} pageSizeOptions={[10, 25, 50]} density="compact"
+            emptyMessage={m.staleEmpty} messages={{ loading: m.loading, ...props.tableMessages, search: m.staleSearch }}
+          />
+        </div>
+      )}
+
+      <div className="space-y-1" role="status" aria-live="polite">
+        <p className={cn('text-sm font-medium', left.keys.length ? 'text-warning-fg' : 'text-success-fg')}>
+          {left.keys.length ? m.unresolvedKeys(left.keys.length) : sceneKeys.length ? m.allResolved : ''}
+        </p>
+        <ul className="space-y-0.5 text-xs text-text-secondary">
+          {left.elements.length > 0 && <li>{m.unresolvedElements(left.elements.length)}</li>}
+          {left.devices.length > 0 && <li>{m.unresolvedDevices(left.devices.length)}</li>}
+          {left.roles.length > 0 && <li>{m.unresolvedRoles(left.roles)}</li>}
+          {pending.length > 0 && <li>{m.pendingProposals(pending.length)}</li>}
+          {staleKept.length > 0 && <li>{m.unresolvedStale(staleKept.length)}</li>}
+          {note && <li>{note}</li>}
+        </ul>
+        {pending.length > 0 && (
+          <Button size="xs" variant="outline" onClick={acceptAll}>{m.acceptAll(pending.length)}</Button>
+        )}
+      </div>
+    </section>
+  );
+
+  const rulesSection = rulesStep ? (
+    <section aria-labelledby={`${uid}-h5`} className="space-y-3">
+      <div>
+        <h3 id={`${uid}-h5`} className="text-sm font-semibold text-text-primary">{m.rules.section}</h3>
+        <p className="text-xs text-text-secondary">{ruleDialect === 'diagram' ? m.rules.hint2d : m.rules.hint}</p>
+      </div>
+      <SceneSetupRules
+        rules={ruleList} onChange={(next) => edit((f) => ({ ...f, rules: next }))} keys={sceneKeys} keysLoading={!!(props.sceneKeysLoading || keysForOther)}
+        columns={props.ruleColumns ?? DESIGN_RULE_COLUMNS} params={props.ruleParams} messages={m.rules} dialect={ruleDialect}
+      />
+    </section>
+  ) : null;
 
   return (
     <>
       <Drawer
         open={open}
         onClose={requestClose}
-        title={m.title}
+        title={chooseMode ? m.chooseTitle : m.title}
         closeLabel={m.close}
         portalTarget={props.portalTarget}
         // Full width on a phone, a wide panel from sm: the matching table needs the room.
@@ -778,7 +981,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
                 <Button variant="ghost" disabled={saving || props.removing} loading={props.removing} onClick={() => setConfirmingRemove(true)}>{m.removeButton}</Button>
               )}
               <Button variant="ghost" onClick={requestClose}>{m.cancel}</Button>
-              <Button disabled={!canSave} loading={saving} onClick={() => setConfirming(true)}>{saving ? m.saving : m.save}</Button>
+              <Button disabled={!canSave} loading={saving} onClick={saveNow}>{saving ? m.saving : m.save}</Button>
             </div>
           </div>
         }
@@ -803,173 +1006,33 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
             </div>
           )}
 
-          {/* 1. Slot and kind */}
-          <section aria-labelledby={`${uid}-h1`} className="space-y-3">
-            <h3 id={`${uid}-h1`} className="text-sm font-semibold text-text-primary">{m.slotSection}</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                {slots && (
-                  <Select
-                    id={`${uid}-slot`} label={m.slotLabel} hint={props.slotLocked ? m.slotLockedHint : m.slotHint} disabled={props.slotLocked}
-                    options={[...slots, ...(canNewSlot ? [{ value: NEW_SLOT_VALUE, label: m.slotNew }] : [])]}
-                    value={newSlotMode ? NEW_SLOT_VALUE : slot} onChange={(e) => pickSlot(e.target.value)}
-                  />
-                )}
-                {(!slots || newSlotMode) && (
-                  // The server's slot grammar is lower case and at most 32 long: what is typed is made one (spaces become -), and the host is told
-                  // when the name is complete (Enter or leaving the field), not on every key.
-                  <Input
-                    id={`${uid}-slot-new`} label={slots ? m.slotNewLabel : m.slotLabel} hint={slots ? m.slotNewHint : m.slotHint}
-                    value={slot} maxLength={MAX_SLOT_LENGTH} spellCheck={false} autoComplete="off" disabled={props.slotLocked}
-                    error={slot !== '' && slotIssue(slot) ? m.issue['slot-invalid'](slot) : undefined}
-                    onChange={(e) => typeSlot(e.target.value)} onBlur={commitNewSlot}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitNewSlot(); } }}
-                  />
-                )}
-              </div>
-              <div role="group" aria-labelledby={`${uid}-kind`} className="space-y-1">
-                <span id={`${uid}-kind`} className="block text-sm font-medium text-text-primary">{m.kindLabel}</span>
-                <ButtonGroup
-                  size="sm" variant="outline" value={kind} onChange={requestKind}
-                  items={(props.kindLocked ? kinds.filter((k) => k === kind) : kinds).map((k) => ({ value: k, label: m.kinds[k] ?? k }))}
-                />
-                {props.kindLocked && <p className="text-xs text-text-secondary">{m.kindLockedHint}</p>}
-              </div>
-            </div>
-          </section>
-
-          {/* 2. Document */}
-          <section aria-labelledby={`${uid}-h2`} className="space-y-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h3 id={`${uid}-h2`} className="text-sm font-semibold text-text-primary">{m.documentSection}</h3>
-                <p className="text-xs text-text-secondary">{m.documentHint}</p>
-              </div>
-              {props.onNewFromDevice && (
-                <Button size="sm" variant="outline" loading={props.newFromDeviceBusy} iconLeft={<FontAwesomeIcon icon={faPlus} aria-hidden="true" />} onClick={() => void newFromDevice()}>
-                  {m.newFromDevice}
-                </Button>
-              )}
-            </div>
-            <DataTable<DocRow>
-              id={`${uid}-docs`} mode="paginated" caption={m.documentSection} columns={docColumns} rows={docRows} rowId={(r) => r.id}
-              searchable searchPlaceholder={m.documentSearch} filterFields={docFilters} filtersLive
-              pageSize={5} pageSizeOptions={[5, 10, 25]} initialSort={[{ key: 'updatedAt', dir: 'desc' }]} multiSort={false}
-              density="compact" state={props.documentsLoading ? 'loading' : undefined} emptyMessage={m.documentsEmpty}
-              messages={{ loading: m.loading, ...props.tableMessages, search: m.documentSearch }} onRowClick={(r) => selectDocument(r.id)}
-              rowClassName={(r) => (r.id === documentId ? 'bg-primary-subtle' : undefined)}
-            />
-            <p className="text-xs text-text-secondary">
-              {documentId ? m.documentChosen(documents.find((d) => d.id === documentId)?.name ?? documentId) : m.noDocumentChosen}
-            </p>
-          </section>
-
-          {/* 3. Devices and roles */}
-          <section aria-labelledby={`${uid}-h3`} className="space-y-3">
-            <div>
-              <h3 id={`${uid}-h3`} className="text-sm font-semibold text-text-primary">{m.devicesSection}</h3>
-              <p className="text-xs text-text-secondary">{m.devicesHint}</p>
-            </div>
-            <DataTable<DeviceRow>
-              id={`${uid}-devices`} mode="paginated" caption={m.devicesSection} columns={deviceColumns} rows={deviceRows} rowId={(r) => r.id}
-              searchable searchPlaceholder={m.deviceSearch} filterFields={deviceFilters} filtersLive
-              pageSize={10} pageSizeOptions={[10, 25, 100]} density="compact"
-              state={props.devicesLoading ? 'loading' : undefined} emptyMessage={m.devicesEmpty}
-              messages={{ loading: m.loading, ...props.tableMessages, search: m.deviceSearch }}
-            />
-            <p className="text-xs text-text-secondary">{m.roleHint}</p>
-            <p role="status" className="text-xs text-text-secondary">{m.devicesIncluded(Object.keys(draft.devices).length, MAX_BINDING_DEVICES)}</p>
-          </section>
-
-          {/* 4. Matching */}
-          <section aria-labelledby={`${uid}-h4`} className="space-y-3">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div className="min-w-0">
-                <h3 id={`${uid}-h4`} className="text-sm font-semibold text-text-primary">{m.matchSection}</h3>
-                <p className="text-xs text-text-secondary">{m.matchHint}</p>
-              </div>
-              <Button
-                size="sm" variant="outline" disabled={sceneKeys.length === 0 || elements.length === 0}
-                iconLeft={<FontAwesomeIcon icon={faWandMagicSparkles} aria-hidden="true" />} onClick={runAuto}
+          {chooseMode ? (
+            <>
+              {documentSection}
+              <details
+                className="rounded-lg border border-border bg-surface-raised p-3" data-testid="scene-advanced" open={advancedOpen}
+                onToggle={(e) => setAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)}
               >
-                {m.matchAuto}
-              </Button>
-            </div>
-
-            {noElements && (
-              <div data-testid="match-no-elements">
-                <AlertBanner variant="info" message={m.matchNoElements} />
-              </div>
-            )}
-
-            <div className={cn('grid gap-4', preview ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]' : undefined)}>
-              <div className="min-w-0 space-y-3">
-                {pickedRow && (
-                  <div ref={strip} className="rounded-lg border border-primary bg-primary-subtle p-3 space-y-2" data-testid="picked-strip">
-                    <p className="text-xs text-text-secondary">{m.pickedHint}</p>
-                    {elementField(pickedRow, `${uid}-picked`, false, m.picked(pickedRow.key))}
+                <summary className="cursor-pointer text-sm font-semibold text-text-primary">{m.advanced}</summary>
+                <p className="mt-1 text-xs text-text-secondary">{m.advancedHint}</p>
+                {advancedOpen && (
+                  <div className="mt-4 space-y-8">
+                    {slotAndKind}
+                    {devicesSection}
+                    {matchSection}
+                    {rulesSection}
                   </div>
                 )}
-                <DataTable<KeyRow>
-                  id={`${uid}-keys`} mode="paginated" caption={m.matchSection} columns={keyColumns} rows={rows} rowId={(r) => r.key}
-                  searchable searchText={(r) => r.find} searchPlaceholder={m.keySearch} filterFields={keyFilters} filtersLive
-                  pageSize={10} pageSizeOptions={[10, 25, 50]} density="compact"
-                  state={props.sceneKeysLoading ? 'loading' : undefined} emptyMessage={m.keysEmpty}
-                  messages={{ loading: m.loading, ...props.tableMessages, search: m.keySearch }}
-                  rowClassName={(r) => (r.key === pickedKey ? 'bg-primary-subtle' : undefined)}
-                />
-              </div>
-              {preview && (
-                <div role="region" aria-label={m.previewLabel} className="min-w-0 rounded-lg border border-border bg-surface-base p-2">
-                  {preview}
-                </div>
-              )}
-            </div>
-
-            {staleRows.length > 0 && (
-              <div className="space-y-2" data-testid="stale-entries">
-                <div>
-                  <h4 className="text-sm font-medium text-text-primary">{m.staleSection}</h4>
-                  <p className="text-xs text-text-secondary">{m.staleHint}</p>
-                </div>
-                <DataTable<StaleRow>
-                  id={`${uid}-stale`} mode="paginated" caption={m.staleSection} columns={staleColumns} rows={staleRows} rowId={(r) => r.id}
-                  searchable searchPlaceholder={m.staleSearch} pageSize={10} pageSizeOptions={[10, 25, 50]} density="compact"
-                  emptyMessage={m.staleEmpty} messages={{ loading: m.loading, ...props.tableMessages, search: m.staleSearch }}
-                />
-              </div>
-            )}
-
-            <div className="space-y-1" role="status" aria-live="polite">
-              <p className={cn('text-sm font-medium', left.keys.length ? 'text-warning-fg' : 'text-success-fg')}>
-                {left.keys.length ? m.unresolvedKeys(left.keys.length) : sceneKeys.length ? m.allResolved : ''}
-              </p>
-              <ul className="space-y-0.5 text-xs text-text-secondary">
-                {left.elements.length > 0 && <li>{m.unresolvedElements(left.elements.length)}</li>}
-                {left.devices.length > 0 && <li>{m.unresolvedDevices(left.devices.length)}</li>}
-                {left.roles.length > 0 && <li>{m.unresolvedRoles(left.roles)}</li>}
-                {pending.length > 0 && <li>{m.pendingProposals(pending.length)}</li>}
-                {staleKept.length > 0 && <li>{m.unresolvedStale(staleKept.length)}</li>}
-                {note && <li>{note}</li>}
-              </ul>
-              {pending.length > 0 && (
-                <Button size="xs" variant="outline" onClick={acceptAll}>{m.acceptAll(pending.length)}</Button>
-              )}
-            </div>
-          </section>
-
-          {/* 5. Rules (a 3D design, or a stored 2D diagram) */}
-          {rulesStep && (
-            <section aria-labelledby={`${uid}-h5`} className="space-y-3">
-              <div>
-                <h3 id={`${uid}-h5`} className="text-sm font-semibold text-text-primary">{m.rules.section}</h3>
-                <p className="text-xs text-text-secondary">{ruleDialect === 'diagram' ? m.rules.hint2d : m.rules.hint}</p>
-              </div>
-              <SceneSetupRules
-                rules={ruleList} onChange={(next) => edit((f) => ({ ...f, rules: next }))} keys={sceneKeys} keysLoading={!!(props.sceneKeysLoading || keysForOther)}
-                columns={props.ruleColumns ?? DESIGN_RULE_COLUMNS} params={props.ruleParams} messages={m.rules} dialect={ruleDialect}
-              />
-            </section>
+              </details>
+            </>
+          ) : (
+            <>
+              {slotAndKind}
+              {documentSection}
+              {devicesSection}
+              {matchSection}
+              {rulesSection}
+            </>
           )}
         </div>
       </Drawer>

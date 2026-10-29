@@ -284,17 +284,18 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     const keys: DeviceKey[] = [{ key: 'rssi', value: -60, ts: NOW }, { key: 'reading', value: 'high', ts: NOW }, { key: 'x', value: 2, ts: NOW }];
     render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Reading' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' } })} />);
     const r = await screen.findByRole('group', { name: 'Reading' });
-    await waitFor(() => expect(within(r).getByText('Suggested: reading')).toBeInTheDocument());
-    // the proposal does not fit the kind: said beside it, before it is taken
-    expect(within(r).getByText('This value is text; the drawing expects a number.')).toBeInTheDocument();
+    await waitFor(() => expect(within(r).getByRole('searchbox', { name: 'Reading' })).toBeEnabled());
+    // the best candidate is text where a number is expected: NOT offered as a suggestion (a proposal the panel itself contradicts makes no sense,
+    // e2e round 2 E2E-2.11); the row says what to do, and the picker still lists it first
+    expect(within(r).queryByText('Suggested: reading')).toBeNull();
+    expect(within(r).getByText('Pick the value this reads, or choose An expression.')).toBeInTheDocument();
     expect(within(r).getByRole('searchbox', { name: 'Reading' })).toHaveValue('');
     await user.click(within(r).getByRole('searchbox', { name: 'Reading' }));
     const options = within(await screen.findByRole('listbox')).getAllByRole('option');
     expect(options[0]).toHaveTextContent('reading');
     expect(options[0]).toHaveTextContent('Suggested · high · just now');
     expect(options.map((o) => o.textContent)).toEqual(['readingSuggested · high · just now', 'rssi-60 · just now', 'x2 · just now']);
-    await user.keyboard('{Escape}');
-    await user.click(within(r).getByRole('button', { name: 'Use' }));
+    await user.click(within(options[0]).getByRole('button'));
     expect(within(r).getByRole('searchbox', { name: 'Reading' })).toHaveValue('reading');
     // the picked value is text where a number is expected: said in words, with the way out
     expect(within(r).getByText('This value is text; the drawing expects a number.')).toBeInTheDocument();
@@ -484,7 +485,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
   it('reads several device values by name: a chip per value, "Add a value" names the next one readably, a tap inserts a name, and the result is previewed live', async () => {
     const user = userEvent.setup();
     const previewScript = vi.fn(stub);
-    const keys: DeviceKey[] = [{ key: 'supply_temp', label: 'Supply temperature', unit: '°C', value: 60, ts: NOW }, { key: 'return_temp', label: 'Return', unit: '°C', value: 45, ts: NOW }, { key: 'x', value: 1, ts: NOW }];
+    const keys: DeviceKey[] = [{ key: 'supply_temp', label: 'Supply temperature', unit: '°C', value: 60, ts: NOW }, { key: 'return', label: 'Return', unit: '°C', value: 45, ts: NOW }, { key: 'x', value: 1, ts: NOW }];
     render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Delta' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' }, previewScript, judgeScript: judge })} />);
     const r = await screen.findByRole('group', { name: 'Delta' });
     await waitFor(() => expect(within(r).getByRole('searchbox', { name: 'Delta' })).toBeEnabled());
@@ -495,17 +496,17 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     const add = () => within(r).getByRole('searchbox', { name: 'Add a value' });
     await user.click(add());
     await user.click(within(await screen.findByRole('option', { name: /Supply temperature/ })).getByRole('button'));
-    expect(within(r).getByRole('button', { name: 'Insert supply_temperatu' })).toHaveTextContent('supply_temperatu · 60 °C');
+    expect(within(r).getByRole('button', { name: 'Insert supply_temp' })).toHaveTextContent('supply_temp · 60 °C');
     await user.click(add());
     await user.click(within(await screen.findByRole('option', { name: /^Return/ })).getByRole('button'));
-    // "return" is a word of the language: the name is made safe
+    // the key "return" is a word of the language: the name is made safe
     expect(within(r).getByRole('button', { name: 'Insert return_in' })).toHaveTextContent('return_in · 45 °C');
-    await user.click(within(r).getByRole('button', { name: 'Insert supply_temperatu' }));
+    await user.click(within(r).getByRole('button', { name: 'Insert supply_temp' }));
     fireEvent.change(expression('Delta'), { target: { value: 'supply - ret' } });
     expect(await within(r).findByText(/A name here is not known: unknown name "supply"/)).toBeInTheDocument();
     // a judge stub that knows the inputs: the names are passed to it
     const stubJudge = vi.fn(judge);
-    expect(stubJudge('supply_temperatu - return_in', ['supply_temperatu', 'return_in'])).toBeNull();
+    expect(stubJudge('supply_temp - return_in', ['supply_temp', 'return_in'])).toBeNull();
     await user.click(within(r).getByRole('button', { name: 'Remove return_in' }));
     expect(within(r).queryByRole('button', { name: 'Insert return_in' })).toBeNull();
   });
@@ -782,9 +783,10 @@ describe('SymbolBindingPanel: the keyboard (U5)', () => {
   it('Esc closes (asking first when something changed), the arrows move between rows, Enter takes a row\'s suggestion', async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
-    const keys: DeviceKey[] = [{ key: 'rssi', value: -60, ts: NOW }, { key: 'reading', value: 'high', ts: NOW }, { key: 'x', value: 2, ts: NOW }];
+    // the one state key of the device is the Running row's one-tap suggestion (a kind alone: offered, never picked by itself)
+    const keys: DeviceKey[] = [{ key: 'rssi', value: -60, ts: NOW }, { key: 'pump_x', value: true, ts: NOW }, { key: 'x', value: 2, ts: NOW }];
     render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'running', label: 'Running' }, { name: 'value', label: 'Reading' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' }, onClose })} />);
-    await waitFor(() => expect(screen.getByText('Suggested: reading')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Suggested: pump_x')).toBeInTheDocument());
     row('Running').focus();
     await user.keyboard('{ArrowDown}');
     expect(row('Reading')).toHaveFocus();
@@ -792,8 +794,10 @@ describe('SymbolBindingPanel: the keyboard (U5)', () => {
     expect(row('Running')).toHaveFocus();
     await user.keyboard('{ArrowUp}');
     expect(row('Reading')).toHaveFocus();
+    await user.keyboard('{ArrowUp}');
+    expect(row('Running')).toHaveFocus();
     await user.keyboard('{Enter}');
-    expect(picker('Reading')).toHaveValue('reading');
+    expect(picker('Running')).toHaveValue('pump_x');
     await user.keyboard('{Escape}');
     expect(onClose).not.toHaveBeenCalled();
     expect(screen.getByRole('dialog', { name: 'Discard your changes?' })).toBeInTheDocument();

@@ -17,7 +17,7 @@ export const RULE_OP_OPTIONS: FieldOption[] = [
 ];
 if (RULE_OP_OPTIONS.length !== RULE_OPS.length + 1) throw new Error('rules: the operator options and the rule engine disagree');
 
-const sourceOptions = () => [opt('column', 'A column of a row'), opt('param', 'A board parameter')];
+const sourceOptions = () => [opt('column', 'A value of a symbol'), opt('param', 'A board parameter')];
 
 /** The words that differ per kind of target (a symbol, a marker or a thing). */
 export interface RuleTargetWords {
@@ -34,7 +34,7 @@ export interface RuleTargetWords {
 }
 
 /**
- * The condition half of a rule row: on / off, the target, two conditions (a column of a row or a board parameter,
+ * The condition half of a rule row: on / off, the target, two conditions (a value of a symbol or a board parameter,
  * an operator, a value and the upper end of "between") and their join. The same keys in every kind with rules.
  */
 export function ruleConditionFields(words: RuleTargetWords): Record<string, FieldSchema> {
@@ -42,15 +42,15 @@ export function ruleConditionFields(words: RuleTargetWords): Record<string, Fiel
     enabled: { label: 'On', type: 'boolean', value: true },
     target: { label: 'Applies to', type: 'text', maxLength: 64, required: true, placeholder: words.targetPlaceholder, description: words.targetDescription },
     source: { label: 'When: read', type: 'select', value: 'column', options: sourceOptions() },
-    key: { label: 'Column or parameter', type: 'text', maxLength: 64, placeholder: words.keyPlaceholder ?? 'value, status, mode' },
-    of: { label: 'Of row', type: 'text', maxLength: 64, placeholder: words.ownRow, description: words.otherRow },
+    key: { label: 'Value or parameter', type: 'text', maxLength: 64, placeholder: words.keyPlaceholder ?? 'value, status, mode' },
+    of: { label: 'Of symbol', type: 'text', maxLength: 64, placeholder: words.ownRow, description: words.otherRow },
     op: { label: 'Is', type: 'select', options: RULE_OP_OPTIONS, description: 'Empty = the rule always applies.' },
     value: { label: 'Value', type: 'text', maxLength: 80, placeholder: '80, off, a,b,c' },
     to: { label: 'Up to', type: 'text', maxLength: 40, placeholder: 'Upper end of "between"' },
     join: { label: 'Join with', type: 'select', value: 'all', options: [opt('all', 'And (all hold)'), opt('any', 'Or (one holds)')] },
     source2: { label: 'And when: read', type: 'select', value: 'column', options: sourceOptions() },
-    key2: { label: 'Column or parameter', type: 'text', maxLength: 64 },
-    of2: { label: 'Of row', type: 'text', maxLength: 64, placeholder: words.ownRow },
+    key2: { label: 'Value or parameter', type: 'text', maxLength: 64 },
+    of2: { label: 'Of symbol', type: 'text', maxLength: 64, placeholder: words.ownRow },
     op2: { label: 'Is', type: 'select', options: RULE_OP_OPTIONS, description: 'Empty = no second condition.' },
     value2: { label: 'Value', type: 'text', maxLength: 80 },
     to2: { label: 'Up to', type: 'text', maxLength: 40 },

@@ -91,7 +91,7 @@ describe('SceneRulesEditor: editing', () => {
   it('builds a condition: column, row, operator, value, and a second condition joined with any', () => {
     const { probe } = mount([{ target: 'pump1', enabled: true }]);
     fireEvent.click(screen.getByRole('button', { name: /^When|Always/ }));
-    fireEvent.change(screen.getByLabelText('Column'), { target: { value: 'value' } });
+    fireEvent.change(screen.getByLabelText('Which value'), { target: { value: 'value' } });
     fireEvent.change(screen.getByLabelText('Is'), { target: { value: 'between' } });
     fireEvent.change(screen.getByLabelText('Value'), { target: { value: '10' } });
     fireEvent.change(screen.getByLabelText('Up to'), { target: { value: '20' } });
@@ -117,15 +117,15 @@ describe('SceneRulesEditor: editing', () => {
     fireEvent.click(screen.getByRole('button', { name: /When/ }));
     const list = document.querySelector('datalist')!;
     expect([...list.querySelectorAll('option')].map((o) => o.getAttribute('value'))).toEqual(['temp']);
-    fireEvent.change(screen.getByLabelText('Column'), { target: { value: 'vibration' } });
+    fireEvent.change(screen.getByLabelText('Which value'), { target: { value: 'vibration' } });
     expect(rulesOf(probe)[0].key).toBe('vibration');
-    fireEvent.change(screen.getByLabelText('Of row'), { target: { value: 'tank1' } });
+    fireEvent.change(screen.getByLabelText('Of symbol'), { target: { value: 'tank1' } });
     expect(rulesOf(probe)[0].of).toBe('tank1');
     fireEvent.change(screen.getByLabelText('Read'), { target: { value: 'param' } });
     expect([...document.querySelector('datalist')!.querySelectorAll('option')].map((o) => o.getAttribute('value'))).toEqual(['mode']);
     fireEvent.change(screen.getByLabelText('Parameter'), { target: { value: 'mode' } });
     expect([...document.querySelectorAll('datalist')[1].querySelectorAll('option')].map((o) => o.getAttribute('value'))).toEqual(['day', 'night']);
-    expect(screen.queryByLabelText('Of row')).toBeNull();
+    expect(screen.queryByLabelText('Of symbol')).toBeNull();
   });
   it('sets the effects: state, colours, yes/no looks, motion, medium, stop, and inserts a token into the name', () => {
     const { probe } = mount([{ target: 'pump1', key: 'value', op: 'gt', value: '1' }]);

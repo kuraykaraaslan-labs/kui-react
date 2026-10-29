@@ -75,7 +75,7 @@ describe('Rules step: authoring', () => {
     expect([...target.options].map((o) => o.value)).toEqual(['', '*', 'heater', 'pump', 'fan']);
     await user.selectOptions(target, 'pump');
     await user.selectOptions(panel.getByLabelText('Operator'), 'gt');
-    await user.type(panel.getByLabelText('Column'), 'value');
+    await user.type(panel.getByLabelText('Which value'), 'value');
     await user.type(panel.getByLabelText('Value'), '80');
     await user.selectOptions(panel.getByLabelText('Pulse'), 'true');
     await user.selectOptions(panel.getByLabelText('Hide'), 'false');
@@ -140,11 +140,11 @@ describe('Rules step: authoring', () => {
     await user.click(screen.getByRole('button', { name: /For heater/ }));
     const panel = rulesPanel();
     await user.selectOptions(panel.getByLabelText('Operator'), 'eq');
-    const of = panel.getByLabelText('Of row') as HTMLSelectElement;
+    const of = panel.getByLabelText('Of symbol') as HTMLSelectElement;
     expect([...of.options].map((o) => o.value)).toEqual(['', 'heater', 'pump', 'fan']);
     await user.selectOptions(of, 'pump');
     await user.selectOptions(panel.getByLabelText('Read'), 'param');
-    expect(panel.queryByLabelText('Of row')).toBeNull();
+    expect(panel.queryByLabelText('Of symbol')).toBeNull();
     expect(panel.getByLabelText('Parameter')).toBeInTheDocument();
   });
 });

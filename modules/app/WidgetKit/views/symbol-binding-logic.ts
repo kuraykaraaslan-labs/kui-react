@@ -285,6 +285,12 @@ export interface RankedKey {
   confident: boolean;
   reasons: RankReason[];
   mismatch?: Mismatch;
+  /**
+   * The key belongs to ANOTHER piece of equipment of the device (its `<element>.` prefix shares no word with the symbol's own label or kind, and
+   * the element rule did not match): a basin's Running is never the drain valve's by itself (next-boilerplate e2e round 2, E2E-2.11). Offered, never
+   * picked without asking.
+   */
+  foreign?: boolean;
 }
 
 /** The kind problem of feeding `key` to `field`, or null when the kinds agree or one of them is not known. */
@@ -346,7 +352,9 @@ export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.fi
  *           and bars the kind fallback (a temperature is never the one number a speed reads);
  *  only     the one key there is, when nothing else says anything: 60.
  * `hints` are the symbol's own words (its label and kind), used for a number field whose own words say no quantity ("Reading" of a "Thermometer").
- * `confident` is on the best alone: a score from `CONFIDENT_SCORE`, no mismatch, and a lead of `CONFIDENT_LEAD` over the next.
+ * `confident` is on the best alone: a score from `CONFIDENT_SCORE`, no mismatch, not `foreign`, and a lead of `CONFIDENT_LEAD` over the next.
+ * `foreign`: a key under another piece of equipment's prefix (`drain_valve.running` for an "Open basin"), told by the symbol's own raw words (no synonyms:
+ * "open" must not reach "valve" through the position line); the element rule overrides it.
  */
 export function rankKeysForField(
   field: { name: string; label?: string; kind?: FieldKind; unit?: string },
@@ -371,12 +379,15 @@ export function rankKeysForField(
   const quantity = fieldQuantity(field) ?? (useHints ? fieldQuantity({ name: hints.join(' ') }) : null);
   const kinds = new Map<FieldKind | null, number>();
   for (const k of list) kinds.set(keyKindOf(k), (kinds.get(keyKindOf(k)) ?? 0) + 1);
+  // the symbol's own words as written (no synonyms): what tells its equipment from another's
+  const rawOwn = new Set(hints.flatMap(wordsOf));
   // first the words (the element, a name, a shared word, a contained word) …
   const worded = list.map((k) => {
     const reasons: RankReason[] = [];
     let score = 0;
     const lower = k.key.toLowerCase();
     const local = lower.slice(lower.lastIndexOf('.') + 1);
+    const prefix = lower.includes('.') ? lower.slice(0, lower.lastIndexOf('.')) : '';
     const nlocal = norm(local);
     const nlabel = k.label ? norm(k.label) : '';
     if (element && lower === want) { score += 100; reasons.push('element'); }
@@ -387,11 +398,13 @@ export function rankKeysForField(
     // a word of the symbol's own (Door ↔ `door`, Circulation pump ↔ `pump_on`): a match to THIS symbol, scored like a synonym, a second signal beside one
     if ([...keyWords].some((w) => ownWords.has(w) && !fieldOnly.has(w))) { score += reasons.length === 0 ? 65 : 15; reasons.push('symbol'); }
     if (reasons.length === 0 && long.some((w) => nlocal.includes(w) || nlabel.includes(w))) { score += 55; reasons.push('contains'); }
-    return { k, reasons, score };
+    // another piece of equipment of the same device: the key's prefix names nothing of this symbol (and the element rule did not claim it)
+    const foreign = prefix !== '' && rawOwn.size > 0 && !reasons.includes('element') && !wordsOf(prefix).some((w) => rawOwn.has(w));
+    return { k, reasons, score, foreign };
   });
   // … then the kind: the only key of the field's kind decides by itself only when no key matched by a word (words first, the kind as the fallback)
   const anyWords = worded.some((w) => w.reasons.length > 0);
-  const ranked = worded.map(({ k, reasons, score: base }): RankedKey => {
+  const ranked = worded.map(({ k, reasons, score: base, foreign }): RankedKey => {
     let score = base;
     const kq = quantity ? keyQuantity(k) : null;
     const contradicts = !!kq && kq.quantity !== quantity;
@@ -401,11 +414,11 @@ export function rankKeysForField(
     if (list.length === 1 && reasons.length === 0) { score += 60; reasons.push('only'); }
     // a key that measures another quantity than the field is never picked by itself, whatever word it shares (a supply temperature for a valve's opening)
     const mismatch = mismatchOf(field, k) ?? (contradicts ? 'quantity' : null);
-    return { key: k.key, score, confident: false, reasons, ...(mismatch ? { mismatch } : {}) };
+    return { key: k.key, score, confident: false, reasons, ...(mismatch ? { mismatch } : {}), ...(foreign ? { foreign } : {}) };
   }).filter((r) => r.score > 0);
   ranked.sort((a, b) => b.score - a.score);
   const [top, second] = ranked;
-  if (top && top.score >= CONFIDENT_SCORE && !top.mismatch && (second === undefined || top.score - second.score >= CONFIDENT_LEAD)) top.confident = true;
+  if (top && top.score >= CONFIDENT_SCORE && !top.mismatch && !top.foreign && (second === undefined || top.score - second.score >= CONFIDENT_LEAD)) top.confident = true;
   return ranked;
 }
 
@@ -536,13 +549,19 @@ export function expressionNames(inputs: readonly { name: string }[]): string[] {
 }
 
 /**
- * A readable name for an input, from the key's label (else its key): lower-case words joined by `_`, at most 16 characters, never a word of the formula
- * language (`return` → `return_in`) and never one already `taken` (`temp` → `temp_2`). `v_` leads a name that would start with a digit; a text with no
- * letter or digit at all becomes `input`.
+ * A readable name for an input, from its KEY (`temp_24h` stays `temp_24h`; `oven.door_open` is `door_open`, `pool.value` is `pool_value`; next-boilerplate
+ * e2e round 2, E2E-2.12: a name cut from the label, "pool_temperatu_2", told two values apart by nothing): lower-case words joined by `_`, at most 16
+ * characters (a long text drops its leading words first), never a word of the formula language (`return` → `return_in`) and never one already
+ * `taken` (`temp` → `temp_2`). `v_` leads a name that would start with a digit; a text with no letter or digit at all becomes `input`.
  */
 export function defaultInputName(text: string, taken: Iterable<string> = []): string {
   const used = new Set(taken);
-  let base = wordsOf(text.includes('.') ? text.slice(text.lastIndexOf('.') + 1) : text).join('_');
+  // a dotted key reads by its local part (`oven.door_open` → `door_open`) unless that is a word of the language or taken already (`pool.value` → `pool_value`)
+  const local = text.includes('.') ? text.slice(text.lastIndexOf('.') + 1) : '';
+  const localName = local ? wordsOf(local).join('_') : '';
+  const words = localName && !RESERVED_INPUT_NAMES.has(localName) && !used.has(localName) ? wordsOf(local) : wordsOf(text);
+  while (words.length > 1 && words.join('_').length > 16) words.shift();
+  let base = words.join('_');
   if (!base) base = 'input';
   if (/^[0-9]/.test(base)) base = `v_${base}`;
   base = base.slice(0, 16).replace(/_+$/, '') || 'input';
