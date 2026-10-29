@@ -48,7 +48,9 @@ export function ContentVideoPlayer({
     if (!hls) return;
     let live = true;
     import('hls.js')
-      .then(({ default: Hls }) => { if (live) setAdapters([createHlsAdapter({ Hls })]); })
+      // hls.js wherever the browser has Media Source Extensions: the player's default prefers the browser's own HLS, and Chrome's rejects fragmented-MP4
+      // live playlists a camera engine writes (MEDIA_ERR_SRC_NOT_SUPPORTED a second after the first picture) that hls.js plays for hours. Native HLS stays the fallback.
+      .then(({ default: Hls }) => { if (live) setAdapters([createHlsAdapter({ Hls, preferNative: !Hls.isSupported() })]); })
       .catch((e: unknown) => { if (live) setError(e instanceof Error ? e : new Error(String(e))); });
     return () => { live = false; };
   }, [hls]);
