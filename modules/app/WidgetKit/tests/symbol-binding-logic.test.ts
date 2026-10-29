@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ageText, draftFromSymbol, entryFromDraft, entryFromSymbol, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty, nextUnbound,
-  previewLine, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields,
-  MAX_SCRIPT_LENGTH,
-  type BindingDraft, type DeviceKey, type SymbolSpec,
+  ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, fieldKindOf, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty,
+  keyKindOf, mismatchOf, nextUnbound, pickableKeys, previewLine, rankKeysForField, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields, templateFor, unitQuantity,
+  CONFIDENT_SCORE, MAX_SCRIPT_LENGTH,
+  type BindingDraft, type DeviceKey, type FieldDraft, type SymbolSpec,
 } from '../views/symbol-binding-logic';
+
+const blank = (): FieldDraft => ({ deviceId: '', deviceName: '', key: '', label: '', script: '', mode: 'value', inputs: [] });
 
 const D1 = '11111111-1111-4111-8111-111111111111';
 const D2 = '22222222-2222-4222-8222-222222222222';
@@ -23,9 +25,9 @@ describe('suggestKeyForField', () => {
     expect(suggestKeyForField({ name: 'running' }, [key('Running'), key('temperature', 20.5)])).toBe('Running');
     expect(suggestKeyForField({ name: 'value' }, [key('x1.value', 5), key('x1.other', 'a')])).toBe('x1.value');
   });
-  it('matches the field name or label against the key name or the key label', () => {
+  it('matches the field name or label against the key name or the key label, and a synonym of either (temp is temperature, slice 16 U1)', () => {
     expect(suggestKeyForField({ name: 'value', label: 'Temperature' }, [key('t1', 21, { label: 'Temperature' }), key('h1', 40, { label: 'Humidity' })])).toBe('t1');
-    expect(suggestKeyForField({ name: 'value', label: 'Temperature' }, [key('temp_c', 21), key('hum', 40)])).toBeNull(); // "temp" is not "temperature"
+    expect(suggestKeyForField({ name: 'value', label: 'Temperature' }, [key('temp_c', 21), key('hum', 40)])).toBe('temp_c');
     expect(suggestKeyForField({ name: 'value', label: 'Temperature' }, [key('temperature_in', 21), key('hum', 40)])).toBe('temperature_in');
   });
   it('does not let a short name match everything inside other words', () => {
@@ -41,9 +43,11 @@ describe('suggestKeyForField', () => {
     expect(suggestKeyForField({ name: 'value' }, [key('a', 12.4), key('b', 99.1)])).toBeNull();
     expect(suggestKeyForField({ name: 'running' }, [key('a', true), key('b', false)])).toBeNull();
   });
-  it('takes the only key there is, for any field', () => {
-    expect(suggestKeyForField({ name: 'position' }, [key('opening', 'x')])).toBe('opening');
+  it('takes the only key there is, for any field, unless its kind speaks against it (then it is offered, not taken)', () => {
+    expect(suggestKeyForField({ name: 'position' }, [key('opening', 45)])).toBe('opening');
     expect(suggestKeyForField({ name: 'anything' }, [key('only', 'x')])).toBe('only');
+    expect(suggestKeyForField({ name: 'position' }, [key('opening', 'x')])).toBeNull();
+    expect(rankKeysForField({ name: 'position' }, [key('opening', 'x')])[0]).toMatchObject({ key: 'opening', mismatch: 'text-for-number' });
   });
   it('gives null for no keys and for a field it knows nothing about among many keys', () => {
     expect(suggestKeyForField({ name: 'value' }, [])).toBeNull();
@@ -178,7 +182,7 @@ describe('draftFromSymbol / entryFromSymbol / isBound', () => {
 const draft = (over: Partial<BindingDraft> = {}): BindingDraft => ({
   deviceId: D1,
   deviceName: 'Boiler',
-  fields: { running: { deviceId: '', deviceName: '', key: '', label: '', script: '' }, value: { deviceId: '', deviceName: '', key: '', label: '', script: '' } },
+  fields: { running: blank(), value: blank() },
   ...over,
 });
 
@@ -190,7 +194,7 @@ describe('entryFromDraft', () => {
   });
   it('keeps a field on another device where it is', () => {
     const d = draft();
-    d.fields.value = { deviceId: D2, deviceName: 'Roof', key: 'temp', label: '', script: '' };
+    d.fields.value = { ...blank(), deviceId: D2, deviceName: 'Roof', key: 'temp' };
     expect(entryFromDraft(d).fields.value).toEqual({ deviceId: D2, key: 'temp' });
   });
   it('leaves out an empty script and label, and the device when there is none', () => {
@@ -207,7 +211,7 @@ describe('entryFromDraft', () => {
     expect(e.fields.running.label?.length).toBe(60);
     expect(e.fields.value).toBeUndefined();
     d.fields.value = { ...d.fields.value, key: 'k'.repeat(64) };
-    expect(entryFromDraft(d).fields.value.key.length).toBe(64);
+    expect(entryFromDraft(d).fields.value.key?.length).toBe(64);
   });
   it('writes only what the map v2 grammars accept: telemetry keys, symbol fields, UUID devices, at most 16 fields', () => {
     const d = draft();
@@ -215,19 +219,19 @@ describe('entryFromDraft', () => {
     d.fields.value = { ...d.fields.value, key: 'ok', deviceId: 'not-a-uuid' };
     expect(entryFromDraft(d).fields).toEqual({});
     const many: BindingDraft['fields'] = {};
-    for (let i = 0; i < 20; i += 1) many[`f${i}`] = { deviceId: '', deviceName: '', key: `k${i}`, label: '', script: '' };
+    for (let i = 0; i < 20; i += 1) many[`f${i}`] = { ...blank(), key: `k${i}` };
     expect(Object.keys(entryFromDraft({ ...draft(), fields: many }).fields)).toHaveLength(16);
-    many.Bad = { deviceId: '', deviceName: '', key: 'k', label: '', script: '' };
-    many['id'] = { deviceId: '', deviceName: '', key: 'k', label: '', script: '' };
+    many.Bad = { ...blank(), key: 'k' };
+    many['id'] = { ...blank(), key: 'k' };
     expect(Object.keys(entryFromDraft({ ...draft(), fields: { Bad: many.Bad, id: many.id } }).fields)).toEqual([]);
   });
   it('refuses prototype names as a field name and as a key', () => {
     const d = draft();
     const fields = Object.create(null) as Record<string, BindingDraft['fields'][string]>;
-    fields.__proto__ = { deviceId: '', deviceName: '', key: 'k', label: '', script: '' };
-    Reflect.set(fields, 'constructor', { deviceId: '', deviceName: '', key: 'k', label: '', script: '' });
-    fields.running = { deviceId: '', deviceName: '', key: 'prototype', label: '', script: '' };
-    fields.value = { deviceId: '', deviceName: '', key: 'ok', label: '', script: '' };
+    fields.__proto__ = { ...blank(), key: 'k' };
+    Reflect.set(fields, 'constructor', { ...blank(), key: 'k' });
+    fields.running = { ...blank(), key: 'prototype' };
+    fields.value = { ...blank(), key: 'ok' };
     const e = entryFromDraft({ ...d, fields });
     expect(Object.keys(e.fields)).toEqual(['value']);
     expect(({} as Record<string, unknown>).key).toBeUndefined();
@@ -314,7 +318,7 @@ describe('automatic fields (a source found by the drawing\'s own naming, no entr
   });
   it('only the changed field is written next to untouched automatic ones', () => {
     const d = draftFromSymbol(KETTLE);
-    d.fields.status = { deviceId: D2, deviceName: 'Tea', key: 'water_kettle.mode', label: '', script: '' };
+    d.fields.status = { ...blank(), deviceId: D2, deviceName: 'Tea', key: 'water_kettle.mode' };
     expect(entryFromDraft(d)).toEqual({ fields: { status: { deviceId: D2, key: 'water_kettle.mode' } } });
   });
   it('an automatic source counts as bound (it draws live data) but is not an entry of its own', () => {
@@ -326,5 +330,180 @@ describe('automatic fields (a source found by the drawing\'s own naming, no entr
   it('an automatic source with an empty key is not pre-filled', () => {
     const d = draftFromSymbol({ fields: [{ name: 'value', label: 'V', currentSource: { deviceId: D2, deviceName: 'Tea', key: '', automatic: true } }] });
     expect(d.fields.value.automatic).toBeUndefined();
+  });
+});
+
+// ─── Slice 16 (U1): the ranking, table-driven over realistic devices ─────────────────────────────────────────────────────────────
+
+type Case = { what: string; field: { name: string; label?: string; kind?: 'state' | 'number' | 'text'; unit?: string }; keys: DeviceKey[]; element?: string; hints?: string[]; want: string | null; mismatch?: string };
+const k = key;
+
+describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)', () => {
+  const cases: Case[] = [
+    // the acceptance journey's device: arbitrary names, no convention at all
+    { what: 'a thermometer reading finds temp_1 (the symbol\'s own words say what it measures)', field: { name: 'value', label: 'Reading' }, keys: [k('temp_1', 21.5), k('pump_on', true), k('flow_lpm', 12.4), k('door', 'closed')], hints: ['Thermometer'], want: 'temp_1' },
+    { what: 'a reading with no words at all and two numbers is nobody\'s', field: { name: 'value', label: 'Reading' }, keys: [k('temp_1', 21.5), k('pump_on', true), k('flow_lpm', 12.4)], want: null },
+    { what: 'running finds pump_on', field: { name: 'running', label: 'Running' }, keys: [k('temp_1', 21.5), k('pump_on', true), k('flow_lpm', 12.4), k('door', 'closed')], want: 'pump_on' },
+    { what: 'a flow reading finds flow_lpm', field: { name: 'value', label: 'Flow' }, keys: [k('temp_1', 21.5), k('pump_on', true), k('flow_lpm', 12.4)], want: 'flow_lpm' },
+    { what: 'a flow meter\'s reading finds flow_lpm by the symbol\'s kind', field: { name: 'value', label: 'Reading' }, keys: [k('temp_1', 21.5), k('pump_on', true), k('flow_lpm', 12.4)], hints: ['Flow meter'], want: 'flow_lpm' },
+    { what: 'a door (open/closed) finds door', field: { name: 'running', label: 'Open' }, keys: [k('temp_1', 21.5), k('door', 'closed'), k('flow_lpm', 12.4)], want: 'door' },
+    // the kitchen
+    { what: 'the element convention wins outright', field: { name: 'value', label: 'Reading' }, keys: [k('tea_maker.value', 57), k('coffee.value', 3), k('power_strip.running', 1)], element: 'tea_maker', want: 'tea_maker.value' },
+    { what: 'a fryer temperature with a unit', field: { name: 'value', label: 'Temperature', unit: '°C' }, keys: [k('oil_temp', 178, { unit: '°C' }), k('basket', 'down'), k('heater', 1)], want: 'oil_temp' },
+    // HVAC
+    { what: 'supply air temperature by label', field: { name: 'value', label: 'Supply temperature' }, keys: [k('sat', 14.5, { label: 'Supply air temperature' }), k('rat', 22, { label: 'Return air temperature' }), k('fan', 1)], want: 'sat' },
+    { what: 'a fan speed in rpm', field: { name: 'speed', label: 'Speed' }, keys: [k('fan_rpm', 1200, { unit: 'rpm' }), k('fan_on', 1), k('sat', 14.5)], want: 'fan_rpm' },
+    { what: 'a damper opening in percent', field: { name: 'position', label: 'Opening' }, keys: [k('dmp_pos', 45, { unit: '%' }), k('dmp_cmd', 1), k('sat', 14.5)], want: 'dmp_pos' },
+    { what: 'a status word', field: { name: 'status', label: 'Status' }, keys: [k('ahu_state', 'cooling'), k('sat', 14.5), k('fan', 1)], want: 'ahu_state' },
+    // building BMS
+    { what: 'a room humidity', field: { name: 'value2', label: 'Humidity' }, keys: [k('rh', 41, { unit: '%' }), k('t', 21.2, { unit: '°C' }), k('occ', true)], want: 'rh' },
+    { what: 'an occupancy state', field: { name: 'running', label: 'Occupied' }, keys: [k('rh', 41), k('t', 21.2), k('occupancy', 1)], want: 'occupancy' },
+    { what: 'a meter energy, by the unit alone', field: { name: 'value', label: 'Energy', unit: 'kWh' }, keys: [k('e_total', 15230, { unit: 'kWh' }), k('p', 4.2, { unit: 'kW' }), k('u1', 230)], want: 'e_total' },
+    { what: 'a pressure gauge\'s reading, by the symbol\'s kind and the unit', field: { name: 'value', label: 'Reading' }, keys: [k('p1', 3.2, { unit: 'bar' }), k('q', 12, { unit: 'l/min' })], hints: ['Pressure gauge'], want: 'p1' },
+    // water
+    { what: 'a tank level', field: { name: 'value', label: 'Level' }, keys: [k('lvl', 63, { unit: '%' }), k('pump1', 0), k('pump2', 1)], want: 'lvl' },
+    { what: 'two pumps: ambiguous for running, none picked by itself', field: { name: 'running', label: 'Running' }, keys: [k('pump1', 0), k('pump2', 1), k('lvl', 63)], want: null },
+    { what: 'a pressure with bar', field: { name: 'value', label: 'Pressure' }, keys: [k('p_out', 3.2, { unit: 'bar' }), k('q', 12, { unit: 'l/min' }), k('run', true)], want: 'p_out' },
+    // power
+    { what: 'a breaker state from a 0/1', field: { name: 'running', label: 'Closed' }, keys: [k('cb_state', 1), k('i_a', 12.3, { unit: 'A' }), k('u_a', 231, { unit: 'V' })], want: 'cb_state' },
+    { what: 'a current reading', field: { name: 'value', label: 'Current', unit: 'A' }, keys: [k('i_a', 12.3, { unit: 'A' }), k('u_a', 231, { unit: 'V' }), k('cb_state', 1)], want: 'i_a' },
+    { what: 'a voltage reading', field: { name: 'value', label: 'Voltage' }, keys: [k('i_a', 12.3, { unit: 'A' }), k('u_a', 231, { unit: 'V' }), k('cb_state', 1)], want: 'u_a' },
+    // mismatches are never picked by themselves
+    { what: 'text for a number is flagged, not picked', field: { name: 'value', label: 'Reading' }, keys: [k('reading', 'high'), k('rssi', -60)], want: null, mismatch: 'text-for-number' },
+    { what: 'a number for a state is flagged, not picked', field: { name: 'running', label: 'Running' }, keys: [k('running', 37.5, { unit: '°C' }), k('x', 'a')], want: null, mismatch: 'number-for-state' },
+    { what: 'the only key is taken whatever the field', field: { name: 'anything' }, keys: [k('only', 'x')], want: 'only' },
+    { what: 'nothing for no keys', field: { name: 'value' }, keys: [], want: null },
+    { what: 'a connection id the host marked internal is never offered', field: { name: 'running' }, keys: [k('c1.running', 1, { internal: true }), k('lvl', 63)], want: null },
+  ];
+  for (const c of cases) {
+    it(c.what, () => {
+      const ranked = rankKeysForField(c.field, c.keys, c.element, [], c.hints ?? []);
+      expect(suggestKeyForField(c.field, c.keys, c.element, c.hints ?? [])).toBe(c.want);
+      if (c.mismatch) expect(ranked[0]?.mismatch).toBe(c.mismatch);
+      for (const r of ranked) expect(c.keys.find((x) => x.key === r.key)?.internal).not.toBe(true);
+    });
+  }
+
+  it('orders best first with reasons, a confident best needs the score and a lead, a tie is nobody', () => {
+    const tie = rankKeysForField({ name: 'value', label: 'Temperature', unit: '°C' }, [k('hum', 40, { unit: '%' }), k('temp_c', 21, { unit: '°C' }), k('t2', 19, { label: 'Temperature 2', unit: '°C' })]);
+    expect(tie.map((r) => r.key)).toEqual(['temp_c', 't2']); // the same score: the host's order; hum (another quantity, no word) is no candidate
+    expect(tie[0].reasons).toEqual(expect.arrayContaining(['synonym', 'type', 'unit']));
+    expect(tie[0].confident).toBe(false);
+    const named = rankKeysForField({ name: 'value', label: 'Temperature', unit: '°C' }, [k('temp_c', 21, { unit: '°C' }), k('t2', 19, { label: 'Temperature', unit: '°C' })]);
+    expect(named[0]).toMatchObject({ key: 't2', confident: true });
+    expect(named[0].reasons).toContain('name');
+    const sure = rankKeysForField({ name: 'value', label: 'Temperature' }, [k('temp_c', 21), k('hum', 40)]);
+    expect(sure[0]).toMatchObject({ key: 'temp_c', confident: true });
+    expect(sure[0].score).toBeGreaterThanOrEqual(CONFIDENT_SCORE);
+    expect(sure.map((r) => r.key)).toEqual(['temp_c', 'hum']); // hum is a number too: listed, far behind
+  });
+
+  it('a unit of another quantity counts against a key; a field with no unit and no quantity word ignores units', () => {
+    const wrong = rankKeysForField({ name: 'value', label: 'Temperature' }, [k('t', 3.2, { unit: 'bar' })]);
+    expect(wrong[0].reasons).toContain('unit');
+    expect(wrong[0].score).toBeLessThan(rankKeysForField({ name: 'value', label: 'Temperature' }, [k('t', 3.2)])[0].score);
+    expect(unitQuantity('°C')).toBe('temperature');
+    expect(unitQuantity('l/min')).toBe('flow');
+    expect(unitQuantity('')).toBeNull();
+    expect(unitQuantity('furlongs')).toBeNull();
+  });
+
+  it('knows kinds: a field by its name or its kind, a key by its live value and unit', () => {
+    expect(fieldKindOf({ name: 'running' })).toBe('state');
+    expect(fieldKindOf({ name: 'status' })).toBe('text');
+    expect(fieldKindOf({ name: 'value2' })).toBe('number');
+    expect(fieldKindOf({ name: 'doorOpen' })).toBeNull();
+    expect(fieldKindOf({ name: 'doorOpen', kind: 'state' })).toBe('state');
+    expect(keyKindOf({ value: true })).toBe('state');
+    expect(keyKindOf({ value: 1 })).toBe('state');
+    expect(keyKindOf({ value: 1, unit: 'm' })).toBe('number');
+    expect(keyKindOf({ value: 21.5 })).toBe('number');
+    expect(keyKindOf({ value: 'on' })).toBe('state');
+    expect(keyKindOf({ value: 'heating' })).toBe('text');
+    expect(keyKindOf({ value: null })).toBeNull();
+    expect(mismatchOf({ name: 'status' }, { value: 5 })).toBeNull();
+    expect(mismatchOf({ name: 'value' }, { value: true })).toBe('state-for-number');
+    expect(mismatchOf({ name: 'running' }, { value: 'high' })).toBe('text-for-state');
+  });
+
+  it('pickableKeys leaves out the internal ones', () => {
+    expect(pickableKeys([k('a', 1), k('c1.running', 1, { internal: true })]).map((x) => x.key)).toEqual(['a']);
+  });
+});
+
+// ─── Slice 16 (U2b): expressions over named inputs ───────────────────────────────────────────────────────────────────────────────
+
+describe('defaultInputName', () => {
+  it('makes a readable name from a label or key, never a reserved word, never one taken', () => {
+    expect(defaultInputName('Supply temperature')).toBe('supply_temperatu');
+    expect(defaultInputName('return_temp')).toBe('return_temp');
+    expect(defaultInputName('Return')).toBe('return_in');
+    expect(defaultInputName('value')).toBe('value_in');
+    expect(defaultInputName('oven.door_open')).toBe('door_open');
+    expect(defaultInputName('42 things')).toBe('v_42_things');
+    expect(defaultInputName('???')).toBe('input');
+    expect(defaultInputName('temp', ['temp'])).toBe('temp_2');
+    expect(defaultInputName('temp', ['temp', 'temp_2'])).toBe('temp_3');
+    expect(defaultInputName('supply_temperature_x', ['supply_temperatu'])).toBe('supply_tempera_2');
+    expect(expressionNames([{ name: 'a' }, { name: 'b' }])).toEqual(['value', 'row', 'now', 'a', 'b']);
+  });
+});
+
+describe('templateFor', () => {
+  it('writes a template over value when the row has a value, else over the first input', () => {
+    const t = scriptTemplates()[0];
+    expect(templateFor(t, [], true)).toBe('!value');
+    expect(templateFor(t, [{ name: 'supply' }], true)).toBe('!value');
+    expect(templateFor(t, [{ name: 'supply' }], false)).toBe('!supply');
+    expect(templateFor(t, [], false)).toBe('!value');
+  });
+});
+
+describe('entryFromDraft with expressions', () => {
+  const input = (name: string, key: string, deviceId = '') => ({ name, deviceId, deviceName: '', key, label: '' });
+
+  it('writes the expression and its inputs beside a key, the inputs on the draft device without a device of their own', () => {
+    const d = draft();
+    d.fields.value = { ...blank(), key: 'supply_temp', mode: 'expression', script: ' value - ret ', inputs: [input('ret', 'return_temp'), input('other', 'x', D2)] };
+    expect(entryFromDraft(d).fields.value).toEqual({ deviceId: D1, key: 'supply_temp', script: 'value - ret', inputs: { ret: { key: 'return_temp' }, other: { key: 'x', deviceId: D2 } } });
+  });
+
+  it('writes an expression over inputs alone (no key), and drops a field with an expression and nothing to read', () => {
+    const d = draft();
+    d.fields.value = { ...blank(), mode: 'expression', script: 'supply - ret', inputs: [input('supply', 'supply_temp'), input('ret', 'return_temp')] };
+    d.fields.running = { ...blank(), mode: 'expression', script: 'value > 1', inputs: [] };
+    expect(entryFromDraft(d)).toEqual({ fields: { value: { deviceId: D1, script: 'supply - ret', inputs: { supply: { key: 'supply_temp' }, ret: { key: 'return_temp' } } } } });
+  });
+
+  it('drops inputs without a script, a bad input name, a duplicate name, a bad key, a bad device, and keeps at most four', () => {
+    const d = draft();
+    d.fields.value = { ...blank(), key: 'k', mode: 'expression', script: '', inputs: [input('a', 'x')] };
+    expect(entryFromDraft(d).fields.value).toEqual({ deviceId: D1, key: 'k' });
+    d.fields.value = { ...blank(), key: 'k', mode: 'expression', script: 'value', inputs: [input('return', 'x'), input('Bad', 'x'), input('a', 'has space'), input('b', 'y', 'nope'), input('c', 'z'), input('c', 'w')] };
+    expect(entryFromDraft(d).fields.value).toEqual({ deviceId: D1, key: 'k', script: 'value', inputs: { c: { key: 'z' } } });
+    d.fields.value = { ...blank(), key: 'k', mode: 'expression', script: 'value', inputs: [input('a', 'a'), input('b', 'b'), input('c', 'c'), input('d', 'd'), input('e', 'e')] };
+    expect(Object.keys(entryFromDraft(d).fields.value.inputs!)).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('an automatic field with an expression is the person\'s; inputs count in sameEntry', () => {
+    const auto = { deviceId: D2, deviceName: 'Tea', key: 'kettle.value', automatic: true as const };
+    const d = draftFromSymbol({ fields: [{ name: 'value', label: 'Reading', currentSource: auto }] });
+    expect(d.fields.value.mode).toBe('value');
+    d.fields.value = { ...d.fields.value, mode: 'expression', script: 'value + ret', inputs: [input('ret', 'kettle.ret', D2)] };
+    expect(entryFromDraft(d).fields.value).toEqual({ deviceId: D2, key: 'kettle.value', script: 'value + ret', inputs: { ret: { key: 'kettle.ret' } } });
+    expect(sameEntry({ fields: { a: { key: 'k', script: 's', inputs: { x: { key: 'y' } } } } }, { fields: { a: { key: 'k', script: 's', inputs: { x: { key: 'y' } } } } })).toBe(true);
+    expect(sameEntry({ fields: { a: { key: 'k', script: 's', inputs: { x: { key: 'y' } } } } }, { fields: { a: { key: 'k', script: 's', inputs: { x: { key: 'z' } } } } })).toBe(false);
+    expect(sameEntry({ fields: { a: { key: 'k', script: 's' } } }, { fields: { a: { key: 'k' } } })).toBe(false);
+  });
+
+  it('the draft of a symbol with an expression starts in expression mode with its inputs, and knows it is bound', () => {
+    const sym = { fields: [{ name: 'value', label: 'Delta', currentSource: { deviceId: D1, deviceName: 'B', key: '', inputs: [{ name: 'supply', deviceId: D1, deviceName: 'B', key: 's' }, { name: 'ret', deviceId: D1, deviceName: 'B', key: 'r' }] }, currentScript: 'supply - ret' }] };
+    const d = draftFromSymbol(sym);
+    expect(d.fields.value).toMatchObject({ mode: 'expression', key: '', script: 'supply - ret' });
+    expect(d.fields.value.inputs.map((i) => i.name)).toEqual(['supply', 'ret']);
+    expect(entryFromSymbol(sym)).toEqual({ fields: { value: { deviceId: D1, script: 'supply - ret', inputs: { supply: { key: 's' }, ret: { key: 'r' } } } } });
+    expect(isBound(sym)).toBe(true);
+    expect(hasOwnEntry(sym)).toBe(true);
+    expect(isDirty(d, entryFromSymbol(sym))).toBe(false);
   });
 });

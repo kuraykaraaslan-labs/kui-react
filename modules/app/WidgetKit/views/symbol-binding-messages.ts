@@ -4,7 +4,7 @@
 // a role or a match: the panel speaks of the symbol, the device and its values.
 
 import { mergeMessages, type DeepPartial } from './scene-editor-messages-panels';
-import { DEFAULT_AGE_WORDS, type AgeWords, type ScriptErrorKind, type ScriptTemplateId } from './symbol-binding-logic';
+import { DEFAULT_AGE_WORDS, type AgeWords, type Mismatch, type ScriptErrorKind, type ScriptTemplateId } from './symbol-binding-logic';
 
 export type { DeepPartial };
 export { mergeMessages };
@@ -14,6 +14,8 @@ export interface SymbolBindingMessages {
   panel: string;
   close: string;
   cancel: string;
+  /** "12 of 31 symbols connected" in the header. */
+  progress: (connected: number, total: number) => string;
 
   // 1. Device
   deviceSection: string;
@@ -22,8 +24,71 @@ export interface SymbolBindingMessages {
   devicePlaceholder: string;
   deviceNoResults: string;
 
-  // 2. Values
+  // 2. What the symbol shows: one row per thing the symbol draws
+  rowsSection: string;
+  /** Under the parameter's name: what the symbol shows now. */
+  showsNow: (value: string) => string;
+  showsNothing: string;
+  /** The accessible name of a row (a parameter of the drawing). */
+  rowLabel: (field: string) => string;
+  /** The choice of what a row reads. */
+  sourceLabel: (field: string) => string;
+  sourceValue: string;
+  sourceExpression: string;
+  /** The accessible name of a field's picker. */
+  fieldPicker: (field: string) => string;
+  pickerPlaceholder: string;
+  pickerNoResults: string;
+  /** The description of a picker option: the live value and its age; the suggested one says so first. */
+  optionLine: (value: string, age: string) => string;
+  suggestedOption: (line: string) => string;
+  /** The picker's first choice: the field reads nothing. */
+  notUsed: string;
+  suggested: string;
+  /** "Suggested: Supply temperature" with a one-tap accept, on an empty row whose best candidate is not certain. */
+  suggestedCandidate: (name: string) => string;
+  useSuggestion: string;
+  /** Beside a field whose value is found by the drawing's own naming, with no setting of its own. */
+  automatic: string;
+  /** The read-only line of an automatic row, and the link that opens it. */
+  automaticLine: (name: string, value: string) => string;
+  change: string;
+  /** An empty row says what to do. */
+  unsetHint: string;
+  /** A field that reads another device than the one picked. */
+  fromOtherDevice: (device: string) => string;
+  /** A picked key the device has not sent a value for. */
+  noValueYet: string;
+  /** "21.5 °C · 4 s ago". */
+  valueAndAge: (value: string, age: string) => string;
+  /** The kind problem of a picked value, in words, and the way out. */
+  mismatch: Record<Mismatch, string>;
+  convertInstead: string;
+  age: AgeWords;
+
+  // 3. The expression of a row (source = An expression)
+  expressionLabel: (field: string) => string;
+  expressionPlaceholder: string;
+  expressionHint: string;
+  /** The chips of the values an expression can use. */
+  namesTitle: string;
+  nameChip: (name: string, value: string) => string;
+  insertName: (name: string) => string;
+  removeInput: (name: string) => string;
+  addInput: string;
+  addInputPlaceholder: string;
+  inputsFull: (max: number) => string;
+  expressionNeedsSomething: string;
+  templates: Record<ScriptTemplateId, string>;
+  /** The live preview. */
+  previewWait: string;
+  previewResult: (from: string, to: string) => string;
+  resultNow: (to: string) => string;
+  previewErrors: Record<ScriptErrorKind, (detail: string) => string>;
+
+  // 4. All values of the device (collapsed)
   valuesSection: string;
+  valuesToggle: (n: number) => string;
   /** Shown in place of the values until a device is picked. */
   valuesNeedDevice: string;
   valuesLoading: string;
@@ -39,32 +104,6 @@ export interface SymbolBindingMessages {
   valuesSearch: string;
   /** Under a key in the list: the symbol field it feeds. */
   feeds: (field: string) => string;
-  /** The picker's first choice: the field reads nothing. */
-  notUsed: string;
-  /** The accessible name of a field's picker. */
-  fieldPicker: (field: string) => string;
-  suggested: string;
-  /** Beside a field whose value is found by the drawing's own naming, with no setting of its own. */
-  automatic: string;
-  /** A field that reads another device than the one picked. */
-  fromOtherDevice: (device: string) => string;
-  /** A picked key the device has not sent a value for. */
-  noValueYet: string;
-  /** "21.5 °C · 4 s ago". */
-  valueAndAge: (value: string, age: string) => string;
-  age: AgeWords;
-
-  // 3. Convert
-  convertSection: string;
-  convertHint: string;
-  convertNeedsValue: string;
-  convertInput: (field: string) => string;
-  convertPlaceholder: string;
-  templates: Record<ScriptTemplateId, string>;
-  /** The live preview. */
-  previewWait: string;
-  previewResult: (from: string, to: string) => string;
-  previewErrors: Record<ScriptErrorKind, (detail: string) => string>;
 
   // Footer
   save: string;
@@ -79,19 +118,83 @@ export interface SymbolBindingMessages {
   discardConfirm: string;
   keepEditing: string;
   readOnlyNote: string;
+  /** The keyboard, said once under the rows. */
+  keysHint: string;
 }
 
 export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   panel: 'Symbol data',
   close: 'Close',
   cancel: 'Cancel',
+  progress: (connected, total) => `${connected} of ${total} symbols connected`,
 
   deviceSection: 'Device',
   deviceLabel: 'Device',
   devicePlaceholder: 'Pick the device that measures this',
   deviceNoResults: 'No device found.',
 
+  rowsSection: 'What this symbol shows',
+  showsNow: (value) => `Shows ${value} now`,
+  showsNothing: 'Shows nothing yet',
+  rowLabel: (field) => field,
+  sourceLabel: (field) => `Source of ${field}`,
+  sourceValue: 'A device value',
+  sourceExpression: 'An expression',
+  fieldPicker: (field) => field,
+  pickerPlaceholder: 'Pick a value…',
+  pickerNoResults: 'No value matches.',
+  optionLine: (value, age) => (age ? `${value} · ${age}` : value),
+  suggestedOption: (line) => `Suggested · ${line}`,
+  notUsed: 'Not used',
+  suggested: 'Suggested',
+  suggestedCandidate: (name) => `Suggested: ${name}`,
+  useSuggestion: 'Use',
+  automatic: 'automatic',
+  automaticLine: (name, value) => (value ? `${name} · ${value}` : name),
+  change: 'Change',
+  unsetHint: 'Pick the value this reads, or choose An expression.',
+  fromOtherDevice: (device) => `from ${device}`,
+  noValueYet: 'No value yet',
+  valueAndAge: (value, age) => (age ? `${value} · ${age}` : value),
+  mismatch: {
+    'text-for-number': 'This value is text; the drawing expects a number.',
+    'state-for-number': 'This value is on/off; the drawing expects a number.',
+    'number-for-state': 'This value is a number; the drawing expects on/off.',
+    'text-for-state': 'This value is text; the drawing expects on/off.',
+  },
+  convertInstead: 'Convert it with an expression',
+  age: DEFAULT_AGE_WORDS,
+
+  expressionLabel: (field) => `Expression for ${field}`,
+  expressionPlaceholder: 'value / 10',
+  expressionHint: 'One line. Use the names below; tap one to insert it.',
+  namesTitle: 'Values it can use',
+  nameChip: (name, value) => (value ? `${name} · ${value}` : name),
+  insertName: (name) => `Insert ${name}`,
+  removeInput: (name) => `Remove ${name}`,
+  addInput: 'Add a value',
+  addInputPlaceholder: 'Pick another value to use…',
+  inputsFull: (max) => `An expression uses at most ${max} other values.`,
+  expressionNeedsSomething: 'Write the expression, or add a value it can use.',
+  templates: {
+    invert: 'Invert',
+    scale: 'Scale 0–100',
+    round: 'Round',
+    threshold: 'Threshold',
+    words: 'Words',
+  },
+  previewWait: 'Waiting for a value to try it on.',
+  previewResult: (from, to) => `${from} → ${to}`,
+  resultNow: (to) => `Result now: ${to}`,
+  previewErrors: {
+    syntax: (detail) => (detail ? `This is not a complete expression: ${detail}` : 'This is not a complete expression. Check the brackets and signs.'),
+    name: (detail) => (detail ? `A name here is not known: ${detail}` : 'Only the names below can be used here.'),
+    timeout: () => 'This took too long to work out.',
+    other: (detail) => (detail ? `This does not work: ${detail}` : 'This does not work.'),
+  },
+
   valuesSection: 'Values',
+  valuesToggle: (n) => `All values of this device (${n})`,
   valuesNeedDevice: 'Pick a device to see the values it sends.',
   valuesLoading: 'Loading the values…',
   valuesEmpty: 'This device has not sent any values yet.',
@@ -103,35 +206,6 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   valuesUpdated: 'Updated',
   valuesSearch: 'Search the values',
   feeds: (field) => `feeds ${field}`,
-  notUsed: 'Not used',
-  fieldPicker: (field) => field,
-  suggested: 'Suggested',
-  automatic: 'automatic',
-  fromOtherDevice: (device) => `from ${device}`,
-  noValueYet: 'No value yet',
-  valueAndAge: (value, age) => (age ? `${value} · ${age}` : value),
-  age: DEFAULT_AGE_WORDS,
-
-  convertSection: 'Convert',
-  convertHint: 'Only if the value needs flipping or scaling. Write it with value, for example value / 10.',
-  convertNeedsValue: 'Pick a value above first.',
-  convertInput: (field) => `Convert ${field}`,
-  convertPlaceholder: 'value',
-  templates: {
-    invert: 'Invert',
-    scale: 'Scale 0–100',
-    round: 'Round',
-    threshold: 'Threshold',
-    words: 'Words',
-  },
-  previewWait: 'Waiting for a value to try it on.',
-  previewResult: (from, to) => `${from} → ${to}`,
-  previewErrors: {
-    syntax: () => 'This is not a complete expression. Check the brackets and signs.',
-    name: () => 'Only value can be used here.',
-    timeout: () => 'This took too long to work out.',
-    other: (detail) => (detail ? `This does not work: ${detail}` : 'This does not work.'),
-  },
 
   save: 'Save',
   next: 'Next symbol',
@@ -145,4 +219,5 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   discardConfirm: 'Discard',
   keepEditing: 'Keep editing',
   readOnlyNote: 'You can look at this symbol but not change it.',
+  keysHint: 'Arrow keys move between rows, Enter takes the suggestion, Esc closes.',
 };

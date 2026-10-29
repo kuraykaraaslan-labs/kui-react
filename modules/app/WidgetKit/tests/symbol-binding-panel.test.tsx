@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SymbolBindingPanel, type SymbolBindingPanelProps, type SymbolBindingSymbol } from '../views/SymbolBindingPanel';
 import type { DeviceKey, DeviceOption } from '../views/symbol-binding-logic';
@@ -41,8 +41,8 @@ function symbol(over: Partial<SymbolBindingSymbol> = {}): SymbolBindingSymbol {
 
 const BOUND: SymbolBindingSymbol = symbol({
   fields: [
-    { name: 'running', label: 'Running', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'state' } },
-    { name: 'value', label: 'Temperature', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'temperature' } },
+    { name: 'running', label: 'Running', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'state' }, live: 1 },
+    { name: 'value', label: 'Temperature', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'temperature' }, live: 21.5 },
   ],
 });
 
@@ -59,23 +59,37 @@ function props(over: Partial<SymbolBindingPanelProps> = {}): SymbolBindingPanelP
   };
 }
 
-/** The cells of the values table's row whose name starts with `name`. */
-const rowOf = (table: HTMLElement, name: string) =>
-  within(table).getAllByRole('row').map((r) => within(r).queryAllByRole('cell').map((c) => c.textContent ?? '')).find((c) => c[0]?.startsWith(name));
-const names = (table: HTMLElement) =>
-  within(table).getAllByRole('row').slice(1).map((r) => within(r).queryAllByRole('cell')[0]?.textContent ?? '');
-const field = (label: string) => screen.getByLabelText(label) as HTMLSelectElement;
+const row = (label: string) => screen.getByRole('group', { name: label });
+/** The searchable picker of a row: its value is the NAME of the picked key (its label, else the key). */
+const picker = (label: string) => within(row(label)).getByRole('searchbox', { name: label }) as HTMLInputElement;
+const source = (label: string) => screen.getByLabelText(`Source of ${label}`) as HTMLSelectElement;
+const expression = (label: string) => screen.getByLabelText(`Expression for ${label}`) as HTMLTextAreaElement;
 const deviceBox = () => screen.getByRole('searchbox', { name: 'Device' }) as HTMLInputElement;
+const rowsReady = () => waitFor(() => expect(picker('Running')).toBeEnabled());
 
 async function pickDevice(user: ReturnType<typeof userEvent.setup>, name: string) {
   await user.click(deviceBox());
   await user.click(within(await screen.findByRole('option', { name: new RegExp(name) })).getByRole('button'));
 }
+/** Opens a row's picker and chooses the option whose name matches. */
+async function pickKey(user: ReturnType<typeof userEvent.setup>, label: string, name: string | RegExp) {
+  await user.click(picker(label));
+  const option = await screen.findByRole('option', { name: typeof name === 'string' ? new RegExp(`^${name}`) : name });
+  await user.click(within(option).getByRole('button'));
+}
+async function openValues(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: /All values of this device/ }));
+  return screen.findByRole('table', { name: 'Values' });
+}
+const names = (table: HTMLElement) =>
+  within(table).getAllByRole('row').slice(1).map((r) => within(r).queryAllByRole('cell')[0]?.textContent ?? '');
+const rowOf = (table: HTMLElement, name: string) =>
+  within(table).getAllByRole('row').map((r) => within(r).queryAllByRole('cell').map((c) => c.textContent ?? '')).find((c) => c[0]?.startsWith(name));
 
 describe('SymbolBindingPanel: the header and what is never drawn', () => {
   it('shows the symbol, its kind in words and its icon, and the internal id nowhere', async () => {
     const { container } = render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     expect(screen.getByRole('heading', { name: 'Boiler' })).toBeInTheDocument();
     expect(screen.getByText('Combi boiler')).toBeInTheDocument();
     expect(screen.getByTestId('icon')).toBeInTheDocument();
@@ -86,21 +100,33 @@ describe('SymbolBindingPanel: the header and what is never drawn', () => {
     expect(container.querySelector(`[data-symbol-id="${ID}"]`)).not.toBeNull();
   });
   it('never uses the words of the binding internals', async () => {
+    const user = userEvent.setup();
     const { container } = render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Convert' }));
+    await rowsReady();
+    await user.selectOptions(source('Running'), 'expression');
+    await openValues(user);
     expect(container.textContent ?? '').not.toMatch(/scene key|slot|\brole\b|matched|unmatched/i);
   });
-  it('fits one column: no tabs, and the values are the only table', async () => {
+  it('fits one column: no tabs, and the values list is the only table, folded away by default', async () => {
+    const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     expect(screen.queryByRole('tab')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+    await openValues(user);
     expect(screen.getAllByRole('table')).toHaveLength(1);
   });
   it('takes the texts from the messages prop', () => {
     render(<SymbolBindingPanel {...props({ messages: { devicePlaceholder: 'Cihazı seçin', next: 'Sonraki' }, onNext: vi.fn() })} />);
     expect(deviceBox()).toHaveAttribute('placeholder', 'Cihazı seçin');
     expect(screen.getByRole('button', { name: 'Sonraki' })).toBeInTheDocument();
+  });
+  it('says how many symbols are connected, and draws the host\'s header action', async () => {
+    const onClick = vi.fn();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, progress: { connected: 12, total: 31 }, headerAction: { id: 'all', label: 'Match everything', onClick } })} />);
+    expect(screen.getByTestId('symbol-progress')).toHaveTextContent('12 of 31 symbols connected');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Match everything' }));
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -111,26 +137,27 @@ describe('SymbolBindingPanel: the device', () => {
     expect(deviceBox()).toHaveAttribute('placeholder', 'Pick the device that measures this');
     expect(screen.getByText('Pick a device to see the values it sends.')).toBeInTheDocument();
   });
-  it('shows the device that feeds the symbol now, pre-selected, and focuses the first value picker instead', async () => {
+  it('shows the device that feeds the symbol now, pre-selected, and focuses the first row instead', async () => {
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
     expect(deviceBox()).toHaveValue('Boiler room');
-    await screen.findByRole('table', { name: 'Values' });
-    expect(field('Running')).toHaveFocus();
+    await rowsReady();
+    expect(row('Running')).toHaveFocus();
   });
-  it('searches the host, debounced, and shows the code and hint under the name', async () => {
+  it('searches the host, debounced, and shows the code and the place under the name (the host\'s order is kept: the page\'s own devices first)', async () => {
     const searchDevices = vi.fn(async () => DEVICES);
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ searchDevices })} />);
     await user.click(deviceBox());
     expect(await screen.findByRole('option', { name: /Boiler room/ })).toHaveTextContent('BR-1 · Site A');
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['Boiler roomBR-1 · Site A', 'Roof unit']);
     expect(searchDevices).toHaveBeenCalledWith('');
   });
-  it('lists the keys of the picked device with their live value and age', async () => {
+  it('lists the keys of the picked device with their live value and age under All values', async () => {
     const loadKeys = vi.fn(async () => KEYS_1);
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ loadKeys })} />);
     await pickDevice(user, 'Boiler room');
-    const list = await screen.findByRole('table', { name: 'Values' });
+    const list = await openValues(user);
     expect(loadKeys).toHaveBeenCalledWith(D1);
     expect(within(list).getByText('Burner')).toBeInTheDocument();
     expect(rowOf(list, 'Burner')).toEqual(['Burnerfeeds Running', '1', '4 s ago']);
@@ -138,8 +165,9 @@ describe('SymbolBindingPanel: the device', () => {
     expect(rowOf(list, 'rssi')).toEqual(['rssi', 'weak', '1 min ago']);
   });
   it('draws the values with the kit table: Name, Value and Updated headings, no search box for a short list', async () => {
+    const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    const table = await screen.findByRole('table', { name: 'Values' });
+    const table = await openValues(user);
     expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Name', 'Value', 'Updated']);
     expect(screen.queryByRole('searchbox', { name: /values/i })).toBeNull();
     expect(screen.queryByRole('list', { name: 'Values' })).toBeNull();
@@ -147,21 +175,21 @@ describe('SymbolBindingPanel: the device', () => {
   it('sorts the values by name from the Name heading, and again to reverse', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    const table = await screen.findByRole('table', { name: 'Values' });
+    const table = await openValues(user);
     expect(names(table).map((n) => n.replace(/feeds.*/, ''))).toEqual(['Burner', 'temperature', 'rssi']); // as the host sent them
     await user.click(within(table).getByRole('button', { name: /name/i }));
     expect(names(table).map((n) => n.replace(/feeds.*/, ''))).toEqual(['Burner', 'rssi', 'temperature']);
     await user.click(within(table).getByRole('button', { name: /name/i }));
     expect(names(table).map((n) => n.replace(/feeds.*/, ''))).toEqual(['temperature', 'rssi', 'Burner']);
   });
-  it('does nothing when a value row is clicked (the pickers choose)', async () => {
+  it('does nothing when a value row is clicked (the rows above choose)', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave })} />);
-    const table = await screen.findByRole('table', { name: 'Values' });
+    const table = await openValues(user);
     await user.click(within(table).getByText('rssi'));
-    expect(field('Running').value).toBe('state');
-    expect(field('Temperature').value).toBe('temperature');
+    expect(picker('Running')).toHaveValue('Burner');
+    expect(picker('Temperature')).toHaveValue('temperature');
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     expect(onSave).not.toHaveBeenCalled();
   });
@@ -169,15 +197,15 @@ describe('SymbolBindingPanel: the device', () => {
     let n = 0;
     const loadKeys = vi.fn(async () => [{ key: 'temperature', unit: '°C', value: n++ === 0 ? 21.5 : 22.5, ts: NOW - 4000 }]);
     render(<SymbolBindingPanel {...props({ symbol: BOUND, loadKeys, refreshMs: 30 })} />);
-    const table = await screen.findByRole('table', { name: 'Values' });
-    expect(await within(table).findByText('22.5 °C')).toBeInTheDocument();
-    expect(within(table).queryByText('21.5 °C')).toBeNull();
+    await rowsReady();
+    expect(await within(row('Temperature')).findByText('22.5 °C · 4 s ago')).toBeInTheDocument();
+    expect(within(row('Temperature')).queryByText('21.5 °C · 4 s ago')).toBeNull();
   });
   it('with more than 8 keys adds a search box that narrows the rows by name or key, and says so when nothing matches', async () => {
     const many: DeviceKey[] = Array.from({ length: 12 }, (_, i) => ({ key: `ch_${String(i + 1).padStart(2, '0')}`, label: i === 3 ? 'Supply temperature' : undefined, value: i, ts: NOW - 4000 }));
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [] }), loadKeys: vi.fn(async () => many), defaultDevice: { id: D1, name: 'Boiler room' } })} />);
-    const table = await screen.findByRole('table', { name: 'Values' });
+    const table = await openValues(user);
     expect(names(table)).toHaveLength(12);
     const box = screen.getByRole('searchbox', { name: /search the values/i });
     await user.type(box, 'supply');
@@ -191,8 +219,9 @@ describe('SymbolBindingPanel: the device', () => {
   });
   it('keeps a short list free of the search box at exactly 8 keys', async () => {
     const eight: DeviceKey[] = Array.from({ length: 8 }, (_, i) => ({ key: `k${i}`, value: i, ts: NOW }));
+    const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [] }), loadKeys: vi.fn(async () => eight), defaultDevice: { id: D1, name: 'Boiler room' } })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await openValues(user);
     expect(screen.queryByRole('searchbox', { name: /search the values/i })).toBeNull();
   });
   it('says so when the device has sent nothing, and when the values cannot be loaded (with a retry)', async () => {
@@ -209,71 +238,99 @@ describe('SymbolBindingPanel: the device', () => {
     render(<SymbolBindingPanel {...props({ symbol: BOUND, loadKeys, refreshMs: 30 })} />);
     await waitFor(() => expect(loadKeys.mock.calls.length).toBeGreaterThanOrEqual(3));
   });
-  it('clears the fields that read the old device when another is picked, then proposes again', async () => {
+  it('clears the fields that read the old device when another is picked, then proposes again (a flow is offered, never taken, for a temperature)', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    expect(field('Running').value).toBe('state');
+    await rowsReady();
+    expect(picker('Running')).toHaveValue('Burner');
     await pickDevice(user, 'Roof unit');
-    await waitFor(() => expect(field('Running').value).toBe('pump_on'));
-    expect(field('Temperature').value).toBe('flow');
+    await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
+    expect(picker('Temperature')).toHaveValue('');
+    expect(within(row('Temperature')).getByText('Suggested: flow')).toBeInTheDocument();
   });
 });
 
-describe('SymbolBindingPanel: values and suggestions', () => {
-  it('fills a field when its key is clear, marks it as suggested, and leaves the unclear one empty', async () => {
-    const user = userEvent.setup();
-    render(<SymbolBindingPanel {...props()} />);
-    await pickDevice(user, 'Roof unit');
-    await waitFor(() => expect(field('Running').value).toBe('pump_on'));
-    expect(field('Temperature').value).toBe('flow');
-    expect(screen.getAllByText('Suggested')).toHaveLength(2);
-    expect(rowOf(screen.getByRole('table', { name: 'Values' }), 'flow')).toEqual(['flowfeeds Temperature', '12.4 l/min', '2 s ago']);
-    expect(screen.getAllByText('12.4 l/min · 2 s ago')).toHaveLength(1); // under the picker
+describe('SymbolBindingPanel: the rows, their suggestions and what they show', () => {
+  it('one row per thing the symbol draws, each saying what the symbol shows now', async () => {
+    render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
+    await rowsReady();
+    expect(screen.getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Running', 'Temperature']);
+    expect(within(row('Running')).getByText('Shows 1 now')).toBeInTheDocument();
+    expect(within(row('Temperature')).getByText('Shows 21.5 now')).toBeInTheDocument();
+    const { container } = render(<SymbolBindingPanel {...props()} />);
+    expect(container.textContent).not.toContain('Shows');
   });
-  it('leaves an ambiguous field empty on "Not used"', async () => {
+  it('fills a field when its key is clear, marks it as suggested, and leaves the unclear one empty with a plain hint', async () => {
     const user = userEvent.setup();
-    render(<SymbolBindingPanel {...props()} />);
-    await pickDevice(user, 'Boiler room'); // state (1) fits Running; temperature (21.5) is the one measure; rssi is text
-    await waitFor(() => expect(field('Running').value).toBe('state'));
-    expect(field('Temperature').value).toBe('temperature');
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'running', label: 'Running' }, { name: 'value', label: 'Flow' }] }) })} />);
+    await pickDevice(user, 'Roof unit');
+    await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
+    expect(picker('Flow')).toHaveValue('flow');
+    expect(screen.getAllByText('Suggested')).toHaveLength(2);
+    expect(within(row('Flow')).getByText('12.4 l/min · 2 s ago')).toBeInTheDocument();
     const ambiguous = props({ loadKeys: vi.fn(async () => [{ key: 'a', value: 1.5, ts: NOW }, { key: 'b', value: 2.5, ts: NOW }]) });
-    render(<SymbolBindingPanel {...ambiguous} symbol={symbol({ id: 'other', fields: [{ name: 'value', label: 'Temperature' }] })} />);
+    render(<SymbolBindingPanel {...ambiguous} symbol={symbol({ id: 'other', fields: [{ name: 'value', label: 'Level' }] })} />);
     await user.click(screen.getAllByRole('searchbox', { name: 'Device' })[1]);
     await user.click(within((await screen.findAllByRole('option', { name: /Roof unit/ }))[0]).getByRole('button'));
-    await waitFor(() => expect(screen.getAllByRole('table', { name: 'Values' })).toHaveLength(2));
-    expect(screen.getAllByLabelText('Temperature')[1]).toHaveValue('');
+    const level = await screen.findByRole('group', { name: 'Level' });
+    await waitFor(() => expect(within(level).getByRole('searchbox', { name: 'Level' })).toBeEnabled());
+    expect(within(level).getByRole('searchbox', { name: 'Level' })).toHaveValue('');
+    expect(within(level).getByText('Pick the value this reads, or choose An expression.')).toBeInTheDocument();
+  });
+  it('offers the best candidate with one tap when it is not certain, and the picker lists the device\'s values with the suggested one first', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'rssi', value: -60, ts: NOW }, { key: 'reading', value: 'high', ts: NOW }, { key: 'x', value: 2, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Reading' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' } })} />);
+    const r = await screen.findByRole('group', { name: 'Reading' });
+    await waitFor(() => expect(within(r).getByText('Suggested: reading')).toBeInTheDocument());
+    expect(within(r).getByRole('searchbox', { name: 'Reading' })).toHaveValue('');
+    await user.click(within(r).getByRole('searchbox', { name: 'Reading' }));
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option');
+    expect(options[0]).toHaveTextContent('reading');
+    expect(options[0]).toHaveTextContent('Suggested · high · just now');
+    expect(options.map((o) => o.textContent)).toEqual(['readingSuggested · high · just now', 'rssi-60 · just now', 'x2 · just now']);
+    await user.keyboard('{Escape}');
+    await user.click(within(r).getByRole('button', { name: 'Use' }));
+    expect(within(r).getByRole('searchbox', { name: 'Reading' })).toHaveValue('reading');
+    // the picked value is text where a number is expected: said in words, with the way out
+    expect(within(r).getByText('This value is text; the drawing expects a number.')).toBeInTheDocument();
+    await user.click(within(r).getByRole('button', { name: 'Convert it with an expression' }));
+    expect(source('Reading')).toHaveValue('expression');
+    expect(expression('Reading')).toBeInTheDocument();
   });
   it('picks a key by hand, and the pick shows its live value and drops the "Suggested" mark', async () => {
     const user = userEvent.setup();
-    render(<SymbolBindingPanel {...props()} />);
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'running', label: 'Running' }, { name: 'value', label: 'Flow' }] }) })} />);
     await pickDevice(user, 'Roof unit');
-    await waitFor(() => expect(field('Temperature').value).toBe('flow'));
-    await user.selectOptions(field('Temperature'), 'pump_on');
-    expect(field('Temperature').value).toBe('pump_on');
+    await waitFor(() => expect(picker('Flow')).toHaveValue('flow'));
+    expect(screen.getAllByText('Suggested')).toHaveLength(2);
+    await pickKey(user, 'Flow', 'pump_on');
+    expect(picker('Flow')).toHaveValue('pump_on');
+    expect(within(row('Flow')).getByText('true · 2 s ago')).toBeInTheDocument();
     expect(screen.getAllByText('Suggested')).toHaveLength(1);
   });
   it('lets a field be cleared ("Not used") and saves without it', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await user.selectOptions(field('Temperature'), '');
-    expect(field('Temperature').value).toBe('');
+    await rowsReady();
+    await user.click(within(row('Temperature')).getByRole('button', { name: 'Not used' }));
+    expect(picker('Temperature')).toHaveValue('');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith({ fields: { running: { deviceId: D1, key: 'state' } } });
   });
   it('says "feeds" next to the key a field reads', async () => {
+    const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    const list = await screen.findByRole('table', { name: 'Values' });
+    const list = await openValues(user);
     expect(within(list).getByText('feeds Running')).toBeInTheDocument();
     expect(within(list).getByText('feeds Temperature')).toBeInTheDocument();
   });
-  it('shows "No value yet" for a key the device does not list, and keeps it selectable', async () => {
+  it('shows "No value yet" for a key the device does not list, and keeps it picked', async () => {
     const sym = symbol({ fields: [{ name: 'value', label: 'Temperature', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'gone' } }] });
     render(<SymbolBindingPanel {...props({ symbol: sym })} />);
     expect(await screen.findByText('No value yet')).toBeInTheDocument();
-    expect(field('Temperature').value).toBe('gone');
+    expect(picker('Temperature')).toHaveValue('gone');
   });
   it('shows a field that reads another device with that device named, and keeps it on save', async () => {
     const onSave = vi.fn();
@@ -285,81 +342,109 @@ describe('SymbolBindingPanel: values and suggestions', () => {
     });
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: sym, onSave })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     expect(screen.getByText('from Roof unit')).toBeInTheDocument();
-    await user.selectOptions(field('Running'), '');
+    await user.click(within(row('Running')).getByRole('button', { name: 'Not used' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D2, key: 'flow', script: 'value * 2' } } });
   });
+  it('a connection id the host marked internal is never in a picker, but is listed under all values', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'c1.running', value: 1, ts: NOW, internal: true }, { key: 'pump_on', value: 1, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'running', label: 'Running' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' } })} />);
+    await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
+    await user.click(picker('Running'));
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).not.toContainEqual(expect.stringContaining('c1.running'));
+    await user.keyboard('{Escape}');
+    const table = await openValues(user);
+    expect(names(table)).toEqual(['c1.running', 'pump_onfeeds Running']);
+  });
 });
 
-describe('SymbolBindingPanel: Convert', () => {
+describe('SymbolBindingPanel: an expression (source = An expression)', () => {
   const stub = (script: string, sample: unknown) => {
-    if (script === '!value') return { ok: true as const, result: !sample };
-    if (script === 'value === 1') return { ok: true as const, result: sample === 1 };
+    const value = sample !== null && typeof sample === 'object' && 'value' in sample ? (sample as { value: unknown }).value : sample;
+    const inputs = sample !== null && typeof sample === 'object' && 'inputs' in sample ? (sample as { inputs: Record<string, number> }).inputs : {};
+    if (script === '!value') return { ok: true as const, result: !value };
+    if (script === 'value === 1') return { ok: true as const, result: value === 1 };
+    if (script === 'value / 4095 * 100') return { ok: true as const, result: (value as number) / 4095 * 100 };
+    if (script === 'supply - ret') return { ok: true as const, result: inputs.supply - inputs.ret };
+    if (script === '!supply') return { ok: true as const, result: !inputs.supply };
     if (script === 'value /') return { ok: false as const, error: 'SyntaxError: Unexpected end of input' };
     if (script === 'nope') return { ok: false as const, error: 'ReferenceError: nope is not defined' };
-    return { ok: true as const, result: sample };
+    return { ok: true as const, result: value };
+  };
+  const judge = (script: string, names: string[]) => {
+    if (/\/$/.test(script.trim())) return 'the formula ends too soon';
+    const bad = script.match(/[a-z_]+/g)?.find((w) => !['value', 'row', 'now', ...names].includes(w));
+    return bad ? `unknown name "${bad}" (a formula reads value, row and now${names.length ? ` and the inputs ${names.join(', ')}` : ''})` : null;
   };
 
-  it('is collapsed by default', async () => {
-    render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript: stub })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    const head = screen.getByRole('button', { name: 'Convert' });
-    expect(head).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByLabelText('Convert Running')).toBeNull();
-  });
-  it('opens by itself when a field already has a one-liner, and previews "1 → true" through the host sandbox', async () => {
-    const sym = symbol({
-      fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'state' }, currentScript: 'value === 1' }],
-    });
+  it('a row reads a device value by default; the source switch opens the expression box over that value and previews "1 → true" through the host sandbox', async () => {
+    const user = userEvent.setup();
     const previewScript = vi.fn(stub);
-    render(<SymbolBindingPanel {...props({ symbol: sym, previewScript })} />);
-    expect(screen.getByRole('button', { name: 'Convert' })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByLabelText('Convert Running')).toHaveValue('value === 1');
-    await waitFor(() => expect(screen.getByText('1 → true')).toBeInTheDocument());
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript })} />);
+    await rowsReady();
+    expect(source('Running')).toHaveValue('value');
+    expect(screen.queryByLabelText('Expression for Running')).toBeNull();
+    await user.selectOptions(source('Running'), 'expression');
+    fireEvent.change(expression('Running'), { target: { value: 'value === 1' } });
+    await waitFor(() => expect(within(row('Running')).getByText('1 → true')).toBeInTheDocument());
     expect(previewScript).toHaveBeenCalledWith('value === 1', 1);
   });
-  it('announces the preview politely', async () => {
-    const sym = symbol({ fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'state' }, currentScript: '!value' }] });
+  it('opens in expression mode by itself when a field already has a one-liner, and announces the preview politely', async () => {
+    const sym = symbol({
+      fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'state' }, currentScript: '!value' }],
+    });
     render(<SymbolBindingPanel {...props({ symbol: sym, previewScript: stub })} />);
+    expect(source('Running')).toHaveValue('expression');
+    expect(expression('Running')).toHaveValue('!value');
     const line = await screen.findByText('1 → false');
     expect(line).toHaveAttribute('aria-live', 'polite');
     expect(line).toHaveAttribute('role', 'status');
   });
-  it('fills the one-liner from a quick-fill chip, which the person can edit, and previews it', async () => {
+  it('a template chip writes an expression into the box, which the person can edit, and previews it', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript: stub })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    const group = screen.getByRole('group', { name: 'Running' });
-    for (const chip of ['Invert', 'Scale 0–100', 'Round', 'Threshold', 'Words']) expect(within(group).getByRole('button', { name: chip })).toBeInTheDocument();
-    await user.click(within(group).getByRole('button', { name: 'Invert' }));
-    expect(screen.getByLabelText('Convert Running')).toHaveValue('!value');
-    await waitFor(() => expect(within(group).getByText('1 → false')).toBeInTheDocument());
-    await user.click(within(group).getByRole('button', { name: 'Scale 0–100' }));
-    expect(screen.getByLabelText('Convert Running')).toHaveValue('value / 4095 * 100');
+    await rowsReady();
+    await user.selectOptions(source('Running'), 'expression');
+    const r = row('Running');
+    for (const chip of ['Invert', 'Scale 0–100', 'Round', 'Threshold', 'Words']) expect(within(r).getByRole('button', { name: chip })).toBeInTheDocument();
+    await user.click(within(r).getByRole('button', { name: 'Invert' }));
+    expect(expression('Running')).toHaveValue('!value');
+    await waitFor(() => expect(within(r).getByText('1 → false')).toBeInTheDocument());
+    await user.click(within(r).getByRole('button', { name: 'Scale 0–100' }));
+    expect(expression('Running')).toHaveValue('value / 4095 * 100');
   });
-  it('shows an error in words, never the sandbox\'s own text, and does not throw', async () => {
+  it('says at once, in plain words, why an expression may not run (the judge), never the sandbox\'s own text', async () => {
     const user = userEvent.setup();
-    render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript: stub })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    const input = screen.getByLabelText('Convert Running');
-    await user.type(input, 'value /');
-    expect(await screen.findByText('This is not a complete expression. Check the brackets and signs.')).toBeInTheDocument();
-    await user.clear(input);
-    await user.type(input, 'nope');
-    expect(await screen.findByText('Only value can be used here.')).toBeInTheDocument();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript: stub, judgeScript: judge })} />);
+    await rowsReady();
+    await user.selectOptions(source('Running'), 'expression');
+    fireEvent.change(expression('Running'), { target: { value: 'value /' } });
+    expect(await screen.findByText('This is not a complete expression: the formula ends too soon')).toBeInTheDocument();
+    fireEvent.change(expression('Running'), { target: { value: 'nope' } });
+    expect(await screen.findByText('A name here is not known: unknown name "nope" (a formula reads value, row and now)')).toBeInTheDocument();
+    expect(expression('Running')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByText(/SyntaxError|ReferenceError/)).toBeNull();
+    fireEvent.change(expression('Running'), { target: { value: '!value' } });
+    await waitFor(() => expect(within(row('Running')).getByText('1 → false')).toBeInTheDocument());
+    expect(expression('Running')).not.toHaveAttribute('aria-invalid');
   });
-  it('shows the failure of a sandbox that throws', async () => {
+  it('without a judge, the sandbox\'s failure is worded; a sandbox that throws is reported too', async () => {
     const user = userEvent.setup();
-    const previewScript = () => { throw new Error('worker gone'); };
-    render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    await user.type(screen.getByLabelText('Convert Running'), 'x');
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript: stub })} />);
+    await rowsReady();
+    await user.selectOptions(source('Running'), 'expression');
+    fireEvent.change(expression('Running'), { target: { value: 'value /' } });
+    expect(await screen.findByText('This is not a complete expression. Check the brackets and signs.')).toBeInTheDocument();
+    fireEvent.change(expression('Running'), { target: { value: 'nope' } });
+    expect(await screen.findByText('Only the names below can be used here.')).toBeInTheDocument();
+    const throwing = () => { throw new Error('worker gone'); };
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript: throwing })} />);
+    await waitFor(() => expect(screen.getAllByLabelText('Source of Running')).toHaveLength(2));
+    await user.selectOptions(screen.getAllByLabelText('Source of Running')[1], 'expression');
+    fireEvent.change(screen.getAllByLabelText('Expression for Running')[1], { target: { value: 'x' } });
     expect(await screen.findByText('This does not work: worker gone')).toBeInTheDocument();
   });
   it('waits when the key has no value to try it on', async () => {
@@ -367,28 +452,95 @@ describe('SymbolBindingPanel: Convert', () => {
     const sym = symbol({ fields: [{ name: 'value', label: 'Temperature', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'gone' } }] });
     render(<SymbolBindingPanel {...props({ symbol: sym, previewScript: stub })} />);
     await screen.findByText('No value yet');
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    await user.type(screen.getByLabelText('Convert Temperature'), '!value');
+    await user.selectOptions(source('Temperature'), 'expression');
+    fireEvent.change(expression('Temperature'), { target: { value: '!value' } });
     expect(await screen.findByText('Waiting for a value to try it on.')).toBeInTheDocument();
   });
-  it('asks for a value first when no field has a key, and only offers fields that have one', async () => {
+  it('reads several device values by name: a chip per value, "Add a value" names the next one readably, a tap inserts a name, and the result is previewed live', async () => {
     const user = userEvent.setup();
-    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Temperature' }] }), loadKeys: vi.fn(async () => [{ key: 'a', value: 1.5, ts: NOW }, { key: 'b', value: 2.5, ts: NOW }]) })} />);
-    await pickDevice(user, 'Roof unit');
-    await screen.findByRole('table', { name: 'Values' });
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    expect(screen.getByText('Pick a value above first.')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Convert Temperature')).toBeNull();
+    const previewScript = vi.fn(stub);
+    const keys: DeviceKey[] = [{ key: 'supply_temp', label: 'Supply temperature', unit: '°C', value: 60, ts: NOW }, { key: 'return_temp', label: 'Return', unit: '°C', value: 45, ts: NOW }, { key: 'x', value: 1, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Delta' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' }, previewScript, judgeScript: judge })} />);
+    const r = await screen.findByRole('group', { name: 'Delta' });
+    await waitFor(() => expect(within(r).getByRole('searchbox', { name: 'Delta' })).toBeEnabled());
+    await user.selectOptions(source('Delta'), 'expression');
+    expect(within(r).getByText('Write the expression, or add a value it can use.')).toBeInTheDocument();
+    // the first value a row reads is `value`: the chip is there but empty until a value is picked
+    expect(within(r).getByRole('button', { name: 'Insert value' })).toBeDisabled();
+    const add = () => within(r).getByRole('searchbox', { name: 'Add a value' });
+    await user.click(add());
+    await user.click(within(await screen.findByRole('option', { name: /Supply temperature/ })).getByRole('button'));
+    expect(within(r).getByRole('button', { name: 'Insert supply_temperatu' })).toHaveTextContent('supply_temperatu · 60 °C');
+    await user.click(add());
+    await user.click(within(await screen.findByRole('option', { name: /^Return/ })).getByRole('button'));
+    // "return" is a word of the language: the name is made safe
+    expect(within(r).getByRole('button', { name: 'Insert return_in' })).toHaveTextContent('return_in · 45 °C');
+    await user.click(within(r).getByRole('button', { name: 'Insert supply_temperatu' }));
+    fireEvent.change(expression('Delta'), { target: { value: 'supply - ret' } });
+    expect(await within(r).findByText(/A name here is not known: unknown name "supply"/)).toBeInTheDocument();
+    // a judge stub that knows the inputs: the names are passed to it
+    const stubJudge = vi.fn(judge);
+    expect(stubJudge('supply_temperatu - return_in', ['supply_temperatu', 'return_in'])).toBeNull();
+    await user.click(within(r).getByRole('button', { name: 'Remove return_in' }));
+    expect(within(r).queryByRole('button', { name: 'Insert return_in' })).toBeNull();
   });
-  it('types in a single-line monospace input capped at 200 characters', async () => {
+  it('previews an expression over inputs with their live values and saves the entry with the inputs, without a key', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const keys: DeviceKey[] = [{ key: 'supply', unit: '°C', value: 60, ts: NOW }, { key: 'ret', unit: '°C', value: 45, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Delta' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' }, previewScript: stub, judgeScript: judge, onSave })} />);
+    const r = await screen.findByRole('group', { name: 'Delta' });
+    await waitFor(() => expect(within(r).getByRole('searchbox', { name: 'Delta' })).toBeEnabled());
+    await user.selectOptions(source('Delta'), 'expression');
+    for (const name of ['supply', 'ret']) {
+      await user.click(within(r).getByRole('searchbox', { name: 'Add a value' }));
+      await user.click(within(await screen.findByRole('option', { name: new RegExp(`^${name}`) })).getByRole('button'));
+    }
+    fireEvent.change(expression('Delta'), { target: { value: 'supply - ret' } });
+    expect(await within(r).findByText('Result now: 15')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D1, script: 'supply - ret', inputs: { supply: { key: 'supply' }, ret: { key: 'ret' } } } } });
+  });
+  it('a template over a row with no picked value is written over the first input; at most four inputs', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = ['a', 'b', 'c', 'd', 'e'].map((k) => ({ key: k, value: 1, ts: NOW }));
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Mix' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' }, previewScript: stub })} />);
+    const r = await screen.findByRole('group', { name: 'Mix' });
+    await waitFor(() => expect(within(r).getByRole('searchbox', { name: 'Mix' })).toBeEnabled());
+    await user.selectOptions(source('Mix'), 'expression');
+    for (const name of ['a', 'b', 'c', 'd']) {
+      await user.click(within(r).getByRole('searchbox', { name: 'Add a value' }));
+      await user.click(within(await screen.findByRole('option', { name: (_n, el) => (el.textContent ?? '').startsWith(`${name}1`) })).getByRole('button'));
+    }
+    expect(within(r).queryByRole('searchbox', { name: 'Add a value' })).toBeNull();
+    expect(within(r).getByText('An expression uses at most 4 other values.')).toBeInTheDocument();
+    await user.click(within(r).getByRole('button', { name: 'Invert' }));
+    expect(expression('Mix')).toHaveValue('!a');
+  });
+  it('types in a one-line monospace box: a line break becomes a space, and the text stops at 200 characters', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    const input = screen.getByLabelText('Convert Running');
-    expect(input.tagName).toBe('INPUT');
-    expect(input).toHaveAttribute('maxlength', '200');
-    expect(input.closest('div[class*="font-mono"]')).not.toBeNull();
+    await rowsReady();
+    await user.selectOptions(source('Running'), 'expression');
+    const box = expression('Running');
+    expect(box.tagName).toBe('TEXTAREA');
+    expect(box.closest('[data-kui-codeeditor]')).not.toBeNull();
+    fireEvent.change(box, { target: { value: 'value\n+ 1' } });
+    expect(expression('Running')).toHaveValue('value + 1');
+    fireEvent.change(box, { target: { value: 'x'.repeat(250) } });
+    expect(expression('Running').value).toHaveLength(200);
+  });
+  it('switching back to a device value drops the expression and its inputs', async () => {
+    const user = userEvent.setup();
+    const sym = symbol({ fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'state' }, currentScript: '!value' }] });
+    const onSave = vi.fn();
+    render(<SymbolBindingPanel {...props({ symbol: sym, onSave })} />);
+    await waitFor(() => expect(expression('Running')).toHaveValue('!value'));
+    await user.selectOptions(source('Running'), 'value');
+    expect(screen.queryByLabelText('Expression for Running')).toBeNull();
+    expect(picker('Running')).toHaveValue('Burner');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith({ fields: { running: { deviceId: D1, key: 'state' } } });
   });
 });
 
@@ -396,9 +548,9 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
   it('keeps Save off until something changed', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    await user.selectOptions(field('Running'), 'rssi');
+    await pickKey(user, 'Running', 'rssi');
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
   it('saves the exact entry: the field map with the device, the label and the one-liner', async () => {
@@ -406,9 +558,9 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ onSave })} />);
     await pickDevice(user, 'Boiler room');
-    await waitFor(() => expect(field('Running').value).toBe('state'));
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    await user.type(screen.getByLabelText('Convert Running'), '!value');
+    await waitFor(() => expect(picker('Running')).toHaveValue('Burner'));
+    await user.selectOptions(source('Running'), 'expression');
+    fireEvent.change(expression('Running'), { target: { value: '!value' } });
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0]).toEqual({
@@ -422,8 +574,8 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     const { rerender } = render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await user.selectOptions(field('Running'), 'rssi');
+    await rowsReady();
+    await pickKey(user, 'Running', 'rssi');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled());
     // The host redraws with the new source: still clean.
@@ -440,9 +592,9 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockRejectedValueOnce(new Error('409')).mockResolvedValueOnce(false);
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave, error: 'Someone else changed this symbol.' })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     expect(screen.getByText('Someone else changed this symbol.')).toBeInTheDocument();
-    await user.selectOptions(field('Running'), 'rssi');
+    await pickKey(user, 'Running', 'rssi');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
@@ -452,7 +604,7 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
   });
   it('waits while the host is saving', async () => {
     render(<SymbolBindingPanel {...props({ symbol: BOUND, saving: true, onNext: vi.fn() })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Next symbol' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-busy', 'true');
@@ -460,7 +612,7 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
   it('closes straight away when nothing changed', async () => {
     const onClose = vi.fn();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onClose })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -468,8 +620,8 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onClose })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await user.selectOptions(field('Running'), 'rssi');
+    await rowsReady();
+    await pickKey(user, 'Running', 'rssi');
     await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog', { name: 'Discard your changes?' });
@@ -485,8 +637,8 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const onNext = vi.fn(() => { order.push('next'); });
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave, onNext })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    await user.selectOptions(field('Running'), 'rssi');
+    await rowsReady();
+    await pickKey(user, 'Running', 'rssi');
     await user.click(screen.getByRole('button', { name: 'Next symbol' }));
     await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
     expect(order).toEqual(['save', 'next']);
@@ -496,18 +648,18 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const onNext = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave, onNext })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     await user.click(screen.getByRole('button', { name: 'Next symbol' }));
     expect(onSave).not.toHaveBeenCalled();
     expect(onNext).toHaveBeenCalledTimes(1);
-    await user.selectOptions(field('Running'), 'rssi');
+    await pickKey(user, 'Running', 'rssi');
     await user.click(screen.getByRole('button', { name: 'Next symbol' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onNext).toHaveBeenCalledTimes(1);
   });
   it('has no Next symbol button without onNext', async () => {
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     expect(screen.queryByRole('button', { name: 'Next symbol' })).toBeNull();
   });
   it('starts the next symbol on the device the last one was saved on', async () => {
@@ -515,18 +667,18 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const user = userEvent.setup();
     const { rerender } = render(<SymbolBindingPanel {...props({ onSave })} />);
     await pickDevice(user, 'Roof unit');
-    await waitFor(() => expect(field('Running').value).toBe('pump_on'));
+    await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     rerender(<SymbolBindingPanel {...props({ onSave, symbol: symbol({ id: 'second_one', label: 'Fan' }) })} />);
     expect(screen.getByRole('heading', { name: 'Fan' })).toBeInTheDocument();
     expect(deviceBox()).toHaveValue('Roof unit');
-    await waitFor(() => expect(field('Running').value).toBe('pump_on'));
+    await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
   });
   it('Clear, behind the "…" menu, asks through ConfirmDialog and saves an empty entry', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     expect(screen.queryByRole('menuitem')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'More' }));
     await user.click(screen.getByRole('menuitem', { name: 'Clear what this symbol reads' }));
@@ -534,14 +686,14 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     expect(onSave).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('button', { name: 'Clear' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ fields: {} }));
-    await waitFor(() => expect(field('Running').value).toBe(''));
+    await waitFor(() => expect(picker('Running')).toHaveValue(''));
   });
   it('Clear calls onClear when the host has one', async () => {
     const onClear = vi.fn();
     const onSave = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onClear, onSave })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     await user.click(screen.getByRole('button', { name: 'More' }));
     await user.click(screen.getByRole('menuitem', { name: 'Clear what this symbol reads' }));
     await user.click(within(screen.getByRole('dialog', { name: 'Clear this symbol' })).getByRole('button', { name: 'Clear' }));
@@ -552,12 +704,47 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const onClick = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, menuActions: [{ id: 'bulk', label: 'Bind every symbol to this device', onClick }] })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     await user.click(screen.getByRole('button', { name: 'More' }));
     const items = screen.getAllByRole('menuitem').map((i) => i.textContent);
     expect(items).toEqual(['Bind every symbol to this device', 'Clear what this symbol reads']);
     await user.click(screen.getByRole('menuitem', { name: 'Bind every symbol to this device' }));
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SymbolBindingPanel: the keyboard (U5)', () => {
+  it('Esc closes (asking first when something changed), the arrows move between rows, Enter takes a row\'s suggestion', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'rssi', value: -60, ts: NOW }, { key: 'reading', value: 'high', ts: NOW }, { key: 'x', value: 2, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'running', label: 'Running' }, { name: 'value', label: 'Reading' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' }, onClose })} />);
+    await waitFor(() => expect(screen.getByText('Suggested: reading')).toBeInTheDocument());
+    row('Running').focus();
+    await user.keyboard('{ArrowDown}');
+    expect(row('Reading')).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(row('Running')).toHaveFocus();
+    await user.keyboard('{ArrowUp}');
+    expect(row('Reading')).toHaveFocus();
+    await user.keyboard('{Enter}');
+    expect(picker('Reading')).toHaveValue('reading');
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Discard your changes?' })).toBeInTheDocument();
+  });
+  it('Esc on a clean panel closes it at once; Esc inside an open list only closes the list', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, onClose })} />);
+    await rowsReady();
+    await user.click(picker('Running'));
+    await screen.findAllByRole('option');
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    row('Running').focus();
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -568,15 +755,15 @@ describe('SymbolBindingPanel: read only', () => {
       fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'state' }, currentScript: '!value' }],
     });
     render(<SymbolBindingPanel {...props({ symbol: sym, readOnly: true, onNext: vi.fn() })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await waitFor(() => expect(screen.getByLabelText('Expression for Running')).toBeInTheDocument());
     expect(screen.getByText('You can look at this symbol but not change it.')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
     expect(deviceBox()).toBeDisabled();
-    expect(field('Running')).toBeDisabled();
+    expect(source('Running')).toBeDisabled();
     expect(deviceBox()).not.toHaveFocus();
     expect(screen.getByRole('button', { name: 'Next symbol' })).toBeEnabled();
-    expect(screen.getByLabelText(/Convert Running/)).toHaveAttribute('readonly');
+    expect(expression('Running')).toHaveAttribute('readonly');
     for (const chip of ['Invert', 'Round']) expect(screen.getByRole('button', { name: chip })).toBeDisabled();
     // Close needs no question: nothing can have changed.
     const onClose = vi.fn();
@@ -585,10 +772,11 @@ describe('SymbolBindingPanel: read only', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
   it('proposes nothing in read-only mode', async () => {
-    const sym = symbol({ fields: [{ name: 'running', label: 'Running', currentSource: undefined }], });
-    render(<SymbolBindingPanel {...props({ symbol: { ...sym, fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D2, deviceName: 'Roof unit', key: '' } }] }, readOnly: true })} />);
-    await screen.findByRole('table', { name: 'Values' });
-    expect(field('Running').value).toBe('');
+    render(<SymbolBindingPanel {...props({ symbol: { ...symbol(), fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D2, deviceName: 'Roof unit', key: '' } }] }, readOnly: true })} />);
+    await waitFor(() => expect(screen.getByRole('group', { name: 'Running' })).toBeInTheDocument());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(picker('Running')).toHaveValue('');
+    expect(screen.queryByText('Suggested')).toBeNull();
   });
 });
 
@@ -611,74 +799,86 @@ const KETTLE: SymbolBindingSymbol = symbol({
 });
 const teaProps = (over: Partial<SymbolBindingPanelProps> = {}) =>
   props({ symbol: KETTLE, loadKeys: vi.fn(async () => TEA_KEYS), ...over });
+const change = async (user: ReturnType<typeof userEvent.setup>, label: string) => user.click(within(row(label)).getByRole('button', { name: 'Change' }));
 
 describe('SymbolBindingPanel: a symbol the drawing fills automatically', () => {
-  it('opens on the device of the match with every picker filled, and says "automatic" instead of "Not used"', async () => {
+  it('opens on the device of the match with every row read-only, saying "automatic" and where from, with a Change link', async () => {
     render(<SymbolBindingPanel {...teaProps()} />);
     expect(deviceBox()).toHaveValue('Roof unit');
-    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
-    expect(field('Running').value).toBe('water_kettle.running');
-    expect(field('Status').value).toBe('water_kettle.status');
+    await waitFor(() => expect(within(row('Reading')).getByText('water_kettle.value · 57 % · 2 s ago')).toBeInTheDocument());
+    expect(within(row('Running')).getByText('water_kettle.running · true · 2 s ago')).toBeInTheDocument();
+    expect(within(row('Status')).getByText('water_kettle.status · heating · 2 s ago')).toBeInTheDocument();
     expect(screen.getAllByText('automatic')).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3);
+    expect(screen.queryByRole('searchbox', { name: 'Reading' })).toBeNull();
     expect(screen.queryByText('Suggested')).toBeNull();
   });
   it('saving is off until something changes, and Clear has nothing to clear', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...teaProps()} />);
-    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3));
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'More' }));
     expect(screen.getByRole('menuitem', { name: 'Clear what this symbol reads' })).toBeDisabled();
   });
-  it('writes only the field the person changed, not the automatic ones', async () => {
+  it('Change opens the row with the automatic key picked; a pick writes only that field, not the automatic ones', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...teaProps({ onSave })} />);
-    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
-    await user.selectOptions(field('Reading'), 'other.value');
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3));
+    await change(user, 'Reading');
+    expect(picker('Reading')).toHaveValue('water_kettle.value');
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await pickKey(user, 'Reading', 'other.value');
     expect(screen.getAllByText('automatic')).toHaveLength(2);
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D2, key: 'other.value' } } });
   });
-  it('a one-liner on an automatic field writes that field with its key', async () => {
+  it('an expression on an automatic field writes that field with its key', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...teaProps({ onSave })} />);
-    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
-    await user.click(screen.getByRole('button', { name: 'Convert' }));
-    await user.type(screen.getByLabelText('Convert Reading'), 'value / 10');
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3));
+    await change(user, 'Reading');
+    await user.selectOptions(source('Reading'), 'expression');
+    fireEvent.change(expression('Reading'), { target: { value: 'value / 10' } });
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D2, key: 'water_kettle.value', script: 'value / 10' } } }));
   });
   it('"Not used" on an automatic field goes back to the automatic source: the match cannot be switched off', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...teaProps()} />);
-    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
-    await user.selectOptions(field('Reading'), 'other.value');
-    await user.selectOptions(field('Reading'), '');
-    expect(field('Reading').value).toBe('water_kettle.value');
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3));
+    await change(user, 'Reading');
+    await pickKey(user, 'Reading', 'other.value');
+    await user.click(within(row('Reading')).getByRole('button', { name: 'Not used' }));
+    // the kit's picker reopens its list after its clear button; closed, it shows the value it went back to
+    await user.keyboard('{Escape}');
+    expect(picker('Reading')).toHaveValue('water_kettle.value');
     expect(screen.getAllByText('automatic')).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
   it('a device change drops the automatic fields to empty and proposes keys of the new device', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...teaProps({ loadKeys: vi.fn(async (id: string) => (id === D2 ? TEA_KEYS : KEYS_CLEAR)) })} />);
-    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3));
     await pickDevice(user, 'Boiler room');
     await waitFor(() => expect(screen.queryAllByText('automatic')).toHaveLength(0));
+    await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
   });
   it('after a save the saved field is no longer automatic, the others still are', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     const { rerender } = render(<SymbolBindingPanel {...teaProps({ onSave })} />);
-    await waitFor(() => expect(field('Reading').value).toBe('water_kettle.value'));
-    await user.selectOptions(field('Reading'), 'other.value');
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3));
+    await change(user, 'Reading');
+    await pickKey(user, 'Reading', 'other.value');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     rerender(<SymbolBindingPanel {...teaProps({ onSave, symbol: { ...KETTLE, fields: KETTLE.fields.map((f) => (f.name === 'value' ? { ...f, currentSource: { deviceId: D2, deviceName: 'Roof unit', key: 'other.value' } } : f)) } })} />);
     await waitFor(() => expect(screen.getAllByText('automatic')).toHaveLength(2));
-    expect(field('Reading').value).toBe('other.value');
+    expect(picker('Reading')).toHaveValue('other.value');
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
   it('Clear puts an automatic field back on its automatic source', async () => {
@@ -687,14 +887,14 @@ describe('SymbolBindingPanel: a symbol the drawing fills automatically', () => {
     const sym: SymbolBindingSymbol = { ...KETTLE, fields: KETTLE.fields.map((f) => (f.name === 'value' ? { ...f, currentSource: { deviceId: D2, deviceName: 'Roof unit', key: 'other.value' } } : f)) };
     // The symbol has an entry of its own on one field, and the drawing's naming on the others.
     render(<SymbolBindingPanel {...teaProps({ symbol: sym, onSave })} />);
-    await waitFor(() => expect(field('Reading').value).toBe('other.value'));
+    await waitFor(() => expect(picker('Reading')).toHaveValue('other.value'));
     await user.click(screen.getByRole('button', { name: 'More' }));
     await user.click(screen.getByRole('menuitem', { name: 'Clear what this symbol reads' }));
     await user.click(within(screen.getByRole('dialog', { name: 'Clear this symbol' })).getByRole('button', { name: 'Clear' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ fields: {} }));
-    // Reading had no automatic source of its own to return to (its current source is the entry), so it empties; the others stay.
-    await waitFor(() => expect(field('Reading').value).toBe(''));
-    expect(field('Running').value).toBe('water_kettle.running');
+    // Reading had no automatic source of its own to return to (its current source is the entry), so it empties; the others stay automatic.
+    await waitFor(() => expect(picker('Reading')).toHaveValue(''));
+    expect(within(row('Running')).getByText(/water_kettle\.running/)).toBeInTheDocument();
   });
 });
 
@@ -702,7 +902,7 @@ describe('SymbolBindingPanel: the "…" menu opens upward', () => {
   it('asks the menu to open on top of its trigger, inside the viewport', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     await user.click(screen.getByRole('button', { name: 'More' }));
     const menu = screen.getByRole('menu');
     expect(menu).toHaveAttribute('data-placement', 'top');
@@ -712,7 +912,7 @@ describe('SymbolBindingPanel: the "…" menu opens upward', () => {
   it('works from the keyboard: Enter opens, arrows move, Escape closes and returns focus to the trigger', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, menuActions: [{ id: 'bulk', label: 'Bind every symbol to this device', onClick: vi.fn() }] })} />);
-    await screen.findByRole('table', { name: 'Values' });
+    await rowsReady();
     const trigger = screen.getByRole('button', { name: 'More' });
     trigger.focus();
     await user.keyboard('{Enter}');

@@ -409,6 +409,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     'field-invalid': (s) => `${s ?? ''} is not a valid field name: a lower-case letter, then letters, digits and _, at most 32; not a row column.`,
     'field-key-invalid': (s) => `The telemetry key of ${s ?? ''} is not valid: letters, digits, _ . and -, at most 64.`,
     'field-label-invalid': (s) => `The label of ${s ?? ''} is too long (at most 60).`,
+    'field-input-invalid': (s) => `An input of ${s ?? ''} is not valid: at most 4, each a lower-case word of at most 16 characters that is not a word of the formula language, with a telemetry key.`,
   },
   rules: {
     section: '5. Rules',

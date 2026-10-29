@@ -1,35 +1,39 @@
 'use client';
-// The symbol binding panel (next-boilerplate phase 45.4, D45-10): a click on a symbol of a drawing opens this for THAT symbol
-// only. Pick the device, pick which of its values feeds each thing the symbol draws, convert it with a one-liner when it needs
-// flipping or scaling, see the result live, save, and go to the next symbol. One column that fits a 360 px side panel. It is a
-// plain section the HOST places in its side drawer (no Drawer here), and it speaks of the symbol, the device and its values:
-// no scene key, slot, kind, role or match is ever drawn.
+// The symbol binding panel (next-boilerplate phase 45.4, D45-10; slice 16: U1 suggestions, U2 mapping rows, U2b expressions, U5 keyboard):
+// a click on a symbol of a drawing opens this for THAT symbol only. Pick the device, then ONE ROW PER THING THE SYMBOL DRAWS: each row
+// says what the symbol shows now and reads either a device value (a searchable picker over the device's values, the best one preselected
+// as "Suggested") or an expression (one line over the picked value and up to four other named values, with a live result). Save, and go
+// to the next symbol. One column that fits a 380 px side panel. It is a plain section the HOST places in its side dock (no Drawer here),
+// and it speaks of the symbol, the device and its values: no scene key, slot, kind, role or match is ever drawn.
 //
-// The kit fetches nothing. The HOST passes the symbol (its fields and what they read now), the device search, the values of a
-// device (`loadKeys`, asked again every `refreshMs` so the list is live), the sandbox that previews a one-liner
-// (`previewScript`, the phase 35 runner; in a test a stub) and answers `onSave` with the entry. Everything decided here (the
-// proposed key, the draft, the entry, the age, the templates) is `symbol-binding-logic.ts`, pure and tested on its own.
+// The kit fetches nothing. The HOST passes the symbol (its fields and what they read now), the device search, the values of a device
+// (`loadKeys`, asked again every `refreshMs` so the list is live), the judge of an expression (`judgeScript`, the same one the server
+// refuses with), the sandbox that previews it (`previewScript`, the phase 35 runner; in a test a stub) and answers `onSave` with the
+// entry. Everything decided here (the ranking, the draft, the entry, the age, the templates, the input names) is `symbol-binding-logic.ts`,
+// pure and tested on its own.
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronRight, faEllipsis, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { AlertBanner } from '@/modules/ui/AlertBanner';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
+import { CodeEditor } from '@/modules/ui/CodeEditor';
+import type { Marker, Suggestion } from '@/modules/ui/CodeEditor/types';
 import { ComboBox } from '@/modules/ui/ComboBox';
 import type { ComboBoxOption } from '@/modules/ui/ComboBox';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { DropdownMenu, type DropdownItem } from '@/modules/ui/DropdownMenu';
-import { Input } from '@/modules/ui/Input';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column } from '@/modules/ui/Table/types';
 import { Select } from '@/modules/ui/Select';
 import { useNow } from '../useNow';
 import {
-  ageText, draftFromSymbol, entryFromDraft, entryFromSymbol, formatValue, hasOwnEntry, isDirty, previewLine, scriptTemplates,
-  suggestKeysForFields, MAX_SCRIPT_LENGTH,
-  type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type ScriptOutcome, type SymbolSpec,
+  ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
+  pickableKeys, previewLine, rankKeysForField, scriptErrorKind, scriptTemplates, templateFor, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH,
+  type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type RankedKey, type ScriptOutcome, type SourceMode,
+  type SymbolFieldSpec, type SymbolSpec,
 } from './symbol-binding-logic';
 import { DEFAULT_SYMBOL_BINDING_MESSAGES, mergeMessages, type DeepPartial, type SymbolBindingMessages } from './symbol-binding-messages';
 
@@ -49,7 +53,7 @@ export interface SymbolBindingMenuAction {
 
 export interface SymbolBindingPanelProps {
   symbol: SymbolBindingSymbol;
-  /** The tenant's devices matching `query` (the empty query: the ones to offer first). Called debounced, so a host may fetch. */
+  /** The tenant's devices matching `query` (the empty query: the ones to offer first, the page's own first). Called debounced, so a host may fetch. */
   searchDevices: (query: string) => Promise<DeviceOption[]>;
   /** The latest values of a device, newest known. Called when a device is picked and again every `refreshMs`. */
   loadKeys: (deviceId: string) => Promise<DeviceKey[]>;
@@ -63,8 +67,13 @@ export interface SymbolBindingPanelProps {
   onClose: () => void;
   /** Clear from the "…" menu. Without it the panel saves an entry with no fields. */
   onClear?: () => void | boolean | Promise<void | boolean>;
-  /** Runs a one-liner on a sample in the phase 35 sandbox. Without it the preview line stays empty. */
+  /**
+   * Runs a one-liner on a sample in the phase 35 sandbox. The sample is the field's live value, or `{ value, row, inputs }` when the expression
+   * reads named inputs. Without it the preview line stays empty.
+   */
   previewScript?: (script: string, sample: unknown) => ScriptOutcome;
+  /** Says at once, in plain words, why an expression over these names may not run (the server's own judge); null when it may. Without it the preview says. */
+  judgeScript?: (script: string, names: string[]) => string | null;
   /** The host is writing: Save and Next symbol wait. */
   saving?: boolean;
   /** The text of the last failed save. */
@@ -73,6 +82,10 @@ export interface SymbolBindingPanelProps {
   readOnly?: boolean;
   /** The host's own entries of the "…" menu, above Clear. */
   menuActions?: readonly SymbolBindingMenuAction[];
+  /** One action drawn in the header ("Match everything"). */
+  headerAction?: SymbolBindingMenuAction;
+  /** How many symbols of the drawing are connected, for the header line. */
+  progress?: { connected: number; total: number };
   /** The device a symbol with none starts on (the one the last symbol used); the panel remembers its own saves too. */
   defaultDevice?: { id: string; name: string } | null;
   /** How often the values are asked again, in ms; 0 asks once. Default 5000. */
@@ -110,6 +123,10 @@ type ValueRow = {
 
 type KeysState = { deviceId: string; status: 'ready' | 'error'; keys: DeviceKey[] };
 
+const labelOfKey = (k: DeviceKey | undefined): string => (k?.label && k.label !== k.key ? k.label : '');
+const nameOfKey = (k: DeviceKey | undefined, key: string): string => (k?.label && k.label.trim() ? k.label : key);
+const EMPTY_FIELD: Omit<FieldDraft, 'mode' | 'inputs'> = { deviceId: '', deviceName: '', key: '', label: '', script: '' };
+
 function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name: string } | null; onRemember: (d: { id: string; name: string }) => void }) {
   const { symbol, readOnly = false, saving = false, refreshMs = 5000, last, onRemember } = props;
   const m = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, props.messages), [props.messages]);
@@ -140,6 +157,10 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     setBaseline(symbolEntry);
   }
   const [suggested, setSuggested] = useState<ReadonlySet<string>>(new Set());
+  // An empty row whose best candidate is not certain: offered as "Suggested: …" with one tap, never preselected.
+  const [proposals, setProposals] = useState<Readonly<Record<string, RankedKey>>>({});
+  // Automatic rows the person opened with "Change".
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const dirty = isDirty(draft, baseline);
   // Clear has something to clear when the symbol has settings of its own (an automatic source is not a setting).
   const bound = hasOwnEntry(symbol) || Object.keys(baseline.fields).length > 0;
@@ -154,6 +175,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     try {
       const found = (await searchRef.current(query)).slice(0, SEARCH_ROWS);
       for (const d of found) known.current.set(d.id, d);
+      // the host's order is kept (the page's own devices first); the place of a device is its description, so devices of one room read as a group
       return found.map((d) => ({
         value: d.id,
         label: d.name,
@@ -172,11 +194,14 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
       for (const [name, f] of Object.entries(d.fields)) {
         // A field that read the old device has nothing to read on the new one until a key is picked; another device's field stays.
         const oldOnes = f.deviceId === '' || f.deviceId === d.deviceId;
-        fields[name] = oldOnes ? { ...f, deviceId: '', deviceName: '', key: '', label: '', script: f.script, automatic: false } : f;
+        fields[name] = oldOnes
+          ? { ...f, deviceId: '', deviceName: '', key: '', label: '', automatic: false, inputs: f.inputs.filter((i) => i.deviceId !== '' && i.deviceId !== d.deviceId) }
+          : f;
       }
       return { deviceId: id, deviceName: picked?.name ?? '', fields };
     });
     setSuggested(new Set());
+    setProposals({});
     setSuggestedFor('');
   }
 
@@ -220,45 +245,94 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   const [suggestedFor, setSuggestedFor] = useState('');
   if (!readOnly && keysStatus === 'ready' && suggestedFor !== draft.deviceId) {
     setSuggestedFor(draft.deviceId);
-    const empty = symbol.fields.filter((f) => draft.fields[f.name] && draft.fields[f.name].key === '');
-    const taken = Object.values(draft.fields).filter((f) => f.key !== '' && (f.deviceId === '' || f.deviceId === draft.deviceId)).map((f) => f.key);
-    const picks = suggestKeysForFields(empty, keys, symbol.id, taken);
-    const names = Object.keys(picks);
-    if (names.length > 0) {
-      const fields = { ...draft.fields };
-      for (const name of names) {
-        fields[name] = { ...fields[name], deviceId: draft.deviceId, deviceName: draft.deviceName, key: picks[name], label: labelOfKey(keyByName.get(picks[name])), automatic: false };
-      }
-      setDraft({ ...draft, fields });
-      setSuggested(new Set(names));
+    const empty = symbol.fields.filter((f) => draft.fields[f.name] && draft.fields[f.name].key === '' && draft.fields[f.name].mode === 'value');
+    const taken = new Set(Object.values(draft.fields).filter((f) => f.key !== '' && (f.deviceId === '' || f.deviceId === draft.deviceId)).map((f) => f.key));
+    const fields = { ...draft.fields };
+    const sure = new Set<string>();
+    const maybe: Record<string, RankedKey> = {};
+    for (const f of empty) {
+      const [top, second] = rankKeysForField(f, keys, symbol.id, [...taken], [symbol.label, symbol.kindLabel]);
+      if (!top) continue;
+      if (top.confident) {
+        fields[f.name] = { ...fields[f.name], deviceId: draft.deviceId, deviceName: draft.deviceName, key: top.key, label: labelOfKey(keyByName.get(top.key)), automatic: false };
+        taken.add(top.key);
+        sure.add(f.name);
+      } else if (!second || top.score > second.score) maybe[f.name] = top; // a tie is no suggestion: the row says what to do instead
     }
+    if (sure.size > 0) setDraft({ ...draft, fields });
+    setSuggested(sure);
+    setProposals(maybe);
   }
 
+  function setField(name: string, next: (f: FieldDraft) => FieldDraft) {
+    setDraft((d) => (d.fields[name] ? { ...d, fields: { ...d.fields, [name]: next(d.fields[name]) } } : d));
+  }
+  const dropSuggested = (name: string) => setSuggested((s) => {
+    if (!s.has(name)) return s;
+    const next = new Set(s);
+    next.delete(name);
+    return next;
+  });
+  const dropProposal = (name: string) => setProposals((p) => {
+    if (!(name in p)) return p;
+    const { [name]: _gone, ...rest } = p;
+    return rest;
+  });
+
   function pickKey(name: string, key: string) {
-    setSuggested((s) => {
-      if (!s.has(name)) return s;
-      const next = new Set(s);
-      next.delete(name);
-      return next;
-    });
-    setDraft((d) => {
-      const f = d.fields[name];
-      if (!f) return d;
+    dropSuggested(name);
+    if (key !== '') dropProposal(name);
+    setField(name, (f) => {
       // "Not used" on a field the drawing fills automatically, still on that device, goes back to the automatic source: an entry
       // cannot switch the automatic match off, so the picker must not pretend it did.
       const auto = symbol.fields.find((sf) => sf.name === name)?.currentSource;
-      const backToAuto = key === '' && auto?.automatic === true && auto.key !== '' && auto.deviceId === d.deviceId;
-      const next: FieldDraft = backToAuto
-        ? { deviceId: auto.deviceId, deviceName: auto.deviceName, key: auto.key, label: labelOfKey(keyByName.get(auto.key)), script: f.script, automatic: true }
-        : key === ''
-          ? { deviceId: '', deviceName: '', key: '', label: '', script: '' }
-          : { ...f, deviceId: d.deviceId, deviceName: d.deviceName, key, label: labelOfKey(keyByName.get(key)), automatic: false };
-      return { ...d, fields: { ...d.fields, [name]: next } };
+      const backToAuto = key === '' && auto?.automatic === true && auto.key !== '' && auto.deviceId === draft.deviceId;
+      if (backToAuto) return { ...f, deviceId: auto.deviceId, deviceName: auto.deviceName, key: auto.key, label: labelOfKey(keyByName.get(auto.key)), automatic: true };
+      if (key === '') return { ...f, ...EMPTY_FIELD, script: f.mode === 'expression' ? f.script : '' };
+      return { ...f, deviceId: draft.deviceId, deviceName: draft.deviceName, key, label: labelOfKey(keyByName.get(key)), automatic: false };
     });
   }
 
+  function setMode(name: string, mode: SourceMode) {
+    setField(name, (f) => (mode === f.mode ? f : mode === 'value' ? { ...f, mode, script: '', inputs: [], automatic: f.automatic && f.key !== '' ? f.automatic : false } : { ...f, mode }));
+  }
+
   function setScript(name: string, script: string) {
-    setDraft((d) => (d.fields[name] ? { ...d, fields: { ...d.fields, [name]: { ...d.fields[name], script } } } : d));
+    // one line: a line break typed or pasted becomes a space
+    setField(name, (f) => ({ ...f, script: script.replace(/[\r\n]+/g, ' ').slice(0, MAX_SCRIPT_LENGTH) }));
+  }
+
+  /** The expression written by a template chip (U2b): the row goes to expression mode and the one-liner is the chip's text over the picked value. */
+  function writeTemplate(name: string, script: string) {
+    setField(name, (f) => ({ ...f, mode: 'expression', script: templateFor({ id: 'invert', script }, f.inputs, f.key !== '') }));
+  }
+
+  function addInput(name: string, key: string) {
+    const info = keyByName.get(key);
+    setField(name, (f) => {
+      if (f.inputs.length >= MAX_INPUTS_PER_FIELD || f.inputs.some((i) => i.key === key && i.deviceId === draft.deviceId)) return f;
+      const taken = expressionNames(f.inputs);
+      const input: InputDraft = { name: defaultInputName(info?.label || key, taken), deviceId: draft.deviceId, deviceName: draft.deviceName, key, label: labelOfKey(info) };
+      return { ...f, mode: 'expression', inputs: [...f.inputs, input] };
+    });
+  }
+
+  function removeInput(name: string, inputName: string) {
+    setField(name, (f) => ({ ...f, inputs: f.inputs.filter((i) => i.name !== inputName) }));
+  }
+
+  function insertName(name: string, word: string) {
+    setField(name, (f) => {
+      const s = f.script;
+      const glue = s === '' || /[\s(,+\-*/%<>=!&|?:^~[]$/.test(s) ? '' : ' ';
+      return { ...f, script: `${s}${glue}${word}`.slice(0, MAX_SCRIPT_LENGTH) };
+    });
+  }
+
+  function acceptProposal(name: string) {
+    const p = proposals[name];
+    if (!p) return;
+    pickKey(name, p.key);
   }
 
   // ─── Save, next, clear, close ─────────────────────────────────────────────
@@ -303,13 +377,15 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
       ...d,
       fields: Object.fromEntries(Object.entries(d.fields).map(([n, f]) => {
         const auto = symbol.fields.find((sf) => sf.name === n)?.currentSource;
-        const empty: FieldDraft = { ...f, deviceId: '', deviceName: '', key: '', label: '', script: '', automatic: false };
+        const empty: FieldDraft = { ...f, ...EMPTY_FIELD, automatic: false, mode: 'value', inputs: [] };
         return [n, auto?.automatic === true && auto.key !== '' && auto.deviceId === d.deviceId
           ? { ...empty, deviceId: auto.deviceId, deviceName: auto.deviceName, key: auto.key, automatic: true }
           : empty];
       })),
     }));
     setSuggested(new Set());
+    setProposals({});
+    setOpened(new Set());
   }
 
   function close() {
@@ -317,21 +393,46 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     else props.onClose();
   }
 
-  // ─── Focus: the device search when there is no device yet, else the first value picker ───
+  // ─── Focus: the device search when there is no device yet, else the first row ───
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (readOnly) return;
     const root = rootRef.current;
     if (!root) return;
-    const target = draft.deviceId ? root.querySelector<HTMLElement>('select') : root.querySelector<HTMLElement>('input[role="searchbox"]');
+    const target = draft.deviceId ? root.querySelector<HTMLElement>('[data-row]') : root.querySelector<HTMLElement>('input[role="searchbox"]');
     target?.focus();
     // On open of this symbol only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Convert ──────────────────────────────────────────────────────────────
-  const [convertOpen, setConvertOpen] = useState(() => symbol.fields.some((f) => (f.currentScript ?? '').trim() !== ''));
-  const convertId = `${uid}-convert`;
+  // ─── Keyboard (U5): Esc closes, the arrows move between rows, Enter takes a row's suggestion ───
+  function onRootKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    if (e.key === 'Escape') {
+      // an open list, a menu or a dialog closes itself first (their own Escape); the panel closes on an Escape nothing else wanted, and leaves the
+      // event's default alone so an overlay that reads `defaultPrevented` still sees it
+      if (e.defaultPrevented || target.getAttribute('aria-expanded') === 'true' || target.closest('[role="menu"], [role="dialog"], [role="listbox"]')) return;
+      close();
+      return;
+    }
+    if (!target.hasAttribute('data-row')) return;
+    const rows = Array.from(rootRef.current?.querySelectorAll<HTMLElement>('[data-row]') ?? []);
+    const at = rows.indexOf(target);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const to = rows[(at + (e.key === 'ArrowDown' ? 1 : rows.length - 1)) % rows.length];
+      to?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const name = target.getAttribute('data-row') ?? '';
+      if (proposals[name] && !readOnly) acceptProposal(name);
+      else target.querySelector<HTMLElement>('input, select, textarea, button')?.focus();
+    }
+  }
+
+  // ─── Rows ─────────────────────────────────────────────────────────────────
+  const [valuesOpen, setValuesOpen] = useState(false);
+  const valuesId = `${uid}-values`;
 
   const usedBy = useMemo(() => {
     const map = new Map<string, string>();
@@ -352,7 +453,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   const valueRows = useMemo<ValueRow[]>(
     () => keys.slice(0, KEY_ROWS).map((k) => ({
       key: k.key,
-      name: k.label || k.key,
+      name: nameOfKey(k, k.key),
       feeds: usedBy.get(k.key),
       value: formatValue(k.value, k.unit),
       ts: (typeof k.ts === 'number' ? k.ts : Date.parse(k.ts)) || 0,
@@ -374,26 +475,40 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     { key: 'ts', header: m.valuesUpdated, sortable: true, align: 'right', searchable: false, tdClass: 'whitespace-nowrap text-text-secondary', render: (r) => r.age },
   ], [m]);
 
+  const sourceOptions = useMemo(() => [{ value: 'value', label: m.sourceValue }, { value: 'expression', label: m.sourceExpression }], [m]);
+  const hints = useMemo(() => [symbol.label, symbol.kindLabel], [symbol.label, symbol.kindLabel]);
+
   return (
     <div
       ref={rootRef}
       role="region"
       aria-label={m.panel}
       data-symbol-id={symbol.id}
+      onKeyDown={onRootKeyDown}
       className={cn('flex h-full min-h-0 w-full flex-col bg-surface-base text-text-primary', props.className)}
     >
       {/* Header: what this is, in the symbol's own words */}
-      <div className="flex items-start gap-3 border-b border-border px-4 py-3">
-        {symbol.icon && (
-          <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-sunken">
-            {symbol.icon}
-          </span>
-        )}
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-base font-semibold">{symbol.label}</h2>
-          <p className="truncate text-xs text-text-secondary">{symbol.kindLabel}</p>
+      <div className="border-b border-border px-4 py-3">
+        <div className="flex items-start gap-3">
+          {symbol.icon && (
+            <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-sunken">
+              {symbol.icon}
+            </span>
+          )}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-base font-semibold">{symbol.label}</h2>
+            <p className="truncate text-xs text-text-secondary">{symbol.kindLabel}</p>
+          </div>
+          <Button variant="ghost" size="sm" iconOnly aria-label={m.close} onClick={close} iconLeft={<FontAwesomeIcon icon={faXmark} className="h-4 w-4" />} />
         </div>
-        <Button variant="ghost" size="sm" iconOnly aria-label={m.close} onClick={close} iconLeft={<FontAwesomeIcon icon={faXmark} className="h-4 w-4" />} />
+        {(props.progress || props.headerAction) && (
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            {props.progress && <p className="text-xs text-text-secondary" data-testid="symbol-progress">{m.progress(props.progress.connected, props.progress.total)}</p>}
+            {props.headerAction && !readOnly && (
+              <Button variant="outline" size="xs" disabled={props.headerAction.disabled || busy} onClick={props.headerAction.onClick}>{props.headerAction.label}</Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
@@ -416,9 +531,9 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
           />
         </div>
 
-        {/* 2. Values */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-semibold">{m.valuesSection}</h3>
+        {/* 2. One row per thing the symbol draws */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold">{m.rowsSection}</h3>
           {keysStatus === 'idle' && <p className="text-sm text-text-secondary">{m.valuesNeedDevice}</p>}
           {keysStatus === 'loading' && <p className="text-sm text-text-secondary" role="status">{m.valuesLoading}</p>}
           {keysStatus === 'error' && (
@@ -427,115 +542,81 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
               <Button variant="outline" size="xs" onClick={() => { setKeysState(null); setRetry((n) => n + 1); }}>{m.valuesRetry}</Button>
             </div>
           )}
-          {keysStatus === 'ready' && keys.length === 0 && <p className="text-sm text-text-secondary">{m.valuesEmpty}</p>}
-
-          {keysStatus === 'ready' && keys.length > 0 && (
-            <>
-              {/* The kit's DataTable (static mode, compact, no paging): the host's values sorted by name or age, a search box
-                  once the list is long, an internal scroll past ~8 rows. A row does nothing on click: the pickers below choose. */}
-              <DataTable<ValueRow>
-                id={`${uid}-values`}
-                mode="static"
-                density="compact"
-                caption={m.valuesSection}
-                columns={valueColumns}
-                rows={valueRows}
-                rowId={(r) => r.key}
-                searchable={valueRows.length > VALUES_SEARCH_FROM}
-                searchText={(r) => `${r.name} ${r.key}`}
-                searchPlaceholder={m.valuesSearch}
-                stickyHeader
-                defaultSort={[]}
-                multiSort={false}
-                scrollClassName="max-h-60 overflow-y-auto"
-                tableClassName="text-xs"
-                messages={{ tableLabel: m.valuesSection, search: m.valuesSearch }}
-              />
-              {keys.length > KEY_ROWS && <p className="text-xs text-text-secondary">{m.valuesMore(keys.length - KEY_ROWS)}</p>}
-            </>
-          )}
-
           {draft.deviceId && symbol.fields.map((field) => {
             const f = draft.fields[field.name];
             if (!f) return null;
-            const info = keyByName.get(f.key);
-            const other = f.key !== '' && f.deviceId !== '' && f.deviceId !== draft.deviceId;
-            const options = fieldOptions(keys, f.key);
-            const valueLine = valueLineOf({ f, info, other, ready: keysStatus === 'ready', field, now, m });
             return (
-              <div key={field.name} className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{field.label}</span>
-                  {suggested.has(field.name) && <Badge size="sm" variant="primary">{m.suggested}</Badge>}
-                  {f.automatic && <span className="text-xs text-text-secondary">{m.automatic}</span>}
-                  {other && <span className="truncate text-xs text-text-secondary">{m.fromOtherDevice(f.deviceName)}</span>}
-                </div>
-                <Select
-                  id={`${uid}-field-${field.name}`}
-                  label={m.fieldPicker(field.label)}
-                  hideLabel
-                  options={options}
-                  placeholder={m.notUsed}
-                  value={f.key}
-                  disabled={readOnly || (keysStatus !== 'ready' && f.key === '')}
-                  onChange={(e) => pickKey(field.name, e.target.value)}
-                />
-                {valueLine && <p className="text-xs text-text-secondary">{valueLine}</p>}
-              </div>
+              <FieldRow
+                key={field.name}
+                uid={uid}
+                field={field}
+                f={f}
+                draftDeviceId={draft.deviceId}
+                keys={keys}
+                keyByName={keyByName}
+                hints={hints}
+                ready={keysStatus === 'ready'}
+                readOnly={readOnly}
+                suggested={suggested.has(field.name)}
+                proposal={proposals[field.name]}
+                opened={opened.has(field.name)}
+                onOpen={() => setOpened((s) => new Set(s).add(field.name))}
+                onPickKey={(key) => pickKey(field.name, key)}
+                onAccept={() => acceptProposal(field.name)}
+                onMode={(mode) => setMode(field.name, mode)}
+                onScript={(s) => setScript(field.name, s)}
+                onTemplate={(s) => writeTemplate(field.name, s)}
+                onAddInput={(key) => addInput(field.name, key)}
+                onRemoveInput={(n) => removeInput(field.name, n)}
+                onInsert={(w) => insertName(field.name, w)}
+                sourceOptions={sourceOptions}
+                previewScript={props.previewScript}
+                judgeScript={props.judgeScript}
+                now={now}
+                m={m}
+              />
             );
           })}
+          {draft.deviceId && !readOnly && <p className="text-xs text-text-secondary">{m.keysHint}</p>}
         </div>
 
-        {/* 3. Convert (collapsed until a field has a one-liner) */}
-        {draft.deviceId && (
+        {/* 3. All values of the device, folded away: the rows above carry the live values; this is the whole list for whoever wants it */}
+        {keysStatus === 'ready' && keys.length === 0 && <p className="text-sm text-text-secondary">{m.valuesEmpty}</p>}
+        {keysStatus === 'ready' && keys.length > 0 && (
           <div className="space-y-3">
             <button
               type="button"
-              aria-expanded={convertOpen}
-              aria-controls={convertId}
-              onClick={() => setConvertOpen((o) => !o)}
+              aria-expanded={valuesOpen}
+              aria-controls={valuesId}
+              onClick={() => setValuesOpen((o) => !o)}
               className="flex w-full items-center gap-2 rounded-md text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
             >
-              <FontAwesomeIcon icon={convertOpen ? faChevronDown : faChevronRight} className="h-3 w-3 text-text-secondary" aria-hidden="true" />
-              {m.convertSection}
+              <FontAwesomeIcon icon={valuesOpen ? faChevronDown : faChevronRight} className="h-3 w-3 text-text-secondary" aria-hidden="true" />
+              {m.valuesToggle(keys.length)}
             </button>
-            {convertOpen && (
-              <div id={convertId} className="space-y-4">
-                <p className="text-xs text-text-secondary">{m.convertHint}</p>
-                {symbol.fields.every((field) => !draft.fields[field.name]?.key) && (
-                  <p className="text-sm text-text-secondary">{m.convertNeedsValue}</p>
-                )}
-                {symbol.fields.map((field) => {
-                  const f = draft.fields[field.name];
-                  if (!f || !f.key) return null;
-                  return (
-                    <fieldset key={field.name} className="space-y-2">
-                      <legend className="mb-1 text-sm font-medium">{field.label}</legend>
-                      <Input
-                        id={`${uid}-script-${field.name}`}
-                        label={m.convertInput(field.label)}
-                        hideLabel
-                        value={f.script}
-                        onChange={(e) => setScript(field.name, e.target.value)}
-                        placeholder={m.convertPlaceholder}
-                        maxLength={MAX_SCRIPT_LENGTH}
-                        readOnly={readOnly}
-                        spellCheck={false}
-                        autoComplete="off"
-                        autoCapitalize="off"
-                        className="[&_input]:font-mono"
-                      />
-                      <div className="flex flex-wrap gap-1">
-                        {scriptTemplates().map((t) => (
-                          <Button key={t.id} variant="outline" size="xs" disabled={readOnly} onClick={() => setScript(field.name, t.script)}>
-                            {m.templates[t.id]}
-                          </Button>
-                        ))}
-                      </div>
-                      <ScriptPreview script={f.script} sample={keyByName.get(f.key)?.value} previewScript={props.previewScript} m={m} />
-                    </fieldset>
-                  );
-                })}
+            {valuesOpen && (
+              <div id={valuesId}>
+                {/* The kit's DataTable (static mode, compact, no paging): the host's values sorted by name or age, a search box
+                    once the list is long, an internal scroll past ~8 rows. A row does nothing on click: the rows above choose. */}
+                <DataTable<ValueRow>
+                  id={`${uid}-values-table`}
+                  mode="static"
+                  density="compact"
+                  caption={m.valuesSection}
+                  columns={valueColumns}
+                  rows={valueRows}
+                  rowId={(r) => r.key}
+                  searchable={valueRows.length > VALUES_SEARCH_FROM}
+                  searchText={(r) => `${r.name} ${r.key}`}
+                  searchPlaceholder={m.valuesSearch}
+                  stickyHeader
+                  defaultSort={[]}
+                  multiSort={false}
+                  scrollClassName="max-h-60 overflow-y-auto"
+                  tableClassName="text-xs"
+                  messages={{ tableLabel: m.valuesSection, search: m.valuesSearch }}
+                />
+                {keys.length > KEY_ROWS && <p className="text-xs text-text-secondary">{m.valuesMore(keys.length - KEY_ROWS)}</p>}
               </div>
             )}
           </div>
@@ -599,15 +680,144 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   );
 }
 
-// ─── Parts ───────────────────────────────────────────────────────────────────
+// ─── One row: a parameter of the drawing ──────────────────────────────────────
 
-const labelOfKey = (k: DeviceKey | undefined): string => (k?.label && k.label !== k.key ? k.label : '');
+interface FieldRowProps {
+  uid: string;
+  field: SymbolFieldSpec;
+  f: FieldDraft;
+  draftDeviceId: string;
+  keys: readonly DeviceKey[];
+  keyByName: ReadonlyMap<string, DeviceKey>;
+  hints: readonly string[];
+  ready: boolean;
+  readOnly: boolean;
+  suggested: boolean;
+  proposal: RankedKey | undefined;
+  opened: boolean;
+  onOpen: () => void;
+  onPickKey: (key: string) => void;
+  onAccept: () => void;
+  onMode: (mode: SourceMode) => void;
+  onScript: (script: string) => void;
+  onTemplate: (script: string) => void;
+  onAddInput: (key: string) => void;
+  onRemoveInput: (name: string) => void;
+  onInsert: (word: string) => void;
+  sourceOptions: { value: string; label: string }[];
+  previewScript?: (script: string, sample: unknown) => ScriptOutcome;
+  judgeScript?: (script: string, names: string[]) => string | null;
+  now: number;
+  m: SymbolBindingMessages;
+}
 
-/** The picker's choices: every key of the device, and the field's own key first when the device does not list it (still loading, or another device's). */
-function fieldOptions(keys: readonly DeviceKey[], current: string) {
-  const options = keys.map((k) => ({ value: k.key, label: k.label && k.label !== k.key ? `${k.label} (${k.key})` : k.key }));
-  if (current && !options.some((o) => o.value === current)) options.unshift({ value: current, label: current });
-  return options;
+function FieldRow(p: FieldRowProps) {
+  const { uid, field, f, draftDeviceId, keys, keyByName, hints, ready, readOnly, suggested, proposal, opened, m, now } = p;
+  const info = keyByName.get(f.key);
+  const other = f.key !== '' && f.deviceId !== '' && f.deviceId !== draftDeviceId;
+  const live = field.live !== undefined ? formatValue(field.live, field.unit) : '';
+  const automaticClosed = !!f.automatic && !opened && f.mode === 'value';
+  const mismatch = f.mode === 'value' && info ? mismatchOf(field, info) : null;
+
+  // the picker's choices: every pickable key of the device, the ranked ones first (the best says "Suggested"), each with its live value and age
+  const options = useMemo<ComboBoxOption[]>(() => {
+    const ranked = rankKeysForField(field, keys, undefined, [], hints);
+    const order = new Map(ranked.map((r, i) => [r.key, i]));
+    const list = pickableKeys(keys).slice().sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity));
+    const best = ranked[0]?.key;
+    const out = list.map((k): ComboBoxOption => {
+      const line = m.optionLine(formatValue(k.value, k.unit), ageText(k.ts, now, m.age));
+      return { value: k.key, label: nameOfKey(k, k.key), description: k.key === best ? m.suggestedOption(line) : line };
+    });
+    if (f.key && !out.some((o) => o.value === f.key)) out.unshift({ value: f.key, label: f.key });
+    return out;
+  }, [field, keys, f.key, hints, m, now]);
+
+  const valueLine = valueLineOf({ f, info, other, ready, field, now, m });
+  const rowId = `${uid}-row-${field.name}`;
+
+  return (
+    <div data-row={field.name} role="group" aria-label={m.rowLabel(field.label)} tabIndex={0} className="space-y-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-sm font-medium" id={rowId}>{field.label}</span>
+        {suggested && <Badge size="sm" variant="primary">{m.suggested}</Badge>}
+        {f.automatic && <span className="text-xs text-text-secondary">{m.automatic}</span>}
+        {other && <span className="truncate text-xs text-text-secondary">{m.fromOtherDevice(f.deviceName)}</span>}
+        <span className="ml-auto text-xs text-text-secondary">{live ? m.showsNow(live) : m.showsNothing}</span>
+      </div>
+
+      {automaticClosed ? (
+        <p className="flex flex-wrap items-center gap-x-2 text-sm text-text-secondary">
+          <span>{m.automaticLine(nameOfKey(info, f.key), info ? m.valueAndAge(formatValue(info.value, info.unit), ageText(info.ts, now, m.age)) : '')}</span>
+          {!readOnly && <Button variant="ghost" size="xs" onClick={p.onOpen}>{m.change}</Button>}
+        </p>
+      ) : (
+        <>
+          <Select
+            id={`${uid}-source-${field.name}`}
+            label={m.sourceLabel(field.label)}
+            hideLabel
+            options={p.sourceOptions}
+            value={f.mode}
+            disabled={readOnly}
+            onChange={(e) => p.onMode(e.target.value as SourceMode)}
+          />
+          {f.mode === 'value' ? (
+            <div className="space-y-1">
+              <div className="[&_label]:sr-only">
+                <ComboBox
+                  id={`${uid}-field-${field.name}`}
+                  label={m.fieldPicker(field.label)}
+                  options={options}
+                  value={f.key}
+                  onChange={(v) => p.onPickKey(v)}
+                  placeholder={m.pickerPlaceholder}
+                  noResultsText={m.pickerNoResults}
+                  clearable={!readOnly && f.key !== ''}
+                  disabled={readOnly || (!ready && f.key === '')}
+                  messages={{ clear: m.notUsed }}
+                />
+              </div>
+              {valueLine && <p className="text-xs text-text-secondary">{valueLine}</p>}
+              {f.key === '' && !proposal && ready && <p className="text-xs text-text-secondary">{m.unsetHint}</p>}
+              {f.key === '' && proposal && (
+                <p className="flex flex-wrap items-center gap-x-2 text-xs text-text-secondary">
+                  <span>{m.suggestedCandidate(nameOfKey(keyByName.get(proposal.key), proposal.key))}</span>
+                  {!readOnly && <Button variant="outline" size="xs" onClick={p.onAccept}>{m.useSuggestion}</Button>}
+                </p>
+              )}
+              {mismatch && (
+                <p className="flex flex-wrap items-center gap-x-2 text-xs text-warning-fg" role="note">
+                  <span>{m.mismatch[mismatch]}</span>
+                  {!readOnly && <Button variant="ghost" size="xs" onClick={() => p.onMode('expression')}>{m.convertInstead}</Button>}
+                </p>
+              )}
+            </div>
+          ) : (
+            <ExpressionBox
+              uid={uid}
+              field={field}
+              f={f}
+              info={info}
+              keys={keys}
+              keyByName={keyByName}
+              readOnly={readOnly}
+              onScript={p.onScript}
+              onTemplate={p.onTemplate}
+              onAddInput={p.onAddInput}
+              onRemoveInput={p.onRemoveInput}
+              onInsert={p.onInsert}
+              onPickKey={p.onPickKey}
+              options={options}
+              previewScript={p.previewScript}
+              judgeScript={p.judgeScript}
+              m={m}
+            />
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 function valueLineOf(a: {
@@ -630,38 +840,211 @@ function valueLineOf(a: {
   return m.noValueYet;
 }
 
-/** The live "1 → true" line under a one-liner: debounced, through the host's sandbox, and never throws. */
+// ─── The expression of a row (U2b) ─────────────────────────────────────────────
+
+interface ExpressionBoxProps {
+  uid: string;
+  field: SymbolFieldSpec;
+  f: FieldDraft;
+  info: DeviceKey | undefined;
+  keys: readonly DeviceKey[];
+  keyByName: ReadonlyMap<string, DeviceKey>;
+  readOnly: boolean;
+  onScript: (script: string) => void;
+  onTemplate: (script: string) => void;
+  onAddInput: (key: string) => void;
+  onRemoveInput: (name: string) => void;
+  onInsert: (word: string) => void;
+  onPickKey: (key: string) => void;
+  options: ComboBoxOption[];
+  previewScript?: (script: string, sample: unknown) => ScriptOutcome;
+  judgeScript?: (script: string, names: string[]) => string | null;
+  m: SymbolBindingMessages;
+}
+
+/** The column the judge's "at position N" names, for the editor's marker. */
+const columnOf = (problem: string): number | undefined => {
+  const at = /position (\d+)/.exec(problem);
+  return at ? Number(at[1]) : undefined;
+};
+
+function ExpressionBox(p: ExpressionBoxProps) {
+  const { uid, field, f, info, keys, keyByName, readOnly, m } = p;
+  const editorId = `${uid}-script-${field.name}`;
+  const names = useMemo(() => expressionNames(f.inputs), [f.inputs]);
+  const inputNames = useMemo(() => f.inputs.map((i) => i.name), [f.inputs]);
+
+  // what the expression is tried on: the picked value and the inputs' live values
+  const inputValues = useMemo(() => {
+    const out: Record<string, unknown> = {};
+    for (const i of f.inputs) out[i.name] = keyByName.get(i.key)?.value ?? null;
+    return out;
+  }, [f.inputs, keyByName]);
+  const value = f.key ? info?.value : undefined;
+  const wrapped = f.inputs.length > 0;
+  const sample = useMemo(() => (wrapped ? { value: value ?? null, row: {}, inputs: inputValues } : value), [wrapped, value, inputValues]);
+  const hasAnySample = wrapped ? Object.values(inputValues).some((v) => v !== null && v !== undefined) || value !== undefined : value !== undefined;
+
+  // settled after a short pause while typing: the judge and the preview both read it
+  const [settled, setSettled] = useState(f.script);
+  useEffect(() => {
+    if (settled === f.script) return undefined;
+    const t = setTimeout(() => setSettled(f.script), PREVIEW_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [f.script, settled]);
+
+  const problem = useMemo(() => (p.judgeScript && settled.trim() !== '' ? p.judgeScript(settled, inputNames) : null), [p.judgeScript, settled, inputNames]);
+  const markers = useMemo<Marker[]>(() => (problem ? [{ line: 1, column: columnOf(problem), severity: 'error', message: problem }] : []), [problem]);
+
+  const getSuggestions = useCallback(async (ctx: { prefix?: string }): Promise<Suggestion[]> => {
+    const prefix = (ctx.prefix ?? '').toLowerCase();
+    return names.filter((n) => n.toLowerCase().startsWith(prefix)).map((n) => ({ label: n, detail: n === 'value' ? (f.key ? nameOfKey(info, f.key) : '') : keyByName.get(f.inputs.find((i) => i.name === n)?.key ?? '')?.label ?? '' }));
+  }, [names, f.key, f.inputs, info, keyByName]);
+
+  const addable = useMemo<ComboBoxOption[]>(
+    () => p.options.filter((o) => o.value !== f.key && !f.inputs.some((i) => i.key === o.value)),
+    [p.options, f.key, f.inputs],
+  );
+  const needsSomething = f.script.trim() === '' && !f.key && f.inputs.length === 0;
+
+  return (
+    <div className="space-y-2">
+      <label htmlFor={editorId} className="sr-only">{m.expressionLabel(field.label)}</label>
+      <CodeEditor
+        id={editorId}
+        value={f.script}
+        onChange={readOnly ? undefined : p.onScript}
+        language="js"
+        readonly={readOnly}
+        placeholder={m.expressionPlaceholder}
+        minHeight={40}
+        showLineNumbers={false}
+        markers={markers}
+        getSuggestions={readOnly ? undefined : getSuggestions}
+        className="text-sm"
+      />
+      <p className="text-xs text-text-secondary">{m.expressionHint}</p>
+      <div className="space-y-1">
+        <p className="text-xs font-medium text-text-secondary">{m.namesTitle}</p>
+        <div className="flex flex-wrap gap-1">
+          <NameChip
+            name="value"
+            text={m.nameChip('value', f.key ? formatValue(info?.value, info?.unit) : '')}
+            title={m.insertName('value')}
+            disabled={readOnly || !f.key}
+            onInsert={() => p.onInsert('value')}
+          />
+          {f.inputs.map((i) => (
+            <NameChip
+              key={i.name}
+              name={i.name}
+              text={m.nameChip(i.name, formatValue(keyByName.get(i.key)?.value, keyByName.get(i.key)?.unit))}
+              title={m.insertName(i.name)}
+              disabled={readOnly}
+              onInsert={() => p.onInsert(i.name)}
+              onRemove={readOnly ? undefined : () => p.onRemoveInput(i.name)}
+              removeLabel={m.removeInput(i.name)}
+            />
+          ))}
+        </div>
+        {!f.key && (
+          <div className="[&_label]:sr-only">
+            <ComboBox
+              id={`${uid}-field-${field.name}`}
+              label={m.fieldPicker(field.label)}
+              options={p.options}
+              value={f.key}
+              onChange={(v) => p.onPickKey(v)}
+              placeholder={m.pickerPlaceholder}
+              noResultsText={m.pickerNoResults}
+              clearable={false}
+              disabled={readOnly}
+            />
+          </div>
+        )}
+        {!readOnly && (f.inputs.length < MAX_INPUTS_PER_FIELD
+          ? (
+            <div className="[&_label]:sr-only">
+              <ComboBox
+                key={f.inputs.length}
+                id={`${uid}-input-${field.name}`}
+                label={m.addInput}
+                options={addable}
+                value=""
+                onChange={(v) => { if (v) p.onAddInput(v); }}
+                placeholder={m.addInputPlaceholder}
+                noResultsText={m.pickerNoResults}
+                clearable={false}
+                disabled={keys.length === 0}
+              />
+            </div>
+          )
+          : <p className="text-xs text-text-secondary">{m.inputsFull(MAX_INPUTS_PER_FIELD)}</p>)}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {scriptTemplates().map((t) => (
+          <Button key={t.id} variant="outline" size="xs" disabled={readOnly} onClick={() => p.onTemplate(t.script)}>
+            {m.templates[t.id]}
+          </Button>
+        ))}
+      </div>
+      {needsSomething
+        ? <p className="text-xs text-text-secondary">{m.expressionNeedsSomething}</p>
+        : <ScriptPreview script={settled} sample={sample} wrapped={wrapped} hasSample={hasAnySample} problem={problem} previewScript={p.previewScript} m={m} />}
+    </div>
+  );
+}
+
+function NameChip(p: { name: string; text: string; title: string; disabled: boolean; onInsert: () => void; onRemove?: () => void; removeLabel?: string }) {
+  return (
+    <span className="inline-flex items-center overflow-hidden rounded-full border border-border bg-surface-sunken text-xs">
+      <button type="button" aria-label={p.title} disabled={p.disabled} onClick={p.onInsert} className="px-2 py-0.5 font-mono text-text-primary hover:bg-surface-raised disabled:opacity-50">
+        {p.text}
+      </button>
+      {p.onRemove && (
+        <button type="button" aria-label={p.removeLabel} onClick={p.onRemove} className="border-l border-border px-1.5 py-0.5 text-text-secondary hover:bg-surface-raised">
+          <FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** The live result under an expression: debounced, through the host's sandbox, and never throws. A judge's refusal shows at once instead. */
 function ScriptPreview(props: {
   script: string;
   sample: unknown;
+  wrapped: boolean;
+  hasSample: boolean;
+  problem: string | null;
   previewScript?: (script: string, sample: unknown) => ScriptOutcome;
   m: SymbolBindingMessages;
 }) {
-  const { script, sample, previewScript, m } = props;
-  const [settled, setSettled] = useState(script);
-  useEffect(() => {
-    if (settled === script) return undefined;
-    const t = setTimeout(() => setSettled(script), PREVIEW_DEBOUNCE_MS);
-    return () => clearTimeout(t);
-  }, [script, settled]);
-
+  const { script, sample, wrapped, hasSample, problem, previewScript, m } = props;
   const outcome = useMemo<ScriptOutcome | null>(() => {
-    if (!previewScript || settled.trim() === '' || sample === undefined) return null;
+    if (problem || !previewScript || script.trim() === '' || !hasSample) return null;
     try {
-      return previewScript(settled, sample);
+      return previewScript(script, sample);
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
-  }, [previewScript, settled, sample]);
+  }, [problem, previewScript, script, sample, hasSample]);
 
-  const line = previewScript ? previewLine(settled, sample, outcome) : { kind: 'none' as const };
   let text = '';
   let bad = false;
-  if (line.kind === 'wait') text = m.previewWait;
-  else if (line.kind === 'ok') text = m.previewResult(line.from, line.to);
-  else if (line.kind === 'error') {
-    text = m.previewErrors[line.error](line.detail);
+  if (problem && script.trim() !== '') {
+    // the judge's sentence is written for a person: shown as it is
+    text = m.previewErrors[scriptErrorKind(problem)](problem);
     bad = true;
+  } else if (previewScript) {
+    const line = previewLine(script, hasSample ? sample : undefined, outcome);
+    if (line.kind === 'wait') text = m.previewWait;
+    else if (line.kind === 'ok') text = wrapped ? m.resultNow(line.to) : m.previewResult(line.from, line.to);
+    else if (line.kind === 'error') {
+      // the sandbox's own text is not for a person (a stack, an engine's wording): only a failure of another kind carries it
+      text = m.previewErrors[line.error](line.error === 'other' ? line.detail : '');
+      bad = true;
+    }
   }
   return (
     <p role="status" aria-live="polite" className={cn('min-h-4 text-xs', bad ? 'text-error' : 'text-text-secondary')}>
@@ -669,3 +1052,5 @@ function ScriptPreview(props: {
     </p>
   );
 }
+
+export { formatSample };

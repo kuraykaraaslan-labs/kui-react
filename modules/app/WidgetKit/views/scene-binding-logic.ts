@@ -80,12 +80,42 @@ export interface DeviceRef {
   element: string;
 }
 
-/** One field of a symbol read from one telemetry key (phase 45, D45-3): the key, the device it is read from (absent: the entry's, else the key's role device) and a name to show. */
-export interface FieldRead {
+/** One named input of a field's expression (phase 45 slice 16): a telemetry key of a device (absent: the field's device), handed to the expression under its name. */
+export interface FieldInput {
   deviceId?: string;
   key: string;
-  label?: string;
 }
+
+/**
+ * One field of a symbol read from one telemetry key (phase 45, D45-3): the key, the device it is read from (absent: the entry's, else the key's role device),
+ * a name to show, and since slice 16 an expression (`script`, one line over `value`, `row`, `now` and the named `inputs`) that may stand alone: a field
+ * reads a value (`key`), or an expression over at least one input (no key), or both (`value` is then the key's value). Every row before slice 16 has a key.
+ */
+export interface FieldRead {
+  deviceId?: string;
+  key?: string;
+  label?: string;
+  script?: string;
+  inputs?: Record<string, FieldInput>;
+}
+
+/** The most named inputs one field's expression reads. */
+export const MAX_INPUTS_PER_FIELD = 4;
+/** An input's name: a lower-case word of letters, digits and `_`, at most 16 characters; the host's judge refuses the same grammar. */
+export const INPUT_NAME_GRAMMAR = /^[a-z][a-z0-9_]{0,15}$/;
+/** Words that can never name an input: the fixed names of a formula, its globals and every JavaScript reserved word (the host's `inputNameProblems` holds the same list). */
+export const RESERVED_INPUT_NAMES: ReadonlySet<string> = new Set([
+  'value', 'row', 'now', 'Math', 'Number', 'String', 'Boolean', 'parseFloat', 'parseInt', 'isNaN', 'isFinite', 'NaN', 'Infinity', 'undefined', 'true', 'false', 'null',
+  'typeof', 'void', 'in', 'import', 'export', 'eval', 'Function', 'function', 'class', 'new', 'delete', 'this', 'arguments', 'super', 'async', 'await', 'yield', 'var',
+  'let', 'const', 'return', 'throw', 'try', 'catch', 'finally', 'if', 'else', 'switch', 'case', 'default', 'for', 'while', 'do', 'with', 'break', 'continue',
+  'debugger', 'instanceof', 'of', 'window', 'self', 'globalThis', 'fetch', 'XMLHttpRequest', 'postMessage', 'importScripts', 'Worker', 'WebSocket', 'constructor',
+  '__proto__', 'prototype', 'enum', 'extends', 'static', 'implements', 'interface', 'package', 'private', 'protected', 'public',
+]);
+export const isInputName = (s: unknown): s is string => typeof s === 'string' && INPUT_NAME_GRAMMAR.test(s) && !RESERVED_INPUT_NAMES.has(s);
+
+/** Whether a field read says where it reads from: a key, or an expression over at least one input. */
+export const fieldHasSource = (r: Pick<FieldRead, 'key' | 'script' | 'inputs'> | null | undefined): boolean =>
+  !!r && (r.key !== undefined || (r.script !== undefined && !!r.inputs && Object.keys(r.inputs).length > 0));
 
 /** The fields of one scene key, by symbol field. */
 export type FieldMap = Record<string, FieldRead>;
@@ -468,7 +498,9 @@ export function draftSignature(d: BindingDraft): string {
   return JSON.stringify([
     d.documentId, d.slot, d.kind,
     sorted(d.devices),
-    sorted(d.map).map(([k, v]) => [k, v.deviceId ?? null, v.element ?? null, v.fields ? sorted(v.fields).map(([f, r]) => [f, r.deviceId ?? null, r.key, r.label ?? null]) : null]),
+    sorted(d.map).map(([k, v]) => [k, v.deviceId ?? null, v.element ?? null, v.fields
+      ? sorted(v.fields).map(([f, r]) => [f, r.deviceId ?? null, r.key ?? null, r.label ?? null, r.script ?? null, r.inputs ? sorted(r.inputs).map(([n, i]) => [n, i.deviceId ?? null, i.key]) : null])
+      : null]),
     [...d.hidden].sort(),
     d.view ?? null,
     d.rules ?? null,
@@ -502,7 +534,8 @@ export type BindingIssueCode =
   | 'too-many-fields'
   | 'field-invalid'
   | 'field-key-invalid'
-  | 'field-label-invalid';
+  | 'field-label-invalid'
+  | 'field-input-invalid';
 
 export interface BindingIssue {
   code: BindingIssueCode;
@@ -571,9 +604,19 @@ export function validateDraft(d: BindingDraft): BindingIssue[] {
         const at = `${k}.${f}`;
         if (!isSymbolField(f)) issues.push({ code: 'field-invalid', subject: at });
         const r = e.fields[f];
-        if (!r || !isTelemetryKey(r.key)) issues.push({ code: 'field-key-invalid', subject: at });
+        // a field reads a key, or an expression over at least one input (slice 16); a key that is there must be a telemetry key
+        if (!r || (r.key !== undefined && !isTelemetryKey(r.key)) || !fieldHasSource(r)) issues.push({ code: 'field-key-invalid', subject: at });
         if (r?.label !== undefined && (typeof r.label !== 'string' || r.label.length > MAX_FIELD_LABEL)) issues.push({ code: 'field-label-invalid', subject: at });
         if (r?.deviceId !== undefined && !UUID_GRAMMAR.test(r.deviceId)) issues.push({ code: 'device-invalid', subject: at });
+        if (r?.inputs !== undefined) {
+          const names = Object.keys(r.inputs);
+          if (names.length > MAX_INPUTS_PER_FIELD || names.some((n) => !isInputName(n))) issues.push({ code: 'field-input-invalid', subject: at });
+          for (const n of names) {
+            const i = r.inputs[n];
+            if (!i || !isTelemetryKey(i.key)) issues.push({ code: 'field-input-invalid', subject: `${at}.${n}` });
+            else if (i.deviceId !== undefined && !UUID_GRAMMAR.test(i.deviceId)) issues.push({ code: 'device-invalid', subject: `${at}.${n}` });
+          }
+        }
       }
     }
   }
