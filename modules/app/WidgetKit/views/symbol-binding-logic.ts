@@ -707,6 +707,8 @@ export interface MatchSymbol {
   deviceId: string;
   deviceName: string;
   fields: ReadonlyArray<{ name: string; label: string; kind?: FieldKind; unit?: string }>;
+  /** The keys the symbol's other parameters read already (its own entries, the drawing's own naming): never proposed again for it. */
+  taken?: readonly string[];
 }
 
 /** One row of the preview table: a parameter of a symbol with the device value proposed for it. */
@@ -741,7 +743,7 @@ export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: Read
   for (const s of symbols) {
     const keys = keysByDevice.get(s.deviceId);
     if (!keys || keys.length === 0) continue;
-    const taken: string[] = [];
+    const taken: string[] = [...(s.taken ?? [])];
     for (const f of s.fields) {
       const [top, second] = rankKeysForField(f, keys, s.element, taken, [s.label, s.kindLabel]);
       if (!top || top.score < MIN_PROPOSAL_SCORE || (second && second.score === top.score)) continue;

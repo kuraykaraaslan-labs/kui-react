@@ -45,6 +45,10 @@ describe('matchAllRows', () => {
     expect(rows.map((r) => r.id)).toEqual(['door.value']);
     expect(rows[0]).toMatchObject({ key: 'reading', mismatch: 'text-for-number', confident: false });
   });
+  it('a key a symbol reads already is never proposed again for it', () => {
+    const rows = matchAllRows([{ ...symbols[1], fields: [{ name: 'value', label: 'Reading' }], taken: ['pump_on', 'flow_lpm'] }], new Map([[D1, [k('pump_on', true), k('flow_lpm', 12.4), k('temp_1', 21.5)]]]));
+    expect(rows.map((r) => [r.id, r.key])).toEqual([['pump.value', 'temp_1']]);
+  });
   it('the element rule wins for a device that follows the convention', () => {
     const rows = matchAllRows([{ ...symbols[0], element: 'tea_maker' }], new Map([[D1, [k('tea_maker.value', 57), k('coffee.value', 3)]]]));
     expect(rows[0]).toMatchObject({ key: 'tea_maker.value', confident: true });
