@@ -1047,7 +1047,9 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
     const fold = screen.getByTestId('scene-advanced');
     expect(within(fold).getByText('Advanced')).toBeInTheDocument();
     await user().click(within(fold).getByText('Advanced'));
-    for (const h of ['1. Slot and kind', '3. Devices and roles', '4. Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
+    // under Advanced the sections are not numbered: without the document's they would read 1, 3, 4 (m-R3-08)
+    for (const h of ['Slot and kind', 'Devices and roles', 'Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
+    for (const h of ['1. Slot and kind', '3. Devices and roles', '4. Match']) expect(screen.queryByRole('heading', { name: h })).toBeNull();
     expect(screen.getByLabelText('Slot')).toHaveValue('main');
     // the kind the host locked is the host's choice: not even named
     expect(screen.queryByRole('button', { name: '3D design' })).toBeNull();

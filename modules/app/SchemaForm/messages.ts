@@ -20,6 +20,8 @@ export interface SchemaFormMessages {
   pickColour: (label: string) => string;
   /** The free colour box when it is empty. */
   colourDefault: string;
+  /** Opens the free colour box when a theme colour is picked (the theme colour is shown by its name, never as a `var(--…)` code). */
+  colourCustom: string;
   clear: string;
   clearLabel: (label: string) => string;
   /** The theme swatches (`THEME_COLOR_TOKENS`), by token. */
@@ -71,6 +73,7 @@ export const DEFAULT_SCHEMA_FORM_MESSAGES: SchemaFormMessages = {
   themeColours: (label) => `${label}: theme colours`,
   pickColour: (label) => `${label}: pick a colour`,
   colourDefault: 'Default',
+  colourCustom: 'Custom…',
   clear: 'Clear',
   clearLabel: (label) => `Clear ${label}`,
   colorPrimary: 'Primary',

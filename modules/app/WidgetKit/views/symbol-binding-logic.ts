@@ -275,8 +275,12 @@ export function keyQuantity(k: Pick<DeviceKey, 'key' | 'label' | 'unit'>): { qua
 /** Why a key does not fit the field, in a word the panel turns into a sentence: its kind, or the quantity it measures (`quantity`: a temperature for an opening). */
 export type Mismatch = 'text-for-number' | 'state-for-number' | 'number-for-state' | 'text-for-state' | 'number-for-text' | 'quantity';
 
-/** `symbol`: the shared word came from the symbol's own words (its label or kind), not from the field's: a reason specific to THIS symbol. */
-export type RankReason = 'element' | 'name' | 'synonym' | 'symbol' | 'contains' | 'type' | 'unit' | 'only';
+/**
+ * `symbol`: the shared word came from the symbol's own words (its label or kind), not from the field's: a reason specific to THIS symbol.
+ * `stale`: the key's last value is much older than the device's newest one (next-boilerplate e2e round 3, M-R3-06: a 12-hour-old raw key was
+ * offered above the live value): it counts against the key and it is never picked by itself.
+ */
+export type RankReason = 'element' | 'name' | 'synonym' | 'symbol' | 'contains' | 'type' | 'unit' | 'only' | 'stale';
 
 /** One key of the device as a candidate for a field: its score, whether the panel may pick it by itself, why, and the kind problem if it has one. */
 export interface RankedKey {
@@ -329,6 +333,31 @@ export const MIN_PROPOSAL_SCORE = 30;
  * itself (below `CONFIDENT_SCORE`). A word of the field's, of the symbol's, the element rule or a unit is what makes a pick certain.
  */
 export const KIND_ALONE_SCORE = 50;
+/** A key whose last value is older than the device's newest by more than this is stale: it is offered last and never picked by itself. */
+export const STALE_GAP_MS = 60 * 60 * 1000;
+/** What a stale key loses. */
+export const STALE_PENALTY = 40;
+
+const tsOf = (k: Pick<DeviceKey, 'ts'>): number => {
+  if (k.ts === undefined || k.ts === null) return 0;
+  const n = typeof k.ts === 'number' ? k.ts : Date.parse(k.ts);
+  return Number.isFinite(n) ? n : 0;
+};
+
+/**
+ * The keys of the device whose last value is far behind the newest one (`STALE_GAP_MS`): a reading the device stopped sending hours ago (an old
+ * key name, a sensor that went away). A key with no time at all (declared, nothing sent yet) is not stale: it has no value to be old.
+ */
+export function staleKeys(keys: readonly Pick<DeviceKey, 'key' | 'ts'>[]): Set<string> {
+  const newest = Math.max(0, ...keys.map(tsOf));
+  const out = new Set<string>();
+  if (newest === 0) return out;
+  for (const k of keys) {
+    const t = tsOf(k);
+    if (t > 0 && newest - t > STALE_GAP_MS) out.add(k.key);
+  }
+  return out;
+}
 
 /**
  * The keys the ranking may propose: a key the host marked internal (a connection of the drawing itself: a pipe run, a cable) is never ranked or
@@ -354,7 +383,11 @@ export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.fi
  * `hints` are the symbol's own words (its label and kind), used for a number field whose own words say no quantity ("Reading" of a "Thermometer").
  * `confident` is on the best alone: a score from `CONFIDENT_SCORE`, no mismatch, not `foreign`, and a lead of `CONFIDENT_LEAD` over the next.
  * `foreign`: a key under another piece of equipment's prefix (`drain_valve.running` for an "Open basin"), told by the symbol's own raw words (no synonyms:
- * "open" must not reach "valve" through the position line); the element rule overrides it.
+ * "open" must not reach "valve" through the position line); the element rule overrides it. A prefix that shares a word with the symbol is still
+ * another piece of equipment when each side has a word of its own the other lacks (`heat_pump` for a "Mud pump": both are pumps, neither is the
+ * other; next-boilerplate e2e round 3, M-R3-03); the symbol's own name is the FIRST hint, its kind the rest, and the words are compared with their
+ * synonyms (a "Supply temperature" is `supply_temp`).
+ *  stale    the key's last value is far behind the device's newest (`STALE_GAP_MS`): minus `STALE_PENALTY`, and never picked by itself.
  */
 export function rankKeysForField(
   field: { name: string; label?: string; kind?: FieldKind; unit?: string },
@@ -381,6 +414,10 @@ export function rankKeysForField(
   for (const k of list) kinds.set(keyKindOf(k), (kinds.get(keyKindOf(k)) ?? 0) + 1);
   // the symbol's own words as written (no synonyms): what tells its equipment from another's
   const rawOwn = new Set(hints.flatMap(wordsOf));
+  // the symbol's own NAME (the first hint), with its synonyms: what a prefix is measured against when it shares a word with the symbol
+  const ownName = hints.length > 0 ? fieldWords({ name: '' }, [hints[0]]) : new Set<string>();
+  const ownNameRaw = hints.length > 0 ? wordsOf(hints[0]) : [];
+  const stale = staleKeys(list);
   // first the words (the element, a name, a shared word, a contained word) …
   const worded = list.map((k) => {
     const reasons: RankReason[] = [];
@@ -395,11 +432,19 @@ export function rankKeysForField(
     const keyWords = new Set([...wordsOf(local), ...(k.label ? wordsOf(k.label) : [])]);
     const shared = [...keyWords].filter((w) => words.has(w)).length;
     if (!reasons.includes('name') && shared > 0) { score += 65 + Math.min(2, shared - 1) * 15; reasons.push('synonym'); }
-    // a word of the symbol's own (Door ↔ `door`, Circulation pump ↔ `pump_on`): a match to THIS symbol, scored like a synonym, a second signal beside one
-    if ([...keyWords].some((w) => ownWords.has(w) && !fieldOnly.has(w))) { score += reasons.length === 0 ? 65 : 15; reasons.push('symbol'); }
+    // another piece of equipment of the same device: the key's prefix names nothing of this symbol (and the element rule did not claim it), or it
+    // shares a word but each side has a word of its own the other lacks (a heat pump is not a mud pump)
+    const prefixWords = prefix ? wordsOf(prefix) : [];
+    const sharesOwn = prefixWords.some((w) => rawOwn.has(w));
+    const prefixAll = prefix ? fieldWords({ name: '' }, [prefix]) : new Set<string>();
+    const differentEquipment = sharesOwn && ownNameRaw.length > 0 && prefixWords.some((w) => !ownName.has(w)) && ownNameRaw.some((w) => !prefixAll.has(w));
+    // a word of the symbol's own in the key, its label or its prefix (Door ↔ `door`, Circulation pump ↔ `pump_on` or `pump_circulation.running`): a match to
+    // THIS symbol, scored like a synonym (a second signal beside one), 15 more for each further shared word (`supply_temp` beats `return_temp` for a
+    // "Supply temperature"); never for a prefix that names another piece of equipment
+    const ownHits = new Set([...keyWords, ...(differentEquipment ? [] : prefixWords)].filter((w) => ownWords.has(w) && !fieldOnly.has(w)));
+    if (ownHits.size > 0) { score += (reasons.length === 0 ? 65 : 15) + Math.min(2, ownHits.size - 1) * 15; reasons.push('symbol'); }
     if (reasons.length === 0 && long.some((w) => nlocal.includes(w) || nlabel.includes(w))) { score += 55; reasons.push('contains'); }
-    // another piece of equipment of the same device: the key's prefix names nothing of this symbol (and the element rule did not claim it)
-    const foreign = prefix !== '' && rawOwn.size > 0 && !reasons.includes('element') && !wordsOf(prefix).some((w) => rawOwn.has(w));
+    const foreign = prefix !== '' && rawOwn.size > 0 && !reasons.includes('element') && (!sharesOwn || differentEquipment);
     return { k, reasons, score, foreign };
   });
   // … then the kind: the only key of the field's kind decides by itself only when no key matched by a word (words first, the kind as the fallback)
@@ -412,13 +457,16 @@ export function rankKeysForField(
     if (t !== 0) { score += t; reasons.push('type'); }
     if (kq) { score += contradicts ? -20 : kq.byUnit ? 45 : 20; reasons.push('unit'); }
     if (list.length === 1 && reasons.length === 0) { score += 60; reasons.push('only'); }
+    // a value the device stopped sending long ago (an old key name, a sensor that went away) comes after the live ones
+    const isStale = stale.has(k.key);
+    if (isStale) { score -= STALE_PENALTY; reasons.push('stale'); }
     // a key that measures another quantity than the field is never picked by itself, whatever word it shares (a supply temperature for a valve's opening)
     const mismatch = mismatchOf(field, k) ?? (contradicts ? 'quantity' : null);
     return { key: k.key, score, confident: false, reasons, ...(mismatch ? { mismatch } : {}), ...(foreign ? { foreign } : {}) };
   }).filter((r) => r.score > 0);
   ranked.sort((a, b) => b.score - a.score);
   const [top, second] = ranked;
-  if (top && top.score >= CONFIDENT_SCORE && !top.mismatch && !top.foreign && (second === undefined || top.score - second.score >= CONFIDENT_LEAD)) top.confident = true;
+  if (top && top.score >= CONFIDENT_SCORE && !top.mismatch && !top.foreign && !top.reasons.includes('stale') && (second === undefined || top.score - second.score >= CONFIDENT_LEAD)) top.confident = true;
   return ranked;
 }
 
@@ -492,12 +540,16 @@ export function ageText(ts: number | string, now: number, words: AgeWords = DEFA
   return words.days(Math.floor(h / 24));
 }
 
-/** A value as the panel lists it: numbers trimmed to 3 decimals, a state as true / false, text as it is, anything else as short JSON. */
-export function formatValue(value: unknown, unit?: string): string {
+/** The words a state is shown as (next-boilerplate e2e round 3, m-R3-10: the product says On / Off everywhere, never true / false). */
+export interface StateWords { on: string; off: string }
+export const DEFAULT_STATE_WORDS: StateWords = { on: 'On', off: 'Off' };
+
+/** A value as the panel lists it: numbers trimmed to 3 decimals, a state as On / Off (`words`), text as it is, anything else as short JSON. */
+export function formatValue(value: unknown, unit?: string, words: StateWords = DEFAULT_STATE_WORDS): string {
   let text: string;
   if (value === null || value === undefined) return '–';
   if (typeof value === 'number') text = Number.isFinite(value) ? String(Math.round(value * 1000) / 1000) : '–';
-  else if (typeof value === 'boolean') text = value ? 'true' : 'false';
+  else if (typeof value === 'boolean') text = value ? words.on : words.off;
   else if (typeof value === 'string') text = value;
   else {
     try {

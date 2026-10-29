@@ -171,6 +171,10 @@ function ColorControl({ id, value, field, onChange }: FieldControlProps) {
   };
   const current = typeof value === 'string' ? value : '';
   const hex = /^#[0-9a-fA-F]{6}$/.test(current) ? current : '#000000';
+  // a theme colour is shown by its name, never as `var(--text-primary)` (next-boilerplate e2e round 3, M-R3-04); "Custom…" opens the free value
+  const token = THEME_COLOR_TOKENS.find((t) => t.value === current);
+  const [custom, setCustom] = useState(false);
+  const freeValue = custom || !token;
   return (
     <div className="space-y-2">
       <div role="radiogroup" aria-label={m.themeColours(field.label)} className="flex flex-wrap gap-1.5">
@@ -182,18 +186,32 @@ function ColorControl({ id, value, field, onChange }: FieldControlProps) {
             style={{ background: t.value }} />
         ))}
       </div>
-      <div className="flex items-center gap-2">
-        <input type="color" aria-label={m.pickColour(field.label)} value={hex}
-          onChange={(e) => onChange(e.target.value)} className="h-9 w-12 shrink-0 rounded border border-border bg-transparent p-0.5" />
-        <input id={id} type="text" value={current} placeholder={field.placeholder || m.colourDefault}
-          onChange={(e) => onChange(e.target.value.trim() || undefined)} className={controlCls} />
-        {current && (
+      {freeValue ? (
+        <div className="flex items-center gap-2">
+          <input type="color" aria-label={m.pickColour(field.label)} value={hex}
+            onChange={(e) => onChange(e.target.value)} className="h-9 w-12 shrink-0 rounded border border-border bg-transparent p-0.5" />
+          <input id={id} type="text" value={current} placeholder={field.placeholder || m.colourDefault}
+            onChange={(e) => onChange(e.target.value.trim() || undefined)} className={controlCls} />
+          {current && (
+            <button type="button" onClick={() => onChange(undefined)} aria-label={m.clearLabel(field.label)}
+              className="shrink-0 rounded px-2 text-xs text-text-secondary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-border-focus">
+              {m.clear}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-sm">
+          <span id={id} className="min-w-0 flex-1 truncate text-text-primary" data-part="colour-token">{tokenLabel(token)}</span>
+          <button type="button" onClick={() => setCustom(true)}
+            className="shrink-0 rounded px-2 text-xs text-text-secondary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-border-focus">
+            {m.colourCustom}
+          </button>
           <button type="button" onClick={() => onChange(undefined)} aria-label={m.clearLabel(field.label)}
             className="shrink-0 rounded px-2 text-xs text-text-secondary hover:text-text-primary focus-visible:ring-2 focus-visible:ring-border-focus">
             {m.clear}
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

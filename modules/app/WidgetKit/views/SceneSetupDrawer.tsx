@@ -776,6 +776,8 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   // `choose` mode (E2E-2.1): the form is "which drawing?"; Save writes at once (nothing to acknowledge: the symbols are connected on the drawing),
   // unless the saved setup is newer than the one the form started from, which still asks
   const chooseMode = (props.mode ?? 'full') === 'choose';
+  // in choose mode the sections sit under Advanced without the document's: their numbers would read 1, 3, 4 (next-boilerplate e2e round 3, m-R3-08)
+  const sectionTitle = (text: string): string => (chooseMode ? text.replace(/^\d+\.\s*/, '') : text);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const saveNow = (): void => {
     if (chooseMode && !conflict) props.onSave(draft, { reason: '' });
@@ -784,7 +786,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
 
   const slotAndKind = (
     <section aria-labelledby={`${uid}-h1`} className="space-y-3">
-      <h3 id={`${uid}-h1`} className="text-sm font-semibold text-text-primary">{m.slotSection}</h3>
+      <h3 id={`${uid}-h1`} className="text-sm font-semibold text-text-primary">{sectionTitle(m.slotSection)}</h3>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           {slots && (
@@ -857,11 +859,11 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const devicesSection = (
     <section aria-labelledby={`${uid}-h3`} className="space-y-3">
       <div>
-        <h3 id={`${uid}-h3`} className="text-sm font-semibold text-text-primary">{m.devicesSection}</h3>
+        <h3 id={`${uid}-h3`} className="text-sm font-semibold text-text-primary">{sectionTitle(m.devicesSection)}</h3>
         <p className="text-xs text-text-secondary">{m.devicesHint}</p>
       </div>
       <DataTable<DeviceRow>
-        id={`${uid}-devices`} mode="paginated" caption={m.devicesSection} columns={deviceColumns} rows={deviceRows} rowId={(r) => r.id}
+        id={`${uid}-devices`} mode="paginated" caption={sectionTitle(m.devicesSection)} columns={deviceColumns} rows={deviceRows} rowId={(r) => r.id}
         searchable searchPlaceholder={m.deviceSearch} filterFields={deviceFilters} filtersLive
         pageSize={10} pageSizeOptions={[10, 25, 100]} density="compact"
         state={props.devicesLoading ? 'loading' : undefined} emptyMessage={m.devicesEmpty}
@@ -876,7 +878,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     <section aria-labelledby={`${uid}-h4`} className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 id={`${uid}-h4`} className="text-sm font-semibold text-text-primary">{m.matchSection}</h3>
+          <h3 id={`${uid}-h4`} className="text-sm font-semibold text-text-primary">{sectionTitle(m.matchSection)}</h3>
           <p className="text-xs text-text-secondary">{m.matchHint}</p>
         </div>
         <Button
@@ -902,7 +904,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
             </div>
           )}
           <DataTable<KeyRow>
-            id={`${uid}-keys`} mode="paginated" caption={m.matchSection} columns={keyColumns} rows={rows} rowId={(r) => r.key}
+            id={`${uid}-keys`} mode="paginated" caption={sectionTitle(m.matchSection)} columns={keyColumns} rows={rows} rowId={(r) => r.key}
             searchable searchText={(r) => r.find} searchPlaceholder={m.keySearch} filterFields={keyFilters} filtersLive
             pageSize={10} pageSizeOptions={[10, 25, 50]} density="compact"
             state={props.sceneKeysLoading ? 'loading' : undefined} emptyMessage={m.keysEmpty}
@@ -953,7 +955,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const rulesSection = rulesStep ? (
     <section aria-labelledby={`${uid}-h5`} className="space-y-3">
       <div>
-        <h3 id={`${uid}-h5`} className="text-sm font-semibold text-text-primary">{m.rules.section}</h3>
+        <h3 id={`${uid}-h5`} className="text-sm font-semibold text-text-primary">{sectionTitle(m.rules.section)}</h3>
         <p className="text-xs text-text-secondary">{ruleDialect === 'diagram' ? m.rules.hint2d : m.rules.hint}</p>
       </div>
       <SceneSetupRules

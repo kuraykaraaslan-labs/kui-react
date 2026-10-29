@@ -40,6 +40,8 @@ export interface SceneInspectorProps {
   className?: string;
 }
 
+/** The diagram's groups that fold under Advanced when nothing is selected: the canvas size, the table columns, the things from data. */
+const SCENE_ADVANCED_GROUPS: ReadonlySet<string> = new Set(['canvas', 'source', 'things']);
 /** Fields that make no sense written to several things at once. */
 const SINGLE_ONLY: Record<FieldScope, readonly string[]> = { element: ['id', 'x', 'y'], link: ['from', 'to', 'id'], shape: ['x', 'y'], scene: [] };
 /** Fields committed when the author is done typing (a rename or an end moves things; a half-typed id is not an id). */
@@ -214,6 +216,10 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
     const at = groups.find((g) => g.group === e.group);
     if (at) at.entries.push(e); else groups.push({ group: e.group, entries: [e] });
   }
+  // nothing selected: the look and the colours are what a person changes; the canvas size, the table columns and the things from data fold under
+  // Advanced (next-boilerplate e2e round 3, M-R3-09: "Row id column" and "Thing id column" met a customer on an empty click)
+  const folded = scope === 'scene' ? groups.filter((g) => SCENE_ADVANCED_GROUPS.has(g.group)) : [];
+  const plain = scope === 'scene' ? groups.filter((g) => !SCENE_ADVANCED_GROUPS.has(g.group)) : groups;
 
   const draw = (e: FieldEntry) => {
     const id = `${base}-${e.key}`;
@@ -248,7 +254,7 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
         {target.kind === 'scene' && <p className="mt-1 text-xs text-text-secondary">{m.sceneHint}</p>}
         {many && <p className="mt-1 text-xs text-text-secondary">{m.shared}</p>}
       </div>
-      {groups.map((g) => (
+      {plain.map((g) => (
         <section key={g.group} aria-labelledby={`${base}-g-${g.group}`} className="space-y-3 rounded-lg border border-border p-3" data-group={g.group}>
           <h3 id={`${base}-g-${g.group}`} className="text-[11px] font-medium uppercase tracking-wide text-text-secondary">
             {(m.groups as Record<string, string>)[g.group] ?? g.group}
@@ -256,6 +262,22 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
           {g.entries.map(draw)}
         </section>
       ))}
+      {folded.length > 0 && (
+        <details className="rounded-lg border border-border p-3" data-part="scene-advanced">
+          <summary className="cursor-pointer text-sm font-semibold text-text-primary">{m.advanced}</summary>
+          <p className="mt-1 text-xs text-text-secondary">{m.advancedHint}</p>
+          <div className="mt-3 space-y-4">
+            {folded.map((g) => (
+              <section key={g.group} aria-labelledby={`${base}-g-${g.group}`} className="space-y-3 rounded-lg border border-border p-3" data-group={g.group}>
+                <h3 id={`${base}-g-${g.group}`} className="text-[11px] font-medium uppercase tracking-wide text-text-secondary">
+                  {(m.groups as Record<string, string>)[g.group] ?? g.group}
+                </h3>
+                {g.entries.map(draw)}
+              </section>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

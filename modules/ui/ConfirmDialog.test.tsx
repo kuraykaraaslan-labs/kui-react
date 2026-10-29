@@ -26,6 +26,11 @@ describe('ConfirmDialog', () => {
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
+  it('the focus starts on the safe choice (Cancel), never on the close button (m-R3-17)', async () => {
+    render(<ConfirmDialog {...base} cancelLabel="Keep editing" tone="warning" />);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Keep editing' })).toHaveFocus());
+  });
+
   it('danger tone gives the confirm button the danger variant', () => {
     render(<ConfirmDialog {...base} tone="danger" />);
     expect(screen.getByRole('button', { name: 'Delete' })).toHaveClass('bg-error');

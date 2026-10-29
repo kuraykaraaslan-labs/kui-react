@@ -132,7 +132,7 @@ export function ScenePalette({ onAdd, onDragStart, recent, locale, addOn = 'clic
       >
         <Thumb symbol={key} />
         <span className="w-full truncate text-xs font-medium leading-tight text-text-primary">{nameOf(key)}</span>
-        <span className="w-full truncate font-mono text-[10px] leading-tight text-text-secondary">{key}</span>
+        {/* the symbol's key (`tank.vertical`) is a code: it stays in the tooltip for whoever needs it, never under the name (next-boilerplate e2e round 3, m-R3-07) */}
       </div>
     );
   };

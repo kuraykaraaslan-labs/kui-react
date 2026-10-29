@@ -65,13 +65,14 @@ describe('symbolThumb', () => {
 });
 
 describe('ScenePalette', () => {
-  it('draws a tile for every symbol of the registry with its name and key, in a listbox', () => {
+  it('draws a tile for every symbol of the registry with its name (the key only in the tooltip, m-R3-07), in a listbox', () => {
     const { container } = render(<ScenePalette onAdd={() => {}} />);
     expect(screen.getByRole('listbox', { name: 'Symbols' })).toBeInTheDocument();
     expect(keys(container)).toHaveLength(SCADA_SYMBOLS.length);
     const tile = container.querySelector('[data-symbol="home.plug.smart"]')!;
     expect(tile).toHaveTextContent('Smart plug');
-    expect(tile).toHaveTextContent('home.plug.smart');
+    expect(tile).not.toHaveTextContent('home.plug.smart');
+    expect(tile).toHaveAttribute('title', 'Smart plug (home.plug.smart)');
     expect(tile.querySelector('svg')!.children.length).toBeGreaterThan(0);
     expect(screen.getByRole('status')).toHaveTextContent(`${SCADA_SYMBOLS.length} symbols`);
   });

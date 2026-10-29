@@ -6,6 +6,23 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- `SymbolBindingPanel` (after next-boilerplate's e2e round 3): a connected row has a **Disconnect** button and an empty one says "Not connected"
+  (the picker's bare x was the only way out); switching a row's source back to "A device value" also drops the value the expression was built
+  on, so a flow meter never shows a temperature by accident; the host's save error is shown only while the draft that failed stands; a syntax
+  problem whose place the box marks is said once, in words; a state reads **On / Off** everywhere (`formatValue` takes `StateWords`), never
+  true / false; the keyboard hint says how the drawing's symbols are reached. `symbol-binding-logic`: a key under another piece of equipment that
+  shares only the kind word with the symbol (`heat_pump` for a "Mud pump") is `foreign` (offered, never certain, in the panel and in Match
+  everything), a word of the symbol in a key's prefix counts for THIS symbol (`pump_circulation.running` for a "Circulation pump", 15 more per
+  further shared word), and a key whose last value is far behind the device's newest (`staleKeys`, `STALE_GAP_MS`) is ranked after the live
+  ones with the reason `stale` and never picked by itself.
+- `SceneSetupDrawer`: in `choose` mode the sections under Advanced are not numbered (they read 1, 3, 4 without the document's).
+- `SceneInspector`: with nothing selected the canvas size, the table columns ("Row id column") and the things from data fold under an
+  **Advanced** details (`InspectorMessages.advanced`, `advancedHint`); the symbol id's help speaks of the symbol's short name in the drawing.
+- `ScenePalette`: a tile shows the symbol's name only; its key stays in the tooltip.
+- `SchemaForm` colour control: a theme colour is shown by its name (Text, Success …), never as its `var(--…)` code; **Custom…** opens the free
+  colour box (`SchemaFormMessages.colourCustom`).
+- `ConfirmDialog` / `useFocusTrap`: the initial focus goes to the element marked `data-autofocus` when an overlay has one; the confirmation marks
+  its Cancel (the safe choice), so Enter on open keeps what the person has instead of closing through the X.
 - `MapView` / `MapCanvas`: the default basemap is OpenStreetMap's standard tiles (keyless, attributed), drawn darkened in
   the dark theme (Esri's Canvas maps were the default since CARTO started asking for a key). An installation sets its own
   tile source once with `MapTilesProvider` (`MapTileSource`: URL template, attribution, subdomains, deepest zoom, optional

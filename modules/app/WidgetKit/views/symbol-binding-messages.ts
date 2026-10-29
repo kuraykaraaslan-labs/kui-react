@@ -44,6 +44,10 @@ export interface SymbolBindingMessages {
   suggestedOption: (line: string) => string;
   /** The picker's first choice: the field reads nothing. */
   notUsed: string;
+  /** The button beside a connected row that takes its connection away (next-boilerplate e2e round 3, M-R3-06: the picker's bare x was the only way). */
+  disconnect: string;
+  /** Under a picker whose typed text matches no value (m-R3-14): what to do instead. */
+  typedNoMatch: string;
   suggested: string;
   /** "Suggested: Supply temperature" with a one-tap accept, on an empty row whose best candidate is not certain. */
   suggestedCandidate: (name: string) => string;
@@ -165,17 +169,19 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   sourceExpression: 'An expression',
   fieldPicker: (field) => field,
   pickerPlaceholder: 'Pick a value…',
-  pickerNoResults: 'No value matches.',
+  pickerNoResults: 'No value matches what you typed.',
   optionLine: (value, age) => (age ? `${value} · ${age}` : value),
   suggestedOption: (line) => `Suggested · ${line}`,
-  notUsed: 'Not used',
+  notUsed: 'Not connected',
+  disconnect: 'Disconnect',
+  typedNoMatch: 'Typing alone connects nothing: pick one of the values in the list.',
   suggested: 'Suggested',
   suggestedCandidate: (name) => `Suggested: ${name}`,
   useSuggestion: 'Use',
   automatic: 'automatic',
   automaticLine: (name, value) => (value ? `${name} · ${value}` : name),
   change: 'Change',
-  unsetHint: 'Pick the value this reads, or choose An expression.',
+  unsetHint: 'Not connected. Pick the value this reads, or choose An expression.',
   fromOtherDevice: (device) => `from ${device}`,
   noValueYet: 'No value yet',
   valueAndAge: (value, age) => (age ? `${value} · ${age}` : value),
@@ -245,7 +251,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   discardConfirm: 'Discard',
   keepEditing: 'Keep editing',
   readOnlyNote: 'You can look at this symbol but not change it.',
-  keysHint: 'Arrow keys move between rows, Enter takes the suggestion, Esc closes.',
+  keysHint: 'Arrow keys move between rows, Enter takes the suggestion, Esc closes. Shift+Tab goes back into the drawing, where the arrow keys move between its symbols and Enter opens one.',
 
   matchAll: {
     title: 'Match everything',

@@ -300,7 +300,10 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   }
 
   function setMode(name: string, mode: SourceMode) {
-    setField(name, (f) => (mode === f.mode ? f : mode === 'value' ? { ...f, mode, script: '', inputs: [], automatic: f.automatic && f.key !== '' ? f.automatic : false } : { ...f, mode }));
+    // back to a device value: the expression, its inputs AND the value it was built on go; the row says "Not connected" until a value is picked
+    // (next-boilerplate e2e round 3, M-R3-06: the expression's first value stayed and a flow meter showed a temperature)
+    setField(name, (f) => (mode === f.mode ? f : mode === 'value' ? { ...f, ...EMPTY_FIELD, mode, inputs: [], automatic: false } : { ...f, mode }));
+    if (mode === 'value') { dropSuggested(name); dropProposal(name); }
   }
 
   function setScript(name: string, script: string) {
@@ -366,6 +369,14 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     }
     return true;
   }
+
+  // the host's save error belongs to the draft that failed: once the person changes something it is gone (next-boilerplate e2e round 3, m-R3-09:
+  // the old refusal stayed beside Save after the expression was corrected)
+  const draftSig = JSON.stringify(entryFromDraft(draft));
+  const [errorFor, setErrorFor] = useState<{ error: string; sig: string } | null>(null);
+  if (props.error && errorFor?.error !== props.error) setErrorFor({ error: props.error, sig: draftSig });
+  if (!props.error && errorFor) setErrorFor(null);
+  const shownError = props.error && errorFor && errorFor.sig === draftSig ? props.error : undefined;
 
   // "Next symbol" writes first when something is filled in that is not saved yet; its label says so then ("Save and next")
   const nextWrites = dirty && !readOnly;
@@ -641,7 +652,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
 
       {/* Footer */}
       <div className="space-y-2 border-t border-border px-4 py-3">
-        {props.error && <AlertBanner variant="error" message={props.error} />}
+        {shownError && <AlertBanner variant="error" message={shownError} />}
         <div className="flex items-center gap-2">
           {!readOnly && (
             <Button variant="primary" size="sm" className="flex-1" loading={saving} disabled={!dirty || busy} onClick={() => void save()}>
@@ -782,19 +793,25 @@ function FieldRow(p: FieldRowProps) {
           />
           {f.mode === 'value' ? (
             <div className="space-y-1">
-              <div className="[&_label]:sr-only">
-                <ComboBox
-                  id={`${uid}-field-${field.name}`}
-                  label={m.fieldPicker(field.label)}
-                  options={options}
-                  value={f.key}
-                  onChange={(v) => p.onPickKey(v)}
-                  placeholder={m.pickerPlaceholder}
-                  noResultsText={m.pickerNoResults}
-                  clearable={!readOnly && f.key !== ''}
-                  disabled={readOnly || (!ready && f.key === '')}
-                  messages={{ clear: m.notUsed }}
-                />
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1 [&_label]:sr-only">
+                  <ComboBox
+                    id={`${uid}-field-${field.name}`}
+                    label={m.fieldPicker(field.label)}
+                    options={options}
+                    value={f.key}
+                    onChange={(v) => p.onPickKey(v)}
+                    placeholder={m.pickerPlaceholder}
+                    noResultsText={`${m.pickerNoResults} ${m.typedNoMatch}`}
+                    clearable={!readOnly && f.key !== ''}
+                    disabled={readOnly || (!ready && f.key === '')}
+                    messages={{ clear: m.notUsed }}
+                  />
+                </div>
+                {/* a connection is taken away by a button that says so, not only by the picker's x (M-R3-06) */}
+                {!readOnly && f.key !== '' && !f.automatic && (
+                  <Button variant="ghost" size="xs" className="shrink-0" onClick={() => p.onPickKey('')} data-testid={`disconnect-${field.name}`}>{m.disconnect}</Button>
+                )}
               </div>
               {valueLine && <p className="text-xs text-text-secondary">{valueLine}</p>}
               {f.key === '' && !proposal && ready && <p className="text-xs text-text-secondary">{m.unsetHint}</p>}
@@ -914,7 +931,9 @@ function ExpressionBox(p: ExpressionBoxProps) {
   }, [f.script, settled]);
 
   const problem = useMemo(() => (p.judgeScript && settled.trim() !== '' ? p.judgeScript(settled, inputNames) : null), [p.judgeScript, settled, inputNames]);
+  // the place of a syntax problem is marked in the box; the sentence under it then says what kind of problem, once, without the engine's words
   const markers = useMemo<Marker[]>(() => (problem ? [{ line: 1, column: columnOf(problem), severity: 'error', message: problem }] : []), [problem]);
+  const marked = problem !== null && columnOf(problem) !== undefined;
 
   const getSuggestions = useCallback(async (ctx: { prefix?: string }): Promise<Suggestion[]> => {
     const prefix = (ctx.prefix ?? '').toLowerCase();
@@ -1010,7 +1029,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
       </div>
       {needsSomething
         ? <p className="text-xs text-text-secondary">{m.expressionNeedsSomething}</p>
-        : <ScriptPreview script={settled} sample={sample} wrapped={wrapped} hasSample={hasAnySample} problem={problem} previewScript={p.previewScript} m={m} />}
+        : <ScriptPreview script={settled} sample={sample} wrapped={wrapped} hasSample={hasAnySample} problem={problem} marked={marked} previewScript={p.previewScript} m={m} />}
     </div>
   );
 }
@@ -1037,10 +1056,12 @@ function ScriptPreview(props: {
   wrapped: boolean;
   hasSample: boolean;
   problem: string | null;
+  /** The problem's place is marked in the editor: the line below names the kind of problem without repeating the engine's words. */
+  marked?: boolean;
   previewScript?: (script: string, sample: unknown) => ScriptOutcome;
   m: SymbolBindingMessages;
 }) {
-  const { script, sample, wrapped, hasSample, problem, previewScript, m } = props;
+  const { script, sample, wrapped, hasSample, problem, marked = false, previewScript, m } = props;
   const outcome = useMemo<ScriptOutcome | null>(() => {
     if (problem || !previewScript || script.trim() === '' || !hasSample) return null;
     try {
@@ -1053,8 +1074,9 @@ function ScriptPreview(props: {
   let text = '';
   let bad = false;
   if (problem && script.trim() !== '') {
-    // the judge's sentence is written for a person: shown as it is
-    text = m.previewErrors[scriptErrorKind(problem)](problem);
+    // the judge's sentence is written for a person: shown as it is, unless the box already marks the place (then the kind of problem alone)
+    const kind = scriptErrorKind(problem);
+    text = m.previewErrors[kind](marked && kind === 'syntax' ? '' : problem);
     bad = true;
   } else if (previewScript) {
     const line = previewLine(script, hasSample ? sample : undefined, outcome);

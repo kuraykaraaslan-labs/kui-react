@@ -15,6 +15,9 @@ import { useEffect, useCallback } from 'react';
  * - Tab with focus in another dialog layered over the overlay (one that is
  *   not on this stack, e.g. a host's confirm portaled to <body>) is that
  *   dialog's to move: the trap does not pull focus back.
+ * - The initial focus goes to the element marked `data-autofocus` when the
+ *   overlay has one (a confirmation's safe choice), else to its first
+ *   focusable element (usually the close button).
  */
 
 const FOCUSABLE =
@@ -64,8 +67,9 @@ export function useFocusTrap(
     const t = window.setTimeout(() => {
       const root = ref.current;
       if (!root) return;
+      const preferred = root.querySelector<HTMLElement>('[data-autofocus]');
       const firstFocusable = root.querySelector<HTMLElement>(FOCUSABLE);
-      (firstFocusable ?? root).focus();
+      (preferred ?? firstFocusable ?? root).focus();
     }, 0);
     return () => {
       window.clearTimeout(t);

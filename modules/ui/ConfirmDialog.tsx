@@ -146,7 +146,8 @@ export function ConfirmDialog({
       footer={(
         <div className="flex w-full flex-wrap items-center justify-end gap-2">
           {error && <p role="alert" className="mr-auto min-w-0 text-sm text-error">{error}</p>}
-          <Button variant="ghost" size="sm" onClick={cancel} disabled={busy} data-confirm-cancel="">{cancelLabel}</Button>
+          {/* the safe choice takes the focus when the question opens (next-boilerplate e2e round 3, m-R3-17: it sat on the close X), so Enter keeps what the person has */}
+          <Button variant="ghost" size="sm" onClick={cancel} disabled={busy} data-confirm-cancel="" data-autofocus="">{cancelLabel}</Button>
           {secondaryLabel && (
             <Button variant="outline" size="sm" disabled={!ready || busy} onClick={() => submit('secondary')} data-confirm-secondary="">{secondaryLabel}</Button>
           )}

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, fieldKindOf, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty,
   keyKindOf, mismatchOf, nextUnbound, pickableKeys, previewLine, rankKeysForField, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields, templateFor, unitQuantity,
-  CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
+  CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE, staleKeys,
   type BindingDraft, type DeviceKey, type FieldDraft, type SymbolSpec,
 } from '../views/symbol-binding-logic';
 
@@ -111,7 +111,9 @@ describe('formatValue / formatSample', () => {
   it('formats numbers with their unit, states and words', () => {
     expect(formatValue(21.5, '°C')).toBe('21.5 °C');
     expect(formatValue(21.123456)).toBe('21.123');
-    expect(formatValue(true)).toBe('true');
+    expect(formatValue(true)).toBe('On');
+    expect(formatValue(false)).toBe('Off');
+    expect(formatValue(true, undefined, { on: 'Açık', off: 'Kapalı' })).toBe('Açık');
     expect(formatValue('on')).toBe('on');
     expect(formatValue(null)).toBe('–');
     expect(formatValue(Number.NaN)).toBe('–');
@@ -121,7 +123,7 @@ describe('formatValue / formatSample', () => {
   it('quotes text in a preview so "on" and on are told apart', () => {
     expect(formatSample('on')).toBe('"on"');
     expect(formatSample(1)).toBe('1');
-    expect(formatSample(false)).toBe('false');
+    expect(formatSample(false)).toBe('Off');
     expect(formatSample(undefined)).toBe('nothing');
   });
 });
@@ -146,8 +148,8 @@ describe('scriptTemplates and previews', () => {
   it('builds the preview line', () => {
     expect(previewLine('', 1, null)).toEqual({ kind: 'none' });
     expect(previewLine('!value', undefined, null)).toEqual({ kind: 'wait' });
-    expect(previewLine('!value', 1, { ok: true, result: false })).toEqual({ kind: 'ok', from: '1', to: 'false' });
-    expect(previewLine('value === "on"', 'on', { ok: true, result: true })).toEqual({ kind: 'ok', from: '"on"', to: 'true' });
+    expect(previewLine('!value', 1, { ok: true, result: false })).toEqual({ kind: 'ok', from: '1', to: 'Off' });
+    expect(previewLine('value === "on"', 'on', { ok: true, result: true })).toEqual({ kind: 'ok', from: '"on"', to: 'On' });
     expect(previewLine('(', 1, { ok: false, error: 'SyntaxError: Unexpected end of input' })).toEqual({
       kind: 'error', error: 'syntax', detail: 'SyntaxError: Unexpected end of input',
     });
@@ -384,6 +386,10 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
     { what: 'the only key is taken whatever the field', field: { name: 'anything' }, keys: [k('only', 'x')], want: 'only' },
     { what: 'nothing for no keys', field: { name: 'value' }, keys: [], want: null },
     { what: 'a connection id the host marked internal is never offered', field: { name: 'running' }, keys: [k('c1.running', 1, { internal: true }), k('lvl', 63)], want: null },
+    // next-boilerplate e2e round 3, M-R3-03: a heat pump is not a mud pump, though both are pumps: offered (below), never certain
+    { what: 'another piece of equipment that shares the kind word only (heat pump for a mud pump) is foreign: not taken', field: { name: 'running', label: 'Running' }, keys: [k('heat_pump.running', true), k('drain.running', false), k('temp_1', 21.5)], element: 'pump_mud', hints: ['Mud pump', 'Pump'], want: null },
+    { what: 'the same words in another order are the same equipment (circulation pump, pump_circulation)', field: { name: 'running', label: 'Running' }, keys: [k('pump_circulation.running', true), k('drain.running', false), k('temp_1', 21.5)], element: 'p1', hints: ['Circulation pump', 'Pump'], want: 'pump_circulation.running' },
+    { what: 'a synonym is no distinguishing word (supply temperature, supply_temp)', field: { name: 'value', label: 'Reading' }, keys: [k('supply_temp.value', 41, { unit: '°C' }), k('return_temp.value', 35, { unit: '°C' })], element: 't1', hints: ['Supply temperature', 'Thermometer'], want: 'supply_temp.value' },
   ];
   for (const c of cases) {
     it(c.what, () => {
@@ -411,6 +417,36 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
     expect(sure[0]).toMatchObject({ key: 'temp_c', confident: true });
     expect(sure[0].score).toBeGreaterThanOrEqual(CONFIDENT_SCORE);
     expect(sure.map((r) => r.key)).toEqual(['temp_c']); // hum says humidity, another quantity than a temperature: no candidate at all
+  });
+
+  it('a heat pump\'s key for a mud pump (M-R3-03): first in the list, marked foreign, never confident, even with a label that says pump', () => {
+    const ranked = rankKeysForField({ name: 'running', label: 'Running' }, [k('heat_pump.running', true, { label: 'Heat pump · running' }), k('drain.running', false), k('temp_1', 21.5)], 'pump_mud', [], ['Mud pump', 'Pump']);
+    expect(ranked[0]).toMatchObject({ key: 'heat_pump.running', foreign: true, confident: false });
+    expect(ranked[0].score).toBeGreaterThanOrEqual(MIN_PROPOSAL_SCORE);
+    // an unlabelled pump symbol (named by its kind alone) may well be the heat pump: not foreign
+    const plain = rankKeysForField({ name: 'running', label: 'Running' }, [k('heat_pump.running', true), k('temp_1', 21.5)], 'p1', [], ['Pump', 'Pump']);
+    expect(plain[0]).toMatchObject({ key: 'heat_pump.running', confident: true });
+    expect(plain[0].foreign).toBeUndefined();
+  });
+
+  it('a key whose last value is hours behind the device\'s newest is stale: ranked after the live ones and never picked by itself (M-R3-06)', () => {
+    const now = Date.now();
+    const old = rankKeysForField({ name: 'value', label: 'Reading' }, [
+      { key: 'flow_lpm', value: 12.4, ts: now - 12 * 3600_000 },
+      { key: 'meter_flow.value', label: 'Flow meter · value', value: 186.6, ts: now - 5000 },
+      { key: 'pump_on', value: true, ts: now - 5000 },
+    ], 'meter_flow', [], ['Flow meter', 'Flow meter']);
+    expect(old[0]).toMatchObject({ key: 'meter_flow.value', confident: true });
+    const stale = old.find((r) => r.key === 'flow_lpm')!;
+    expect(stale.reasons).toContain('stale');
+    expect(stale.confident).toBe(false);
+    // the stale key alone, with a live rival that says nothing: still offered, never taken
+    const alone = rankKeysForField({ name: 'value', label: 'Flow' }, [{ key: 'flow_lpm', value: 12.4, ts: now - 12 * 3600_000 }, { key: 'door', value: true, ts: now }]);
+    expect(alone[0]).toMatchObject({ key: 'flow_lpm', confident: false });
+    // a declared key with no value yet has no time to be old, and a device whose keys are all old has nothing newer to be behind
+    expect(staleKeys([{ key: 'a', ts: '' }, { key: 'b', ts: now }])).toEqual(new Set());
+    expect(staleKeys([{ key: 'a', ts: now - 48 * 3600_000 }, { key: 'b', ts: now - 47 * 3600_000 }])).toEqual(new Set());
+    expect(staleKeys([{ key: 'a', ts: now - 48 * 3600_000 }, { key: 'b', ts: now }])).toEqual(new Set(['a']));
   });
 
   it('a unit of another quantity counts against a key; a field with no unit and no quantity word ignores units', () => {

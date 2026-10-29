@@ -248,7 +248,7 @@ describe('SymbolBindingPanel: the device', () => {
     expect(picker('Temperature')).toHaveValue('');
     // a flow is another quantity than a temperature: not even offered; the row says what to do
     expect(within(row('Temperature')).queryByText(/^Suggested:/)).toBeNull();
-    expect(within(row('Temperature')).getByText('Pick the value this reads, or choose An expression.')).toBeInTheDocument();
+    expect(within(row('Temperature')).getByText('Not connected. Pick the value this reads, or choose An expression.')).toBeInTheDocument();
   });
 });
 
@@ -277,7 +277,7 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     const level = await screen.findByRole('group', { name: 'Level' });
     await waitFor(() => expect(within(level).getByRole('searchbox', { name: 'Level' })).toBeEnabled());
     expect(within(level).getByRole('searchbox', { name: 'Level' })).toHaveValue('');
-    expect(within(level).getByText('Pick the value this reads, or choose An expression.')).toBeInTheDocument();
+    expect(within(level).getByText('Not connected. Pick the value this reads, or choose An expression.')).toBeInTheDocument();
   });
   it('offers the best candidate with one tap when it is not certain, and the picker lists the device\'s values with the suggested one first', async () => {
     const user = userEvent.setup();
@@ -288,7 +288,7 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     // the best candidate is text where a number is expected: NOT offered as a suggestion (a proposal the panel itself contradicts makes no sense,
     // e2e round 2 E2E-2.11); the row says what to do, and the picker still lists it first
     expect(within(r).queryByText('Suggested: reading')).toBeNull();
-    expect(within(r).getByText('Pick the value this reads, or choose An expression.')).toBeInTheDocument();
+    expect(within(r).getByText('Not connected. Pick the value this reads, or choose An expression.')).toBeInTheDocument();
     expect(within(r).getByRole('searchbox', { name: 'Reading' })).toHaveValue('');
     await user.click(within(r).getByRole('searchbox', { name: 'Reading' }));
     const options = within(await screen.findByRole('listbox')).getAllByRole('option');
@@ -311,15 +311,15 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     expect(screen.getAllByText('Suggested')).toHaveLength(2);
     await pickKey(user, 'Flow', 'pump_on');
     expect(picker('Flow')).toHaveValue('pump_on');
-    expect(within(row('Flow')).getByText('true · 2 s ago')).toBeInTheDocument();
+    expect(within(row('Flow')).getByText('On · 2 s ago')).toBeInTheDocument();
     expect(screen.getAllByText('Suggested')).toHaveLength(1);
   });
-  it('lets a field be cleared ("Not used") and saves without it', async () => {
+  it('lets a field be cleared ("Not connected") and saves without it', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave })} />);
     await rowsReady();
-    await user.click(within(row('Temperature')).getByRole('button', { name: 'Not used' }));
+    await user.click(within(row('Temperature')).getByRole('button', { name: 'Not connected' }));
     expect(picker('Temperature')).toHaveValue('');
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith({ fields: { running: { deviceId: D1, key: 'state' } } });
@@ -363,7 +363,7 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     render(<SymbolBindingPanel {...props({ symbol: sym, onSave })} />);
     await rowsReady();
     expect(screen.getByText('from Roof unit')).toBeInTheDocument();
-    await user.click(within(row('Running')).getByRole('button', { name: 'Not used' }));
+    await user.click(within(row('Running')).getByRole('button', { name: 'Not connected' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D2, key: 'flow', script: 'value * 2' } } });
   });
@@ -406,7 +406,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     return bad ? `unknown name "${bad}" (a formula reads value, row and now${names.length ? ` and the inputs ${names.join(', ')}` : ''})` : null;
   };
 
-  it('a row reads a device value by default; the source switch opens the expression box over that value and previews "1 → true" through the host sandbox', async () => {
+  it('a row reads a device value by default; the source switch opens the expression box over that value and previews "1 → On" through the host sandbox', async () => {
     const user = userEvent.setup();
     const previewScript = vi.fn(stub);
     render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript })} />);
@@ -415,7 +415,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     expect(screen.queryByLabelText('Expression for Running')).toBeNull();
     await user.selectOptions(source('Running'), 'expression');
     fireEvent.change(expression('Running'), { target: { value: 'value === 1' } });
-    await waitFor(() => expect(within(row('Running')).getByText('1 → true')).toBeInTheDocument());
+    await waitFor(() => expect(within(row('Running')).getByText('1 → On')).toBeInTheDocument());
     expect(previewScript).toHaveBeenCalledWith('value === 1', 1);
   });
   it('opens in expression mode by itself when a field already has a one-liner, and announces the preview politely', async () => {
@@ -425,7 +425,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     render(<SymbolBindingPanel {...props({ symbol: sym, previewScript: stub })} />);
     expect(source('Running')).toHaveValue('expression');
     expect(expression('Running')).toHaveValue('!value');
-    const line = await screen.findByText('1 → false');
+    const line = await screen.findByText('1 → Off');
     expect(line).toHaveAttribute('aria-live', 'polite');
     expect(line).toHaveAttribute('role', 'status');
   });
@@ -438,7 +438,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     for (const chip of ['Invert', 'Scale 0–100', 'Round', 'Threshold', 'Words']) expect(within(r).getByRole('button', { name: chip })).toBeInTheDocument();
     await user.click(within(r).getByRole('button', { name: 'Invert' }));
     expect(expression('Running')).toHaveValue('!value');
-    await waitFor(() => expect(within(r).getByText('1 → false')).toBeInTheDocument());
+    await waitFor(() => expect(within(r).getByText('1 → Off')).toBeInTheDocument());
     await user.click(within(r).getByRole('button', { name: 'Scale 0–100' }));
     expect(expression('Running')).toHaveValue('value / 4095 * 100');
   });
@@ -454,7 +454,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     expect(expression('Running')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByText(/SyntaxError|ReferenceError/)).toBeNull();
     fireEvent.change(expression('Running'), { target: { value: '!value' } });
-    await waitFor(() => expect(within(row('Running')).getByText('1 → false')).toBeInTheDocument());
+    await waitFor(() => expect(within(row('Running')).getByText('1 → Off')).toBeInTheDocument());
     expect(expression('Running')).not.toHaveAttribute('aria-invalid');
   });
   it('without a judge, the sandbox\'s failure is worded; a sandbox that throws is reported too', async () => {
@@ -556,7 +556,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     fireEvent.change(box, { target: { value: 'x'.repeat(250) } });
     expect(expression('Running').value).toHaveLength(200);
   });
-  it('switching back to a device value drops the expression and its inputs', async () => {
+  it('switching back to a device value drops the expression, its inputs AND the value it was built on: the row is not connected until a value is picked (M-R3-06)', async () => {
     const user = userEvent.setup();
     const sym = symbol({ fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'state' }, currentScript: '!value' }] });
     const onSave = vi.fn();
@@ -564,9 +564,25 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     await waitFor(() => expect(expression('Running')).toHaveValue('!value'));
     await user.selectOptions(source('Running'), 'value');
     expect(screen.queryByLabelText('Expression for Running')).toBeNull();
-    expect(picker('Running')).toHaveValue('Burner');
+    expect(picker('Running')).toHaveValue('');
+    expect(within(row('Running')).getByText(/Not connected\. Pick the value this reads/)).toBeInTheDocument();
+    expect(within(row('Running')).queryByRole('button', { name: 'Disconnect' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(onSave).toHaveBeenCalledWith({ fields: { running: { deviceId: D1, key: 'state' } } });
+    expect(onSave).toHaveBeenCalledWith({ fields: {} });
+  });
+  it('a connected row has a Disconnect button that takes the connection away in words (M-R3-06), and the host\'s save error goes once the draft changes (m-R3-09)', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const view = render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave, error: 'value: unexpected ")" at position 17' })} />);
+    await rowsReady();
+    expect(screen.getByText('value: unexpected ")" at position 17')).toBeInTheDocument();
+    await user.click(within(row('Running')).getByRole('button', { name: 'Disconnect' }));
+    expect(picker('Running')).toHaveValue('');
+    expect(screen.queryByText('value: unexpected ")" at position 17')).toBeNull();
+    view.rerender(<SymbolBindingPanel {...props({ symbol: BOUND, onSave, error: 'value: unexpected ")" at position 17' })} />);
+    expect(screen.queryByText('value: unexpected ")" at position 17')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D1, key: 'temperature' } } });
   });
 });
 
@@ -875,7 +891,7 @@ describe('SymbolBindingPanel: a symbol the drawing fills automatically', () => {
     render(<SymbolBindingPanel {...teaProps()} />);
     expect(deviceBox()).toHaveValue('Roof unit');
     await waitFor(() => expect(within(row('Reading')).getByText('water_kettle.value · 57 % · 2 s ago')).toBeInTheDocument());
-    expect(within(row('Running')).getByText('water_kettle.running · true · 2 s ago')).toBeInTheDocument();
+    expect(within(row('Running')).getByText('water_kettle.running · On · 2 s ago')).toBeInTheDocument();
     expect(within(row('Status')).getByText('water_kettle.status · heating · 2 s ago')).toBeInTheDocument();
     expect(screen.getAllByText('automatic')).toHaveLength(3);
     expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3);
@@ -915,13 +931,13 @@ describe('SymbolBindingPanel: a symbol the drawing fills automatically', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D2, key: 'water_kettle.value', script: 'value / 10' } } }));
   });
-  it('"Not used" on an automatic field goes back to the automatic source: the match cannot be switched off', async () => {
+  it('"Not connected" on an automatic field goes back to the automatic source: the match cannot be switched off', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...teaProps()} />);
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Change' })).toHaveLength(3));
     await change(user, 'Reading');
     await pickKey(user, 'Reading', 'other.value');
-    await user.click(within(row('Reading')).getByRole('button', { name: 'Not used' }));
+    await user.click(within(row('Reading')).getByRole('button', { name: 'Not connected' }));
     // the kit's picker reopens its list after its clear button; closed, it shows the value it went back to
     await user.keyboard('{Escape}');
     expect(picker('Reading')).toHaveValue('water_kettle.value');

@@ -99,10 +99,13 @@ describe('SceneInspector: tabs', () => {
 });
 
 describe('SceneInspector: the diagram', () => {
-  it('shows the scene\'s fields when nothing is selected, in groups', () => {
-    mount();
+  it('shows the scene\'s fields when nothing is selected, in groups: the look and the colours first, the canvas and the data columns under Advanced (M-R3-09)', () => {
+    const { container } = mount();
     expect(screen.getByRole('heading', { name: 'Diagram' })).toBeInTheDocument();
-    for (const g of ['Canvas', 'Look', 'Colours', 'Data']) expect(screen.getByRole('heading', { name: g })).toBeInTheDocument();
+    for (const g of ['Look', 'Colours']) expect(screen.getByRole('heading', { name: g })).toBeInTheDocument();
+    const fold = container.querySelector('details[data-part="scene-advanced"]')!;
+    expect(fold).not.toHaveAttribute('open');
+    for (const g of ['Canvas', 'Data']) expect(within(fold as HTMLElement).getByRole('heading', { name: g, hidden: true })).toBeInTheDocument();
     expect(ctl('Canvas width')).toHaveValue(1000);
     expect(ctl('Canvas height')).toHaveValue(600);
     expect(ctl('Symbol size')).toHaveValue(0.6);
@@ -140,6 +143,11 @@ describe('SceneInspector: the diagram', () => {
     const group = screen.getByRole('heading', { name: 'Colours' }).closest('section')!;
     fireEvent.click(within(within(group).getByRole('radiogroup', { name: 'Idle: theme colours' })).getByRole('radio', { name: 'Info' }));
     expect(probe.current!.ctx.settings.idleColor).toBe('var(--info)');
+    // a theme colour is shown by its name, never as its var(--…) code (M-R3-04); "Custom…" opens the free box
+    const idle = group.querySelector('[data-part="colour-token"]')!;
+    expect(idle).toHaveTextContent('Info');
+    expect(idle).not.toHaveTextContent('var(');
+    fireEvent.click(within(idle.parentElement as HTMLElement).getByRole('button', { name: 'Custom…' }));
     const box = within(group).getAllByRole('textbox')[0];
     fireEvent.change(box, { target: { value: '#12' } });
     expect(screen.getByRole('alert')).toHaveTextContent('This is not a colour.');

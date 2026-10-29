@@ -360,6 +360,9 @@ export interface InspectorMessages {
     /** The things table's settings (phase 35). */
     things?: string;
   };
+  /** The fold that holds the diagram's canvas, data and things settings when nothing is selected (next-boilerplate e2e round 3, M-R3-09). */
+  advanced: string;
+  advancedHint: string;
   /** A thing from data, read-only: its heading, the "placed by data" line, a sample row's note and its fields' names. */
   thing: (name: string, id: string) => string;
   placedByData: string;
@@ -377,6 +380,8 @@ export const DEFAULT_INSPECTOR_MESSAGES: InspectorMessages = {
   tabsLabel: 'Inspector sections',
   scene: 'Diagram',
   sceneHint: 'Nothing is selected: these settings apply to the whole diagram.',
+  advanced: 'Advanced',
+  advancedHint: 'The canvas size, which table columns name the symbols, and things placed from data. Nothing here is needed to draw or connect a diagram.',
   symbol: (name, id) => `${name} (${id})`,
   severalSymbols: (n) => `${n} symbols`,
   severalConnections: (n) => `${n} connections`,
@@ -387,7 +392,7 @@ export const DEFAULT_INSPECTOR_MESSAGES: InspectorMessages = {
   shared: 'Showing the fields they share. A change is written to every one of them.',
   differs: 'differs',
   id: 'Id',
-  idHelp: 'Names the symbol for connections and picks its row in the bound table. Press Enter or leave the field to rename.',
+  idHelp: 'The symbol\'s short name inside the drawing: connections and rules refer to it. Press Enter or leave the field to rename.',
   idRenamed: (id) => `Renamed to ${id}`,
   notAColour: 'This is not a colour.',
   groups: {
