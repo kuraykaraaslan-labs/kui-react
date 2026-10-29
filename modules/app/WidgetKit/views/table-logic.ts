@@ -87,9 +87,16 @@ export function toEpoch(raw: unknown): number | null {
   return Number.isFinite(at) ? at : null;
 }
 
-/** "5 minutes ago" ("5m ago" narrow) in the viewer's locale. */
+/**
+ * How far ahead of the viewer's clock a stored instant may be and still read as "now": a server that stamped a reading a few seconds after
+ * the browser's clock (two machines, two clocks) must not make an "Updated" cell say "in 7 seconds".
+ */
+export const CLOCK_SKEW_SEC = 120;
+
+/** "5 minutes ago" ("5m ago" narrow) in the viewer's locale; an instant up to `CLOCK_SKEW_SEC` ahead reads as now, never as the future. */
 export function relativeTime(at: number, now = Date.now(), locale?: string, style: 'long' | 'short' | 'narrow' = 'long'): string {
-  const diffSec = Math.round((at - now) / 1000);
+  const raw = Math.round((at - now) / 1000);
+  const diffSec = raw > 0 && raw <= CLOCK_SKEW_SEC ? 0 : raw;
   const abs = Math.abs(diffSec);
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style });
   if (abs < 60) return rtf.format(diffSec, 'second');
