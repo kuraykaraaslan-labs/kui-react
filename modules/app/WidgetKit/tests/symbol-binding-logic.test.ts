@@ -421,7 +421,11 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
     expect(keyKindOf({ value: 'on' })).toBe('state');
     expect(keyKindOf({ value: 'heating' })).toBe('text');
     expect(keyKindOf({ value: null })).toBeNull();
-    expect(mismatchOf({ name: 'status' }, { value: 5 })).toBeNull();
+    expect(mismatchOf({ name: 'status' }, { value: 5 })).toBe('number-for-text');
+    expect(mismatchOf({ name: 'status' }, { value: 'ok' })).toBeNull();
+    expect(mismatchOf({ name: 'status' }, { value: true })).toBeNull();
+    // a tee's Status is never ticked onto a temperature because of a shared word
+    expect(rankKeysForField({ name: 'status', label: 'Status' }, [k('supply_temp', 60.2), k('x', 'a')], undefined, [], ['Supply tee', 'Pipe (tee)'])[0]).toMatchObject({ key: 'supply_temp', confident: false, mismatch: 'number-for-text' });
     expect(mismatchOf({ name: 'value' }, { value: true })).toBe('state-for-number');
     expect(mismatchOf({ name: 'running' }, { value: 'high' })).toBe('text-for-state');
   });

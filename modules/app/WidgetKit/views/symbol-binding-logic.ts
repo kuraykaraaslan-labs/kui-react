@@ -273,7 +273,7 @@ export function keyQuantity(k: Pick<DeviceKey, 'key' | 'label' | 'unit'>): { qua
 // ─── Ranking a device's keys for a field (U1) ────────────────────────────────
 
 /** Why a key does not fit the field, in a word the panel turns into a sentence: its kind, or the quantity it measures (`quantity`: a temperature for an opening). */
-export type Mismatch = 'text-for-number' | 'state-for-number' | 'number-for-state' | 'text-for-state' | 'quantity';
+export type Mismatch = 'text-for-number' | 'state-for-number' | 'number-for-state' | 'text-for-state' | 'number-for-text' | 'quantity';
 
 /** `symbol`: the shared word came from the symbol's own words (its label or kind), not from the field's: a reason specific to THIS symbol. */
 export type RankReason = 'element' | 'name' | 'synonym' | 'symbol' | 'contains' | 'type' | 'unit' | 'only';
@@ -294,7 +294,8 @@ export function mismatchOf(field: { name: string; kind?: FieldKind }, key: Pick<
   if (!want || !got || want === got) return null;
   if (want === 'number') return got === 'text' ? 'text-for-number' : 'state-for-number';
   if (want === 'state') return got === 'text' ? 'text-for-state' : 'number-for-state';
-  return null; // a text field shows a state or a number as it is
+  // a status shows a state as a word; a bare number is seldom a status (found on the real drawing: a tee's Status offered a temperature as certain)
+  return got === 'number' ? 'number-for-text' : null;
 }
 
 /**
