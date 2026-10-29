@@ -742,7 +742,8 @@ function FieldRow(p: FieldRowProps) {
     const list = [...pickableKeys(keys).sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity)), ...keys.filter((k) => k.internal)];
     const best = ranked[0]?.key;
     const out = list.map((k): ComboBoxOption => {
-      const line = m.optionLine(formatValue(k.value, k.unit), ageText(k.ts, now, m.age));
+      // a key the device's profile declares but the device has not sent yet (no reading, no time) is offered with "No value yet", not "–" (E2E-1.4)
+      const line = k.ts ? m.optionLine(formatValue(k.value, k.unit), ageText(k.ts, now, m.age)) : m.noValueYet;
       return { value: k.key, label: nameOfKey(k, k.key), description: k.key === best ? m.suggestedOption(line) : line };
     });
     if (f.key && !out.some((o) => o.value === f.key)) out.unshift({ value: f.key, label: f.key });
@@ -849,7 +850,7 @@ function valueLineOf(a: {
 }): string {
   const { f, info, other, ready, field, now, m } = a;
   if (!f.key || other) return '';
-  if (info) return m.valueAndAge(formatValue(info.value, info.unit), ageText(info.ts, now, m.age));
+  if (info) return info.ts ? m.valueAndAge(formatValue(info.value, info.unit), ageText(info.ts, now, m.age)) : m.noValueYet;
   if (!ready) {
     // While the values load: what the symbol shows now, when nothing converts it.
     const same = field.currentSource?.key === f.key && !(field.currentScript ?? '').trim() && field.live !== undefined;

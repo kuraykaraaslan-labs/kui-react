@@ -35,6 +35,32 @@ describe('host.onRename', () => {
     key(box, 'Enter');
     expect(onRename).not.toHaveBeenCalled();
   });
+
+  // next-boilerplate E2E-1.11: after a rename and an Undo the id was back but the host's actions still hung off the new id (one more problem, Apply on)
+  it('is told again, backwards, when an Undo takes a rename back, and forwards on Redo', () => {
+    const onRename = vi.fn();
+    const m = mount({ host: { onRename } });
+    click(m.svg, { x: B.pump1.cx, y: B.pump1.cy });
+    const box = ctl('Id');
+    fireEvent.change(box, { target: { value: 'pumpA' } });
+    key(box, 'Enter');
+    expect(onRename).toHaveBeenLastCalledWith('pump1', 'pumpA');
+    key(m.canvas, 'z', { ctrlKey: true });
+    expect(onRename).toHaveBeenCalledTimes(2);
+    expect(onRename).toHaveBeenLastCalledWith('pumpA', 'pump1');
+    key(m.canvas, 'y', { ctrlKey: true });
+    expect(onRename).toHaveBeenCalledTimes(3);
+    expect(onRename).toHaveBeenLastCalledWith('pump1', 'pumpA');
+  });
+
+  it('an Undo of a move or a delete tells the host nothing', () => {
+    const onRename = vi.fn();
+    const m = mount({ host: { onRename } });
+    click(m.svg, { x: B.pump1.cx, y: B.pump1.cy });
+    key(m.canvas, 'Delete');
+    key(m.canvas, 'z', { ctrlKey: true });
+    expect(onRename).not.toHaveBeenCalled();
+  });
 });
 
 describe('host.problems', () => {

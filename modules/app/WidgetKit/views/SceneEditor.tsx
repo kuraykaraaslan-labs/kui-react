@@ -11,7 +11,8 @@ import { faChevronDown, faChevronLeft, faChevronRight, faChevronUp } from '@fort
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
-import { sceneModel } from './scada-scene-logic';
+import { sceneModel, type SceneSettings } from './scada-scene-logic';
+import { elementIds, elementsOf } from './scene-edit-core';
 import {
   addElement, align, apply as historyApply, canRedo, canUndo, captureAssembly, createHistory, deleteSelection, distribute, duplicate, insertAssembly,
   moveSelection, parseClipboard, problems as findProblems, redo as historyRedo, renameElement, reorder, resizeShape, serialize, setOwnSize, setShapeProps, snapPoint,
@@ -162,9 +163,19 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
 
   const snappedCentre = (): Pt => {
     const c = snapPoint(viewCenter, { grid: grid ? 10 : false, guides: false });
-    // A symbol added at the same place as another one would hide it: step aside.
+    // A symbol added where another one is drawn would land on top of it, and the one underneath could not be clicked again
+    // (next-boilerplate E2E-1.15: a 20 px step left three symbols in one heap). The new one goes clear of the box it would hit:
+    // to its right while the canvas has room, else below it; a free spot takes at most a few steps.
+    const width = Math.min(4000, Math.max(200, Number(settings.width) || 1200));
+    const gap = grid ? 20 : 16;
     let at: Pt = c;
-    for (let i = 0; i < 12 && geo.hits.some((h) => Math.abs(h.x + h.w / 2 - at.x) < 6 && Math.abs(h.y + h.h / 2 - at.y) < 6); i += 1) at = { x: at.x + 20, y: at.y + 20 };
+    for (let i = 0; i < 12; i += 1) {
+      const hit = geo.hits.find((h) => at.x >= h.x - gap && at.x <= h.x + h.w + gap && at.y >= h.y - gap && at.y <= h.y + h.h + gap);
+      if (!hit) break;
+      const right = { x: hit.x + hit.w + hit.w / 2 + gap, y: at.y };
+      const below = { x: at.x, y: hit.y + hit.h + hit.h / 2 + gap };
+      at = snapPoint(right.x + hit.w / 2 <= width ? right : below, { grid: grid ? 10 : false, guides: false });
+    }
     return at;
   };
 
@@ -248,8 +259,18 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
     say(fill(m.connected, { from: a, to: b }));
   };
 
-  const doUndo = () => { commit(historyUndo(historyRef.current)); say(m.undone); };
-  const doRedo = () => { commit(historyRedo(historyRef.current)); say(m.redone); };
+  /**
+   * An undo or a redo that swaps exactly one symbol id for another is a rename run backwards (or again): the host is told as it was
+   * told of the rename itself, so what hangs off the id (its actions) follows and its problem count does not climb (next-boilerplate E2E-1.11).
+   */
+  const tellRenameAcross = (before: SceneSettings, after: SceneSettings) => {
+    if (!host.onRename) return;
+    const was = elementIds(before); const now = elementIds(after);
+    const gone = [...was].filter((id) => !now.has(id)); const came = [...now].filter((id) => !was.has(id));
+    if (gone.length === 1 && came.length === 1 && elementsOf(before).length === elementsOf(after).length) host.onRename(gone[0], came[0]);
+  };
+  const doUndo = () => { const before = historyRef.current.present; commit(historyUndo(historyRef.current)); tellRenameAcross(before, historyRef.current.present); say(m.undone); };
+  const doRedo = () => { const before = historyRef.current.present; commit(historyRedo(historyRef.current)); tellRenameAcross(before, historyRef.current.present); say(m.redone); };
   /** Takes back the drag with this group key (Escape while dragging), if it is still the last step. */
   const cancelGroup = (group: string) => { if (historyRef.current.group === group) commit(historyUndo(historyRef.current)); };
 

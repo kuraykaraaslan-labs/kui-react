@@ -160,6 +160,11 @@ export interface SceneSetupMessages {
   // 4. Matching
   matchSection: string;
   matchHint: string;
+  /**
+   * Shown instead of a table nobody can fill: the chosen devices offer no grouped elements (a device that sends flat keys, or nothing yet), so
+   * the symbols are connected to values on the drawing itself (next-boilerplate E2E-1.4).
+   */
+  matchNoElements: string;
   keyColumn: string;
   kindColumn: string;
   statusColumn: string;
@@ -235,6 +240,11 @@ export interface SceneSetupMessages {
   acknowledge: (unmatched: number, proposals: number, stale: number) => string;
   reasonLabel: string;
   reasonPlaceholder: string;
+  /** Closing (Escape, the backdrop, Cancel) with edits the person made asks first (next-boilerplate E2E-1.10). */
+  discardTitle: string;
+  discardBody: string;
+  discardConfirm: string;
+  discardKeep: string;
 
   // 5. Rules
   rules: SceneSetupRulesMessages;
@@ -318,6 +328,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
 
   matchSection: '4. Match',
   matchHint: 'Each key of the scene reads one element of a device. A key that is the element id needs nothing stored; the rest are saved as exceptions.',
+  matchNoElements: 'These devices send no grouped values this table could match, so there is nothing to do here. Save the setup, then connect each symbol where the drawing is shown: click the symbol and pick the value it shows.',
   keyColumn: 'Scene key',
   kindColumn: 'Kind',
   statusColumn: 'Status',
@@ -483,9 +494,14 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     words: DEFAULT_DESIGN_RULE_WORDS,
   },
   confirmTitle: 'Save the scene setup',
+  // in words a person who knows no key or slot can read (next-boilerplate E2E-1.13): what is saved, and what still reads nothing
   confirmMessage: (kind, mapped, unmatched) =>
-    `Saves the ${kind} setup for this slot, with ${n(mapped, 'exception', 'exceptions')}. ${unmatched ? `${n(unmatched, 'key stays', 'keys stay')} unmatched.` : 'Every key is matched.'}`,
+    `Saves this ${kind} setup${mapped ? `, with ${n(mapped, 'symbol connected', 'symbols connected')} by hand` : ''}. ${unmatched ? `${n(unmatched, 'symbol reads', 'symbols read')} nothing yet; connect them on the drawing afterwards.` : 'Every symbol has a value.'}`,
   confirmButton: 'Save setup',
+  discardTitle: 'Discard your changes?',
+  discardBody: 'This setup has changes that were not saved.',
+  discardConfirm: 'Discard changes',
+  discardKeep: 'Keep editing',
   acknowledge: (unmatched, proposals, stale) => {
     const parts = [
       unmatched ? n(unmatched, 'scene key stays', 'scene keys stay') + ' unmatched' : '',

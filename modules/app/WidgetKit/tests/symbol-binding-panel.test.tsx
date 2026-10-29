@@ -336,6 +336,20 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     expect(await screen.findByText('No value yet')).toBeInTheDocument();
     expect(picker('Temperature')).toHaveValue('gone');
   });
+  // next-boilerplate E2E-1.4: a device that never connected still offers the values its profile declares (no reading, no time): pickable, said as such
+  it('lists a declared key the device has not sent yet as "No value yet" (never "–"), and it can be picked', async () => {
+    const declared: DeviceKey[] = [{ key: 'level_pct', label: 'Tank level', unit: '%', value: null, ts: '' }, { key: 'pump_on', value: null, ts: '' }];
+    const loadKeys = vi.fn(async () => declared);
+    const sym = symbol({ fields: [{ name: 'value', label: 'Level', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'level_pct' } }] });
+    render(<SymbolBindingPanel {...props({ symbol: sym, loadKeys })} />);
+    expect(await screen.findByText('No value yet')).toBeInTheDocument();
+    expect(screen.queryByText('–')).toBeNull();
+    const user = userEvent.setup();
+    await user.click(picker('Level'));
+    const list = await screen.findByRole('listbox');
+    expect(within(list).getByText('Tank level')).toBeInTheDocument();
+    expect(within(list).getAllByText(/No value yet/).length).toBeGreaterThan(0);
+  });
   it('shows a field that reads another device with that device named, and keeps it on save', async () => {
     const onSave = vi.fn();
     const sym = symbol({

@@ -372,7 +372,8 @@ describe('SceneSetupDrawer: save', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
     expect(onSave).not.toHaveBeenCalled();
-    expect(within(dialog).getByText(/with 3 exceptions\. 0 keys|with 3 exceptions\. Every key is matched\./)).toBeInTheDocument();
+    // in words, never "exceptions" or "keys" (next-boilerplate E2E-1.13): what is connected by hand, and that nothing reads nothing
+    expect(within(dialog).getByText(/Saves this design setup, with 3 symbols connected by hand\. Every symbol has a value\./)).toBeInTheDocument();
     await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0]).toEqual({
@@ -783,11 +784,42 @@ describe('SceneSetupDrawer: the slot, the document column and the form snapshot'
 });
 
 describe('SceneSetupDrawer: keyboard and session', () => {
-  it('Escape closes the drawer', async () => {
+  it('Escape closes an untouched drawer at once', async () => {
     const onClose = vi.fn();
     render(<SceneSetupDrawer {...props({ onClose })} />);
     await userEvent.setup().keyboard('{Escape}');
     expect(onClose).toHaveBeenCalled();
+  });
+  // next-boilerplate E2E-1.10: a rule typed into step 5 was thrown away by Escape without a word
+  it('with edits of the person, Escape and Cancel ask first: Keep editing keeps the form, Discard changes closes', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<SceneSetupDrawer {...props({ onClose })} />);
+    await user.selectOptions(elementOf('fan'), ['0']);
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    const ask = screen.getByRole('dialog', { name: 'Discard your changes?' });
+    await user.click(within(ask).getByRole('button', { name: 'Keep editing' }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(elementOf('fan').value).toBe('0');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Discard your changes?' })).getByRole('button', { name: 'Discard changes' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+  // next-boilerplate E2E-1.4: a device that sends flat keys (or nothing yet) has no element to match here; the table was a wall of greyed "Not matched"
+  it('with no element to match, says where the symbols are connected instead, and offers no Pick in the scene', () => {
+    render(<SceneSetupDrawer {...props({ elements: [], onPick: vi.fn() })} />);
+    expect(screen.getByTestId('match-no-elements').textContent).toMatch(/connect each symbol where the drawing is shown/);
+    expect(screen.queryByRole('button', { name: /^Pick .* in the scene$/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Match automatically' })).toBeDisabled();
+  });
+  it('the notice is not shown while something loads, with elements, or without a document', () => {
+    const { rerender } = render(<SceneSetupDrawer {...props({ elements: [], elementsLoading: true })} />);
+    expect(screen.queryByTestId('match-no-elements')).toBeNull();
+    rerender(<SceneSetupDrawer {...props()} />);
+    expect(screen.queryByTestId('match-no-elements')).toBeNull();
+    rerender(<SceneSetupDrawer {...props({ elements: [], initial: { slot: 'main', kind: 'design' }, sceneKeys: [] })} />);
+    expect(screen.queryByTestId('match-no-elements')).toBeNull();
   });
   it('every control is reachable by Tab and has an accessible name', async () => {
     render(<SceneSetupDrawer {...props({ onPick: vi.fn() })} />);

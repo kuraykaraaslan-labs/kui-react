@@ -143,13 +143,32 @@ describe('the palette', () => {
     const s = await m.applied();
     const [a, b] = [elements(s)[3], elements(s)[4]] as Array<{ id: string; x: number; y: number }>;
     expect([a.id, b.id]).toEqual(['router1', 'router2']);
-    // The view is centred on the canvas (500, 300), on the grid; the second goes aside.
+    // The view is centred on the canvas (500, 300), on the grid; the second goes clear of the first (next-boilerplate E2E-1.15: a 20 px
+    // step left the symbols in one heap, and the one underneath could not be clicked), on the grid too.
     expect(a.x % 10).toBe(0);
     expect(Math.abs(a.x - 500)).toBeLessThan(15);
     expect(Math.abs(a.y - 300)).toBeLessThan(15);
-    expect(b.x - a.x).toBe(20);
-    expect(b.y - a.y).toBe(20);
+    expect(b.x % 10).toBe(0);
+    const hits = sceneModel(s, {}).hits;
+    const ha = hits.find((h) => h.id === 'router1')!; const hb = hits.find((h) => h.id === 'router2')!;
+    const apart = hb.x >= ha.x + ha.w || ha.x >= hb.x + hb.w || hb.y >= ha.y + ha.h || ha.y >= hb.y + hb.h;
+    expect(apart).toBe(true);
     expect(selected(document.body)).toEqual(['router2']);
+  });
+
+  it('a third symbol goes clear of both, and one that would leave the canvas on the right goes below instead', async () => {
+    const m = mount({}, { ...smallScene(), width: 700 });
+    fireEvent.click(screen.getByText('add router'));
+    fireEvent.click(screen.getByText('add router'));
+    fireEvent.click(screen.getByText('add router'));
+    const s = await m.applied();
+    const hits = sceneModel(s, {}).hits.filter((h) => h.id.startsWith('router'));
+    expect(hits).toHaveLength(3);
+    for (const h of hits) expect(h.x + h.w).toBeLessThanOrEqual(700);
+    for (let i = 0; i < hits.length; i += 1) for (let j = i + 1; j < hits.length; j += 1) {
+      const p = hits[i]; const q = hits[j];
+      expect(q.x >= p.x + p.w || p.x >= q.x + q.w || q.y >= p.y + p.h || p.y >= q.y + q.h, `${p.id} and ${q.id} overlap`).toBe(true);
+    }
   });
 
   it('adds at the centre of what is shown after a zoom and a pan', async () => {

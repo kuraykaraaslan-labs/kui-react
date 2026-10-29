@@ -311,6 +311,12 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const [pendingSlot, setPendingSlot] = useState<string | null>(null);
   const [pendingKind, setPendingKind] = useState<string | null>(null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
+  // closing with the person's own edits in the form asks first (Escape, the backdrop and Cancel alike; next-boilerplate E2E-1.10)
+  const [confirmingClose, setConfirmingClose] = useState(false);
+  const requestClose = (): void => {
+    if (touched) setConfirmingClose(true);
+    else onClose();
+  };
 
   // ── Devices in the scene and their roles ──
   const savedDeviceIds = useMemo(() => new Set(Object.values(seed.devices)), [seed.devices]);
@@ -712,7 +718,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           >
             {r.how === 'hidden' ? m.bindAgain : m.dontBind}
           </Button>
-          {props.onPick && (
+          {props.onPick && elements.length > 0 && (
             <Button
               size="xs" variant="outline" aria-label={m.pickOf(r.key)} aria-pressed={pickingKey === r.key}
               iconLeft={<FontAwesomeIcon icon={faCrosshairs} aria-hidden="true" />} onClick={() => pick(r.key)}
@@ -751,12 +757,14 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
 
   const needsAck = left.keys.length > 0 || staleKept.length > 0;
   const confirmText = m.confirmMessage(kind, Object.keys(draft.map).length, left.keys.length);
+  // the devices offer nothing this table matches (flat keys, or nothing sent yet): say where the symbols are connected instead of a greyed table
+  const noElements = !loading && !!documentId && sceneKeys.length > 0 && includedDevices.length > 0 && elements.length === 0;
 
   return (
     <>
       <Drawer
         open={open}
-        onClose={onClose}
+        onClose={requestClose}
         title={m.title}
         closeLabel={m.close}
         portalTarget={props.portalTarget}
@@ -769,7 +777,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
               {removable && (
                 <Button variant="ghost" disabled={saving || props.removing} loading={props.removing} onClick={() => setConfirmingRemove(true)}>{m.removeButton}</Button>
               )}
-              <Button variant="ghost" onClick={onClose}>{m.cancel}</Button>
+              <Button variant="ghost" onClick={requestClose}>{m.cancel}</Button>
               <Button disabled={!canSave} loading={saving} onClick={() => setConfirming(true)}>{saving ? m.saving : m.save}</Button>
             </div>
           </div>
@@ -888,6 +896,12 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
               </Button>
             </div>
 
+            {noElements && (
+              <div data-testid="match-no-elements">
+                <AlertBanner variant="info" message={m.matchNoElements} />
+              </div>
+            )}
+
             <div className={cn('grid gap-4', preview ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]' : undefined)}>
               <div className="min-w-0 space-y-3">
                 {pickedRow && (
@@ -989,6 +1003,21 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           const next = pendingKind;
           setPendingKind(null);
           if (next !== null) applyKind(next);
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmingClose && open}
+        portalTarget={props.portalTarget}
+        title={m.discardTitle}
+        message={m.discardBody}
+        tone="warning"
+        confirmLabel={m.discardConfirm}
+        cancelLabel={m.discardKeep}
+        onCancel={() => setConfirmingClose(false)}
+        onConfirm={() => {
+          setConfirmingClose(false);
+          onClose();
         }}
       />
 
