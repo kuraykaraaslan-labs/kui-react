@@ -246,7 +246,9 @@ describe('SymbolBindingPanel: the device', () => {
     await pickDevice(user, 'Roof unit');
     await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
     expect(picker('Temperature')).toHaveValue('');
-    expect(within(row('Temperature')).getByText('Suggested: flow')).toBeInTheDocument();
+    // a flow is another quantity than a temperature: not even offered; the row says what to do
+    expect(within(row('Temperature')).queryByText(/^Suggested:/)).toBeNull();
+    expect(within(row('Temperature')).getByText('Pick the value this reads, or choose An expression.')).toBeInTheDocument();
   });
 });
 

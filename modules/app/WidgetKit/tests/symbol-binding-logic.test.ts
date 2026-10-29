@@ -395,7 +395,7 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
     const sure = rankKeysForField({ name: 'value', label: 'Temperature' }, [k('temp_c', 21), k('hum', 40)]);
     expect(sure[0]).toMatchObject({ key: 'temp_c', confident: true });
     expect(sure[0].score).toBeGreaterThanOrEqual(CONFIDENT_SCORE);
-    expect(sure.map((r) => r.key)).toEqual(['temp_c', 'hum']); // hum is a number too: listed, far behind
+    expect(sure.map((r) => r.key)).toEqual(['temp_c']); // hum says humidity, another quantity than a temperature: no candidate at all
   });
 
   it('a unit of another quantity counts against a key; a field with no unit and no quantity word ignores units', () => {
@@ -505,5 +505,14 @@ describe('entryFromDraft with expressions', () => {
     expect(isBound(sym)).toBe(true);
     expect(hasOwnEntry(sym)).toBe(true);
     expect(isDirty(d, entryFromSymbol(sym))).toBe(false);
+  });
+});
+
+describe('a key\'s own words say what it measures (slice 16)', () => {
+  it('a temperature by its name is never the one number a speed reads; a reading with no quantity of its own takes the one number', () => {
+    expect(suggestKeyForField({ name: 'speed', label: 'Speed' }, [k('temp_1', 21.5), k('pump_on', true)])).toBeNull();
+    expect(suggestKeyForField({ name: 'value', label: 'Reading' }, [k('temp_1', 21.5), k('pump_on', true)])).toBe('temp_1');
+    expect(suggestKeyForField({ name: 'value', label: 'Humidity' }, [k('t', 21.5), k('rh', 40)])).toBe('rh');
+    expect(suggestKeyForField({ name: 'value', label: 'Humidity' }, [k('t', 21.5), k('x', 40)])).toBeNull();
   });
 });

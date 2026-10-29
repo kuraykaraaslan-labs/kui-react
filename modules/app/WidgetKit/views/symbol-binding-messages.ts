@@ -120,6 +120,25 @@ export interface SymbolBindingMessages {
   readOnlyNote: string;
   /** The keyboard, said once under the rows. */
   keysHint: string;
+
+  // Match everything (U3): the preview of every proposal of the drawing
+  matchAll: {
+    title: string;
+    intro: (proposed: number, confident: number) => string;
+    empty: string;
+    symbol: string;
+    parameter: string;
+    proposed: string;
+    confidence: string;
+    sure: string;
+    maybe: string;
+    mismatch: string;
+    selectAll: string;
+    selectRow: string;
+    apply: (n: number) => string;
+    cancel: string;
+    tableLabel: string;
+  };
 }
 
 export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
@@ -220,4 +239,22 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   keepEditing: 'Keep editing',
   readOnlyNote: 'You can look at this symbol but not change it.',
   keysHint: 'Arrow keys move between rows, Enter takes the suggestion, Esc closes.',
+
+  matchAll: {
+    title: 'Match everything',
+    intro: (proposed, confident) => `${proposed} values proposed for this drawing; ${confident} are certain and ticked. Untick what is wrong, then apply.`,
+    empty: 'Nothing to propose: every symbol is connected, or the devices have not sent values yet.',
+    symbol: 'Symbol',
+    parameter: 'Shows',
+    proposed: 'Reads',
+    confidence: 'Certain',
+    sure: 'Yes',
+    maybe: 'Possible',
+    mismatch: 'Check the kind',
+    selectAll: 'Apply all proposals',
+    selectRow: 'Apply this proposal',
+    apply: (n) => (n === 1 ? 'Apply 1 proposal' : `Apply ${n} proposals`),
+    cancel: 'Cancel',
+    tableLabel: 'Proposals',
+  },
 };

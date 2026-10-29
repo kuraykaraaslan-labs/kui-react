@@ -49,6 +49,8 @@ export type { SceneSetupMessages, SceneSetupRulesMessages } from './views/scene-
 // (suggested keys, the entry, the age, the templates) is exported for the other kits and the host's own order of symbols.
 export { SymbolBindingPanel } from './views/SymbolBindingPanel';
 export type { SymbolBindingPanelProps, SymbolBindingSymbol, SymbolBindingMenuAction } from './views/SymbolBindingPanel';
+export { SymbolMatchAllDialog } from './views/SymbolMatchAllDialog';
+export type { SymbolMatchAllDialogProps } from './views/SymbolMatchAllDialog';
 export { DEFAULT_SYMBOL_BINDING_MESSAGES } from './views/symbol-binding-messages';
 export type { SymbolBindingMessages } from './views/symbol-binding-messages';
 export {

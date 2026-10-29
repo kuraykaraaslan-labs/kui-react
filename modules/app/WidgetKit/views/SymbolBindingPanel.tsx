@@ -31,7 +31,7 @@ import { Select } from '@/modules/ui/Select';
 import { useNow } from '../useNow';
 import {
   ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
-  pickableKeys, previewLine, rankKeysForField, scriptErrorKind, scriptTemplates, templateFor, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH,
+  pickableKeys, previewLine, rankKeysForField, scriptErrorKind, scriptTemplates, templateFor, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
   type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type RankedKey, type ScriptOutcome, type SourceMode,
   type SymbolFieldSpec, type SymbolSpec,
 } from './symbol-binding-logic';
@@ -257,7 +257,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
         fields[f.name] = { ...fields[f.name], deviceId: draft.deviceId, deviceName: draft.deviceName, key: top.key, label: labelOfKey(keyByName.get(top.key)), automatic: false };
         taken.add(top.key);
         sure.add(f.name);
-      } else if (!second || top.score > second.score) maybe[f.name] = top; // a tie is no suggestion: the row says what to do instead
+      } else if (top.score >= MIN_PROPOSAL_SCORE && (!second || top.score > second.score)) maybe[f.name] = top; // a tie, or a kind alone, is no suggestion: the row says what to do instead
     }
     if (sure.size > 0) setDraft({ ...draft, fields });
     setSuggested(sure);

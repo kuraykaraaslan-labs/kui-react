@@ -241,13 +241,33 @@ export function unitQuantity(unit: string | undefined): string | null {
   return null;
 }
 
-/** The quantity a field measures: its unit when the drawing gives one, else what its name or label says, else null. */
-export function fieldQuantity(field: { name: string; label?: string; unit?: string }): string | null {
-  const byUnit = unitQuantity(field.unit);
-  if (byUnit) return byUnit;
-  const words = new Set([...wordsOf(field.name), ...(field.label ? wordsOf(field.label) : [])]);
-  for (const [q, ws] of QUANTITY_WORDS) if (ws.some((w) => words.has(w))) return q;
+/** The synonym lines that name a thing's role (what it shows), not a quantity: never widened into a quantity. */
+const NOT_A_QUANTITY = new Set(['value', 'value2', 'running', 'status', 'position', 'direction', 'door']);
+
+/**
+ * The quantity some words name (`temperature` or `temp` say temperature, `lpm` flow), or null. With `expand`, a word is widened by its synonym line first
+ * (`hum` says humidity, a percent); the lines that name a role rather than a quantity (`value`, `running`, ...) are never widened.
+ */
+export function quantityOfWords(words: Iterable<string>, expand = false): string | null {
+  const base = new Set(words);
+  const all = new Set(base);
+  if (expand) for (const line of SYNONYMS) if (!NOT_A_QUANTITY.has(line[0]) && line.some((w) => base.has(w))) for (const w of line) all.add(w);
+  for (const [q, ws] of QUANTITY_WORDS) if (ws.some((w) => all.has(w))) return q;
   return null;
+}
+
+/** The quantity a field measures: its unit when the drawing gives one, else what its name or label says (its own words, never widened), else null. */
+export function fieldQuantity(field: { name: string; label?: string; unit?: string }): string | null {
+  return unitQuantity(field.unit) ?? quantityOfWords([...wordsOf(field.name), ...(field.label ? wordsOf(field.label) : [])]);
+}
+
+/** The quantity a key measures: its unit, else what its name or label says (`temp_1` is a temperature, `flow_lpm` a flow), else null. */
+export function keyQuantity(k: Pick<DeviceKey, 'key' | 'label' | 'unit'>): { quantity: string; byUnit: boolean } | null {
+  const byUnit = unitQuantity(k.unit);
+  if (byUnit) return { quantity: byUnit, byUnit: true };
+  const local = k.key.slice(k.key.lastIndexOf('.') + 1);
+  const byWords = quantityOfWords([...wordsOf(local), ...(k.label ? wordsOf(k.label) : [])], true);
+  return byWords ? { quantity: byWords, byUnit: false } : null;
 }
 
 // ─── Ranking a device's keys for a field (U1) ────────────────────────────────
@@ -293,6 +313,8 @@ function typeScore(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKe
 export const CONFIDENT_SCORE = 60;
 /** The best must lead the second by this much to be picked by itself. */
 export const CONFIDENT_LEAD = 15;
+/** Below this a candidate is not even offered as "Suggested: …": a kind alone (15) says too little. */
+export const MIN_PROPOSAL_SCORE = 30;
 
 /** The keys a person may feed a symbol with: a key the host marked internal (a connection id) is left out. */
 export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.filter((k) => !k.internal);
@@ -306,7 +328,8 @@ export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.fi
  *  contains the key holds a word of the field of four letters or more: 55;
  *  type     what the key sends agrees with what the field expects: 15, or 60 when it is the only key of that kind the device sends and no key matched
  *           by a word (words first, the kind as the fallback); a mismatch is flagged and costs (45; 10 for a 0/1 where a number is expected);
- *  unit     the key's unit measures what the field measures (its unit, or what its words say): 45; a different quantity costs 20;
+ *  unit     the key measures what the field measures (by its unit: 45; by its words, `temp_1` for a temperature: 20); a different quantity costs 20
+ *           and bars the kind fallback (a temperature is never the one number a speed reads);
  *  only     the one key there is, when nothing else says anything: 60.
  * `hints` are the symbol's own words (its label and kind), used for a number field whose own words say no quantity ("Reading" of a "Thermometer").
  * `confident` is on the best alone: a score from `CONFIDENT_SCORE`, no mismatch, and a lead of `CONFIDENT_LEAD` over the next.
@@ -351,10 +374,11 @@ export function rankKeysForField(
   const anyWords = worded.some((w) => w.reasons.length > 0);
   const ranked = worded.map(({ k, reasons, score: base }): RankedKey => {
     let score = base;
-    const t = typeScore(field, k, !anyWords && kinds.get(keyKindOf(k)) === 1);
+    const kq = quantity ? keyQuantity(k) : null;
+    const contradicts = !!kq && kq.quantity !== quantity;
+    const t = typeScore(field, k, !anyWords && !contradicts && kinds.get(keyKindOf(k)) === 1);
     if (t !== 0) { score += t; reasons.push('type'); }
-    const kq = unitQuantity(k.unit);
-    if (quantity && kq) { score += quantity === kq ? 45 : -20; reasons.push('unit'); }
+    if (kq) { score += contradicts ? -20 : kq.byUnit ? 45 : 20; reasons.push('unit'); }
     if (list.length === 1 && reasons.length === 0) { score += 60; reasons.push('only'); }
     const mismatch = mismatchOf(field, k);
     return { key: k.key, score, confident: false, reasons, ...(mismatch ? { mismatch } : {}) };
@@ -669,4 +693,78 @@ export function nextUnbound(symbols: readonly { id: string; bound: boolean }[], 
     if (s.id !== currentId && !s.bound) return s.id;
   }
   return null;
+}
+
+// ─── Match everything (U3): one proposal per unconnected parameter of the drawing ──────────────────────────────────────────────
+
+/** One symbol of the drawing as "Match everything" sees it: its words, its device (the page's, or its group's), and the parameters still to connect. */
+export interface MatchSymbol {
+  id: string;
+  label: string;
+  kindLabel: string;
+  /** The symbol's element for the `<element>.<field>` rule, when known. */
+  element?: string;
+  deviceId: string;
+  deviceName: string;
+  fields: ReadonlyArray<{ name: string; label: string; kind?: FieldKind; unit?: string }>;
+}
+
+/** One row of the preview table: a parameter of a symbol with the device value proposed for it. */
+export type MatchRow = {
+  /** `<symbol id>.<field>`; internal. */
+  id: string;
+  symbolId: string;
+  symbolLabel: string;
+  kindLabel: string;
+  field: string;
+  fieldLabel: string;
+  deviceId: string;
+  deviceName: string;
+  key: string;
+  keyLabel: string;
+  value: unknown;
+  unit?: string;
+  ts: number | string;
+  /** The panel would have picked it by itself: checked by default. */
+  confident: boolean;
+  mismatch?: Mismatch;
+};
+
+/**
+ * The proposals for a whole drawing: for every parameter of every symbol, the best key of the symbol's device by `rankKeysForField` (the element rule, the
+ * words of the symbol, the kind, the unit), one key per symbol at most once. A parameter with no candidate, a candidate under `MIN_PROPOSAL_SCORE`, or a tie
+ * at the top (nobody's pick), has no row; a confident one is checked by default, a weaker one is offered unchecked, a mismatch is said. A device whose keys
+ * are not known proposes nothing.
+ */
+export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: ReadonlyMap<string, readonly DeviceKey[]>): MatchRow[] {
+  const out: MatchRow[] = [];
+  for (const s of symbols) {
+    const keys = keysByDevice.get(s.deviceId);
+    if (!keys || keys.length === 0) continue;
+    const taken: string[] = [];
+    for (const f of s.fields) {
+      const [top, second] = rankKeysForField(f, keys, s.element, taken, [s.label, s.kindLabel]);
+      if (!top || top.score < MIN_PROPOSAL_SCORE || (second && second.score === top.score)) continue;
+      const k = keys.find((x) => x.key === top.key);
+      if (!k) continue;
+      taken.push(top.key);
+      out.push({
+        id: `${s.id}.${f.name}`, symbolId: s.id, symbolLabel: s.label, kindLabel: s.kindLabel, field: f.name, fieldLabel: f.label,
+        deviceId: s.deviceId, deviceName: s.deviceName, key: k.key, keyLabel: k.label && k.label.trim() ? k.label : k.key, value: k.value,
+        ...(k.unit ? { unit: k.unit } : {}), ts: k.ts, confident: top.confident, ...(top.mismatch ? { mismatch: top.mismatch } : {}),
+      });
+    }
+  }
+  return out;
+}
+
+/** The entries "Match everything" writes for the chosen rows: one per symbol, each field read from the proposed key of the symbol's device. */
+export function entriesOfMatches(rows: readonly MatchRow[], chosen: ReadonlySet<string>): Record<string, BindingEntry> {
+  const out: Record<string, BindingEntry> = {};
+  for (const r of rows) {
+    if (!chosen.has(r.id) || !isSymbolField(r.field) || !isTelemetryKey(r.key) || !UUID_GRAMMAR.test(r.deviceId)) continue;
+    const entry = (out[r.symbolId] ??= { fields: {} });
+    entry.fields[r.field] = { deviceId: r.deviceId, key: r.key, ...(r.keyLabel && r.keyLabel !== r.key ? { label: r.keyLabel.slice(0, MAX_FIELD_LABEL) } : {}) };
+  }
+  return out;
 }
