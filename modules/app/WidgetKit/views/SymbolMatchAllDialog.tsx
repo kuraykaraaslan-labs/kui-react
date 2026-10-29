@@ -19,8 +19,10 @@ export interface SymbolMatchAllDialogProps {
   /** Writes the ticked proposals (their row ids). */
   onApply: (ids: string[]) => void | Promise<void>;
   onClose: () => void;
-  /** The host is writing: Apply waits. */
+  /** The host is writing: Apply waits, and the dialog cannot be closed. */
   busy?: boolean;
+  /** The host is still reading the devices' values: the dialog says so instead of "nothing to propose", Apply waits, Cancel still closes. */
+  loading?: boolean;
   /** The time the ages are counted from (ms); default the clock. */
   now?: number;
   messages?: DeepPartial<SymbolBindingMessages>;
@@ -32,7 +34,7 @@ export function SymbolMatchAllDialog(props: SymbolMatchAllDialogProps) {
   return props.open ? <MatchForm key="open" {...props} /> : null;
 }
 
-function MatchForm({ rows, onApply, onClose, busy = false, messages, portalTarget, ...rest }: SymbolMatchAllDialogProps) {
+function MatchForm({ rows, onApply, onClose, busy = false, loading = false, messages, portalTarget, ...rest }: SymbolMatchAllDialogProps) {
   const m = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages).matchAll, [messages]);
   const age = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages).age, [messages]);
   const tick = useNow(5000);
@@ -75,13 +77,13 @@ function MatchForm({ rows, onApply, onClose, busy = false, messages, portalTarge
       open
       onClose={busy ? () => undefined : onClose}
       title={m.title}
-      description={rows.length === 0 ? m.empty : m.intro(rows.length, confident.length)}
+      description={loading && rows.length === 0 ? m.loading : rows.length === 0 ? m.empty : m.intro(rows.length, confident.length)}
       size="xl"
       {...(portalTarget ? { portalTarget } : {})}
       footer={(
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" disabled={busy} onClick={onClose}>{m.cancel}</Button>
-          <Button variant="primary" size="sm" loading={busy} disabled={busy || chosen.length === 0} onClick={() => void onApply(chosen.map(String))}>{m.apply(chosen.length)}</Button>
+          <Button variant="primary" size="sm" loading={busy} disabled={busy || loading || chosen.length === 0} onClick={() => void onApply(chosen.map(String))}>{m.apply(chosen.length)}</Button>
         </div>
       )}
     >

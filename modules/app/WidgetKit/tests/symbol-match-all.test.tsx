@@ -130,6 +130,18 @@ describe('SymbolMatchAllDialog', () => {
     await user.click(screen.getByRole('button', { name: `Apply ${certain} proposals` }));
     expect(onApply).toHaveBeenCalledWith(rowsFor().filter((r) => r.confident && !r.mismatch).map((r) => r.id));
   });
+  it('while the host reads the devices it says so (never "nothing to propose"), Apply waits and Cancel still closes', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<SymbolMatchAllDialog open rows={[]} onApply={vi.fn()} onClose={onClose} loading />);
+    expect(screen.getByText('Reading the values of the devices…')).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing to propose/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Apply 0 proposals' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
   it('draws nothing while closed', () => {
     const { container } = render(<SymbolMatchAllDialog open={false} rows={rowsFor()} onApply={vi.fn()} onClose={vi.fn()} />);
     expect(container.textContent).toBe('');

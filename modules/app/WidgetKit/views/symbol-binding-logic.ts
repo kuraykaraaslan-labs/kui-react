@@ -79,7 +79,7 @@ export interface DeviceKey {
   unit?: string;
   value: unknown;
   ts: number | string;
-  /** A connection or internal id the host keeps out of the pickers (it is still listed under all values). */
+  /** A connection of the drawing itself (a pipe run, a cable): never ranked or suggested, listed last in a picker. */
   internal?: boolean;
 }
 
@@ -299,14 +299,15 @@ export function mismatchOf(field: { name: string; kind?: FieldKind }, key: Pick<
 }
 
 /**
- * The score a kind pairing adds: agreement earns (a lot when the key is the ONLY one of that kind the device sends: the one state of a device is what
- * a Running field reads), a mismatch costs (a state for a number only a little: 0/1 may well be a reading at rest).
+ * The score a kind pairing adds: agreement earns (more when the key is the ONLY one of that kind the device sends: the one state of a device is what
+ * a Running field most likely reads, but a kind alone never makes a certainty: a tee's Running is not the device's one door), a mismatch costs (a state
+ * for a number only a little: 0/1 may well be a reading at rest).
  */
 function typeScore(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit'>, onlyOfKind: boolean): number {
   const want = fieldKindOf(field);
   const got = keyKindOf(key);
   if (!want || !got) return 0;
-  if (want === got) return onlyOfKind ? 60 : 15;
+  if (want === got) return onlyOfKind ? KIND_ALONE_SCORE : 15;
   if (want === 'text') return got === 'state' ? 10 : 0;
   return mismatchOf(field, key) === 'state-for-number' ? -10 : -45;
 }
@@ -315,10 +316,18 @@ function typeScore(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKe
 export const CONFIDENT_SCORE = 60;
 /** The best must lead the second by this much to be picked by itself. */
 export const CONFIDENT_LEAD = 15;
-/** Below this a candidate is not even offered as "Suggested: …": a kind alone (15) says too little. */
+/** Below this a candidate is not even offered as "Suggested: …": a kind alone among several (15) says too little. */
 export const MIN_PROPOSAL_SCORE = 30;
+/**
+ * What the only key of the field's kind earns when no word says anything: offered as "Suggested: …" (above `MIN_PROPOSAL_SCORE`), never picked by
+ * itself (below `CONFIDENT_SCORE`). A word of the field's, of the symbol's, the element rule or a unit is what makes a pick certain.
+ */
+export const KIND_ALONE_SCORE = 50;
 
-/** The keys a person may feed a symbol with: a key the host marked internal (a connection id) is left out. */
+/**
+ * The keys the ranking may propose: a key the host marked internal (a connection of the drawing itself: a pipe run, a cable) is never ranked or
+ * suggested. The panel still lists such a key, last, so nothing a device sends is ever out of a person's reach.
+ */
 export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.filter((k) => !k.internal);
 
 /**
@@ -330,8 +339,9 @@ export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.fi
  *  symbol   the key shares a word of the SYMBOL's own (its label or kind: Door ↔ `door`, Circulation pump ↔ `pump_on`): 65 on its own, 15 beside a
  *           name or synonym match; the one reason that ties a key to this symbol rather than to any symbol with the same parameter;
  *  contains the key holds a word of the field of four letters or more: 55;
- *  type     what the key sends agrees with what the field expects: 15, or 60 when it is the only key of that kind the device sends and no key matched
- *           by a word (words first, the kind as the fallback); a mismatch is flagged and costs (45; 10 for a 0/1 where a number is expected);
+ *  type     what the key sends agrees with what the field expects: 15, or `KIND_ALONE_SCORE` (50: offered, never certain) when it is the only key of
+ *           that kind the device sends and no key matched by a word (words first, the kind as the fallback); a mismatch is flagged and costs (45;
+ *           10 for a 0/1 where a number is expected);
  *  unit     the key measures what the field measures (by its unit: 45; by its words, `temp_1` for a temperature: 20); a different quantity costs 20
  *           and bars the kind fallback (a temperature is never the one number a speed reads);
  *  only     the one key there is, when nothing else says anything: 60.

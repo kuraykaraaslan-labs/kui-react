@@ -162,6 +162,9 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   // Automatic rows the person opened with "Change".
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const dirty = isDirty(draft, baseline);
+  // The person changed something themselves (a pick, a device, a text): a preselected suggestion alone is not theirs to lose, so closing an untouched
+  // panel never asks, and "Next symbol" says "Save and next" whenever a press would write (the suggestions, or their edits).
+  const [touched, setTouched] = useState(false);
   // Clear has something to clear when the symbol has settings of its own (an automatic source is not a setting).
   const bound = hasOwnEntry(symbol) || Object.keys(baseline.fields).length > 0;
 
@@ -189,6 +192,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   function pickDevice(id: string) {
     if (!id || id === draft.deviceId) return;
     const picked = known.current.get(id);
+    setTouched(true);
     setDraft((d) => {
       const fields: Record<string, FieldDraft> = {};
       for (const [name, f] of Object.entries(d.fields)) {
@@ -264,7 +268,9 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     setProposals(maybe);
   }
 
+  /** Every change of a row is the person's own: the draft is marked touched with it. */
   function setField(name: string, next: (f: FieldDraft) => FieldDraft) {
+    setTouched(true);
     setDraft((d) => (d.fields[name] ? { ...d, fields: { ...d.fields, [name]: next(d.fields[name]) } } : d));
   }
   const dropSuggested = (name: string) => setSuggested((s) => {
@@ -353,12 +359,17 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     }
     if (!ok) return false;
     if (draft.deviceId) onRemember({ id: draft.deviceId, name: draft.deviceName });
-    if (alive.current) setBaseline(entry);
+    if (alive.current) {
+      setBaseline(entry);
+      setTouched(false);
+    }
     return true;
   }
 
+  // "Next symbol" writes first when something is filled in that is not saved yet; its label says so then ("Save and next")
+  const nextWrites = dirty && !readOnly;
   async function next() {
-    if (dirty && !readOnly && !(await save())) return;
+    if (nextWrites && !(await save())) return;
     props.onNext?.();
   }
 
@@ -372,6 +383,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     }
     if (!ok || !alive.current) return;
     setBaseline({ fields: {} });
+    setTouched(false);
     // Fields the drawing fills automatically go back to that; the rest read nothing.
     setDraft((d) => ({
       ...d,
@@ -389,7 +401,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   }
 
   function close() {
-    if (dirty && !readOnly) setConfirm('discard');
+    // only what the person changed themselves is worth a question: a panel that holds no more than its own suggestions closes at once
+    if (dirty && touched && !readOnly) setConfirm('discard');
     else props.onClose();
   }
 
@@ -636,7 +649,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
           )}
           {props.onNext && (
             <Button variant="secondary" size="sm" className="flex-1" disabled={busy} onClick={() => void next()}>
-              {m.next}
+              {nextWrites ? m.saveAndNext : m.next}
             </Button>
           )}
           {!readOnly && (
@@ -721,11 +734,12 @@ function FieldRow(p: FieldRowProps) {
   const automaticClosed = !!f.automatic && !opened && f.mode === 'value';
   const mismatch = f.mode === 'value' && info ? mismatchOf(field, info) : null;
 
-  // the picker's choices: every pickable key of the device, the ranked ones first (the best says "Suggested"), each with its live value and age
+  // the picker's choices: every key of the device, the ranked ones first (the best says "Suggested"), each with its live value and age; a key the host
+  // marked internal (a connection of the drawing) is never ranked and comes last, but is never out of reach
   const options = useMemo<ComboBoxOption[]>(() => {
     const ranked = rankKeysForField(field, keys, undefined, [], hints);
     const order = new Map(ranked.map((r, i) => [r.key, i]));
-    const list = pickableKeys(keys).slice().sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity));
+    const list = [...pickableKeys(keys).sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity)), ...keys.filter((k) => k.internal)];
     const best = ranked[0]?.key;
     const out = list.map((k): ComboBoxOption => {
       const line = m.optionLine(formatValue(k.value, k.unit), ageText(k.ts, now, m.age));
@@ -786,6 +800,8 @@ function FieldRow(p: FieldRowProps) {
                 <p className="flex flex-wrap items-center gap-x-2 text-xs text-text-secondary">
                   <span>{m.suggestedCandidate(nameOfKey(keyByName.get(proposal.key), proposal.key))}</span>
                   {!readOnly && <Button variant="outline" size="xs" onClick={p.onAccept}>{m.useSuggestion}</Button>}
+                  {/* a proposal that does not fit the kind says so before it is taken, not after */}
+                  {proposal.mismatch && <span className="text-warning-fg">{m.mismatch[proposal.mismatch]}</span>}
                 </p>
               )}
               {mismatch && (

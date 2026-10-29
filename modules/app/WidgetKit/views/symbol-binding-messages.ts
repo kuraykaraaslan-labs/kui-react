@@ -108,6 +108,8 @@ export interface SymbolBindingMessages {
   // Footer
   save: string;
   next: string;
+  /** "Next symbol" when it will write first (something is filled in that is not saved yet): the person is told that a press saves. */
+  saveAndNext: string;
   more: string;
   clear: string;
   clearTitle: string;
@@ -126,6 +128,8 @@ export interface SymbolBindingMessages {
     title: string;
     intro: (proposed: number, confident: number) => string;
     empty: string;
+    /** While the host reads the devices' values: nothing is proposed yet, and Cancel still works. */
+    loading: string;
     symbol: string;
     parameter: string;
     proposed: string;
@@ -230,6 +234,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
 
   save: 'Save',
   next: 'Next symbol',
+  saveAndNext: 'Save and next',
   more: 'More',
   clear: 'Clear what this symbol reads',
   clearTitle: 'Clear this symbol',
@@ -246,6 +251,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
     title: 'Match everything',
     intro: (proposed, confident) => `${proposed} values proposed for this drawing; ${confident} are certain and ticked. Untick what is wrong, then apply.`,
     empty: 'Nothing to propose: every symbol is connected, or the devices have not sent values yet.',
+    loading: 'Reading the values of the devices…',
     symbol: 'Symbol',
     parameter: 'Shows',
     proposed: 'Reads',

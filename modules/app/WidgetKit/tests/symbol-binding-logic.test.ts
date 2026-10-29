@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, fieldKindOf, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty,
   keyKindOf, mismatchOf, nextUnbound, pickableKeys, previewLine, rankKeysForField, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields, templateFor, unitQuantity,
-  CONFIDENT_SCORE, MAX_SCRIPT_LENGTH,
+  CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
   type BindingDraft, type DeviceKey, type FieldDraft, type SymbolSpec,
 } from '../views/symbol-binding-logic';
 
@@ -34,10 +34,15 @@ describe('suggestKeyForField', () => {
     // "on" is two letters: it matches a key named exactly like it, not every key that contains "on".
     expect(suggestKeyForField({ name: 'on', label: 'On' }, [key('connection_state', 'ok'), key('motor_speed', 1200)])).toBeNull();
   });
-  it('falls back to the type: a state-like key for running, a measure for value, a word for status', () => {
+  it('falls back to the type as a proposal, never a certainty: a word decides (pump_state, health), the one measure is offered for value but not taken', () => {
     expect(suggestKeyForField({ name: 'running' }, [key('pump_state', 1), key('flow_rate', 12.4)])).toBe('pump_state');
-    expect(suggestKeyForField({ name: 'value' }, [key('pump_state', 1), key('flow_rate', 12.4)])).toBe('flow_rate');
     expect(suggestKeyForField({ name: 'status' }, [key('flow_rate', 12.4), key('health', 'degraded')])).toBe('health');
+    // no word of "value" is in flow_rate: the only number is "Suggested: flow_rate [Use]", one tap, never written by itself
+    expect(suggestKeyForField({ name: 'value' }, [key('pump_state', 1), key('flow_rate', 12.4)])).toBeNull();
+    const [top] = rankKeysForField({ name: 'value' }, [key('pump_state', 1), key('flow_rate', 12.4)]);
+    expect(top).toMatchObject({ key: 'flow_rate', confident: false, reasons: ['type'], score: KIND_ALONE_SCORE });
+    expect(top.score).toBeGreaterThanOrEqual(MIN_PROPOSAL_SCORE);
+    expect(top.score).toBeLessThan(CONFIDENT_SCORE);
   });
   it('is ambiguous when two keys fit the type', () => {
     expect(suggestKeyForField({ name: 'value' }, [key('a', 12.4), key('b', 99.1)])).toBeNull();
@@ -60,9 +65,10 @@ describe('suggestKeyForField', () => {
 
 describe('suggestKeysForFields', () => {
   it('does not give one key to two fields', () => {
-    const keys = [key('flow', 12.4), key('pump.running', true)];
+    // "level" is a word of "value": certain for the first reading, and taken, so the second reading gets nothing
+    const keys = [key('level', 12.4), key('pump.running', true)];
     const out = suggestKeysForFields([{ name: 'running' }, { name: 'value' }, { name: 'value2' }], keys, 'pump');
-    expect(out).toEqual({ running: 'pump.running', value: 'flow' });
+    expect(out).toEqual({ running: 'pump.running', value: 'level' });
   });
   it('leaves out the keys already taken', () => {
     const keys = [key('flow', 12.4), key('level', 3.1)];
@@ -335,7 +341,8 @@ describe('automatic fields (a source found by the drawing\'s own naming, no entr
 
 // ─── Slice 16 (U1): the ranking, table-driven over realistic devices ─────────────────────────────────────────────────────────────
 
-type Case = { what: string; field: { name: string; label?: string; kind?: 'state' | 'number' | 'text'; unit?: string }; keys: DeviceKey[]; element?: string; hints?: string[]; want: string | null; mismatch?: string };
+/** `want`: the key picked by itself (null: none); `offered`: the key the ranking puts first as "Suggested: … [Use]" when nothing is certain. */
+type Case = { what: string; field: { name: string; label?: string; kind?: 'state' | 'number' | 'text'; unit?: string }; keys: DeviceKey[]; element?: string; hints?: string[]; want: string | null; offered?: string; mismatch?: string };
 const k = key;
 
 describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)', () => {
@@ -346,7 +353,9 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
     { what: 'running finds pump_on', field: { name: 'running', label: 'Running' }, keys: [k('temp_1', 21.5), k('pump_on', true), k('flow_lpm', 12.4), k('door', 'closed')], want: 'pump_on' },
     { what: 'a flow reading finds flow_lpm', field: { name: 'value', label: 'Flow' }, keys: [k('temp_1', 21.5), k('pump_on', true), k('flow_lpm', 12.4)], want: 'flow_lpm' },
     { what: 'a flow meter\'s reading finds flow_lpm by the symbol\'s kind', field: { name: 'value', label: 'Reading' }, keys: [k('temp_1', 21.5), k('pump_on', true), k('flow_lpm', 12.4)], hints: ['Flow meter'], want: 'flow_lpm' },
-    { what: 'a door (open/closed) finds door', field: { name: 'running', label: 'Open' }, keys: [k('temp_1', 21.5), k('door', 'closed'), k('flow_lpm', 12.4)], want: 'door' },
+    { what: 'a door symbol (open/closed) finds door by its own word', field: { name: 'running', label: 'Open' }, keys: [k('temp_1', 21.5), k('door', 'closed'), k('flow_lpm', 12.4)], hints: ['Door'], want: 'door' },
+    // the device's one state fits any Running by its kind: offered with one tap, never written by itself (a tee is not a door)
+    { what: 'a tee\'s Running is offered the one state, not given it', field: { name: 'running', label: 'Running' }, keys: [k('door', false), k('temp_1', 21.5), k('flow_lpm', 12.4), k('level_pct', 63)], element: 'tee1', hints: ['Supply tee', 'Pipe (tee)'], want: null, offered: 'door' },
     // the kitchen
     { what: 'the element convention wins outright', field: { name: 'value', label: 'Reading' }, keys: [k('tea_maker.value', 57), k('coffee.value', 3), k('power_strip.running', 1)], element: 'tea_maker', want: 'tea_maker.value' },
     { what: 'a fryer temperature with a unit', field: { name: 'value', label: 'Temperature', unit: '°C' }, keys: [k('oil_temp', 178, { unit: '°C' }), k('basket', 'down'), k('heater', 1)], want: 'oil_temp' },
@@ -357,7 +366,8 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
     { what: 'a status word', field: { name: 'status', label: 'Status' }, keys: [k('ahu_state', 'cooling'), k('sat', 14.5), k('fan', 1)], want: 'ahu_state' },
     // building BMS
     { what: 'a room humidity', field: { name: 'value2', label: 'Humidity' }, keys: [k('rh', 41, { unit: '%' }), k('t', 21.2, { unit: '°C' }), k('occ', true)], want: 'rh' },
-    { what: 'an occupancy state', field: { name: 'running', label: 'Occupied' }, keys: [k('rh', 41), k('t', 21.2), k('occupancy', 1)], want: 'occupancy' },
+    // "occupancy" shares no whole word with "Occupied": the one state is offered, one tap away, not taken
+    { what: 'an occupancy state is offered as the one state, not taken', field: { name: 'running', label: 'Occupied' }, keys: [k('rh', 41), k('t', 21.2), k('occupancy', 1)], want: null, offered: 'occupancy' },
     { what: 'a meter energy, by the unit alone', field: { name: 'value', label: 'Energy', unit: 'kWh' }, keys: [k('e_total', 15230, { unit: 'kWh' }), k('p', 4.2, { unit: 'kW' }), k('u1', 230)], want: 'e_total' },
     { what: 'a pressure gauge\'s reading, by the symbol\'s kind and the unit', field: { name: 'value', label: 'Reading' }, keys: [k('p1', 3.2, { unit: 'bar' }), k('q', 12, { unit: 'l/min' })], hints: ['Pressure gauge'], want: 'p1' },
     // water
@@ -380,6 +390,11 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
       const ranked = rankKeysForField(c.field, c.keys, c.element, [], c.hints ?? []);
       expect(suggestKeyForField(c.field, c.keys, c.element, c.hints ?? [])).toBe(c.want);
       if (c.mismatch) expect(ranked[0]?.mismatch).toBe(c.mismatch);
+      if (c.offered) {
+        expect(ranked[0]).toMatchObject({ key: c.offered, confident: false });
+        expect(ranked[0].score).toBeGreaterThanOrEqual(MIN_PROPOSAL_SCORE);
+        expect(ranked[0].score).toBeLessThan(CONFIDENT_SCORE);
+      }
       for (const r of ranked) expect(c.keys.find((x) => x.key === r.key)?.internal).not.toBe(true);
     });
   }
@@ -526,9 +541,12 @@ describe('a shared word of the symbol\'s own is a reason of its own; a quantity 
 });
 
 describe('a key\'s own words say what it measures (slice 16)', () => {
-  it('a temperature by its name is never the one number a speed reads; a reading with no quantity of its own takes the one number', () => {
+  it('a temperature by its name is never the one number a speed reads; a reading with no quantity of its own is offered the one number, not given it', () => {
     expect(suggestKeyForField({ name: 'speed', label: 'Speed' }, [k('temp_1', 21.5), k('pump_on', true)])).toBeNull();
-    expect(suggestKeyForField({ name: 'value', label: 'Reading' }, [k('temp_1', 21.5), k('pump_on', true)])).toBe('temp_1');
+    expect(suggestKeyForField({ name: 'value', label: 'Reading' }, [k('temp_1', 21.5), k('pump_on', true)])).toBeNull();
+    expect(rankKeysForField({ name: 'value', label: 'Reading' }, [k('temp_1', 21.5), k('pump_on', true)])[0]).toMatchObject({ key: 'temp_1', confident: false });
+    // the symbol's own word makes it certain: a thermometer's reading is the temperature
+    expect(suggestKeyForField({ name: 'value', label: 'Reading' }, [k('temp_1', 21.5), k('pump_on', true)], undefined, ['Thermometer'])).toBe('temp_1');
     expect(suggestKeyForField({ name: 'value', label: 'Humidity' }, [k('t', 21.5), k('rh', 40)])).toBe('rh');
     expect(suggestKeyForField({ name: 'value', label: 'Humidity' }, [k('t', 21.5), k('x', 40)])).toBeNull();
   });

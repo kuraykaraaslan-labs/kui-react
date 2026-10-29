@@ -285,6 +285,8 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Reading' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' } })} />);
     const r = await screen.findByRole('group', { name: 'Reading' });
     await waitFor(() => expect(within(r).getByText('Suggested: reading')).toBeInTheDocument());
+    // the proposal does not fit the kind: said beside it, before it is taken
+    expect(within(r).getByText('This value is text; the drawing expects a number.')).toBeInTheDocument();
     expect(within(r).getByRole('searchbox', { name: 'Reading' })).toHaveValue('');
     await user.click(within(r).getByRole('searchbox', { name: 'Reading' }));
     const options = within(await screen.findByRole('listbox')).getAllByRole('option');
@@ -350,16 +352,23 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     await user.click(screen.getByRole('button', { name: 'Save' }));
     expect(onSave).toHaveBeenCalledWith({ fields: { value: { deviceId: D2, key: 'flow', script: 'value * 2' } } });
   });
-  it('a connection id the host marked internal is never in a picker, but is listed under all values', async () => {
+  it('a connection of the drawing the host marked internal is never suggested and comes last in a picker, but is never out of reach', async () => {
     const user = userEvent.setup();
-    const keys: DeviceKey[] = [{ key: 'c1.running', value: 1, ts: NOW, internal: true }, { key: 'pump_on', value: 1, ts: NOW }];
+    const keys: DeviceKey[] = [{ key: 'c1.running', value: 1, ts: NOW, internal: true }, { key: 'pump_on', value: 1, ts: NOW }, { key: 'level', value: 63, ts: NOW }];
     render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'running', label: 'Running' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' } })} />);
     await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
     await user.click(picker('Running'));
-    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).not.toContainEqual(expect.stringContaining('c1.running'));
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent ?? '');
+    expect(options[0]).toContain('pump_on');
+    expect(options[0]).toContain('Suggested');
+    expect(options.at(-1)).toContain('c1.running');
+    expect(options.at(-1)).not.toContain('Suggested');
     await user.keyboard('{Escape}');
+    // picked by hand all the same
+    await pickKey(user, 'Running', 'c1.running');
+    expect(picker('Running')).toHaveValue('c1.running');
     const table = await openValues(user);
-    expect(names(table)).toEqual(['c1.running', 'pump_onfeeds Running']);
+    expect(names(table)).toEqual(['c1.runningfeeds Running', 'pump_on', 'level']);
   });
 });
 
@@ -640,10 +649,14 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave, onNext })} />);
     await rowsReady();
+    expect(screen.getByRole('button', { name: 'Next symbol' })).toBeInTheDocument();
     await pickKey(user, 'Running', 'rssi');
-    await user.click(screen.getByRole('button', { name: 'Next symbol' }));
+    // the button says what a press does once something would be written
+    expect(screen.queryByRole('button', { name: 'Next symbol' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Save and next' }));
     await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
     expect(order).toEqual(['save', 'next']);
+    expect(screen.getByRole('button', { name: 'Next symbol' })).toBeInTheDocument();
   });
   it('Next symbol on a clean panel just moves, and stays when the save fails', async () => {
     const onSave = vi.fn().mockResolvedValue(false);
@@ -655,9 +668,45 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     expect(onSave).not.toHaveBeenCalled();
     expect(onNext).toHaveBeenCalledTimes(1);
     await pickKey(user, 'Running', 'rssi');
-    await user.click(screen.getByRole('button', { name: 'Next symbol' }));
+    await user.click(screen.getByRole('button', { name: 'Save and next' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onNext).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Save and next' })).toBeInTheDocument();
+  });
+  it('a panel the person has not touched closes at once (its suggestions are not theirs to lose), and its Next says "Save and next" and writes them only on that press', async () => {
+    const onClose = vi.fn();
+    const onSave = vi.fn();
+    const onNext = vi.fn();
+    const user = userEvent.setup();
+    const flowSymbol = symbol({ fields: [{ name: 'running', label: 'Running' }, { name: 'value', label: 'Flow' }] });
+    render(<SymbolBindingPanel {...props({ symbol: flowSymbol, onClose, onSave, onNext, defaultDevice: { id: D2, name: 'Roof unit' } })} />);
+    await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
+    expect(screen.getAllByText('Suggested')).toHaveLength(2);
+    // Save is on (a press writes the suggestions, said plainly), Next says it will save first
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Save and next' })).toBeInTheDocument();
+    // Esc and Close ask nothing: nothing the person did is lost
+    row('Running').focus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+    expect(onSave).not.toHaveBeenCalled();
+    // "Save and next" is the explicit press that writes them
+    await user.click(screen.getByRole('button', { name: 'Save and next' }));
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+    expect(onSave).toHaveBeenCalledWith({ fields: { running: { deviceId: D2, key: 'pump_on' }, value: { deviceId: D2, key: 'flow' } } });
+  });
+  it('asks before closing once the person changed a preselected row themselves', async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ onClose, defaultDevice: { id: D2, name: 'Roof unit' } })} />);
+    await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
+    await pickKey(user, 'Running', 'flow');
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Discard your changes?' })).toBeInTheDocument();
   });
   it('has no Next symbol button without onNext', async () => {
     render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
