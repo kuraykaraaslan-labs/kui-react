@@ -34,7 +34,8 @@ export type DeviceTelemetryViewProps = {
 };
 
 type Kind = 'number' | 'flag' | 'text' | 'json';
-type Row = TelemetryLatest & { kind: Kind };
+/** `name`: the host's label for the key, else the key (the sort and search column). */
+type Row = TelemetryLatest & { kind: Kind; name: string };
 type WindowKey = '1h' | '6h' | '24h' | '7d';
 
 const WINDOW_MS: Record<WindowKey, number> = { '1h': 3_600_000, '6h': 6 * 3_600_000, '24h': 24 * 3_600_000, '7d': 7 * 24 * 3_600_000 };
@@ -74,7 +75,7 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
     api.latest(deviceId, signal).then(
       (latest) => {
         if (signal?.aborted) return;
-        setRows(latest.map((l) => ({ ...l, kind: kindOf(l.value) })));
+        setRows(latest.map((l) => ({ ...l, kind: kindOf(l.value), name: l.label || l.key })));
         setError(null);
       },
       () => { if (!signal?.aborted) setError(t.loadError); },
@@ -93,9 +94,11 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
     setRows((prev) => {
       const list = prev ?? [];
       const at = list.findIndex((r) => r.key === p.key);
-      const next: Row = { key: p.key as string, ts: p.ts as number, value, kind: kindOf(value) };
+      const was = at >= 0 ? list[at]! : undefined;
+      // a live point carries no name: the row keeps the one the first read gave it
+      const next: Row = { key: p.key as string, ts: p.ts as number, value, kind: kindOf(value), name: was?.name || (p.key as string), ...(was?.label ? { label: was.label } : {}), ...(was?.unit ? { unit: was.unit } : {}) };
       if (at < 0) return [...list, next];
-      if (list[at]!.ts > next.ts) return list;
+      if (was!.ts > next.ts) return list;
       const copy = [...list];
       copy[at] = next;
       return copy;
@@ -139,11 +142,19 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
   const seriesError = current?.error ?? null;
 
   const kindLabel: Record<Kind, string> = { number: t.typeNumber, flag: t.typeFlag, text: t.typeText, json: t.typeJson };
+  // the name the host gives a key (its schema's label) first, the key itself only for a key the host has no name for
   const columns: Column<Row>[] = [
-    { key: 'key', header: t.key, sortable: true, render: (r) => <span className="font-mono text-xs">{r.key}</span> },
+    {
+      key: 'name', header: t.name, sortable: true, searchValue: (r) => `${r.label ?? ''} ${r.key}`,
+      render: (r) => (r.label ? <span>{r.label}</span> : <span className="font-mono text-xs">{r.key}</span>),
+    },
     {
       key: 'value', header: t.value, sortable: true, align: 'right',
-      render: (r) => <span className={cn('tabular-nums', r.kind === 'json' && 'font-mono text-xs')}>{showValue(r.value, t, lc)}</span>,
+      render: (r) => (
+        <span className={cn('tabular-nums', r.kind === 'json' && 'font-mono text-xs')}>
+          {showValue(r.value, t, lc)}{r.unit && r.kind === 'number' ? <span className="text-text-secondary">{` ${r.unit}`}</span> : null}
+        </span>
+      ),
     },
     { key: 'kind', header: t.type, sortable: true, hideBelow: 'md', render: (r) => <span className="text-xs text-text-secondary">{kindLabel[r.kind]}</span> },
     {
@@ -157,7 +168,7 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
     if (charted.length === 0) return <p className="text-sm text-text-secondary">{fill(t.chartPick, { max: maxCharted })}</p>;
     if (seriesError) return <p role="alert" className="text-sm text-error">{seriesError}</p>;
     if (!series) return <div className="h-48 animate-pulse rounded-lg bg-surface-sunken" aria-busy="true" />;
-    const lines: Series[] = charted.map((k) => ({ id: k, name: k, data: (series[k] ?? []).map((p) => ({ x: p.ts, y: p.value })) }));
+    const lines: Series[] = charted.map((k) => ({ id: k, name: rows?.find((r) => r.key === k)?.name ?? k, data: (series[k] ?? []).map((p) => ({ x: p.ts, y: p.value })) }));
     if (lines.every((l) => l.data.length === 0)) return <p className="text-sm text-text-secondary">{t.chartEmpty}</p>;
     return (
       <section className="rounded-xl border border-border bg-surface-raised p-4" aria-label={t.chartTitle}>
@@ -198,7 +209,7 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
             rowId={(r) => r.key}
             loading={rows === null && error === null}
             searchPlaceholder={t.search}
-            defaultSort={[{ key: 'key', dir: 'asc' }]}
+            defaultSort={[{ key: 'name', dir: 'asc' }]}
             filterFields={[{
               id: 'kind', label: t.type, type: 'select',
               options: (['number', 'flag', 'text', 'json'] as const).map((k) => ({ value: k, label: kindLabel[k] })),

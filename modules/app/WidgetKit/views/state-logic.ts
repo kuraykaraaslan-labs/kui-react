@@ -74,7 +74,23 @@ export interface StateOutcome {
  * is "unknown" in a neutral colour, never the fallback's. Its label is the `unknownLabel` setting, unless
  * that is empty or still the template's English default: then `unknownText` (the host's word for it).
  */
-export function evaluateState(value: unknown, settings: Sparse, stale = false, unknownText = 'Unknown', meta?: ColumnMeta): StateOutcome {
+/** The words an on / off value reads as when no rule names it. */
+export interface OnOffWords { on: string; off: string }
+
+/**
+ * Whether `value` is an on / off value: a boolean, or 1 / 0 (as a number or text) when the source says the column is a boolean
+ * (a device's flag stored as 1 / 0 reaches a card as a number; e2e round 2: a State card read "0" and "1" for a pump's running flag).
+ */
+export function onOffOf(value: unknown, meta?: ColumnMeta): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (meta?.kind !== 'boolean') return null;
+  const n = asNumber(value);
+  if (n === 1 || n === 0) return n === 1;
+  const w = String(value).trim().toLowerCase();
+  return w === 'true' || w === 'on' ? true : w === 'false' || w === 'off' ? false : null;
+}
+
+export function evaluateState(value: unknown, settings: Sparse, stale = false, unknownText = 'Unknown', meta?: ColumnMeta, words?: OnOffWords): StateOutcome {
   const s = settings as StateSettings;
   const neutral = 'var(--text-secondary)';
   if (isBlank(value) || (stale && s.staleAsUnknown !== false)) {
@@ -98,6 +114,12 @@ export function evaluateState(value: unknown, settings: Sparse, stale = false, u
   const said = metaValue(meta, value);
   if (said) {
     return { label: said.label, color: cssColor(said.color) ?? neutral, icon: said.icon || undefined, matched: true, unknown: false };
+  }
+  // An on / off value with no rule and no word from the source reads On / Off, never 1 / 0 or true / false.
+  const onOff = onOffOf(value, meta);
+  if (onOff !== null) {
+    const w = words ?? DEFAULT_WIDGET_KIT_MESSAGES.stat;
+    return { label: onOff ? w.on : w.off, color: onOff ? 'var(--success)' : neutral, matched: true, unknown: false, ...(onOff ? {} : { lit: false }) };
   }
   return {
     label: s.fallbackLabel || String(value),
@@ -132,9 +154,10 @@ export function stateModel(
   data: Record<string, SlotData | undefined>,
   stale: boolean,
   unknownText: string,
+  words?: OnOffWords,
 ) {
   const raw = data.value?.value;
-  const out = evaluateState(raw, s as Sparse, stale, unknownText, data.value?.meta);
+  const out = evaluateState(raw, s as Sparse, stale, unknownText, data.value?.meta, words);
   const layout = s.layout ?? 'big';
   const fetched = data.value?.fetchedAt ? Date.parse(data.value.fetchedAt) : NaN;
   return {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { contentBox } from '../views/scene-editor-state';
 import { smallScene } from './scene-edit-fixture';
 import {
   boxes, click, down, drag, dragEvent, element, elements, fireEvent, key, links, mockLayout, mount, move, screen, selected, shapes, up, viewBox, at,
@@ -396,8 +397,15 @@ describe('zoom and pan of the editor viewport', () => {
     expect(vb.y + vb.h).toBeGreaterThan(600);
     key(canvas, '+');
     expect(viewBox(svg).w).toBeLessThan(vb.w);
+    // 0 (Fit to view) frames the symbols, not the whole canvas (e2e round 2: three small symbols stayed tiny at 100 %)
     key(canvas, '0');
-    expect(viewBox(svg)).toEqual(vb);
+    const fitted = viewBox(svg);
+    expect(fitted.w).toBeLessThan(vb.w);
+    const content = contentBox(smallScene(), sceneModel(smallScene(), {}))!;
+    expect(fitted.x).toBeLessThanOrEqual(content.x + 1e-6);
+    expect(fitted.x + fitted.w).toBeGreaterThanOrEqual(content.x + content.w - 1e-6);
+    expect(fitted.y).toBeLessThanOrEqual(content.y + 1e-6);
+    expect(fitted.y + fitted.h).toBeGreaterThanOrEqual(content.y + content.h - 1e-6);
   });
 
   it('zooms with the keys, the buttons and the wheel (about the pointer)', () => {
@@ -421,7 +429,9 @@ describe('zoom and pan of the editor viewport', () => {
     expect(local.y).toBeCloseTo(before.clientY, 3);
     key(canvas, '-');
     fireEvent.click(screen.getByTestId('zoom-fit'));
-    expect(screen.getByTestId('zoom-level')).toHaveTextContent('100%');
+    // the fit zooms in on the symbols: more than 100 % for a small diagram on a big canvas
+    const pct = Number(screen.getByTestId('zoom-level').textContent?.replace(/[^0-9]/g, ''));
+    expect(pct).toBeGreaterThan(100);
   });
 
   it('pans with the middle button and with the pan tool', () => {

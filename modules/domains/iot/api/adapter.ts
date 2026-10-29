@@ -343,8 +343,11 @@ export interface IotAssetsApi {
 
 /** A value a device sends for one key: a number, a flag, a word, or a JSON object or list. */
 export type TelemetryValue = number | boolean | string | Record<string, unknown> | unknown[];
-/** One key's latest value and when it was sent (epoch ms). */
-export type TelemetryLatest = { key: string; ts: number; value: TelemetryValue };
+/**
+ * One key's latest value and when it was sent (epoch ms). `label` and `unit` are the host's words for the key (its profile's schema),
+ * shown instead of the key and beside the value when given (next-boilerplate's e2e round 2: a tab of codes without names or units).
+ */
+export type TelemetryLatest = { key: string; ts: number; value: TelemetryValue; label?: string; unit?: string };
 /** One point of a numeric series (a bucket's value when the host aggregates). */
 export type TelemetryPoint = { ts: number; value: number };
 export type TelemetrySeriesQuery = { keys: string[]; from: number; to: number };

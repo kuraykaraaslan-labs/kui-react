@@ -75,6 +75,26 @@ describe('DeviceTelemetryView', () => {
     expect(chart).toHaveAttribute('data-axis', 'time');
   });
 
+  it('a key the host names shows its name and unit, not its code (e2e round 2: codes without names or units); a nameless key keeps its code', async () => {
+    const named: TelemetryLatest[] = [
+      { key: 'pool.value', ts: NOW - 60_000, value: 84.2, label: 'Pool level', unit: '%' },
+      { key: 'temp', ts: NOW - 60_000, value: 33.9, label: 'Pool temperature', unit: '°C' },
+      { key: 'meter_flow.running', ts: NOW - 60_000, value: false },
+    ];
+    const { api } = telemetryApi(named);
+    mount({ telemetry: api });
+    const table = await screen.findByRole('table', { name: 'Latest values' });
+    expect(within(table).getByText('Pool level')).toBeInTheDocument();
+    expect(within(table).getByText('Pool temperature')).toBeInTheDocument();
+    expect(within(table).queryByText('pool.value')).toBeNull();
+    expect(within(table).getByText('meter_flow.running')).toBeInTheDocument();
+    expect(within(table).getByText('%')).toBeInTheDocument();
+    expect(within(table).getByText('°C')).toBeInTheDocument();
+    // the chart's line is named after the key's name too
+    const chart = await screen.findByTestId('chart');
+    expect(chart).toHaveTextContent('Pool level:2');
+  });
+
   it('charts the numeric keys ticked in the table; a word or a flag cannot be ticked', async () => {
     const { api, series } = telemetryApi();
     mount({ telemetry: api });

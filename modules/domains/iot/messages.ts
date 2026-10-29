@@ -984,6 +984,7 @@ export const IOT_MESSAGES = {
   telemetry: {
     title: 'Telemetry',
     caption: 'Latest values',
+    name: 'Name',
     key: 'Key',
     value: 'Value',
     updated: 'Updated',

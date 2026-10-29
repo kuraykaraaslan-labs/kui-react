@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent a
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronDown, faChevronLeft, faChevronRight, faChevronUp } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
+import { SCADA_SYMBOL_DEFS } from './scada-logic';
 import { Button } from '@/modules/ui/Button';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { sceneModel, type SceneSettings } from './scada-scene-logic';
@@ -21,7 +22,7 @@ import {
 import { elementBoxes, shapeBounds, shapesOf, type Pt } from './scene-edit-geometry';
 import { fill, mergeEditorMessages, type SceneEditorMessages } from './scene-editor-messages-canvas';
 import {
-  addToLibrary, baseBox, browserStorage, centerOn, clientToScene, connectFacing, fitViewport, isEmptySelection, isTextTarget, keyCommand, loadLibrary, loadRecent, only, overlayData,
+  addToLibrary, baseBox, browserStorage, centerOn, clientToScene, connectFacing, contentBox, fitContentViewport, fitViewport, isEmptySelection, isTextTarget, keyCommand, loadLibrary, loadRecent, only, overlayData,
   overlayParams, pruneSelection, pushRecent, removeFromLibrary, saveLibrary, saveRecent, selectAll, selectionCount, thingHits, viewBoxFor, withoutThings, withSessionHidden, zoomAt,
   DEFAULT_SIZE, type KeyCommand, type SavedAssembly, type Size, type Tool, type ViewBox, type Viewport,
 } from './scene-editor-state';
@@ -149,7 +150,14 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sizeKey]);
 
-  const fit = useCallback(() => { setBase(baseBox(historyRef.current.present, geo)); setViewport(null); }, [geo]);
+  // Fit to view frames the symbols (the whole canvas only while there are none): e2e round 2, tiny symbols at 100 %.
+  const fit = useCallback(() => {
+    const present = historyRef.current.present;
+    const nextBase = baseBox(present, geo);
+    setBase(nextBase);
+    const content = contentBox(present, geo);
+    setViewport(content ? fitContentViewport(nextBase, content, size) : null);
+  }, [geo, size]);
   const zoomBy = (factor: number) => setViewport(zoomAt(effective, base, factor, viewCenter));
   const moveView = (p: Pt) => setViewport(centerOn(effective, base, p));
 
@@ -181,7 +189,9 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
 
   const addSymbol = (symbol: string, at?: Pt) => {
     const where = at ?? snappedCentre();
-    const r = apply((s) => addElement(s, symbol, where));
+    // named after its library tile, so the live picture shows a name under it (e2e round 2: "Show names" ticked, none shown)
+    const label = (SCADA_SYMBOL_DEFS[symbol as keyof typeof SCADA_SYMBOL_DEFS] as { label?: string } | undefined)?.label;
+    const r = apply((s) => addElement(s, symbol, where, label ? { label } : {}));
     if (refusal(r)) return;
     setSelection(only({ kind: 'element', id: r.id as string }));
     setTool('select');

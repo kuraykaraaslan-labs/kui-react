@@ -197,6 +197,7 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
       </div>
       {error && <p role="alert" className="rounded-md bg-error-subtle px-3 py-2 text-xs text-error-fg">{error}</p>}
       {list.filter(isRec).length === 0 && <p className="text-xs leading-snug text-text-secondary">{m.empty}</p>}
+      <p className="text-xs leading-snug text-text-secondary" data-testid="rules-device-hint">{m.deviceHint}</p>
       {targets.length > 0 && groups.own.length > 0 && section(m.forSelection(selectionName), groups.own, 'own')}
       {groups.star.length > 0 && section(m.everything, groups.star, 'star')}
       {groups.others.length > 0 && (

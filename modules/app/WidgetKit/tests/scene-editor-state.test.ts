@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { sceneModel } from '../views/scada-scene-logic';
 import { addElement, captureAssembly, type Selection } from '../views/scene-edit-logic';
 import {
-  addToLibrary, baseBox, centerOn, clampViewport, clientToScene, connectFacing, elementAt, facingSides, fitViewport, fromMarquee, hasItem, isTextTarget, keyCommand, loadLibrary, loadRecent,
-  ownSizeFromDrag, overlayData, overlayParams, only, panBy, pinch, pixelsPerUnit, pruneSelection, pushRecent, saveLibrary, saveRecent, selectAll, selectionBox, selectionCount,
+  addToLibrary, baseBox, centerOn, clampViewport, clientToScene, connectFacing, contentBox, elementAt, facingSides, fitViewport, fromMarquee, hasItem, isTextTarget, keyCommand, loadLibrary, loadRecent,
+  fitContentViewport, ownSizeFromDrag, overlayData, overlayParams, only, panBy, pinch, pixelsPerUnit, pruneSelection, pushRecent, saveLibrary, saveRecent, selectAll, selectionBox, selectionCount,
   sceneToLocal, shapeHandles, sizeFromHandle, thingAt, thingHits, thingIdsOf, toggleItem, viewBoxFor, wheelFactor, withoutThings, withSessionHidden, zoomAt,
   LIBRARY_CAP, MAX_ZOOM, MIN_ZOOM, RECENT_CAP,
 } from '../views/scene-editor-state';
@@ -398,5 +398,39 @@ describe('things from data: a locked layer', () => {
     expect(overlayData({}, { rows: {}, params: {}, things: [{ id: 'sample1' }] }).things).toEqual({ shape: 'table', rows: [{ id: 'sample1' }] });
     // nothing to lay over: the same object
     expect(overlayData(data, { rows: {}, params: {}, things: [] })).toBe(data);
+  });
+});
+
+describe('Fit to view frames the symbols (e2e round 2: three small symbols stayed tiny at 100 %)', () => {
+  it('contentBox is the symbols and shapes with the fit margin, null for an empty diagram', () => {
+    const box = contentBox(scene, model)!;
+    expect(box).not.toBeNull();
+    const hits = model.hits;
+    const x0 = Math.min(...hits.map((h) => h.x)); const x1 = Math.max(...hits.map((h) => h.x + h.w));
+    // the shapes widen it; the symbols are inside it with the margin
+    expect(box.x).toBeLessThanOrEqual(x0 - 40 + 1e-6);
+    expect(box.x + box.w).toBeGreaterThanOrEqual(x1 + 40 - 1e-6);
+    const empty = { ...scene, elements: [], shapes: [], links: [] } as typeof scene;
+    expect(contentBox(empty, sceneModel(empty, {}))).toBeNull();
+  });
+
+  it('fitContentViewport centres the content and zooms in so it fills the element; no content means the fitted canvas', () => {
+    const base = baseBox(scene, model);
+    const small = { x: 500, y: 300, w: 200, h: 100 };
+    const vp = fitContentViewport(base, small, SIZE);
+    expect(vp.cx).toBe(600);
+    expect(vp.cy).toBe(350);
+    expect(vp.zoom).toBeGreaterThan(1);
+    // the content fits the element at that zoom (both sides)
+    const vb = viewBoxFor(vp, base, SIZE);
+    expect(vb.w).toBeGreaterThanOrEqual(small.w - 1e-6);
+    expect(vb.h).toBeGreaterThanOrEqual(small.h - 1e-6);
+    expect(Math.min(vb.w / small.w, vb.h / small.h)).toBeCloseTo(1, 1);
+    expect(vp.zoom).toBeLessThanOrEqual(MAX_ZOOM);
+    expect(fitContentViewport(base, null, SIZE)).toEqual(fitViewport(base));
+    // content larger than the canvas zooms out, never below the floor
+    const huge = { x: -5000, y: -5000, w: 20000, h: 20000 };
+    expect(fitContentViewport(base, huge, SIZE).zoom).toBeGreaterThanOrEqual(MIN_ZOOM);
+    expect(fitContentViewport(base, huge, SIZE).zoom).toBeLessThan(1);
   });
 });

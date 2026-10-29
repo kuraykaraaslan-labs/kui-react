@@ -19,7 +19,7 @@ export * from './state-logic';
 export function StateView({ settings, data, stale }: WidgetViewProps) {
   const s = settings as S;
   const m = useKitMessages().stat;
-  const { raw, out, layout, center, iconSize, bg, pulse, fetched, showSince, showValue } = stateModel(s, data, !!stale, m.unknown);
+  const { raw, out, layout, center, iconSize, bg, pulse, fetched, showSince, showValue } = stateModel(s, data, !!stale, m.unknown, { on: m.on, off: m.off });
   const now = useNow(30_000);
   const [seen, setSeen] = useState(() => ({ key: out.label, at: Number.isFinite(fetched) ? fetched : now }));
   if (seen.key !== out.label) setSeen({ key: out.label, at: now });

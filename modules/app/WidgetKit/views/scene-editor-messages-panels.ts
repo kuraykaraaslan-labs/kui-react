@@ -161,6 +161,8 @@ export interface RulesMessages {
   others: string;
   /** The rule count line ("3 rules, 1 problem"). */
   summary: (rules: number, problems: number) => string;
+  /** Where the values the rules read come from (the device is attached on its own page, not here). */
+  deviceHint: string;
   /** The live mark on a card. */
   matching: string;
   notMatching: string;
@@ -249,6 +251,7 @@ export const DEFAULT_RULES_MESSAGES: RulesMessages = {
   everything: 'Every symbol and connection (*)',
   others: 'Other rules',
   summary: (r, p) => `${r === 1 ? '1 rule' : `${r} rules`}${p ? `, ${p === 1 ? '1 problem' : `${p} problems`}` : ''}`,
+  deviceHint: 'A rule reads a value of a symbol. Which device sends that value is chosen on the device\'s page (its Scene tab) once the drawing is saved, not here.',
   matching: 'Matching now',
   notMatching: 'Not matching',
   matchingSome: (n, t) => `Matching ${n} of ${t}`,

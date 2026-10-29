@@ -304,6 +304,20 @@ describe('state view', () => {
     expect(evaluateState('on', s, true).label).toBe('Unknown');
     expect(evaluateState('on', effective(STATE, { states, staleAsUnknown: false }), true).label).toBe('Running');
   });
+  it('an on / off value no rule names reads On / Off, never 1 / 0 or true / false (a boolean, or 1 / 0 the source calls a boolean)', () => {
+    const s = effective(STATE, {});
+    expect(evaluateState(true, s)).toMatchObject({ label: 'On', color: 'var(--success)', matched: true });
+    expect(evaluateState(false, s)).toMatchObject({ label: 'Off', lit: false, matched: true });
+    expect(evaluateState(1, s, false, 'Unknown', { kind: 'boolean' }).label).toBe('On');
+    expect(evaluateState(0, s, false, 'Unknown', { kind: 'boolean' }).label).toBe('Off');
+    expect(evaluateState('1', s, false, 'Unknown', { kind: 'boolean' }).label).toBe('On');
+    // the host's words win; a plain 1 with no word from the source is a number, as before
+    expect(evaluateState(1, s, false, 'Unknown', { kind: 'boolean' }, { on: 'Açık', off: 'Kapalı' }).label).toBe('Açık');
+    expect(evaluateState(1, s).label).toBe('1');
+    // a rule or the source's own word still comes first
+    expect(evaluateState(true, effective(STATE, { states: [{ match: 'true', label: 'Running' }] })).label).toBe('Running');
+    expect(evaluateState(1, s, false, 'Unknown', { kind: 'boolean', valueMap: { '1': { label: 'Open' } } }).label).toBe('Open');
+  });
   it('the big layout puts the state where Stat\'s number sits, with how long it has held', () => {
     const at = new Date(Date.now() - 42 * 60_000).toISOString();
     const { container } = renderKind(STATE_VIEW, STATE, { value: { shape: 'scalar', value: 90, fetchedAt: at } }, { states, label: 'Press A1' });

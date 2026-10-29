@@ -303,6 +303,9 @@ export interface StatViewMessages {
   spanDays: (n: number) => string;
   /** A state that matches no rule and has no value (a placement's `unknownLabel` wins). */
   unknown: string;
+  /** A state card's words for an on / off value no rule names (a boolean, or 1 / 0 the source calls a boolean). */
+  on: string;
+  off: string;
   /** Read by screen readers after an old value. */
   stale: string;
   /** The sparkline's accessible name; `span` is null when the span is unknown. */
@@ -559,6 +562,8 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     spanHours: (n) => `${n} h`,
     spanDays: (n) => `${n} d`,
     unknown: 'Unknown',
+    on: 'On',
+    off: 'Off',
     stale: '(stale)',
     trend: (span, points, from, to) => `Trend${span ? ` over ${span}` : ''}, ${points} points, from ${from} to ${to}`,
     min: (value) => `Min ${value}`,

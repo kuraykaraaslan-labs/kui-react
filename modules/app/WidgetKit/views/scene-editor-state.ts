@@ -127,6 +127,32 @@ export function baseBox(settings: SceneSettings, model: Pick<SceneModel, 'hits'>
 
 export const fitViewport = (base: ViewBox): Viewport => ({ cx: base.x + base.w / 2, cy: base.y + base.h / 2, zoom: 1 });
 
+/**
+ * The box the drawn symbols and shapes take, with the fit margin; null when the diagram holds nothing yet. "Fit to view" frames
+ * this (next-boilerplate's e2e round 2: three small symbols on a 1200 x 700 canvas stayed a few millimetres wide at 100 %, and the
+ * button changed nothing), and the whole canvas only while there is nothing to frame.
+ */
+export function contentBox(settings: SceneSettings, model: Pick<SceneModel, 'hits'>): ViewBox | null {
+  const parts: Box[] = model.hits.map((h) => ({ x: h.x, y: h.y, w: h.w, h: h.h }));
+  for (const raw of shapesOf(settings)) { const b = shapeBounds(raw as SceneShapeSetting); if (b) parts.push(b); }
+  if (parts.length === 0) return null;
+  const u = unionBox(parts) as Box;
+  return { x: u.x - FIT_MARGIN, y: u.y - FIT_MARGIN, w: u.w + 2 * FIT_MARGIN, h: u.h + 2 * FIT_MARGIN };
+}
+
+/**
+ * The viewport that shows `content` as large as the element allows (its centre in the middle, the zoom that fits both sides),
+ * within the zoom limits. With no content, the fitted canvas.
+ */
+export function fitContentViewport(base: ViewBox, content: ViewBox | null, size: Size): Viewport {
+  if (!content || content.w <= 0 || content.h <= 0) return fitViewport(base);
+  const w = size.w > 0 ? size.w : DEFAULT_SIZE.w; const h = size.h > 0 ? size.h : DEFAULT_SIZE.h;
+  const atOne = Math.min(w / base.w, h / base.h);
+  const wanted = Math.min(w / content.w, h / content.h);
+  const zoom = clamp(round2(wanted / atOne), MIN_ZOOM, MAX_ZOOM);
+  return clampViewport({ cx: content.x + content.w / 2, cy: content.y + content.h / 2, zoom }, base);
+}
+
 /** Pixels per scene unit when the view is at `zoom`. */
 export const pixelsPerUnit = (vp: Viewport, base: ViewBox, size: Size): number => Math.min(size.w / base.w, size.h / base.h) * vp.zoom;
 
