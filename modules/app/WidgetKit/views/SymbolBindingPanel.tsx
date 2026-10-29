@@ -514,21 +514,23 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4">
         {readOnly && <p className="text-xs text-text-secondary">{m.readOnlyNote}</p>}
 
-        {/* 1. Device */}
+        {/* 1. Device (the section's heading is the name a person sees; the picker's own label stays for assistive technology only) */}
         <div className="space-y-2">
           <h3 className="text-sm font-semibold">{m.deviceSection}</h3>
-          <ComboBox
-            id={`${uid}-device`}
-            label={m.deviceLabel}
-            options={deviceOptions}
-            value={draft.deviceId}
-            onChange={pickDevice}
-            onSearch={searchDevices}
-            placeholder={m.devicePlaceholder}
-            noResultsText={m.deviceNoResults}
-            clearable={false}
-            disabled={readOnly}
-          />
+          <div className="[&_label]:sr-only">
+            <ComboBox
+              id={`${uid}-device`}
+              label={m.deviceLabel}
+              options={deviceOptions}
+              value={draft.deviceId}
+              onChange={pickDevice}
+              onSearch={searchDevices}
+              placeholder={m.devicePlaceholder}
+              noResultsText={m.deviceNoResults}
+              clearable={false}
+              disabled={readOnly}
+            />
+          </div>
         </div>
 
         {/* 2. One row per thing the symbol draws */}
