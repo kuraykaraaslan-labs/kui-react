@@ -508,6 +508,19 @@ describe('entryFromDraft with expressions', () => {
   });
 });
 
+describe('a shared word of the symbol\'s own is a reason of its own; a quantity contradiction is a mismatch (slice 16)', () => {
+  it('names the symbol reason and bars confidence on a quantity mismatch', () => {
+    const [top] = rankKeysForField({ name: 'running', label: 'Running' }, [k('pump_on', true), k('t', 20)], undefined, [], ['Circulation pump', 'Pump']);
+    expect(top).toMatchObject({ key: 'pump_on', confident: true });
+    expect(top.reasons).toContain('symbol');
+    const plain = rankKeysForField({ name: 'running', label: 'Running' }, [k('pump_on', true), k('t', 20)], undefined, [], ['Strainer', 'Strainer']);
+    expect(plain[0].reasons).not.toContain('symbol');
+    const [opening] = rankKeysForField({ name: 'position', label: 'Opening' }, [k('supply_temp', 60.2), k('x', 'a')], undefined, [], ['Supply valve', 'Actuated valve']);
+    expect(opening).toMatchObject({ key: 'supply_temp', confident: false, mismatch: 'quantity' });
+    expect(suggestKeyForField({ name: 'position', label: 'Opening' }, [k('supply_temp', 60.2)], undefined, ['Supply valve'])).toBeNull();
+  });
+});
+
 describe('a key\'s own words say what it measures (slice 16)', () => {
   it('a temperature by its name is never the one number a speed reads; a reading with no quantity of its own takes the one number', () => {
     expect(suggestKeyForField({ name: 'speed', label: 'Speed' }, [k('temp_1', 21.5), k('pump_on', true)])).toBeNull();

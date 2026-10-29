@@ -38,7 +38,10 @@ function MatchForm({ rows, onApply, onClose, busy = false, messages, portalTarge
   const tick = useNow(5000);
   const now = rest.now ?? tick;
   const confident = useMemo(() => rows.filter((r) => r.confident && !r.mismatch).map((r) => r.id), [rows]);
-  const [chosen, setChosen] = useState<DataTableRowId[]>(confident);
+  // the ticked rows: the certain ones until the person touches the selection (the host hands the rows over after its reads, so they follow the rows until then)
+  const [touched, setTouched] = useState<DataTableRowId[] | null>(null);
+  const chosen = touched ?? confident;
+  const setChosen = (ids: DataTableRowId[]) => setTouched(ids);
   const columns = useMemo<Column<MatchRow>[]>(() => [
     {
       key: 'symbol', header: m.symbol, sortable: true, tdClass: 'max-w-0',
@@ -84,6 +87,7 @@ function MatchForm({ rows, onApply, onClose, busy = false, messages, portalTarge
     >
       {rows.length > 0 && (
         <DataTable<MatchRow>
+          key={rows.map((r) => r.id).join('|')}
           id="symbol-match-all"
           mode="static"
           density="compact"

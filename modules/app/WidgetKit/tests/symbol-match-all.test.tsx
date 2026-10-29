@@ -45,6 +45,24 @@ describe('matchAllRows', () => {
     expect(rows.map((r) => r.id)).toEqual(['door.value']);
     expect(rows[0]).toMatchObject({ key: 'reading', mismatch: 'text-for-number', confident: false });
   });
+  it('the one state key of the device is proposed to every symbol\'s Running, but certain only where a word names that symbol (the real drawing, U3)', () => {
+    const keys2 = new Map([[D1, [k('temp_1', 21.5), k('pump_on', true), k('supply_temp', 60.2), k('level_pct', 63)]]]);
+    const drawing: MatchSymbol[] = [
+      { id: 'pool', label: 'Pool', kindLabel: 'Open basin', deviceId: D1, deviceName: 'd', fields: [{ name: 'running', label: 'Running' }, { name: 'value', label: 'Reading' }] },
+      { id: 'valve_supply', label: 'Supply valve', kindLabel: 'Actuated valve', deviceId: D1, deviceName: 'd', fields: [{ name: 'running', label: 'Running' }, { name: 'position', label: 'Opening' }] },
+      { id: 'strainer', label: 'Strainer', kindLabel: 'Strainer', deviceId: D1, deviceName: 'd', fields: [{ name: 'running', label: 'Running' }] },
+      { id: 'pump_circulation', label: 'Circulation pump', kindLabel: 'Pump', deviceId: D1, deviceName: 'd', fields: [{ name: 'running', label: 'Running' }] },
+    ];
+    const rows = matchAllRows(drawing, keys2);
+    const by = Object.fromEntries(rows.map((r) => [r.id, r]));
+    // pump_on fits every Running by its kind: proposed to all four, ticked only for the pump (its own word)
+    expect(by['pool.running']).toMatchObject({ key: 'pump_on', confident: false });
+    expect(by['valve_supply.running']).toMatchObject({ key: 'pump_on', confident: false });
+    expect(by['strainer.running']).toMatchObject({ key: 'pump_on', confident: false });
+    expect(by['pump_circulation.running']).toMatchObject({ key: 'pump_on', confident: true });
+    // "supply_temp" shares the valve's word but measures a temperature, not an opening: offered, not certain, and said
+    expect(by['valve_supply.position']).toMatchObject({ key: 'supply_temp', confident: false, mismatch: 'quantity' });
+  });
   it('a key a symbol reads already is never proposed again for it', () => {
     const rows = matchAllRows([{ ...symbols[1], fields: [{ name: 'value', label: 'Reading' }], taken: ['pump_on', 'flow_lpm'] }], new Map([[D1, [k('pump_on', true), k('flow_lpm', 12.4), k('temp_1', 21.5)]]]));
     expect(rows.map((r) => [r.id, r.key])).toEqual([['pump.value', 'temp_1']]);
@@ -101,6 +119,16 @@ describe('SymbolMatchAllDialog', () => {
     rerender(<SymbolMatchAllDialog open rows={rowsFor()} onApply={vi.fn()} onClose={onClose} />);
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+  it('rows that arrive after the dialog opened (the host reads first) are ticked by their certainty, and Apply counts them', async () => {
+    const user = userEvent.setup();
+    const onApply = vi.fn();
+    const { rerender } = render(<SymbolMatchAllDialog open rows={[]} onApply={onApply} onClose={vi.fn()} busy now={NOW} />);
+    expect(screen.getByRole('button', { name: 'Apply 0 proposals' })).toBeDisabled();
+    rerender(<SymbolMatchAllDialog open rows={rowsFor()} onApply={onApply} onClose={vi.fn()} now={NOW} />);
+    const certain = rowsFor().filter((r) => r.confident && !r.mismatch).length;
+    await user.click(screen.getByRole('button', { name: `Apply ${certain} proposals` }));
+    expect(onApply).toHaveBeenCalledWith(rowsFor().filter((r) => r.confident && !r.mismatch).map((r) => r.id));
   });
   it('draws nothing while closed', () => {
     const { container } = render(<SymbolMatchAllDialog open={false} rows={rowsFor()} onApply={vi.fn()} onClose={vi.fn()} />);

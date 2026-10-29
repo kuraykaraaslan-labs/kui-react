@@ -272,10 +272,11 @@ export function keyQuantity(k: Pick<DeviceKey, 'key' | 'label' | 'unit'>): { qua
 
 // ─── Ranking a device's keys for a field (U1) ────────────────────────────────
 
-/** Why a key does not fit the field's kind, in a word the panel turns into a sentence. */
-export type Mismatch = 'text-for-number' | 'state-for-number' | 'number-for-state' | 'text-for-state';
+/** Why a key does not fit the field, in a word the panel turns into a sentence: its kind, or the quantity it measures (`quantity`: a temperature for an opening). */
+export type Mismatch = 'text-for-number' | 'state-for-number' | 'number-for-state' | 'text-for-state' | 'quantity';
 
-export type RankReason = 'element' | 'name' | 'synonym' | 'contains' | 'type' | 'unit' | 'only';
+/** `symbol`: the shared word came from the symbol's own words (its label or kind), not from the field's: a reason specific to THIS symbol. */
+export type RankReason = 'element' | 'name' | 'synonym' | 'symbol' | 'contains' | 'type' | 'unit' | 'only';
 
 /** One key of the device as a candidate for a field: its score, whether the panel may pick it by itself, why, and the kind problem if it has one. */
 export interface RankedKey {
@@ -325,6 +326,8 @@ export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.fi
  *  name     the key's local part (after its last dot), or its label, is the field's name or label: 80;
  *  synonym  the key and the field share a whole word, or a synonym of one (`Reading` of a thermometer finds `temp_1`, `Running` finds `pump_on`): 65,
  *           and 15 more for each further shared word (`Supply temperature` beats `Return temperature` for a supply field);
+ *  symbol   the key shares a word of the SYMBOL's own (its label or kind: Door ↔ `door`, Circulation pump ↔ `pump_on`): 65 on its own, 15 beside a
+ *           name or synonym match; the one reason that ties a key to this symbol rather than to any symbol with the same parameter;
  *  contains the key holds a word of the field of four letters or more: 55;
  *  type     what the key sends agrees with what the field expects: 15, or 60 when it is the only key of that kind the device sends and no key matched
  *           by a word (words first, the kind as the fallback); a mismatch is flagged and costs (45; 10 for a 0/1 where a number is expected);
@@ -350,6 +353,9 @@ export function rankKeysForField(
   const kind = fieldKindOf(field);
   const useHints = kind === 'number' || kind === null;
   const words = fieldWords(field, useHints ? hints : []);
+  // the symbol's own words (and their synonyms), apart: a key that shares one of them is matched to THIS symbol, not to any symbol with the same field
+  const ownWords = fieldWords({ name: '' }, hints);
+  const fieldOnly = fieldWords(field);
   const long = [...new Set([...wordsOf(field.name), ...(field.label ? wordsOf(field.label) : [])])].filter((w) => w.length >= 4);
   const quantity = fieldQuantity(field) ?? (useHints ? fieldQuantity({ name: hints.join(' ') }) : null);
   const kinds = new Map<FieldKind | null, number>();
@@ -367,6 +373,8 @@ export function rankKeysForField(
     const keyWords = new Set([...wordsOf(local), ...(k.label ? wordsOf(k.label) : [])]);
     const shared = [...keyWords].filter((w) => words.has(w)).length;
     if (!reasons.includes('name') && shared > 0) { score += 65 + Math.min(2, shared - 1) * 15; reasons.push('synonym'); }
+    // a word of the symbol's own (Door ↔ `door`, Circulation pump ↔ `pump_on`): a match to THIS symbol, scored like a synonym, a second signal beside one
+    if ([...keyWords].some((w) => ownWords.has(w) && !fieldOnly.has(w))) { score += reasons.length === 0 ? 65 : 15; reasons.push('symbol'); }
     if (reasons.length === 0 && long.some((w) => nlocal.includes(w) || nlabel.includes(w))) { score += 55; reasons.push('contains'); }
     return { k, reasons, score };
   });
@@ -380,7 +388,8 @@ export function rankKeysForField(
     if (t !== 0) { score += t; reasons.push('type'); }
     if (kq) { score += contradicts ? -20 : kq.byUnit ? 45 : 20; reasons.push('unit'); }
     if (list.length === 1 && reasons.length === 0) { score += 60; reasons.push('only'); }
-    const mismatch = mismatchOf(field, k);
+    // a key that measures another quantity than the field is never picked by itself, whatever word it shares (a supply temperature for a valve's opening)
+    const mismatch = mismatchOf(field, k) ?? (contradicts ? 'quantity' : null);
     return { key: k.key, score, confident: false, reasons, ...(mismatch ? { mismatch } : {}) };
   }).filter((r) => r.score > 0);
   ranked.sort((a, b) => b.score - a.score);
@@ -740,6 +749,8 @@ export type MatchRow = {
  */
 export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: ReadonlyMap<string, readonly DeviceKey[]>): MatchRow[] {
   const out: MatchRow[] = [];
+  // the reasons of each row, kept aside: a key proposed for the same parameter of several symbols is certain only where a reason names THAT symbol
+  const reasonsOf = new Map<string, readonly RankReason[]>();
   for (const s of symbols) {
     const keys = keysByDevice.get(s.deviceId);
     if (!keys || keys.length === 0) continue;
@@ -750,12 +761,22 @@ export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: Read
       const k = keys.find((x) => x.key === top.key);
       if (!k) continue;
       taken.push(top.key);
+      const id = `${s.id}.${f.name}`;
+      reasonsOf.set(id, top.reasons);
       out.push({
-        id: `${s.id}.${f.name}`, symbolId: s.id, symbolLabel: s.label, kindLabel: s.kindLabel, field: f.name, fieldLabel: f.label,
+        id, symbolId: s.id, symbolLabel: s.label, kindLabel: s.kindLabel, field: f.name, fieldLabel: f.label,
         deviceId: s.deviceId, deviceName: s.deviceName, key: k.key, keyLabel: k.label && k.label.trim() ? k.label : k.key, value: k.value,
         ...(k.unit ? { unit: k.unit } : {}), ts: k.ts, confident: top.confident, ...(top.mismatch ? { mismatch: top.mismatch } : {}),
       });
     }
+  }
+  // the one state key of a device fits the Running of every symbol by its kind alone: proposed to each, certain only for the symbol it names
+  // (the element rule, or a word of the symbol's own), so a whole drawing is never ticked onto one key by accident
+  const claims = new Map<string, number>();
+  for (const r of out) { const k = `${r.deviceId}\n${r.field}\n${r.key}`; claims.set(k, (claims.get(k) ?? 0) + 1); }
+  for (const r of out) {
+    const reasons = reasonsOf.get(r.id) ?? [];
+    if (r.confident && (claims.get(`${r.deviceId}\n${r.field}\n${r.key}`) ?? 0) > 1 && !reasons.includes('element') && !reasons.includes('symbol')) r.confident = false;
   }
   return out;
 }

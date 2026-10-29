@@ -180,6 +180,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
     'state-for-number': 'This value is on/off; the drawing expects a number.',
     'number-for-state': 'This value is a number; the drawing expects on/off.',
     'text-for-state': 'This value is text; the drawing expects on/off.',
+    quantity: 'This value measures something else than the drawing shows here.',
   },
   convertInstead: 'Convert it with an expression',
   age: DEFAULT_AGE_WORDS,
