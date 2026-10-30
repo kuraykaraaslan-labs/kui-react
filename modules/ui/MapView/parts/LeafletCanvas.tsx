@@ -11,7 +11,7 @@ import { ZoneShape, RouteShape } from './Shapes';
 import { CANVAS_CLASS, DIM_TILES_CLASS } from './styles';
 import { useMapTileSource } from '../MapTilesProvider';
 import { TILE_REFERRER_POLICY, tileSourceTiles } from '../tiles';
-import type { MapDisplayOptions, MapImage, MapMarker, MapZone, MapRoute, MapTilesConfig } from '../types';
+import type { MapDisplayOptions, MapFocus, MapImage, MapMarker, MapZone, MapRoute, MapTilesConfig } from '../types';
 
 type LeafletCanvasProps = {
   center: [number, number];
@@ -29,6 +29,8 @@ type LeafletCanvasProps = {
   fitBoundsPadding?: number;
   onMapClick: (lat: number, lng: number) => void;
   onMarkerClick?: (id: string) => void;
+  focus?: MapFocus | null;
+  focusZoom?: number;
   tiles?: MapTilesConfig;
   loadingLabel?: string;
 } & MapDisplayOptions;
@@ -101,6 +103,33 @@ function FitBounds({
 }
 
 /**
+ * Flies to the marker a list asked for (`focus`), once per request: the effect depends on `seq`, not on the marker array, so a
+ * re-render or a moved marker never pulls the view back. It never zooms out (a reader who zoomed in stays at that zoom) and
+ * jumps without the animation when the reader prefers reduced motion. An unknown id is ignored.
+ */
+export function FocusMarker({
+  bundle, markers, focus, zoom,
+}: {
+  bundle: LeafletBundle;
+  markers: MapMarker[];
+  focus?: MapFocus | null;
+  zoom: number;
+}) {
+  const map = bundle.useMap() as LeafletMap;
+  useEffect(() => {
+    if (!focus) return;
+    const target = markers.find((m) => m.id === focus.id);
+    if (!target) return;
+    const to = Math.min(Math.max(map.getZoom(), zoom), map.getMaxZoom());
+    const still = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (still) map.setView(target.position, to, { animate: false });
+    else map.flyTo(target.position, to, { duration: 0.6 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, focus?.id, focus?.seq]);
+  return null;
+}
+
+/**
  * Keeps the live map in step with options react-leaflet only reads at mount: the view (when not
  * fitting to markers), the zoom limits and wheel zoom. A settings change therefore shows at once.
  */
@@ -147,6 +176,8 @@ function InnerMap({
   fitBoundsPadding,
   onMapClick,
   onMarkerClick,
+  focus,
+  focusZoom = 13,
   tiles: tilesProp,
   minZoom,
   maxZoom,
@@ -228,6 +259,7 @@ function InnerMap({
 
       <ClickHandler bundle={bundle} addMode={addMode} onMapClick={onMapClick} />
       <FitBounds bundle={bundle} markers={fitPoints} padding={fitBoundsPadding} maxZoom={fitMaxZoom} />
+      <FocusMarker bundle={bundle} markers={markers} focus={focus} zoom={focusZoom} />
       <ViewSync
         bundle={bundle}
         center={center}

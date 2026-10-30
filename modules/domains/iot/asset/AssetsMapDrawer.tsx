@@ -78,6 +78,8 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
   const { m } = useIotText();
   const [onlyAlarmed, setOnlyAlarmed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // A site picked in the list also moves the map to it (a marker click does not: the reader is already looking at it)
+  const [focus, setFocus] = useState<{ id: string; seq: number } | null>(null);
   // "Fit all": a new map, which fits itself to the markers when it mounts
   const [fitRound, setFitRound] = useState(0);
   const alarms = !!summary?.alarms;
@@ -126,7 +128,7 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
       <button
         type="button"
         aria-current={s.assetId === selectedId ? 'true' : undefined}
-        onClick={() => setSelectedId(s.assetId)}
+        onClick={() => { setSelectedId(s.assetId); setFocus((f) => ({ id: s.assetId, seq: (f?.seq ?? 0) + 1 })); }}
         className="flex w-full min-w-0 items-start gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus max-sm:min-h-10"
       >
         <span aria-hidden="true" className={cn('mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full', TONE_DOT[siteTone(s)])} />
@@ -168,7 +170,7 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
                 </button>
               )}
               {markers.length > 0 && (
-                <Button variant="outline" size="sm" className={cn('ml-auto', TOUCH)} onClick={() => setFitRound((n) => n + 1)}
+                <Button variant="outline" size="sm" className={cn('ml-auto', TOUCH)} onClick={() => { setFocus(null); setFitRound((n) => n + 1); }}
                   iconLeft={<FontAwesomeIcon icon={faExpand} className="h-3 w-3" aria-hidden="true" />}>
                   {m.assets.mapFitAll}
                 </Button>
@@ -178,7 +180,7 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
           <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:flex-row-reverse">
             <div className="relative h-72 shrink-0 overflow-hidden rounded-xl border border-border sm:h-96 lg:h-auto lg:min-h-0 lg:flex-1" data-testid="assets-map">
               {markers.length ? (
-                <MapCanvas key={fitRound} markers={markers} onMarkerClick={setSelectedId} loadingLabel={m.common.loading} cluster clusterText={clusterText} />
+                <MapCanvas key={fitRound} markers={markers} focus={focus} onMarkerClick={setSelectedId} loadingLabel={m.common.loading} cluster clusterText={clusterText} />
               ) : (
                 <p className="flex h-full items-center justify-center p-6 text-center text-sm text-text-secondary">{m.assets.mapNoSites}</p>
               )}

@@ -24,10 +24,10 @@ const mapMounts = vi.hoisted(() => ({ n: 0 }));
 vi.mock('@/modules/ui/MapView/MapCanvas', async () => {
   const { useEffect } = await import('react');
   return { MapCanvas: FakeMap };
-  function FakeMap({ markers, onMarkerClick, cluster, clusterText }: { markers: Array<{ id: string }>; onMarkerClick?: (id: string) => void; cluster?: boolean; clusterText?: (ms: Array<{ id: string }>) => string }) {
+  function FakeMap({ markers, onMarkerClick, cluster, clusterText, focus }: { markers: Array<{ id: string }>; focus?: { id: string; seq: number } | null; onMarkerClick?: (id: string) => void; cluster?: boolean; clusterText?: (ms: Array<{ id: string }>) => string }) {
     useEffect(() => { mapMounts.n += 1; }, []);
     return (
-    <div data-testid="fake-map" data-markers={JSON.stringify(markers)} data-cluster={String(!!cluster)} data-cluster-text={clusterText?.(markers)}>
+    <div data-testid="fake-map" data-markers={JSON.stringify(markers)} data-cluster={String(!!cluster)} data-focus={focus ? `${focus.id}:${focus.seq}` : ""} data-cluster-text={clusterText?.(markers)}>
       {markers.map((mk) => <button key={mk.id} type="button" onClick={() => onMarkerClick?.(mk.id)}>{`marker ${mk.id}`}</button>)}
     </div>
     );
@@ -524,6 +524,24 @@ describe('AssetsMapDrawer', () => {
     expect(within(card).getByRole('link', { name: 'Alarms' })).toHaveAttribute('href', '/alarms?site=plant');
     await user.click(within(card).getByRole('button', { name: 'Details' }));
     expect(onOpenSite).toHaveBeenCalledWith('plant');
+  });
+
+  it('moves the map to a site picked in the list, again on a repeated pick, but not for a marker click, and "Fit all" lets go of it', async () => {
+    const user = userEvent.setup();
+    wrap(<AssetsMapDrawer onClose={() => undefined} summary={SUMMARY} onListAssets={() => undefined} onOpenSite={() => undefined} />, fakeAssets());
+    const map = await screen.findByTestId('fake-map');
+    const list = screen.getByRole('table', { name: 'Sites' });
+    expect(map).toHaveAttribute('data-focus', '');
+    await user.click(within(list).getByRole('button', { name: /Berlin plant/ }));
+    expect(map).toHaveAttribute('data-focus', 'plant:1');
+    // the same site again (the reader panned away): a new request
+    await user.click(within(list).getByRole('button', { name: /Berlin plant/ }));
+    expect(map).toHaveAttribute('data-focus', 'plant:2');
+    // a marker click selects the site but leaves the view where the reader put it
+    await user.click(within(map).getByRole('button', { name: 'marker plant' }));
+    expect(map).toHaveAttribute('data-focus', 'plant:2');
+    await user.click(screen.getByRole('button', { name: /Fit all/ }));
+    expect(screen.getByTestId('fake-map')).toHaveAttribute('data-focus', '');
   });
 
   it('sizes a site\'s circle by its devices (by area) and puts its active alarm count inside', () => {

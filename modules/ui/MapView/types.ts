@@ -22,6 +22,9 @@ export type MapTooltipData = {
 /** How a marker is drawn: the pin (default), a solid dot, a tinted ring (circle), a Font Awesome icon, or a picture. */
 export type MapMarkerShape = 'pin' | 'dot' | 'circle' | 'icon' | 'image';
 
+/** A request to move the view to a marker: `seq` changes on every request, so the same marker can be asked for twice. */
+export type MapFocus = { id: string; seq: number };
+
 export type MapMarker = {
   id: string;
   position: [number, number];

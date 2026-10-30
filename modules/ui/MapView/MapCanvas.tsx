@@ -1,7 +1,7 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
 import { LeafletCanvas } from './parts/LeafletCanvas';
-import type { MapDisplayOptions, MapImage, MapMarker, MapRoute, MapTilesConfig, MapZone } from './types';
+import type { MapDisplayOptions, MapFocus, MapImage, MapMarker, MapRoute, MapTilesConfig, MapZone } from './types';
 
 export type MapCanvasProps = {
   markers?: MapMarker[];
@@ -22,6 +22,10 @@ export type MapCanvasProps = {
   /** Fit the view to the markers (default). `false` keeps `center` and `zoom`. */
   fitBounds?: boolean;
   onMarkerClick?: (id: string) => void;
+  /** Move the view to this marker (a list that selects a place): `seq` changes on every request, so the same marker can be asked for again after the reader panned away. */
+  focus?: MapFocus | null;
+  /** The zoom a focus never goes below (default 13, near enough for a clustered marker to stand alone). */
+  focusZoom?: number;
   /** Text shown until the map chunk resolves. Default = "Loading map…". */
   loadingLabel?: string;
   /** Accessible name of the map region. Default = "Map". */
@@ -52,6 +56,8 @@ export function MapCanvas({
   fitBoundsPadding = 32,
   fitBounds = true,
   onMarkerClick,
+  focus,
+  focusZoom,
   loadingLabel = 'Loading map…',
   ariaLabel = 'Map',
   className,
@@ -73,6 +79,8 @@ export function MapCanvas({
         fitBoundsPadding={fitBounds ? fitBoundsPadding : undefined}
         onMapClick={noop}
         onMarkerClick={onMarkerClick}
+        focus={focus}
+        focusZoom={focusZoom}
         tiles={tiles}
         loadingLabel={loadingLabel}
         {...display}

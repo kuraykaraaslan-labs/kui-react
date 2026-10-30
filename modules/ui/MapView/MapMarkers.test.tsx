@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { markerIcon, markerText } from './parts/Marker';
 import { ClusteredMarkers, clusterColor, clusterMarkers } from './parts/Cluster';
@@ -8,6 +8,7 @@ import { VARIANT_HEX, safeMarkerColor, safeMarkerIcon, safeMarkerImage } from '.
 import { LEAFLET_TILES, type LeafletBundle } from './providers/leaflet';
 import { OSM_ATTRIBUTION, TILE_REFERRER_POLICY, safeAttribution, safeTileSource, tileSourceTiles } from './tiles';
 import { MapTilesProvider, useMapTileSource } from './MapTilesProvider';
+import { FocusMarker } from './parts/LeafletCanvas';
 
 describe('marker drawing', () => {
   it('accepts plain colours and tokens, refuses anything that could break out of the HTML', () => {
@@ -218,5 +219,41 @@ describe('ClusteredMarkers zoom', () => {
     act(() => map.zoomTo(2));
     expect(screen.getAllByTestId('marker')).toHaveLength(1);
     expect(screen.getByTestId('marker')).toHaveAttribute('data-alt', '7 markers, zoom in');
+  });
+});
+
+describe('FocusMarker', () => {
+  const places = [{ id: 'a', position: [40, 30] as [number, number] }, { id: 'b', position: [41, 31] as [number, number] }];
+  const mapAt = (zoom: number) => ({ getZoom: () => zoom, getMaxZoom: () => 20, flyTo: vi.fn(), setView: vi.fn() });
+  const bundleOf = (map: ReturnType<typeof mapAt>) => ({ useMap: () => map }) as unknown as LeafletBundle;
+
+  it('flies to the asked marker, never zooming out, and only on a new request', () => {
+    const map = mapAt(6);
+    const { rerender } = render(<FocusMarker bundle={bundleOf(map)} markers={places} focus={null} zoom={13} />);
+    expect(map.flyTo).not.toHaveBeenCalled();
+    rerender(<FocusMarker bundle={bundleOf(map)} markers={places} focus={{ id: 'b', seq: 1 }} zoom={13} />);
+    expect(map.flyTo).toHaveBeenCalledWith([41, 31], 13, { duration: 0.6 });
+    // the markers re-render with new positions: the view is not pulled back
+    rerender(<FocusMarker bundle={bundleOf(map)} markers={[...places]} focus={{ id: 'b', seq: 1 }} zoom={13} />);
+    expect(map.flyTo).toHaveBeenCalledTimes(1);
+    // the same marker asked for again
+    rerender(<FocusMarker bundle={bundleOf(map)} markers={places} focus={{ id: 'b', seq: 2 }} zoom={13} />);
+    expect(map.flyTo).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a closer zoom the reader chose, ignores an unknown id, and jumps when motion is reduced', () => {
+    const close = mapAt(16);
+    const { rerender } = render(<FocusMarker bundle={bundleOf(close)} markers={places} focus={{ id: 'a', seq: 1 }} zoom={13} />);
+    expect(close.flyTo).toHaveBeenCalledWith([40, 30], 16, { duration: 0.6 });
+    rerender(<FocusMarker bundle={bundleOf(close)} markers={places} focus={{ id: 'nope', seq: 2 }} zoom={13} />);
+    expect(close.flyTo).toHaveBeenCalledTimes(1);
+    const still = mapAt(6);
+    const original = window.matchMedia;
+    window.matchMedia = ((q: string) => ({ matches: q.includes('reduce'), media: q })) as typeof window.matchMedia;
+    try {
+      render(<FocusMarker bundle={bundleOf(still)} markers={places} focus={{ id: 'a', seq: 1 }} zoom={13} />);
+    } finally { window.matchMedia = original; }
+    expect(still.setView).toHaveBeenCalledWith([40, 30], 13, { animate: false });
+    expect(still.flyTo).not.toHaveBeenCalled();
   });
 });
