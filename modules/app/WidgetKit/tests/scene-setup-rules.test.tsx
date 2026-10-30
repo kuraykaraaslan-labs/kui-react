@@ -27,7 +27,7 @@ function props(over: Partial<SceneSetupDrawerProps> = {}): SceneSetupDrawerProps
 async function saveIt(onSave: ReturnType<typeof vi.fn>): Promise<BindingDraft> {
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Save' }));
-  const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+  const dialog = screen.getByRole('dialog', { name: 'Save this view' });
   const box = within(dialog).queryByRole('checkbox');
   if (box) await user.click(box);
   await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));

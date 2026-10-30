@@ -119,7 +119,7 @@ describe('the drawer with a 2D preview: pick by click', () => {
     const onSave = vi.fn();
     render(<Host onSave={onSave} />);
     const user = userEvent.setup();
-    const region = screen.getByRole('region', { name: 'Scene preview' });
+    const region = screen.getByRole('region', { name: 'Preview of the drawing' });
     await user.click(within(region).getByRole('button', { name: 'cam' }));
     const strip = screen.getByTestId('picked-strip');
     expect(within(strip).getByText(/cam/)).toBeInTheDocument();
@@ -162,7 +162,7 @@ describe('the drawer: the Rules step of kind diagram', () => {
     await user.selectOptions(screen.getByLabelText('State'), 'warning');
     await user.selectOptions(screen.getByLabelText('Blink'), 'true');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    const dialog = screen.getByRole('dialog', { name: 'Save this view' });
     const box = within(dialog).queryByRole('checkbox');
     if (box) await user.click(box);
     await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));
@@ -225,7 +225,7 @@ describe('the drawer: switching the kind', () => {
     await user.click(screen.getByRole('button', { name: '2D diagram' }));
     await user.click(screen.getByRole('radio', { name: 'Use Home network' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    const dialog = screen.getByRole('dialog', { name: 'Save this view' });
     const box = within(dialog).queryByRole('checkbox');
     if (box) await user.click(box);
     await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));

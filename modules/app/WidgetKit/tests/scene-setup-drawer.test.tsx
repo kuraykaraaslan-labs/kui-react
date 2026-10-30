@@ -335,7 +335,7 @@ describe('SceneSetupDrawer: pick in the scene', () => {
   });
   it('draws the preview slot beside the table', () => {
     render(<SceneSetupDrawer {...props({ preview: <canvas data-testid="canvas" /> })} />);
-    expect(within(screen.getByRole('region', { name: 'Scene preview' })).getByTestId('canvas')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Preview of the drawing' })).getByTestId('canvas')).toBeInTheDocument();
   });
 });
 
@@ -364,7 +364,7 @@ describe('SceneSetupDrawer: save', () => {
     await user.selectOptions(elementOf('ghost'), 'spare');
     await user.click(screen.getByRole('button', { name: 'Accept the proposal for fan' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    const dialog = screen.getByRole('dialog', { name: 'Save this view' });
     expect(onSave).not.toHaveBeenCalled();
     // in words, never "exceptions" or "keys" (next-boilerplate E2E-1.13): what is connected by hand, and that nothing reads nothing
     expect(within(dialog).getByText(/Saves this design setup, with 3 symbols connected by hand\. Every symbol has a value\./)).toBeInTheDocument();
@@ -399,7 +399,7 @@ describe('SceneSetupDrawer: save', () => {
     await user.click(screen.getByRole('button', { name: 'Match automatically' }));
     await user.click(screen.getByRole('button', { name: 'Accept the proposal for fan' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    await user.click(within(screen.getByRole('dialog', { name: 'Save the scene setup' })).getByRole('button', { name: 'Save setup' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Save this view' })).getByRole('button', { name: 'Save setup' }));
     expect(onSave.mock.calls[0][0].map).toEqual({ ...map, fan: { deviceId: D1, element: 'blower' } });
   });
   it('does not store a proposal that was not accepted, and asks to acknowledge what stays open', async () => {
@@ -408,7 +408,7 @@ describe('SceneSetupDrawer: save', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Match automatically' }));
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    const dialog = screen.getByRole('dialog', { name: 'Save this view' });
     const confirmBtn = within(dialog).getByRole('button', { name: 'Save setup' });
     expect(confirmBtn).toBeDisabled();
     await user.click(within(dialog).getByRole('checkbox'));
@@ -421,16 +421,16 @@ describe('SceneSetupDrawer: save', () => {
     render(<SceneSetupDrawer {...props({ onSave })} />);
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    await user.click(within(screen.getByRole('dialog', { name: 'Save the scene setup' })).getByRole('button', { name: 'Cancel' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Save this view' })).getByRole('button', { name: 'Cancel' }));
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.queryByRole('dialog', { name: 'Save the scene setup' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Save this view' })).toBeNull();
   });
   it('asks for a reason when the host wants one, and passes it', async () => {
     const onSave = vi.fn();
     render(<SceneSetupDrawer {...props({ onSave, askReason: true })} />);
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    const dialog = screen.getByRole('dialog', { name: 'Save this view' });
     await user.type(within(dialog).getByLabelText('Reason (optional)'), 'new fryer');
     await user.click(within(dialog).getByRole('checkbox'));
     await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));
@@ -452,7 +452,7 @@ describe('SceneSetupDrawer: save', () => {
     await user.click(screen.getByRole('button', { name: 'Reload' }));
     expect(onReload).toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    expect(within(screen.getByRole('dialog', { name: 'Save the scene setup' })).getByText(/saved setup is newer/)).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog', { name: 'Save this view' })).getByText(/saved setup is newer/)).toBeInTheDocument();
   });
   it('a saved binding is read back: its exceptions show as hand picks, a vanished element is called out', () => {
     render(<SceneSetupDrawer {...props({
@@ -472,7 +472,7 @@ describe('SceneSetupDrawer: save', () => {
 async function saveIt(onSave: ReturnType<typeof vi.fn>) {
   const user = userEvent.setup();
   await user.click(screen.getByRole('button', { name: 'Save' }));
-  const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+  const dialog = screen.getByRole('dialog', { name: 'Save this view' });
   const box = within(dialog).queryByRole('checkbox');
   if (box) await user.click(box);
   await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));
@@ -505,7 +505,7 @@ describe('SceneSetupDrawer: saved entries the scene no longer has (stale)', () =
     const user = userEvent.setup();
     await user.selectOptions(elementOf('ghost'), 'spare');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    const dialog = screen.getByRole('dialog', { name: 'Save this view' });
     expect(within(dialog).getByRole('button', { name: 'Save setup' })).toBeDisabled();
     await user.click(within(dialog).getByRole('checkbox'));
     expect(within(dialog).getByText('I know that 3 saved entries the scene no longer has are kept.')).toBeInTheDocument();
@@ -535,7 +535,7 @@ describe('SceneSetupDrawer: saved entries the scene no longer has (stale)', () =
     await user.click(screen.getByRole('button', { name: 'Remove the stale hidden key oldhidden' }));
     await user.selectOptions(elementOf('ghost'), 'spare');
     await user.click(screen.getByRole('button', { name: 'Save' }));
-    const dialog = screen.getByRole('dialog', { name: 'Save the scene setup' });
+    const dialog = screen.getByRole('dialog', { name: 'Save this view' });
     expect(within(dialog).queryByRole('checkbox')).toBeNull();
     await user.click(within(dialog).getByRole('button', { name: 'Save setup' }));
     expect(onSave.mock.calls[0][0]).toEqual({
@@ -954,7 +954,7 @@ describe('SceneSetupDrawer: remove this setup (SP-10)', () => {
     const u = user();
     await u.click(screen.getByRole('button', { name: 'Remove this setup' }));
     expect(onRemove).not.toHaveBeenCalled();
-    const dialog = screen.getByRole('dialog', { name: 'Remove the scene setup' });
+    const dialog = screen.getByRole('dialog', { name: 'Remove this view' });
     expect(within(dialog).getByText('Removes the 3D design "Fryer line". The dashboards that showed it go back to what they would show without it. The other views are not touched.')).toBeInTheDocument();
     expect(within(dialog).queryByText(/view_2/)).toBeNull();
     await u.click(within(dialog).getByRole('button', { name: 'Remove setup' }));
@@ -964,7 +964,7 @@ describe('SceneSetupDrawer: remove this setup (SP-10)', () => {
   it('names the view as the host lists it when the host says (two views of one drawing: "(2)")', async () => {
     render(<SceneSetupDrawer {...props({ initial: { slot: 'view_2', kind: 'design', documentId: DOC_A }, onRemove: vi.fn(), viewName: 'Fryer line (2)' })} />);
     await user().click(screen.getByRole('button', { name: 'Remove this setup' }));
-    expect(within(screen.getByRole('dialog', { name: 'Remove the scene setup' })).getByText(/Removes the 3D design "Fryer line \(2\)"/)).toBeInTheDocument();
+    expect(within(screen.getByRole('dialog', { name: 'Remove this view' })).getByText(/Removes the 3D design "Fryer line \(2\)"/)).toBeInTheDocument();
   });
 
   it('Cancel removes nothing', async () => {
@@ -972,7 +972,7 @@ describe('SceneSetupDrawer: remove this setup (SP-10)', () => {
     render(<SceneSetupDrawer {...props({ initial, onRemove })} />);
     const u = user();
     await u.click(screen.getByRole('button', { name: 'Remove this setup' }));
-    await u.click(within(screen.getByRole('dialog', { name: 'Remove the scene setup' })).getByRole('button', { name: 'Cancel' }));
+    await u.click(within(screen.getByRole('dialog', { name: 'Remove this view' })).getByRole('button', { name: 'Cancel' }));
     expect(onRemove).not.toHaveBeenCalled();
   });
 
@@ -1030,7 +1030,7 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
     const u = user();
     await u.click(screen.getByRole('radio', { name: 'Use Grill station' }));
     await u.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.queryByRole('dialog', { name: 'Save the scene setup' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Save this view' })).toBeNull();
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(onSave.mock.calls[0][0]).toMatchObject({ documentId: DOC_B, slot: 'main', kind: 'design' });
     expect(onSave.mock.calls[0][1]).toEqual({ reason: '' });
@@ -1042,7 +1042,7 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
     const u = user();
     await u.click(screen.getByRole('radio', { name: 'Use Grill station' }));
     await u.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('dialog', { name: 'Save the scene setup' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Save this view' })).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });
 
@@ -1061,7 +1061,7 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
 
   it('the host\'s preview is drawn under the document table in choose mode', () => {
     render(<SceneSetupDrawer {...props({ mode: 'choose', preview: <div data-testid="pv" /> })} />);
-    expect(screen.getByRole('region', { name: 'Scene preview' })).toContainElement(screen.getByTestId('pv'));
+    expect(screen.getByRole('region', { name: 'Preview of the drawing' })).toContainElement(screen.getByTestId('pv'));
   });
 
   it('the full mode is the default: numbered sections, the type and the confirmation', async () => {
@@ -1071,7 +1071,7 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
     const u = user();
     await u.click(screen.getByRole('radio', { name: 'Use Grill station' }));
     await u.click(screen.getByRole('button', { name: 'Save' }));
-    expect(screen.getByRole('dialog', { name: 'Save the scene setup' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Save this view' })).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
   });
 });

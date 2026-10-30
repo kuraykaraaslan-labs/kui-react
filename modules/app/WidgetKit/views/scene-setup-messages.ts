@@ -291,7 +291,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   kindSwitchBody: (kind) => `Your edits in this form are lost: it starts over from the saved ${kind} (or from an empty one).`,
   kindSwitchConfirm: 'Switch',
   removeButton: 'Remove this setup',
-  removeTitle: 'Remove the scene setup',
+  removeTitle: 'Remove this view',
   removeBody: (kind, view) => `Removes the ${kind} "${view}". The dashboards that showed it go back to what they would show without it. The other views are not touched.`,
   removeConfirm: 'Remove setup',
   kinds: { diagram: '2D diagram', scene: '2D diagram', design: '3D design' },
@@ -365,7 +365,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   accept: 'Accept',
   acceptOf: (key) => `Accept the proposal for ${key}`,
   acceptAll: (count) => `Accept all proposals (${count})`,
-  previewLabel: 'Scene preview',
+  previewLabel: 'Preview of the drawing',
   dontBind: "Don't bind",
   dontBindOf: (key) => `Do not bind ${key}`,
   bindAgain: 'Bind again',
@@ -498,7 +498,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     upTo: 'Up to',
     words: DEFAULT_DESIGN_RULE_WORDS,
   },
-  confirmTitle: 'Save the scene setup',
+  confirmTitle: 'Save this view',
   // in words a person who knows no key or slot can read (next-boilerplate E2E-1.13): what is saved, and what still reads nothing
   confirmMessage: (kind, mapped, unmatched) =>
     `Saves this ${kind} setup${mapped ? `, with ${n(mapped, 'symbol connected', 'symbols connected')} by hand` : ''}. ${unmatched ? `${n(unmatched, 'symbol reads', 'symbols read')} nothing yet; connect them on the drawing afterwards.` : 'Every symbol has a value.'}`,
