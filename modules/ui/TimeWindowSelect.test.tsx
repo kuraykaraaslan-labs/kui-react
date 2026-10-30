@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { TimeWindowSelect, toZonedInput, fromZonedInput, windowSpanMs, summarize } from './TimeWindowSelect';
+import { TimeWindowSelect, toZonedInput, fromZonedInput, windowSpanMs, summarize, DEFAULT_TIME_WINDOW_SELECT_MESSAGES } from './TimeWindowSelect';
 
 const NOW = Date.parse('2026-10-17T10:07:30.000Z');
 const setup = (value: Parameters<typeof TimeWindowSelect>[0]['value'], extra: Partial<Parameters<typeof TimeWindowSelect>[0]> = {}) => {
@@ -212,5 +212,25 @@ describe('TimeWindowSelect helpers', () => {
     expect(summarize({ mode: 'calendar', period: 'current.day', soFar: true })).toBe('Realtime · Today (so far)');
     expect(summarize({ mode: 'calendar', period: 'previous.month' })).toBe('History · Previous month');
     expect(summarize(null)).toBe('Time window');
+  });
+
+  it('names the aggregation and the duration units in the host\'s words, and keeps the codes without them', async () => {
+    const w = { mode: 'calendar', period: 'current.day', interval: '5m', aggregation: 'avg' } as const;
+    // without words: the codes, as before
+    expect(summarize(w)).toBe('Realtime · Today · avg 5m');
+    expect(summarize({ mode: 'relative', last: '1d' })).toBe('Realtime · Last 1d');
+    const tr = {
+      ...DEFAULT_TIME_WINDOW_SELECT_MESSAGES,
+      aggregationNames: { avg: 'ortalama', max: 'en yüksek' },
+      shortUnits: { m: ' dk', h: ' sa', d: ' gün' },
+    };
+    expect(summarize(w, tr)).toBe('Realtime · Today · ortalama 5 dk');
+    expect(summarize({ mode: 'relative', last: '1d' }, tr)).toBe('Realtime · Last 1 gün');
+    // a code the host gave no word for stays as it is
+    expect(summarize({ ...w, aggregation: 'sum', interval: '15s' }, tr)).toBe('Realtime · Today · sum 15s');
+    const user = userEvent.setup();
+    render(<TimeWindowSelect value={{ mode: 'relative', last: '24h' }} onChange={() => {}} aggregations={['avg', 'max']} showTimezone={false} messages={tr} />);
+    await user.click(screen.getByRole('button'));
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(expect.arrayContaining(['Aggregate: ortalama', 'Aggregate: en yüksek']));
   });
 });

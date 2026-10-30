@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { Popover } from './Overlays/Popover';
 import {
-  DEFAULT_CALENDAR_PERIODS, DEFAULT_TIME_WINDOW_MESSAGES, zoneChoices,
+  DEFAULT_CALENDAR_PERIODS, DEFAULT_TIME_WINDOW_MESSAGES, aggregationText, durationText, zoneChoices,
   type TimeWindowValue, type TimeWindowMessages,
 } from './TimeWindowPicker';
 
@@ -409,13 +409,13 @@ export function TimeWindowSelect({
               {showAggregation && (
                 <select aria-label={m.aggregation} className={field} value={draft.aggregation ?? (aggregations.includes('avg') ? 'avg' : aggregations[0])}
                   onChange={(e) => setDraft({ ...draft, aggregation: e.target.value })}>
-                  {aggregations.map((a) => <option key={a} value={a}>{m.aggregationValue.replace('{value}', a)}</option>)}
+                  {aggregations.map((a) => <option key={a} value={a}>{m.aggregationValue.replace('{value}', aggregationText(a, m))}</option>)}
                 </select>
               )}
               {showInterval && (
                 <select aria-label={m.interval} className={field} value={draft.interval ?? 'auto'}
                   onChange={(e) => setDraft({ ...draft, interval: e.target.value })}>
-                  {intervals.map((i) => <option key={i} value={i}>{i === 'auto' ? m.intervalAuto : m.intervalValue.replace('{value}', i)}</option>)}
+                  {intervals.map((i) => <option key={i} value={i}>{i === 'auto' ? m.intervalAuto : m.intervalValue.replace('{value}', durationText(i, m))}</option>)}
                 </select>
               )}
               {showTimezone && (
@@ -487,12 +487,12 @@ export function summarize(w: TimeWindowValue | null, m: TimeWindowSelectMessages
   if (!w) return m.label;
   const tab = tabOf(w) === 'realtime' ? m.realtime : m.history;
   const what = w.mode === 'relative'
-    ? `${m.last} ${w.last}`
+    ? `${m.last} ${durationText(w.last, m)}`
     : w.mode === 'calendar'
       ? `${m.periods[w.period] ?? w.period}${w.soFar ? ` (${m.soFar.toLowerCase()})` : ''}`
       : `${toZonedInput(w.from, w.timezone).replace('T', ' ')} – ${toZonedInput(w.to, w.timezone).replace('T', ' ')}`;
   const parts = [tab, what];
-  if (w.aggregation || (w.interval && w.interval !== 'auto')) parts.push([w.aggregation, w.interval && w.interval !== 'auto' ? w.interval : null].filter(Boolean).join(' '));
+  if (w.aggregation || (w.interval && w.interval !== 'auto')) parts.push([w.aggregation ? aggregationText(w.aggregation, m) : null, w.interval && w.interval !== 'auto' ? durationText(w.interval, m) : null].filter(Boolean).join(' '));
   if (w.timezone) parts.push(w.timezone);
   return parts.join(' · ');
 }

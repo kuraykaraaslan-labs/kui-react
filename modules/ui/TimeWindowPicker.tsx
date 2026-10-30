@@ -64,6 +64,10 @@ export type TimeWindowMessages = {
   aggregation: string;
   /** `{value}` is replaced. */
   aggregationValue: string;
+  /** Words for the aggregation codes (`avg` → "average"); a code without a word is shown as it is. */
+  aggregationNames?: Record<string, string>;
+  /** Short unit words for an interval or a window length in a compact text (`5m` → "5 min"); a unit without one is shown as it is. */
+  shortUnits?: { m?: string; h?: string; d?: string };
   calendar: string;
   calendarPeriod: string;
   soFar: string;
@@ -106,6 +110,18 @@ export const DEFAULT_TIME_WINDOW_MESSAGES: TimeWindowMessages = {
     dayBeforeYesterday: 'Day before yesterday', thisDayLastWeek: 'This day last week',
   },
 };
+
+/** An aggregation code in the messages' words (`avg` → "average" when the host gives one), else the code itself. */
+export function aggregationText(code: string, m: Pick<TimeWindowMessages, 'aggregationNames'>): string {
+  return m.aggregationNames?.[code] ?? code;
+}
+
+/** A duration code (`5m`, `2h`, `1d`) with the messages' short unit words (`5 min`), else the code itself. */
+export function durationText(code: string, m: Pick<TimeWindowMessages, 'shortUnits'>): string {
+  const match = /^(\d+)([mhd])$/.exec(code);
+  const unit = match ? m.shortUnits?.[match[2] as 'm' | 'h' | 'd'] : undefined;
+  return match && unit !== undefined ? `${match[1]}${unit}` : code;
+}
 
 const field = 'h-8 rounded-md border border-border bg-surface-base px-2 text-sm text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
 const segment = (active: boolean) => cn(
@@ -321,7 +337,7 @@ export function TimeWindowPicker({
         >
           {intervals.map((i) => (
             <option key={i} value={i}>
-              {i === 'auto' ? m.intervalAuto : m.intervalValue.replace('{value}', i)}
+              {i === 'auto' ? m.intervalAuto : m.intervalValue.replace('{value}', durationText(i, m))}
             </option>
           ))}
         </select>
@@ -348,7 +364,7 @@ export function TimeWindowPicker({
           onChange={(e) => set({ aggregation: e.target.value })}
         >
           {aggregations.map((a) => (
-            <option key={a} value={a}>{m.aggregationValue.replace('{value}', a)}</option>
+            <option key={a} value={a}>{m.aggregationValue.replace('{value}', aggregationText(a, m))}</option>
           ))}
         </select>
       )}
