@@ -1,7 +1,11 @@
 'use client';
 // The scene setup drawer (next-boilerplate phase 42, D42-10): one scrolling form in a right-side drawer that binds a scene
-// document to the devices that feed it. Sections, no tabs: (1) slot and kind, (2) the document, (3) devices and roles,
+// document to the devices that feed it. Sections, no tabs: (1) the type, (2) the document, (3) devices and roles,
 // (4) matching scene keys to device elements, and the save through the kit's ConfirmDialog from the footer.
+//
+// A view is never named by its slot here (next-boilerplate phase 47): the host opens the drawer on ONE view (a saved one, whose slot the draft
+// carries back unchanged, or a new one, `NEW_VIEW_SLOT`, which the host creates and its server names). Nothing in the drawer shows, asks for
+// or switches a slot; the removal names the view by its drawing.
 //
 // The kit fetches nothing. The HOST passes the documents, devices, scene keys and elements (and says when each is loading),
 // answers the callbacks (`onDocumentChange` to load a document's keys, `onPick` to highlight a key in its preview canvas,
@@ -23,8 +27,8 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { Input } from '@/modules/ui/Input';
 import { Select, type SelectOption } from '@/modules/ui/Select';
 import {
-  DEFAULT_SLOT, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_SLOT_LENGTH, NEW_SLOT_VALUE, autoMatch, bindingDraft, devicesFromRoles, draftSignature,
-  elementsForRole, fieldsOfMap, manualOfMap, normalizeSlotInput, proposeRoles, sameDraft, slotIssue, staleEntries, unresolved, validateDraft,
+  MAIN_ROLE, MAX_BINDING_DEVICES, NEW_VIEW_SLOT, autoMatch, bindingDraft, devicesFromRoles, draftSignature,
+  elementsForRole, fieldsOfMap, manualOfMap, proposeRoles, sameDraft, staleEntries, unresolved, validateDraft,
   type BindingDraft, type BindingIssue, type DeviceElement, type DeviceRef, type MapEntry, type MatchHow, type SceneKey,
 } from './scene-binding-logic';
 import { DEFAULT_SCENE_SETUP_MESSAGES, mergeMessages, type DeepPartial, type SceneSetupMessages } from './scene-setup-messages';
@@ -55,7 +59,7 @@ export interface SceneSetupSave {
 
 /**
  * How much of the form a person sees (next-boilerplate D45-10, e2e round 2 E2E-2.1): `full` is every section; `choose` is "which drawing?"
- * alone (the document table, the host's preview and one line about kept connections), with the slot and kind, the devices and roles, the
+ * alone (the document table, the host's preview and one line about kept connections), with the type, the devices and roles, the
  * matching table and the rules folded under Advanced, and a Save that asks nothing (the symbols are connected on the drawing afterwards).
  */
 export type SceneSetupMode = 'full' | 'choose';
@@ -66,7 +70,8 @@ export interface SceneSetupDrawerProps {
   /** Default `full`. See `SceneSetupMode`. */
   mode?: SceneSetupMode;
   /**
-   * The saved binding when there is one, or what the card menu pre-sets (slot, kind). Read when the drawer opens; a changed
+   * The saved binding when there is one, or what the host pre-sets (the slot it opens on, the kind). The slot is carried into the draft as it is
+   * and never shown; without one (or `NEW_VIEW_SLOT`) the drawer is on a NEW view, which the host creates on save. Read when the drawer opens; a changed
    * `initial` after that restarts the form while it is untouched, and shows a "saved version changed" notice with Reload once it
    * has edits. Its `view` and `rules` are opaque to the drawer: they come back in the `onSave` draft unchanged (the server replaces
    * the whole binding on a save, so a draft without them would erase them). Its `map` entries for keys the document no longer has,
@@ -74,15 +79,11 @@ export interface SceneSetupDrawerProps {
    */
   initial?: Partial<BindingDraft>;
 
-  /** Slot choices (the slots the subject already has a setup in); without them the slot is a text field. */
-  slots?: readonly { value: string; label: string }[];
   /**
-   * With `slots`: a "New slot…" choice after them that opens a text field for a name (the server's slot grammar, lower-cased as typed). A slot
-   * that is not in `slots` when the drawer opens (a card's, or one just created) starts in that field.
+   * How the view the drawer is on is called where the host lists it (its kind and its drawing's name, with "(2)" when the subject has two such views
+   * of one drawing): the removal's confirmation names it. Absent: the chosen document's name.
    */
-  allowNewSlot?: boolean;
-  /** The slot cannot be changed: the card menu opened the drawer for the slot its card draws. */
-  slotLocked?: boolean;
+  viewName?: string;
   /**
    * The drawing the saved setup names changed since the setup was made (the host compares the fingerprints, `documentChanged`): a notice at the top
    * asks for a review, and the setup can be saved as it is to confirm it, so the fingerprint is renewed. Ignored once another document is chosen.
@@ -93,19 +94,14 @@ export interface SceneSetupDrawerProps {
   /** The kind cannot be changed: the card menu opened the drawer for the kind its card draws (phase 42.5.4). */
   kindLocked?: boolean;
   /**
-   * A slot was chosen (a listed one at once, a new one when its name is complete: on Enter or leaving the field). The host reads that slot's saved
-   * setup and passes it as `initial` with a new `resetKey` (the form starts over from it). With edits in the form, the drawer asks first.
-   */
-  onSlotChange?: (slot: string) => void;
-  /**
-   * A kind was chosen. A binding is one row per (subject, slot, KIND), so the form starts over from that kind's saved setup, as a slot switch does: the host
+   * A kind was chosen. A binding is one row per (subject, slot, KIND), so the form starts over from that kind's saved setup: the host
    * reads it and passes it as `initial` with a new `resetKey` (the documents and keys are the new kind's). With edits in the form, the drawer asks first.
    */
   onKindChange?: (kind: string) => void;
   /**
-   * Adds "Remove this setup" to the footer, offered while the form is on a SAVED setup (the one `initial` holds: it has a document, and the form's slot and kind
-   * are its own, so a slot or kind typed but not yet answered offers nothing). The drawer asks first through the kit's ConfirmDialog, which names the kind and the
-   * slot; on confirm the host removes THAT binding and answers (a promise is awaited; the host closes the drawer or reloads `initial`).
+   * Adds "Remove this setup" to the footer, offered while the form is on a SAVED setup (the one `initial` holds: it has a document, and the form's kind is
+   * its own, so a kind chosen but not yet answered offers nothing). The drawer asks first through the kit's ConfirmDialog, which names the kind and the
+   * view (`viewName`); on confirm the host removes THAT binding and answers (a promise is awaited; the host closes the drawer or reloads `initial`).
    */
   onRemove?: (target: { slot: string; kind: string }) => void | Promise<void>;
   /** A removal is running: the button waits. */
@@ -214,7 +210,7 @@ function formatDate(iso: string | undefined, locale?: string): string {
   return Number.isNaN(t) ? iso : new Date(t).toLocaleString(locale, { dateStyle: 'medium', timeStyle: iso.length > 10 ? 'short' : undefined });
 }
 
-/** What the form starts from, read once from `initial` (and the host's slots / kinds) so the baseline and the form share it. */
+/** What the form starts from, read once from `initial` (and the host's kinds) so the baseline and the form share it. */
 interface Seed {
   slot: string;
   kind: string;
@@ -229,11 +225,10 @@ interface Seed {
   sig: string;
 }
 
-function seedFrom(initial: Partial<BindingDraft> | undefined, kinds: readonly string[], slots: SceneSetupDrawerProps['slots']): Seed {
-  // The server's default slot is `main`; a host that offers other slots only starts from its first one.
-  const fallbackSlot = slots && slots.length > 0 && !slots.some((o) => o.value === DEFAULT_SLOT) ? slots[0].value : DEFAULT_SLOT;
+function seedFrom(initial: Partial<BindingDraft> | undefined, kinds: readonly string[]): Seed {
+  // the slot is the host's, carried as it is; none is a new view (its host creates it and its server names the slot)
   const seed: Omit<Seed, 'sig'> = {
-    slot: initial?.slot || fallbackSlot,
+    slot: initial?.slot || NEW_VIEW_SLOT,
     kind: initial?.kind || kinds[0] || '',
     documentId: initial?.documentId ?? '',
     devices: { ...(initial?.devices ?? {}) },
@@ -277,21 +272,19 @@ const DEFAULT_RULES_KINDS: readonly string[] = ['design', 'diagram'];
 
 function SceneSetupSession(props: SceneSetupDrawerProps) {
   const {
-    open, onClose, initial, slots, kinds, documents, devices, sceneKeys, elements, preview, pickedKey, saving, conflict, saveError,
+    open, onClose, initial, kinds, documents, devices, sceneKeys, elements, preview, pickedKey, saving, conflict, saveError,
   } = props;
   const m = useMemo(() => mergeMessages<SceneSetupMessages>(DEFAULT_SCENE_SETUP_MESSAGES, props.messages), [props.messages]);
   const uid = useId();
 
   // One snapshot of the saved binding feeds the form AND the baseline. A new `initial` while the form is untouched starts the form
   // over from it; while it has edits, the form keeps them and says the saved version changed (Reload takes the new one).
-  const latest = seedFrom(initial, kinds, slots);
+  const latest = seedFrom(initial, kinds);
   const [seed, setSeed] = useState<Seed>(latest);
   const [form, setForm] = useState<Form>(() => freshForm(latest));
   const [touched, setTouched] = useState(false);
-  // a slot name typed but not yet chosen is the user's too: a newer saved version does not take the form over while it is there
-  const [slotTyped, setSlotTyped] = useState(false);
   const newerSaved = latest.sig !== seed.sig;
-  if (newerSaved && !touched && !slotTyped) {
+  if (newerSaved && !touched) {
     setSeed(latest);
     setForm(freshForm(latest));
   }
@@ -303,7 +296,6 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     setSeed(latest);
     setForm(freshForm(latest));
     setTouched(false);
-    setSlotTyped(false);
   };
   const { slot, kind, documentId, manual, autoOn, note } = form;
   // What the saved setup holds for the kind the form is on: another kind's document, entries, view and rules are not this one's (a kind switch the host has not
@@ -314,10 +306,6 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   );
   const [pickingKey, setPickingKey] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  // the slot field: a listed slot in the select, or "New slot…" with its own text field (a slot the host does not list starts there)
-  const canNewSlot = !!(props.allowNewSlot && slots);
-  const [newSlotMode, setNewSlotMode] = useState(() => canNewSlot && !slots!.some((o) => o.value === latest.slot));
-  const [pendingSlot, setPendingSlot] = useState<string | null>(null);
   const [pendingKind, setPendingKind] = useState<string | null>(null);
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   // closing with the person's own edits in the form asks first (Escape, the backdrop and Cancel alike; next-boilerplate E2E-1.10)
@@ -495,11 +483,13 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const canSave = (changed || reviewDrawing) && issues.length === 0 && !loading && !saving;
   const stuck = loading ? m.waitForData : issues.length ? m.issue[issues[0].code](issues[0].subject) : !changed && !reviewDrawing ? m.nothingChanged : '';
   const unmatchedStaying = left.keys.length - pending.length;
-  // a saved setup is what the form is on: the one `initial` holds (a document), under the slot and kind it names
+  // a saved setup is what the form is on: the one `initial` holds (a document), under the kind it names (the slot is always the host's)
   const removable = !!props.onRemove && !!seed.documentId && slot === seed.slot && kind === seed.kind;
+  // the view by its drawing, never by its slot (phase 47): the host's name for it, else the saved document's, else the kind's word
+  const viewTitle = props.viewName || documents.find((d) => d.id === seed.documentId)?.name || (m.kinds[seed.kind] ?? seed.kind);
 
   // ── Handlers ──
-  // A kind is, like a slot, a choice of which setup this is: the form starts over from the saved setup of that kind (the host answers with `initial` and a new
+  // A kind is a choice of which setup this is: the form starts over from the saved setup of that kind (the host answers with `initial` and a new
   // `resetKey`; without an answer the form shows an empty one). With edits in the form that is asked first.
   const applyKind = (k: string) => {
     setForm((f) => ({
@@ -513,26 +503,6 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     if (k === kind || props.kindLocked) return;
     if (touched) { setPendingKind(k); return; }
     applyKind(k);
-  };
-  // A slot is a choice of which setup this is, not an edit of it: the form does not count as touched. A new slot starts over from the host's answer
-  // (its saved setup, or none) and so does a listed one; with edits in the form that is asked first (the edits are lost).
-  const applySlot = (v: string) => { setSlotTyped(false); setForm((f) => ({ ...f, slot: v })); props.onSlotChange?.(v); };
-  const requestSlot = (v: string) => {
-    if (v === seed.slot) { setForm((f) => ({ ...f, slot: v })); return; }
-    if (touched) { setPendingSlot(v); return; }
-    applySlot(v);
-  };
-  const pickSlot = (v: string) => {
-    if (v === NEW_SLOT_VALUE) { setNewSlotMode(true); setForm((f) => ({ ...f, slot: '' })); return; }
-    setNewSlotMode(false);
-    requestSlot(v);
-  };
-  const typeSlot = (raw: string) => { setSlotTyped(true); setForm((f) => ({ ...f, slot: normalizeSlotInput(raw) })); };
-  const commitNewSlot = () => { if (slot !== seed.slot && slotIssue(slot) === null) requestSlot(slot); };
-  const cancelSlotSwitch = () => {
-    setPendingSlot(null);
-    setForm((f) => ({ ...f, slot: seed.slot }));
-    setNewSlotMode(canNewSlot && !slots!.some((o) => o.value === seed.slot));
   };
   const selectDocument = (id: string) => {
     if (id === documentId) return;
@@ -784,41 +754,17 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     else setConfirming(true);
   };
 
-  const slotAndKind = (
+  // the type of the view (a 2D drawing or a 3D view); in `choose` mode a type the host locked is the host's choice and the section is not drawn at all
+  const kindSection = chooseMode && props.kindLocked ? null : (
     <section aria-labelledby={`${uid}-h1`} className="space-y-3">
-      <h3 id={`${uid}-h1`} className="text-sm font-semibold text-text-primary">{sectionTitle(m.slotSection)}</h3>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          {slots && (
-            <Select
-              id={`${uid}-slot`} label={m.slotLabel} hint={props.slotLocked ? m.slotLockedHint : m.slotHint} disabled={props.slotLocked}
-              options={[...slots, ...(canNewSlot ? [{ value: NEW_SLOT_VALUE, label: m.slotNew }] : [])]}
-              value={newSlotMode ? NEW_SLOT_VALUE : slot} onChange={(e) => pickSlot(e.target.value)}
-            />
-          )}
-          {(!slots || newSlotMode) && (
-            // The server's slot grammar is lower case and at most 32 long: what is typed is made one (spaces become -), and the host is told
-            // when the name is complete (Enter or leaving the field), not on every key.
-            <Input
-              id={`${uid}-slot-new`} label={slots ? m.slotNewLabel : m.slotLabel} hint={slots ? m.slotNewHint : m.slotHint}
-              value={slot} maxLength={MAX_SLOT_LENGTH} spellCheck={false} autoComplete="off" disabled={props.slotLocked}
-              error={slot !== '' && slotIssue(slot) ? m.issue['slot-invalid'](slot) : undefined}
-              onChange={(e) => typeSlot(e.target.value)} onBlur={commitNewSlot}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commitNewSlot(); } }}
-            />
-          )}
-        </div>
-        {/* in `choose` mode a locked kind is the host's choice and is not even named */}
-        {!(chooseMode && props.kindLocked) && (
-          <div role="group" aria-labelledby={`${uid}-kind`} className="space-y-1">
-            <span id={`${uid}-kind`} className="block text-sm font-medium text-text-primary">{m.kindLabel}</span>
-            <ButtonGroup
-              size="sm" variant="outline" value={kind} onChange={requestKind}
-              items={(props.kindLocked ? kinds.filter((k) => k === kind) : kinds).map((k) => ({ value: k, label: m.kinds[k] ?? k }))}
-            />
-            {props.kindLocked && <p className="text-xs text-text-secondary">{m.kindLockedHint}</p>}
-          </div>
-        )}
+      <h3 id={`${uid}-h1`} className="text-sm font-semibold text-text-primary">{sectionTitle(m.kindSection)}</h3>
+      <div role="group" aria-labelledby={`${uid}-kind`} className="space-y-1">
+        <span id={`${uid}-kind`} className="block text-sm font-medium text-text-primary">{m.kindLabel}</span>
+        <ButtonGroup
+          size="sm" variant="outline" value={kind} onChange={requestKind}
+          items={(props.kindLocked ? kinds.filter((k) => k === kind) : kinds).map((k) => ({ value: k, label: m.kinds[k] ?? k }))}
+        />
+        {props.kindLocked && <p className="text-xs text-text-secondary">{m.kindLockedHint}</p>}
       </div>
     </section>
   );
@@ -1019,7 +965,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
                 <p className="mt-1 text-xs text-text-secondary">{m.advancedHint}</p>
                 {advancedOpen && (
                   <div className="mt-4 space-y-8">
-                    {slotAndKind}
+                    {kindSection}
                     {devicesSection}
                     {matchSection}
                     {rulesSection}
@@ -1029,7 +975,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
             </>
           ) : (
             <>
-              {slotAndKind}
+              {kindSection}
               {documentSection}
               {devicesSection}
               {matchSection}
@@ -1038,22 +984,6 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           )}
         </div>
       </Drawer>
-
-      <ConfirmDialog
-        open={pendingSlot !== null && open}
-        portalTarget={props.portalTarget}
-        title={m.slotSwitchTitle}
-        message={m.slotSwitchBody(pendingSlot ?? '')}
-        tone="warning"
-        confirmLabel={m.slotSwitchConfirm}
-        cancelLabel={m.cancel}
-        onCancel={cancelSlotSwitch}
-        onConfirm={() => {
-          const next = pendingSlot;
-          setPendingSlot(null);
-          if (next !== null) applySlot(next);
-        }}
-      />
 
       <ConfirmDialog
         open={pendingKind !== null && open}
@@ -1090,7 +1020,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
         open={confirmingRemove && open}
         portalTarget={props.portalTarget}
         title={m.removeTitle}
-        message={m.removeBody(m.kinds[seed.kind] ?? seed.kind, seed.slot)}
+        message={m.removeBody(m.kinds[seed.kind] ?? seed.kind, viewTitle)}
         tone="danger"
         confirmLabel={m.removeConfirm}
         cancelLabel={m.cancel}

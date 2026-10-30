@@ -6,6 +6,14 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Changed
 
+- `SceneSetupDrawer` (next-boilerplate phase 47, views by name): the slot leaves the drawer. The `slots`, `allowNewSlot`, `slotLocked` and
+  `onSlotChange` props, the slot select, "New slot…" and the "Switch slot" confirmation are gone (Advanced included); section 1 is the type
+  alone (`kindSection`, not drawn in `choose` mode when the host locks the type). The host opens the drawer on ONE view: `initial.slot` is
+  carried into the draft unchanged and never shown, and without one the draft is a new view (`NEW_VIEW_SLOT`, the empty slot) that the host
+  creates and its server names. "Remove this setup" names the view by its drawing (`viewName`, else the chosen document), never the slot
+  (`removeBody(kind, view)`). `scene-binding-logic`: `NEW_VIEW_SLOT` and `isNewView`; `validateDraft` takes the empty slot as a new view
+  (`slot-missing` is gone; `slot-invalid` no longer prints the stored code); `normalizeSlotInput`, `slotIssue`, `slotChoices`,
+  `NEW_SLOT_VALUE` and `MAX_SLOT_LENGTH` are removed. Texts: the type's words no longer say "kind" ("Switch the type", "draws this type").
 - `DeviceTelemetryView` (IoT kit): the chart starts on the freshest numeric key, not the first by name (an hours-old leftover key sat under
   "Live" with "No values in this window"); `stat.value` and `state` cards start three rows high so the big number is not cut off; the diagram
   editor's button reads **Save** / **Saving** (it was Apply).

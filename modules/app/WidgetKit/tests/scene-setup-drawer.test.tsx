@@ -45,7 +45,7 @@ describe('SceneSetupDrawer: layout', () => {
   it('is a drawer with the sections of D42-10 as one form, no tabs', () => {
     render(<SceneSetupDrawer {...props()} />);
     expect(screen.getByRole('dialog', { name: 'Scene' })).toBeInTheDocument();
-    for (const h of ['1. Slot and kind', '2. Document', '3. Devices and roles', '4. Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
+    for (const h of ['1. Type', '2. Document', '3. Devices and roles', '4. Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(screen.getAllByRole('region').length).toBeGreaterThan(0);
   });
@@ -60,16 +60,16 @@ describe('SceneSetupDrawer: layout', () => {
     expect(panel.className).toContain('sm:w-[min(100vw,60rem)]');
   });
   it('takes the texts from the messages prop', () => {
-    render(<SceneSetupDrawer {...props({ messages: { title: 'Sahne', slotSection: '1. Yuva' } })} />);
+    render(<SceneSetupDrawer {...props({ messages: { title: 'Sahne', kindSection: '1. Tür' } })} />);
     expect(screen.getByRole('dialog', { name: 'Sahne' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '1. Yuva' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '1. Tür' })).toBeInTheDocument();
   });
 });
 
-describe('SceneSetupDrawer: slot and kind', () => {
-  it('shows the slot as text and the kinds the host passes, the initial one pressed', () => {
+describe('SceneSetupDrawer: the type', () => {
+  it('shows the kinds the host passes, the initial one pressed, and no slot field', () => {
     render(<SceneSetupDrawer {...props()} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('main');
+    expect(screen.queryByLabelText('Slot')).toBeNull();
     expect(screen.getByRole('button', { name: '3D design' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: '2D diagram' })).toHaveAttribute('aria-pressed', 'false');
   });
@@ -82,12 +82,6 @@ describe('SceneSetupDrawer: slot and kind', () => {
     const r2 = render(<SceneSetupDrawer {...props({ kinds: ['diagram', 'design'], onKindChange })} />);
     await user.click(within(r2.baseElement).getAllByRole('button', { name: '2D diagram' })[0]);
     expect(onKindChange).toHaveBeenCalledWith('diagram');
-  });
-  it('is a select when the host passes slots', async () => {
-    const onSlotChange = vi.fn();
-    render(<SceneSetupDrawer {...props({ slots: [{ value: 'main', label: 'Main' }, { value: 'side', label: 'Side' }], onSlotChange })} />);
-    await userEvent.setup().selectOptions(screen.getByLabelText('Slot'), 'side');
-    expect(onSlotChange).toHaveBeenCalledWith('side');
   });
 });
 
@@ -600,23 +594,11 @@ describe('SceneSetupDrawer: view and rules travel through', () => {
 });
 
 describe('SceneSetupDrawer: the server grammars', () => {
-  it('limits the slot to 32 characters and lower-cases what is typed', async () => {
-    render(<SceneSetupDrawer {...props()} />);
-    expect(screen.getByLabelText('Slot')).toHaveAttribute('maxlength', '32');
-    const user = userEvent.setup();
-    await user.clear(screen.getByLabelText('Slot'));
-    await user.type(screen.getByLabelText('Slot'), 'Side-1');
-    expect(screen.getByLabelText('Slot')).toHaveValue('side-1');
-  });
-  it('refuses a slot outside the grammar and says why', async () => {
-    render(<SceneSetupDrawer {...props()} />);
-    const user = userEvent.setup();
-    await user.clear(screen.getByLabelText('Slot'));
-    await user.type(screen.getByLabelText('Slot'), '1 x');
+  it('a slot the host passed that the server would refuse keeps Save off and says so without naming it', () => {
+    render(<SceneSetupDrawer {...props({ initial: { slot: 'Bad Slot', kind: 'design', documentId: DOC_A, devices: { '': D1 }, hidden: ['heater'] } })} />);
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    // spaces become dashes as it is typed
-    expect(screen.getByLabelText('Slot')).toHaveValue('1-x');
-    expect(screen.getAllByText(/The slot 1-x is not valid/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/the name it is stored under is not valid/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Bad Slot/)).toBeNull();
   });
   it('refuses a device or a document that is not an id', () => {
     render(<SceneSetupDrawer {...props({ devices: [{ id: 'dev-1', label: 'Fryer 1' }], initial: { slot: 'main', kind: 'design', documentId: 'doc-1' } })} />);
@@ -736,16 +718,22 @@ describe('SceneSetupDrawer: leaving a key out of the scene', () => {
   });
 });
 
+/** The role field of the one device: an edit of the person's that the snapshot tests use (the slot is no field any more, phase 47). */
+const roleField = () => screen.getByLabelText('Role of Fryer 1') as HTMLInputElement;
+
 describe('SceneSetupDrawer: the slot, the document column and the form snapshot', () => {
-  it('the slot starts as main, also when the host offers slots', () => {
-    const a = render(<SceneSetupDrawer {...props({ initial: { kind: 'design', documentId: DOC_A } })} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('main');
-    a.unmount();
-    const b = render(<SceneSetupDrawer {...props({ initial: {}, slots: [{ value: 'side', label: 'Side' }, { value: 'main', label: 'Main' }] })} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('main');
-    b.unmount();
-    render(<SceneSetupDrawer {...props({ initial: {}, slots: [{ value: 'side', label: 'Side' }, { value: 'wall', label: 'Wall' }] })} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('side');
+  it('the slot is the host\'s, carried into the draft unchanged; without one the draft is a new view (an empty slot)', async () => {
+    const save = async (initial: SceneSetupDrawerProps['initial']) => {
+      const onSave = vi.fn();
+      const r = render(<SceneSetupDrawer {...props({ mode: 'choose', onSave, initial })} />);
+      await userEvent.setup().click(screen.getByRole('radio', { name: 'Use Grill station' }));
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Save' }));
+      r.unmount();
+      return onSave.mock.calls[0][0].slot;
+    };
+    expect(await save({ kind: 'design', documentId: DOC_A })).toBe('');
+    expect(await save({ slot: 'view_2', kind: 'design', documentId: DOC_A })).toBe('view_2');
+    expect(await save({ slot: 'main', kind: 'design' })).toBe('main');
   });
   it('the radio column has its own header, not the "Document: " text', () => {
     render(<SceneSetupDrawer {...props()} />);
@@ -756,7 +744,6 @@ describe('SceneSetupDrawer: the slot, the document column and the form snapshot'
   it('a new initial restarts an untouched form from it, baseline and form from the same snapshot', () => {
     const { rerender } = render(<SceneSetupDrawer {...props({ initial: { slot: 'main', kind: 'design', documentId: DOC_A } })} />);
     rerender(<SceneSetupDrawer {...props({ initial: { slot: 'side', kind: 'diagram', documentId: DOC_B, devices: { '': D1 } } })} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('side');
     expect(screen.getByRole('button', { name: '2D diagram' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('radio', { name: 'Use Grill station' })).toBeChecked();
     expect(screen.queryByText('The saved version changed')).toBeNull();
@@ -766,19 +753,21 @@ describe('SceneSetupDrawer: the slot, the document column and the form snapshot'
   it('an inline initial object that says the same thing does not restart or warn', async () => {
     const mk = () => props({ initial: { slot: 'main', kind: 'design', documentId: DOC_A } });
     const { rerender } = render(<SceneSetupDrawer {...mk()} />);
-    fireEvent.change(screen.getByLabelText('Slot'), { target: { value: 'edited' } });
+    fireEvent.change(roleField(), { target: { value: 'edited' } });
     rerender(<SceneSetupDrawer {...mk()} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('edited');
+    expect(roleField()).toHaveValue('edited');
     expect(screen.queryByText('The saved version changed')).toBeNull();
   });
   it('with edits in the form a new initial shows a notice with Reload instead of taking over; Reload takes it', async () => {
     const { rerender } = render(<SceneSetupDrawer {...props({ initial: { slot: 'main', kind: 'design', documentId: DOC_A } })} />);
-    fireEvent.change(screen.getByLabelText('Slot'), { target: { value: 'edited' } });
-    rerender(<SceneSetupDrawer {...props({ initial: { slot: 'other', kind: 'design', documentId: DOC_A } })} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('edited');
+    fireEvent.change(roleField(), { target: { value: 'edited' } });
+    rerender(<SceneSetupDrawer {...props({ initial: { slot: 'main', kind: 'design', documentId: DOC_B } })} />);
+    expect(roleField()).toHaveValue('edited');
+    expect(screen.getByRole('radio', { name: 'Use Fryer line' })).toBeChecked();
     expect(screen.getByText('The saved version changed')).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Reload' }));
-    expect(screen.getByLabelText('Slot')).toHaveValue('other');
+    expect(roleField()).toHaveValue('');
+    expect(screen.getByRole('radio', { name: 'Use Grill station' })).toBeChecked();
     expect(screen.queryByText('The saved version changed')).toBeNull();
   });
 });
@@ -832,11 +821,12 @@ describe('SceneSetupDrawer: keyboard and session', () => {
   });
   it('a changed resetKey starts the form over from the new initial binding', () => {
     const { rerender } = render(<SceneSetupDrawer {...props({ resetKey: 1 })} />);
-    fireEvent.change(screen.getByLabelText('Slot'), { target: { value: 'edited' } });
-    rerender(<SceneSetupDrawer {...props({ resetKey: 1, initial: { slot: 'other', kind: 'design', documentId: DOC_A } })} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('edited');
-    rerender(<SceneSetupDrawer {...props({ resetKey: 2, initial: { slot: 'other', kind: 'design', documentId: DOC_A } })} />);
-    expect(screen.getByLabelText('Slot')).toHaveValue('other');
+    fireEvent.change(roleField(), { target: { value: 'edited' } });
+    rerender(<SceneSetupDrawer {...props({ resetKey: 1, initial: { slot: 'main', kind: 'design', documentId: DOC_B } })} />);
+    expect(roleField()).toHaveValue('edited');
+    rerender(<SceneSetupDrawer {...props({ resetKey: 2, initial: { slot: 'main', kind: 'design', documentId: DOC_B } })} />);
+    expect(roleField()).toHaveValue('');
+    expect(screen.getByRole('radio', { name: 'Use Grill station' })).toBeChecked();
   });
   it('a reopened drawer starts from the host data again', () => {
     function Host() {
@@ -849,11 +839,11 @@ describe('SceneSetupDrawer: keyboard and session', () => {
       );
     }
     render(<Host />);
-    fireEvent.change(screen.getByLabelText('Slot'), { target: { value: 'changed' } });
-    expect(screen.getByLabelText('Slot')).toHaveValue('changed');
+    fireEvent.change(roleField(), { target: { value: 'changed' } });
+    expect(roleField()).toHaveValue('changed');
     fireEvent.click(screen.getByText('toggle'));
     fireEvent.click(screen.getByText('toggle'));
-    return screen.findByLabelText('Slot').then((e) => expect(e).toHaveValue('main'));
+    return screen.findByLabelText('Role of Fryer 1').then((e) => expect(e).toHaveValue(''));
   });
 });
 
@@ -870,82 +860,47 @@ describe('SceneSetupDrawer: exports', () => {
   });
 });
 
-describe('SceneSetupDrawer: slots of the subject (phase 42.2.3c)', () => {
-  const SLOTS = [{ value: 'main', label: 'main' }, { value: 'side', label: 'side' }];
-
-  it('lists the slots and a "New slot…" choice only when asked for', () => {
-    const r = render(<SceneSetupDrawer {...props({ slots: SLOTS })} />);
-    expect(within(screen.getByLabelText('Slot')).queryByRole('option', { name: 'New slot…' })).toBeNull();
-    r.unmount();
-    render(<SceneSetupDrawer {...props({ slots: SLOTS, allowNewSlot: true })} />);
-    const options = within(screen.getByLabelText('Slot')).getAllByRole('option').map((o) => o.textContent);
-    expect(options).toEqual(['main', 'side', 'New slot…']);
+describe('SceneSetupDrawer: no slot anywhere a person reaches (next-boilerplate phase 47)', () => {
+  /** Every text and control of the open drawer (and its dialogs): no slot field, choice or word, and never the stored code. */
+  const expectNoSlot = (code?: string) => {
+    expect(screen.queryByLabelText('Slot')).toBeNull();
     expect(screen.queryByLabelText('New slot name')).toBeNull();
+    expect(screen.queryByRole('option', { name: /New slot/ })).toBeNull();
+    expect(screen.queryByText(/\bslots?\b/i)).toBeNull();
+    if (code) expect(screen.queryByText(new RegExp(`\\b${code}\\b`))).toBeNull();
+  };
+
+  it('the full form shows the type, the document, the devices and the match: no slot to type, pick or switch', () => {
+    render(<SceneSetupDrawer {...props({ initial: { slot: 'view_2', kind: 'design', documentId: DOC_A, devices: { '': D1 } } })} />);
+    expectNoSlot('view_2');
   });
 
-  it('a listed slot is reported at once when the form is untouched', async () => {
-    const onSlotChange = vi.fn();
-    render(<SceneSetupDrawer {...props({ slots: SLOTS, allowNewSlot: true, onSlotChange })} />);
-    await userEvent.setup().selectOptions(screen.getByLabelText('Slot'), 'side');
-    expect(onSlotChange).toHaveBeenCalledExactlyOnceWith('side');
+  it('nor in the choose mode, Advanced open, a locked type not even named', async () => {
+    render(<SceneSetupDrawer {...props({ mode: 'choose', kindLocked: true, initial: { slot: 'view_3', kind: 'design', documentId: DOC_A } })} />);
+    await userEvent.setup().click(within(screen.getByTestId('scene-advanced')).getByText('Advanced'));
+    expectNoSlot('view_3');
+    expect(screen.queryByRole('heading', { name: 'Type' })).toBeNull();
+    for (const h of ['Devices and roles', 'Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
   });
 
-  it('"New slot…" opens a name field that normalises what is typed and reports the slot only when it is complete', async () => {
-    const onSlotChange = vi.fn();
-    render(<SceneSetupDrawer {...props({ slots: SLOTS, allowNewSlot: true, onSlotChange })} />);
+  it('a new view (no slot from the host) is saved with the empty slot, which the host creates', async () => {
+    const onSave = vi.fn();
+    render(<SceneSetupDrawer {...props({ onSave, initial: { kind: 'design' } })} />);
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText('Slot'), 'New slot…');
-    expect(onSlotChange).not.toHaveBeenCalled();
-    const field = screen.getByLabelText('New slot name');
-    expect(field).toHaveAttribute('maxlength', '32');
-    // nothing typed: the slot is missing and Save is off
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    await user.type(field, 'Second View');
-    expect(field).toHaveValue('second-view');
-    expect(onSlotChange).not.toHaveBeenCalled();
-    await user.keyboard('{Enter}');
-    expect(onSlotChange).toHaveBeenCalledExactlyOnceWith('second-view');
+    await user.click(screen.getByRole('radio', { name: 'Use Grill station' }));
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.click(screen.getByLabelText(/I know that/));
+    await user.click(screen.getByRole('button', { name: 'Save setup' }));
+    expect(onSave.mock.calls[0][0]).toMatchObject({ slot: '', kind: 'design', documentId: DOC_B });
   });
 
-  it('an invalid new name is said and is never reported', async () => {
-    const onSlotChange = vi.fn();
-    render(<SceneSetupDrawer {...props({ slots: SLOTS, allowNewSlot: true, onSlotChange })} />);
-    const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText('Slot'), 'New slot…');
-    await user.type(screen.getByLabelText('New slot name'), '9lives');
-    await user.tab();
-    expect(onSlotChange).not.toHaveBeenCalled();
-    expect(screen.getAllByText(/The slot 9lives is not valid/).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-  });
-
-  it('a slot the host does not list (a card\'s, a new one) starts in the name field', () => {
-    render(<SceneSetupDrawer {...props({ slots: SLOTS, allowNewSlot: true, initial: { slot: 'detail', kind: 'design', documentId: DOC_A } })} />);
-    expect(screen.getByLabelText('New slot name')).toHaveValue('detail');
-    expect((screen.getByLabelText('Slot') as HTMLSelectElement).value).toBe('__new_slot__');
-  });
-
-  it('switching the slot with edits in the form asks first (ConfirmDialog) and reports it only on confirm', async () => {
-    const onSlotChange = vi.fn();
-    render(<SceneSetupDrawer {...props({ slots: SLOTS, allowNewSlot: true, onSlotChange, devices: [{ id: D1, label: 'Fryer 1', code: 'FRY-1' }], initial: { slot: 'main', kind: 'design', documentId: DOC_A, devices: { '': D1 } } })} />);
-    const user = userEvent.setup();
-    await user.type(screen.getByLabelText('Role of Fryer 1'), 'x');
-    await user.selectOptions(screen.getByLabelText('Slot'), 'side');
-    const dialog = screen.getByRole('dialog', { name: 'Switch slot' });
-    expect(onSlotChange).not.toHaveBeenCalled();
-    // cancel: the slot goes back and nothing is reported
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-    expect(onSlotChange).not.toHaveBeenCalled();
-    expect((screen.getByLabelText('Slot') as HTMLSelectElement).value).toBe('main');
-    await user.selectOptions(screen.getByLabelText('Slot'), 'side');
-    await user.click(within(screen.getByRole('dialog', { name: 'Switch slot' })).getByRole('button', { name: 'Switch slot' }));
-    expect(onSlotChange).toHaveBeenCalledExactlyOnceWith('side');
-  });
-
-  it('the slot is fixed when the card that opened the drawer draws it', () => {
-    render(<SceneSetupDrawer {...props({ slots: SLOTS, allowNewSlot: true, slotLocked: true })} />);
-    expect(screen.getByLabelText('Slot')).toBeDisabled();
-    expect(screen.getByText('The card you opened this from draws this slot.')).toBeInTheDocument();
+  it('a type switch keeps the host\'s slot: the host answers with that kind\'s view', async () => {
+    const onKindChange = vi.fn();
+    const onSave = vi.fn();
+    render(<SceneSetupDrawer {...props({ onKindChange, onSave, initial: { slot: 'view_2', kind: 'design', documentId: DOC_A } })} />);
+    await userEvent.setup().click(screen.getByRole('button', { name: '2D diagram' }));
+    expect(onKindChange).toHaveBeenCalledWith('diagram');
+    expectNoSlot('view_2');
   });
 });
 
@@ -993,16 +948,23 @@ describe('SceneSetupDrawer: remove this setup (SP-10)', () => {
     expect(screen.queryByRole('button', { name: 'Remove this setup' })).toBeNull();
   });
 
-  it('asks first, naming the kind and the slot, and removes exactly that binding on confirm', async () => {
+  it('asks first, naming the kind and the view by its drawing (never the slot), and removes exactly that binding on confirm', async () => {
     const onRemove = vi.fn();
-    render(<SceneSetupDrawer {...props({ initial: { slot: 'side', kind: 'design', documentId: DOC_A }, onRemove, slots: [{ value: 'main', label: 'main' }, { value: 'side', label: 'side' }] })} />);
+    render(<SceneSetupDrawer {...props({ initial: { slot: 'view_2', kind: 'design', documentId: DOC_A }, onRemove })} />);
     const u = user();
     await u.click(screen.getByRole('button', { name: 'Remove this setup' }));
     expect(onRemove).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog', { name: 'Remove the scene setup' });
-    expect(within(dialog).getByText(/Removes the saved 3D design setup of the slot side/)).toBeInTheDocument();
+    expect(within(dialog).getByText('Removes the 3D design "Fryer line" from this subject. Its boards go back to what they would show without it. Its other views are not touched.')).toBeInTheDocument();
+    expect(within(dialog).queryByText(/view_2/)).toBeNull();
     await u.click(within(dialog).getByRole('button', { name: 'Remove setup' }));
-    expect(onRemove).toHaveBeenCalledWith({ slot: 'side', kind: 'design' });
+    expect(onRemove).toHaveBeenCalledWith({ slot: 'view_2', kind: 'design' });
+  });
+
+  it('names the view as the host lists it when the host says (two views of one drawing: "(2)")', async () => {
+    render(<SceneSetupDrawer {...props({ initial: { slot: 'view_2', kind: 'design', documentId: DOC_A }, onRemove: vi.fn(), viewName: 'Fryer line (2)' })} />);
+    await user().click(screen.getByRole('button', { name: 'Remove this setup' }));
+    expect(within(screen.getByRole('dialog', { name: 'Remove the scene setup' })).getByText(/Removes the 3D design "Fryer line \(2\)"/)).toBeInTheDocument();
   });
 
   it('Cancel removes nothing', async () => {
@@ -1036,11 +998,11 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
   };
 
   it('shows only "which drawing?" with its hint, no numbered sections, no slot, no kind, no match table and no rules; the Advanced fold holds them', async () => {
-    render(<SceneSetupDrawer {...props({ mode: 'choose', kindLocked: true, slots: [{ value: 'main', label: 'main' }], allowNewSlot: true })} />);
+    render(<SceneSetupDrawer {...props({ mode: 'choose', kindLocked: true })} />);
     expect(screen.getByRole('dialog', { name: 'Choose a drawing' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Which drawing?' })).toBeInTheDocument();
     expect(screen.getByText(/After saving it is on this page/)).toBeInTheDocument();
-    for (const h of ['1. Slot and kind', '2. Document', '3. Devices and roles', '4. Match', '5. Rules']) expect(screen.queryByRole('heading', { name: h })).toBeNull();
+    for (const h of ['1. Type', '2. Document', '3. Devices and roles', '4. Match', '5. Rules']) expect(screen.queryByRole('heading', { name: h })).toBeNull();
     expect(screen.queryByLabelText('Slot')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Match automatically' })).toBeNull();
     expect(screen.queryByText(/scene key|Unmatched|Set by hand/)).toBeNull();
@@ -1048,16 +1010,17 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
     expect(within(fold).getByText('Advanced')).toBeInTheDocument();
     await user().click(within(fold).getByText('Advanced'));
     // under Advanced the sections are not numbered: without the document's they would read 1, 3, 4 (m-R3-08)
-    for (const h of ['Slot and kind', 'Devices and roles', 'Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
-    for (const h of ['1. Slot and kind', '3. Devices and roles', '4. Match']) expect(screen.queryByRole('heading', { name: h })).toBeNull();
-    expect(screen.getByLabelText('Slot')).toHaveValue('main');
-    // the kind the host locked is the host's choice: not even named
+    for (const h of ['Devices and roles', 'Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
+    for (const h of ['3. Devices and roles', '4. Match']) expect(screen.queryByRole('heading', { name: h })).toBeNull();
+    // the kind the host locked is the host's choice: not even named, and its section is not drawn
+    expect(screen.queryByRole('heading', { name: 'Type' })).toBeNull();
     expect(screen.queryByRole('button', { name: '3D design' })).toBeNull();
   });
 
   it('a locked kind is named only when the host does not lock it', async () => {
     render(<SceneSetupDrawer {...props({ mode: 'choose' })} />);
     await user().click(within(screen.getByTestId('scene-advanced')).getByText('Advanced'));
+    expect(screen.getByRole('heading', { name: 'Type' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '3D design' })).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -1085,7 +1048,7 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
 
   it('says in one line that connections made for another drawing are kept, and names their devices by NAME under Advanced, never by id (E2E-2.18)', async () => {
     render(<SceneSetupDrawer {...props({ mode: 'choose', initial: stale, sceneKeys: KEYS2, devices: [{ id: D1, label: 'Fryer 1', code: 'FRY-1' }] })} />);
-    expect(screen.getByTestId('stale-choose-line').textContent).toBe('3 connections made for another drawing are kept in case you switch back.');
+    expect(screen.getByTestId('stale-choose-line').textContent).toBe('3 connections made for another drawing are not carried over: connect this drawing\'s symbols on the page after saving.');
     expect(screen.queryByRole('table', { name: 'Saved entries the scene no longer has' })).toBeNull();
     await user().click(within(screen.getByTestId('scene-advanced')).getByText('Advanced'));
     const t = within(screen.getByRole('table', { name: 'Saved entries the scene no longer has' }));
@@ -1101,10 +1064,10 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
     expect(screen.getByRole('region', { name: 'Scene preview' })).toContainElement(screen.getByTestId('pv'));
   });
 
-  it('the full mode is the default and unchanged: numbered sections, the slot, the kind and the confirmation', async () => {
+  it('the full mode is the default: numbered sections, the type and the confirmation', async () => {
     const onSave = vi.fn();
     render(<SceneSetupDrawer {...props({ onSave, initial: { slot: 'main', kind: 'design' } })} />);
-    for (const h of ['1. Slot and kind', '2. Document', '3. Devices and roles', '4. Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
+    for (const h of ['1. Type', '2. Document', '3. Devices and roles', '4. Match']) expect(screen.getByRole('heading', { name: h })).toBeInTheDocument();
     const u = user();
     await u.click(screen.getByRole('radio', { name: 'Use Grill station' }));
     await u.click(screen.getByRole('button', { name: 'Save' }));

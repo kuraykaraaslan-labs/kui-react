@@ -18,14 +18,19 @@ export const MAX_BINDING_DEVICES = 100;
 export const MAX_BINDING_MAP = 500;
 /** The role of the device a key without a role prefix belongs to. */
 export const MAIN_ROLE = '';
-/** The slot a binding starts in (the server's default). */
+/** The first slot of each kind (the server's default; next-boilerplate D86: `main`, then `view_2`, `view_3` …, allocated by the server). */
 export const DEFAULT_SLOT = 'main';
+/**
+ * The slot of a view that is not saved yet (next-boilerplate phase 47): the draft carries it and the host CREATES the view, its server naming the
+ * slot. A slot is the row key of a view, never something a person types, picks or reads: the drawer only carries the one the host opened it on.
+ */
+export const NEW_VIEW_SLOT = '';
 /** The server's grammars (`scene-binding.ts` of next-boilerplate), so a draft is refused here before the server would refuse it. */
 export const SLOT_GRAMMAR = /^[a-z][a-z0-9_-]{0,31}$/;
 export const KIND_GRAMMAR = /^[a-z][a-z0-9_]{0,31}$/;
 export const UUID_GRAMMAR = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-/** The slot field's length (the grammar's own cap). */
-export const MAX_SLOT_LENGTH = 32;
+/** Whether a draft is a view that is not saved yet (its host creates it; see `NEW_VIEW_SLOT`). */
+export const isNewView = (d: { slot: string }): boolean => d.slot === NEW_VIEW_SLOT;
 
 // ─── The field map (next-boilerplate phase 45, D45-3) ───────────────────────
 // A map entry may name, beside or instead of the element shortcut, which telemetry KEY of which device feeds each FIELD of the
@@ -364,36 +369,6 @@ export function proposeRoles(
   return out;
 }
 
-// ─── Slots ───────────────────────────────────────────────────────────────────
-
-/** The value the slot select gives its "New slot…" option. It is not a slot (it starts with an underscore), so it can never collide with one. */
-export const NEW_SLOT_VALUE = '__new_slot__';
-
-/**
- * What is typed into the new-slot field, made a slot as far as it can be: lower case, spaces and dots become `-`, anything else the
- * grammar refuses is dropped, cut to the grammar's length. A name that still breaks the grammar (it starts with a digit, it is empty)
- * is `slotIssue`'s to say.
- */
-export function normalizeSlotInput(raw: string): string {
-  return raw.trimStart().toLowerCase().replace(/[\s.]+/g, '-').replace(/[^a-z0-9_-]/g, '').slice(0, MAX_SLOT_LENGTH);
-}
-
-/** What is wrong with a slot name, or null: the server's grammar (`SLOT_GRAMMAR`). */
-export function slotIssue(slot: string): 'missing' | 'invalid' | null {
-  if (!slot.trim()) return 'missing';
-  return SLOT_GRAMMAR.test(slot) ? null : 'invalid';
-}
-
-/**
- * The slots the drawer lists for a subject: the ones it already has a setup in (from its bindings), `main` always (it is the default
- * slot every card draws unless it names another), sorted with `main` first. Names the grammar refuses are left out.
- */
-export function slotChoices(existing: readonly string[]): string[] {
-  const set = new Set<string>([DEFAULT_SLOT]);
-  for (const s of existing) if (SLOT_GRAMMAR.test(s)) set.add(s);
-  return [...set].sort((a, b) => (a === DEFAULT_SLOT ? -1 : b === DEFAULT_SLOT ? 1 : a < b ? -1 : a > b ? 1 : 0));
-}
-
 /** Whether the drawing changed since a binding was saved: both fingerprints are known and differ. A binding or a document without one (null, '') cannot be told, so it is not stale. */
 export function documentChanged(savedHash: string | null | undefined, currentHash: string | null | undefined): boolean {
   return !!savedHash && !!currentHash && savedHash !== currentHash;
@@ -514,7 +489,6 @@ export const sameDraft = (a: BindingDraft, b: BindingDraft): boolean => draftSig
 export type BindingIssueCode =
   | 'document-missing'
   | 'document-invalid'
-  | 'slot-missing'
   | 'slot-invalid'
   | 'kind-missing'
   | 'kind-invalid'
@@ -571,8 +545,8 @@ export function validateDraft(d: BindingDraft): BindingIssue[] {
   const issues: BindingIssue[] = [];
   if (!d.documentId) issues.push({ code: 'document-missing' });
   else if (!UUID_GRAMMAR.test(d.documentId)) issues.push({ code: 'document-invalid', subject: d.documentId });
-  if (!d.slot.trim()) issues.push({ code: 'slot-missing' });
-  else if (!SLOT_GRAMMAR.test(d.slot)) issues.push({ code: 'slot-invalid', subject: d.slot });
+  // an empty slot is a new view (its host's server names it); a slot the host passed is the stored one and must keep the grammar
+  if (!isNewView(d) && !SLOT_GRAMMAR.test(d.slot)) issues.push({ code: 'slot-invalid', subject: d.slot });
   if (!d.kind) issues.push({ code: 'kind-missing' });
   else if (!KIND_GRAMMAR.test(d.kind)) issues.push({ code: 'kind-invalid', subject: d.kind });
   const roles = Object.keys(d.devices);

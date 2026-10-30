@@ -99,20 +99,9 @@ export interface SceneSetupMessages {
   /** A device the setup names that is not in the host's list (a stale entry's device, by name when known). */
   unknownDevice: string;
 
-  // 1. Slot and kind
-  slotSection: string;
-  slotLabel: string;
-  slotHint: string;
-  /** The hint when the slot cannot be changed (the card's own). */
-  slotLockedHint: string;
-  /** The last choice of the slot select. */
-  slotNew: string;
-  slotNewLabel: string;
-  slotNewHint: string;
-  /** The confirmation before a slot is switched while the form has edits. */
-  slotSwitchTitle: string;
-  slotSwitchBody: (slot: string) => string;
-  slotSwitchConfirm: string;
+  // 1. Kind. A view has no name of its own to type or pick (next-boilerplate phase 47): the host opens the drawer on one view (a saved one, or a
+  // new one its server names), and the drawer never shows or asks for the slot that stores it.
+  kindSection: string;
   kindLabel: string;
   /** The hint when the kind cannot be changed (the card's own). */
   kindLockedHint: string;
@@ -120,10 +109,13 @@ export interface SceneSetupMessages {
   kindSwitchTitle: string;
   kindSwitchBody: (kind: string) => string;
   kindSwitchConfirm: string;
-  /** "Remove this setup": the footer button and its confirmation, which names the kind (as `kinds` has it) and the slot. */
+  /**
+   * "Remove this setup": the footer button and its confirmation, which names the kind (as `kinds` has it) and the view by its drawing's name (the host's
+   * `viewName`, else the chosen document's name), never by the slot that stores it.
+   */
   removeButton: string;
   removeTitle: string;
-  removeBody: (kind: string, slot: string) => string;
+  removeBody: (kind: string, view: string) => string;
   removeConfirm: string;
   /** The segmented choice's label by kind value; a kind with no entry shows its value. */
   kinds: Record<string, string>;
@@ -289,27 +281,18 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   chooseHint: 'The drawing this device is shown as. After saving it is on this page: connect each symbol there by clicking it. Every page that shows this device\'s drawing shows the one you choose. The same drawing can serve several devices; each device connects its own values.',
   staleChooseLine: (count) => `${n(count, 'connection', 'connections')} made for another drawing ${count === 1 ? 'is' : 'are'} not carried over: connect this drawing's symbols on the page after saving.`,
   advanced: 'Advanced',
-  advancedHint: 'Slots, roles, the matching table and rules. Nothing here is needed to show a drawing or to connect its symbols.',
+  advancedHint: 'The type, roles, the matching table and rules. Nothing here is needed to show a drawing or to connect its symbols.',
   unknownDevice: 'another device',
 
-  slotSection: '1. Slot and kind',
-  slotLabel: 'Slot',
-  slotHint: 'The place on the page this scene is shown. A page that draws several scenes of one subject gives each its own slot.',
-  slotLockedHint: 'The card you opened this from draws this slot.',
-  slotNew: 'New slot…',
-  slotNewLabel: 'New slot name',
-  slotNewHint: 'Lower-case letters, digits, _ and -, at most 32, starting with a letter. A card draws it by this name in its settings.',
-  slotSwitchTitle: 'Switch slot',
-  slotSwitchBody: (slot) => `Your edits in this form are lost: it starts over from the saved setup of the slot ${slot} (or from an empty one).`,
-  slotSwitchConfirm: 'Switch slot',
-  kindLabel: 'Kind',
-  kindLockedHint: 'The card you opened this from draws this kind.',
-  kindSwitchTitle: 'Switch kind',
-  kindSwitchBody: (kind) => `Your edits in this form are lost: it starts over from the saved setup of the ${kind} kind (or from an empty one).`,
-  kindSwitchConfirm: 'Switch kind',
+  kindSection: '1. Type',
+  kindLabel: 'Shown as',
+  kindLockedHint: 'The card you opened this from draws this type.',
+  kindSwitchTitle: 'Switch the type',
+  kindSwitchBody: (kind) => `Your edits in this form are lost: it starts over from the saved ${kind} of this subject (or from an empty one).`,
+  kindSwitchConfirm: 'Switch',
   removeButton: 'Remove this setup',
   removeTitle: 'Remove the scene setup',
-  removeBody: (kind, slot) => `Removes the saved ${kind} setup of the slot ${slot} of this subject. Its boards go back to the scene they would show without it. Other slots and the other kind are not touched.`,
+  removeBody: (kind, view) => `Removes the ${kind} "${view}" from this subject. Its boards go back to what they would show without it. Its other views are not touched.`,
   removeConfirm: 'Remove setup',
   kinds: { diagram: '2D diagram', scene: '2D diagram', design: '3D design' },
 
@@ -423,8 +406,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   issue: {
     'document-missing': () => 'Choose a document.',
     'document-invalid': () => 'The document id is not a valid id.',
-    'slot-missing': () => 'Give the slot.',
-    'slot-invalid': (s) => `The slot ${s ?? ''} is not valid: lower-case letters, digits, _ and -, at most 32, starting with a letter.`,
+    'slot-invalid': () => 'This view cannot be saved: the name it is stored under is not valid. Close the drawer and open it again.',
     'kind-missing': () => 'Choose a kind.',
     'kind-invalid': (s) => `The kind ${s ?? ''} is not valid: lower-case letters, digits and _, at most 32, starting with a letter.`,
     'no-devices': () => 'Bind at least one device.',

@@ -195,14 +195,14 @@ describe('the drawer: switching the kind', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: /Do not bind router/ }));
     await user.click(screen.getByRole('button', { name: '3D design' }));
-    const dialog = screen.getByRole('dialog', { name: 'Switch kind' });
-    expect(within(dialog).getByText(/starts over from the saved setup of the 3D design kind/)).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog', { name: 'Switch the type' });
+    expect(within(dialog).getByText(/starts over from the saved 3D design of this subject/)).toBeInTheDocument();
     expect(onKindChange).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(onKindChange).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: '2D diagram' })).toHaveAttribute('aria-pressed', 'true');
     await user.click(screen.getByRole('button', { name: '3D design' }));
-    await user.click(within(screen.getByRole('dialog', { name: 'Switch kind' })).getByRole('button', { name: 'Switch kind' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Switch the type' })).getByRole('button', { name: 'Switch' }));
     expect(onKindChange).toHaveBeenCalledWith('design');
     expect(screen.getByRole('button', { name: '3D design' })).toHaveAttribute('aria-pressed', 'true');
   });
@@ -211,7 +211,7 @@ describe('the drawer: switching the kind', () => {
     render(<SceneSetupDrawer {...props({ kindLocked: true, onKindChange })} />);
     expect(screen.getByRole('button', { name: '2D diagram' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('button', { name: '3D design' })).toBeNull();
-    expect(screen.getByText('The card you opened this from draws this kind.')).toBeInTheDocument();
+    expect(screen.getByText('The card you opened this from draws this type.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '2D diagram' }));
     expect(onKindChange).not.toHaveBeenCalled();
   });

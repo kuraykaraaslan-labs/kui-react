@@ -78,7 +78,7 @@ export type {
   RuleDialect, DesignEffects, DesignOverride, DesignRuleContext, DesignRuleResult, DesignStatus, DesignRuleWords, DescribeDesignOptions, StaleReference, RulesEdit,
 } from './views/design-rules-logic';
 export {
-  KEY_GRAMMAR, ROLE_GRAMMAR, SLOT_GRAMMAR, KIND_GRAMMAR, UUID_GRAMMAR, DEFAULT_SLOT, MAX_SLOT_LENGTH, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAIN_ROLE, isSceneKey, isRoleName, splitKey, elementsForRole,
+  KEY_GRAMMAR, ROLE_GRAMMAR, SLOT_GRAMMAR, KIND_GRAMMAR, UUID_GRAMMAR, DEFAULT_SLOT, NEW_VIEW_SLOT, isNewView, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAIN_ROLE, isSceneKey, isRoleName, splitKey, elementsForRole,
   autoMatch, roleFromCode, proposeRoles, bindingDraft, draftSignature, sameDraft, devicesFromRoles, validateDraft,
   staleEntries, unresolved as sceneUnresolved,
 } from './views/scene-binding-logic';

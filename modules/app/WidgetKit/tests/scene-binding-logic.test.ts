@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  KEY_GRAMMAR, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAX_FIELDS_PER_KEY, NEW_SLOT_VALUE, autoMatch, bindingDraft, devicesFromRoles, documentChanged, normalizeSlotInput, slotChoices, slotIssue, draftSignature, elementsForRole,
+  KEY_GRAMMAR, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAX_FIELDS_PER_KEY, NEW_VIEW_SLOT, autoMatch, bindingDraft, devicesFromRoles, documentChanged, isNewView, draftSignature, elementsForRole,
   elementRefOf, fieldsOfMap, hasFields, isRoleName, isSceneKey, isSymbolField, isTelemetryKey, manualOfMap, proposeRoles, roleFromCode, sameDraft, splitKey, staleEntries, unresolved, validateDraft,
   type BindingDraft, type DeviceElement, type MapEntry, type SceneKey,
 } from '../views/scene-binding-logic';
@@ -286,7 +286,8 @@ describe('validateDraft', () => {
   const codes = (d: BindingDraft) => validateDraft(d).map((i) => i.code);
   it('a good draft has no issue', () => expect(validateDraft(ok)).toEqual([]));
   it('names every missing part', () => {
-    expect(codes({ ...ok, documentId: '', slot: ' ', kind: '', devices: {} })).toEqual(['document-missing', 'slot-missing', 'kind-missing', 'no-devices']);
+    // an empty slot is no missing part: it is a new view (phase 47)
+    expect(codes({ ...ok, documentId: '', slot: '', kind: '', devices: {} })).toEqual(['document-missing', 'kind-missing', 'no-devices']);
   });
   it('checks the grammar of keys, elements, roles and hidden', () => {
     expect(codes({ ...ok, map: { 'bad key': { deviceId: U1, element: 'x' } } })).toContain('key-invalid');
@@ -378,32 +379,19 @@ describe('staleEntries', () => {
   });
 });
 
-describe('slots (phase 42.2.3c)', () => {
-  it('normalizes what is typed to the slot grammar', () => {
-    expect(normalizeSlotInput('Second View')).toBe('second-view');
-    expect(normalizeSlotInput('  a.b ')).toBe('a-b-');
-    expect(normalizeSlotInput('Side View')).toBe('side-view');
-    expect(normalizeSlotInput('Café_1')).toBe('caf_1');
-    expect(normalizeSlotInput('x'.repeat(40))).toHaveLength(32);
-    expect(normalizeSlotInput('')).toBe('');
+describe('a new view (next-boilerplate phase 47)', () => {
+  it('is the empty slot: the host creates it and its server names the slot', () => {
+    expect(NEW_VIEW_SLOT).toBe('');
+    expect(isNewView({ slot: NEW_VIEW_SLOT })).toBe(true);
+    expect(isNewView({ slot: 'main' })).toBe(false);
+    expect(isNewView({ slot: 'view_2' })).toBe(false);
   });
-  it('judges a slot by the server grammar', () => {
-    expect(slotIssue('')).toBe('missing');
-    expect(slotIssue('  ')).toBe('missing');
-    expect(slotIssue('1a')).toBe('invalid');
-    expect(slotIssue('A')).toBe('invalid');
-    expect(slotIssue('-a')).toBe('invalid');
-    expect(slotIssue('main')).toBeNull();
-    expect(slotIssue('side_2-b')).toBeNull();
-    expect(slotIssue('a'.repeat(33))).toBe('invalid');
-    expect(slotIssue('a'.repeat(32))).toBeNull();
-  });
-  it('lists main always, first, then the subject\'s slots sorted, without duplicates or names the grammar refuses', () => {
-    expect(slotChoices([])).toEqual(['main']);
-    expect(slotChoices(['side', 'detail', 'main', 'side', 'Bad', '9x'])).toEqual(['main', 'detail', 'side']);
-  });
-  it('the new-slot select value can never be a slot', () => {
-    expect(slotIssue(NEW_SLOT_VALUE)).toBe('invalid');
+  it('a draft of a new view is valid; a stored slot keeps the server grammar', () => {
+    const draft: BindingDraft = { documentId: DOC, slot: NEW_VIEW_SLOT, kind: 'design', devices: { '': U1 }, map: {}, hidden: [] };
+    expect(validateDraft(draft)).toEqual([]);
+    expect(validateDraft({ ...draft, slot: 'view_2' })).toEqual([]);
+    expect(validateDraft({ ...draft, slot: 'Bad Slot' }).map((i) => i.code)).toEqual(['slot-invalid']);
+    expect(validateDraft({ ...draft, slot: ' ' }).map((i) => i.code)).toEqual(['slot-invalid']);
   });
 });
 
