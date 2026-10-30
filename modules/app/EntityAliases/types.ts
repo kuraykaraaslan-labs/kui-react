@@ -23,7 +23,21 @@ export interface EntityRef { type: string; id: string; name: string; label?: str
 export interface EntityTypeInfo { key: string; label: string; labelPlural: string; subtypeLabel?: string; hasSubtypes: boolean }
 export interface RelationProviderInfo { key: string; label: string; relationTypes: Array<{ value: string; label: string }> }
 export interface BoardParamInfo { key: string; label: string; entityType?: string }
-export interface AliasPreview { total: number; entities: EntityRef[]; truncated?: boolean }
+export interface AliasPreview {
+  total: number
+  entities: EntityRef[]
+  truncated?: boolean
+  /**
+   * The parameters (by label) the draft follows that have no value where the host previews it: it matches nothing until they have
+   * one, which is no reason to refuse it (a page set by a link). The preview says so instead of "no entity matched".
+   */
+  waitingFor?: string[]
+  /**
+   * What a widget that shows one entity gets from the draft, by the host's own run-time rule: an entity (`first` = the first of
+   * several by name), or how many it would have to choose from (the widget then asks to pick one).
+   */
+  single?: { name: string; first?: boolean } | { count: number }
+}
 /** Host-supplied data access; the kit never fetches by itself. */
 export interface EntityAliasesAccess {
   entityTypes(): Promise<EntityTypeInfo[]>

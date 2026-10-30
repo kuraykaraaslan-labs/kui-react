@@ -27,6 +27,17 @@ describe('aliasPickerOptions (slot compatibility)', () => {
     expect(byKey.related.disabled).toBeUndefined();
   });
 
+  it('with the host\'s rules an alias of sites fits a device slot by what it holds, and one of many fits by the one', () => {
+    const rules = { holds: (from: string) => from === 'iot_asset', oneOfMany: true };
+    const one = Object.fromEntries(aliasPickerOptions(aliases, { entityTypes: ['iot_device'], multiple: false }, DEMO_ENTITY_TYPES, [], DEFAULT_ALIAS_MESSAGES, rules).map((o) => [o.value, o]));
+    expect(one.sites).toMatchObject({ description: 'Gives Assets: takes the one of the devices it holds' });
+    expect(one.sites.disabled).toBeUndefined();
+    expect(one.pumps).toMatchObject({ description: 'Gives several: taken when exactly one matches' });
+    expect(one.pumps.disabled).toBeUndefined();
+    const many = Object.fromEntries(aliasPickerOptions(aliases, { entityTypes: ['iot_device'], multiple: true }, DEMO_ENTITY_TYPES, [], DEFAULT_ALIAS_MESSAGES, rules).map((o) => [o.value, o]));
+    expect(many.sites).toMatchObject({ description: 'Gives Assets: takes the devices they hold' });
+  });
+
   it('a multiple slot of any type takes every alias', () => {
     const opts = aliasPickerOptions(aliases, { entityTypes: [], multiple: true }, DEMO_ENTITY_TYPES, [], DEFAULT_ALIAS_MESSAGES);
     expect(opts.filter((o) => o.disabled)).toHaveLength(0);

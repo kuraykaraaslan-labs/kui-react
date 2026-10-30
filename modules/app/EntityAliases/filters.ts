@@ -125,18 +125,36 @@ export function isFilterComplete(filter: EntityAliasFilter | null | undefined, p
   return Object.keys(validateFilter(filter, params)).length === 0;
 }
 
-export type AliasCompatibility = { ok: true } | { ok: false; reason: 'entityType'; entityType: string } | { ok: false; reason: 'multiple' };
+export type AliasCompatibility =
+  | { ok: true; via?: 'held' | 'oneOfMany' }
+  | { ok: false; reason: 'entityType'; entityType: string }
+  | { ok: false; reason: 'multiple' };
+
+/** What the host's run time does beyond the plain rule (next-boilerplate phase 49a). Absent = the plain rule. */
+export interface AliasSlotRules {
+  /**
+   * Whether an alias giving entities of `aliasType` can hand a slot of `slotTypes` the entities they hold (a site for a slot of
+   * devices: the site's devices, through the host's relations). Then such an alias fits (`via: 'held'`).
+   */
+  holds?: (aliasType: string, slotTypes: readonly string[]) => boolean;
+  /** A slot that takes one entity takes an alias of many when exactly one matches (`via: 'oneOfMany'`). */
+  oneOfMany?: boolean;
+}
 
 /**
  * Whether an alias fits a widget's entity slot (E36-4): the entity type it gives must be one the slot takes (an alias
  * whose type is only known after resolving, a relations query, is allowed), and a slot that takes one entity refuses an
- * alias that resolves to many. A multiple slot takes a single-resolve alias (a list of one).
+ * alias that resolves to many. A multiple slot takes a single-resolve alias (a list of one). `rules` widens both, as the
+ * host's run time does (`AliasSlotRules`); the answer says which way it fits.
  */
-export function aliasCompatibility(alias: EntityAlias, slot: AliasSlot): AliasCompatibility {
+export function aliasCompatibility(alias: EntityAlias, slot: AliasSlot, rules: AliasSlotRules = {}): AliasCompatibility {
   const type = filterEntityType(alias.filter);
   if (type && slot.entityTypes.length > 0 && !slot.entityTypes.includes(type)) {
+    if (rules.holds?.(type, slot.entityTypes)) return { ok: true, via: 'held' };
     return { ok: false, reason: 'entityType', entityType: type };
   }
-  if (!slot.multiple && alias.resolveMultiple && alias.filter.type !== 'singleEntity') return { ok: false, reason: 'multiple' };
+  if (!slot.multiple && alias.resolveMultiple && alias.filter.type !== 'singleEntity') {
+    return rules.oneOfMany ? { ok: true, via: 'oneOfMany' } : { ok: false, reason: 'multiple' };
+  }
   return { ok: true };
 }

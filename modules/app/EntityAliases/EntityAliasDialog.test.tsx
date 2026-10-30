@@ -57,6 +57,25 @@ describe('EntityAliasDialog', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
+  it('a filter that follows a parameter with no value here says which, and still saves (next-boilerplate 49a, AD-11)', async () => {
+    const access = demoAccess({ preview: async () => ({ total: 0, entities: [], waitingFor: ['Site'] }) });
+    const { onSave } = setup(
+      { key: 'siteDevices', name: 'Site devices', resolveMultiple: true, filter: { type: 'entityType', entityType: 'iot_device' } },
+      access,
+    );
+    expect(await screen.findByText(/Nothing to show until Site has a value here/)).toBeInTheDocument();
+    expect(screen.queryByText('No entities matching the filter were found.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+  });
+
+  it('says what a widget of one entity gets, by the host\'s run-time rule (next-boilerplate 49a, AD-12)', async () => {
+    const one = demoAccess({ preview: async () => ({ total: 1, entities: [{ type: 'iot_device', id: 'd1', name: 'Pump 1' }], single: { name: 'Pump 1' } }) });
+    setup({ key: 'p', name: 'P', resolveMultiple: true, filter: { type: 'entityType', entityType: 'iot_device' } }, one);
+    expect(await screen.findByText('A widget that shows one entity shows Pump 1.')).toBeInTheDocument();
+  });
+
   it('still saves when the preview itself fails', async () => {
     const access = demoAccess({ preview: async () => { throw new Error('down'); } });
     const { onSave } = setup(

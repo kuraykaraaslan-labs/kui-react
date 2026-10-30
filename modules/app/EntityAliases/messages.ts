@@ -163,6 +163,12 @@ export interface EntityAliasesMessages {
   previewMore: (count: number) => string;
   noEntityMatched: string;
   previewFailed: string;
+  /** The draft follows parameters with no value where it is previewed (`AliasPreview.waitingFor`, their labels joined). */
+  previewWaiting: (names: string) => string;
+  /** What a widget that shows one entity gets (`AliasPreview.single`). */
+  previewSingle: (name: string) => string;
+  previewSingleFirst: (name: string) => string;
+  previewSingleMany: (count: number) => string;
 
   // ---- entity filter form ----
   filterType: string;
@@ -231,6 +237,9 @@ export interface EntityAliasesMessages {
   newAlias: string;
   incompatibleType: (aliasType: string, slotTypes: string) => string;
   incompatibleMultiple: string;
+  /** An alias that fits through `AliasSlotRules`: one of another kind whose holdings the slot takes, one of many taken when one. */
+  takesHeld: (aliasType: string, slotTypes: string, multiple: boolean) => string;
+  takesOneOfMany: string;
 
   // ---- toolbar entity select ----
   selectEntities: string;
@@ -575,6 +584,10 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   previewMore: (count) => `and ${count} more`,
   noEntityMatched: 'No entities matching the filter were found.',
   previewFailed: 'The filter could not be checked. You can still save it.',
+  previewWaiting: (names) => `Nothing to show until ${names} has a value here: a link or a widget's action gives it. You can still save it.`,
+  previewSingle: (name) => `A widget that shows one entity shows ${name}.`,
+  previewSingleFirst: (name) => `A widget that shows one entity shows the first: ${name}.`,
+  previewSingleMany: (count) => `A widget that shows one entity cannot use this: it gives ${count}. Pick one, or narrow the filter.`,
 
   filterType: 'Filter type',
   filterTypePlaceholder: 'Select a filter type',
@@ -655,6 +668,8 @@ export const DEFAULT_ALIAS_MESSAGES: EntityAliasesMessages = {
   newAlias: 'New alias',
   incompatibleType: (aliasType, slotTypes) => `Gives ${aliasType}; this slot takes ${slotTypes}`,
   incompatibleMultiple: 'Resolves to many entities; this slot takes one',
+  takesHeld: (aliasType, slotTypes, multiple) => (multiple ? `Gives ${aliasType}: takes the ${lower(slotTypes)} they hold` : `Gives ${aliasType}: takes the one of the ${lower(slotTypes)} it holds`),
+  takesOneOfMany: 'Gives several: taken when exactly one matches',
 
   selectEntities: 'Select entities',
 

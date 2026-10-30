@@ -31,7 +31,7 @@ export {
   normalizeAlias,
   normalizeFilter,
 } from './filters';
-export type { AliasCompatibility, EmptyFilterContext } from './filters';
+export type { AliasCompatibility, AliasSlotRules, EmptyFilterContext } from './filters';
 export {
   MAX_ALIASES,
   ALIAS_KEY_PATTERN,

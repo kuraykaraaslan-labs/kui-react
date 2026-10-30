@@ -97,6 +97,16 @@ describe('aliasCompatibility (a widget entity slot)', () => {
     expect(filterEntityType(related.filter)).toBeNull();
     expect(aliasCompatibility(related, { entityTypes: ['iot_asset'], multiple: false })).toEqual({ ok: true });
   });
+
+  it('the host\'s rules (next-boilerplate 49a): an alias of another kind fits by what it holds, one of many fits a slot of one', () => {
+    const sites = alias({ type: 'entityType', entityType: 'iot_asset' }, false);
+    const holds = (from: string, to: readonly string[]) => from === 'iot_asset' && to.includes('iot_device');
+    expect(aliasCompatibility(sites, { entityTypes: ['iot_device'], multiple: false }, { holds })).toEqual({ ok: true, via: 'held' });
+    expect(aliasCompatibility(devices, { entityTypes: ['iot_asset'], multiple: false }, { holds })).toEqual({ ok: false, reason: 'entityType', entityType: 'iot_device' });
+    expect(aliasCompatibility(devices, { entityTypes: ['iot_device'], multiple: false }, { oneOfMany: true })).toEqual({ ok: true, via: 'oneOfMany' });
+    // without rules, the plain rule stands
+    expect(aliasCompatibility(sites, { entityTypes: ['iot_device'], multiple: false })).toEqual({ ok: false, reason: 'entityType', entityType: 'iot_asset' });
+  });
 });
 
 describe('isFilterComplete', () => {

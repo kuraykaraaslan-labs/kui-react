@@ -1,7 +1,8 @@
 'use client';
 // The alias dialog's preview (E36-12, TB's `noEntityMatched` made visible): a complete draft is resolved through
 // `access.preview` after a short pause, and the dialog shows the total and the first names. A draft that matches
-// nothing blocks the save; a preview that fails does not (the server still validates on save).
+// nothing blocks the save; a preview that fails does not (the server still validates on save), nor does one that follows a
+// parameter with no value where it is previewed (it says which). What a widget of one entity gets is said under the names.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
@@ -10,7 +11,8 @@ import { useLatestRef } from './useAliasData';
 import type { EntityAliasesMessages } from './messages';
 import type { AliasPreview, EntityAlias, EntityAliasesAccess } from './types';
 
-export type PreviewStatus = 'idle' | 'loading' | 'ok' | 'empty' | 'error';
+/** `waiting`: the draft follows parameters with no value where it is previewed (`AliasPreview.waitingFor`); never a reason to refuse it. */
+export type PreviewStatus = 'idle' | 'loading' | 'ok' | 'empty' | 'waiting' | 'error';
 
 export const PREVIEW_DEBOUNCE_MS = 400;
 const SHOWN_NAMES = 5;
@@ -34,7 +36,7 @@ export function useAliasPreview(access: EntityAliasesAccess, draftJson: string, 
       if (inflight.current?.json === json) return inflight.current.promise;
       const promise = accessRef.current.preview(JSON.parse(json) as EntityAlias).then(
         (result) => {
-          const status: PreviewStatus = result.total > 0 ? 'ok' : 'empty';
+          const status: PreviewStatus = result.total > 0 ? 'ok' : result.waitingFor?.length ? 'waiting' : 'empty';
           if (live.current) setAnswer({ json, status, result });
           return status;
         },
@@ -102,8 +104,15 @@ export function AliasPreviewPanel({
             {shown.map((e) => e.name).join(', ')}
             {more > 0 && <> {m.previewMore(more)}</>}
           </p>
+          {result.single && (
+            <p className="text-text-secondary" data-testid="alias-preview-single">
+              {'count' in result.single ? m.previewSingleMany(result.single.count)
+                : result.single.first ? m.previewSingleFirst(result.single.name) : m.previewSingle(result.single.name)}
+            </p>
+          )}
         </div>
       )}
+      {status === 'waiting' && <p className="text-text-secondary" data-testid="alias-preview-waiting">{m.previewWaiting((result?.waitingFor ?? []).join(', '))}</p>}
       {status === 'empty' && <p role="alert" className="font-medium text-error">{m.noEntityMatched}</p>}
       {status === 'error' && <p className="text-text-secondary">{m.previewFailed}</p>}
     </section>

@@ -2,6 +2,8 @@
 // A widget's data tab binds an entity slot to an alias (E36-4): pick one of the board's aliases, "None", or create a
 // new one. Aliases that do not fit the slot are listed but disabled, with the reason: a wrong entity type, or "resolves
 // to many" for a slot that takes one entity. A relations query's type is only known after resolving, so it is allowed.
+// The host may widen both rules as its run time does (`rules`): an alias of another kind fits by what its entities hold,
+// one of many fits a slot of one when exactly one matches; such an option says how it is taken.
 // Once an alias is chosen and the board has filters, a second select picks one of them (E36-10:
 // `{ "$alias": "<key>", "filter": "<filterKey>" }`) or none.
 
@@ -14,7 +16,7 @@ import { ComboBox, type ComboBoxOption } from '@/modules/ui/ComboBox';
 import { Select } from '@/modules/ui/Select';
 import { boardFilterText } from './board-filter-text';
 import { entityFilterText } from './filter-text';
-import { aliasCompatibility } from './filters';
+import { aliasCompatibility, type AliasSlotRules } from './filters';
 import { mergeAliasMessages, type EntityAliasesMessages, type EntityAliasesMessagesInput } from './messages';
 import type { AliasSlot, BoardFilter, BoardParamInfo, EntityAlias, EntityTypeInfo } from './types';
 
@@ -40,6 +42,8 @@ export interface EntityAliasPickerProps {
   onFilterChange?: (filterKey: string | undefined) => void;
   /** The filter select's label (`messages.pickerFilterLabel` by default). */
   filterLabel?: string;
+  /** What the host's run time takes beyond the plain rule (an alias of another kind by what it holds, one of many when one). */
+  rules?: AliasSlotRules;
 }
 
 /** The picker's options: "None" first, then every alias, the ones that do not fit the slot disabled with the reason. */
@@ -49,19 +53,24 @@ export function aliasPickerOptions(
   entityTypes: readonly EntityTypeInfo[],
   params: readonly BoardParamInfo[],
   m: EntityAliasesMessages,
+  rules?: AliasSlotRules,
 ): ComboBoxOption[] {
   const plural = (key: string) => entityTypes.find((t) => t.key === key)?.labelPlural ?? key;
+  const slotPlural = () => slot.entityTypes.map(plural).join(', ');
   return [
     { value: '', label: m.none },
     ...aliases.map((alias): ComboBoxOption => {
-      const fit = aliasCompatibility(alias, slot);
+      const fit = aliasCompatibility(alias, slot, rules);
       if (fit.ok) {
-        return { value: alias.key, label: alias.name, description: entityFilterText(alias.filter, { entityTypes, params, messages: m }) };
+        // A fit through the host's rules says how it is taken: what the entities hold, or one of many when there is one.
+        const how = fit.via === 'held' ? m.takesHeld(plural(alias.filter.type === 'relationsQuery' ? '' : alias.filter.entityType), slotPlural(), slot.multiple)
+          : fit.via === 'oneOfMany' ? m.takesOneOfMany : undefined;
+        return { value: alias.key, label: alias.name, description: how ?? entityFilterText(alias.filter, { entityTypes, params, messages: m }) };
       }
       const reason =
         fit.reason === 'multiple'
           ? m.incompatibleMultiple
-          : m.incompatibleType(plural(fit.entityType), slot.entityTypes.map(plural).join(', '));
+          : m.incompatibleType(plural(fit.entityType), slotPlural());
       return { value: alias.key, label: alias.name, description: reason, disabled: true };
     }),
   ];
@@ -84,10 +93,11 @@ export function EntityAliasPicker({
   filterValue,
   onFilterChange,
   filterLabel,
+  rules,
 }: EntityAliasPickerProps) {
   const m = useMemo(() => mergeAliasMessages(messages), [messages]);
   const id = useId();
-  const options = aliasPickerOptions(aliases, slot, entityTypes, params, m);
+  const options = aliasPickerOptions(aliases, slot, entityTypes, params, m, rules);
   const showFilter = !!value && !!filters && (filters.length > 0 || !!filterValue);
   const filterOptions = (filters ?? []).map((f) => ({ value: f.key, label: f.name }));
   // A stored filter the board no longer has stays visible by its key, so it can be cleared.
