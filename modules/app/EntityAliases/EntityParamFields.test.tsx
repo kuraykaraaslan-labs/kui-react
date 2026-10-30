@@ -146,6 +146,23 @@ describe('EntityParamFields', () => {
     expect(screen.getByText(/Pump 1, Pump 2/)).toBeInTheDocument();
   });
 
+  it('says a widget of one entity shows the first only when the parameter takes the first and has no default (AD-12)', async () => {
+    // the host previews the set as an alias, whose rule is the first by name: the form knows whether this parameter does that
+    const access: EntityAliasesAccess = {
+      ...demoAccess(),
+      preview: async () => ({ total: 2, entities: DEMO_ENTITIES.filter((e) => e.name.startsWith('Pump')), single: { name: 'Pump 1', first: true } }),
+    };
+    const byName: EntityParam = { ...START, choose: { type: 'name', namePrefix: 'Pump' } };
+    const view = (p: EntityParam) => <EntityParamFields value={p} onChange={() => {}} params={[SITE]} access={access} preview />;
+    const { rerender } = render(view(byName));
+    expect(await screen.findByText('2 entities matched')).toBeInTheDocument();
+    expect(screen.queryByTestId('alias-preview-single')).toBeNull();
+    rerender(view({ ...byName, defaultFrom: 'firstOption' }));
+    expect(screen.getByTestId('alias-preview-single')).toHaveTextContent('A widget that shows one entity shows the first: Pump 1.');
+    rerender(view({ ...byName, defaultFrom: 'firstOption', default: 'd2' }));
+    expect(screen.queryByTestId('alias-preview-single')).toBeNull();
+  });
+
   it('the viewer\'s pick may be narrowed to some subtypes or a name prefix; nothing picked leaves it out', async () => {
     const onParam = vi.fn();
     const user = userEvent.setup();

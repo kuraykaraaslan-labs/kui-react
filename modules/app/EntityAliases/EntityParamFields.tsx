@@ -84,6 +84,13 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
     return alias && Object.keys(validateEntityParam(draft, params)).length === 0 ? JSON.stringify(alias) : '';
   }, [preview, p, params]);
   const matched = useAliasPreview(access, previewJson);
+  // What a widget of one entity gets is the host's run-time rule for the draft as an alias, which takes the first by name (AD-12 of
+  // next-boilerplate phase 49a). A parameter does that only with "take the first" on and no default of its own: otherwise the widget
+  // shows the default or waits for a pick, so the note that promises the first is left out. Decided here, where the switch is known
+  // as it changes (the preview is asked again only when the set changes).
+  const found = matched.result;
+  const shown = found?.single && 'first' in found.single && found.single.first && (p.defaultFrom !== 'firstOption' || !!p.default)
+    ? { ...found, single: undefined } : found;
   // The default is searched in the set where the form can tell it (a list, a name prefix, subtypes), so it never falls outside.
   const acceptDefault = (e: EntityRef) => defaultFits(p, e);
 
@@ -124,7 +131,7 @@ export function EntityParamFields({ value, onChange, params, access, advanced = 
           />
         </div>
         {renderChoice()}
-        {previewJson && <AliasPreviewPanel status={matched.status} result={matched.result} m={m} />}
+        {previewJson && <AliasPreviewPanel status={matched.status} result={shown} m={m} />}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {choiceTakesMany(c) && (
             <Select messages={m.select}
