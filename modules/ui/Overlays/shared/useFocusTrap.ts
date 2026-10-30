@@ -9,7 +9,8 @@ import { useEffect, useCallback } from 'react';
  *   container edges are skipped by treating them as boundary triggers.
  * - Saves the previously-focused element and restores it on close.
  * - Nested-overlay safe: a layer stack tracks "current top" so only the
- *   topmost active trap reacts to Tab/Escape.
+ *   topmost active trap reacts to Tab/Escape. The stack is shared by every
+ *   copy of this file in the page (see `layerStack`).
  * - An Escape whose `defaultPrevented` is set was handled by a control
  *   inside the overlay (an open dropdown) and does not dismiss it.
  * - Tab with focus in another dialog layered over the overlay (one that is
@@ -38,8 +39,19 @@ type Options = {
  * Layer stack for nested overlays. The top element of the stack is the
  * one currently allowed to intercept Tab and Escape. Stored as refs to
  * the trap containers (insertion order = open order).
+ *
+ * ONE stack per page, kept on `globalThis` under a registered symbol: a
+ * host that vendors several kits has several copies of this file, and an
+ * overlay of one copy opened over an overlay of another must be the top
+ * for both. With a stack per copy each copy saw its own overlay on top,
+ * and one Escape closed both (next-boilerplate phase 46 review, R46-2).
  */
-const layerStack: Array<React.RefObject<HTMLElement | null>> = [];
+type LayerStack = Array<React.RefObject<HTMLElement | null>>;
+const LAYER_STACK_KEY = Symbol.for('kui-react.overlays.layer-stack');
+const layerStack: LayerStack = (() => {
+  const store = globalThis as unknown as Record<symbol, LayerStack | undefined>;
+  return (store[LAYER_STACK_KEY] ??= []);
+})();
 
 function isTopLayer(ref: React.RefObject<HTMLElement | null>): boolean {
   return layerStack[layerStack.length - 1] === ref;

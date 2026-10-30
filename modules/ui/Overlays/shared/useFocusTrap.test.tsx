@@ -169,4 +169,35 @@ describe('useFocusTrap', () => {
     await user.keyboard('{Escape}'); // deactivates it (onEscape -> setActive(false))
     await waitFor(() => expect(trigger).toHaveFocus());
   });
+
+  it('shares ONE layer stack between two copies of this file (a host that vendors two kits): only the overlay opened last closes on Escape', async () => {
+    // a second copy of the module, as a host that vendors two kits has it (each kit its own file)
+    vi.resetModules();
+    const other = await import('./useFocusTrap');
+    expect(other.useFocusTrap).not.toBe(useFocusTrap);
+    const below = vi.fn();
+    const above = vi.fn();
+    function Below() {
+      const ref = useRef<HTMLDivElement>(null);
+      useFocusTrap(ref, { active: true, onEscape: below });
+      return <div ref={ref}><button>Below</button></div>;
+    }
+    function Above() {
+      const ref = useRef<HTMLDivElement>(null);
+      other.useFocusTrap(ref, { active: true, onEscape: above });
+      return <div ref={ref}><button>Above</button></div>;
+    }
+    const user = userEvent.setup();
+    const { rerender } = render(<Below />);
+    rerender(<><Below /><Above /></>);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Above' })).toHaveFocus());
+    await user.keyboard('{Escape}');
+    expect(above).toHaveBeenCalledTimes(1);
+    expect(below).not.toHaveBeenCalled();
+    // the copy below is the top again once the one above is gone, for either copy
+    rerender(<Below />);
+    await user.keyboard('{Escape}');
+    expect(below).toHaveBeenCalledTimes(1);
+    expect(other.isFocusTrapTopLayer({ current: null })).toBe(false);
+  });
 });
