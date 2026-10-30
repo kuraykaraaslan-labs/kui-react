@@ -955,7 +955,7 @@ describe('SceneSetupDrawer: remove this setup (SP-10)', () => {
     await u.click(screen.getByRole('button', { name: 'Remove this setup' }));
     expect(onRemove).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog', { name: 'Remove the scene setup' });
-    expect(within(dialog).getByText('Removes the 3D design "Fryer line" from this subject. Its boards go back to what they would show without it. Its other views are not touched.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Removes the 3D design "Fryer line". The dashboards that showed it go back to what they would show without it. The other views are not touched.')).toBeInTheDocument();
     expect(within(dialog).queryByText(/view_2/)).toBeNull();
     await u.click(within(dialog).getByRole('button', { name: 'Remove setup' }));
     expect(onRemove).toHaveBeenCalledWith({ slot: 'view_2', kind: 'design' });

@@ -196,7 +196,7 @@ describe('the drawer: switching the kind', () => {
     await user.click(screen.getByRole('button', { name: /Do not bind router/ }));
     await user.click(screen.getByRole('button', { name: '3D design' }));
     const dialog = screen.getByRole('dialog', { name: 'Switch the type' });
-    expect(within(dialog).getByText(/starts over from the saved 3D design of this subject/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/starts over from the saved 3D design \(or from an empty one\)/)).toBeInTheDocument();
     expect(onKindChange).not.toHaveBeenCalled();
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(onKindChange).not.toHaveBeenCalled();
