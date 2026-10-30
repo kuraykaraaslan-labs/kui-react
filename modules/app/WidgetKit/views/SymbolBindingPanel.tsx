@@ -954,7 +954,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
   // the row's problem reaches the panel (its Save waits); a row whose expression is empty has none. The callback is read through a ref: the panel hands
   // a fresh arrow every render, and an effect keyed on it re-ran its cleanup (null) and itself (the problem) on every render, a loop that never settled.
   const onProblemRef = useRef(p.onProblem);
-  onProblemRef.current = p.onProblem;
+  useEffect(() => { onProblemRef.current = p.onProblem; });
   useEffect(() => { onProblemRef.current?.(problem); }, [problem]);
   useEffect(() => () => onProblemRef.current?.(null), []);
   // the problem is said ONCE: the box marks and names it (the judge's sentence), and the line under it then says the kind of problem alone, whatever the kind
