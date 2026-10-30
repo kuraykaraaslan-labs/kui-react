@@ -18,7 +18,7 @@ export const MAX_BINDING_DEVICES = 100;
 export const MAX_BINDING_MAP = 500;
 /** The role of the device a key without a role prefix belongs to. */
 export const MAIN_ROLE = '';
-/** The first slot of each kind (the server's default; next-boilerplate D86: `main`, then `view_2`, `view_3` …, allocated by the server). */
+/** The first slot of each kind (the server's default; next-boilerplate D106: `main`, then `view_2`, `view_3` …, allocated by the server). */
 export const DEFAULT_SLOT = 'main';
 /**
  * The slot of a view that is not saved yet (next-boilerplate phase 47): the draft carries it and the host CREATES the view, its server naming the
