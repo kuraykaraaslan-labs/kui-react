@@ -29,9 +29,9 @@ function mount(o: { selection?: Selection; host?: EditorHost; scene?: SceneSetti
 }
 
 describe('SceneInspector: where a symbol is connected to a device (next-boilerplate e2e round 4, M-R4-05)', () => {
-  it('a selected symbol says, on its Properties, that the device value it shows is connected on the device\'s page; the diagram and a group of symbols do not', () => {
+  it('a selected symbol says, on its Properties, that the device value it shows is connected on the device\'s or the site\'s Views; the diagram and a group of symbols do not', () => {
     const a = mount({ selection: { elements: ['pump1'] } });
-    expect(screen.getByTestId('inspector-device-hint').textContent).toMatch(/connected on the device's page/);
+    expect(screen.getByTestId('inspector-device-hint').textContent).toMatch(/connected on the device's or the site's Views/);
     a.unmount();
     const b = mount();
     expect(screen.queryByTestId('inspector-device-hint')).toBeNull();
