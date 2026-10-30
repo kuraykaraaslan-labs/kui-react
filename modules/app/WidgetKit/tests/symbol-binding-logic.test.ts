@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, fieldKindOf, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty,
-  keyKindOf, mismatchOf, nextUnbound, pickableKeys, previewLine, rankKeysForField, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields, templateFor, unitQuantity,
+  keyKindOf, keyNamesSymbol, mismatchOf, nextUnbound, pickableKeys, previewLine, rankKeysForField, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields,
+  templateFor, unitQuantity, applyTemplate,
   CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE, staleKeys,
   type BindingDraft, type DeviceKey, type FieldDraft, type SymbolSpec,
 } from '../views/symbol-binding-logic';
@@ -504,6 +505,52 @@ describe('defaultInputName', () => {
     expect(defaultInputName('supply_temperature_x')).toBe('temperature_x');
     expect(defaultInputName('supply_temperature_x', ['temperature_x'])).toBe('temperature_x_2');
     expect(expressionNames([{ name: 'a' }, { name: 'b' }])).toEqual(['value', 'row', 'now', 'a', 'b']);
+  });
+});
+
+describe('applyTemplate: a chip wraps or extends what was typed, never overwrites it (next-boilerplate e2e Slice 21, AD-15)', () => {
+  const tpl = (id: string) => scriptTemplates().find((t) => t.id === id)!;
+  it('over an empty box writes the template, over the first input when there is no picked value', () => {
+    expect(applyTemplate(tpl('round'), '', [], true)).toBe('Math.round(value * 10) / 10');
+    expect(applyTemplate(tpl('invert'), '  ', [{ name: 'supply' }], false)).toBe('!supply');
+  });
+  it('Round over a typed expression keeps it inside', () => {
+    expect(applyTemplate(tpl('round'), 'value / 250 * 100', [], true)).toBe('Math.round((value / 250 * 100) * 10) / 10');
+  });
+  it('every chip applies itself to the typed text; one plain name needs no brackets', () => {
+    expect(applyTemplate(tpl('invert'), 'a > b', [], true)).toBe('!(a > b)');
+    expect(applyTemplate(tpl('scale'), 'raw', [], true)).toBe('raw / 4095 * 100');
+    expect(applyTemplate(tpl('threshold'), 'value / 2', [], true)).toBe('(value / 2) > 80');
+    expect(applyTemplate(tpl('words'), 'value', [], true)).toBe('value === "on"');
+  });
+  it('a result over the length cap changes nothing (null)', () => {
+    expect(applyTemplate(tpl('round'), 'v'.repeat(190), [], true)).toBeNull();
+  });
+});
+
+describe('rankKeysForField: the symbol\'s equipment by its name (next-boilerplate e2e Slice 21, AD-02)', () => {
+  // the pool plant device: its elements named by the profile ("<equipment> · <field>"), a heat pump beside the circulation pump
+  const keys: DeviceKey[] = [
+    { key: 'pump_circulation.running', label: 'Circulation pump · running', value: true, ts: 1 },
+    { key: 'pump_circulation.value', label: 'Circulation pump · value', value: 41, ts: 1 },
+    { key: 'heat_pump.running', label: 'Heat pump · running', value: false, ts: 1 },
+    { key: 'meter_flow.value', label: 'Flow meter · value', value: 12.4, unit: 'l/min', ts: 1 },
+  ];
+  it('a symbol labelled exactly as a piece of equipment reads that equipment\'s key of the field, certain', () => {
+    const [top] = rankKeysForField({ name: 'running', label: 'Running' }, keys, 'pump', [], ['Circulation pump', 'Pump']);
+    expect(top).toMatchObject({ key: 'pump_circulation.running', confident: true });
+    expect(top.reasons).toContain('label');
+    expect(suggestKeyForField({ name: 'value', label: 'Flow' }, keys, 'meter', ['Flow meter', 'Flow meter'])).toBe('meter_flow.value');
+  });
+  it('the name decides by the id\'s words when the keys carry no label', () => {
+    const bare = keys.map(({ label: _l, ...k }) => k);
+    expect(suggestKeyForField({ name: 'running', label: 'Running' }, bare, 'pump', ['Circulation pump', 'Pump'])).toBe('pump_circulation.running');
+  });
+  it('keyNamesSymbol: the equipment name or the prefix\'s words, never a shared word alone', () => {
+    expect(keyNamesSymbol(keys[0], 'circulation pump')).toBe(true);
+    expect(keyNamesSymbol(keys[2], 'Circulation pump')).toBe(false);
+    expect(keyNamesSymbol({ key: 'temperature', label: 'Temperature' }, 'Temperature')).toBe(false);
+    expect(keyNamesSymbol(keys[0], '')).toBe(false);
   });
 });
 

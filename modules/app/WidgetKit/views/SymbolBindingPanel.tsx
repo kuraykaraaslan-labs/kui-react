@@ -30,9 +30,9 @@ import type { Column } from '@/modules/ui/Table/types';
 import { Select } from '@/modules/ui/Select';
 import { useNow } from '../useNow';
 import {
-  ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
-  pickableKeys, previewLine, rankKeysForField, scriptErrorKind, scriptTemplates, templateFor, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
-  type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type RankedKey, type ScriptOutcome, type SourceMode,
+  ageText, applyTemplate, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
+  pickableKeys, previewLine, rankKeysForField, scriptErrorKind, scriptTemplates, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
+  type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type RankedKey, type ScriptOutcome, type ScriptTemplate, type SourceMode,
   type SymbolFieldSpec, type SymbolSpec } from './symbol-binding-logic';
 import { DEFAULT_SYMBOL_BINDING_MESSAGES, mergeMessages, type DeepPartial, type SymbolBindingMessages } from './symbol-binding-messages';
 
@@ -316,9 +316,16 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     setField(name, (f) => ({ ...f, script: script.replace(/[\r\n]+/g, ' ').slice(0, MAX_SCRIPT_LENGTH) }));
   }
 
-  /** The expression written by a template chip (U2b): the row goes to expression mode and the one-liner is the chip's text over the picked value. */
-  function writeTemplate(name: string, script: string) {
-    setField(name, (f) => ({ ...f, mode: 'expression', script: templateFor({ id: 'invert', script }, f.inputs, f.key !== '') }));
+  /**
+   * The expression written by a template chip (U2b): the row goes to expression mode; an empty box gets the chip's text over the picked value, a typed
+   * expression is wrapped or extended by it (`applyTemplate`, next-boilerplate AD-15: typed work is never overwritten). A result over the length cap
+   * changes nothing.
+   */
+  function writeTemplate(name: string, template: ScriptTemplate) {
+    setField(name, (f) => {
+      const script = applyTemplate(template, f.script, f.inputs, f.key !== '');
+      return script === null ? f : { ...f, mode: 'expression', script };
+    });
   }
 
   function addInput(name: string, key: string) {
@@ -598,7 +605,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
                 onAccept={() => acceptProposal(field.name)}
                 onMode={(mode) => setMode(field.name, mode)}
                 onScript={(s) => setScript(field.name, s)}
-                onTemplate={(s) => writeTemplate(field.name, s)}
+                onTemplate={(tpl) => writeTemplate(field.name, tpl)}
                 onAddInput={(key) => addInput(field.name, key)}
                 onRemoveInput={(n) => removeInput(field.name, n)}
                 onInsert={(w) => insertName(field.name, w)}
@@ -734,7 +741,7 @@ interface FieldRowProps {
   onAccept: () => void;
   onMode: (mode: SourceMode) => void;
   onScript: (script: string) => void;
-  onTemplate: (script: string) => void;
+  onTemplate: (template: ScriptTemplate) => void;
   onAddInput: (key: string) => void;
   onRemoveInput: (name: string) => void;
   onInsert: (word: string) => void;
@@ -906,7 +913,7 @@ interface ExpressionBoxProps {
   keyByName: ReadonlyMap<string, DeviceKey>;
   readOnly: boolean;
   onScript: (script: string) => void;
-  onTemplate: (script: string) => void;
+  onTemplate: (template: ScriptTemplate) => void;
   onAddInput: (key: string) => void;
   onRemoveInput: (name: string) => void;
   onInsert: (word: string) => void;
@@ -1049,7 +1056,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
       </div>
       <div className="flex flex-wrap gap-1">
         {scriptTemplates().map((t) => (
-          <Button key={t.id} variant="outline" size="xs" disabled={readOnly} onClick={() => p.onTemplate(t.script)}>
+          <Button key={t.id} variant="outline" size="xs" disabled={readOnly} onClick={() => p.onTemplate(t)}>
             {m.templates[t.id]}
           </Button>
         ))}

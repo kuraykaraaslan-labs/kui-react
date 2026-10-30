@@ -464,8 +464,18 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     await user.click(within(r).getByRole('button', { name: 'Invert' }));
     expect(expression('Running')).toHaveValue('!value');
     await waitFor(() => expect(within(r).getByText('1 → Off')).toBeInTheDocument());
+    // a second chip is applied to what the box holds (next-boilerplate AD-15), never written over it
     await user.click(within(r).getByRole('button', { name: 'Scale 0–100' }));
-    expect(expression('Running')).toHaveValue('value / 4095 * 100');
+    expect(expression('Running')).toHaveValue('(!value) / 4095 * 100');
+  });
+  it('a chip wraps the expression the person typed instead of overwriting it (next-boilerplate e2e Slice 21, AD-15)', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, previewScript: stub })} />);
+    await rowsReady();
+    await user.selectOptions(source('Running'), 'expression');
+    fireEvent.change(expression('Running'), { target: { value: 'value / 250 * 100' } });
+    await user.click(within(row('Running')).getByRole('button', { name: 'Round' }));
+    expect(expression('Running')).toHaveValue('Math.round((value / 250 * 100) * 10) / 10');
   });
   it('says at once, in plain words, why an expression may not run (the judge), never the sandbox\'s own text', async () => {
     const user = userEvent.setup();

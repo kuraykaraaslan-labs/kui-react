@@ -73,6 +73,37 @@ describe('matchAllRows', () => {
   });
 });
 
+describe('matchAllRows across a site\'s devices (next-boilerplate phase 46.2)', () => {
+  const D3 = '33333333-3333-4333-8333-333333333333';
+  const site = (over: Partial<MatchSymbol> = {}): MatchSymbol => ({ id: 'meter', label: 'Flow meter', kindLabel: 'Meter', deviceId: '', deviceName: '', fields: [{ name: 'value', label: 'Flow' }], ...over });
+  const pumpBox = [k('pump_circulation.running', true, { label: 'Circulation pump · running' }), k('temp_1', 21.5)];
+  const meterBox = [k('meter_flow.value', 12.4, { label: 'Flow meter · value', unit: 'l/min' })];
+  it('a symbol with no device of its own takes the device that fits it best among the site\'s, certain when it leads clearly', () => {
+    const rows = matchAllRows([site({ candidates: [{ deviceId: D1, deviceName: 'Pump box' }, { deviceId: D2, deviceName: 'Meter box' }] })], new Map([[D1, pumpBox], [D2, meterBox]]));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ deviceId: D2, deviceName: 'Meter box', key: 'meter_flow.value', confident: true });
+  });
+  it('with no candidate, or none whose keys are known, proposes nothing; one candidate is the device', () => {
+    expect(matchAllRows([site()], new Map([[D1, meterBox]]))).toEqual([]);
+    expect(matchAllRows([site({ candidates: [{ deviceId: D3, deviceName: 'Gone' }] })], new Map([[D1, meterBox]]))).toEqual([]);
+    expect(matchAllRows([site({ candidates: [{ deviceId: D1, deviceName: 'Only box' }] })], new Map([[D1, meterBox]]))[0]).toMatchObject({ deviceId: D1, confident: true });
+  });
+  it('three devices of the same type tie: nobody\'s pick, nothing proposed', () => {
+    const same = [{ deviceId: D1, deviceName: 'Pool plant · Antalya' }, { deviceId: D2, deviceName: 'Pool plant · Izmir' }, { deviceId: D3, deviceName: 'Pool plant · Konya' }];
+    expect(matchAllRows([site({ candidates: same })], new Map([[D1, meterBox], [D2, meterBox], [D3, meterBox]]))).toEqual([]);
+  });
+  it('a word the device\'s name shares with the symbol breaks the tie, but a close lead ticks nothing', () => {
+    const named = [{ deviceId: D1, deviceName: 'Flow station' }, { deviceId: D2, deviceName: 'Spare box' }];
+    const rows = matchAllRows([site({ candidates: named })], new Map([[D1, meterBox], [D2, meterBox]]));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ deviceId: D1, confident: false });
+  });
+  it('a symbol that has a device keeps it: the candidates are not read', () => {
+    const rows = matchAllRows([site({ deviceId: D1, deviceName: 'Pump box', candidates: [{ deviceId: D2, deviceName: 'Meter box' }] })], new Map([[D1, pumpBox], [D2, meterBox]]));
+    expect(rows.every((r) => r.deviceId === D1)).toBe(true);
+  });
+});
+
 describe('entriesOfMatches', () => {
   it('groups the ticked rows by symbol as entries with the device, the key and the label; a row left out is not written', () => {
     const rows = matchAllRows(symbols, keys);

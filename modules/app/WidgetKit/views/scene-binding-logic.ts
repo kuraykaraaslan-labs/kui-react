@@ -236,11 +236,39 @@ function deviceOfElement(role: string, e: DeviceElement, devices: Readonly<Recor
 
 const norm = (s: string | undefined): string => (s ?? '').trim().toLowerCase();
 
+/** The words of a name: `pump_circulation`, `pumpCirculation` and "Pump circulation" all give `pump` and `circulation`. */
+const nameWordsOf = (s: string): string[] => s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w !== '');
+
+/** The name of the piece of equipment a label gives, when the label reads `<name> · <field>` ("Circulation pump · running"); '' otherwise. */
+export function elementLabelOf(label: string | undefined): string {
+  const at = label ? label.lastIndexOf(' · ') : -1;
+  return label && at > 0 ? label.slice(0, at).trim() : '';
+}
+
+/** Two names made of the same words, in any order and case (`pump_circulation` and "Circulation pump"); never two empty ones. */
+export function sameWords(a: string, b: string): boolean {
+  const x = new Set(nameWordsOf(a));
+  const y = new Set(nameWordsOf(b));
+  return x.size > 0 && x.size === y.size && [...x].every((w) => y.has(w));
+}
+
+/**
+ * Whether an element carries a key's label (the `label` step): its label or its id equal to it, case aside; its label's equipment name (`<name> · <field>`,
+ * the way a device profile names its values); or its id in the label's words, in any order (next-boilerplate e2e Slice 21, AD-02: a drawing's
+ * "Circulation pump" against the device's `pump_circulation`, labelled "Circulation pump · running", stayed unmatched).
+ */
+export function elementCarriesLabel(e: Pick<DeviceElement, 'element' | 'label'>, label: string): boolean {
+  const l = norm(label);
+  if (!l) return false;
+  return norm(e.label) === l || norm(e.element) === l || norm(elementLabelOf(e.label)) === l || sameWords(e.element, label);
+}
+
 /**
  * Matches the scene's keys to the device elements, per key, in three steps run one after the other over what is left:
  *
  *  1. `key`: the key (minus its role prefix) is the element id. Exact; this is what the runtime does without a map entry.
- *  2. `label`: the key's label equals the element's label or name, ignoring case, and only when exactly one key and one
+ *  2. `label`: the key's label equals the element's label or name, ignoring case (`elementCarriesLabel`: also the equipment name of a
+ *     `<name> · <field>` label, and the id in the label's words), and only when exactly one key and one
  *     element of that role carry it, counted over all of them before the key step (a label two things share decides nothing,
  *     even when one of them was taken by an earlier step).
  *  3. `type`: the key's catalogue type equals the element's, paired in list order (the first free `pump` key gets the first
@@ -301,7 +329,7 @@ export function autoMatch(
       const label = norm(k.label);
       if (!open(i) || !label || keyCount.get(`${out[i].role}\u0000${label}`) !== 1) return;
       const role = out[i].role;
-      const hits = poolOf(role).filter((e) => norm(e.label) === label || norm(e.element) === label);
+      const hits = poolOf(role).filter((e) => elementCarriesLabel(e, k.label ?? ''));
       if (hits.length === 1 && free(role, hits[0])) settle(i, hits[0], 'label');
     });
   }

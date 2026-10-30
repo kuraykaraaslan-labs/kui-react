@@ -5,11 +5,11 @@
 // `scene-binding-logic.ts`'s, not redefined here): a field reads a device value (`key`), or an expression over named inputs, or both.
 
 import {
-  INPUT_NAME_GRAMMAR, MAX_FIELD_LABEL, MAX_FIELDS_PER_KEY, MAX_INPUTS_PER_FIELD, RESERVED_INPUT_NAMES, UUID_GRAMMAR, fieldHasSource, isInputName, isSymbolField, isTelemetryKey,
-  type FieldInput, type FieldRead, type MapEntry,
+  INPUT_NAME_GRAMMAR, MAX_FIELD_LABEL, MAX_FIELDS_PER_KEY, MAX_INPUTS_PER_FIELD, RESERVED_INPUT_NAMES, UUID_GRAMMAR, elementLabelOf, fieldHasSource, isInputName, isSymbolField,
+  isTelemetryKey, sameWords, type FieldInput, type FieldRead, type MapEntry,
 } from './scene-binding-logic';
 
-export { MAX_INPUTS_PER_FIELD };
+export { MAX_INPUTS_PER_FIELD, elementLabelOf, sameWords };
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -282,7 +282,7 @@ export type Mismatch = 'text-for-number' | 'state-for-number' | 'number-for-stat
  * `stale`: the key's last value is much older than the device's newest one (next-boilerplate e2e round 3, M-R3-06: a 12-hour-old raw key was
  * offered above the live value): it counts against the key and it is never picked by itself.
  */
-export type RankReason = 'element' | 'name' | 'synonym' | 'symbol' | 'contains' | 'type' | 'unit' | 'only' | 'stale';
+export type RankReason = 'element' | 'label' | 'name' | 'synonym' | 'symbol' | 'contains' | 'type' | 'unit' | 'only' | 'stale';
 
 /** One key of the device as a candidate for a field: its score, whether the panel may pick it by itself, why, and the kind problem if it has one. */
 export interface RankedKey {
@@ -369,8 +369,24 @@ export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.fi
 
 
 /**
+ * Whether a key's piece of equipment IS the symbol, by name (next-boilerplate e2e Slice 21, AD-02: "Circulation pump" on the drawing and the device's
+ * `pump_circulation` labelled "Circulation pump · running" stayed unmatched): the label's equipment name equals the symbol's label (case aside), or the
+ * key's prefix is the symbol's label in other words or order. A key with no prefix and no such label names no equipment.
+ */
+export function keyNamesSymbol(k: Pick<DeviceKey, 'key' | 'label'>, symbolLabel: string): boolean {
+  const own = symbolLabel.trim();
+  if (!own) return false;
+  const lower = k.key.toLowerCase();
+  const prefix = lower.includes('.') ? lower.slice(0, lower.lastIndexOf('.')) : '';
+  const named = elementLabelOf(k.label);
+  return (named !== '' && named.toLowerCase() === own.toLowerCase()) || (prefix !== '' && sameWords(prefix, own));
+}
+
+/**
  * Every pickable key of the device ranked for `field`, best first (a tie keeps the host's order). Reasons, in the order they are scored:
  *  element  `<element>.<field>` exactly (the convention of a device that follows it), when the symbol's element is known: 100;
+ *  label    the key's piece of equipment is the symbol by name (`keyNamesSymbol`, AD-02) and the key's own part is the field: 100, the element rule
+ *           found by the name instead of the id (a drawing keyed `pump` for the device's `pump_circulation`);
  *  name     the key's local part (after its last dot), or its label, is the field's name or label: 80;
  *  synonym  the key and the field share a whole word, or a synonym of one (`Reading` of a thermometer finds `temp_1`, `Running` finds `pump_on`): 65,
  *           and 15 more for each further shared word (`Supply temperature` beats `Return temperature` for a supply field);
@@ -421,6 +437,7 @@ export function rankKeysForField(
   const ownName = hints.length > 0 ? fieldWords({ name: '' }, [hints[0]]) : new Set<string>();
   const ownNameRaw = hints.length > 0 ? wordsOf(hints[0]) : [];
   const stale = staleKeys(list);
+  const symbolLabel = hints[0] ?? '';
   // first the words (the element, a name, a shared word, a contained word) …
   const worded = list.map((k) => {
     const reasons: RankReason[] = [];
@@ -431,6 +448,9 @@ export function rankKeysForField(
     const nlocal = norm(local);
     const nlabel = k.label ? norm(k.label) : '';
     if (element && lower === want) { score += 100; reasons.push('element'); }
+    // the symbol's equipment by its name (AD-02): the key of that equipment for this very field is the element rule's answer
+    const named = keyNamesSymbol(k, symbolLabel);
+    if (named && !reasons.includes('element') && local === field.name.toLowerCase()) { score += 100; reasons.push('label'); }
     if (nlocal === name || (label && (nlocal === label || nlabel === label)) || (nlabel && nlabel === name)) { score += 80; reasons.push('name'); }
     const keyWords = new Set([...wordsOf(local), ...(k.label ? wordsOf(k.label) : [])]);
     const shared = [...keyWords].filter((w) => words.has(w)).length;
@@ -447,7 +467,7 @@ export function rankKeysForField(
     const ownHits = new Set([...keyWords, ...(differentEquipment ? [] : prefixWords)].filter((w) => ownWords.has(w) && !fieldOnly.has(w)));
     if (ownHits.size > 0) { score += (reasons.length === 0 ? 65 : 15) + Math.min(2, ownHits.size - 1) * 15; reasons.push('symbol'); }
     if (reasons.length === 0 && long.some((w) => nlocal.includes(w) || nlabel.includes(w))) { score += 55; reasons.push('contains'); }
-    const foreign = prefix !== '' && rawOwn.size > 0 && !reasons.includes('element') && (!sharesOwn || differentEquipment);
+    const foreign = prefix !== '' && rawOwn.size > 0 && !reasons.includes('element') && !named && (!sharesOwn || differentEquipment);
     return { k, reasons, score, foreign };
   });
   // … then the kind: the only key of the field's kind decides by itself only when no key matched by a word (words first, the kind as the fallback)
@@ -596,6 +616,20 @@ export function scriptTemplates(): ScriptTemplate[] {
 export function templateFor(template: ScriptTemplate, inputs: readonly { name: string }[], hasValue: boolean): string {
   if (hasValue || inputs.length === 0) return template.script;
   return template.script.replace(/\bvalue\b/g, inputs[0].name);
+}
+
+/**
+ * What a template chip writes into a row's expression box (next-boilerplate e2e Slice 21, AD-15: "Round" replaced the typed `value / 250 * 100` with its
+ * own text). Over an empty box: the template itself (`templateFor`). Over what the person typed: the template APPLIED to it, every `value` of the template
+ * becoming the typed expression (in brackets unless it is one plain name), so typed work is wrapped or extended, never lost: Round over
+ * `value / 250 * 100` is `Math.round((value / 250 * 100) * 10) / 10`. Null when the result would pass `MAX_SCRIPT_LENGTH`: the box keeps what it has.
+ */
+export function applyTemplate(template: ScriptTemplate, current: string, inputs: readonly { name: string }[], hasValue: boolean): string | null {
+  const typed = current.trim();
+  if (typed === '') return templateFor(template, inputs, hasValue);
+  const operand = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(typed) ? typed : `(${typed})`;
+  const out = template.script.replace(/\bvalue\b/g, () => operand);
+  return out.length <= MAX_SCRIPT_LENGTH ? out : null;
 }
 
 /** The bare names an expression of this field may read: the fixed three and the field's inputs, in that order (the editor's completion). */
@@ -798,11 +832,18 @@ export interface MatchSymbol {
   kindLabel: string;
   /** The symbol's element for the `<element>.<field>` rule, when known. */
   element?: string;
+  /** The symbol's device; '' when no one device is known and `candidates` decide. */
   deviceId: string;
   deviceName: string;
   fields: ReadonlyArray<{ name: string; label: string; kind?: FieldKind; unit?: string }>;
   /** The keys the symbol's other parameters read already (its own entries, the drawing's own naming): never proposed again for it. */
   taken?: readonly string[];
+  /**
+   * The devices the symbol may read from while `deviceId` is '' (a site's devices, next-boilerplate phase 46.2: a site's view whose symbols name no
+   * device yet). Each is ranked as the symbol's device would be; the device whose proposals score best is the symbol's (a word its name shares with the
+   * symbol's label counts too). Two devices that score the same propose nothing (nobody's pick); a lead under `CONFIDENT_LEAD` ticks nothing.
+   */
+  candidates?: ReadonlyArray<{ deviceId: string; deviceName: string }>;
 }
 
 /** One row of the preview table: a parameter of a symbol with the device value proposed for it. */
@@ -826,42 +867,91 @@ export type MatchRow = {
   mismatch?: Mismatch;
 };
 
+/** What one device proposes for one symbol: its rows, each row's reasons, and the sum of their scores (how well the device fits the symbol). */
+interface DeviceProposals {
+  rows: MatchRow[];
+  reasons: Map<string, readonly RankReason[]>;
+  total: number;
+}
+
+function proposalsOn(s: MatchSymbol, deviceId: string, deviceName: string, keys: readonly DeviceKey[]): DeviceProposals {
+  const rows: MatchRow[] = [];
+  const reasons = new Map<string, readonly RankReason[]>();
+  let total = 0;
+  const taken: string[] = [...(s.taken ?? [])];
+  for (const f of s.fields) {
+    const [top, second] = rankKeysForField(f, keys, s.element, taken, [s.label, s.kindLabel]);
+    if (!top || top.score < MIN_PROPOSAL_SCORE || (second && second.score === top.score)) continue;
+    const k = keys.find((x) => x.key === top.key);
+    if (!k) continue;
+    taken.push(top.key);
+    const id = `${s.id}.${f.name}`;
+    reasons.set(id, top.reasons);
+    total += top.score;
+    rows.push({
+      id, symbolId: s.id, symbolLabel: s.label, kindLabel: s.kindLabel, field: f.name, fieldLabel: f.label,
+      deviceId, deviceName, key: k.key, keyLabel: k.label && k.label.trim() ? k.label : k.key, value: k.value,
+      ...(k.unit ? { unit: k.unit } : {}), ts: k.ts, confident: top.confident, ...(top.mismatch ? { mismatch: top.mismatch } : {}),
+    });
+  }
+  return { rows, reasons, total };
+}
+
+/**
+ * What a device's name adds for a symbol: a word of three letters or more that it shares with the symbol's label ("Flow meter FM-2" for a "Flow meter").
+ * It breaks a tie between devices that send the same keys, but stays under `CONFIDENT_LEAD`: a name alone never ticks a proposal.
+ */
+export const DEVICE_NAME_SCORE = 10;
+
+const deviceNameScore = (deviceName: string, symbolLabel: string): number => {
+  const own = new Set(wordsOf(symbolLabel).filter((w) => w.length >= 3));
+  return wordsOf(deviceName).some((w) => own.has(w)) ? DEVICE_NAME_SCORE : 0;
+};
+
 /**
  * The proposals for a whole drawing: for every parameter of every symbol, the best key of the symbol's device by `rankKeysForField` (the element rule, the
- * words of the symbol, the kind, the unit), one key per symbol at most once. A parameter with no candidate, a candidate under `MIN_PROPOSAL_SCORE`, or a tie
- * at the top (nobody's pick), has no row; a confident one is checked by default, a weaker one is offered unchecked, a mismatch is said. A device whose keys
- * are not known proposes nothing.
+ * symbol's name on the device's equipment, the words of the symbol, the kind, the unit), one key per symbol at most once. A parameter with no candidate, a
+ * candidate under `MIN_PROPOSAL_SCORE`, or a tie at the top (nobody's pick), has no row; a confident one is checked by default, a weaker one is offered
+ * unchecked, a mismatch is said. A device whose keys are not known proposes nothing. A symbol with no device of its own and `candidates` (a site's devices)
+ * takes the device that fits it best, ranked across all of them (next-boilerplate phase 46.2).
  */
 export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: ReadonlyMap<string, readonly DeviceKey[]>): MatchRow[] {
   const out: MatchRow[] = [];
   // the reasons of each row, kept aside: a key proposed for the same parameter of several symbols is certain only where a reason names THAT symbol
   const reasonsOf = new Map<string, readonly RankReason[]>();
-  for (const s of symbols) {
-    const keys = keysByDevice.get(s.deviceId);
-    if (!keys || keys.length === 0) continue;
-    const taken: string[] = [...(s.taken ?? [])];
-    for (const f of s.fields) {
-      const [top, second] = rankKeysForField(f, keys, s.element, taken, [s.label, s.kindLabel]);
-      if (!top || top.score < MIN_PROPOSAL_SCORE || (second && second.score === top.score)) continue;
-      const k = keys.find((x) => x.key === top.key);
-      if (!k) continue;
-      taken.push(top.key);
-      const id = `${s.id}.${f.name}`;
-      reasonsOf.set(id, top.reasons);
-      out.push({
-        id, symbolId: s.id, symbolLabel: s.label, kindLabel: s.kindLabel, field: f.name, fieldLabel: f.label,
-        deviceId: s.deviceId, deviceName: s.deviceName, key: k.key, keyLabel: k.label && k.label.trim() ? k.label : k.key, value: k.value,
-        ...(k.unit ? { unit: k.unit } : {}), ts: k.ts, confident: top.confident, ...(top.mismatch ? { mismatch: top.mismatch } : {}),
-      });
+  const take = (p: DeviceProposals, sure: boolean) => {
+    for (const r of p.rows) {
+      out.push(sure ? r : { ...r, confident: false });
+      reasonsOf.set(r.id, p.reasons.get(r.id) ?? []);
     }
+  };
+  for (const s of symbols) {
+    if (s.deviceId) {
+      const keys = keysByDevice.get(s.deviceId);
+      if (keys && keys.length > 0) take(proposalsOn(s, s.deviceId, s.deviceName, keys), true);
+      continue;
+    }
+    // no device of its own: every candidate is ranked as the symbol's device would be, and the best one is the symbol's
+    const options = (s.candidates ?? [])
+      .map((c) => ({ c, keys: keysByDevice.get(c.deviceId) }))
+      .filter((o): o is { c: { deviceId: string; deviceName: string }; keys: readonly DeviceKey[] } => !!o.keys && o.keys.length > 0)
+      .map((o) => {
+        const p = proposalsOn(s, o.c.deviceId, o.c.deviceName, o.keys);
+        return { ...p, total: p.rows.length > 0 ? p.total + deviceNameScore(o.c.deviceName, s.label) : 0 };
+      })
+      .filter((p) => p.rows.length > 0)
+      .sort((a, b) => b.total - a.total);
+    const [best, next] = options;
+    if (!best || (next && next.total === best.total)) continue;
+    take(best, !next || best.total - next.total >= CONFIDENT_LEAD);
   }
   // the one state key of a device fits the Running of every symbol by its kind alone: proposed to each, certain only for the symbol it names
-  // (the element rule, or a word of the symbol's own), so a whole drawing is never ticked onto one key by accident
+  // (the element rule, its name, or a word of the symbol's own), so a whole drawing is never ticked onto one key by accident
   const claims = new Map<string, number>();
   for (const r of out) { const k = `${r.deviceId}\n${r.field}\n${r.key}`; claims.set(k, (claims.get(k) ?? 0) + 1); }
   for (const r of out) {
     const reasons = reasonsOf.get(r.id) ?? [];
-    if (r.confident && (claims.get(`${r.deviceId}\n${r.field}\n${r.key}`) ?? 0) > 1 && !reasons.includes('element') && !reasons.includes('symbol')) r.confident = false;
+    if (r.confident && (claims.get(`${r.deviceId}\n${r.field}\n${r.key}`) ?? 0) > 1 && !reasons.includes('element') && !reasons.includes('label') && !reasons.includes('symbol')) r.confident = false;
   }
   return out;
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  KEY_GRAMMAR, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAX_FIELDS_PER_KEY, NEW_VIEW_SLOT, autoMatch, bindingDraft, devicesFromRoles, documentChanged, isNewView, draftSignature, elementsForRole,
+  KEY_GRAMMAR, MAIN_ROLE, MAX_BINDING_DEVICES, MAX_BINDING_MAP, MAX_FIELDS_PER_KEY, NEW_VIEW_SLOT, autoMatch, bindingDraft, devicesFromRoles, documentChanged, isNewView, draftSignature,
+  elementCarriesLabel, elementLabelOf, elementsForRole, sameWords,
   elementRefOf, fieldsOfMap, hasFields, isRoleName, isSceneKey, isSymbolField, isTelemetryKey, manualOfMap, proposeRoles, roleFromCode, sameDraft, splitKey, staleEntries, unresolved, validateDraft,
   type BindingDraft, type DeviceElement, type MapEntry, type SceneKey,
 } from '../views/scene-binding-logic';
@@ -114,6 +115,36 @@ describe('autoMatch: by label', () => {
     // Two keys carry the label, one is matched by key: the label of the other is still shared.
     const r3 = autoMatch([key('t1', { label: 'Temp' }), key('k2', { label: 'Temp' })], [el('t1'), el('t2', { label: 'Temp' })], { devices: { '': 'd1' } });
     expect(how(r3)).toEqual(['t1:t1:key', 'k2:-:none']);
+  });
+});
+
+describe('autoMatch: by label, the way a device profile names its values (next-boilerplate e2e Slice 21, AD-02)', () => {
+  // the site Antalya: a 3D view keyed tank / pump / meter by the designer, the pool plant device's elements named by its profile
+  const keys = [key('tank', { label: 'Pool' }), key('pump', { label: 'Circulation pump' }), key('meter', { label: 'Flow meter' })];
+  const els = [
+    el('pool', { label: 'Pool · value' }), el('pump_circulation', { label: 'Circulation pump · running' }), el('meter_flow', { label: 'Flow meter · value' }),
+    el('heat_pump', { label: 'Heat pump · running' }),
+  ];
+  it('an exact label matches the element whose label names that equipment, or whose id is the label in other words', () => {
+    expect(how(autoMatch(keys, els, { devices: { '': 'd1' } }))).toEqual(['tank:pool:label', 'pump:pump_circulation:label', 'meter:meter_flow:label']);
+  });
+  it('matches by the id\'s words alone when the elements carry no label (a viewer without the profile\'s read)', () => {
+    const bare = els.map((e) => el(e.element));
+    expect(how(autoMatch(keys, bare, { devices: { '': 'd1' } }))).toEqual(['tank:pool:label', 'pump:pump_circulation:label', 'meter:meter_flow:label']);
+  });
+  it('a label that only shares a word is no match (a heat pump is not the circulation pump)', () => {
+    expect(how(autoMatch([key('hp', { label: 'Pump' })], els, { devices: { '': 'd1' } }))).toEqual(['hp:-:none']);
+  });
+  it('the equipment name helpers', () => {
+    expect(elementLabelOf('Circulation pump · running')).toBe('Circulation pump');
+    expect(elementLabelOf('Circulation pump')).toBe('');
+    expect(elementLabelOf(undefined)).toBe('');
+    expect(sameWords('pump_circulation', 'Circulation pump')).toBe(true);
+    expect(sameWords('pumpCirculation', 'circulation PUMP')).toBe(true);
+    expect(sameWords('pump', 'Circulation pump')).toBe(false);
+    expect(sameWords('', '')).toBe(false);
+    expect(elementCarriesLabel({ element: 'meter_flow', label: 'Flow meter · value' }, 'flow meter')).toBe(true);
+    expect(elementCarriesLabel({ element: 'x' }, '')).toBe(false);
   });
 });
 
