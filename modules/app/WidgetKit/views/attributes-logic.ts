@@ -8,7 +8,8 @@ import type { StyleRecord } from '../card-logic';
 import { cssColor, fontStyle, formatValue, rangeFor, type ValueFormat } from '../settings/style';
 import type { Sparse } from '../settings/types';
 import type { CommonMessages } from '../messages';
-import type { SlotData } from '../kind';
+import type { ColumnMeta, SlotData } from '../kind';
+import { metaLabel } from '../settings/source-meta';
 import { ROW_CLASS, rowClass } from './ui-logic';
 
 export type FieldRow = { key?: string; label?: string; unit?: string; decimals?: number; color?: string; ranges?: unknown; icon?: string };
@@ -54,10 +55,13 @@ export function humanizeKey(key: string): string {
  * missing key shows the empty text (a configured row must not silently disappear). With none every
  * key is shown. Decimals: the field's, else the widget's, else automatic (17.4, not 17.40).
  * A field's colour ranges colour its value; its plain colour applies when no range matches.
+ * A row's label: the field's own, else the one the source gives the key (`recordMeta`, in the
+ * viewer's language), else the key in words.
  */
 export function attributeRows(
   record: Record<string, unknown> | undefined, settings: Sparse, format: ValueFormat, locale?: string,
   yesNo: CommonMessages = { yes: 'Yes', no: 'No' },
+  meta?: Record<string, ColumnMeta>,
 ): AttributeRow[] {
   if (!record) return [];
   const s = settings as AttributesSettings;
@@ -88,7 +92,7 @@ export function attributeRows(
     const color = cssColor(rangeFor(raw, f.ranges)?.color) ?? cssColor(f.color);
     return {
       key,
-      label: typeof f.label === 'string' && f.label.trim() ? f.label.trim() : humanizeKey(key),
+      label: typeof f.label === 'string' && f.label.trim() ? f.label.trim() : (metaLabel(metaOf(meta, key)?.label, locale) ?? humanizeKey(key)),
       value,
       ...parts,
       ...(color ? { color } : {}),
@@ -96,6 +100,10 @@ export function attributeRows(
     };
   });
 }
+
+/** The source's meta of `key`, read only as the record's own property. */
+const metaOf = (meta: Record<string, ColumnMeta> | undefined, key: string): ColumnMeta | undefined =>
+  (meta && Object.prototype.hasOwnProperty.call(meta, key) ? meta[key] : undefined);
 
 const GRID: Record<Exclude<NonNullable<AttributesSettings['layout']>, 'list'>, string> = {
   'grid-2': 'grid-cols-2',
@@ -123,7 +131,7 @@ export function attributesModel(
   s: AttributesSettings, format: ValueFormat, data: Record<string, SlotData | undefined>, locale: string | undefined, yesNo: CommonMessages,
 ) {
   // No record still lists the configured fields, each with the empty value: the empty shape.
-  const rows = attributeRows(data.record?.record ?? {}, s as Sparse, format, locale, yesNo);
+  const rows = attributeRows(data.record?.record ?? {}, s as Sparse, format, locale, yesNo, data.record?.recordMeta);
   const layout = s.layout ?? 'list';
   const dividers = s.dividers !== false;
   const divider = cssColor(s.dividerColor);

@@ -172,6 +172,20 @@ describe('stat.attributes view', () => {
     const c = renderKind(STAT_ATTRIBUTES_VIEW, STAT_ATTRIBUTES, { record }, { layout: 'columns', fields: [{ key: 'count' }, { key: 'temp' }] });
     expect(c.container.querySelector('[data-layout="columns"]')?.className).toContain('grid-flow-col');
   });
+  it('a field with no label of its own reads the source\'s label for the key, in the viewer\'s language', () => {
+    const site: SlotData = {
+      shape: 'record', record: { name: 'Antalya', place: 'Türkiye', status: 'Uyarı' },
+      recordMeta: { name: { label: 'Ad' }, place: { label: { en: 'Place', tr: 'Yer' } } },
+    };
+    const fields = [{ key: 'name' }, { key: 'place' }, { key: 'status' }, { key: 'name', label: 'Mine' }];
+    const View = STAT_ATTRIBUTES_VIEW.View;
+    render(<View settings={effective(STAT_ATTRIBUTES, { fields })} format={fmt} data={{ record: site }} locale="tr" />);
+    expect(screen.getByText('Ad')).toBeInTheDocument();
+    expect(screen.getByText('Yer')).toBeInTheDocument();
+    // no label anywhere: the key in words; a label of its own wins over the source's
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('Mine')).toBeInTheDocument();
+  });
   it('exports key,value CSV and is empty without a record', () => {
     const rows = STAT_ATTRIBUTES_VIEW.toCsv!({ record }, effective(STAT_ATTRIBUTES, { fields: [{ key: 'count' }, { key: 'temp', unit: '°C' }] }), {});
     expect(rows).toEqual([['key', 'value'], ['count', '3'], ['temp', '21.46 °C']]);
