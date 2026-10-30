@@ -7,11 +7,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ClipboardEvent as ReactClipboardEvent, type ReactNode } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronDown, faChevronLeft, faChevronRight, faChevronUp } from '@fortawesome/free-solid-svg-icons';
+import { faChevronDown, faChevronLeft, faChevronRight, faChevronUp, faEllipsis } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { SCADA_SYMBOL_DEFS } from './scada-logic';
 import { Button } from '@/modules/ui/Button';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
+import { DropdownMenu } from '@/modules/ui/DropdownMenu';
 import { sceneModel, type SceneSettings } from './scada-scene-logic';
 import { elementIds, elementsOf } from './scene-edit-core';
 import {
@@ -530,6 +531,17 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2">
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">{props.title ?? m.title}</h2>
         {applyFailed && <p role="alert" className="text-xs text-error">{m.applyFailed}</p>}
+        {/* the host's own actions (next-boilerplate phase 50: "Make a 3D view of this drawing"); told whether there are unsaved changes */}
+        {props.menuItems && props.menuItems.length > 0 && (
+          <DropdownMenu
+            align="right"
+            items={props.menuItems.map((item) => ({
+              id: item.id, label: item.label, onClick: () => item.onSelect({ dirty }),
+              ...(item.disabled ? { disabled: true } : {}), ...(item.disabledReason ? { disabledReason: item.disabledReason } : {}),
+            }))}
+            trigger={<Button variant="ghost" size="sm" iconOnly aria-label={m.more} title={m.more} data-testid="editor-more" iconLeft={<FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" />} />}
+          />
+        )}
         <Button variant="ghost" size="sm" onClick={requestClose} data-testid="editor-close">{m.close}</Button>
         <Button size="sm" onClick={() => { void doApply(); }} disabled={!dirty || applying} loading={applying} data-testid="editor-apply">{applying ? m.applying : m.apply}</Button>
       </div>

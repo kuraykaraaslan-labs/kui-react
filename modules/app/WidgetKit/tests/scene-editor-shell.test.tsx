@@ -510,7 +510,7 @@ describe('Apply and Close', () => {
     fireEvent.click(screen.getByTestId('editor-close'));
     const dialog = screen.getByRole('dialog', { name: 'Discard your changes?' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(within(dialog).getByText('The diagram has changes that were not applied.')).toBeInTheDocument();
+    expect(within(dialog).getByText('The drawing has changes that are not saved.')).toBeInTheDocument();
     expect(onClose).not.toHaveBeenCalled();
     // "Keep editing" stays.
     fireEvent.click(within(dialog).getByRole('button', { name: 'Keep editing' }));
@@ -701,5 +701,29 @@ describe('announcements', () => {
     key(canvas, 'Escape'); key(canvas, 'a'); key(canvas, 'a');
     expect(said()).toContain('Selected 6 items');
     expect(said().length).toBeGreaterThan('Selected 6 items'.length);
+  });
+});
+
+describe("the host's menu (next-boilerplate phase 50: \"Make a 3D view of this drawing\")", () => {
+  it('shows no menu without host actions', () => {
+    mount();
+    expect(screen.queryByTestId('editor-more')).toBeNull();
+  });
+
+  it('lists the host actions under "More actions" and tells each whether the drawing has unsaved changes', async () => {
+    const onSelect = vi.fn();
+    const { svg, canvas } = mount({ menuItems: [{ id: 'make-3d', label: 'Make a 3D view of this drawing', onSelect }, { id: 'off', label: 'Not now', onSelect: vi.fn(), disabled: true, disabledReason: 'Save first' }] });
+    fireEvent.click(screen.getByTestId('editor-more'));
+    expect(screen.getByRole('button', { name: 'More actions' })).toBeInTheDocument();
+    const off = screen.getByText('Not now').closest('[data-item-id]') as HTMLElement;
+    expect(off.getAttribute('aria-disabled') === 'true' || off.hasAttribute('disabled') || off.querySelector('[disabled]') !== null).toBe(true);
+    fireEvent.click(screen.getByText('Make a 3D view of this drawing'));
+    expect(onSelect).toHaveBeenLastCalledWith({ dirty: false });
+    // an edit not saved yet: the host is told so
+    click(svg, { x: B.pump1.cx, y: B.pump1.cy });
+    key(canvas, 'Delete');
+    fireEvent.click(screen.getByTestId('editor-more'));
+    fireEvent.click(screen.getByText('Make a 3D view of this drawing'));
+    expect(onSelect).toHaveBeenLastCalledWith({ dirty: true });
   });
 });

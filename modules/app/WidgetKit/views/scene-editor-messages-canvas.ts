@@ -24,7 +24,7 @@ export interface SceneEditorMessages {
   // Shell
   panelPalette: string; panelInspector: string; collapse: string; expand: string;
   actionsHint: string; tabProperties: string; tabRules: string; tabActions: string; tabProblems: string; tabWhatIf: string; tabs: string;
-  apply: string; applying: string; close: string;
+  apply: string; applying: string; close: string; more: string;
   dirtyTitle: string; dirtyBody: string; dirtyDiscard: string; dirtyKeep: string; applyFailed: string; applied: string;
   // Paste box
   pasteTitle: string; pasteBody: string; pasteInsert: string; pasteCancel: string; pasteLabel: string;
@@ -64,7 +64,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   problemsCount: '{count} problems', problemsOne: '1 problem', noProblems: 'No problems',
   panelPalette: 'Symbols', panelInspector: 'Inspector', collapse: 'Collapse {panel}', expand: 'Expand {panel}',
   actionsHint: 'Select one symbol to edit its actions.', tabProperties: 'Properties', tabRules: 'Rules', tabActions: 'Actions', tabProblems: 'Problems', tabWhatIf: 'What-if', tabs: 'Inspector sections',
-  apply: 'Save', applying: 'Saving', close: 'Close',
+  apply: 'Save', applying: 'Saving', close: 'Close', more: 'More actions',
   dirtyTitle: 'Discard your changes?', dirtyBody: 'The drawing has changes that are not saved.', dirtyDiscard: 'Discard changes', dirtyKeep: 'Keep editing',
   applyFailed: 'The diagram could not be applied.', applied: 'Applied',
   pasteTitle: 'Paste a diagram piece', pasteBody: 'This browser did not let the editor read the clipboard. Paste the copied text here.',

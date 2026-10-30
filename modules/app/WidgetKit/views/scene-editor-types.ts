@@ -83,6 +83,19 @@ export interface EditorPanelMessages {
 }
 
 /** The props of the editor shell. */
+/**
+ * One action of the host in the editor's header menu ("More actions"): next-boilerplate phase 50 puts "Make a 3D view of this drawing" there. `onSelect`
+ * is told whether the drawing has changes that are not saved yet, so a host that works on the saved drawing can ask to save first.
+ */
+export interface SceneEditorMenuItem {
+  id: string;
+  label: string;
+  onSelect: (state: { dirty: boolean }) => void;
+  disabled?: boolean;
+  /** Why the item is disabled, shown under it while it is. */
+  disabledReason?: string;
+}
+
 export interface SceneEditorProps {
   settings: SceneSettings;
   data: Record<string, SlotData | undefined>;
@@ -101,5 +114,7 @@ export interface SceneEditorProps {
   panelMessages?: EditorPanelMessages;
   /** The localStorage key of the saved pieces and recent symbols (default `kui.scada.editor`); the editor works without storage. */
   storageKey?: string;
+  /** The host's actions, in a "More actions" menu of the header (none: no menu). */
+  menuItems?: readonly SceneEditorMenuItem[];
   className?: string;
 }
