@@ -89,6 +89,11 @@ export interface SceneSetupDrawerProps {
    * asks for a review, and the setup can be saved as it is to confirm it, so the fingerprint is renewed. Ignored once another document is chosen.
    */
   documentChanged?: boolean;
+  /**
+   * `choose` mode: Advanced starts open, scrolled to the saved entries the drawing no longer has when there are any (the host opened the drawer to review
+   * a drawing that changed; next-boilerplate phase 46 review R46-1). Read each time the drawer opens; the person may fold it again.
+   */
+  openAdvanced?: boolean;
   /** The kinds the host can bind, as values (`diagram`, `design`); labels come from `messages.kinds`. */
   kinds: readonly string[];
   /** The kind cannot be changed: the card menu opened the drawer for the kind its card draws (phase 42.5.4). */
@@ -748,7 +753,17 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const chooseMode = (props.mode ?? 'full') === 'choose';
   // in choose mode the sections sit under Advanced without the document's: their numbers would read 1, 3, 4 (next-boilerplate e2e round 3, m-R3-08)
   const sectionTitle = (text: string): string => (chooseMode ? text.replace(/^\d+\.\s*/, '') : text);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(!!props.openAdvanced);
+  // opened to review a changed drawing: the list of what no longer matches is brought into view once, when it is first drawn
+  const staleBox = useRef<HTMLDivElement>(null);
+  const staleShown = useRef(false);
+  const staleDrawn = chooseMode && advancedOpen && staleRows.length > 0;
+  useEffect(() => {
+    if (!props.openAdvanced || !staleDrawn || staleShown.current || !staleBox.current) return;
+    staleShown.current = true;
+    // jsdom and older engines have no scrollIntoView
+    if (typeof staleBox.current.scrollIntoView === 'function') staleBox.current.scrollIntoView({ block: 'start' });
+  }, [props.openAdvanced, staleDrawn]);
   const saveNow = (): void => {
     if (chooseMode && !conflict) props.onSave(draft, { reason: '' });
     else setConfirming(true);
@@ -786,7 +801,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
         id={`${uid}-docs`} mode="paginated" caption={chooseMode ? m.chooseSection : m.documentSection} columns={docColumns} rows={docRows} rowId={(r) => r.id}
         searchable searchPlaceholder={m.documentSearch} filterFields={docFilters} filtersLive
         pageSize={5} pageSizeOptions={[5, 10, 25]} initialSort={[{ key: 'updatedAt', dir: 'desc' }]} multiSort={false}
-        density="compact" state={props.documentsLoading ? 'loading' : undefined} emptyMessage={m.documentsEmpty}
+        density="compact" state={props.documentsLoading ? 'loading' : undefined} emptyMessage={chooseMode ? m.chooseEmpty : m.documentsEmpty}
         messages={{ loading: m.loading, ...props.tableMessages, search: m.documentSearch }} onRowClick={(r) => selectDocument(r.id)}
         rowClassName={(r) => (r.id === documentId ? 'bg-primary-subtle' : undefined)}
       />
@@ -866,7 +881,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
       </div>
 
       {staleRows.length > 0 && (
-        <div className="space-y-2" data-testid="stale-entries">
+        <div ref={staleBox} className="space-y-2" data-testid="stale-entries">
           <div>
             <h4 className="text-sm font-medium text-text-primary">{m.staleSection}</h4>
             <p className="text-xs text-text-secondary">{m.staleHint}</p>

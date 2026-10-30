@@ -1059,6 +1059,35 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
     expect(screen.queryByText(new RegExp(D3))).toBeNull();
   });
 
+  it('an empty document list says "No drawing yet." (the host passes its kind\'s word), never the full mode\'s "of this kind"', () => {
+    render(<SceneSetupDrawer {...props({ mode: 'choose', documents: [], initial: { slot: 'main', kind: 'design' } })} />);
+    expect(screen.getByText('No drawing yet.')).toBeInTheDocument();
+    expect(screen.queryByText(/of this kind/)).toBeNull();
+  });
+
+  it('openAdvanced (a review of a changed drawing, next-boilerplate R46-1): Advanced starts open on the saved entries that no longer match, scrolled to them', () => {
+    const scrolled = vi.fn();
+    const before = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrolled;
+    try {
+      render(<SceneSetupDrawer {...props({ mode: 'choose', openAdvanced: true, documentChanged: true, initial: stale, sceneKeys: KEYS2, devices: [{ id: D1, label: 'Fryer 1', code: 'FRY-1' }] })} />);
+      expect(screen.getByTestId('drawing-changed')).toBeInTheDocument();
+      expect((screen.getByTestId('scene-advanced') as HTMLDetailsElement).open).toBe(true);
+      const list = screen.getByTestId('stale-entries');
+      expect(within(list).getByRole('table', { name: 'Saved entries the scene no longer has' })).toBeInTheDocument();
+      expect(scrolled).toHaveBeenCalledTimes(1);
+      expect(scrolled.mock.contexts[0]).toBe(list);
+    } finally {
+      Element.prototype.scrollIntoView = before;
+    }
+  });
+
+  it('without openAdvanced, Advanced starts folded', () => {
+    render(<SceneSetupDrawer {...props({ mode: 'choose', initial: stale, sceneKeys: KEYS2 })} />);
+    expect((screen.getByTestId('scene-advanced') as HTMLDetailsElement).open).toBe(false);
+    expect(screen.queryByTestId('stale-entries')).toBeNull();
+  });
+
   it('the host\'s preview is drawn under the document table in choose mode', () => {
     render(<SceneSetupDrawer {...props({ mode: 'choose', preview: <div data-testid="pv" /> })} />);
     expect(screen.getByRole('region', { name: 'Preview of the drawing' })).toContainElement(screen.getByTestId('pv'));

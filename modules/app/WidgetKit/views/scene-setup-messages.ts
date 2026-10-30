@@ -89,6 +89,8 @@ export interface SceneSetupMessages {
   chooseTitle: string;
   /** The heading over the document table in `choose` mode. */
   chooseSection: string;
+  /** The document table's empty text in `choose` mode (the host passes the kind's word: "No 3D view yet."); `documentsEmpty` is the full mode's. */
+  chooseEmpty: string;
   /** What choosing does, in words: the drawing is shown on this page, its symbols are connected there, every page that shows the subject's drawing follows. */
   chooseHint: string;
   /** The one line about the saved connections of another drawing kept in the setup (`choose` mode; the table itself is under Advanced). */
@@ -278,6 +280,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
 
   chooseTitle: 'Choose a drawing',
   chooseSection: 'Which drawing?',
+  chooseEmpty: 'No drawing yet.',
   chooseHint: 'The drawing this device is shown as. After saving it is on this page: connect each symbol there by clicking it. Every page that shows this device\'s drawing shows the one you choose. The same drawing can serve several devices; each device connects its own values.',
   staleChooseLine: (count) => `${n(count, 'connection', 'connections')} made for another drawing ${count === 1 ? 'is' : 'are'} not carried over: connect this drawing's symbols on the page after saving.`,
   advanced: 'Advanced',
