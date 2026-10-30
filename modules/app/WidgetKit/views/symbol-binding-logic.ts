@@ -81,6 +81,8 @@ export interface DeviceKey {
   ts: number | string;
   /** A connection of the drawing itself (a pipe run, a cable): never ranked or suggested, listed last in a picker. */
   internal?: boolean;
+  /** Whether the device's profile declares the key (false: a key the device sent that its profile does not know; the picker says so). Unknown when absent. */
+  declared?: boolean;
 }
 
 /** One field of a saved entry: the map v2 `FieldRead` (`deviceId` is left out when the field reads the entry's own device), the one-liner and its named inputs. */
@@ -364,6 +366,7 @@ export function staleKeys(keys: readonly Pick<DeviceKey, 'key' | 'ts'>[]): Set<s
  * suggested. The panel still lists such a key, last, so nothing a device sends is ever out of a person's reach.
  */
 export const pickableKeys = (keys: readonly DeviceKey[]): DeviceKey[] => keys.filter((k) => !k.internal);
+
 
 /**
  * Every pickable key of the device ranked for `field`, best first (a tie keeps the host's order). Reasons, in the order they are scored:

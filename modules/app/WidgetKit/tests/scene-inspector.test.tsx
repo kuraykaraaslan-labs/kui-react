@@ -28,6 +28,19 @@ function mount(o: { selection?: Selection; host?: EditorHost; scene?: SceneSetti
   return { probe, ...view };
 }
 
+describe('SceneInspector: where a symbol is connected to a device (next-boilerplate e2e round 4, M-R4-05)', () => {
+  it('a selected symbol says, on its Properties, that the device value it shows is connected on the device\'s page; the diagram and a group of symbols do not', () => {
+    const a = mount({ selection: { elements: ['pump1'] } });
+    expect(screen.getByTestId('inspector-device-hint').textContent).toMatch(/connected on the device's page/);
+    a.unmount();
+    const b = mount();
+    expect(screen.queryByTestId('inspector-device-hint')).toBeNull();
+    b.unmount();
+    mount({ selection: { elements: ['pump1', 'tank1'] } });
+    expect(screen.queryByTestId('inspector-device-hint')).toBeNull();
+  });
+});
+
 describe('SceneInspector: tabs', () => {
   it('has Properties and Rules, and Actions only when the host brings an actions editor', () => {
     const a = mount();

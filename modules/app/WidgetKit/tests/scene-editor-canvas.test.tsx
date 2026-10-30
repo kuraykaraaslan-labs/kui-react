@@ -204,6 +204,33 @@ describe('connections', () => {
     expect(l[2]).toMatchObject({ from: 'pump1.t', to: 'valve1.t', kind: 'pipe' });
   });
 
+  it('joins two symbols by two clicks (next-boilerplate e2e round 4, M-R4-04): click one, a dashed line follows the pointer, click the other; the tool says how; Escape or empty ground cancels', async () => {
+    const { svg, canvas, applied, said } = mount();
+    key(canvas, 'c');
+    expect(said()).toMatch(/Connect tool: click a symbol, then the symbol to join it to/);
+    click(svg, top('tank1'));
+    expect(said()).toMatch(/Now click the symbol to join tank1 to/);
+    move(svg, { x: 400, y: 100 });
+    expect(document.body.querySelector('[data-preview="link"]')).not.toBeNull();
+    click(svg, top('valve1'));
+    expect(screen.getByTestId('scene-live').textContent).toContain('Connected tank1 to valve1');
+    expect(document.body.querySelector('[data-preview="link"]')).toBeNull();
+    const l = links(await applied());
+    expect(l).toHaveLength(3);
+    expect(l[2]).toMatchObject({ from: 'tank1.t', kind: 'pipe' });
+    expect(String(l[2].to)).toMatch(/^valve1\./);
+    // a first click then empty ground: nothing drawn, said; a first click then Escape: the tool goes back to select and forgets the port
+    click(svg, top('pump1'));
+    click(svg, { x: 900, y: 500 });
+    expect(said()).toMatch(/Nothing to join there/);
+    expect(links(await applied())).toHaveLength(3);
+    key(canvas, 'c');
+    click(svg, top('pump1'));
+    key(canvas, 'Escape');
+    expect(screen.getByTestId('scene-tool-select')).toHaveAttribute('aria-pressed', 'true');
+    expect(document.body.querySelector('[data-preview="link"]')).toBeNull();
+  });
+
   it('uses the kind chosen in the toolbar picker', async () => {
     const { svg, canvas, applied } = mount();
     fireEvent.change(screen.getByTestId('link-kind'), { target: { value: 'hose' } });
@@ -485,7 +512,8 @@ describe('dropping a symbol from the palette', () => {
     const over = dragEvent('dragOver', canvas, svg, { x: 733, y: 417 }, 'home.router');
     expect(over.defaultPrevented).toBe(true);
     dragEvent('drop', canvas, svg, { x: 733, y: 417 }, 'home.router');
-    expect(screen.getByTestId('scene-live').textContent).toContain('Added router1 (home.router) at 730, 420');
+    // said by the symbol's name, never its catalogue code (e2e round 4, M-R4-14)
+    expect(screen.getByTestId('scene-live').textContent).toContain('Added Wi-Fi router at 730, 420');
     const s = await applied();
     expect(elements(s)).toHaveLength(4);
     expect(elements(s)[3]).toMatchObject({ id: 'router1', symbol: 'home.router', x: 730, y: 420 });

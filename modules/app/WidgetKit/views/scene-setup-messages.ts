@@ -287,7 +287,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
   chooseTitle: 'Choose a drawing',
   chooseSection: 'Which drawing?',
   chooseHint: 'The drawing this device is shown as. After saving it is on this page: connect each symbol there by clicking it. Every page that shows this device\'s drawing shows the one you choose. The same drawing can serve several devices; each device connects its own values.',
-  staleChooseLine: (count) => `${n(count, 'connection', 'connections')} made for another drawing ${count === 1 ? 'is' : 'are'} kept in case you switch back.`,
+  staleChooseLine: (count) => `${n(count, 'connection', 'connections')} made for another drawing ${count === 1 ? 'is' : 'are'} not carried over: connect this drawing's symbols on the page after saving.`,
   advanced: 'Advanced',
   advancedHint: 'Slots, roles, the matching table and rules. Nothing here is needed to show a drawing or to connect its symbols.',
   unknownDevice: 'another device',

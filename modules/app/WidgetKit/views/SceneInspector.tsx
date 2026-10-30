@@ -252,6 +252,7 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
       <div>
         <h2 className="text-sm font-semibold text-text-primary">{heading}</h2>
         {target.kind === 'scene' && <p className="mt-1 text-xs text-text-secondary">{m.sceneHint}</p>}
+        {target.kind === 'elements' && !many && <p className="mt-1 text-xs text-text-secondary" data-testid="inspector-device-hint">{m.deviceHint}</p>}
         {many && <p className="mt-1 text-xs text-text-secondary">{m.shared}</p>}
       </div>
       {plain.map((g) => (

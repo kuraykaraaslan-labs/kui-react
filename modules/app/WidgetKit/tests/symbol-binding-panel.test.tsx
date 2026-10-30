@@ -128,6 +128,10 @@ describe('SymbolBindingPanel: the header and what is never drawn', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Match everything' }));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+  it('says how many of the connected symbols found their values by name (next-boilerplate e2e round 4, m-R4-08)', () => {
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, progress: { connected: 3, total: 3, automatic: 1 } })} />);
+    expect(screen.getByTestId('symbol-progress')).toHaveTextContent('3 of 3 symbols connected (1 by name)');
+  });
 });
 
 describe('SymbolBindingPanel: the device', () => {
@@ -303,6 +307,27 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     expect(source('Reading')).toHaveValue('expression');
     expect(expression('Reading')).toBeInTheDocument();
   });
+  it('a key the device\'s profile does not declare says so on its option (next-boilerplate e2e round 4, M-R4-09)', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'flow', label: 'Flow', value: 12.4, unit: 'l/min', ts: NOW - 2000, declared: true }, { key: 'flow_lpm', value: 11, ts: NOW - 36_000_000, declared: false }];
+    render(<SymbolBindingPanel {...props({ loadKeys: vi.fn(async () => keys) })} symbol={symbol({ fields: [{ name: 'value', label: 'Flow' }] })} />);
+    await pickDevice(user, 'Roof unit');
+    await user.click(picker('Flow'));
+    const options = await screen.findAllByRole('option');
+    const texts = options.map((o) => o.textContent ?? '');
+    // the host names a declared key (the profile's label); an undeclared one has only its key, and the note says what it is
+    expect(texts.some((t) => t.includes('flow_lpm') && t.includes("not in the device's profile"))).toBe(true);
+    expect(texts.some((t) => t.startsWith('Flow') && !t.includes('lpm') && !t.includes("not in the device's profile"))).toBe(true);
+  });
+  it('a value picked but not saved says what the symbol will show once saved, and a saved pick reads the list\'s fresher value (next-boilerplate e2e round 4, m-R4-05)', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND })} />);
+    await rowsReady();
+    // saved: the list's value (21.5 at 21.5) is the same here; pick another key and the label says what will show
+    await pickKey(user, 'Temperature', 'rssi');
+    expect(within(row('Temperature')).getByText('Will show weak once saved')).toBeInTheDocument();
+    expect(within(row('Temperature')).queryByText('Shows nothing yet')).toBeNull();
+  });
   it('picks a key by hand, and the pick shows its live value and drops the "Suggested" mark', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'running', label: 'Running' }, { name: 'value', label: 'Flow' }] }) })} />);
@@ -448,14 +473,20 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     await rowsReady();
     await user.selectOptions(source('Running'), 'expression');
     fireEvent.change(expression('Running'), { target: { value: 'value /' } });
-    expect(await screen.findByText('This is not a complete expression: the formula ends too soon')).toBeInTheDocument();
+    // the box marks and names the problem (the judge's sentence); the line under it says the kind alone, so it is said once (next-boilerplate e2e round 4, m-R4-01)
+    expect(await screen.findByText('This is not a complete expression. Check the brackets and signs.')).toBeInTheDocument();
+    expect(screen.queryByText(/This is not a complete expression: the formula ends too soon/)).toBeNull();
     fireEvent.change(expression('Running'), { target: { value: 'nope' } });
-    expect(await screen.findByText('A name here is not known: unknown name "nope" (a formula reads value, row and now)')).toBeInTheDocument();
+    expect(await screen.findByText('Only the names below can be used here.')).toBeInTheDocument();
+    expect(screen.queryByText(/A name here is not known: unknown name/)).toBeNull();
     expect(expression('Running')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.queryByText(/SyntaxError|ReferenceError/)).toBeNull();
+    // Save (and Save and next) wait while the expression is wrong, and are back once it is right
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     fireEvent.change(expression('Running'), { target: { value: '!value' } });
     await waitFor(() => expect(within(row('Running')).getByText('1 → Off')).toBeInTheDocument());
     expect(expression('Running')).not.toHaveAttribute('aria-invalid');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled());
   });
   it('without a judge, the sandbox\'s failure is worded; a sandbox that throws is reported too', async () => {
     const user = userEvent.setup();
@@ -503,7 +534,9 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     expect(within(r).getByRole('button', { name: 'Insert return_in' })).toHaveTextContent('return_in · 45 °C');
     await user.click(within(r).getByRole('button', { name: 'Insert supply_temp' }));
     fireEvent.change(expression('Delta'), { target: { value: 'supply - ret' } });
-    expect(await within(r).findByText(/A name here is not known: unknown name "supply"/)).toBeInTheDocument();
+    // said once (e2e round 4, m-R4-01): the box marks and names the problem, the line under it says the kind alone
+    expect(await within(r).findByText('Only the names below can be used here.')).toBeInTheDocument();
+    expect(within(r).getAllByText(/unknown name "supply"/)).toHaveLength(1);
     // a judge stub that knows the inputs: the names are passed to it
     const stubJudge = vi.fn(judge);
     expect(stubJudge('supply_temp - return_in', ['supply_temp', 'return_in'])).toBeNull();

@@ -39,6 +39,8 @@ export interface SceneEditorMessages {
   undone: string; redone: string; resized: string; reconnected: string; midMoved: string; alignedMsg: string; distributedMsg: string;
   assemblySaved: string; assemblyInserted: string; locked: string; unlocked: string; hidden: string; shown: string;
   notDiagramPiece: string; nothingToCopy: string; pasteRefused: string; tool: string;
+  /** The connect tool, said when it is chosen (how to join two symbols: two clicks, or a drag between ports), after the first click, and when the second lands on nothing. */
+  connectHint: string; connectFirst: string; connectCancelled: string;
 }
 
 export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
@@ -63,7 +65,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   panelPalette: 'Symbols', panelInspector: 'Inspector', collapse: 'Collapse {panel}', expand: 'Expand {panel}',
   actionsHint: 'Select one symbol to edit its actions.', tabProperties: 'Properties', tabRules: 'Rules', tabActions: 'Actions', tabProblems: 'Problems', tabWhatIf: 'What-if', tabs: 'Inspector sections',
   apply: 'Save', applying: 'Saving', close: 'Close',
-  dirtyTitle: 'Discard your changes?', dirtyBody: 'The diagram has changes that were not applied.', dirtyDiscard: 'Discard changes', dirtyKeep: 'Keep editing',
+  dirtyTitle: 'Discard your changes?', dirtyBody: 'The drawing has changes that are not saved.', dirtyDiscard: 'Discard changes', dirtyKeep: 'Keep editing',
   applyFailed: 'The diagram could not be applied.', applied: 'Applied',
   pasteTitle: 'Paste a diagram piece', pasteBody: 'This browser did not let the editor read the clipboard. Paste the copied text here.',
   pasteInsert: 'Insert', pasteCancel: 'Cancel', pasteLabel: 'Copied diagram piece',
@@ -71,7 +73,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   thingLayer: '{name}: placed by data', thingInspected: '{name} is placed by data and moves with its row',
   shapeLabel: '{kind} {text}', linkLabel: 'Connection from {from} to {to}',
   handleOwnSize: 'Resize the symbol', handleResize: 'Resize', handleReconnect: 'Move the connection end', handleMid: 'Move the middle leg', port: 'Port {side} of {name}',
-  addedElement: 'Added {name} ({symbol}) at {x}, {y}', addedShape: 'Added a {kind} at {x}, {y}', connected: 'Connected {from} to {to}',
+  addedElement: 'Added {name} at {x}, {y}', addedShape: 'Added a {kind} at {x}, {y}', connected: 'Connected {from} to {to}',
   movedOne: 'Moved {name} to {x}, {y}', movedMany: 'Moved {count} items', deleted: 'Deleted {name}', deletedMany: 'Deleted {count} items',
   renamed: 'Renamed {from} to {to}', refused: '{reason}', copied: 'Copied {count} items', pasted: 'Pasted {count} items', duplicated: 'Duplicated {count} items',
   selectedOne: 'Selected {name}', selectedMany: 'Selected {count} items', selectedNone: 'Selection cleared',
@@ -81,6 +83,9 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   hidden: 'Hid {count} items', shown: 'Showed {count} items',
   notDiagramPiece: 'This is not a diagram piece.', nothingToCopy: 'Select something to copy first.', pasteRefused: 'The clipboard could not be read.',
   tool: '{tool} tool',
+  connectHint: 'Connect tool: click a symbol, then the symbol to join it to. Or drag from a port circle to another one.',
+  connectFirst: 'Now click the symbol to join {name} to (Escape cancels)',
+  connectCancelled: 'Nothing to join there: the connection was not drawn.',
 };
 
 export type SceneEditorMessagesOverride = Partial<SceneEditorMessages>;

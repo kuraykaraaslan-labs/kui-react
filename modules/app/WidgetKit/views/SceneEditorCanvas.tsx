@@ -88,7 +88,7 @@ type Drag =
   | { kind: 'pinch'; ids: [number, number]; last: [Pt, Pt] }
   | { kind: 'move'; start: Pt; startClient: Pt; base: SceneSettings; sel: Selection; box: Box; others: Box[]; group: string; moved: boolean; collapseTo: Selection | null; last: SceneSettings }
   | { kind: 'marquee'; start: Pt; additive: boolean; before: Selection }
-  | { kind: 'connect'; from: PortPt; reconnect?: { index: number; end: 'from' | 'to'; fixed: Pt; other: string }; target: PortHit | null }
+  | { kind: 'connect'; from: PortPt; reconnect?: { index: number; end: 'from' | 'to'; fixed: Pt; other: string }; target: PortHit | null; start?: Pt }
   | { kind: 'draw'; shape: 'zone' | 'divider'; start: Pt; startClient: Pt }
   | { kind: 'resize'; index: number; handle: ShapeHandle; base: SceneSettings; group: string }
   | { kind: 'ownsize'; id: string; anchor: Pt; startPointer: Pt; startScale: number; base: SceneSettings; group: string }
@@ -120,6 +120,12 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
   const space = useRef(false);
   const [preview, setPreview] = useState<Preview>(NO_PREVIEW);
   const [hover, setHover] = useState<string | null>(null);
+  // Connect by two clicks (next-boilerplate e2e round 4, M-R4-04: click A, click B drew nothing and nothing said that a drag was needed): a click on a
+  // symbol with the connect tool remembers its port; the next click on another symbol joins them. Another tool, Escape or a click on empty ground forgets it.
+  const [pendingFrom, setPendingFrom] = useState<PortPt | null>(null);
+  // forgotten when the tool changes: reset while rendering (no effect, no extra frame with a stale pending port)
+  const [pendingTool, setPendingTool] = useState(tool);
+  if (pendingTool !== tool) { setPendingTool(tool); setPendingFrom(null); setPreview(NO_PREVIEW); }
   const [panning, setPanning] = useState(false);
   const [dropping, setDropping] = useState(false);
   const gridId = useId().replace(/:/g, '');
@@ -201,8 +207,18 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
   };
 
   const startConnect = (port: PortPt, pt: Pt) => {
-    drag.current = { kind: 'connect', from: { id: port.id, side: port.side, at: port.at, x: port.x, y: port.y }, target: null };
+    drag.current = { kind: 'connect', from: { id: port.id, side: port.side, at: port.at, x: port.x, y: port.y }, target: null, start: pt };
     setPreview({ ...NO_PREVIEW, link: { from: { x: port.x, y: port.y }, to: pt, target: null, fromId: port.id } });
+  };
+  /** The second click of a two-click connection: joins the remembered port to the symbol under `pt` (its port in reach, else its nearest side). */
+  const finishPendingConnect = (from: PortPt, pt: Pt) => {
+    setPendingFrom(null);
+    setPreview(NO_PREVIEW);
+    const target = targetAt(pt, [from.id]);
+    if (!target) { announce(m.connectCancelled); return; }
+    const r = apply((s) => addLink(s, { id: from.id, side: from.side, at: from.at }, { id: target.id, side: target.side, at: target.at }, p.linkKind));
+    if (r.refused) announce(fill(m.refused, { reason: r.refused }));
+    else { setSelection({ elements: [], shapes: [], links: [r.index as number] }); announce(fill(m.connected, { from: from.id, to: target.id })); }
   };
 
   const onPointerDown = (e: ReactPointerEvent<SVGSVGElement>) => {
@@ -241,6 +257,7 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
     if (tool === 'zone' || tool === 'divider') { drag.current = { kind: 'draw', shape: tool, start: snapped(pt), startClient: client }; return; }
 
     if (tool === 'connect') {
+      if (pendingFrom) { finishPendingConnect(pendingFrom, pt); return; }
       const near = nearestPort(geo, pt, reach * 1.8, { only: geo.hits.map((h) => h.id).filter((id) => !skip(id)), edge: true });
       const body = near ? null : elementAt(geo, pt, new Set(geo.hits.map((h) => h.id).filter(skip)));
       const port = near ?? (body ? nearestPort(geo, pt, Infinity, { only: [body] }) : null);
@@ -361,6 +378,7 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
       if (tool === 'select' || tool === 'connect') {
         const id = elementAt(geo, pt, new Set(geo.hits.map((h) => h.id).filter(skip)), reach);
         if (id !== hover) setHover(id);
+        if (pendingFrom) setPreview({ ...NO_PREVIEW, link: { from: { x: pendingFrom.x, y: pendingFrom.y }, to: pt, target: null, fromId: pendingFrom.id } });
       } else if (hover) setHover(null);
       return;
     }
@@ -443,7 +461,15 @@ export const SceneEditorCanvas = forwardRef<CanvasHandle, SceneEditorCanvasProps
       const count = selectionBoxCount(next);
       announce(count ? fill(m.selectedMany, { count }) : m.selectedNone);
     } else if (d.kind === 'connect') {
-      if (!d.target) return;
+      if (!d.target) {
+        // a click (no drag) on a symbol: remember its port and wait for the second click (M-R4-04)
+        if (!d.reconnect && d.start && Math.hypot(pt.x - d.start.x, pt.y - d.start.y) < unit * DRAG_PX * 2) {
+          setPendingFrom(d.from);
+          setPreview({ ...NO_PREVIEW, link: { from: { x: d.from.x, y: d.from.y }, to: pt, target: null, fromId: d.from.id } });
+          announce(fill(m.connectFirst, { name: d.from.id }));
+        }
+        return;
+      }
       const port: PortRef = { id: d.target.id, side: d.target.side, at: d.target.at };
       if (d.reconnect) {
         const { index, end } = d.reconnect;

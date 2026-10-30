@@ -14,8 +14,8 @@ export interface SymbolBindingMessages {
   panel: string;
   close: string;
   cancel: string;
-  /** "12 of 31 symbols connected" in the header. */
-  progress: (connected: number, total: number) => string;
+  /** "12 of 31 symbols connected" in the header; `automatic` says how many of them found their values by the drawing's naming (next-boilerplate e2e round 4, m-R4-08). */
+  progress: (connected: number, total: number, automatic?: number) => string;
 
   // 1. Device
   deviceSection: string;
@@ -29,6 +29,8 @@ export interface SymbolBindingMessages {
   /** Under the parameter's name: what the symbol shows now. */
   showsNow: (value: string) => string;
   showsNothing: string;
+  /** A value is picked but not saved yet: what the symbol will show once it is (next-boilerplate e2e round 4, m-R4-05). */
+  willShow: (value: string) => string;
   /** The accessible name of a row (a parameter of the drawing). */
   rowLabel: (field: string) => string;
   /** The choice of what a row reads. */
@@ -42,6 +44,8 @@ export interface SymbolBindingMessages {
   /** The description of a picker option: the live value and its age; the suggested one says so first. */
   optionLine: (value: string, age: string) => string;
   suggestedOption: (line: string) => string;
+  /** The line of a key the device's profile does not declare (an old name, a sensor that went away): said on the option (next-boilerplate e2e round 4, M-R4-09). */
+  notDeclaredOption: (line: string) => string;
   /** The picker's first choice: the field reads nothing. */
   notUsed: string;
   /** The button beside a connected row that takes its connection away (next-boilerplate e2e round 3, M-R3-06: the picker's bare x was the only way). */
@@ -153,7 +157,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   panel: 'Symbol data',
   close: 'Close',
   cancel: 'Cancel',
-  progress: (connected, total) => `${connected} of ${total} symbols connected`,
+  progress: (connected, total, automatic) => `${connected} of ${total} symbols connected${automatic ? ` (${automatic} by name)` : ''}`,
 
   deviceSection: 'Device',
   deviceLabel: 'Device',
@@ -163,6 +167,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   rowsSection: 'What this symbol shows',
   showsNow: (value) => `Shows ${value} now`,
   showsNothing: 'Shows nothing yet',
+  willShow: (value) => `Will show ${value} once saved`,
   rowLabel: (field) => field,
   sourceLabel: (field) => `Source of ${field}`,
   sourceValue: 'A device value',
@@ -172,6 +177,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   pickerNoResults: 'No value matches what you typed.',
   optionLine: (value, age) => (age ? `${value} · ${age}` : value),
   suggestedOption: (line) => `Suggested · ${line}`,
+  notDeclaredOption: (line) => (line ? `${line} · not in the device's profile` : 'Not in the device\'s profile'),
   notUsed: 'Not connected',
   disconnect: 'Disconnect',
   typedNoMatch: 'Typing alone connects nothing: pick one of the values in the list.',

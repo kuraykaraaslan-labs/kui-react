@@ -33,8 +33,7 @@ import {
   ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
   pickableKeys, previewLine, rankKeysForField, scriptErrorKind, scriptTemplates, templateFor, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
   type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type RankedKey, type ScriptOutcome, type SourceMode,
-  type SymbolFieldSpec, type SymbolSpec,
-} from './symbol-binding-logic';
+  type SymbolFieldSpec, type SymbolSpec } from './symbol-binding-logic';
 import { DEFAULT_SYMBOL_BINDING_MESSAGES, mergeMessages, type DeepPartial, type SymbolBindingMessages } from './symbol-binding-messages';
 
 /** The symbol the panel is about: `SymbolSpec` with the icon the host draws for it. */
@@ -85,7 +84,7 @@ export interface SymbolBindingPanelProps {
   /** One action drawn in the header ("Match everything"). */
   headerAction?: SymbolBindingMenuAction;
   /** How many symbols of the drawing are connected, for the header line. */
-  progress?: { connected: number; total: number };
+  progress?: { connected: number; total: number; automatic?: number };
   /** The device a symbol with none starts on (the one the last symbol used); the panel remembers its own saves too. */
   defaultDevice?: { id: string; name: string } | null;
   /** How often the values are asked again, in ms; 0 asks once. Default 5000. */
@@ -162,6 +161,12 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   // Automatic rows the person opened with "Change".
   const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const dirty = isDirty(draft, baseline);
+  // an expression the judge refuses, by row: Save and Save-and-next wait until it is right (next-boilerplate e2e round 4, m-R4-01: Save stayed enabled)
+  const [problems, setProblems] = useState<Readonly<Record<string, string | null>>>({});
+  const onProblem = useCallback((field: string, problem: string | null) => {
+    setProblems((cur) => ((cur[field] ?? null) === problem ? cur : { ...cur, [field]: problem }));
+  }, []);
+  const blocked = Object.entries(problems).some(([field, problem]) => problem !== null && draft.fields[field]?.mode === 'expression');
   // The person changed something themselves (a pick, a device, a text): a preselected suggestion alone is not theirs to lose, so closing an untouched
   // panel never asks, and "Next symbol" says "Save and next" whenever a press would write (the suggestions, or their edits).
   const [touched, setTouched] = useState(false);
@@ -380,6 +385,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
 
   // "Next symbol" writes first when something is filled in that is not saved yet; its label says so then ("Save and next")
   const nextWrites = dirty && !readOnly;
+  const canWrite = !blocked;
   async function next() {
     if (nextWrites && !(await save())) return;
     props.onNext?.();
@@ -528,7 +534,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
         </div>
         {(props.progress || props.headerAction) && (
           <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-            {props.progress && <p className="text-xs text-text-secondary" data-testid="symbol-progress">{m.progress(props.progress.connected, props.progress.total)}</p>}
+            {props.progress && <p className="text-xs text-text-secondary" data-testid="symbol-progress">{m.progress(props.progress.connected, props.progress.total, props.progress.automatic)}</p>}
             {props.headerAction && !readOnly && (
               <Button variant="outline" size="xs" disabled={props.headerAction.disabled || busy} onClick={props.headerAction.onClick}>{props.headerAction.label}</Button>
             )}
@@ -596,6 +602,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
                 onAddInput={(key) => addInput(field.name, key)}
                 onRemoveInput={(n) => removeInput(field.name, n)}
                 onInsert={(w) => insertName(field.name, w)}
+                onProblem={(problem) => onProblem(field.name, problem)}
                 sourceOptions={sourceOptions}
                 previewScript={props.previewScript}
                 judgeScript={props.judgeScript}
@@ -655,12 +662,12 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
         {shownError && <AlertBanner variant="error" message={shownError} />}
         <div className="flex items-center gap-2">
           {!readOnly && (
-            <Button variant="primary" size="sm" className="flex-1" loading={saving} disabled={!dirty || busy} onClick={() => void save()}>
+            <Button variant="primary" size="sm" className="flex-1" loading={saving} disabled={!dirty || busy || !canWrite} onClick={() => void save()}>
               {m.save}
             </Button>
           )}
           {props.onNext && (
-            <Button variant="secondary" size="sm" className="flex-1" disabled={busy} onClick={() => void next()}>
+            <Button variant="secondary" size="sm" className="flex-1" disabled={busy || (nextWrites && !canWrite)} onClick={() => void next()}>
               {nextWrites ? m.saveAndNext : m.next}
             </Button>
           )}
@@ -731,6 +738,8 @@ interface FieldRowProps {
   onAddInput: (key: string) => void;
   onRemoveInput: (name: string) => void;
   onInsert: (word: string) => void;
+  /** The judge's problem with the row's expression, or null when it may run (the panel's Save waits while one stands). */
+  onProblem?: (problem: string | null) => void;
   sourceOptions: { value: string; label: string }[];
   previewScript?: (script: string, sample: unknown) => ScriptOutcome;
   judgeScript?: (script: string, names: string[]) => string | null;
@@ -742,7 +751,13 @@ function FieldRow(p: FieldRowProps) {
   const { uid, field, f, draftDeviceId, keys, keyByName, hints, ready, readOnly, suggested, proposal, opened, m, now } = p;
   const info = keyByName.get(f.key);
   const other = f.key !== '' && f.deviceId !== '' && f.deviceId !== draftDeviceId;
-  const live = field.live !== undefined ? formatValue(field.live, field.unit) : '';
+  // what the symbol shows now: the card's row, or the fresher list value when the saved source is the picked key and nothing converts it (next-boilerplate
+  // e2e round 4, m-R4-05: "Shows 59 now" beside a list that said 75.9)
+  const savedIsPicked = f.mode === 'value' && f.key !== '' && f.key === field.currentSource?.key && !(field.currentScript ?? '').trim();
+  // in the FIELD's unit (what the symbol draws), not the list's: the picker line already carries the device's unit
+  const live = savedIsPicked && info?.ts ? formatValue(info.value, field.unit) : field.live !== undefined ? formatValue(field.live, field.unit) : '';
+  // a value picked but not saved yet: the label says what the symbol will show once it is, instead of "Shows nothing yet" (m-R4-05)
+  const pickedUnsaved = f.mode === 'value' && f.key !== '' && f.key !== (field.currentSource?.key ?? '') && !other && info?.ts ? formatValue(info.value, field.unit) : '';
   const automaticClosed = !!f.automatic && !opened && f.mode === 'value';
   const mismatch = f.mode === 'value' && info ? mismatchOf(field, info) : null;
 
@@ -755,7 +770,9 @@ function FieldRow(p: FieldRowProps) {
     const best = ranked[0]?.key;
     const out = list.map((k): ComboBoxOption => {
       // a key the device's profile declares but the device has not sent yet (no reading, no time) is offered with "No value yet", not "–" (E2E-1.4)
-      const line = k.ts ? m.optionLine(formatValue(k.value, k.unit), ageText(k.ts, now, m.age)) : m.noValueYet;
+      const value = k.ts ? m.optionLine(formatValue(k.value, k.unit), ageText(k.ts, now, m.age)) : m.noValueYet;
+      // a key the device sent that its profile does not declare says so (next-boilerplate e2e round 4, M-R4-09: nothing told an old name from a real value)
+      const line = k.declared === false ? m.notDeclaredOption(value) : value;
       return { value: k.key, label: nameOfKey(k, k.key), description: k.key === best ? m.suggestedOption(line) : line };
     });
     if (f.key && !out.some((o) => o.value === f.key)) out.unshift({ value: f.key, label: f.key });
@@ -772,7 +789,7 @@ function FieldRow(p: FieldRowProps) {
         {suggested && <Badge size="sm" variant="primary">{m.suggested}</Badge>}
         {f.automatic && <span className="text-xs text-text-secondary">{m.automatic}</span>}
         {other && <span className="truncate text-xs text-text-secondary">{m.fromOtherDevice(f.deviceName)}</span>}
-        <span className="ml-auto text-xs text-text-secondary">{live ? m.showsNow(live) : m.showsNothing}</span>
+        <span className="ml-auto text-xs text-text-secondary">{pickedUnsaved ? m.willShow(pickedUnsaved) : live ? m.showsNow(live) : m.showsNothing}</span>
       </div>
 
       {automaticClosed ? (
@@ -845,6 +862,7 @@ function FieldRow(p: FieldRowProps) {
               onRemoveInput={p.onRemoveInput}
               onInsert={p.onInsert}
               onPickKey={p.onPickKey}
+              onProblem={p.onProblem}
               options={options}
               previewScript={p.previewScript}
               judgeScript={p.judgeScript}
@@ -894,6 +912,7 @@ interface ExpressionBoxProps {
   onInsert: (word: string) => void;
   onPickKey: (key: string) => void;
   options: ComboBoxOption[];
+  onProblem?: (problem: string | null) => void;
   previewScript?: (script: string, sample: unknown) => ScriptOutcome;
   judgeScript?: (script: string, names: string[]) => string | null;
   m: SymbolBindingMessages;
@@ -930,10 +949,18 @@ function ExpressionBox(p: ExpressionBoxProps) {
     return () => clearTimeout(t);
   }, [f.script, settled]);
 
-  const problem = useMemo(() => (p.judgeScript && settled.trim() !== '' ? p.judgeScript(settled, inputNames) : null), [p.judgeScript, settled, inputNames]);
-  // the place of a syntax problem is marked in the box; the sentence under it then says what kind of problem, once, without the engine's words
+  const { judgeScript } = p;
+  const problem = useMemo(() => (judgeScript && settled.trim() !== '' ? judgeScript(settled, inputNames) : null), [judgeScript, settled, inputNames]);
+  // the row's problem reaches the panel (its Save waits); a row whose expression is empty has none. The callback is read through a ref: the panel hands
+  // a fresh arrow every render, and an effect keyed on it re-ran its cleanup (null) and itself (the problem) on every render, a loop that never settled.
+  const onProblemRef = useRef(p.onProblem);
+  onProblemRef.current = p.onProblem;
+  useEffect(() => { onProblemRef.current?.(problem); }, [problem]);
+  useEffect(() => () => onProblemRef.current?.(null), []);
+  // the problem is said ONCE: the box marks and names it (the judge's sentence), and the line under it then says the kind of problem alone, whatever the kind
+  // (next-boilerplate e2e round 4, m-R4-01: an unknown name was said twice)
   const markers = useMemo<Marker[]>(() => (problem ? [{ line: 1, column: columnOf(problem), severity: 'error', message: problem }] : []), [problem]);
-  const marked = problem !== null && columnOf(problem) !== undefined;
+  const marked = problem !== null;
 
   const getSuggestions = useCallback(async (ctx: { prefix?: string }): Promise<Suggestion[]> => {
     const prefix = (ctx.prefix ?? '').toLowerCase();
@@ -1076,7 +1103,7 @@ function ScriptPreview(props: {
   if (problem && script.trim() !== '') {
     // the judge's sentence is written for a person: shown as it is, unless the box already marks the place (then the kind of problem alone)
     const kind = scriptErrorKind(problem);
-    text = m.previewErrors[kind](marked && kind === 'syntax' ? '' : problem);
+    text = m.previewErrors[kind](marked ? '' : problem);
     bad = true;
   } else if (previewScript) {
     const line = previewLine(script, hasSample ? sample : undefined, outcome);

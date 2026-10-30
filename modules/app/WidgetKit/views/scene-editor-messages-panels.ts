@@ -363,6 +363,8 @@ export interface InspectorMessages {
   /** The fold that holds the diagram's canvas, data and things settings when nothing is selected (next-boilerplate e2e round 3, M-R3-09). */
   advanced: string;
   advancedHint: string;
+  /** Under a selected symbol: where the device value it shows is connected (not here; next-boilerplate e2e round 4, M-R4-05). */
+  deviceHint: string;
   /** A thing from data, read-only: its heading, the "placed by data" line, a sample row's note and its fields' names. */
   thing: (name: string, id: string) => string;
   placedByData: string;
@@ -382,6 +384,7 @@ export const DEFAULT_INSPECTOR_MESSAGES: InspectorMessages = {
   sceneHint: 'Nothing is selected: these settings apply to the whole diagram.',
   advanced: 'Advanced',
   advancedHint: 'The canvas size, which table columns name the symbols, and things placed from data. Nothing here is needed to draw or connect a diagram.',
+  deviceHint: 'Which device value this symbol shows is connected on the device\'s page (its Scene tab) once the drawing is saved, not here.',
   symbol: (name, id) => `${name} (${id})`,
   severalSymbols: (n) => `${n} symbols`,
   severalConnections: (n) => `${n} connections`,

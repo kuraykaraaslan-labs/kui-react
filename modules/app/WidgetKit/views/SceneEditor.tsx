@@ -198,7 +198,8 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
     const next = pushRecent(recent, symbol);
     setRecent(next);
     saveRecent(browserStorage(), storageKey, next);
-    say(fill(m.addedElement, { name: r.id as string, symbol, x: Math.round(where.x), y: Math.round(where.y) }));
+    // said by the symbol's name, never its catalogue code (next-boilerplate e2e round 4, M-R4-14: "Added pump1 (pump.motor)")
+    say(fill(m.addedElement, { name: label ?? (r.id as string), x: Math.round(where.x), y: Math.round(where.y) }));
   };
 
   const select = (r: EditResult) => setSelection({ elements: r.ids ?? [], shapes: r.shapes ?? [], links: r.links ?? [] });
@@ -405,7 +406,7 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
       case 'rename': startRename(); break;
       case 'nudge': doNudge(cmd.dx, cmd.dy); break;
       case 'resize': doResize(cmd.dx, cmd.dy); break;
-      case 'tool': setTool(cmd.tool); say(fill(m.tool, { tool: m[TOOL_LABEL[cmd.tool]] })); break;
+      case 'tool': setTool(cmd.tool); say(cmd.tool === 'connect' ? m.connectHint : fill(m.tool, { tool: m[TOOL_LABEL[cmd.tool]] })); break;
       case 'connectSelected': doConnectSelected(); break;
       case 'scale': doScale(cmd.factor); break;
       case 'front': doOrder('front'); break;
@@ -534,7 +535,8 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
       </div>
 
       <SceneEditorToolbar
-        m={m} tool={tool} onTool={(t) => { setTool(t); say(fill(m.tool, { tool: m[TOOL_LABEL[t]] })); }}
+        // the connect tool says how it is used (next-boilerplate e2e round 4, M-R4-04: "Connect tool" alone left a person guessing)
+        m={m} tool={tool} onTool={(t) => { setTool(t); say(t === 'connect' ? m.connectHint : fill(m.tool, { tool: m[TOOL_LABEL[t]] })); }}
         canUndo={canUndo(history)} canRedo={canRedo(history)} onUndo={doUndo} onRedo={doRedo}
         zoomPercent={Math.round(effective.zoom * 100)} onZoomIn={() => zoomBy(ZOOM_STEP)} onZoomOut={() => zoomBy(1 / ZOOM_STEP)} onFit={fit}
         grid={grid} guides={guides} onGrid={() => setGrid((v) => !v)} onGuides={() => setGuides((v) => !v)}
