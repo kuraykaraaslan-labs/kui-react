@@ -21,8 +21,8 @@ import { NewDeviceProfileDrawer } from './NewDeviceProfileDrawer';
  * on the DataTable's own toolbar: search, the Filters panel (transport, online rule), sortable columns (name, transport, online rule,
  * updated), rows per page and server paging; without a sort the default first with its star; the device count of each profile from the
  * host's usage answer, refreshed every 30 s. With `canManageProfiles`: "New profile" (the online rule is chosen explicitly, OD-63),
- * "Make default" and delete. A delete names what still uses the profile; the default profile and a profile in use are refused by the
- * host, and its answer is shown as it comes.
+ * "Make default" and delete. A delete names what still uses the profile; the default profile, a built-in profile (a protocol module's,
+ * `builtinKey`: its delete is disabled with the reason) and a profile in use are refused by the host, and its answer is shown as it comes.
  */
 export type DeviceProfileListViewProps = {
   hrefs: { profile: (profileId: string) => string };
@@ -159,6 +159,7 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
             {p.isDefault && <FontAwesomeIcon icon={faStar} className="h-3 w-3 shrink-0 text-warning" aria-hidden="true" />}
             {p.name}
             {p.isDefault && <Badge variant="primary" size="sm">{m.profiles.defaultBadge}</Badge>}
+            {p.builtinKey && <Badge variant="neutral" size="sm">{m.profiles.builtinBadge}</Badge>}
           </span>
           {p.description && <span className="truncate text-xs text-text-secondary">{p.description}</span>}
         </a>
@@ -193,10 +194,10 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
             {!p.isDefault && api?.setDefault && (
               <Button variant="ghost" size="xs" loading={busyId === p.profileId} onClick={() => void makeDefault(p)}>{m.profiles.setDefault}</Button>
             )}
-            {api?.remove && (p.isDefault ? (
-              <span title={m.profiles.deleteDefault}>
+            {api?.remove && (p.isDefault || p.builtinKey ? (
+              <span title={p.isDefault ? m.profiles.deleteDefault : m.profiles.deleteBuiltin}>
                 <Button variant="ghost" size="xs" disabled aria-label={`${m.profiles.delete} ${p.name}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>
-                  <span className="sr-only">{m.profiles.deleteDefault}</span>
+                  <span className="sr-only">{p.isDefault ? m.profiles.deleteDefault : m.profiles.deleteBuiltin}</span>
                 </Button>
               </span>
             ) : (

@@ -303,7 +303,7 @@ export function DeviceProfileEditorView({
       id: 'transport', label: m.profile.transportTab, order: 10, badge: badge('transport'),
       content: (
         <div className="space-y-4">
-          <TransportPolicyCard value={draft} transports={offered} disabled={readOnly} onChange={set}
+          <TransportPolicyCard value={draft} transports={offered} disabled={readOnly} transportLocked={!!profile.builtinKey} onChange={set}
             errors={{ allowedNetworks: err('allowedNetworks'), transportType: err('transportType') }} />
           <ProfileSection title={m.transport.authModes}>
             <AuthModeSelector value={draft.allowedAuthModes} disabled={readOnly} error={err('allowedAuthModes')} onChange={(v) => set({ allowedAuthModes: v })} />
@@ -402,6 +402,7 @@ export function DeviceProfileEditorView({
             {profile.isDefault && <FontAwesomeIcon icon={faStar} className="h-4 w-4 text-warning" aria-hidden="true" />}
             <span className="truncate">{profile.name}</span>
             {profile.isDefault && <Badge variant="primary" size="sm">{m.profile.defaultBadge}</Badge>}
+            {profile.builtinKey && <Badge variant="neutral" size="sm">{m.profile.builtinBadge}</Badge>}
             {profile.template && <Badge variant="info" size="sm">{fill(m.profile.template, { key: profile.template.key, version: profile.template.version })}</Badge>}
           </h1>
           <p className="mt-1 flex flex-wrap gap-1.5 text-xs text-text-secondary">
@@ -418,8 +419,8 @@ export function DeviceProfileEditorView({
             <Button variant="outline" size="sm" loading={busy} onClick={() => void makeDefault()}
               iconLeft={<FontAwesomeIcon icon={faStar} className="h-3 w-3" aria-hidden="true" />}>{m.profile.setDefault}</Button>
           )}
-          {caps.canManageProfiles && api.remove && (profile.isDefault ? (
-            <span title={m.profiles.deleteDefault}>
+          {caps.canManageProfiles && api.remove && (profile.isDefault || profile.builtinKey ? (
+            <span title={profile.isDefault ? m.profiles.deleteDefault : m.profiles.deleteBuiltin}>
               <Button variant="ghost" size="sm" disabled iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.profile.delete}</Button>
             </span>
           ) : (

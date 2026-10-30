@@ -26,23 +26,25 @@ export type TransportPolicyCardProps = {
   transports?: readonly ProfileTransport[];
   errors?: Partial<Record<keyof TransportPolicyValue, string>>;
   disabled?: boolean;
+  /** A built-in profile (a protocol module's): its transport cannot change; everything else on the card can. */
+  transportLocked?: boolean;
   messages?: IotMessagesInput;
   className?: string;
 };
 
-export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HTTP', 'ANY'], errors = {}, disabled, messages, className }: TransportPolicyCardProps) {
+export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HTTP', 'ANY'], errors = {}, disabled, transportLocked, messages, className }: TransportPolicyCardProps) {
   const { m } = useIotText(messages);
   const id = useId();
   const usesMqtt = value.transportType === 'MQTT' || value.transportType === 'ANY';
   const badNetworks = value.allowedNetworks.filter((n) => !isNetwork(n) || (n.includes(':') && n.includes('.')));
   return (
     <div className={cn('space-y-4', className)}>
-      <ProfileSection title={m.transport.type} hint={m.transport.typeHint}>
+      <ProfileSection title={m.transport.type} hint={transportLocked ? m.transport.builtinFixed : m.transport.typeHint}>
         <Select
           id={`${id}-transport`}
           label={m.transport.type}
           value={value.transportType}
-          disabled={disabled}
+          disabled={disabled || transportLocked}
           onChange={(e) => onChange?.({ transportType: e.target.value as ProfileTransport })}
           options={transports.map((t) => ({ value: t, label: m.transport[t] }))}
         />

@@ -98,6 +98,11 @@ export type DeviceProfile = {
   name: string;
   description: string | null;
   isDefault: boolean;
+  /**
+   * The protocol a module ships this profile for (`isapi`, `lorawan`): it cannot be deleted and its transport cannot change, because
+   * devices of that protocol are registered with it. Absent or null for a tenant's own profile.
+   */
+  builtinKey?: string | null;
   transportType: ProfileTransport;
   allowedAuthModes: ProfileAuthMode[];
   mqttTransport: MqttTransportPolicy;
@@ -135,7 +140,7 @@ export type DeviceProfile = {
 };
 
 /** The editable part of a profile. `onlineRule` is null on a blank draft (OD-63: nothing preselected). */
-export type DeviceProfileDraft = Omit<DeviceProfile, 'profileId' | 'isDefault' | 'onlineRule' | 'template' | 'schemaSource' | 'createdAt' | 'updatedAt'> & {
+export type DeviceProfileDraft = Omit<DeviceProfile, 'profileId' | 'isDefault' | 'builtinKey' | 'onlineRule' | 'template' | 'schemaSource' | 'createdAt' | 'updatedAt'> & {
   onlineRule: OnlineRule | null;
 };
 
@@ -250,7 +255,7 @@ export function blankProfileDraft(name = ''): DeviceProfileDraft {
 
 /** The draft of a stored profile (its own values; the stored online rule shown as it is). */
 export function draftOf(p: DeviceProfile): DeviceProfileDraft {
-  const { profileId: _id, isDefault: _d, template: _t, schemaSource: _s, createdAt: _c, updatedAt: _u, ...rest } = p;
+  const { profileId: _id, isDefault: _d, builtinKey: _b, template: _t, schemaSource: _s, createdAt: _c, updatedAt: _u, ...rest } = p;
   return {
     ...rest,
     allowedAuthModes: [...p.allowedAuthModes],

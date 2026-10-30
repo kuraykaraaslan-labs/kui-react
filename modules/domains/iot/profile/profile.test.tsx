@@ -347,6 +347,22 @@ describe('DeviceProfileEditorView', () => {
     await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { transportType: 'LORAWAN', onlineRule: 'LAST_SEEN_ONLY' }));
   });
 
+  it('a built-in profile (a protocol module\'s): marked, its delete disabled with the reason, its transport locked; other fields stay editable', async () => {
+    const user = userEvent.setup();
+    const adapter = profilesAdapter({}, [profile({ name: 'Hikvision (ISAPI)', builtinKey: 'isapi', transportType: 'MQTT' })]);
+    render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
+    await screen.findByRole('heading', { name: /Hikvision/ });
+    expect(screen.getByText('Built-in profile')).toBeInTheDocument();
+    const del = screen.getByRole('button', { name: 'Delete profile' });
+    expect(del).toBeDisabled();
+    expect(del.closest('span')).toHaveAttribute('title', expect.stringMatching(/comes with its protocol and cannot be deleted/));
+    await user.click(screen.getByRole('tab', { name: /Transport & auth/ }));
+    expect(screen.getByLabelText('Transport')).toBeDisabled();
+    expect(screen.getByText(/A built-in profile keeps its transport/)).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /General/ }));
+    expect(screen.getByRole('textbox', { name: /Name/ })).not.toBeDisabled();
+  });
+
   it('UX-11: after a save that renamed a key in use, offers to update the rules to the new name, or keeps them and says what still reads it', async () => {
     const user = userEvent.setup();
     const notify = vi.fn();
@@ -470,6 +486,16 @@ describe('DeviceProfileListView', () => {
     await user.click(within(screen.getByRole('columnheader', { name: /Updated/ })).getByRole('button'));
     await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'updated', dir: 'asc' }, transportType: 'HTTP' }), expect.anything()));
     expect(screen.queryByRole('columnheader', { name: /Devices/ })).not.toHaveAttribute('aria-sort');
+  });
+
+  it('a built-in profile is marked and cannot be deleted from the list (the reason on the button)', async () => {
+    const adapter = profilesAdapter({}, [profile({ isDefault: true }), profile({ profileId: 'p3', name: 'Hikvision (ISAPI)', builtinKey: 'isapi' })]);
+    render(<IotAdapterProvider adapter={adapter} capabilities={ALL}><DeviceProfileListView hrefs={{ profile: (id) => `#${id}` }} /></IotAdapterProvider>);
+    const row = (await screen.findByText('Hikvision (ISAPI)')).closest('tr')!;
+    expect(within(row).getByText('Built-in')).toBeInTheDocument();
+    const del = within(row).getByRole('button', { name: /Delete Hikvision/ });
+    expect(del).toBeDisabled();
+    expect(within(del).getByText(/comes with its protocol and cannot be deleted/)).toBeInTheDocument();
   });
 
   it('keeps a filter applied from page 2', async () => {
