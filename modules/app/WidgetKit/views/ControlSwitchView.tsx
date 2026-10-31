@@ -67,4 +67,4 @@ export function ControlSwitchView(props: WidgetViewProps) {
   );
 }
 
-export const CONTROL_SWITCH_VIEW: WidgetKindView = { View: ControlSwitchView, isEmpty: () => false };
+export const CONTROL_SWITCH_VIEW: WidgetKindView = { View: ControlSwitchView, fit: true, isEmpty: () => false };

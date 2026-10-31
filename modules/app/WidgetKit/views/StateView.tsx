@@ -115,7 +115,7 @@ export function StateView({ settings, data, stale }: WidgetViewProps) {
       ) : center ? (
         <>
           {label && <div className="text-center">{label}</div>}
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-center">{headIcon}{main}{meta}</div>
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-2 text-center">{headIcon}{main}{meta}</div>
         </>
       ) : (
         <>
@@ -129,6 +129,7 @@ export function StateView({ settings, data, stale }: WidgetViewProps) {
 
 export const STATE_VIEW: WidgetKindView = {
   View: StateView,
+  fit: true,
   // A bound slot answering null is "unknown", a state of its own; only a missing answer is empty.
   isEmpty: (data) => !data.value || data.value.value === undefined,
   emptyShape: true,

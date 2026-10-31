@@ -4,6 +4,7 @@ import { Modal } from '@/modules/ui/Modal';
 import type { ReactNode } from 'react';
 import { WidgetCard, type CardTimeWindow } from './WidgetCard';
 import { ZoomPane } from './ZoomPane';
+import { FitBox } from './FitBox';
 import { resolvePlacement, toCsvText } from './settings/resolve';
 import { primaryMeta } from './settings/source-meta';
 import { toXlsxBytes } from './settings/xlsx';
@@ -138,7 +139,8 @@ export function PlacementCard({
         locale={locale}
         fixedHeight={fixedHeight}
       >
-        {body}
+        {/* In a fixed-height cell a view whose content has a height of its own is scaled down to fit rather than cut off. */}
+        {view.fit && fixedHeight ? <FitBox>{body}</FitBox> : body}
       </WidgetCard>
       {full && (
         // A picture that zooms gets the zoom pane; anything else scrolls when it is taller than the screen.

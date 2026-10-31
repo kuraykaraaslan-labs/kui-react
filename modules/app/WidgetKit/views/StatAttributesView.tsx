@@ -58,6 +58,7 @@ export function StatAttributesView({ settings, format, data, locale }: WidgetVie
 
 export const STAT_ATTRIBUTES_VIEW: WidgetKindView = {
   View: StatAttributesView,
+  fit: true,
   isEmpty: (data) => {
     const rec = data.record?.record;
     return !rec || Object.keys(rec).length === 0;

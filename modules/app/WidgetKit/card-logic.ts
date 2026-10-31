@@ -170,3 +170,12 @@ export function styleAttribute(style: StyleRecord | undefined): string {
     })
     .join(';');
 }
+
+/** The smallest a fitted view is drawn (`WidgetKindView.fit`): under it the body scrolls instead, so the text stays readable. */
+export const MIN_FIT_SCALE = 0.6;
+
+/** The scale that fits content `needed` px tall into `available` px: 1 when it fits (or nothing is measured yet), never under `MIN_FIT_SCALE`. */
+export function fitScale(available: number, needed: number): number {
+  if (!(available > 0) || !(needed > available)) return 1;
+  return Math.max(MIN_FIT_SCALE, Math.floor((available / needed) * 1000) / 1000);
+}

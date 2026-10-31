@@ -129,6 +129,7 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
 
 export const STAT_SPARKLINE_VIEW: WidgetKindView = {
   View: StatSparklineView,
+  fit: true,
   isEmpty: (data) => sparkValues(data.series).length === 0,
   emptyShape: true,
 };

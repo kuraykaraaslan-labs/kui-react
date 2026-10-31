@@ -63,6 +63,7 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
 
 export const STAT_VALUE_VIEW: WidgetKindView = {
   View: StatValueView,
+  fit: true,
   isEmpty: (data) => data.value?.value === undefined || data.value?.value === null,
   emptyShape: true,
 };

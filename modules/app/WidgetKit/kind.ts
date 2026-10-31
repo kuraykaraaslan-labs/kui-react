@@ -158,6 +158,11 @@ export interface WidgetKindView {
   emptyShape?: boolean;
   /** The full-screen view zooms and pans the picture (a process diagram) instead of only showing it larger. */
   zoomable?: boolean;
+  /**
+   * The content has a height of its own (a value, a state, a control): in a fixed-height cell smaller than it needs, the card draws
+   * all of it scaled down to fit (`FitBox`, never under `MIN_FIT_SCALE`) instead of cutting it off under the header.
+   */
+  fit?: boolean;
   /** CSV rows (first row = header) for the card's download button. */
   toCsv?: (data: WidgetViewProps['data'], settings: Sparse, format: ValueFormat) => string[][];
 }

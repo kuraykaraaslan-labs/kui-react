@@ -43,4 +43,4 @@ export function ControlButtonView(props: WidgetViewProps) {
   );
 }
 
-export const CONTROL_BUTTON_VIEW: WidgetKindView = { View: ControlButtonView, isEmpty: () => false };
+export const CONTROL_BUTTON_VIEW: WidgetKindView = { View: ControlButtonView, fit: true, isEmpty: () => false };

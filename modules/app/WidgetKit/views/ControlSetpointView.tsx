@@ -68,4 +68,4 @@ export function ControlSetpointView(props: WidgetViewProps) {
   );
 }
 
-export const CONTROL_SETPOINT_VIEW: WidgetKindView = { View: ControlSetpointView, isEmpty: () => false };
+export const CONTROL_SETPOINT_VIEW: WidgetKindView = { View: ControlSetpointView, fit: true, isEmpty: () => false };

@@ -115,6 +115,7 @@ export function ProgressView({ settings, format, data, locale }: WidgetViewProps
 
 export const PROGRESS_VIEW: WidgetKindView = {
   View: ProgressView,
+  fit: true,
   isEmpty: (data) => num(data.value?.value) === null,
   emptyShape: true,
 };

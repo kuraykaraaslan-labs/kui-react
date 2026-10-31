@@ -28,6 +28,11 @@ font size, colour, spacing or chip. Settings may override a part (a font, a colo
 - Controls are 36px high, `--primary` by default, disabled at 50% with the reason in a tooltip.
 - Colours from settings go through `cssColor`; tones are theme tokens so light and dark both work.
 - Empty and unconfigured states are the card's job (`WidgetCard`), never a view's.
+- A view whose content has a height of its own (values, attributes, states, progress, controls: `fit` on the kind) is
+  never cut off in a fixed-height cell: when it needs more height than the body has, the card draws all of it scaled
+  down to fit (`FitBox`, not under 60%, then the body scrolls). A centred column is centred with `safe` alignment, so
+  content taller than its box runs downwards, never up over the label. A template still gives such a card at least its
+  kind's `defaultH`: the fit is the floor for the sizes people choose, not a licence for two-row value cards.
 - Every text a view draws comes from `useKitMessages()` (the host's language), never a literal in the view.
 - On a board the grid cell is placed from lg up only (`--wk-gc` / `--wk-gr`); below lg cells stack in y, x
   order, and a card's hide / order settings act on the cell (`cardCellResponsive`). In edit mode nothing

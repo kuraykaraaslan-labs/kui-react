@@ -113,4 +113,4 @@ export function ControlSliderView(props: WidgetViewProps) {
   );
 }
 
-export const CONTROL_SLIDER_VIEW: WidgetKindView = { View: ControlSliderView, isEmpty: () => false };
+export const CONTROL_SLIDER_VIEW: WidgetKindView = { View: ControlSliderView, fit: true, isEmpty: () => false };
