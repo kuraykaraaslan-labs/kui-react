@@ -158,3 +158,37 @@ describe('settleScale', () => {
     expect(settleScale(b, c)).toBe(1);
   });
 });
+
+describe('FitBox re-measures what changes inside it', () => {
+  /** The MutationObserver callback FitBox registers, and how often it asks for a frame. */
+  const observed = () => {
+    let callback: MutationCallback = () => {};
+    const frames: FrameRequestCallback[] = [];
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    vi.stubGlobal('MutationObserver', class { constructor(cb: MutationCallback) { callback = cb; } observe() {} disconnect() {} takeRecords() { return []; } });
+    vi.stubGlobal('requestAnimationFrame', (f: FrameRequestCallback) => { frames.push(f); return frames.length; });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const { container } = render(<FitBox><p>Park North 1</p></FitBox>);
+    const c = container.querySelector<HTMLElement>('[data-part="fit"] > div')!;
+    const fire = (r: Partial<MutationRecord>) => callback([r as MutationRecord], {} as MutationObserver);
+    return { c, frames, fire };
+  };
+
+  it('a new child of the content box (another layout) is measured again', () => {
+    const { c, frames, fire } = observed();
+    fire({ type: 'childList', target: c });
+    expect(frames).toHaveLength(1);
+  });
+
+  it('the content box\'s own style, written while measuring, is not', () => {
+    const { c, frames, fire } = observed();
+    fire({ type: 'attributes', target: c, attributeName: 'style' });
+    expect(frames).toHaveLength(0);
+  });
+
+  it('a style, class or hidden change below it is', () => {
+    const { c, frames, fire } = observed();
+    fire({ type: 'attributes', target: c.firstElementChild!, attributeName: 'hidden' });
+    expect(frames).toHaveLength(1);
+  });
+});

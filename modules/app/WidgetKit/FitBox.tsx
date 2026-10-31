@@ -70,11 +70,11 @@ export function FitBox({ children }: { children: ReactNode }) {
     const later = () => { if (live && !frame) frame = requestAnimationFrame(measure); };
     const resized = new ResizeObserver(later);
     resized.observe(b);
-    // New data, settings (a larger lamp, a font) or a state shown by `hidden` can change the content without the cell changing size.
-    // The content box's own style is written here, so its records are left out.
+    // New data, settings (a larger lamp, a font), another layout (a new child of the content box) or a state shown by `hidden` can change
+    // the content without the cell changing size. The content box's own style is written here, so only its attribute records are left out.
     const changed = typeof MutationObserver === 'undefined'
       ? null
-      : new MutationObserver((records) => { if (records.some((r) => r.target !== c)) later(); });
+      : new MutationObserver((records) => { if (records.some((r) => r.type !== 'attributes' || r.target !== c)) later(); });
     changed?.observe(c, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
     const fonts = typeof document !== 'undefined' ? document.fonts : undefined;
     void fonts?.ready.then(later);
