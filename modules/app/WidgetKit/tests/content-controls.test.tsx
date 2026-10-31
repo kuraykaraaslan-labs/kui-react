@@ -592,7 +592,7 @@ describe('button settings', () => {
     rerender(<CONTROL_BUTTON_VIEW.View {...props(CONTROL_BUTTON, { settings: { layout: 'fab', label: 'Go', description: 'Starts the line' }, onControl })} />);
     expect(screen.getByRole('button', { name: 'Go' }).className).toContain('shadow-md');
     expect(screen.getByText('Starts the line')).toBeInTheDocument();
-    expect(container.querySelector('.justify-end')).not.toBeNull();
+    expect(container.querySelector('.justify-end-safe')).not.toBeNull();
   });
   it('feedback texts replace the status line; a failure keeps its reason', async () => {
     const user = userEvent.setup();

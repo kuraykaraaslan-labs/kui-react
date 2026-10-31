@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { Progress } from '@/modules/ui/Progress';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { captionOf } from './caption';
 import { useKitMessages } from '../WidgetKitContext';
 import { IconTile, Meta, Metric, MetricHead, MetricLabel } from './ui';
 import { num, progressModel, type ProgressSettings as S } from './progress-logic';
@@ -14,11 +15,13 @@ export * from './progress-logic';
  * its meta, the bar). A bound target wins over the typed one. A zero or negative target has no
  * percentage: the number still shows, only the bar goes.
  */
-export function ProgressView({ settings, format, data, locale }: WidgetViewProps) {
+export function ProgressView({ settings, format, data, locale, title, titleShown }: WidgetViewProps) {
   const m = useKitMessages().stat;
   const s = settings as S;
   const p = progressModel(s, format, data, locale, m);
   const { layout, metric: mt, pct } = p;
+  // A caption that only repeats the card's title shown above is not drawn again.
+  const caption = captionOf(p.label?.text, { title, titleShown });
 
   const metric = (size: 'xl' | 'lg' | 'md', style?: CSSProperties) => mt === null ? null : (
     <span data-part="value">
@@ -28,7 +31,7 @@ export function ProgressView({ settings, format, data, locale }: WidgetViewProps
   const meta = p.secondary ? <Meta><span data-part="secondary">{p.secondary}</span></Meta> : null;
   const head = (
     <MetricHead
-      label={p.label ? <MetricLabel font={p.label.font} color={p.label.color}>{p.label.text}</MetricLabel> : undefined}
+      label={p.label && caption ? <MetricLabel font={p.label.font} color={p.label.color}>{caption}</MetricLabel> : undefined}
       icon={p.tile ? <IconTile name={p.tile.name} size={p.tile.size} color={p.tile.color} background={p.tile.background} /> : undefined}
     />
   );

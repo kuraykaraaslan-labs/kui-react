@@ -2,6 +2,7 @@
 import { useId } from 'react';
 import { formatValue } from '../settings/style';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { captionOf } from './caption';
 import { useKitMessages } from '../WidgetKitContext';
 import { UpdatedAgo } from './UpdatedAgo';
 import { Delta, IconTile, Meta, Metric, MetricHead, MetricLabel } from './ui';
@@ -11,7 +12,7 @@ export * from './spark-logic';
 
 
 /** `stat.sparkline`: Stat's label, icon, number and change, plus the trend line of the series. */
-export function StatSparklineView({ settings, format, data, locale }: WidgetViewProps) {
+export function StatSparklineView({ settings, format, data, locale, title, titleShown }: WidgetViewProps) {
   const s = settings as S;
   const m = useKitMessages().stat;
   const gid = `ks${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
@@ -53,7 +54,8 @@ export function StatSparklineView({ settings, format, data, locale }: WidgetView
     </div>
   );
 
-  const label = s.label ? <MetricLabel font={s.labelFont} color={s.labelColor}>{s.label}</MetricLabel> : null;
+  const caption = captionOf(s.label, { title, titleShown });
+  const label = caption ? <MetricLabel font={s.labelFont} color={s.labelColor}>{caption}</MetricLabel> : null;
   const icon = s.icon ? (
     <IconTile name={s.icon} size={Math.round((s.iconSize ?? 20) * 1.8)} background={s.iconBackground}
       color={(rangeColor && target !== 'line' ? rangeColor : undefined) ?? s.iconColor} />

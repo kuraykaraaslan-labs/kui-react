@@ -91,12 +91,12 @@ export function PlacementCard({
 
   const body = (
     <view.View {...viewProps} settings={r.settings} format={r.format} data={data} locale={locale} stale={stale} title={title}
-      onControl={onControl} controlDisabledReason={controlDisabledReason} renderLink={renderLink ?? viewProps?.renderLink} />
+      titleShown={r.card.showTitle !== false && !!title} onControl={onControl} controlDisabledReason={controlDisabledReason} renderLink={renderLink ?? viewProps?.renderLink} />
   );
   // No data, no command to send, nothing old: the shape only. Drawn by WidgetCard only in its empty and unconfigured states.
   const emptyBody = view.emptyShape && (r.card.emptyDisplay ?? 'shape') === 'shape'
     ? <view.View {...viewProps} settings={r.settings} format={r.format} data={NO_DATA} locale={locale} stale={false} title={title}
-      onControl={undefined} renderLink={renderLink ?? viewProps?.renderLink} />
+      titleShown={r.card.showTitle !== false && !!title} onControl={undefined} renderLink={renderLink ?? viewProps?.renderLink} />
     : undefined;
   const exportName = (ext: string) => `${(title || template.label).replace(/[^\w.-]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.${ext}`;
   const exportRows = async (): Promise<string[][] | null> => {

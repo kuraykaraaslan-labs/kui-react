@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ControlSlider, type ControlSliderParts } from '@/modules/ui/ControlTile';
 import { SettingIcon, useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { captionOf } from './caption';
 import { numberFormatter } from './chart-data';
 import { controlHostOf, requestControl } from './control-common';
 import { controlSliderModel, type SliderSettings as S } from './control-slider-logic';
@@ -17,9 +18,11 @@ export function ControlSliderView(props: WidgetViewProps) {
   const m = useKitMessages().controls;
   const set = requestControl(props.onControl, 'set', m);
   const g = controlSliderModel(s, value, props.format, controlHostOf(props, m));
+  // A caption that only repeats the card's title shown above is not drawn again.
+  const caption = captionOf(g.label.text, props);
   const { control: c } = g;
   const iconEl = (i: typeof g.startIcon) => (i ? <span aria-hidden="true" className="inline-flex shrink-0 items-center"><SettingIcon name={i.name} style={i.style} /></span> : null);
-  const label = <MetricLabel font={g.label.font} color={g.label.color}>{g.label.text}</MetricLabel>;
+  const label = <MetricLabel font={g.label.font} color={g.label.color}>{caption}</MetricLabel>;
   const metric = (text: string, size: 'xl' | 'lg' | 'md' | 'sm') => (
     <Metric text={text} size={size} font={g.valueFont} color={g.valueColor} />
   );
@@ -54,14 +57,14 @@ export function ControlSliderView(props: WidgetViewProps) {
     if (g.variant === 'compact') {
       return (
         <div className="flex min-h-0 flex-1 items-center gap-3">
-          {g.label.text && <div className="max-w-[35%] shrink-0">{label}</div>}
+          {caption && <div className="max-w-[35%] shrink-0">{label}</div>}
           <div className="min-w-0 flex-1">{track(showValue ? metric(p.valueText, g.valueSize) : undefined)}</div>
         </div>
       );
     }
     if (g.variant === 'extended') {
       return (
-        <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center gap-1">
+        <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center-safe gap-1">
           <div className="flex flex-col items-center gap-1 text-center">{label}{showValue && metric(p.valueText, g.valueSize)}</div>
           {track()}
           {minMax && <div className="flex justify-between">{minMax}</div>}

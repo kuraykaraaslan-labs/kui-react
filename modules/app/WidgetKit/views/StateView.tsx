@@ -6,6 +6,7 @@ import { cssColor, fontStyle } from '../settings/style';
 import { useNow } from '../useNow';
 import { useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { captionOf } from './caption';
 import { IconTile, Meta, MetricHead, MetricLabel, Pill, tint } from './ui';
 import { forText, stateModel, type StateSettings as S } from './state-logic';
 
@@ -16,7 +17,7 @@ export * from './state-logic';
  * (label top-left, the state's icon top-right, the state where Stat's number sits, meta under it).
  * "Since" is the time this view first saw the state (seeded with the data's fetch time).
  */
-export function StateView({ settings, data, stale }: WidgetViewProps) {
+export function StateView({ settings, data, stale, title, titleShown }: WidgetViewProps) {
   const s = settings as S;
   const m = useKitMessages().stat;
   const { raw, out, layout, center, iconSize, bg, pulse, fetched, showSince, showValue } = stateModel(s, data, !!stale, m.unknown, { on: m.on, off: m.off });
@@ -36,7 +37,8 @@ export function StateView({ settings, data, stale }: WidgetViewProps) {
       {metaParts.flatMap((p, i) => (i ? [<span key={`d${i}`} aria-hidden="true">·</span>, p] : [p]))}
     </Meta>
   ) : null;
-  const label = s.label ? <MetricLabel font={s.labelFont} color={s.labelColor}>{s.label}</MetricLabel> : null;
+  const caption = captionOf(s.label, { title, titleShown });
+  const label = caption ? <MetricLabel font={s.labelFont} color={s.labelColor}>{caption}</MetricLabel> : null;
   const tile = (size: number) => out.icon ? (
     <span className={cn('inline-flex', pulse && 'motion-safe:animate-pulse')} data-part="icon">
       <IconTile name={out.icon} size={size} color={out.color} background={out.background} />

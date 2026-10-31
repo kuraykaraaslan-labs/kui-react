@@ -176,7 +176,7 @@ describe('layouts and parts', () => {
     rerender(<ControlTile state="failed" error="Offline">x</ControlTile>);
     expect(screen.getByRole('alert')).toHaveTextContent(/^Offline$/);
     rerender(<ControlTile state="idle" framed={false} bodyAlign="end">x</ControlTile>);
-    expect(container.querySelector('.justify-end')).not.toBeNull();
+    expect(container.querySelector('.justify-end-safe')).not.toBeNull();
   });
   it('ControlTile: without reserved room the status line takes room only while it has a status; its live region stays mounted', () => {
     const { container, rerender } = render(<ControlTile state="idle" framed={false} reserveStatus={false}>x</ControlTile>);

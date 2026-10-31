@@ -29,10 +29,15 @@ font size, colour, spacing or chip. Settings may override a part (a font, a colo
 - Colours from settings go through `cssColor`; tones are theme tokens so light and dark both work.
 - Empty and unconfigured states are the card's job (`WidgetCard`), never a view's.
 - A view whose content has a height of its own (values, attributes, states, progress, controls: `fit` on the kind) is
-  never cut off in a fixed-height cell: when it needs more height than the body has, the card draws all of it scaled
-  down to fit (`FitBox`, not under 60%, then the body scrolls). A centred column is centred with `safe` alignment, so
-  content taller than its box runs downwards, never up over the label. A template still gives such a card at least its
+  never cut off in a fixed-height cell: when it overflows the body at full size, the card draws all of it scaled down to
+  fit (`FitBox`, not under 60%, then the body scrolls). Whether it fits is read from the real layout, so a part that
+  flexes (a dial, a vertical slider) is never measured at its largest and content that fits is never scaled. Every
+  centred or end-aligned column of such a view uses `safe` alignment, so content taller than its box runs downwards,
+  never up over the label. A template still gives such a card at least its
   kind's `defaultH`: the fit is the floor for the sizes people choose, not a licence for two-row value cards.
+- A caption over the content (a value's, a state's, a progress bar's or a control's label, typed or taken from the
+  source) is not drawn when it only repeats the card's title shown in the header (`captionOf`); with the title hidden it
+  stays.
 - Every text a view draws comes from `useKitMessages()` (the host's language), never a literal in the view.
 - On a board the grid cell is placed from lg up only (`--wk-gc` / `--wk-gr`); below lg cells stack in y, x
   order, and a card's hide / order settings act on the cell (`cardCellResponsive`). In edit mode nothing

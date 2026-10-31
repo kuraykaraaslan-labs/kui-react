@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { ControlSetpoint } from '@/modules/ui/ControlTile';
 import { useKitMessages } from '../WidgetKitContext';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { captionOf } from './caption';
 import { numberFormatter } from './chart-data';
 import { controlHostOf, requestControl } from './control-common';
 import { controlSetpointModel, type SetpointSettings as S } from './control-setpoint-logic';
@@ -21,8 +22,10 @@ export function ControlSetpointView(props: WidgetViewProps) {
   const m = useKitMessages().controls;
   const set = requestControl(props.onControl, 'set', m);
   const g = controlSetpointModel(s, value, props.format, props.locale, controlHostOf(props, m));
+  // A caption that only repeats the card's title shown above is not drawn again.
+  const caption = captionOf(g.label.text, props);
   const { control: c, current } = g;
-  const label = <MetricLabel font={g.label.font} color={g.label.color}>{g.label.text}</MetricLabel>;
+  const label = <MetricLabel font={g.label.font} color={g.label.color}>{caption}</MetricLabel>;
   const head = current ? (
     <span className="flex shrink-0 items-baseline gap-1.5">
       <Meta>{current.label}</Meta>

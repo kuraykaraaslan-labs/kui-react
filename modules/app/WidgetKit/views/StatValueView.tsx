@@ -1,13 +1,14 @@
 'use client';
 import { UpdatedAgo } from './UpdatedAgo';
 import type { WidgetKindView, WidgetViewProps } from '../kind';
+import { captionOf } from './caption';
 import { Delta, IconTile, Metric, MetricHead, MetricLabel } from './ui';
 import { statValueModel, type StatValueSettings as S } from './stat-logic';
 
 export * from './stat-logic';
 
 /** `stat.value`: label and icon on top, the number, then its change. Every layout uses the same parts. */
-export function StatValueView({ settings, format, data, locale }: WidgetViewProps) {
+export function StatValueView({ settings, format, data, locale, title, titleShown }: WidgetViewProps) {
   const s = settings as S;
   const { layout, cmp, metricText, metricUnit, metricColor, labelText, iconSize, iconColor, surface } = statValueModel(s, format, data, locale);
 
@@ -21,7 +22,7 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
       color={metricColor}
     />
   );
-  const label = <MetricLabel font={s.labelFont} color={s.labelColor}>{labelText}</MetricLabel>;
+  const label = <MetricLabel font={s.labelFont} color={s.labelColor}>{captionOf(labelText, { title, titleShown })}</MetricLabel>;
   const icon = s.icon ? (
     <IconTile name={s.icon} size={iconSize} color={iconColor} background={s.iconBackground} />
   ) : null;
@@ -47,7 +48,7 @@ export function StatValueView({ settings, format, data, locale }: WidgetViewProp
   }
   if (layout === 'centered') {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-2 text-center" style={surface}>
+      <div className="flex h-full flex-col items-center justify-center-safe gap-2 text-center" style={surface}>
         {icon}{metric}{label}{tail}
       </div>
     );

@@ -144,6 +144,8 @@ export interface WidgetViewProps {
   confirm?: ControlConfirm;
   /** The card's title (e.g. an iframe's accessible name). */
   title?: string;
+  /** The card's header draws `title`: a caption that only repeats it is not drawn again (`captionOf`). */
+  titleShown?: boolean;
 }
 
 export interface WidgetKindView {

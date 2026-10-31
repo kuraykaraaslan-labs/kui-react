@@ -79,7 +79,7 @@ export function ControlTile({
       data-disabled-reason={disabledReason || undefined}
     >
       {title && <h3 className="mb-2 text-sm font-semibold text-text-primary">{title}</h3>}
-      <div className={cn('flex flex-col', framed ? 'gap-2' : 'min-h-0 flex-1 gap-1.5', !framed && (bodyAlign === 'end' ? 'justify-end' : 'justify-center'))}>
+      <div className={cn('flex flex-col', framed ? 'gap-2' : 'min-h-0 flex-1 gap-1.5', !framed && (bodyAlign === 'end' ? 'justify-end-safe' : 'justify-center-safe'))}>
         {disabledReason ? (
           <Tooltip
             content={disabledReason}
