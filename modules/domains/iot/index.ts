@@ -142,3 +142,18 @@ export { AlarmDetailHeader as AlertDetailHeader } from './alarm/AlarmDetailHeade
 export { AlarmEventTimeline as AlertEventTimeline } from './alarm/AlarmEventTimeline';
 /** @deprecated use AlarmEvent; removed in the next minor. */
 export type { AlarmEvent as AlertEvent, AlarmEventKind as AlertEventKind } from './types/alarm';
+
+// ── Rules (docs/concepts/iot-rules of the platform: sentences by name, Manual / Auto, the Rules card's pieces) ─────────────────
+export { RuleList } from './rules/RuleList';
+export type { RuleListProps } from './rules/RuleList';
+export { RuleEditor } from './rules/RuleEditor';
+export type { RuleEditorProps } from './rules/RuleEditor';
+export { ModeSwitch } from './rules/ModeSwitch';
+export type { ModeSwitchProps } from './rules/ModeSwitch';
+export { PlaceCommands } from './rules/PlaceCommands';
+export type { PlaceCommandsProps } from './rules/PlaceCommands';
+export { RuleStatusChip } from './rules/RuleStatusChip';
+export type { RuleStatusChipProps } from './rules/RuleStatusChip';
+export { ruleState, countdown } from './rules/rule-format';
+export type { RuleRunState } from './rules/rule-format';
+export { actsOnDevices, draftProblems, emptyDefinition } from './rules/rule-draft';

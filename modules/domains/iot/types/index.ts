@@ -5,3 +5,4 @@ export * from './rpc';
 export * from './profile';
 export * from './alarm-rule';
 export * from './asset';
+export * from './rules';

@@ -1,0 +1,122 @@
+'use client';
+import { useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEllipsis, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { Button } from '@/modules/ui/Button';
+import { Toggle } from '@/modules/ui/Toggle';
+import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
+import { DropdownMenu } from '@/modules/ui/DropdownMenu';
+import { EmptyState } from '@/modules/ui/EmptyState';
+import { cn } from '@/libs/utils/cn';
+import { useIotText } from '../api/IotAdapterProvider';
+import { fill } from '../format';
+import type { IotMessagesInput } from '../messages';
+import type { RuleItem } from '../types/rules';
+import { RuleStatusChip } from './RuleStatusChip';
+import { when } from './rule-format';
+
+/**
+ * RuleList — the rules of a place, one row each: the name, its on/off switch, what it is doing (the status chip), when it last ran and
+ * what it did in words, and the next time a schedule starts it. The row menu runs it now, edits, duplicates, opens its history or
+ * deletes it (through the one ConfirmDialog). A rule that needs attention shows its reason under the name. The viewer's rights decide
+ * which controls exist: without `canManage` the switch is read-only and there is no edit, duplicate or delete; without `canRun` no
+ * Run now. Nothing here shows an id or a key.
+ */
+export type RuleListProps = {
+  rules: readonly RuleItem[];
+  now: number;
+  canManage: boolean;
+  canRun: boolean;
+  loading?: boolean;
+  /** Rows that are mid-request (a switch pending, a run starting), by rule id. */
+  pending?: ReadonlySet<string>;
+  onAdd?: () => void;
+  onToggle: (rule: RuleItem, enabled: boolean) => void;
+  onRun: (rule: RuleItem) => void;
+  onEdit: (rule: RuleItem) => void;
+  onDuplicate: (rule: RuleItem) => void;
+  onHistory: (rule: RuleItem) => void;
+  onDelete: (rule: RuleItem) => Promise<void>;
+  locale?: string;
+  messages?: IotMessagesInput;
+  className?: string;
+};
+
+export function RuleList({
+  rules, now, canManage, canRun, loading = false, pending, onAdd, onToggle, onRun, onEdit, onDuplicate, onHistory, onDelete, locale, messages, className,
+}: RuleListProps) {
+  const { m } = useIotText(messages);
+  const [deleting, setDeleting] = useState<RuleItem | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+
+  if (!rules.length && !loading) {
+    return (
+      <EmptyState
+        title={m.rules.empty}
+        description={m.rules.emptyHint}
+        action={canManage && onAdd ? <Button size="sm" onClick={onAdd}><FontAwesomeIcon icon={faPlus} className="mr-2" />{m.rules.add}</Button> : undefined}
+        className={className}
+      />
+    );
+  }
+
+  const menu = (r: RuleItem) => [
+    ...(canRun ? [{ id: 'run', label: m.rules.runNow, onClick: () => onRun(r), disabled: !r.enabled || r.status !== 'ok' }] : []),
+    ...(canManage ? [{ label: m.rules.edit, onClick: () => onEdit(r) }, { label: m.rules.duplicate, onClick: () => onDuplicate(r) }] : []),
+    { label: m.rules.history, onClick: () => onHistory(r) },
+    ...(canManage ? [{ label: m.rules.delete, onClick: () => { setError(undefined); setDeleting(r); }, danger: true }] : []),
+  ];
+
+  return (
+    <div className={cn('flex flex-col', className)}>
+      <ul className="divide-y divide-border" aria-busy={loading}>
+        {rules.map((r) => {
+          const stopped = r.stoppedByManual === true;
+          return (
+            <li key={r.ruleId} data-rule={r.name} className={cn('flex items-start gap-3 py-3', stopped && 'opacity-60')}>
+              <Toggle
+                id={`rule-on-${r.ruleId}`} label="" ariaLabel={fill(m.rules.switchLabel, { name: r.name })} size="sm"
+                checked={r.enabled} disabled={!canManage || r.status === 'needs_attention' && !r.enabled} pending={pending?.has(r.ruleId) ?? false}
+                onChange={(v) => onToggle(r, v)} className="mt-1"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={() => (canManage ? onEdit(r) : onHistory(r))} className="truncate text-sm font-medium text-text-primary hover:underline">{r.name}</button>
+                  <RuleStatusChip rule={r} now={now} messages={messages} />
+                </div>
+                {r.status === 'needs_attention' && r.statusReason ? <p className="mt-1 text-xs text-error-fg">{r.statusReason}</p> : null}
+                <p className="mt-0.5 text-xs text-text-secondary">
+                  {r.lastRun ? fill(m.rules.lastRun, { when: when(r.lastRun.at, now, locale), text: r.lastRun.text }) : m.rules.neverRan}
+                  {r.nextAt && r.nextAt > now ? ` · ${fill(m.rules.nextRun, { when: when(r.nextAt, now, locale) })}` : ''}
+                </p>
+              </div>
+              <DropdownMenu
+                trigger={<Button variant="ghost" size="sm" aria-label={fill(m.rules.moreActions, { name: r.name })}><FontAwesomeIcon icon={faEllipsis} /></Button>}
+                items={menu(r)}
+                align="right" portal
+              />
+            </li>
+          );
+        })}
+      </ul>
+
+      <ConfirmDialog
+        open={deleting !== null}
+        title={fill(m.rules.deleteTitle, { name: deleting?.name ?? '' })}
+        message={m.rules.deleteBody}
+        tone="danger"
+        confirmLabel={m.rules.deleteConfirm}
+        cancelLabel={m.rules.cancel}
+        busy={busy}
+        error={error}
+        onCancel={() => setDeleting(null)}
+        onConfirm={() => {
+          if (!deleting) return;
+          setBusy(true);
+          onDelete(deleting).then(() => { setDeleting(null); setBusy(false); }, (e: unknown) => { setError(e instanceof Error ? e.message : String(e)); setBusy(false); });
+        }}
+      />
+    </div>
+  );
+}
