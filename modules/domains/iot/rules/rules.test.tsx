@@ -5,6 +5,7 @@ import type { RuleDefinition, RuleItem, RuleMode, RuleScope } from '../types/rul
 import { ModeSwitch } from './ModeSwitch';
 import { PlaceCommands } from './PlaceCommands';
 import { RuleEditor } from './RuleEditor';
+import { RuleHistory } from './RuleHistory';
 import { RuleList } from './RuleList';
 import { RuleStatusChip } from './RuleStatusChip';
 import { countdown, ruleState, when } from './rule-format';
@@ -379,5 +380,23 @@ describe('calendar rows in the editor', () => {
     await user.click(screen.getByRole('button', { name: 'Save rule' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0]![0].definition.onlyIf).toEqual({ all: [{ kind: 'date', from: '06-01', to: '09-30' }, { kind: 'holiday', is: true }] });
+  });
+});
+
+describe('RuleHistory', () => {
+  it('lists the runs as given, each with its mark, its words and its time', () => {
+    render(<RuleHistory now={NOW} runs={[{ at: NOW - 60_000, text: 'sent Fan on to Fan 1 ✓', ok: true }, { at: NOW - 3_600_000, text: 'Fan 1 did not answer', ok: false }]} />);
+    const items = screen.getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(within(items[0]!).getByText('Done')).toBeInTheDocument();
+    expect(within(items[0]!).getByText('sent Fan on to Fan 1 ✓')).toBeInTheDocument();
+    expect(within(items[1]!).getByText('Failed')).toBeInTheDocument();
+    expect(items[1]).toHaveAttribute('data-ok', 'false');
+  });
+  it('says so while loading and when there is nothing yet', () => {
+    const { rerender } = render(<RuleHistory now={NOW} runs={[]} loading />);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading the history');
+    rerender(<RuleHistory now={NOW} runs={[]} />);
+    expect(screen.getByText('It has not run yet.')).toBeInTheDocument();
   });
 });

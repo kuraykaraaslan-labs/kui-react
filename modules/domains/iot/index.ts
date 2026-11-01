@@ -148,6 +148,8 @@ export { RuleList } from './rules/RuleList';
 export type { RuleListProps } from './rules/RuleList';
 export { RuleEditor } from './rules/RuleEditor';
 export type { RuleEditorProps } from './rules/RuleEditor';
+export { RuleHistory } from './rules/RuleHistory';
+export type { RuleHistoryProps } from './rules/RuleHistory';
 export { ModeSwitch } from './rules/ModeSwitch';
 export type { ModeSwitchProps } from './rules/ModeSwitch';
 export { PlaceCommands } from './rules/PlaceCommands';

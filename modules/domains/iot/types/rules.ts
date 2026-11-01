@@ -58,6 +58,9 @@ export type RuleDefinition = {
   options: { overlap: 'ignore' | 'queue' | 'parallel' | 'restart'; max?: number; runInManual?: boolean };
 };
 
+/** One run of a rule as its History shows it: when, what it did in words, whether it went through. */
+export type RuleRun = { at: number; text: string; ok: boolean };
+
 /** A rule as the card lists it. `run` is what the card shows beside the name: when it last ran and what it did. */
 export type RuleItem = {
   ruleId: string;

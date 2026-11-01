@@ -395,6 +395,11 @@ export const IOT_MESSAGES = {
     statusOff: 'Off',
     lastRun: 'Last run {when}: {text}',
     neverRan: 'Has not run yet',
+    historyTitle: 'History · {name}',
+    historyLoading: 'Loading the history…',
+    historyEmpty: 'It has not run yet.',
+    runOk: 'Done',
+    runFailed: 'Failed',
     nextRun: 'Next {when}',
     /* mode */
     modeAuto: 'Auto',
