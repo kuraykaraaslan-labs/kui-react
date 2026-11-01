@@ -51,7 +51,7 @@ export function seriesChartModel(
   const stacked = preset !== 'line' && s.stacked === true;
   const result = mergeSeriesSlots(data);
   const byCategory = categoryMode(preset, s);
-  const timeSeries = preset === 'bar' || (preset === 'area' && (stacked || anyStack)) ? null : toTimeSeries(result);
+  const timeSeries = preset === 'bar' || (preset === 'area' && (stacked || anyStack)) ? null : toTimeSeries(result, locale);
   const pointShape = SHAPES.has(String(s.pointShape)) ? (s.pointShape as PointShape) : undefined;
   const base = byCategory
     ? rowsToCategorySeries(data.rows?.rows, { ...categoryOptions(s), name: data.rows?.columns?.find((c) => c.key === s.valueColumn)?.label })

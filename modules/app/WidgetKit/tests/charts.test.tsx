@@ -625,3 +625,19 @@ describe('chart texts from the host (WidgetKitProvider messages)', () => {
     expect(screen.getByText(/^Ort\. /)).toBeInTheDocument();
   });
 });
+
+describe('series names (next-boilerplate e2e run 1, V3-B7)', () => {
+  it('a series is shown under the label its source gives it, in the viewer\'s language; its id stays the key the rules match', async () => {
+    const { toTimeSeries, toBandSeries } = await import('../views/chart-data');
+    const result: SlotData = {
+      shape: 'series',
+      series: [
+        { name: 'savak_seviyesi', points: [{ t: '2026-10-31T10:00:00.000Z', v: 12 }], meta: { label: { en: 'Weir level', tr: 'Savak seviyesi' }, unit: 'cm' } },
+        { name: 'pil', points: [{ t: '2026-10-31T10:00:00.000Z', v: 87 }] },
+      ],
+    };
+    expect(toTimeSeries(result, 'tr')!.map((s) => [s.id, s.name])).toEqual([['savak_seviyesi', 'Savak seviyesi'], ['pil', 'pil']]);
+    expect(toTimeSeries(result, 'en')!.map((s) => s.name)).toEqual(['Weir level', 'pil']);
+    expect(toBandSeries(result, 'tr')!.map((s) => [s.id, s.name])).toEqual([['savak_seviyesi', 'Savak seviyesi'], ['pil', 'pil']]);
+  });
+});

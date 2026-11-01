@@ -7,6 +7,7 @@ import type { PointShape, Series } from '@/modules/ui/Chart';
 import { niceStep } from '@/modules/ui/Chart/charts/_helpers';
 import { clockText, dayMonthText } from '@/modules/ui/Chart/charts/_time';
 import type { SlotData } from '../kind';
+import { metaLabel } from '../settings/source-meta';
 import { cssColor, formatValue, type ValueFormat, type ValueFormatOverride } from '../settings/style';
 
 type Row = Record<string, unknown>;
@@ -101,6 +102,14 @@ export function formatAxisLabels(labels: string[], locale?: string, timeZone?: s
   return times.map((t) => new Date(t).toLocaleDateString(locale, { year: '2-digit', month: 'short', ...(timeZone ? { timeZone } : {}) }));
 }
 
+/**
+ * The name a series is shown under: the label its source gives it, in the viewer's language, else its key. The id stays the key, which the `series`
+ * rules match. Before, every legend read the raw key (`savak_seviyesi`, `charger.value`; next-boilerplate e2e run 1, V3-B7).
+ */
+function seriesName(s: NonNullable<SlotData['series']>[number], locale?: string): string {
+  return metaLabel(s.meta?.label, locale)?.trim() || s.name;
+}
+
 /** Band-axis series: every series aligned onto the union of timestamps (no shifted second series). */
 export function toBandSeries(result: SlotData | undefined, locale?: string): Series[] | null {
   const series = result?.series;
@@ -110,7 +119,7 @@ export function toBandSeries(result: SlotData | undefined, locale?: string): Ser
   const labels = formatAxisLabels(stamps, locale, result?.window?.explicitTimezone);
   return series.map((s) => {
     const byT = new Map(s.points.map((p) => [p.t, p.v]));
-    return { id: s.name, name: s.name, data: stamps.map((t, i) => ({ x: labels[i], y: byT.get(t) ?? null })) };
+    return { id: s.name, name: seriesName(s, locale), data: stamps.map((t, i) => ({ x: labels[i], y: byT.get(t) ?? null })) };
   });
 }
 
@@ -128,7 +137,7 @@ export function bandStampTimes(result: SlotData | undefined): number[] | null {
 }
 
 /** Time-axis series (x = epoch ms). Null when any timestamp is not a date (the band axis then applies). */
-export function toTimeSeries(result: SlotData | undefined): Series[] | null {
+export function toTimeSeries(result: SlotData | undefined, locale?: string): Series[] | null {
   const series = result?.series;
   if (!series || series.length === 0) return null;
   const out: Series[] = [];
@@ -141,7 +150,7 @@ export function toTimeSeries(result: SlotData | undefined): Series[] | null {
       data.push({ x: t, y: p.v });
       any = true;
     }
-    out.push({ id: s.name, name: s.name, data });
+    out.push({ id: s.name, name: seriesName(s, locale), data });
   }
   return any ? out : null;
 }
