@@ -134,7 +134,7 @@ export type {
   PredicateErrorPart,
   PredicateTextParts,
 } from './messages';
-export { loadAliasCatalog, useAliasCatalog } from './useAliasData';
+export { loadAliasCatalog, useAliasCatalog, useSubtypeNames } from './useAliasData';
 export type { AliasCatalog } from './useAliasData';
 export type {
   AliasEntitySelectItem,
