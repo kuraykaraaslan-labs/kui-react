@@ -44,6 +44,8 @@ export interface EntityAliasPickerProps {
   filterLabel?: string;
   /** What the host's run time takes beyond the plain rule (an alias of another kind by what it holds, one of many when one). */
   rules?: AliasSlotRules;
+  /** Subtype names by their stored value (a device profile's name for its id) for the aliases' summaries (`FilterTextOptions.subtypeNames`). */
+  subtypeNames?: Readonly<Record<string, string>>;
 }
 
 /** The picker's options: "None" first, then every alias, the ones that do not fit the slot disabled with the reason. */
@@ -54,6 +56,7 @@ export function aliasPickerOptions(
   params: readonly BoardParamInfo[],
   m: EntityAliasesMessages,
   rules?: AliasSlotRules,
+  subtypeNames?: Readonly<Record<string, string>>,
 ): ComboBoxOption[] {
   const plural = (key: string) => entityTypes.find((t) => t.key === key)?.labelPlural ?? key;
   const slotPlural = () => slot.entityTypes.map(plural).join(', ');
@@ -65,7 +68,7 @@ export function aliasPickerOptions(
         // A fit through the host's rules says how it is taken: what the entities hold, or one of many when there is one.
         const how = fit.via === 'held' ? m.takesHeld(plural(alias.filter.type === 'relationsQuery' ? '' : alias.filter.entityType), slotPlural(), slot.multiple)
           : fit.via === 'oneOfMany' ? m.takesOneOfMany : undefined;
-        return { value: alias.key, label: alias.name, description: how ?? entityFilterText(alias.filter, { entityTypes, params, messages: m }) };
+        return { value: alias.key, label: alias.name, description: how ?? entityFilterText(alias.filter, { entityTypes, params, messages: m, ...(subtypeNames ? { subtypeNames } : {}) }) };
       }
       const reason =
         fit.reason === 'multiple'
@@ -94,10 +97,11 @@ export function EntityAliasPicker({
   onFilterChange,
   filterLabel,
   rules,
+  subtypeNames,
 }: EntityAliasPickerProps) {
   const m = useMemo(() => mergeAliasMessages(messages), [messages]);
   const id = useId();
-  const options = aliasPickerOptions(aliases, slot, entityTypes, params, m, rules);
+  const options = aliasPickerOptions(aliases, slot, entityTypes, params, m, rules, subtypeNames);
   const showFilter = !!value && !!filters && (filters.length > 0 || !!filterValue);
   const filterOptions = (filters ?? []).map((f) => ({ value: f.key, label: f.name }));
   // A stored filter the board no longer has stays visible by its key, so it can be cleared.

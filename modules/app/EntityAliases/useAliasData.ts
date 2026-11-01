@@ -65,6 +65,31 @@ export function useAliasCatalog(access: EntityAliasesAccess, active = true) {
   };
 }
 
+/**
+ * The names of the subtypes the aliases' filters store (a device profile's name for its id), read once per entity type through the host's
+ * `subtypes` (next-boilerplate e2e round 5, V1-B6): what the filter summaries print instead of the stored ids. A value the host does not answer stays.
+ */
+export function useSubtypeNames(access: EntityAliasesAccess, aliases: ReadonlyArray<{ filter: unknown }>, active = true): Readonly<Record<string, string>> {
+  const accessRef = useLatestRef(access);
+  const types = [...new Set(aliases.flatMap((a) => {
+    const f = a.filter as { type?: string; entityType?: string; subtypes?: unknown } | null;
+    return f && (f.type === 'entitySubtype' || f.type === 'entitySearchQuery') && typeof f.entityType === 'string' && Array.isArray(f.subtypes) && f.subtypes.length ? [f.entityType] : [];
+  }))].sort().join('\n');
+  const [names, setNames] = useState<Readonly<Record<string, string>>>({});
+  useEffect(() => {
+    if (!active || !types) return;
+    let live = true;
+    for (const type of types.split('\n')) {
+      accessRef.current.subtypes(type, '').then(
+        (list) => { if (live) setNames((cur) => ({ ...cur, ...Object.fromEntries(list.filter((o) => o.label && o.label !== o.value).map((o) => [o.value, o.label])) })); },
+        () => { /* the stored values stand */ },
+      );
+    }
+    return () => { live = false; };
+  }, [active, types, accessRef]);
+  return names;
+}
+
 export function toEntityOption(ref: EntityRef): ComboBoxOption {
   const description = ref.label || ref.subtype || undefined;
   return { value: ref.id, label: ref.name, ...(description ? { description } : {}) };

@@ -34,6 +34,12 @@ describe('entityFilterText', () => {
     expect(text({ type: 'stateEntity', entityType: 'iot_asset', param: 'site' })).toBe("Asset from the page parameter 'site'");
   });
 
+  it('names a subtype by its name, never its stored id (next-boilerplate e2e round 5, V1-B6)', () => {
+    const id = '33b608b5-0000-4000-8000-000000000000';
+    expect(text({ type: 'entitySubtype', entityType: 'iot_device', subtypes: [id] }, { subtypeNames: { [id]: 'Cold room controller' } })).toBe('Devices of device profiles Cold room controller');
+    expect(text({ type: 'entitySearchQuery', entityType: 'iot_device', subtypes: [id], direction: 'from', root: { param: 'site' }, maxLevel: 1, provider: 'iot_asset' } as EntityAliasFilter, { subtypeNames: { [id]: 'Pump' } })).toContain('Devices of device profiles Pump');
+  });
+
   it('entity subtype, with and without a name prefix', () => {
     expect(text({ type: 'entitySubtype', entityType: 'iot_device', subtypes: ['Pump', 'Tank'], namePrefix: 'A' })).toBe(
       "Devices of device profiles Pump, Tank whose name starts with 'A'",

@@ -15,7 +15,7 @@ import { EntityAliasDialog } from './EntityAliasDialog';
 import { entityFilterText } from './filter-text';
 import { normalizeAlias } from './filters';
 import { mergeAliasMessages, type EntityAliasesMessagesInput } from './messages';
-import { useAliasCatalog } from './useAliasData';
+import { useAliasCatalog, useSubtypeNames } from './useAliasData';
 import { MAX_ALIASES, validateAliases, type AliasErrors } from './validate';
 import type { BoardParamInfo, EntityAlias, EntityAliasesAccess } from './types';
 
@@ -57,6 +57,7 @@ export function EntityAliasesDialog({
   const idBase = useId();
   const { entityTypes, providers } = useAliasCatalog(access, open);
   const [list, setList] = useState<EntityAlias[]>(() => [...aliases]);
+  const subtypeNames = useSubtypeNames(access, list, open);
   const [dirty, setDirty] = useState(false);
   const [editing, setEditing] = useState<number | null>(null); // -1 = adding
   const [blocked, setBlocked] = useState<{ name: string; widgets: readonly string[] } | null>(null);
@@ -191,7 +192,7 @@ export function EntityAliasesDialog({
                         <p className="truncate font-mono text-xs text-text-disabled">{alias.key}</p>
                       </div>
                       <p className="col-span-3 min-w-0 text-sm text-text-secondary sm:col-span-1">
-                        {entityFilterText(alias.filter, { entityTypes, params, messages: m, relationProviders: providers })}
+                        {entityFilterText(alias.filter, { entityTypes, params, messages: m, relationProviders: providers, subtypeNames })}
                         {firstError && (
                           <span className="block text-xs text-error">{m.error(firstError[0], firstError[1])}</span>
                         )}

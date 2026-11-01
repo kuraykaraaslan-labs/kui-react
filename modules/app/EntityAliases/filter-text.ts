@@ -13,6 +13,11 @@ export interface FilterTextOptions {
   relationProviders?: readonly RelationProviderInfo[];
   /** Entity names by id, for a single entity or a fixed root (the entity type is shown otherwise). */
   entityNames?: Readonly<Record<string, string>>;
+  /**
+   * Subtype names by their stored value (a device profile's name for its id: next-boilerplate e2e round 5, V1-B6, the summary said "Devices of device
+   * profile 33b608b5-…"); the stored value is shown otherwise.
+   */
+  subtypeNames?: Readonly<Record<string, string>>;
 }
 
 const capitalize = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
@@ -27,6 +32,7 @@ export function entityFilterText(filter: EntityAliasFilter | null | undefined, o
   const paramLabel = (key: string) => options.params.find((p) => p.key === key)?.label ?? key;
   const relationLabel = (provider: string, value: string) =>
     options.relationProviders?.find((p) => p.key === provider)?.relationTypes.find((r) => r.value === value)?.label ?? value;
+  const subtypes = (list: readonly string[] | undefined) => (list ?? []).map((v) => options.subtypeNames?.[v] ?? v);
   const rootText = (root: AliasRoot | undefined) => {
     if (!root) return '';
     if ('param' in root) return m.textRootParam(paramLabel(root.param));
@@ -46,7 +52,7 @@ export function entityFilterText(filter: EntityAliasFilter | null | undefined, o
       return capitalize(m.textState(one(filter.entityType), paramLabel(filter.param)));
     case 'entitySubtype':
       return capitalize(
-        m.textSubtype(many(filter.entityType), info(filter.entityType)?.subtypeLabel, filter.subtypes ?? [], filter.namePrefix?.trim() || undefined),
+        m.textSubtype(many(filter.entityType), info(filter.entityType)?.subtypeLabel, subtypes(filter.subtypes), filter.namePrefix?.trim() || undefined),
       );
     case 'relationsQuery': {
       const filters = filter.filters ?? [];
@@ -66,7 +72,7 @@ export function entityFilterText(filter: EntityAliasFilter | null | undefined, o
       );
     }
     case 'entitySearchQuery': {
-      const what = m.textSubtypesOf(many(filter.entityType), info(filter.entityType)?.subtypeLabel, filter.subtypes ?? []);
+      const what = m.textSubtypesOf(many(filter.entityType), info(filter.entityType)?.subtypeLabel, subtypes(filter.subtypes));
       return capitalize(
         m.textRelations(
           what,

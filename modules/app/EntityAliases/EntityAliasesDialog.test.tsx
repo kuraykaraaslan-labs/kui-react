@@ -37,6 +37,15 @@ describe('EntityAliasesDialog', () => {
     expect(screen.getByText('One device')).toBeInTheDocument();
   });
 
+  it('names a subtype filter by the names the host gives its subtypes, never their ids (next-boilerplate e2e round 5, V1-B6)', async () => {
+    const id = '33b608b5-0000-4000-8000-000000000000';
+    const access = { ...demoAccess(), subtypes: vi.fn(async () => [{ value: id, label: 'Cold room controller' }]) };
+    setup({ access, aliases: [{ key: 'rooms', name: 'Rooms', resolveMultiple: true, filter: { type: 'entitySubtype', entityType: 'iot_device', subtypes: [id] } }] });
+    expect(await screen.findByText('Devices of device profiles Cold room controller')).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(id))).toBeNull();
+    expect(access.subtypes).toHaveBeenCalledWith('iot_device', '');
+  });
+
   it('refuses to remove an alias a widget uses and names the widgets', () => {
     const { onSave } = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Remove alias Pumps' }));
