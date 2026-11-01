@@ -11,6 +11,7 @@ import type { IotMessagesInput } from '../messages';
 import type { RuleDefinition, RuleProblem, RuleScope, RuleTestResult } from '../types/rules';
 import { ActionList, ConditionGroup, TriggerList, type RuleRowsContext } from './RuleRows';
 import { actsOnDevices, collectIds, draftProblems, emptyDefinition, emptyTrigger, freshId, problemsAt } from './rule-draft';
+import { READY_KEYS, readyLabel, readyRule, type ReadyKey } from './rule-ready';
 
 /**
  * RuleEditor — the body of the card's drawer (docs/concepts/iot-rules 05 §5.1, OD-201): a rule as four blocks of sentences, When (any of
@@ -60,6 +61,8 @@ export function RuleEditor({
   const [tried, setTried] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [readyKey, setReadyKey] = useState('');
+
 
   const own = useMemo(() => draftProblems(name, def, m.rules), [name, def, m.rules]);
   const shown = tried ? [...own, ...problems] : [...problems];
@@ -86,8 +89,25 @@ export function RuleEditor({
 
   const addTrigger = () => setDef((d) => ({ ...d, when: [...d.when, emptyTrigger('value', freshId('t', collectIds(d)))] }));
 
+  // a ready rule only starts the draft: the name is kept when the person already typed one, nothing is saved
+  const startFrom = (key: string) => {
+    if (!key) return;
+    const r = readyRule(key as ReadyKey, m.rules);
+    setDef(r.definition);
+    setName((n) => (n.trim() ? n : r.name));
+    setTried(false);
+    setReadyKey(key);
+  };
   return (
     <div className={cn('flex flex-col gap-6', className)}>
+      {!initial ? (
+        <div>
+          <Select
+            id="rule-ready" label={m.rules.readyLabel} value={readyKey} hint={m.rules.readyHint} onChange={(e) => startFrom(e.target.value)}
+            options={[{ value: '', label: m.rules.readyNone }, ...READY_KEYS.map((k) => ({ value: k, label: readyLabel(m.rules, k) }))]}
+          />
+        </div>
+      ) : null}
       <div>
         <label className="flex flex-col gap-1 text-sm font-medium text-text-primary">
           {m.rules.name}

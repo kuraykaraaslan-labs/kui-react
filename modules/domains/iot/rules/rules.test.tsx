@@ -8,6 +8,9 @@ import { RuleEditor } from './RuleEditor';
 import { RuleList } from './RuleList';
 import { RuleStatusChip } from './RuleStatusChip';
 import { countdown, ruleState, when } from './rule-format';
+import { READY_KEYS, readyLabel, readyRule } from './rule-ready';
+import { draftProblems } from './rule-draft';
+import { IOT_MESSAGES } from '../messages';
 
 /** The Rules card's components (docs/concepts/iot-rules 05): sentences by name, Manual / Auto, the list, the commands. */
 const NOW = new Date('2026-11-02T12:00:00Z').getTime();
@@ -295,5 +298,54 @@ describe('RuleEditor', () => {
   it('"Also runs in Manual" is not offered to a rule that acts on devices', () => {
     render(<RuleEditor scope={scope} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText('Also runs in Manual')).toBeDisabled();
+  });
+});
+
+describe('ready-made rules', () => {
+  const m = IOT_MESSAGES.rules;
+
+  it('every ready rule is a sound starting point: only the devices, values and commands are left to pick, never a number or a structure', () => {
+    for (const key of READY_KEYS) {
+      const r = readyRule(key, m);
+      expect(r.name.length, key).toBeGreaterThan(0);
+      const left = new Set(draftProblems(r.name, r.definition, m).map((p) => String(p.path.at(-1))));
+      for (const p of left) expect(['target', 'key', 'command', 'value'], `${key}: ${p}`).toContain(p);
+      expect(readyLabel(m, key).length, key).toBeGreaterThan(0);
+    }
+  });
+
+  it('their ids are unique and the structure is the sentence it names', () => {
+    const offline = readyRule('offline', m).definition;
+    expect(offline.when[0]).toMatchObject({ kind: 'status', to: 'offline' });
+    expect(offline.then.map((a) => a.kind)).toEqual(['wait', 'choose']);
+    expect(readyRule('every', m).definition.onlyIf).toMatchObject({ kind: 'time', after: '08:00', before: '20:00' });
+    expect(readyRule('onHigh', m).definition.when[0]).toMatchObject({ kind: 'value', change: 'above', forSec: 300 });
+    expect(readyRule('afterOn', m).definition.then.map((a) => a.kind)).toEqual(['wait', 'command']);
+    for (const key of READY_KEYS) {
+      const ids: string[] = [];
+      const def = readyRule(key, m).definition;
+      def.when.forEach((t) => ids.push(t.id));
+      const walk = (list: typeof def.then) => list.forEach((a) => { ids.push(a.id); if (a.kind === 'choose') a.branches.forEach((b) => walk(b.then)); });
+      walk(def.then);
+      expect(new Set(ids).size, key).toBe(ids.length);
+    }
+  });
+
+  it('a new rule offers them; picking one fills the draft and the name, a typed name is kept, and an edited rule has no picker', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<RuleEditor scope={scope} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.type(screen.getByLabelText('Name'), 'My own name');
+    await user.selectOptions(screen.getByLabelText('Start from a ready rule'), 'sunset');
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('My own name');
+    expect(screen.getByLabelText('What', { selector: '#trigger-t1-kind' })).toHaveValue('sun');
+    unmount();
+    render(<RuleEditor scope={scope} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText('Start from a ready rule'), 'onHigh');
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Turn on when high');
+  });
+
+  it('is not offered when a rule is being edited', () => {
+    render(<RuleEditor scope={scope} initial={{ name: 'x', definition: readyRule('sunset', m).definition }} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.queryByLabelText('Start from a ready rule')).toBeNull();
   });
 });
