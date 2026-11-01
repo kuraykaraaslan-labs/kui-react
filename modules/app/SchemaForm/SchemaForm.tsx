@@ -78,7 +78,18 @@ export function SchemaForm({
     setJsonBad({});
   }
   useEffect(() => { localRef.current = local; }, [local]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // A write still waiting for its debounce is made when the form loses focus or goes away (a Save that closes the form, a tab switch):
+  // before, the timer was only cleared and the last edit was lost (next-boilerplate e2e run 1: a gauge's "Maximum 1100", a chart's keys).
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const pending = useRef<Record<string, unknown> | null>(null);
+  const flush = () => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+    const next = pending.current;
+    pending.current = null;
+    if (next) onChangeRef.current(next);
+  };
+  useEffect(() => () => flush(), []);
 
   const update = (key: string, value: unknown) => {
     if (readOnly) return;
@@ -86,8 +97,9 @@ export function SchemaForm({
     localRef.current = next;
     setLocal(next);
     if (timer.current) clearTimeout(timer.current);
-    if (debounceMs <= 0) onChange(next);
-    else timer.current = setTimeout(() => onChange(next), debounceMs);
+    if (debounceMs <= 0) { pending.current = null; onChange(next); return; }
+    pending.current = next;
+    timer.current = setTimeout(flush, debounceMs);
   };
 
   const q = search.trim().toLowerCase();
@@ -136,7 +148,7 @@ export function SchemaForm({
   return (
     <SchemaFormMessagesProvider value={m}>
       <OptionPreviewProvider value={preview}>
-        <fieldset disabled={readOnly} className={cn('min-w-0 space-y-4', className)}>
+        <fieldset disabled={readOnly} className={cn('min-w-0 space-y-4', className)} onBlur={flush}>
           {searchable && Object.keys(schema).length > 6 && (
             <input type="search" aria-label={m.searchLabel} value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder={m.searchPlaceholder} className={controlCls} />

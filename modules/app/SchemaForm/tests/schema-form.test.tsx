@@ -47,6 +47,32 @@ describe('SchemaForm', () => {
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ title: 'Hi' }));
   });
 
+  // next-boilerplate e2e run 1: a gauge's "Maximum 1100" and a chart's "Keys: auto" were lost when the form closed inside the debounce
+  it('a pending edit is written when the form goes away, not lost with its timer', () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+    const { unmount } = render(<SchemaForm schema={schema} values={{}} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText(/Title/), { target: { value: '1100' } });
+    expect(onChange).not.toHaveBeenCalled();
+    unmount();
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ title: '1100' }));
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('a pending edit is written when the form loses focus, once', () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+    render(<SchemaForm schema={schema} values={{}} onChange={onChange} />);
+    const input = screen.getByLabelText(/Title/);
+    fireEvent.change(input, { target: { value: 'auto' } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ title: 'auto' }));
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it('renders an injected override for an app-bound type', () => {
     const Media = ({ value }: { value: unknown }) => <div data-testid="media">{String(value)}</div>;
     render(<SchemaForm schema={schema} values={{ pic: 'u.png' }} onChange={() => {}} fieldOverrides={{ media: Media }} />);

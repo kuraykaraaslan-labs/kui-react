@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { TabGroup, type Tab } from '@/modules/ui/TabGroup';
@@ -67,6 +67,12 @@ export function WidgetSettingsEditor({
   extraTabs = {}, issues = [], className,
 }: WidgetSettingsEditorProps) {
   const { fieldOverrides, templateText, renderPreview } = useWidgetKit();
+  // A template form writes after its debounce, or when it loses focus or goes away: onto the settings as they are then, never the ones of the
+  // render the edit was typed in, so two templates edited within one window do not overwrite each other.
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
   // Layout thumbnails: the host's drawing for an id it knows, else WidgetKit's.
   const preview = useCallback((id: string) => renderPreview?.(id) ?? renderWidgetPreview(id), [renderPreview]);
   const msgs = useKitMessages();
@@ -139,7 +145,7 @@ export function WidgetSettingsEditor({
               errors={errors}
               debounceMs={150}
               fieldFilter={advanced ? undefined : (_k, f, v, d) => !f.advanced || (v !== undefined && JSON.stringify(v) !== JSON.stringify(d))}
-              onChange={(next) => onChange(writeNamespace(settings, t, prune(next, base)))}
+              onChange={(next) => onChangeRef.current(writeNamespace(settingsRef.current, t, prune(next, base)))}
             />
           )}
           {Object.keys(retiring).length > 0 && (

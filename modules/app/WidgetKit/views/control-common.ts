@@ -159,7 +159,7 @@ export function feedbackFields(group = 'feedback') {
     successText: text('After success', 'Done'),
     failureText: text('After a failure', 'The change failed.', 'The reason the write failed is added after it.'),
     confirmQuestion: text('Confirmation question', 'Are you sure?',
-      'Shown when the command asks for confirmation. Only the wording changes: whether to ask, and the text to type, stay the command’s.'),
+      'Shown when the control asks before it sends. Only the wording changes; the text to type stays the command’s.'),
     confirmLabel: text('Confirm button', 'Confirm'),
     cancelLabel: text('Cancel button', 'Cancel'),
   };
