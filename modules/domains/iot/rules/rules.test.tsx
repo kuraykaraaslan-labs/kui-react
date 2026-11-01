@@ -230,7 +230,7 @@ describe('RuleEditor', () => {
   });
 
   it('builds a rule by picking names: device, value, how it changes, a number, a command; saving a rule that acts on devices asks for the author’s tick', async () => {
-    const onSave = vi.fn(async () => undefined);
+    const onSave = vi.fn(async (_input: unknown) => undefined);
     const user = userEvent.setup();
     render(<RuleEditor scope={scope} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
     await user.type(screen.getByLabelText('Name'), 'Fan on when hot');

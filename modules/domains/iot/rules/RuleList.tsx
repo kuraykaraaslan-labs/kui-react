@@ -35,7 +35,8 @@ export type RuleListProps = {
   onRun: (rule: RuleItem) => void;
   onEdit: (rule: RuleItem) => void;
   onDuplicate: (rule: RuleItem) => void;
-  onHistory: (rule: RuleItem) => void;
+  /** Absent: the row has no History (the host keeps no run history for the rule yet). */
+  onHistory?: (rule: RuleItem) => void;
   onDelete: (rule: RuleItem) => Promise<void>;
   locale?: string;
   messages?: IotMessagesInput;
@@ -64,7 +65,7 @@ export function RuleList({
   const menu = (r: RuleItem) => [
     ...(canRun ? [{ id: 'run', label: m.rules.runNow, onClick: () => onRun(r), disabled: !r.enabled || r.status !== 'ok' }] : []),
     ...(canManage ? [{ label: m.rules.edit, onClick: () => onEdit(r) }, { label: m.rules.duplicate, onClick: () => onDuplicate(r) }] : []),
-    { label: m.rules.history, onClick: () => onHistory(r) },
+    ...(onHistory ? [{ id: 'history', label: m.rules.history, onClick: () => onHistory(r) }] : []),
     ...(canManage ? [{ label: m.rules.delete, onClick: () => { setError(undefined); setDeleting(r); }, danger: true }] : []),
   ];
 
@@ -82,7 +83,7 @@ export function RuleList({
               />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={() => (canManage ? onEdit(r) : onHistory(r))} className="truncate text-sm font-medium text-text-primary hover:underline">{r.name}</button>
+                  <button type="button" onClick={() => (canManage ? onEdit(r) : onHistory?.(r))} className="truncate text-sm font-medium text-text-primary hover:underline">{r.name}</button>
                   <RuleStatusChip rule={r} now={now} messages={messages} />
                 </div>
                 {r.status === 'needs_attention' && r.statusReason ? <p className="mt-1 text-xs text-error-fg">{r.statusReason}</p> : null}
