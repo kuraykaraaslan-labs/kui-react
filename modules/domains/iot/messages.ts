@@ -569,7 +569,7 @@ export const IOT_MESSAGES = {
     aWait: 'Wait',
     aWaitUntil: 'Wait until something holds',
     aChoose: 'Choose by a condition',
-    aRule: 'Switch another rule',
+    aRule: 'Switch or start another rule',
     toDevice: 'to',
     settingKey: 'Setting',
     settingValue: 'to',
@@ -594,6 +594,7 @@ export const IOT_MESSAGES = {
     addChoice: 'Add a choice',
     ruleSwitchOn: 'Switch on',
     ruleSwitchOff: 'Switch off',
+    ruleStart: 'Start it (must be the last step)',
     ruleWhich: 'Rule',
     /* ready-made rules */
     readyLabel: 'Start from a ready rule',

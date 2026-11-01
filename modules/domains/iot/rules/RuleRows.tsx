@@ -442,7 +442,7 @@ function ActionRow({ a, path, ctx, onChange, takenIds }: { a: RuleAction; path: 
         ) : null}
         {a.kind === 'rule' ? (
           <>
-            <Pick id={`${id}-op`} label={m.aRule} value={a.op} options={[{ value: 'enable', label: m.ruleSwitchOn }, { value: 'disable', label: m.ruleSwitchOff }]} onChange={(v) => onChange({ ...a, op: v as 'enable' | 'disable' })} />
+            <Pick id={`${id}-op`} label={m.aRule} value={a.op} options={[{ value: 'enable', label: m.ruleSwitchOn }, { value: 'disable', label: m.ruleSwitchOff }, { value: 'run', label: m.ruleStart }]} onChange={(v) => onChange({ ...a, op: v as 'enable' | 'disable' | 'run' })} />
             <Pick id={`${id}-rule`} label={m.ruleWhich} value={a.rule} placeholder={m.ruleWhich} options={(ctx.otherRules ?? []).map((r) => ({ value: r.ruleId, label: r.name }))} onChange={(v) => onChange({ ...a, rule: v })} />
           </>
         ) : null}
