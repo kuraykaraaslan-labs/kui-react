@@ -183,7 +183,9 @@ export function DropdownMenu({
   placement?: 'bottom' | 'top';
   /**
    * Render the open menu in `document.body` with fixed positioning, so a scrolling or
-   * clipping parent (a table's overflow wrapper) cannot cut it off.
+   * clipping parent (a table's overflow wrapper) cannot cut it off. A portalled menu sits above
+   * every overlay (a Drawer, a Modal: `z-[100]`), since its trigger may be inside one (next-boilerplate
+   * e2e round 5, V1-B14: the menu of a panel in a site's drawer opened behind the drawer).
    */
   portal?: boolean;
   /** Grouped items: a heading for each group key listed here, in place of its separator. */
@@ -428,7 +430,7 @@ export function DropdownMenu({
       onKeyDown={onMenuKeyDown}
       className={cn(
         floating
-          ? 'fixed z-[60] min-w-[10rem] rounded-lg border border-border bg-surface-raised shadow-lg py-1'
+          ? 'fixed z-[110] min-w-[10rem] rounded-lg border border-border bg-surface-raised shadow-lg py-1'
           : cn('absolute z-[60] min-w-[10rem] rounded-lg border border-border bg-surface-raised shadow-lg py-1', up ? 'bottom-full mb-1' : 'mt-1'),
         floating && up && 'overflow-y-auto',
         !floating && (align === 'right' ? 'right-0' : 'left-0'),

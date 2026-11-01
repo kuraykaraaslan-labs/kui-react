@@ -44,6 +44,8 @@ export function ComboBox({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  // Set while the clear button gives the focus back: that focus must not open the list again (next-boilerplate e2e round 5, V1-B17).
+  const quietFocus = useRef(false);
   // True once the user has typed since the list opened. Until then the input
   // still shows the selected label, but the list is not filtered by it.
   const [typed, setTyped] = useState(false);
@@ -77,6 +79,11 @@ export function ComboBox({
   // Local fuzzy filter only when async is NOT in play.
   const localFiltered = useFilter(sourceOptions, searchQuery);
   const filteredOptions = onSearch ? sourceOptions : localFiltered;
+
+  // While the person types, the first match is highlighted, so Enter takes it (next-boilerplate e2e round 5, V1-B16: typing reset the highlight and
+  // Enter picked nothing). An arrow key moves from there; a list still loading highlights nothing yet.
+  const firstMatch = searchQuery.trim() !== '' && !loading ? filteredOptions.findIndex((o) => !o.disabled) : -1;
+  const activeIndex = highlightedIndex >= 0 ? highlightedIndex : firstMatch;
 
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -127,12 +134,15 @@ export function ComboBox({
     setQuery('');
     setOpen(false);
     setHighlightedIndex(-1);
+    // the focus goes back to the field without opening the list again (V1-B17); the flag is down again once the focus has landed
+    quietFocus.current = true;
     inputRef.current?.focus();
+    quietFocus.current = false;
   }
 
   function moveHighlight(direction: 1 | -1) {
     if (filteredOptions.length === 0) return;
-    let idx = highlightedIndex;
+    let idx = activeIndex;
     for (let i = 0; i < filteredOptions.length; i += 1) {
       idx = (idx + direction + filteredOptions.length) % filteredOptions.length;
       if (!filteredOptions[idx]?.disabled) {
@@ -181,9 +191,9 @@ export function ComboBox({
       return;
     }
     if (event.key === 'Enter') {
-      if (!open || highlightedIndex < 0) return;
+      if (!open || activeIndex < 0) return;
       event.preventDefault();
-      const opt = filteredOptions[highlightedIndex];
+      const opt = filteredOptions[activeIndex];
       if (opt) handleSelect(opt);
       return;
     }
@@ -221,9 +231,9 @@ export function ComboBox({
         error={error}
         clearable={clearable}
         open={open}
-        highlightedIndex={highlightedIndex}
+        highlightedIndex={activeIndex}
         showClear={!!selectedValue}
-        onFocus={() => { if (!disabled) setOpen(true); }}
+        onFocus={() => { if (!disabled && !quietFocus.current) setOpen(true); }}
         onChange={(next) => {
           setQuery(next);
           setTyped(true);
@@ -247,7 +257,7 @@ export function ComboBox({
           listboxId={listboxId}
           options={filteredOptions}
           selectedValue={selectedValue}
-          highlightedIndex={highlightedIndex}
+          highlightedIndex={activeIndex}
           loading={loading}
           loadingMore={loadingMore}
           noResultsText={noResultsText ?? m.noResults}

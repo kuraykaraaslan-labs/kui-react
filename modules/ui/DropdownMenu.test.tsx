@@ -186,6 +186,8 @@ describe('DropdownMenu', () => {
       const menu = screen.getByRole('menu');
       expect(container.contains(menu)).toBe(false);
       expect(menu.className).toContain('fixed');
+      // above every overlay (a Drawer or a Modal is z-[100]): its trigger may sit in one (next-boilerplate e2e round 5, V1-B14)
+      expect(menu.className).toContain('z-[110]');
       // A click inside the portalled menu is not an outside click.
       await user.click(screen.getByRole('menuitem', { name: 'Edit' }));
       expect(onClick).toHaveBeenCalledTimes(1);

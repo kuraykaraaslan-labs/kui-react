@@ -136,6 +136,40 @@ describe('ComboBox', () => {
     expect(screen.getByText('Nothing here.')).toBeInTheDocument();
   });
 
+  it('highlights the first match while typing, so Enter takes it (next-boilerplate e2e round 5, V1-B16)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<ComboBox id="fruit" label="Fruit" options={FRUITS} onChange={onChange} />);
+    const input = screen.getByRole('searchbox', { name: 'Fruit' });
+    await user.click(input);
+    // nothing typed: nothing highlighted, Enter takes nothing
+    expect(input).not.toHaveAttribute('aria-activedescendant');
+    await user.keyboard('an');
+    expect(input).toHaveAttribute('aria-activedescendant', 'fruit-option-0');
+    await user.keyboard('{Enter}');
+    expect(onChange).toHaveBeenCalledWith('banana');
+    expect(screen.queryByRole('listbox')).toBeNull();
+    // an arrow moves on from the first match
+    await user.clear(input);
+    await user.keyboard('a');
+    await user.keyboard('{ArrowDown}{Enter}');
+    expect(onChange).toHaveBeenLastCalledWith('banana');
+  });
+
+  it('clearing gives the focus back without opening the list again (next-boilerplate e2e round 5, V1-B17)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<ComboBox id="fruit" label="Fruit" options={FRUITS} value="banana" onChange={onChange} />);
+    const input = screen.getByRole('searchbox', { name: 'Fruit' });
+    await user.click(screen.getByRole('button', { name: DEFAULT_COMBOBOX_MESSAGES.clear }));
+    expect(onChange).toHaveBeenCalledWith('');
+    expect(input).toHaveFocus();
+    expect(screen.queryByRole('listbox')).toBeNull();
+    // the next click or keystroke opens it as usual
+    await user.click(input);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+  });
+
   it('messages.loading is announced while an async search is pending', async () => {
     const user = userEvent.setup();
     const never = () => new Promise<ComboBoxOption[]>(() => {});
