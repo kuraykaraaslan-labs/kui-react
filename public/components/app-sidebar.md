@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2025-03
 
-Collapsible side navigation. Accepts navGroups or navItems with a built-in collapse toggle. The searchable prop adds an inline filter; a header slot (above the nav groups) and a footer slot can host a workspace switcher, a user block or any content. Item badges take a count or any node. Items nest through children, indented behind a disclosure toggle; the branch holding the active item opens, also when activeId changes after client-side navigation, and search keeps the branch down to a match. renderLink swaps the plain anchors for a router Link. headerClassName / footerClassName style the slot wrappers, e.g. to hide the whole strip at a breakpoint. The active item, link or button, is marked aria-current="page"; collapsed, the nav shows top-level items only and reserves no scrollbar gutter, so the icons stay centered.
+Collapsible side navigation. Accepts navGroups or navItems with a built-in collapse toggle. The searchable prop adds an inline filter; a header slot (above the nav groups) and a footer slot can host a workspace switcher, a user block or any content. Item badges take a count or any node. Items nest through children, indented behind a disclosure toggle; the branch holding the active item opens, also when activeId changes after client-side navigation, and search keeps the branch down to a match. renderLink swaps the plain anchors for a router Link; an external item (href + external) stays a plain anchor that opens a new tab, with a trailing outside-link icon and a hidden "(opens in a new tab)" note (messages.opensInNewTab), and is never marked active. headerClassName / footerClassName style the slot wrappers, e.g. to hide the whole strip at a breakpoint. The active item, link or button, is marked aria-current="page"; collapsed, the nav shows top-level items only and reserves no scrollbar gutter, so the icons stay centered.
 
 ## Design tokens consumed
 
@@ -86,6 +86,7 @@ Collapsible side navigation. Accepts navGroups or navItems with a built-in colla
       { id: 'writing', label: 'Writing pages', href: '/docs/guides/writing' },
       { id: 'advanced', label: 'Advanced', children: [ /* ... */ ] },    // no page: the row toggles
     ] },
+    { id: 'kuray-dev', label: 'kuray.dev', href: 'https://kuray.dev', external: true }, // new tab + outside-link icon
   ]}
   activeId={pathname}                                // its branch opens, also after client-side navigation
   renderLink={(item, props) => <Link {...props} />}  // next/link instead of full page loads

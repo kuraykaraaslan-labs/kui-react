@@ -51,6 +51,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `AppSidebar` external items (next-boilerplate phase 54, custom menu links): `AppSidebarNavItem.external` with `href` draws the row as a
+  plain anchor that opens a new tab (`target="_blank"`, `rel="noopener noreferrer"`; `renderLink` is not used), classed like any item, with
+  a trailing outside-link icon (`faArrowUpRightFromSquare`, `shrink-0 w-3 h-3 text-text-disabled`, `aria-hidden`) and a visually hidden
+  note after the label, so its name reads "kuray.dev (opens in a new tab)". Collapsed, the icon and the note go and the title carries the
+  label with the note. An external item is never marked active (nor does it light up its group or a collapsed parent). New `messages` prop
+  (`AppSidebarMessages`, `DEFAULT_APP_SIDEBAR_MESSAGES`: `opensInNewTab`). Showcase: the nested demo gains a `kuray.dev` link.
 - `EditDeviceDrawer` and `IotDevicesApi.update` (IoT kit): the device page's header gets an Edit button (with `canEditDevice` and a host that
   implements `devices.update`) opening a drawer for the name, label, type, profile, status (active or disabled; a quarantined device is
   approved with Activate) and the additional info (a JSON object, `DeviceRecord.additionalInfo`); only the changed fields are sent, the

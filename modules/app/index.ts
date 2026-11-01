@@ -4,12 +4,13 @@
 
 // Shell + layout
 export { AppShell } from './AppShell';
-export { AppSidebar } from './AppSidebar';
+export { AppSidebar, DEFAULT_APP_SIDEBAR_MESSAGES } from './AppSidebar';
 export type {
   AppSidebarNavItem,
   AppSidebarNavGroup,
   AppSidebarFooterRenderContext,
   AppSidebarSlotRenderContext,
+  AppSidebarMessages,
 } from './AppSidebar';
 export { AppTopBar } from './AppTopBar';
 export type { AppTopBarItem, AppTopBarRegion } from './AppTopBar';

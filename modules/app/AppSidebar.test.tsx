@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppSidebar } from './AppSidebar';
 
@@ -199,6 +199,65 @@ describe('AppSidebar', () => {
     expect(link).toHaveAttribute('href', '/home');
     expect(link).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('button', { name: 'Inbox' })).not.toHaveAttribute('data-router');
+  });
+
+  describe('external items', () => {
+    const LINKS = [
+      { id: 'home', label: 'Home', href: '/home' },
+      { id: 'site', label: 'kuray.dev', href: 'https://kuray.dev', external: true },
+    ];
+    const outsideIcon = (link: HTMLElement) => link.querySelector('svg.fa-arrow-up-right-from-square');
+
+    it('opens in a new tab with noopener noreferrer, a trailing icon and a hidden note', () => {
+      render(<AppSidebar navItems={LINKS} searchable={false} />);
+      // jsdom drops the note's leading space (no CSS, so no block boundary); a browser reads it.
+      const link = screen.getByRole('link', { name: /^kuray\.dev ?\(opens in a new tab\)$/ });
+      expect(link).toHaveAttribute('href', 'https://kuray.dev');
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      expect(outsideIcon(link)).toHaveAttribute('aria-hidden', 'true');
+      expect(outsideIcon(link)).toHaveClass('shrink-0', 'w-3', 'h-3', 'text-text-disabled');
+      expect(link.querySelector('.sr-only')).toHaveTextContent('(opens in a new tab)');
+      expect(link.className).toBe(screen.getByRole('link', { name: 'Home' }).className);
+      expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('target');
+    });
+
+    it('takes the hidden note from messages', () => {
+      render(<AppSidebar navItems={LINKS} searchable={false} messages={{ opensInNewTab: '(new tab)' }} />);
+      expect(screen.getByRole('link', { name: /^kuray\.dev ?\(new tab\)$/ })).toBeInTheDocument();
+    });
+
+    it('collapsed: no icon, the title carries the label and the note', () => {
+      render(<AppSidebar navItems={LINKS} collapsed searchable={false} />);
+      const link = screen.getByRole('link', { name: 'kuray.dev (opens in a new tab)' });
+      expect(link).toHaveAttribute('title', 'kuray.dev (opens in a new tab)');
+      expect(outsideIcon(link)).toBeNull();
+      expect(link.querySelector('.sr-only')).toBeNull();
+    });
+
+    it('is never marked active and bypasses renderLink', () => {
+      render(
+        <AppSidebar
+          navGroups={[{ label: 'Links', collapsible: true, items: LINKS }]}
+          activeId="site"
+          searchable={false}
+          renderLink={(item, props) => <a data-router={item.id} {...props} />}
+        />,
+      );
+      expect(screen.getByRole('button', { name: 'Links' })).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(screen.getByRole('button', { name: 'Links' }));
+      const link = screen.getByRole('link', { name: /kuray\.dev/ });
+      expect(link).not.toHaveAttribute('aria-current');
+      expect(link).not.toHaveAttribute('data-router');
+      expect(link.className).not.toContain('bg-primary-subtle');
+      expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('data-router', 'home');
+    });
+
+    it('without href the flag is ignored: a plain button', () => {
+      render(<AppSidebar navItems={[{ id: 'x', label: 'Nowhere', external: true }]} searchable={false} />);
+      expect(screen.getByRole('button', { name: 'Nowhere' })).toBeInTheDocument();
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    });
   });
 
   it('puts headerClassName and footerClassName on the slot wrappers', () => {

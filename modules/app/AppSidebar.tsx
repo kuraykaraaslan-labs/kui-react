@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { isBrowser } from '@/libs/utils/isBrowser';
 import { Badge } from '@/modules/ui/Badge';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faChevronDown, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
+import { faArrowUpRightFromSquare, faChevronLeft, faChevronDown, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
 
 export type AppSidebarNavItem = {
   id: string;
@@ -13,6 +13,13 @@ export type AppSidebarNavItem = {
   /** A count (shown when above 0) or any node, e.g. a status `Badge` or a dot. */
   badge?: number | React.ReactNode;
   href?: string;
+  /**
+   * An outside address: with `href`, the row is a plain anchor that opens a new tab
+   * (`target="_blank"`, `rel="noopener noreferrer"`; `renderLink` is not used) with a trailing
+   * outside-link icon, and its accessible name says so (`messages.opensInNewTab`). It is never
+   * marked active. Ignored without `href`.
+   */
+  external?: boolean;
   /** Nested items, shown indented under this one behind a disclosure toggle. */
   children?: AppSidebarNavItem[];
   /** Start this item's children expanded. A branch holding the active item, or whose own page is active, always starts expanded. */
@@ -34,6 +41,16 @@ export type AppSidebarSlotRenderContext = {
 export type AppSidebarFooterRenderContext = AppSidebarSlotRenderContext;
 
 type AppSidebarSlot = React.ReactNode | ((context: AppSidebarSlotRenderContext) => React.ReactNode);
+
+/** The sidebar's own text, for translation. */
+export type AppSidebarMessages = {
+  /** Read after an external item's label (a visually hidden note), e.g. "(opens in a new tab)". */
+  opensInNewTab: string;
+};
+
+export const DEFAULT_APP_SIDEBAR_MESSAGES: AppSidebarMessages = {
+  opensInNewTab: '(opens in a new tab)',
+};
 
 /** What `renderLink` must put on the element it renders. */
 export type AppSidebarLinkProps = {
@@ -62,12 +79,20 @@ type AppSidebarProps = {
   /** Render a linked item yourself (a router `Link` for client-side navigation); defaults to a plain anchor. */
   renderLink?: (item: AppSidebarNavItem & { href: string }, props: AppSidebarLinkProps) => React.ReactNode;
   searchable?: boolean;
+  /** Overrides for the sidebar's own text (`DEFAULT_APP_SIDEBAR_MESSAGES`). */
+  messages?: Partial<AppSidebarMessages>;
   className?: string;
 };
 
+/** An item that opens an outside address in a new tab. */
+function isExternal(item: AppSidebarNavItem): boolean {
+  return Boolean(item.href && item.external);
+}
+
+/** Whether `id` is this item or one in its branch; an external item never counts as the active page. */
 function containsId(item: AppSidebarNavItem, id: string | undefined): boolean {
   if (id === undefined) return false;
-  return item.id === id || (item.children ?? []).some((c) => containsId(c, id));
+  return (item.id === id && !isExternal(item)) || (item.children ?? []).some((c) => containsId(c, id));
 }
 
 /** Ids of the items whose branch holds `id` (the item itself excluded). */
@@ -127,8 +152,10 @@ export function AppSidebar({
   footerClassName,
   renderLink,
   searchable = true,
+  messages,
   className,
 }: AppSidebarProps) {
+  const m = { ...DEFAULT_APP_SIDEBAR_MESSAGES, ...messages };
   const [internalCollapsed, setInternalCollapsed] = useState(defaultCollapsed);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
@@ -228,7 +255,8 @@ export function AppSidebar({
     const hasChildren = !effectiveCollapsed && Boolean(item.children?.length);
     // A search shows every surviving branch open; otherwise the reader's toggles rule.
     const expanded = hasChildren && (q !== '' || expandedItems.has(item.id));
-    const isActive = item.id === activeId;
+    const external = isExternal(item);
+    const isActive = !external && item.id === activeId;
     // Icon-only mode shows top-level items only, so the one holding the active page lights up.
     const holdsActive = effectiveCollapsed && !isActive && containsId(item, activeId);
     const itemClassName = cn(
@@ -256,13 +284,27 @@ export function AppSidebar({
         )}
         {/* A parent with no page of its own: the whole row is its disclosure toggle. */}
         {hasChildren && !item.href && chevron}
+        {/* Collapsed, the label and this icon are gone and the title carries the note instead. */}
+        {external && !effectiveCollapsed && (
+          <>
+            <span className="sr-only">{` ${m.opensInNewTab}`}</span>
+            <FontAwesomeIcon icon={faArrowUpRightFromSquare} className="shrink-0 w-3 h-3 text-text-disabled" aria-hidden="true" />
+          </>
+        )}
       </>
     );
     const current = isActive ? ('page' as const) : undefined;
-    const title = effectiveCollapsed ? item.label : undefined;
+    const title = effectiveCollapsed ? (external ? `${item.label} ${m.opensInNewTab}` : item.label) : undefined;
 
     let row: React.ReactNode;
-    if (item.href) {
+    if (external) {
+      // An outside address leaves the app: a plain anchor in a new tab, never the router's renderLink.
+      row = (
+        <a href={item.href} target="_blank" rel="noopener noreferrer" title={title} className={itemClassName}>
+          {itemContent}
+        </a>
+      );
+    } else if (item.href) {
       const props: AppSidebarLinkProps = { href: item.href, className: itemClassName, title, 'aria-current': current, children: itemContent };
       row = renderLink ? renderLink({ ...item, href: item.href }, props) : <a {...props} />;
     } else {
