@@ -2,7 +2,7 @@
 // "for 12 min" text. `StateView.tsx` draws it; kui-ejs and KUInative vendor this file.
 
 import type { FontValue } from '../../SchemaForm/types';
-import { cssColor, tint } from '../settings/style';
+import { cssColor, formatDateTimeText, tint } from '../settings/style';
 import type { Sparse } from '../settings/types';
 import type { ColumnMeta, SlotData } from '../kind';
 import { metaValue } from '../settings/source-meta';
@@ -90,7 +90,10 @@ export function onOffOf(value: unknown, meta?: ColumnMeta): boolean | null {
   return w === 'true' || w === 'on' ? true : w === 'false' || w === 'off' ? false : null;
 }
 
-export function evaluateState(value: unknown, settings: Sparse, stale = false, unknownText = 'Unknown', meta?: ColumnMeta, words?: OnOffWords): StateOutcome {
+/** A value as a state's words show it: a date and time sent as text in the viewer's language (`formatDateTimeText`), anything else as it is. */
+export const stateValueText = (value: unknown, locale?: string): string => formatDateTimeText(value, locale) ?? String(value);
+
+export function evaluateState(value: unknown, settings: Sparse, stale = false, unknownText = 'Unknown', meta?: ColumnMeta, words?: OnOffWords, locale?: string): StateOutcome {
   const s = settings as StateSettings;
   const neutral = 'var(--text-secondary)';
   if (isBlank(value) || (stale && s.staleAsUnknown !== false)) {
@@ -100,7 +103,7 @@ export function evaluateState(value: unknown, settings: Sparse, stale = false, u
   const hit = rules.find((r) => ruleMatches(r, value));
   if (hit) {
     return {
-      label: hit.label || String(value),
+      label: hit.label || stateValueText(value, locale),
       color: cssColor(hit.color) ?? neutral,
       background: cssColor(hit.background),
       icon: hit.icon || undefined,
@@ -122,7 +125,7 @@ export function evaluateState(value: unknown, settings: Sparse, stale = false, u
     return { label: onOff ? w.on : w.off, color: onOff ? 'var(--success)' : neutral, matched: true, unknown: false, ...(onOff ? {} : { lit: false }) };
   }
   return {
-    label: s.fallbackLabel || String(value),
+    label: s.fallbackLabel || stateValueText(value, locale),
     color: cssColor(s.fallbackColor) ?? neutral,
     background: cssColor(s.fallbackBackground),
     icon: s.fallbackIcon || undefined,
@@ -155,9 +158,10 @@ export function stateModel(
   stale: boolean,
   unknownText: string,
   words?: OnOffWords,
+  locale?: string,
 ) {
   const raw = data.value?.value;
-  const out = evaluateState(raw, s as Sparse, stale, unknownText, data.value?.meta, words);
+  const out = evaluateState(raw, s as Sparse, stale, unknownText, data.value?.meta, words, locale);
   const layout = s.layout ?? 'big';
   const fetched = data.value?.fetchedAt ? Date.parse(data.value.fetchedAt) : NaN;
   return {
@@ -169,5 +173,7 @@ export function stateModel(
     fetched,
     showSince: !!s.showSince && !out.unknown,
     showValue: !!s.showValue && !isBlank(raw) && !out.unknown,
+    /** The raw value as the "raw value" part shows it (`stateValueText`). */
+    valueText: isBlank(raw) ? '' : stateValueText(raw, locale),
   };
 }

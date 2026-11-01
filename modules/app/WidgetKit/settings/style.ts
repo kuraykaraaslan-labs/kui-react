@@ -82,6 +82,22 @@ export function formatValue(value: unknown, base: ValueFormat = {}, override: Va
   return base.unitPosition === 'before' ? `${unit} ${text}` : `${text} ${unit}`;
 }
 
+/** An ISO 8601 date and time: `2026-10-31T08:03`, with seconds, a fraction and `Z` or an offset if any. A date alone, a time alone or a word is not one. */
+const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})?$/;
+
+/**
+ * A date and time a source sends as text (an ISO 8601 string such as `2026-10-31T08:03:59.266Z`), as a date and time in the viewer's language
+ * ("31 Oct 2026, 11:03" in English, "31 Eki 2026 11:03" in Turkish), or `null` for any other value. A State or Stat card shows a time a device stores as
+ * text as a time, never the raw string (next-boilerplate e2e run 1: a State card read "2026-10-31T08:03:59.266Z" for the last cleaning).
+ */
+export function formatDateTimeText(value: unknown, locale?: string): string | null {
+  if (typeof value !== 'string') return null;
+  const s = value.trim();
+  if (s.length > 40 || !ISO_DATE_TIME.test(s)) return null;
+  const at = Date.parse(s);
+  return Number.isFinite(at) ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(at) : null;
+}
+
 /** One colour range on the raw value. Either end may be open. */
 export interface ColorRange {
   from?: number;

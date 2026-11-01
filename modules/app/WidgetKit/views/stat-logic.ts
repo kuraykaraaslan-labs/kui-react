@@ -2,7 +2,7 @@
 // and what that change means. `StatValueView.tsx` draws it; kui-ejs and KUInative vendor this file.
 
 import type { FontValue } from '../../SchemaForm/types';
-import { cssColor, formatValue, rangeFor, tint, type RangeEdges } from '../settings/style';
+import { cssColor, formatDateTimeText, formatValue, rangeFor, tint, type RangeEdges } from '../settings/style';
 import { metaLabel } from '../settings/source-meta';
 import type { SlotData } from '../kind';
 import type { ValueFormat } from '../settings/style';
@@ -56,13 +56,15 @@ export function comparison(value: number | null, compare: number | null, s: Stat
 /** What the single-number widget draws, decided once: the number and its unit, the range colour and where it goes, the change, the label. */
 export function statValueModel(s: StatValueSettings, format: ValueFormat, data: Record<string, SlotData | undefined>, locale: string | undefined) {
   const value = num(data.value?.value);
+  // a date and time the source sends as text is shown as one, in the viewer's language, never as "—" or the raw ISO string
+  const when = value === null ? formatDateTimeText(data.value?.value, locale) : null;
   const rc = cssColor(rangeFor(value, s.ranges, s.rangeEdges ?? 'from')?.color);
   const target = s.rangeTarget ?? 'value';
   const layout = s.layout ?? 'stacked';
   const cmp = comparison(value, num(data.compare?.value), s, format, locale);
   return {
     value, layout, cmp,
-    metricText: formatValue(value, { ...format, unit: '' }, {}, locale),
+    metricText: when ?? formatValue(value, { ...format, unit: '' }, {}, locale),
     metricUnit: value === null ? undefined : format.unit,
     metricColor: (rc && target === 'value' ? rc : undefined) ?? s.valueColor,
     labelText: s.label || metaLabel(data.value?.meta?.label, locale),

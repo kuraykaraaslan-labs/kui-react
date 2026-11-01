@@ -17,10 +17,10 @@ export * from './state-logic';
  * (label top-left, the state's icon top-right, the state where Stat's number sits, meta under it).
  * "Since" is the time this view first saw the state (seeded with the data's fetch time).
  */
-export function StateView({ settings, data, stale, title, titleShown }: WidgetViewProps) {
+export function StateView({ settings, data, stale, title, titleShown, locale }: WidgetViewProps) {
   const s = settings as S;
   const m = useKitMessages().stat;
-  const { raw, out, layout, center, iconSize, bg, pulse, fetched, showSince, showValue } = stateModel(s, data, !!stale, m.unknown, { on: m.on, off: m.off });
+  const { out, layout, center, iconSize, bg, pulse, fetched, showSince, showValue, valueText } = stateModel(s, data, !!stale, m.unknown, { on: m.on, off: m.off }, locale);
   const now = useNow(30_000);
   const [seen, setSeen] = useState(() => ({ key: out.label, at: Number.isFinite(fetched) ? fetched : now }));
   if (seen.key !== out.label) setSeen({ key: out.label, at: now });
@@ -30,7 +30,7 @@ export function StateView({ settings, data, stale, title, titleShown }: WidgetVi
   const metaParts: ReactNode[] = [];
   if (showSince) metaParts.push(<span key="since" data-part="since">{forText(now - seen.at, m)}</span>);
   if (showValue) {
-    metaParts.push(<span key="value" className="tabular-nums" style={fontStyle(s.valueFont, s.valueColor)} data-part="value">{String(raw)}</span>);
+    metaParts.push(<span key="value" className="tabular-nums" style={fontStyle(s.valueFont, s.valueColor)} data-part="value">{valueText}</span>);
   }
   const meta = metaParts.length ? (
     <Meta className={cn('flex items-center gap-1.5', center && 'justify-center')}>
