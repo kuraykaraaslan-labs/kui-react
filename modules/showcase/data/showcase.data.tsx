@@ -38,6 +38,8 @@ import { buildRangeSliderData } from './sections/ui-molecule-range-slider.showca
 import { buildPopconfirmData } from './sections/ui-molecule-popconfirm.showcase';
 import { buildConfirmDialogData } from './sections/ui-molecule-confirm.showcase';
 import { buildAnnouncementDialogData } from './sections/ui-molecule-announcement.showcase';
+import { buildIconPickerData } from './sections/ui-molecule-icon-picker.showcase';
+import { buildTranslatableFieldData } from './sections/ui-molecule-translatable-field.showcase';
 import { buildTimePickerData } from './sections/ui-molecule-time-picker.showcase';
 import { buildControlTileData } from './sections/ui-molecule-control-tile.showcase';
 import { buildTimeWindowPickerData } from './sections/ui-molecule-time-window-picker.showcase';
@@ -56,6 +58,8 @@ export function buildShowcaseData() {
     ...buildPopconfirmData(),
     ...buildConfirmDialogData(),
     ...buildAnnouncementDialogData(),
+    ...buildIconPickerData(),
+    ...buildTranslatableFieldData(),
     ...buildTimePickerData(),
     ...buildControlTileData(),
     ...buildTimeWindowPickerData(),

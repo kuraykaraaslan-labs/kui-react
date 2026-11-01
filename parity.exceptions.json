@@ -308,6 +308,34 @@
         "KUInative"
       ],
       "reason": "New for next-boilerplate phase 47 (announcements: the acknowledged popup of a platform notice or a maintenance notice). Its only consumer is next-boilerplate's admin shell, which vendors it from here; kui-ejs and KUInative get it when an app built on them shows announcements (express-boilerplate is parked, the mobile boilerplate has no announcement surface yet)."
+    },
+    {
+      "id": "icon-picker",
+      "name": "IconPicker",
+      "layer": "ui",
+      "path": "modules/ui/IconPicker",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "New for next-boilerplate phase 54 (menu editor, decision D54-10): built in kui-react only and vendored into next-boilerplate. Neither kui-ejs nor KUInative has a counterpart, and the rule is not to create one unless an app built on them needs it."
+    },
+    {
+      "id": "translatable-field",
+      "name": "TranslatableField",
+      "layer": "ui",
+      "path": "modules/ui/TranslatableField",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "New for next-boilerplate phase 54 (menu editor, decision D54-10): built in kui-react only and vendored into next-boilerplate. Neither kui-ejs nor KUInative has a counterpart, and the rule is not to create one unless an app built on them needs it."
     }
   ]
 }

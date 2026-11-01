@@ -57,6 +57,8 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'tag-input',         title: 'TagInput',        category: 'Molecule', abbr: 'Ti', since: '2025-03' },
       { id: 'file-input',        title: 'FileInput',       category: 'Molecule', abbr: 'Fi', since: '2025-02' },
       { id: 'color-picker',      title: 'ColorPicker',     category: 'Molecule', abbr: 'Cp', since: '2026-05' },
+      { id: 'icon-picker',       title: 'IconPicker',      category: 'Molecule', abbr: 'IP', since: '2026-11' },
+      { id: 'translatable-field', title: 'TranslatableField', category: 'Molecule', abbr: 'TF', since: '2026-11' },
       { id: 'chart',             title: 'Chart',           category: 'Molecule', abbr: 'Ch', since: '2026-05', status: 'beta' },
       { id: 'gauge-chart',        title: 'GaugeChart',      category: 'Molecule', abbr: 'Gc', since: '2026-10', status: 'beta' },
       { id: 'heatmap-chart',      title: 'HeatmapChart',    category: 'Molecule', abbr: 'Hm', since: '2026-10', status: 'beta' },
