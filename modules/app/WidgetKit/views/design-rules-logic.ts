@@ -286,7 +286,7 @@ export function designRuleIssues(rules: unknown, dialect: RuleDialect = 'design'
     const c = r.color;
     if (c !== undefined && c !== '' && !cssColor(c)) issues.push({ path: at('color'), message: 'The colour is not a colour' });
     else if (spec.viewerColors && typeof c === 'string' && c !== '' && !viewerColor(c)) issues.push({ path: at('color'), message: 'The 3D view takes a hex, rgb or hsl colour or one of the theme colours' });
-    if (text(r.target) === '') issues.push({ path: at('target'), message: 'Choose a scene key or *' });
+    if (text(r.target) === '') issues.push({ path: at('target'), message: 'Choose a scene key or *', ruleCode: 'target-missing' });
     else if (RESERVED.has(text(r.target))) issues.push({ path: at('target'), message: 'A key may not be __proto__, constructor or prototype' });
   });
   // the engine's checks on the rows that have the shape of a rule, reported at their place in the list

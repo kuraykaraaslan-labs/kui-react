@@ -20,6 +20,8 @@ export interface SceneEditorMessages {
   duplicate: string; delete: string; copy: string; paste: string; connectSelected: string;
   saveAssembly: string; insertAssembly: string; assemblyName: string; assemblyDefault: string; libraryEmpty: string; libraryRemove: string;
   linkKind: string; layers: string; layersFilter: string; lock: string; unlock: string; hide: string; show: string; unlockAll: string; showAll: string;
+  /** The connection kinds by name in the toolbar's choice, never the stored word `pipe` / `sld` (next-boilerplate e2e round 5, V1-X2). */
+  linkPipe: string; linkHose: string; linkCable: string; linkWire: string; linkStrip: string; linkLine: string; linkSld: string;
   problemsCount: string; problemsOne: string; noProblems: string;
   // Shell
   panelPalette: string; panelInspector: string; collapse: string; expand: string;
@@ -61,6 +63,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   assemblyDefault: 'Piece {n}', libraryEmpty: 'No saved pieces yet.', libraryRemove: 'Remove {name} from the library',
   linkKind: 'Connection kind', layers: 'Layers', layersFilter: 'Find an item', lock: 'Lock', unlock: 'Unlock', hide: 'Hide', show: 'Show',
   unlockAll: 'Unlock all', showAll: 'Show all',
+  linkPipe: 'Pipe', linkHose: 'Hose', linkCable: 'Cable', linkWire: 'Signal wire', linkStrip: 'Strip', linkLine: 'Thin line', linkSld: 'Single-line',
   problemsCount: '{count} problems', problemsOne: '1 problem', noProblems: 'No problems',
   panelPalette: 'Symbols', panelInspector: 'Inspector', collapse: 'Collapse {panel}', expand: 'Expand {panel}',
   actionsHint: 'Select one symbol to edit its actions.', tabProperties: 'Properties', tabRules: 'Rules', tabActions: 'Actions', tabProblems: 'Problems', tabWhatIf: 'What-if', tabs: 'Inspector sections',

@@ -50,6 +50,11 @@ const TOOLS: Array<{ tool: Tool; icon: IconDefinition; label: keyof SceneEditorM
 
 const TOOL_ID = 'scene-tool';
 
+/** Each connection kind's name in the messages (V1-X2: the choice showed the stored words `pipe`, `sld`). */
+const LINK_KIND_NAMES: Record<(typeof SCENE_LINK_KINDS)[number], keyof SceneEditorMessages> = {
+  pipe: 'linkPipe', hose: 'linkHose', cable: 'linkCable', wire: 'linkWire', strip: 'linkStrip', line: 'linkLine', sld: 'linkSld',
+};
+
 function IconButton({ icon, label, onClick, disabled, selected, testId, hint }: { icon: IconDefinition; label: string; onClick: () => void; disabled?: boolean; selected?: boolean; testId?: string; hint?: string }) {
   return (
     <Button variant="ghost" size="sm" iconOnly selected={selected} disabled={disabled} onClick={onClick} aria-label={label} title={hint ? `${label} (${hint})` : label} data-testid={testId}>
@@ -123,7 +128,7 @@ export function SceneEditorToolbar(p: SceneEditorToolbarProps) {
         <span className="sr-only">{m.linkKind}</span>
         <FontAwesomeIcon icon={faLink} aria-hidden="true" />
         <select aria-label={m.linkKind} value={p.linkKind} onChange={(e) => p.onLinkKind(e.target.value)} data-testid="link-kind" className="h-8 rounded-md border border-border bg-surface-base px-1 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
-          {SCENE_LINK_KINDS.map((k) => <option key={k} value={k}>{k}</option>)}
+          {SCENE_LINK_KINDS.map((k) => <option key={k} value={k}>{m[LINK_KIND_NAMES[k]] || k}</option>)}
         </select>
       </label>
       <IconButton icon={faLink} label={m.connectSelected} hint="K" onClick={p.onConnectSelected} disabled={p.selectedElements !== 2} testId="connect-selected" />

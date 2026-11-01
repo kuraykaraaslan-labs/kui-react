@@ -282,7 +282,7 @@ export function expandLabel(template: string, target: string, ctx: RuleContext):
     const v = ctx.params && Object.hasOwn(ctx.params, name) ? scalar(ctx.params[name]) : undefined;
     return v === undefined ? DASH : String(v);
   });
-  // eslint-disable-next-line no-control-regex
+   
   return out.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, MAX_RULE_LABEL);
 }
 
@@ -364,7 +364,42 @@ export function evaluateRules<T extends object = SceneEffects>(rules: unknown, c
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
-export interface RuleIssue { path: string; message: string }
+/**
+ * What is wrong with a rule, as a code a host words in its language (`RulesMessages.issues`; next-boilerplate e2e round 5, V1-B4: every problem was
+ * English in a Turkish workspace), as `RuleIssue.ruleCode`. `message` stays the English sentence (the server's answer and the templates' checks), `n`
+ * the number it names.
+ */
+export type RuleIssueCode =
+  | 'too-many' | 'target-row' | 'target-missing' | 'target-unknown' | 'source-invalid' | 'of-unknown' | 'op-invalid' | 'param-missing' | 'column-missing'
+  | 'value-missing' | 'value-number' | 'low-number' | 'high-number' | 'list-empty' | 'first-missing' | 'join-invalid' | 'choice' | 'number' | 'label-long';
+
+export interface RuleIssue { path: string; message: string; ruleCode?: RuleIssueCode; n?: number }
+
+/** The English sentence of each code (what `message` holds). */
+export const RULE_ISSUE_TEXT: Record<RuleIssueCode, (n?: number) => string> = {
+  'too-many': (n) => `At most ${n} rules`,
+  'target-row': () => 'Name a row id or *',
+  'target-missing': () => 'Choose a symbol, a connection or *',
+  'target-unknown': () => 'No symbol or connection has this id',
+  'source-invalid': () => 'The source is a column or a parameter',
+  'of-unknown': () => 'No symbol or connection has this id',
+  'op-invalid': () => 'Choose one of the operators',
+  'param-missing': () => 'Name the board parameter',
+  'column-missing': () => 'Name the column',
+  'value-missing': () => 'This operator needs a value',
+  'value-number': () => 'This operator compares numbers: the value must be a number',
+  'low-number': () => 'The lower end must be a number',
+  'high-number': () => 'The upper end must be a number',
+  'list-empty': () => 'List at least one value, separated by commas',
+  'first-missing': () => 'Set the first condition before the second',
+  'join-invalid': () => 'Join with all or any',
+  choice: () => 'Choose one of the options',
+  number: () => 'Use a number',
+  'label-long': (n) => `At most ${n} characters`,
+};
+
+const issue = (path: string, code: RuleIssueCode, n?: number, message?: string): RuleIssue =>
+  ({ path, message: message ?? RULE_ISSUE_TEXT[code](n), ruleCode: code, ...(n !== undefined ? { n } : {}) });
 
 const NUMERIC_OPS = new Set(['gt', 'gte', 'lt', 'lte']);
 const NEEDS_VALUE = new Set(['eq', 'ne', 'in', 'gt', 'gte', 'lt', 'lte', 'between']);
@@ -384,7 +419,7 @@ export function validateRules(
 ): RuleIssue[] {
   const issues: RuleIssue[] = [];
   const list = Array.isArray(rules) ? (rules as SceneRule[]) : [];
-  if (list.length > MAX_SCENE_RULES) issues.push({ path: 'rules', message: `At most ${MAX_SCENE_RULES} rules` });
+  if (list.length > MAX_SCENE_RULES) issues.push(issue('rules', 'too-many', MAX_SCENE_RULES));
   const elements = new Set(ids.elementIds);
   const known = new Set([...elements, ...(ids.linkIds ?? []), ...(ids.thingIds ?? [])]);
   const fromData = ids.fromData === true || ids.things === true;
@@ -393,39 +428,39 @@ export function validateRules(
     if (!r || typeof r !== 'object') return;
     const at = (f: string) => `rules.${i}.${f}`;
     const target = text(r.target);
-    if (!target) issues.push({ path: at('target'), message: ids.fromData === true ? 'Name a row id or *' : 'Choose a symbol, a connection or *' });
-    else if (!fromData && target !== '*' && target !== THINGS_TARGET && !known.has(target)) issues.push({ path: at('target'), message: 'No symbol or connection has this id' });
+    if (!target) issues.push(issue(at('target'), ids.fromData === true ? 'target-row' : 'target-missing'));
+    else if (!fromData && target !== '*' && target !== THINGS_TARGET && !known.has(target)) issues.push(issue(at('target'), 'target-unknown'));
     const condition = (n: '' | '2') => {
       const op = text(n ? r.op2 : r.op); const source = n ? r.source2 : r.source;
       const key = text(n ? r.key2 : r.key); const of = n ? r.of2 : r.of;
       const value = n ? r.value2 : r.value; const to = n ? r.to2 : r.to;
       const f = (name: string) => at(`${name}${n}`);
-      if (source !== undefined && source !== '' && source !== 'column' && source !== 'param') issues.push({ path: f('source'), message: 'The source is a column or a parameter' });
-      if (!idOk(of)) issues.push({ path: f('of'), message: 'No symbol or connection has this id' });
+      if (source !== undefined && source !== '' && source !== 'column' && source !== 'param') issues.push(issue(f('source'), 'source-invalid'));
+      if (!idOk(of)) issues.push(issue(f('of'), 'of-unknown'));
       if (!op) return;
-      if (!isOp(op)) { issues.push({ path: f('op'), message: 'Choose one of the operators' }); return; }
-      if (!key) issues.push({ path: f('key'), message: source === 'param' ? 'Name the board parameter' : 'Name the column' });
-      if (NEEDS_VALUE.has(op) && text(value) === '') issues.push({ path: f('value'), message: 'This operator needs a value' });
-      else if (NUMERIC_OPS.has(op) && asNumber(value) === null) issues.push({ path: f('value'), message: 'This operator compares numbers: the value must be a number' });
+      if (!isOp(op)) { issues.push(issue(f('op'), 'op-invalid')); return; }
+      if (!key) issues.push(issue(f('key'), source === 'param' ? 'param-missing' : 'column-missing'));
+      if (NEEDS_VALUE.has(op) && text(value) === '') issues.push(issue(f('value'), 'value-missing'));
+      else if (NUMERIC_OPS.has(op) && asNumber(value) === null) issues.push(issue(f('value'), 'value-number'));
       if (op === 'between') {
-        if (asNumber(value) === null) issues.push({ path: f('value'), message: 'The lower end must be a number' });
-        if (asNumber(to) === null) issues.push({ path: f('to'), message: 'The upper end must be a number' });
+        if (asNumber(value) === null) issues.push(issue(f('value'), 'low-number'));
+        if (asNumber(to) === null) issues.push(issue(f('to'), 'high-number'));
       }
-      if (op === 'in' && !String(value ?? '').split(',').some((s) => s.trim())) issues.push({ path: f('value'), message: 'List at least one value, separated by commas' });
+      if (op === 'in' && !String(value ?? '').split(',').some((s) => s.trim())) issues.push(issue(f('value'), 'list-empty'));
     };
     condition('');
-    if (text(r.op2) && !text(r.op)) issues.push({ path: at('op'), message: 'Set the first condition before the second' });
+    if (text(r.op2) && !text(r.op)) issues.push(issue(at('op'), 'first-missing'));
     if (text(r.op2)) {
       condition('2');
-      if (r.join !== undefined && r.join !== '' && r.join !== 'all' && r.join !== 'any') issues.push({ path: at('join'), message: 'Join with all or any' });
+      if (r.join !== undefined && r.join !== '' && r.join !== 'all' && r.join !== 'any') issues.push(issue(at('join'), 'join-invalid'));
     }
     // The effects, as the spec reads them: a choice must be one of its options, a number a number, a label short enough.
     for (const [key, e] of Object.entries(effects)) {
       const v = r[key];
       if (v === undefined || v === '') continue;
-      if (e.kind === 'enum' && !enumOf(e, v)) issues.push({ path: at(key), message: e.message ?? 'Choose one of the options' });
-      else if (e.kind === 'number' && asNumber(v) === null) issues.push({ path: at(key), message: 'Use a number' });
-      else if (e.kind === 'label' && typeof v === 'string' && v.length > MAX_RULE_LABEL) issues.push({ path: at(key), message: `At most ${MAX_RULE_LABEL} characters` });
+      if (e.kind === 'enum' && !enumOf(e, v)) issues.push(issue(at(key), 'choice', undefined, e.message));
+      else if (e.kind === 'number' && asNumber(v) === null) issues.push(issue(at(key), 'number'));
+      else if (e.kind === 'label' && typeof v === 'string' && v.length > MAX_RULE_LABEL) issues.push(issue(at(key), 'label-long', MAX_RULE_LABEL));
     }
   });
   return issues;

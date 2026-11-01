@@ -45,6 +45,8 @@ interface Env {
   columns: Array<{ key: string; label?: string }>;
   params: NonNullable<EditorCtx['host']['params']>;
   issue: (index: number, field: string) => string | undefined;
+  /** The values each symbol draws, when the host knows them: "Which value" offers them (E14). */
+  valuesOf?: (symbolId: string) => ReadonlyArray<{ key: string; label?: string }> | undefined;
 }
 
 export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorProps) {
@@ -63,13 +65,19 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
 
   const targets = ruleTargets(s, ctx.selection);
   const groups = rulesFor(s, targets);
+  // every symbol by the name the author sees ("Dock door 1"), its id only to tell two equal names apart (next-boilerplate e2e round 5, V1-B2:
+  // "logistics3 (Dock door 1)" on every picker, raw ids as the group headings and "of logistics3" in the sentence)
   const names = useMemo(() => {
     const out: Array<{ id: string; text: string }> = [];
+    const named: Array<{ id: string; own: string }> = [];
     for (const e of Array.isArray(s.elements) ? (s.elements as unknown[]) : []) {
       if (!isRec(e) || typeof e.id !== 'string') continue;
-      const own = typeof e.label === 'string' && e.label ? e.label : isScadaSymbol(e.symbol) ? (SCADA_SYMBOL_DEFS[e.symbol] as SymbolDef).label : '';
-      out.push({ id: e.id, text: own ? `${e.id} (${own})` : e.id });
+      const own = typeof e.label === 'string' && e.label.trim() ? e.label.trim() : isScadaSymbol(e.symbol) ? (SCADA_SYMBOL_DEFS[e.symbol] as SymbolDef).label : '';
+      named.push({ id: e.id, own });
     }
+    const count = new Map<string, number>();
+    for (const n of named) if (n.own) count.set(n.own.toLowerCase(), (count.get(n.own.toLowerCase()) ?? 0) + 1);
+    for (const n of named) out.push({ id: n.id, text: !n.own ? n.id : (count.get(n.own.toLowerCase()) ?? 0) > 1 ? `${n.own} (${n.id})` : n.own });
     for (const id of linkIds(s)) out.push({ id, text: id });
     // With a things table: every thing, and each thing the table brings now, by id.
     if (ctx.data.things) {
@@ -94,11 +102,12 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
       const hit = /^rules\.(\d+)\.(\w+)$/.exec(i.path);
       if (!hit) continue;
       const at = out.get(Number(hit[1])) ?? new Map<string, string>();
-      if (!at.has(hit[2])) at.set(hit[2], i.message);
+      // in the host's words (V1-B4): the code, worded by the messages; the English sentence only for a code they do not know
+      if (!at.has(hit[2])) at.set(hit[2], (i.ruleCode && m.issues[i.ruleCode]?.(i.n)) || i.message);
       out.set(Number(hit[1]), at);
     }
     return out;
-  }, [list, s, ctx.data]);
+  }, [list, s, ctx.data, m]);
 
   // Whether each rule holds for the real data right now.
   const matches = useMemo(() => {
@@ -109,10 +118,14 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
     return out;
   }, [list, s, ctx.data.points, ctx.data.things, ctx.params]);
 
-  const env: Env = { m, base, ctx, run, names, columns, params, issue: (i, f) => issues.get(i)?.get(f) };
+  const valuesOf = ctx.host.symbolValues;
+  const env: Env = { m, base, ctx, run, names, columns, params, issue: (i, f) => issues.get(i)?.get(f), ...(valuesOf ? { valuesOf } : {}) };
+  const valueNames = m.valueNames ?? {};
+  const nameOf = (id: string): string | undefined => names.find((x) => x.id === id)?.text;
   const labels = {
-    columnLabel: (key: string) => columns.find((c) => c.key === key)?.label,
+    columnLabel: (key: string) => columns.find((c) => c.key === key && c.label && c.label !== c.key)?.label ?? valueNames[key],
     paramLabel: (key: string) => params.find((p) => p.key === key)?.label,
+    symbolName: nameOf,
   };
 
   const add = () => {
@@ -146,7 +159,7 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
         </div>
         <div className="flex flex-wrap items-center gap-1.5 px-2 pb-2">
           <MatchBadge m={m} rule={rule} match={match} />
-          {problems > 0 && <Badge tone="error">{problems === 1 ? '1 problem' : `${problems} problems`}</Badge>}
+          {problems > 0 && <Badge tone="error">{m.problemCount(problems)}</Badge>}
           <span className="ml-auto flex items-center gap-0.5">
             <button type="button" className={SMALL_BUTTON} disabled={at <= 0} aria-label={`${m.moveUp}: ${ruleName}`} onClick={() => after(run((cur) => moveRule(cur, index, 'up', group)))}>↑</button>
             <button type="button" className={SMALL_BUTTON} disabled={at < 0 || at >= group.length - 1} aria-label={`${m.moveDown}: ${ruleName}`} onClick={() => after(run((cur) => moveRule(cur, index, 'down', group)))}>↓</button>
@@ -203,7 +216,7 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
       {groups.others.length > 0 && (
         <section aria-label={m.others} className="space-y-3" data-group="others">
           <h3 className="text-[11px] font-medium uppercase tracking-wide text-text-secondary">{m.others}</h3>
-          {groups.others.map((g) => section(g.target || m.noTarget, g.indices, `t-${g.target || 'none'}`, 'h4'))}
+          {groups.others.map((g) => section((g.target && (nameOf(g.target) ?? m.missing(g.target))) || m.noTarget, g.indices, `t-${g.target || 'none'}`, 'h4'))}
         </section>
       )}
     </div>
@@ -333,7 +346,7 @@ function RuleForm({ env, index, rule }: { env: Env; index: number; rule: Rec }) 
         </fieldset>
         <PanelField id={id('label')} label={m.label} error={env.issue(index, 'label')}>
           <input
-            ref={label} id={id('label')} type="text" className={CONTROL} value={str(rule.label)} maxLength={80} placeholder="High: {value}"
+            ref={label} id={id('label')} type="text" className={CONTROL} value={str(rule.label)} maxLength={80} placeholder={m.labelPlaceholder}
             aria-describedby={`${id('label')}-tokens`} onChange={(e) => set({ label: e.target.value }, `rule:${index}:label`)}
           />
           <div id={`${id('label')}-tokens`} role="group" aria-label={m.tokens} className="mt-1.5 flex flex-wrap gap-1">

@@ -35,9 +35,11 @@ describe('SceneRulesEditor: the list', () => {
     mount(RULES, { selection: { elements: ['pump1'] } });
     const groups = [...document.querySelectorAll('[data-group]')].map((g) => g.getAttribute('data-group'));
     expect(groups).toEqual(['own', 'star', 'others', 't-valve1']);
-    expect(screen.getByRole('heading', { name: 'Rules for pump1 (Wi-Fi router)' })).toBeInTheDocument();
-    expect(screen.getByText("When value of this symbol is above 24, set the state to warning and show 'High'")).toBeInTheDocument();
-    expect(screen.getByText('When status of this symbol is critical, set the state to critical')).toBeInTheDocument();
+    // by name, never by id (next-boilerplate e2e round 5, V1-B2); a value by the name a person knows it by
+    expect(screen.getByRole('heading', { name: 'Rules for Wi-Fi router' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Smart plug' })).toBeInTheDocument();
+    expect(screen.getByText("When Reading of this symbol is above 24, set the state to warning and show 'High'")).toBeInTheDocument();
+    expect(screen.getByText('When Status of this symbol is critical, set the state to critical')).toBeInTheDocument();
     const own = document.querySelector('[data-group="own"]')!;
     expect([...own.querySelectorAll('[data-rule]')].map((r) => r.getAttribute('data-rule'))).toEqual(['0', '3']);
   });
@@ -83,10 +85,10 @@ describe('SceneRulesEditor: editing', () => {
     const { probe } = mount([]);
     fireEvent.click(screen.getByRole('button', { name: 'Add rule' }));
     expect(rulesOf(probe)[0].target).toBe('');
-    expect(screen.getByText('Choose a symbol, a connection or *')).toBeInTheDocument();
+    expect(screen.getByText('Choose the symbol this rule changes.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Applies to'), { target: { value: '*' } });
     expect(rulesOf(probe)[0].target).toBe('*');
-    expect(screen.queryByText('Choose a symbol, a connection or *')).toBeNull();
+    expect(screen.queryByText('Choose the symbol this rule changes.')).toBeNull();
   });
   it('builds a condition: column, row, operator, value, and a second condition joined with any', () => {
     const { probe } = mount([{ target: 'pump1', enabled: true }]);
@@ -104,21 +106,28 @@ describe('SceneRulesEditor: editing', () => {
     fireEvent.change(within(second).getByLabelText('Value'), { target: { value: 'night' } });
     fireEvent.change(screen.getByLabelText('Join with'), { target: { value: 'any' } });
     expect(rulesOf(probe)[0]).toMatchObject({ source2: 'param', key2: 'mode', value2: 'night', join: 'any' });
-    expect(screen.getByRole('button', { name: /When value of this symbol is between 10 and 20 or parameter mode is night/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /When Reading of this symbol is between 10 and 20 or parameter mode is night/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Remove the second condition' }));
     expect('op2' in rulesOf(probe)[0]).toBe(false);
     expect(rulesOf(probe)[0]).toMatchObject({ key2: '' });
     expect(document.querySelector('[data-condition="2"]')).toBeNull();
   });
-  it('offers the host\'s columns and parameters, with free text as the fallback, and reads another symbol\'s row', () => {
+  it('offers the host\'s columns and parameters, with free text under "Another value", and reads another symbol\'s row', () => {
     const { probe } = mount([{ target: 'pump1', key: '', op: 'gt', value: '1' }], {
       host: { columns: [{ key: 'temp', label: 'Temperature' }], params: [{ key: 'mode', label: 'Mode', values: ['day', 'night'] }] },
     });
     fireEvent.click(screen.getByRole('button', { name: /When/ }));
-    const list = document.querySelector('datalist')!;
-    expect([...list.querySelectorAll('option')].map((o) => o.getAttribute('value'))).toEqual(['temp']);
-    fireEvent.change(screen.getByLabelText('Which value'), { target: { value: 'vibration' } });
+    const which = screen.getByLabelText('Which value') as HTMLSelectElement;
+    expect([...which.options].filter((o) => !o.disabled).map((o) => o.textContent)).toEqual(['Temperature', 'Another value (advanced)…']);
+    fireEvent.change(which, { target: { value: 'temp' } });
+    expect(rulesOf(probe)[0].key).toBe('temp');
+    fireEvent.change(which, { target: { value: '\u0000other' } });
+    const typed = screen.getByLabelText('Name of the value in the data');
+    expect([...document.querySelector('datalist')!.querySelectorAll('option')].map((o) => o.getAttribute('value'))).toEqual(['temp']);
+    fireEvent.change(typed, { target: { value: 'vibration' } });
     expect(rulesOf(probe)[0].key).toBe('vibration');
+    // a name the choices do not hold stays in the typed box
+    expect((screen.getByLabelText('Which value') as HTMLSelectElement).value).toBe('\u0000other');
     fireEvent.change(screen.getByLabelText('Of symbol'), { target: { value: 'tank1' } });
     expect(rulesOf(probe)[0].of).toBe('tank1');
     fireEvent.change(screen.getByLabelText('Read'), { target: { value: 'param' } });
@@ -196,9 +205,9 @@ describe('SceneRulesEditor: editing', () => {
   it('shows the validation messages of the template\'s own rules under the field', () => {
     const { probe } = mount([{ target: 'pump1', key: '', op: 'gt', value: 'abc', of: 'ghost' }]);
     fireEvent.click(screen.getByRole('button', { name: /When/ }));
-    expect(screen.getByText('Name the column')).toBeInTheDocument();
-    expect(screen.getByText('This operator compares numbers: the value must be a number')).toBeInTheDocument();
-    expect(screen.getAllByText('No symbol or connection has this id').length).toBeGreaterThan(0);
+    expect(screen.getByText('Choose which value the rule reads.')).toBeInTheDocument();
+    expect(screen.getByText('This comparison needs a number.')).toBeInTheDocument();
+    expect(screen.getAllByText('This symbol is not in the drawing any more.').length).toBeGreaterThan(0);
     expect(document.querySelector('[data-rule="0"]')!.textContent).toMatch(/3 problems/);
     expect(validateRules(rulesOf(probe), { elementIds: ['pump1'] }).length).toBe(3);
   });
@@ -225,6 +234,59 @@ describe('SceneRulesEditor: editing', () => {
       </Harness>,
     );
     expect(screen.getByRole('button', { name: 'Kural ekle' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Eger value of this symbol buyuk 1/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Eger Reading of this symbol buyuk 1/ })).toBeInTheDocument();
   });
 });
+
+describe('SceneRulesEditor: names, values and words a person reads (next-boilerplate e2e round 5, E14, V1-B2, B4, B5)', () => {
+  it('"Which value" offers the values of the symbol the condition reads, by name, from the host; any other name is typed under Another value', () => {
+    const valuesOf = (id: string) => (id === 'pump1' ? [{ key: 'running', label: 'Running' }, { key: 'position', label: 'Opening' }] : id === 'tank1' ? [{ key: 'value', label: 'Level' }] : undefined);
+    const { probe } = mount([{ target: 'pump1', key: '', op: 'true' }], { host: { symbolValues: valuesOf } });
+    fireEvent.click(screen.getByRole('button', { name: /When/ }));
+    const which = screen.getByLabelText('Which value') as HTMLSelectElement;
+    expect([...which.options].filter((o) => !o.disabled).map((o) => o.textContent)).toEqual(['Running', 'Opening', 'Another value (advanced)…']);
+    fireEvent.change(which, { target: { value: 'position' } });
+    expect(rulesOf(probe)[0].key).toBe('position');
+    expect(screen.getByRole('button', { name: /When Opening of this symbol is on/ })).toBeInTheDocument();
+    // another symbol's row: its own values
+    fireEvent.change(screen.getByLabelText('Of symbol'), { target: { value: 'tank1' } });
+    expect([...(screen.getByLabelText('Which value') as HTMLSelectElement).options].filter((o) => !o.disabled).map((o) => o.textContent)).toEqual(['Level', 'Another value (advanced)…']);
+    expect(screen.getByRole('button', { name: /of Feed is on/ })).toBeInTheDocument();
+  });
+  it('names two symbols of one name apart by their id, and only them', () => {
+    const probe = newProbe();
+    const twins = { ...smallScene(), elements: [...smallScene().elements as Rec[], { id: 'pump2', symbol: 'home.router', x: 700, y: 200 }], rules: [{ target: 'tank1', state: 'idle' }] } as SceneSettings;
+    render(<Harness initial={twins} probe={probe} data={{ points } as never}>{(ctx) => <SceneRulesEditor ctx={ctx} />}</Harness>);
+    fireEvent.click(screen.getByRole('button', { name: /Always/ }));
+    const options = [...(screen.getByLabelText('Applies to') as HTMLSelectElement).options].map((o) => o.textContent);
+    expect(options).toEqual(expect.arrayContaining(['Feed', 'Wi-Fi router (pump1)', 'Wi-Fi router (pump2)', 'Smart plug']));
+  });
+  it('words the problems, the badge, the name\'s placeholder and the colours in the host\'s language', () => {
+    mount([{ target: 'pump1', key: '', op: 'gt', value: 'abc', color: 'var(--error)' }]);
+    cleanupAndMountTurkish();
+    expect(screen.getByText('Hangi değer okunacak, seçin.')).toBeInTheDocument();
+    expect(document.querySelector('[data-rule="0"]')!.textContent).toMatch(/2 sorun/);
+    expect(screen.getByRole('button', { name: /rengini kırmızı yap/ })).toBeInTheDocument();
+    expect(screen.getByLabelText('Ad')).toHaveAttribute('placeholder', 'Yüksek: {value}');
+  });
+});
+
+function cleanupAndMountTurkish() {
+  document.body.innerHTML = '';
+  const probe = newProbe();
+  render(
+    <Harness initial={scene([{ target: 'pump1', key: '', op: 'gt', value: 'abc', color: 'var(--error)' }])} probe={probe} data={{ points } as never}>
+      {(ctx) => (
+        <SceneRulesEditor
+          ctx={ctx}
+          messages={{
+            label: 'Ad', labelPlaceholder: 'Yüksek: {value}', problemCount: (n: number) => `${n} sorun`,
+            issues: { 'column-missing': () => 'Hangi değer okunacak, seçin.', 'value-number': () => 'Bu karşılaştırma bir sayı ister.' },
+            words: { color: 'rengini {color} yap', colours: { red: 'kırmızı' } },
+          }}
+        />
+      )}
+    </Harness>,
+  );
+  fireEvent.click(screen.getByRole('button', { name: /rengini/ }));
+}

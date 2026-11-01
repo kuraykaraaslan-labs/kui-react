@@ -75,7 +75,8 @@ describe('Rules step: authoring', () => {
     expect([...target.options].map((o) => o.value)).toEqual(['', '*', 'heater', 'pump', 'fan']);
     await user.selectOptions(target, 'pump');
     await user.selectOptions(panel.getByLabelText('Operator'), 'gt');
-    await user.type(panel.getByLabelText('Which value'), 'value');
+    // "Which value" is a choice of the values by name (next-boilerplate e2e round 5, E14)
+    await user.selectOptions(panel.getByLabelText('Which value'), 'value');
     await user.type(panel.getByLabelText('Value'), '80');
     await user.selectOptions(panel.getByLabelText('Pulse'), 'true');
     await user.selectOptions(panel.getByLabelText('Hide'), 'false');
@@ -87,7 +88,7 @@ describe('Rules step: authoring', () => {
     const onSave = vi.fn();
     const rules = [RULE, { enabled: false, target: '*', source: 'param', key: 'mode', op: 'eq', value: 'night', hidden: true }];
     render(<SceneSetupDrawer {...props({ onSave, initial: initial({ rules }) })} />);
-    expect(screen.getByText("For heater: When value of this item is above 80, colour it red and pulse")).toBeInTheDocument();
+    expect(screen.getByText("For heater: When Reading of this item is above 80, colour it red and pulse")).toBeInTheDocument();
     expect(screen.getByText('For every item: When parameter mode is night, hide it (off)')).toBeInTheDocument();
     expect(rulesPanel().getByText('2 rules')).toBeInTheDocument();
     expect(saveButton()).toBeDisabled();

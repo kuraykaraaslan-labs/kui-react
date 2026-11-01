@@ -10,7 +10,7 @@ import { SCADA_SCENE } from '../templates/scada-scene';
 import { cssColor } from '../settings/style';
 import { rowsById, type SceneSettings } from './scada-scene-logic';
 import { isSafeKey, isRec, refuse, noop, targetNames, type EditResult, type Rec, type Selection } from './scene-edit-core';
-import { DEFAULT_RULE_WORDS, type RuleWords } from './scene-editor-messages-panels';
+import { DEFAULT_RULE_WORDS, type RuleColour, type RuleWords } from './scene-editor-messages-panels';
 import { MAX_SCENE_RULES, ruleMatches, THINGS_TARGET, type RuleContext, type SceneRule } from './scene-rules-logic';
 
 const FIELDS = (SCADA_SCENE.fields.rules.fields ?? {}) as NonNullable<(typeof SCADA_SCENE.fields.rules)['fields']>;
@@ -216,6 +216,11 @@ export interface DescribeOptions {
   /** A column or parameter's name as the author sees it (default: the key). */
   columnLabel?: (key: string) => string | undefined;
   paramLabel?: (key: string) => string | undefined;
+  /**
+   * A symbol or connection by the name the author sees ("of Dock door 1", never "of logistics3"; next-boilerplate e2e round 5, V1-B2); default: its id.
+   * The column's label may depend on the symbol it is read of (`of`, '' for the rule's own target).
+   */
+  symbolName?: (id: string) => string | undefined;
 }
 
 function condition(r: SceneRule, n: '' | '2', words: RuleWords, o: DescribeOptions): string {
@@ -225,25 +230,28 @@ function condition(r: SceneRule, n: '' | '2', words: RuleWords, o: DescribeOptio
   const key = str(n ? r.key2 : r.key) || '...';
   const of = str(n ? r.of2 : r.of);
   const name = param ? fill(words.param, { name: o.paramLabel?.(key) ?? key }) : o.columnLabel?.(key) ?? key;
-  const where = param ? '' : ` ${of ? fill(words.of, { id: of }) : words.ofThis}`;
+  const where = param ? '' : ` ${of ? fill(words.of, { id: o.symbolName?.(of) ?? of }) : words.ofThis}`;
   const phrase = (words.ops as Record<string, string>)[op];
   const says = phrase === undefined ? op : fill(phrase, { value: str(n ? r.value2 : r.value), to: str(n ? r.to2 : r.to), list: str(n ? r.value2 : r.value).split(',').map((x) => x.trim()).filter(Boolean).join(', ') });
   return `${name}${where} ${says}`;
 }
 
-/** A theme colour token in the word a person would use (a custom colour is shown as it is). */
-const COLOUR_WORDS: Record<string, string> = {
+/** A theme colour token by the word a person would use, in the host's words (`RuleWords.colours`); a custom colour is shown as it is. */
+const COLOUR_TOKENS: Record<string, RuleColour> = {
   'var(--primary)': 'blue', 'var(--secondary)': 'purple', 'var(--success)': 'green', 'var(--info)': 'cyan', 'var(--warning)': 'amber',
-  'var(--error)': 'red', 'var(--text-primary)': 'dark', 'var(--text-secondary)': 'grey', 'var(--border-strong)': 'light grey',
+  'var(--error)': 'red', 'var(--text-primary)': 'dark', 'var(--text-secondary)': 'grey', 'var(--border-strong)': 'lightGrey',
 };
-const colourWord = (v: string): string => COLOUR_WORDS[v.trim()] ?? v;
+const colourWord = (v: string, words: RuleWords): string => {
+  const token = COLOUR_TOKENS[v.trim()];
+  return token ? (words.colours ?? DEFAULT_RULE_WORDS.colours)?.[token] ?? token : v;
+};
 
 function effects(r: SceneRule, words: RuleWords): string[] {
   const out: string[] = [];
   const state = str(r.state);
   if (state) out.push(fill(words.state, { state: (words.states as Record<string, string>)[state] ?? state }));
-  if (str(r.color)) out.push(fill(words.color, { color: colourWord(str(r.color)) }));
-  if (str(r.fillColor)) out.push(fill(words.fillColor, { color: colourWord(str(r.fillColor)) }));
+  if (str(r.color)) out.push(fill(words.color, { color: colourWord(str(r.color), words) }));
+  if (str(r.fillColor)) out.push(fill(words.fillColor, { color: colourWord(str(r.fillColor), words) }));
   const yes = (v: unknown) => (v === true || v === 'true' ? true : v === false || v === 'false' ? false : undefined);
   const dim = yes(r.dim); if (dim !== undefined) out.push(dim ? words.dimOn : words.dimOff);
   const blink = yes(r.blink); if (blink !== undefined) out.push(blink ? words.blinkOn : words.blinkOff);
@@ -281,7 +289,7 @@ export function describeRule(rule: unknown, words: RuleWords = DEFAULT_RULE_WORD
   const stop = r.stop === true ? `, ${words.stop}` : '';
   const target = str(r.target);
   const lead = o.withTarget
-    ? `${target === '*' ? words.forEvery : target === THINGS_TARGET ? words.forThings ?? DEFAULT_RULE_WORDS.forThings : fill(words.forTarget, { target: target || '...' })}: `
+    ? `${target === '*' ? words.forEvery : target === THINGS_TARGET ? words.forThings ?? DEFAULT_RULE_WORDS.forThings : fill(words.forTarget, { target: (target && o.symbolName?.(target)) || target || '...' })}: `
     : '';
   const sentence = `${lead}${when}, ${fx}${stop}`;
   return r.enabled === false ? `${sentence} ${words.off}` : sentence;

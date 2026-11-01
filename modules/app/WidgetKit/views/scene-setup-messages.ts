@@ -3,7 +3,7 @@
 // interpolates is a function of its values. Same pattern as the diagram editor's panels (`scene-editor-messages-panels`).
 
 import type { MatchHow, BindingIssueCode } from './scene-binding-logic';
-import { mergeMessages, type DeepPartial } from './scene-editor-messages-panels';
+import { mergeMessages, type DeepPartial, type RulesMessages } from './scene-editor-messages-panels';
 import type { ConditionMessages } from './scene-rules-form';
 import { DEFAULT_DESIGN_RULE_WORDS, type DesignRuleWords } from './design-rules-logic';
 
@@ -12,6 +12,8 @@ export { mergeMessages };
 
 /** The texts of the Rules step (5): the condition form's own (`ConditionMessages`, the diagram editor's words) and the step's. */
 export interface SceneSetupRulesMessages extends ConditionMessages {
+  /** Each problem of a rule, by its code (`validateRules`), in the host's language; absent: the English sentence (next-boilerplate e2e round 5, V1-B4). */
+  issues?: RulesMessages['issues'];
   section: string;
   hint: string;
   add: string;

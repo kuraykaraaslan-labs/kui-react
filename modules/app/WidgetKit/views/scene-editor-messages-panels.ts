@@ -4,6 +4,7 @@
 
 import type { ScadaFamily } from './scada-logic';
 import type { SceneSector } from './scada-aliases';
+import type { RuleIssueCode } from './scene-rules-logic';
 
 export type DeepPartial<T> = T extends (...a: never[]) => unknown ? T : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 
@@ -127,7 +128,15 @@ export interface RuleWords {
   forThings?: string;
   stop: string;
   nothing: string;
+  /**
+   * The theme colours in words ("colour it red"), in the host's language (next-boilerplate e2e round 5, V1-B5: they were English in every language);
+   * a custom colour is shown as it is. Optional for a host's older translation: the English stands in.
+   */
+  colours?: Record<RuleColour, string>;
 }
+
+/** The theme colours a rule's sentence names in words. */
+export type RuleColour = 'blue' | 'purple' | 'green' | 'cyan' | 'amber' | 'red' | 'dark' | 'grey' | 'lightGrey';
 
 export const DEFAULT_RULE_WORDS: RuleWords = {
   when: 'When', always: 'Always', and: 'and', or: 'or', off: '(off)', param: 'parameter {name}', ofThis: 'of this symbol', of: 'of {id}',
@@ -148,6 +157,7 @@ export const DEFAULT_RULE_WORDS: RuleWords = {
   move: 'move it by {dx}, {dy}', resize: 'draw it {scale} times its size', turn: 'turn it to {turn}°', symbol: 'draw it as {symbol}',
   forThings: 'For every thing from data',
   stop: 'then stop', nothing: 'change nothing',
+  colours: { blue: 'blue', purple: 'purple', green: 'green', cyan: 'cyan', amber: 'amber', red: 'red', dark: 'dark', grey: 'grey', lightGrey: 'light grey' },
 };
 
 export interface RulesMessages {
@@ -187,6 +197,14 @@ export interface RulesMessages {
   column: string;
   parameter: string;
   columnLabel: string;
+  /**
+   * "Which value" is a choice of the symbol's own values (next-boilerplate e2e round 5, E14: a free text box the person had to fill from memory); the
+   * last choice opens a box for any other name (a column of a data row), `otherValue` and its label `otherValueLabel`.
+   */
+  otherValue?: string;
+  otherValueLabel?: string;
+  /** The readable names of the values a symbol draws, by their name in the data (`value` is "Reading"); a host's own labels win. */
+  valueNames?: Readonly<Record<string, string>>;
   parameterLabel: string;
   ofRow: string;
   ownRow: string;
@@ -239,6 +257,12 @@ export interface RulesMessages {
   stop: string;
   stopHelp: string;
   problems: string;
+  /** The badge of a rule with problems ("1 problem", "3 problems"). */
+  problemCount: (n: number) => string;
+  /** What the Name box shows while it is empty. */
+  labelPlaceholder: string;
+  /** Each problem of a rule, by its code (`validateRules`; e2e round 5, V1-B4), in the host's language; `n` is the number it names. */
+  issues: Record<RuleIssueCode, (n?: number) => string>;
   refused: (why: string) => string;
   words: RuleWords;
 }
@@ -274,6 +298,12 @@ export const DEFAULT_RULES_MESSAGES: RulesMessages = {
   column: 'A value of a symbol',
   parameter: 'A board parameter',
   columnLabel: 'Which value',
+  otherValue: 'Another value (advanced)…',
+  otherValueLabel: 'Name of the value in the data',
+  valueNames: {
+    value: 'Reading', value2: 'Second reading', running: 'Running', status: 'Status', position: 'Opening', speed: 'Speed', direction: 'Direction',
+    warning: 'Warning', critical: 'Critical', label: 'Name', capacity: 'Capacity', mode: 'Mode', quality: 'Data quality',
+  },
   parameterLabel: 'Parameter',
   ofRow: 'Of symbol',
   ownRow: 'This symbol',
@@ -329,6 +359,29 @@ export const DEFAULT_RULES_MESSAGES: RulesMessages = {
   stop: 'Stop here',
   stopHelp: 'No later rule applies to this target once this one matched.',
   problems: 'Problems with this rule',
+  problemCount: (n) => (n === 1 ? '1 problem' : `${n} problems`),
+  labelPlaceholder: 'High: {value}',
+  issues: {
+    'too-many': (n) => `A drawing holds at most ${n} rules.`,
+    'target-row': () => 'Name a row or choose *.',
+    'target-missing': () => 'Choose the symbol this rule changes.',
+    'target-unknown': () => 'This symbol is not in the drawing any more.',
+    'source-invalid': () => 'Choose what the rule reads.',
+    'of-unknown': () => 'This symbol is not in the drawing any more.',
+    'op-invalid': () => 'Choose a comparison from the list.',
+    'param-missing': () => 'Choose the board parameter.',
+    'column-missing': () => 'Choose which value the rule reads.',
+    'value-missing': () => 'This comparison needs a value.',
+    'value-number': () => 'This comparison needs a number.',
+    'low-number': () => 'The lower end must be a number.',
+    'high-number': () => 'The upper end must be a number.',
+    'list-empty': () => 'List at least one value, separated by commas.',
+    'first-missing': () => 'Set the first condition before the second.',
+    'join-invalid': () => 'Choose how the two conditions join.',
+    choice: () => 'Choose one of the options.',
+    number: () => 'Use a number.',
+    'label-long': (n) => `At most ${n} characters.`,
+  },
   refused: (why) => why,
   words: DEFAULT_RULE_WORDS,
 };

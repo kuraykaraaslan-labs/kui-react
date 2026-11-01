@@ -124,6 +124,11 @@ export interface SceneSetupDrawerProps {
   newFromDeviceBusy?: boolean;
 
   devices: readonly SceneSetupDevice[];
+  /**
+   * The names of devices the saved setup binds that `devices` does not list, by id (a device moved elsewhere since): a stale role is named by its
+   * device, never by its role code (next-boilerplate e2e round 5, V2-B2); without a name it reads `unknownDevice`.
+   */
+  deviceNames?: Readonly<Record<string, string>>;
   devicesLoading?: boolean;
   /** The roles the scene's keys use as a prefix, when the document says; each needs a device. */
   roles?: readonly string[];
@@ -270,7 +275,8 @@ const freshForm = (seed: Seed): Form => ({
   removedStale: {}, autoOn: false, note: '',
 });
 
-type StaleRow = { id: string; type: 'exception' | 'role' | 'hidden'; typeLabel: string; name: string; detail: string; state: 'kept' | 'removed' };
+/** `ref` is the saved entry's own key (a scene key, a role): internal; `name` is what is shown (a role by its device's name, never its code). */
+type StaleRow = { id: string; type: 'exception' | 'role' | 'hidden'; typeLabel: string; ref: string; name: string; detail: string; state: 'kept' | 'removed' };
 
 const owns = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 const DEFAULT_RULES_KINDS: readonly string[] = ['design', 'diagram'];
@@ -365,23 +371,25 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
     for (const k of stale.exceptions) {
       const ref = ks.map[k];
       // a stale entry with a field map and no element names its fields where the element would be (the drawer of phase 45.4 shows them properly)
-      rows.push({ id: `exception:${k}`, type: 'exception', typeLabel: m.staleKind.exception, name: k, detail: m.staleExceptionDetail(nameOf(ref.deviceId), ref.element ?? Object.keys(ref.fields ?? {}).join(', ')), state: state(`exception:${k}`) });
+      rows.push({ id: `exception:${k}`, type: 'exception', typeLabel: m.staleKind.exception, ref: k, name: k, detail: m.staleExceptionDetail(nameOf(ref.deviceId), ref.element ?? Object.keys(ref.fields ?? {}).join(', ')), state: state(`exception:${k}`) });
     }
     for (const r of stale.roles) {
-      rows.push({ id: `role:${r}`, type: 'role', typeLabel: m.staleKind.role, name: r, detail: m.staleRoleDetail(nameOf(seed.devices[r])), state: state(`role:${r}`) });
+      // a role is a code nobody chose: the row names its device ("Fryer 1"), never "d1" (next-boilerplate e2e round 5, V2-B2)
+      const device = devices.find((d) => d.id === seed.devices[r])?.label ?? props.deviceNames?.[seed.devices[r] ?? ''] ?? m.unknownDevice;
+      rows.push({ id: `role:${r}`, type: 'role', typeLabel: m.staleKind.role, ref: r, name: device, detail: m.staleRoleDetail(device), state: state(`role:${r}`) });
     }
     for (const k of stale.hidden) {
-      rows.push({ id: `hidden:${k}`, type: 'hidden', typeLabel: m.staleKind.hidden, name: k, detail: m.staleHiddenDetail, state: state(`hidden:${k}`) });
+      rows.push({ id: `hidden:${k}`, type: 'hidden', typeLabel: m.staleKind.hidden, ref: k, name: k, detail: m.staleHiddenDetail, state: state(`hidden:${k}`) });
     }
     return rows;
-  }, [loading, stale, seed.devices, ks, form.removedStale, m, devices]);
+  }, [loading, stale, seed.devices, ks, form.removedStale, m, devices, props.deviceNames]);
   const staleKept = staleRows.filter((r) => r.state === 'kept');
   const carryMap = useMemo(
-    () => Object.fromEntries(staleKept.filter((r) => r.type === 'exception').map((r) => [r.name, ks.map[r.name]])),
+    () => Object.fromEntries(staleKept.filter((r) => r.type === 'exception').map((r) => [r.ref, ks.map[r.ref]])),
     [staleKept, ks.map],
   );
   const carryDevices = useMemo(
-    () => Object.fromEntries(staleKept.filter((r) => r.type === 'role').map((r) => [r.name, seed.devices[r.name]])),
+    () => Object.fromEntries(staleKept.filter((r) => r.type === 'role').map((r) => [r.ref, seed.devices[r.ref]])),
     [staleKept, seed.devices],
   );
   // A removed stale hidden key leaves `hidden`; the others stay (a live key's hide is the user's own choice).
@@ -476,7 +484,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   const issues = useMemo(() => {
     const all: BindingIssue[] = [...roleIssues, ...validateDraft(draft)];
     // A kept stale role must not take the name of a role a listed device now has.
-    for (const r of staleKept) if (r.type === 'role' && owns(devMap, r.name)) all.push({ code: 'role-duplicate', subject: r.name });
+    for (const r of staleKept) if (r.type === 'role' && owns(devMap, r.ref)) all.push({ code: 'role-duplicate', subject: r.ref });
     const seen = new Set<string>();
     return all.filter((i) => {
       const id = `${i.code}\u0000${i.subject ?? ''}`;
@@ -721,7 +729,7 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
   ];
   const staleColumns: Column<StaleRow>[] = [
     { key: 'typeLabel', header: m.staleTypeColumn, sortable: true },
-    { key: 'name', header: m.staleNameColumn, sortable: true, render: (r) => <span className="font-mono text-xs break-all">{r.name}</span> },
+    { key: 'name', header: m.staleNameColumn, sortable: true, render: (r) => <span className={cn('text-xs break-all', r.type !== 'role' && 'font-mono')}>{r.name}</span> },
     { key: 'detail', header: m.staleDetailColumn, hideBelow: 'md', render: (r) => <span className="text-xs break-all">{r.detail}</span> },
     {
       key: 'state', header: m.staleStateColumn, sortable: true, searchable: false,

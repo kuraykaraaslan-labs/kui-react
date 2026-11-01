@@ -10,6 +10,7 @@ import { useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { Badge, CONTROL, PanelField, SMALL_BUTTON } from './scene-panel-ui';
 import { ColorField, Condition, type ConditionEnv } from './scene-rules-form';
+import { DEFAULT_RULES_MESSAGES } from './scene-editor-messages-panels';
 import {
   DESIGN_ALL_TARGET, addDesignRule, describeDesignRule, designRuleIssues, duplicateDesignRule, isDesignRule, moveDesignRule, removeDesignRule,
   staleReferences, updateDesignRule, type RuleDialect, type RulesEdit,
@@ -51,11 +52,12 @@ export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = 
       const hit = /^rules\.(\d+)(?:\.(\w+))?$/.exec(i.path);
       if (!hit) continue;
       const at = out.get(Number(hit[1])) ?? new Map<string, string>();
-      if (!at.has(hit[2] ?? '')) at.set(hit[2] ?? '', i.message);
+      // in the host's words when it has them (V1-B4): the code, worded by the messages; else the English sentence
+      if (!at.has(hit[2] ?? '')) at.set(hit[2] ?? '', (i.ruleCode && m.issues?.[i.ruleCode]?.(i.n)) || i.message);
       out.set(Number(hit[1]), at);
     }
     return out;
-  }, [rules, dialect]);
+  }, [rules, dialect, m]);
   const stale = useMemo(() => (keysLoading || keys.length === 0 ? [] : staleReferences(rules, keyNames)), [rules, keyNames, keys.length, keysLoading]);
   const staleOf = (index: number) => stale.filter((s) => s.index === index);
 
@@ -74,7 +76,8 @@ export function SceneSetupRules({ rules, onChange, keys, keysLoading, columns = 
     },
   };
   const labels = {
-    columnLabel: (key: string) => columns.find((c) => c.key === key)?.label,
+    // a value by the name a person knows it by ("Reading", never `value`; next-boilerplate e2e round 5, E14)
+    columnLabel: (key: string) => columns.find((c) => c.key === key && c.label && c.label !== c.key)?.label ?? (m.valueNames ?? DEFAULT_RULES_MESSAGES.valueNames)?.[key],
     paramLabel: (key: string) => params.find((p) => p.key === key)?.label,
   };
   const total = [...issues.values()].reduce((n, x) => n + x.size, 0);

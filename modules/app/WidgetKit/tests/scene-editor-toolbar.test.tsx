@@ -37,6 +37,8 @@ describe('the buttons', () => {
     const p = mount();
     fireEvent.click(screen.getByTestId('scene-tool-zone'));
     expect(p.onTool).toHaveBeenCalledWith('zone');
+    // the kinds by name, never the stored word (next-boilerplate e2e round 5, V1-X2)
+    expect([...(screen.getByTestId('link-kind') as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(['Pipe', 'Hose', 'Cable', 'Signal wire', 'Strip', 'Thin line', 'Single-line']);
     fireEvent.change(screen.getByTestId('link-kind'), { target: { value: 'sld' } });
     expect(p.onLinkKind).toHaveBeenCalledWith('sld');
   });

@@ -488,10 +488,12 @@ describe('SceneSetupDrawer: saved entries the scene no longer has (stale)', () =
   const staleTable = () => screen.getByRole('table', { name: 'Saved entries the scene no longer has' });
 
   it('lists a saved exception, a saved role and a saved hidden key the scene has nothing for, never dropping them silently', () => {
-    render(<SceneSetupDrawer {...props({ initial, sceneKeys: KEYS2 })} />);
+    render(<SceneSetupDrawer {...props({ initial, sceneKeys: KEYS2, deviceNames: { [D3]: 'Oven 2' } })} />);
     const t = within(staleTable());
     expect(t.getByText('oldkey')).toBeInTheDocument();
-    expect(t.getByText('oven')).toBeInTheDocument();
+    // a role by its device's name, never by its code (next-boilerplate e2e round 5, V2-B2)
+    expect(t.getByText('Oven 2')).toBeInTheDocument();
+    expect(t.queryByText('oven')).toBeNull();
     expect(t.getByText('oldhidden')).toBeInTheDocument();
     expect(t.getByText('Stale exception')).toBeInTheDocument();
     expect(t.getByText('Stale role')).toBeInTheDocument();
@@ -531,7 +533,7 @@ describe('SceneSetupDrawer: saved entries the scene no longer has (stale)', () =
     await user.click(screen.getByRole('button', { name: 'Keep the stale exception oldkey' }));
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Remove the stale exception oldkey' }));
-    await user.click(screen.getByRole('button', { name: 'Remove the stale role oven' }));
+    await user.click(screen.getByRole('button', { name: 'Remove the stale role another device' }));
     await user.click(screen.getByRole('button', { name: 'Remove the stale hidden key oldhidden' }));
     await user.selectOptions(elementOf('ghost'), 'spare');
     await user.click(screen.getByRole('button', { name: 'Save' }));
@@ -647,13 +649,13 @@ describe('SceneSetupDrawer: which devices are in the scene', () => {
     const draft = await saveIt(onSave);
     expect(draft.devices).toEqual({ '': D1 });
   });
-  it('with no device included there is nothing to save', async () => {
+  it('with no device included the view is still saved, as the server takes it: a floor or a room that holds none (next-boilerplate e2e round 5, E9)', async () => {
     render(<SceneSetupDrawer {...props({ initial: { slot: 'main', kind: 'design' } })} />);
     const user = userEvent.setup();
     await user.click(screen.getByRole('radio', { name: 'Use Fryer line' }));
     await user.click(screen.getByRole('checkbox', { name: 'Include Fryer 1 in the scene' }));
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    expect(screen.getAllByText('Bind at least one device.').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Bind at least one device.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
   it('a saved binding starts with the devices it binds included and the others off', () => {
     render(<SceneSetupDrawer {...props({ devices: two, initial: { slot: 'main', kind: 'design', documentId: DOC_A, devices: { '': D1 } } })} />);

@@ -25,6 +25,11 @@ export interface EditorHost {
   params?: Array<{ key: string; label?: string; values?: string[] }>;
   /** The bound table's columns with their labels (for the rule form's pickers). */
   columns?: Array<{ key: string; label?: string }>;
+  /**
+   * The values a symbol draws, by its id, with the names a person knows them by (`value` is "Reading"): what a rule's "Which value" offers for that
+   * symbol (next-boilerplate e2e round 5, E14). Absent, or undefined for a symbol: the columns are offered.
+   */
+  symbolValues?: (elementId: string) => ReadonlyArray<{ key: string; label?: string }> | undefined;
   /** Called after a successful Apply, so the host can close its surface. */
   onApplied?: () => void;
   /** True while the host holds edits of its own that Apply would save (for example symbol actions): enables Apply and guards Close. */
