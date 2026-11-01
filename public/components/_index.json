@@ -209,6 +209,18 @@
     "category": "Molecule",
     "file": "announcement-dialog.md"
   },
+  "icon-picker": {
+    "name": "IconPicker",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "icon-picker.md"
+  },
+  "translatable-field": {
+    "name": "TranslatableField",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "translatable-field.md"
+  },
   "time-picker": {
     "name": "TimePicker",
     "layer": "ui",

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-28T06:51:33.781Z",
+  "generatedAt": "2026-11-01T05:55:04.007Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -200,7 +200,8 @@
         "popconfirm",
         "reviews-review-submit-form",
         "rich-text-editor",
-        "share-dialog"
+        "share-dialog",
+        "translatable-field"
       ],
       "variantCount": 13
     },
@@ -1020,6 +1021,77 @@
       "variantCount": 3
     },
     {
+      "id": "icon-picker",
+      "name": "IconPicker",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/IconPicker/index.tsx",
+      "abbr": "IP",
+      "description": "Chooses one Font Awesome solid icon; the value is the class string manifests and menus store (\"fas fa-industry\"). Search by name and by the older names the pack lists, recent choices first, an 8-column grid moved through with the arrow keys while the focus stays in the search box. The whole solid set is imported lazily the first time a picker opens. React-only (next-boilerplate phase 54, D54-10).",
+      "status": "stable",
+      "since": "2026-11",
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "dialog",
+          "combobox",
+          "listbox"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Enter / Space",
+            "action": "Open the panel (focus goes to the search box)"
+          },
+          {
+            "keys": "Arrow keys",
+            "action": "Move through the grid (up / down by column)"
+          },
+          {
+            "keys": "Page Up / Page Down",
+            "action": "Move four rows"
+          },
+          {
+            "keys": "Enter",
+            "action": "Choose the active icon"
+          },
+          {
+            "keys": "Escape",
+            "action": "Close without choosing"
+          }
+        ]
+      },
+      "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "translatable-field",
+      "name": "TranslatableField",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/TranslatableField/index.tsx",
+      "abbr": "TF",
+      "description": "One text in several languages: a row per language with its flag, its own name, the input (right to left where the language is, lang set), a state mark in words (filled, missing, suggested) and a clear button. A required language left empty is an error; an empty language with a suggestion shows it in the field with an Accept action; a note can sit under a row; an \"Add language\" slot follows the rows. The value is a code → text record. React-only (next-boilerplate phase 54, D54-10).",
+      "status": "stable",
+      "since": "2026-11",
+      "composes": [
+        "button"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "group"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Tab",
+            "action": "Move between the inputs, Accept and clear buttons"
+          }
+        ]
+      },
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
       "id": "time-picker",
       "name": "TimePicker",
       "layer": "ui",
@@ -1539,11 +1611,11 @@
       "category": "Organism",
       "filePath": "modules/ui/TreeView/index.tsx",
       "abbr": "Tv",
-      "description": "Collapsible tree with keyboard navigation, selection, and aria-tree roles.",
+      "description": "Collapsible tree with keyboard navigation, selection, and aria-tree roles. With onMove, nodes move by pointer drag (a long press on touch), with a drop line or a tinted row, auto-scroll near the edges, and by Alt+Arrow keys, each move announced in a polite live region; canDrop refuses targets. The tree stays controlled: apply the move (applyTreeMove) and pass the nodes back. renderLabel draws custom row content.",
       "status": "stable",
       "since": "2025-03",
       "designTokens": [],
-      "variantCount": 4
+      "variantCount": 6
     },
     {
       "id": "tab-button",

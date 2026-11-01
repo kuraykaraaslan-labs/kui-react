@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-10-28T06:51:33.781Z",
+  "generatedAt": "2026-11-01T05:55:04.007Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -255,7 +255,8 @@
         "popconfirm",
         "reviews-review-submit-form",
         "rich-text-editor",
-        "share-dialog"
+        "share-dialog",
+        "translatable-field"
       ]
     },
     {
@@ -1694,6 +1695,101 @@
       "designTokens": []
     },
     {
+      "id": "icon-picker",
+      "name": "IconPicker",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/IconPicker/index.tsx",
+      "abbr": "IP",
+      "description": "Chooses one Font Awesome solid icon; the value is the class string manifests and menus store (\"fas fa-industry\"). Search by name and by the older names the pack lists, recent choices first, an 8-column grid moved through with the arrow keys while the focus stays in the search box. The whole solid set is imported lazily the first time a picker opens. React-only (next-boilerplate phase 54, D54-10).",
+      "source": "'use client';\nimport { IconPicker } from '@/modules/ui/IconPicker';\n\nconst [icon, setIcon] = useState('fas fa-industry');\n\n<IconPicker id=\"ws-icon\" label=\"Workspace icon\" value={icon} onChange={setIcon} />\n\n// Draw the chosen icon in the trigger before the set loads (an app's icon map):\n<IconPicker id=\"ws-icon\" label=\"Workspace icon\" value={icon} onChange={setIcon}\n  resolveIcon={(name) => appIcons[name]} />",
+      "variants": [
+        {
+          "title": "Empty",
+          "code": "const [icon, setIcon] = useState<string>();\n<IconPicker id=\"ws-icon\" label=\"Workspace icon\" value={icon} onChange={setIcon} />"
+        },
+        {
+          "title": "With a value and an app icon map",
+          "code": "<IconPicker id=\"ws-icon\" label=\"Workspace icon\" value=\"fas fa-industry\"\n  resolveIcon={(name) => appIcons[name]} onChange={setIcon} />"
+        },
+        {
+          "title": "Disabled",
+          "code": "<IconPicker id=\"ws-icon\" label=\"Workspace icon\" value=\"fas fa-gear\" disabled onChange={setIcon} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "dialog",
+          "combobox",
+          "listbox"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Enter / Space",
+            "action": "Open the panel (focus goes to the search box)"
+          },
+          {
+            "keys": "Arrow keys",
+            "action": "Move through the grid (up / down by column)"
+          },
+          {
+            "keys": "Page Up / Page Down",
+            "action": "Move four rows"
+          },
+          {
+            "keys": "Enter",
+            "action": "Choose the active icon"
+          },
+          {
+            "keys": "Escape",
+            "action": "Close without choosing"
+          }
+        ]
+      },
+      "designTokens": []
+    },
+    {
+      "id": "translatable-field",
+      "name": "TranslatableField",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/TranslatableField/index.tsx",
+      "abbr": "TF",
+      "description": "One text in several languages: a row per language with its flag, its own name, the input (right to left where the language is, lang set), a state mark in words (filled, missing, suggested) and a clear button. A required language left empty is an error; an empty language with a suggestion shows it in the field with an Accept action; a note can sit under a row; an \"Add language\" slot follows the rows. The value is a code → text record. React-only (next-boilerplate phase 54, D54-10).",
+      "source": "'use client';\nimport { TranslatableField } from '@/modules/ui/TranslatableField';\n\nconst [label, setLabel] = useState({ en: 'Flows' });\n\n<TranslatableField\n  id=\"item-label\"\n  label=\"Label\"\n  languages={[\n    { code: 'en', name: 'English', flag: <Flag code=\"gb\" /> },\n    { code: 'tr', name: 'Türkçe', flag: <Flag code=\"tr\" /> },\n    { code: 'ar', name: 'العربية', rtl: true },\n  ]}\n  value={label}\n  onChange={setLabel}\n  required={['en']}\n  suggestions={{ tr: { text: 'Akışlar', source: 'automation.menu.flows' } }}\n  notes={{ tr: 'Overridden in Translations' }}\n/>",
+      "variants": [
+        {
+          "title": "Filled, missing and suggested",
+          "code": "<TranslatableField id=\"item-label\" label=\"Menu label\" languages={languages}\n  value={{ en: 'Flows', ar: 'التدفقات' }} onChange={setLabel} required={['en']}\n  suggestions={{ tr: { text: 'Akışlar', source: 'automation.menu.flows' } }}\n  notes={{ ar: 'Overridden in Translations' }} />"
+        },
+        {
+          "title": "Required English empty, with \"Add language\"",
+          "code": "<TranslatableField id=\"ws-label\" label=\"Menu label\" languages={languages}\n  value={label} onChange={setLabel} required={['en']}\n  addLanguage={<Button size=\"sm\" variant=\"ghost\" onClick={addLanguage}>+ Add language</Button>} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "composes": [
+        "button"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "group"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Tab",
+            "action": "Move between the inputs, Accept and clear buttons"
+          }
+        ]
+      },
+      "designTokens": []
+    },
+    {
       "id": "time-picker",
       "name": "TimePicker",
       "layer": "ui",
@@ -2597,8 +2693,8 @@
       "category": "Organism",
       "filePath": "modules/ui/TreeView/index.tsx",
       "abbr": "Tv",
-      "description": "Collapsible tree with keyboard navigation, selection, and aria-tree roles.",
-      "source": "'use client';\nimport { useTreeState } from './hooks/useTreeState';\nimport { useKeyboardNav } from './hooks/useKeyboardNav';\nimport { TreeNodeRow } from './parts/Node';\n\nexport function TreeView({ nodes, selectedId, selectedIds, onSelect, onSelectionChange, selectionMode = 'single', ... }) {\n  // M1: expand all / collapse all, single + multi (Cmd/Shift-click) selection,\n  //      arrow keys, Home/End, type-ahead jump, Space toggle, Enter activate.\n  // M2-M5: drag-drop, lazy load, virtualize, context menu, full ARIA polish.\n}",
+      "description": "Collapsible tree with keyboard navigation, selection, and aria-tree roles. With onMove, nodes move by pointer drag (a long press on touch), with a drop line or a tinted row, auto-scroll near the edges, and by Alt+Arrow keys, each move announced in a polite live region; canDrop refuses targets. The tree stays controlled: apply the move (applyTreeMove) and pass the nodes back. renderLabel draws custom row content.",
+      "source": "'use client';\nimport { useTreeState } from './hooks/useTreeState';\nimport { useKeyboardNav } from './hooks/useKeyboardNav';\nimport { TreeNodeRow } from './parts/Node';\n\nexport function TreeView({ nodes, selectedId, selectedIds, onSelect, onSelectionChange, selectionMode = 'single', ... }) {\n  // M1: expand all / collapse all, single + multi (Cmd/Shift-click) selection,\n  //      arrow keys, Home/End, type-ahead jump, Space toggle, Enter activate.\n  // M2: onMove / canDrop: pointer drag, touch long press, Alt+Arrow moves, live-region announcements; renderLabel.\n  // M3-M5: lazy load, virtualize, context menu, full ARIA polish.\n}",
       "variants": [
         {
           "title": "File tree",
@@ -2615,6 +2711,14 @@
         {
           "title": "Multi-select + type-ahead",
           "code": "function Demo() {\n  const [ids, setIds] = useState<string[]>(['Card']);\n  return (\n    <TreeView\n      label=\"Project files\"\n      selectionMode=\"multi\"\n      selectedIds={ids}\n      onSelectionChange={setIds}\n      nodes={[\n        { id: 'docs', label: 'Documents', children: [\n          { id: 'spec', label: 'spec.md' },\n          { id: 'roadmap', label: 'roadmap.md' },\n        ]},\n        { id: 'src', label: 'src', children: [\n          { id: 'Button', label: 'Button.tsx' },\n          { id: 'Card', label: 'Card.tsx' },\n          { id: 'Drawer', label: 'Drawer.tsx' },\n          { id: 'TreeView', label: 'TreeView.tsx' },\n        ]},\n      ]}\n    />\n  );\n}\n\n// Try it:\n//  - Cmd/Ctrl-click       → toggle individual rows\n//  - Shift-click          → range-select between anchor and clicked row\n//  - Type \"tre\"           → focus jumps to \"TreeView.tsx\"\n//  - Cmd/Ctrl+A           → select all visible rows\n//  - Arrow keys / Home/End / Space / Enter — full keyboard nav."
+        },
+        {
+          "title": "Move: drag and Alt+Arrow keys",
+          "code": "function Demo() {\n  const [nodes, setNodes] = useState(INITIAL);\n  return (\n    <TreeView\n      label=\"Files\"\n      nodes={nodes}\n      onMove={(ids, target) => setNodes((n) => applyTreeMove(n, ids, target))}\n    />\n  );\n}\n\n// Try it:\n//  - Drag a row: top quarter = before, bottom quarter = after, middle = inside.\n//    After the last child of a group, move left to drop after the group instead.\n//  - Touch: long-press a row, then drag.\n//  - Alt+ArrowUp / Alt+ArrowDown: move among siblings.\n//  - Alt+ArrowLeft: out, after the parent. Alt+ArrowRight: into the previous sibling."
+        },
+        {
+          "title": "Menu editor: drag handle, canDrop, renderLabel",
+          "code": "<TreeView\n  label=\"Menu\"\n  nodes={nodes}\n  dragHandle\n  // Groups stay at the top level; items stay inside a group.\n  canDrop={(ids, target) => ids.every((id) =>\n    kindOf(id) === 'group' ? target.parentId === null : kindOf(target.parentId) === 'group')}\n  onMove={(ids, target) => setNodes((n) => applyTreeMove(n, ids, target))}\n  renderLabel={(node) => (\n    <span className=\"flex items-center gap-2\">\n      {node.label}\n      {node.data.renamed && <Badge size=\"sm\" variant=\"info\">renamed</Badge>}\n    </span>\n  )}\n/>"
         }
       ],
       "status": "stable",
