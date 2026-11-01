@@ -68,8 +68,8 @@ export function freshId(prefix: 't' | 'a', taken: Set<string>): string {
 export type TriggerKind = RuleTrigger['kind'];
 export type ConditionKind = Exclude<RuleCondition, { all: unknown } | { any: unknown } | { not: unknown }>['kind'];
 export type ActionKind = RuleAction['kind'];
-export const TRIGGER_KINDS: readonly TriggerKind[] = ['value', 'status', 'alarm', 'time', 'every', 'sun', 'manual'];
-export const CONDITION_KINDS: readonly ConditionKind[] = ['value', 'status', 'alarm', 'time', 'sun', 'expr'];
+export const TRIGGER_KINDS: readonly TriggerKind[] = ['value', 'status', 'alarm', 'time', 'date', 'every', 'sun', 'manual'];
+export const CONDITION_KINDS: readonly ConditionKind[] = ['value', 'status', 'alarm', 'time', 'date', 'holiday', 'sun', 'expr'];
 export const ACTION_KINDS: readonly ActionKind[] = ['command', 'setting', 'notify', 'alarm', 'wait', 'wait_until', 'choose', 'rule'];
 
 const none: RuleDeviceRef = { device: '' };
@@ -80,6 +80,7 @@ export function emptyTrigger(kind: TriggerKind, id: string): RuleTrigger {
     case 'status': return { id, kind, target: none, to: 'offline' };
     case 'alarm': return { id, kind, target: none, event: 'raised' };
     case 'time': return { id, kind, at: '08:00' };
+    case 'date': return { id, kind, at: '09:00', daysOfMonth: [1] };
     case 'every': return { id, kind, minutes: 15 };
     case 'sun': return { id, kind, event: 'sunset' };
     case 'manual': return { id, kind };
@@ -92,6 +93,8 @@ export function emptyCondition(kind: ConditionKind): RuleCondition {
     case 'status': return { kind, target: none, is: 'online' };
     case 'alarm': return { kind, target: none, active: true };
     case 'time': return { kind, after: '08:00', before: '20:00' };
+    case 'date': return { kind, months: [6, 7, 8, 9] };
+    case 'holiday': return { kind, is: false };
     case 'sun': return { kind, is: 'day' };
     case 'expr': return { kind, expr: '' };
   }
@@ -138,6 +141,9 @@ function conditionProblems(c: RuleCondition, path: Array<string | number>, m: Io
     if (c.op === 'between' && (typeof c.value2 !== 'number' || !Number.isFinite(c.value2))) out.push({ path: [...path, 'value2'], code: 'value2', message: m.thanValue2 });
   } else if ((c.kind === 'status' || c.kind === 'alarm') && !picked(c.target)) {
     out.push({ path: [...path, 'target'], code: 'device', message: m.pickDevice });
+  } else if (c.kind === 'date') {
+    if (!c.months && !c.daysOfMonth && !c.from && !c.to) out.push({ path, code: 'date_empty', message: m.dateNeeded });
+    else if ((c.from === undefined) !== (c.to === undefined)) out.push({ path, code: 'date_window_half', message: m.dateWindowHalf });
   } else if (c.kind === 'expr' && !c.expr.trim()) {
     out.push({ path: [...path, 'expr'], code: 'expr', message: m.formulaLabel });
   }
@@ -194,6 +200,7 @@ export function draftProblems(name: string, def: RuleDefinition, m: IotMessages[
       if (t.change !== 'any' && (t.value === undefined || t.value === '')) out.push({ path: [...p, 'value'], code: 'value', message: m.thanValue });
       if ((t.change === 'between' || t.change === 'outside') && (typeof t.value2 !== 'number' || !Number.isFinite(t.value2))) out.push({ path: [...p, 'value2'], code: 'value2', message: m.thanValue2 });
     }
+    if (t.kind === 'date' && t.daysOfMonth && t.days) out.push({ path: [...p, 'days'], code: 'date_days_conflict', message: m.dateDaysConflict });
     if (t.kind === 'every' && !(t.minutes >= 1)) out.push({ path: [...p, 'minutes'], code: 'minutes', message: m.everyLabel });
   });
   if (def.onlyIf) conditionProblems(def.onlyIf, ['onlyIf'], m, out);

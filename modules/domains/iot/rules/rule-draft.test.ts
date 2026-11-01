@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { IOT_MESSAGES } from '../messages';
 import type { RuleDefinition, RuleScope } from '../types/rules';
 import {
-  actsOnDevices, codeOf, collectIds, commandOptions, deviceOptions, draftProblems, emptyAction, emptyDefinition, freshId, problemsAt, refOf, refOrHomeOf, valueOptions,
+  actsOnDevices, codeOf, collectIds, commandOptions, deviceOptions, draftProblems, emptyAction, emptyCondition, emptyDefinition, emptyTrigger, freshId, problemsAt, refOf, refOrHomeOf, valueOptions,
 } from './rule-draft';
 
 const m = IOT_MESSAGES.rules;
@@ -107,5 +107,23 @@ describe('draftProblems', () => {
     expect(problemsAt(p, ['when', 0]).map((x) => x.code)).toEqual(['device', 'value']);
     expect(problemsAt(p, ['name'])).toHaveLength(1);
     expect(problemsAt(p, ['then', 1])).toEqual([]);
+  });
+});
+
+describe('calendar rows', () => {
+  it('a new date trigger is the 1st of every month at 09:00; a new date condition names summer; a holiday condition says "not a holiday"', () => {
+    expect(emptyTrigger('date', 't1')).toEqual({ id: 't1', kind: 'date', at: '09:00', daysOfMonth: [1] });
+    expect(emptyCondition('date')).toEqual({ kind: 'date', months: [6, 7, 8, 9] });
+    expect(emptyCondition('holiday')).toEqual({ kind: 'holiday', is: false });
+  });
+
+  it('a date condition that names nothing, or half a window, and a date trigger that mixes days of the month with weekdays are unfinished', () => {
+    const def = emptyDefinition();
+    def.when = [{ id: 't1', kind: 'date', at: '09:00', daysOfMonth: [1], days: [1] }];
+    def.onlyIf = { all: [{ kind: 'date' }, { kind: 'date', from: '06-01' }, { kind: 'date', months: [6] }, { kind: 'holiday', is: true }] };
+    const codes = draftProblems('x', def, m).map((p) => p.code);
+    expect(codes).toContain('date_days_conflict');
+    expect(codes.filter((c) => c === 'date_empty')).toHaveLength(1);
+    expect(codes.filter((c) => c === 'date_window_half')).toHaveLength(1);
   });
 });

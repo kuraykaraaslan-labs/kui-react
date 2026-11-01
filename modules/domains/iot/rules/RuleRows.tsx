@@ -78,25 +78,56 @@ function ValueInput({ id, label, sample, value, onChange }: { id: string; label:
   return <Txt id={id} label={label} value={String(value ?? '')} onChange={onChange} className="w-32" />;
 }
 
-/** Monday = 1 … Sunday = 7, named in the host's language. */
-export function DaysPicker({ id, value, onChange, locale, label, allDays }: { id: string; value: number[] | undefined; onChange: (v: number[] | undefined) => void; locale?: string; label: string; allDays: string }) {
-  const names = [1, 2, 3, 4, 5, 6, 7].map((d) => new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(Date.UTC(2026, 10, 1 + d))));
+/** A set of numbered chips, all lit when nothing is chosen: the weekdays, months and days of the month share it. Choosing all or none = no filter. */
+function Chips({ id, label, all, items, value, onChange, allLabel }: { id: string; label: string; all: number; items: Array<{ n: number; label: string }>; value: number[] | undefined; onChange: (v: number[] | undefined) => void; allLabel: string }) {
   const on = new Set(value ?? []);
   const toggle = (d: number) => {
     const next = new Set(on);
     if (next.has(d)) next.delete(d); else next.add(d);
-    onChange(next.size === 0 || next.size === 7 ? undefined : [...next].sort((a, b) => a - b));
+    onChange(next.size === 0 || next.size === all ? undefined : [...next].sort((a, b) => a - b));
   };
   return (
     <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1">
-      {names.map((n, i) => (
+      {items.map((it) => (
         <button
-          key={i} id={`${id}-${i + 1}`} type="button" aria-pressed={!value || on.has(i + 1)} onClick={() => toggle(i + 1)}
-          className={cn('rounded-md border px-2 py-1 text-xs', !value || on.has(i + 1) ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary')}
-        >{n}</button>
+          key={it.n} id={`${id}-${it.n}`} type="button" aria-pressed={!value || on.has(it.n)} onClick={() => toggle(it.n)}
+          className={cn('rounded-md border px-2 py-1 text-xs', !value || on.has(it.n) ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary')}
+        >{it.label}</button>
       ))}
-      {!value ? <span className="ml-1 text-xs text-text-secondary">{allDays}</span> : null}
+      {!value ? <span className="ml-1 text-xs text-text-secondary">{allLabel}</span> : null}
     </div>
+  );
+}
+
+/** Monday = 1 … Sunday = 7, named in the host's language. */
+export function DaysPicker({ id, value, onChange, locale, label, allDays }: { id: string; value: number[] | undefined; onChange: (v: number[] | undefined) => void; locale?: string; label: string; allDays: string }) {
+  const items = [1, 2, 3, 4, 5, 6, 7].map((n) => ({ n, label: new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(Date.UTC(2026, 10, 1 + n))) }));
+  return <Chips id={id} label={label} all={7} items={items} value={value} onChange={onChange} allLabel={allDays} />;
+}
+
+/** January = 1 … December = 12, named in the host's language. */
+export function MonthsPicker({ id, value, onChange, locale, label, allMonths }: { id: string; value: number[] | undefined; onChange: (v: number[] | undefined) => void; locale?: string; label: string; allMonths: string }) {
+  const items = Array.from({ length: 12 }, (_, i) => ({ n: i + 1, label: new Intl.DateTimeFormat(locale, { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, i, 15))) }));
+  return <Chips id={id} label={label} all={12} items={items} value={value} onChange={onChange} allLabel={allMonths} />;
+}
+
+/** The days 1 … 31 of a month. */
+export function DaysOfMonthPicker({ id, value, onChange, label, anyDay }: { id: string; value: number[] | undefined; onChange: (v: number[] | undefined) => void; label: string; anyDay: string }) {
+  const items = Array.from({ length: 31 }, (_, i) => ({ n: i + 1, label: String(i + 1) }));
+  return <Chips id={id} label={label} all={31} items={items} value={value} onChange={onChange} allLabel={anyDay} />;
+}
+
+/** A date without a year as the server stores it (`MM-DD`): a month and a day, empty until both are chosen. */
+function MonthDayInput({ id, label, value, onChange, locale }: { id: string; label: string; value: string | undefined; onChange: (v: string | undefined) => void; locale?: string }) {
+  const [mm, dd] = value ? value.split('-') : ['', ''];
+  const months = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: new Intl.DateTimeFormat(locale, { month: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, i, 15))) }));
+  const days = Array.from({ length: 31 }, (_, i) => ({ value: String(i + 1).padStart(2, '0'), label: String(i + 1) }));
+  const set = (m: string, d: string) => onChange(m && d ? `${m}-${d}` : m || d ? `${m || '01'}-${d || '01'}` : undefined);
+  return (
+    <>
+      <Pick id={`${id}-month`} label={label} value={mm ?? ''} options={months} placeholder="" onChange={(v) => set(v, dd ?? '')} />
+      <Pick id={`${id}-day`} label={label} value={dd ?? ''} options={days} placeholder="" className="min-w-[5rem]" onChange={(v) => set(mm ?? '', v)} />
+    </>
   );
 }
 
@@ -122,7 +153,7 @@ function RowTools({ i, count, m, onMove, onRemove, name }: { i: number; count: n
 
 /* ----------------------------------------------------------------------------------------------------------- triggers */
 
-const triggerKindLabel = (m: M, k: TriggerKind) => ({ value: m.tValue, status: m.tStatus, alarm: m.tAlarm, time: m.tTime, every: m.tEvery, sun: m.tSun, manual: m.tManual })[k];
+const triggerKindLabel = (m: M, k: TriggerKind) => ({ value: m.tValue, status: m.tStatus, alarm: m.tAlarm, time: m.tTime, date: m.tDate, every: m.tEvery, sun: m.tSun, manual: m.tManual })[k];
 
 export function TriggerRow({ t, ctx, onChange }: { t: RuleTrigger; ctx: Ctx; onChange: (t: RuleTrigger) => void }) {
   const { scope, m } = ctx;
@@ -186,6 +217,17 @@ export function TriggerRow({ t, ctx, onChange }: { t: RuleTrigger; ctx: Ctx; onC
           <DaysPicker id={`${id}-days`} value={t.days} onChange={(d) => onChange({ ...t, days: d })} locale={ctx.locale} label={m.onDays} allDays={m.allDays} />
         </>
       ) : null}
+      {t.kind === 'date' ? (
+        <>
+          <span className="self-center text-sm text-text-secondary">{m.onDaysOfMonth}</span>
+          <DaysOfMonthPicker id={`${id}-dom`} value={t.daysOfMonth} onChange={(v) => onChange({ ...t, daysOfMonth: v, ...(v ? { days: undefined } : {}) })} label={m.onDaysOfMonth} anyDay={m.anyDayOfMonth} />
+          <span className="self-center text-sm text-text-secondary">{m.onMonths}</span>
+          <MonthsPicker id={`${id}-months`} value={t.months} onChange={(v) => onChange({ ...t, months: v })} locale={ctx.locale} label={m.onMonths} allMonths={m.allMonths} />
+          <span className="self-center text-sm text-text-secondary">{m.atTime}</span>
+          <Txt id={`${id}-at`} type="time" label={m.atTime} value={t.at} onChange={(v) => onChange({ ...t, at: v })} className="w-28" />
+          {!t.daysOfMonth ? <DaysPicker id={`${id}-days`} value={t.days} onChange={(d) => onChange({ ...t, days: d })} locale={ctx.locale} label={m.onDays} allDays={m.allDays} /> : null}
+        </>
+      ) : null}
       {t.kind === 'every' ? (
         <>
           <span className="self-center text-sm text-text-secondary">{m.everyLabel}</span>
@@ -235,7 +277,7 @@ const groupOf = (c: RuleCondition): { kind: GroupKind; children: RuleCondition[]
 };
 const groupWith = (kind: GroupKind, children: RuleCondition[]): RuleCondition => (kind === 'all' ? { all: children } : kind === 'any' ? { any: children } : { not: { any: children } });
 
-const conditionKindLabel = (m: M, k: ConditionKind) => ({ value: m.cValue, status: m.cStatus, alarm: m.cAlarm, time: m.cTime, sun: m.cSun, expr: m.cExpr })[k];
+const conditionKindLabel = (m: M, k: ConditionKind) => ({ value: m.cValue, status: m.cStatus, alarm: m.cAlarm, time: m.cTime, date: m.cDate, holiday: m.cHoliday, sun: m.cSun, expr: m.cExpr })[k];
 
 function ConditionLeaf({ c, path, ctx, onChange }: { c: Exclude<RuleCondition, { all: unknown } | { any: unknown } | { not: unknown }>; path: Array<string | number>; ctx: Ctx; onChange: (c: RuleCondition) => void }) {
   const { scope, m } = ctx;
@@ -280,6 +322,19 @@ function ConditionLeaf({ c, path, ctx, onChange }: { c: Exclude<RuleCondition, {
           <DaysPicker id={`${id}-days`} value={c.days} onChange={(d) => onChange({ ...c, days: d })} locale={ctx.locale} label={m.onDays} allDays={m.allDays} />
         </>
       ) : null}
+      {c.kind === 'date' ? (
+        <>
+          <span className="self-center text-sm text-text-secondary">{m.onMonths}</span>
+          <MonthsPicker id={`${id}-months`} value={c.months} onChange={(v) => onChange({ ...c, months: v })} locale={ctx.locale} label={m.onMonths} allMonths={m.allMonths} />
+          <span className="self-center text-sm text-text-secondary">{m.onDaysOfMonth}</span>
+          <DaysOfMonthPicker id={`${id}-dom`} value={c.daysOfMonth} onChange={(v) => onChange({ ...c, daysOfMonth: v })} label={m.onDaysOfMonth} anyDay={m.anyDayOfMonth} />
+          <span className="self-center text-sm text-text-secondary">{m.dateFrom}</span>
+          <MonthDayInput id={`${id}-from`} label={m.dateFrom} value={c.from} locale={ctx.locale} onChange={(v) => onChange({ ...c, from: v })} />
+          <span className="self-center text-sm text-text-secondary">{m.dateTo}</span>
+          <MonthDayInput id={`${id}-to`} label={m.dateTo} value={c.to} locale={ctx.locale} onChange={(v) => onChange({ ...c, to: v })} />
+        </>
+      ) : null}
+      {c.kind === 'holiday' ? <Pick id={`${id}-is`} label={m.cHoliday} value={String(c.is)} options={[{ value: 'true', label: m.isHoliday }, { value: 'false', label: m.isNotHoliday }]} onChange={(v) => onChange({ ...c, is: v === 'true' })} /> : null}
       {c.kind === 'sun' ? <Pick id={`${id}-is`} label={m.cSun} value={c.is} options={[{ value: 'day', label: m.isDay }, { value: 'night', label: m.isNight }]} onChange={(v) => onChange({ ...c, is: v as typeof c.is })} /> : null}
       {c.kind === 'expr' ? <Txt id={`${id}-expr`} label={m.formulaLabel} placeholder={m.formulaLabel} value={c.expr} onChange={(v) => onChange({ ...c, expr: v })} /> : null}
     </div>

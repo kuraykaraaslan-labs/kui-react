@@ -349,3 +349,35 @@ describe('ready-made rules', () => {
     expect(screen.queryByLabelText('Start from a ready rule')).toBeNull();
   });
 });
+
+describe('calendar rows in the editor', () => {
+  const base = (over: Partial<RuleDefinition>): RuleDefinition => ({
+    v: 1, when: [{ id: 't1', kind: 'date', at: '09:00', daysOfMonth: [1] }], then: [{ id: 'a1', kind: 'wait', sec: 5 }], options: { overlap: 'ignore' }, ...over,
+  });
+
+  it('a date trigger picks days of the month and months; choosing a day of the month drops the weekdays', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<RuleEditor scope={scope} initial={{ name: 'Monthly', definition: base({ when: [{ id: 't1', kind: 'date', at: '09:00', days: [1, 2] }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByLabelText('What', { selector: '#trigger-t1-kind' })).toHaveValue('date');
+    await user.click(document.querySelector('#trigger-t1-dom-15')!);
+    await user.click(document.querySelector('#trigger-t1-months-6')!);
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const t = onSave.mock.calls[0]![0].definition.when[0];
+    expect(t).toMatchObject({ kind: 'date', at: '09:00', daysOfMonth: [15], months: [6] });
+    expect(t.days).toBeUndefined();
+  });
+
+  it('a date condition holds a window of two dates; a holiday condition says working day or holiday', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<RuleEditor scope={scope} initial={{ name: 'Summer', definition: base({ onlyIf: { all: [{ kind: 'date', from: '06-01', to: '09-30' }, { kind: 'holiday', is: false }] } }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(document.querySelector('#cond-onlyIf-all-0-from-month')).toHaveValue('06');
+    expect(document.querySelector('#cond-onlyIf-all-0-to-day')).toHaveValue('30');
+    await user.selectOptions(document.querySelector('#cond-onlyIf-all-1-is')!, 'true');
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]![0].definition.onlyIf).toEqual({ all: [{ kind: 'date', from: '06-01', to: '09-30' }, { kind: 'holiday', is: true }] });
+  });
+});

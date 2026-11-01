@@ -20,6 +20,7 @@ export type RuleTrigger = { id: string } & (
   | { kind: 'time'; at: string; days?: number[] }
   | { kind: 'every'; minutes: number }
   | { kind: 'sun'; event: 'sunrise' | 'sunset'; offsetMin?: number; days?: number[] }
+  | { kind: 'date'; at: string; daysOfMonth?: number[]; months?: number[]; days?: number[] }
   | { kind: 'manual' }
 );
 
@@ -32,6 +33,8 @@ export type RuleCondition =
   | { kind: 'alarm'; target: RuleDeviceOrHome; active: boolean; minSeverity?: RuleSeverity }
   | { kind: 'time'; after?: string; before?: string; days?: number[] }
   | { kind: 'sun'; is: 'day' | 'night' }
+  | { kind: 'date'; months?: number[]; daysOfMonth?: number[]; from?: string; to?: string }
+  | { kind: 'holiday'; is: boolean }
   | { kind: 'expr'; expr: string };
 
 export type RuleRecipient = { kind: 'user'; userId: string } | { kind: 'role'; role: 'OWNER' | 'ADMIN' | 'USER' } | { kind: 'team'; teamId: string };
