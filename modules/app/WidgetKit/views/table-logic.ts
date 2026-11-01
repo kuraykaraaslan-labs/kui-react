@@ -573,8 +573,9 @@ export function tableModel(i: TableModelInput) {
   const paged = i.paged && !!echo;
   const allColumns = tableColumns(result, i.settings);
   const columns = allColumns.filter((c) => !i.viewer.hiddenColumns.includes(c.key));
-  // No result at all: the empty shape, the configured headers over no rows, without a search or column picker.
-  const shapeOnly = !result && columns.length > 0;
+  // No result at all: the empty shape, the configured headers over no rows, without a search or column picker. A result that declares its columns but
+  // carries no row list is the shape too (the card's empty shape keeps the headers its source named, e2e run 1 E18).
+  const shapeOnly = (!result || !Array.isArray(result.rows)) && columns.length > 0;
   const textOf = (c: TableColumn, raw: unknown) => cellText(raw, c.type, format, c.override, locale, {
     display: c.dateFormat ?? s.dateFormat ?? 'relative',
     pattern: c.dateFormat ? c.datePattern : s.datePattern,

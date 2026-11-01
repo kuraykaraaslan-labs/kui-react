@@ -59,6 +59,20 @@ export interface PlacementCardProps {
 /** What a view's empty shape is drawn from: no slot at all. */
 const NO_DATA: Record<string, SlotData | undefined> = Object.freeze({}) as Record<string, SlotData | undefined>;
 
+/**
+ * What the empty shape is drawn from: the card's answers reduced to the columns a table declared, never a row or a value. An empty table so keeps the
+ * headers its source named in the viewer's language (a site page's "Live values" with no rows showed `name, status, running` instead); a slot that
+ * declares no columns is left out, so every other kind draws from no data as before.
+ */
+export function emptyShapeData(data: Record<string, SlotData | undefined> | undefined): Record<string, SlotData | undefined> {
+  const out: Record<string, SlotData | undefined> = {};
+  for (const [key, slot] of Object.entries(data ?? {})) {
+    // no `rows` at all: a table drawn from it is the empty shape (headers over no rows), not an answer with no rows
+    if (slot?.columns?.length) out[key] = { shape: 'table', columns: slot.columns };
+  }
+  return Object.keys(out).length ? out : NO_DATA;
+}
+
 function download(name: string, text: string | Uint8Array, type = 'text/csv;charset=utf-8') {
   const blob = new Blob([typeof text === 'string' ? `﻿${text}` : text as BlobPart], { type });
   const url = URL.createObjectURL(blob);
@@ -93,9 +107,10 @@ export function PlacementCard({
     <view.View {...viewProps} settings={r.settings} format={r.format} data={data} locale={locale} stale={stale} title={title}
       titleShown={r.card.showTitle !== false && !!title} onControl={onControl} controlDisabledReason={controlDisabledReason} renderLink={renderLink ?? viewProps?.renderLink} />
   );
-  // No data, no command to send, nothing old: the shape only. Drawn by WidgetCard only in its empty and unconfigured states.
+  // No value, no command to send, nothing old: the shape only, with a table's declared headers. Drawn by WidgetCard only in its empty and
+  // unconfigured states.
   const emptyBody = view.emptyShape && (r.card.emptyDisplay ?? 'shape') === 'shape'
-    ? <view.View {...viewProps} settings={r.settings} format={r.format} data={NO_DATA} locale={locale} stale={false} title={title}
+    ? <view.View {...viewProps} settings={r.settings} format={r.format} data={emptyShapeData(data)} locale={locale} stale={false} title={title}
       titleShown={r.card.showTitle !== false && !!title} onControl={undefined} renderLink={renderLink ?? viewProps?.renderLink} />
     : undefined;
   const exportName = (ext: string) => `${(title || template.label).replace(/[^\w.-]+/g, '-')}-${new Date().toISOString().slice(0, 10)}.${ext}`;

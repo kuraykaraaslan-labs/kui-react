@@ -6,7 +6,7 @@ vi.mock('@/modules/ui/MapView', () => ({
 }));
 
 import { WidgetCard } from '../WidgetCard';
-import { PlacementCard } from '../PlacementCard';
+import { PlacementCard, emptyShapeData } from '../PlacementCard';
 import { BUILTIN_KINDS } from '../templates';
 import { BUILTIN_VIEWS } from '../views';
 import { DATA_TABLE, DATA_TABLE_KIND } from '../templates/data-table';
@@ -52,6 +52,26 @@ describe('PlacementCard empty shape', () => {
     expect(shape).toHaveTextContent('Name');
     expect(shape.querySelector('tbody tr')).toBeNull();
     expect(shape.querySelector('input')).toBeNull();
+  });
+
+  it('keeps the headers the empty answer declared, in its words, over the configured keys (e2e run 1, E18)', () => {
+    const { container } = render(
+      <PlacementCard title="Canlı değerler" template={DATA_TABLE} slots={DATA_TABLE_KIND.slots} view={DATA_TABLE_VIEW}
+        settings={{ columns: [{ key: 'name' }, { key: 'status' }, { key: 'value' }] }}
+        data={{ rows: { shape: 'table', columns: [{ key: 'name', label: 'Ekipman', type: 'text' }, { key: 'status', label: 'Durum', type: 'text' }, { key: 'value', label: 'Değer', type: 'number' }], rows: [] } }}
+        boundSlots={['rows']} now={NOW} />,
+    );
+    const shape = container.querySelector('[inert]')!;
+    expect([...shape.querySelectorAll('th')].map((th) => th.textContent?.trim())).toEqual(['Ekipman', 'Durum', 'Değer']);
+    expect(shape.textContent).not.toMatch(/\bname\b|\bstatus\b/);
+    expect(shape.querySelector('tbody tr')).toBeNull();
+  });
+
+  it('emptyShapeData keeps only declared columns, never a value or a row', () => {
+    expect(emptyShapeData({ v: { shape: 'scalar', value: 5, meta: { unit: 'kWh' } } })).toEqual({});
+    expect(emptyShapeData(undefined)).toEqual({});
+    expect(emptyShapeData({ rows: { shape: 'table', columns: [{ key: 'a', label: 'A', type: 'text' }], rows: [{ a: 1 }] } }))
+      .toEqual({ rows: { shape: 'table', columns: [{ key: 'a', label: 'A', type: 'text' }] } });
   });
 
   it('shows the message only when $card.emptyDisplay is message', () => {
