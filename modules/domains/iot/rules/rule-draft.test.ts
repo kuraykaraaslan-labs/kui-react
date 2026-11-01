@@ -65,10 +65,11 @@ describe('ids', () => {
 });
 
 describe('actsOnDevices', () => {
-  it('a command or a setting, nested ones included, needs the author’s confirmation; notices and waits do not', () => {
+  it('a command, a setting or a notice, nested ones included, needs the author’s confirmation; waits do not', () => {
     expect(actsOnDevices(emptyDefinition())).toBe(true);
-    const quiet: RuleDefinition = { v: 1, options: { overlap: 'ignore' }, when: [{ id: 't1', kind: 'manual' }], then: [emptyAction('notify', 'a1'), emptyAction('wait', 'a2')] };
+    const quiet: RuleDefinition = { v: 1, options: { overlap: 'ignore' }, when: [{ id: 't1', kind: 'manual' }], then: [emptyAction('wait', 'a2')] };
     expect(actsOnDevices(quiet)).toBe(false);
+    expect(actsOnDevices({ ...quiet, then: [emptyAction('notify', 'a1')] })).toBe(true);
     const nested: RuleDefinition = { ...quiet, then: [{ id: 'c', kind: 'choose', branches: [{ if: { kind: 'sun', is: 'day' }, then: [emptyAction('setting', 'a9')] }] }] };
     expect(actsOnDevices(nested)).toBe(true);
   });

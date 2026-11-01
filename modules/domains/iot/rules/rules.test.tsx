@@ -246,7 +246,7 @@ describe('RuleEditor', () => {
     await user.type(await screen.findByLabelText(/Speed/), '2');
     await user.click(screen.getByRole('button', { name: 'Save rule' }));
     const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('This rule acts on devices')).toBeInTheDocument();
+    expect(within(dialog).getByText('This rule acts on its own')).toBeInTheDocument();
     expect(onSave).not.toHaveBeenCalled();
     await user.click(within(dialog).getByLabelText('Yes, let this rule act on its own'));
     await user.click(within(dialog).getByRole('button', { name: 'Save rule' }));
@@ -257,14 +257,21 @@ describe('RuleEditor', () => {
     expect(saved.definition.then[0]).toMatchObject({ kind: 'command', target: { device: 'd2' }, command: 'fan.set', params: { speed: 2 } });
   });
 
-  it('a rule that only tells people saves at once, without a confirmation', async () => {
+  it('a rule that only waits saves at once; one that notifies people asks for the author’s tick like one that sends commands', async () => {
     const onSave = vi.fn(async () => undefined);
     const user = userEvent.setup();
+    const quiet: RuleDefinition = { ...finished, then: [{ id: 'a1', kind: 'wait', sec: 5 }] };
+    const { unmount } = render(<RuleEditor scope={scope} initial={{ name: 'Quiet', definition: quiet }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ name: 'Quiet', definition: quiet, confirmed: false }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    unmount();
     render(<RuleEditor scope={scope} initial={{ name: 'Tell me', definition: finished }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: 'Save rule' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalledWith({ name: 'Tell me', definition: finished, confirmed: false }));
-    expect(screen.queryByRole('dialog')).toBeNull();
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('This rule acts on its own')).toBeInTheDocument();
   });
+
 
   it('shows the server’s problem under the row it names, and the first ones in the list', () => {
     render(<RuleEditor scope={scope} initial={{ name: 'Tell me', definition: finished }} problems={[{ path: ['when', 0, 'target'], code: 'device_out_of_scope', message: 'This device is not part of Station 3.' }]} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);

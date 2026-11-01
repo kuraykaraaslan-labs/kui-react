@@ -118,9 +118,9 @@ export function emptyDefinition(): RuleDefinition {
   return { v: 1, when: [emptyTrigger('value', 't1')], then: [emptyAction('command', 'a1')], options: { overlap: 'ignore' } };
 }
 
-/** Whether the rule sends commands or changes settings by itself (the author's confirmation, 409 `needsConfirmation` otherwise). */
+/** Whether the rule acts on the outside by itself: sends commands, changes settings or notifies people (the engine counts a notice as an external node; the author's confirmation, 409 `needsConfirmation` otherwise). */
 export function actsOnDevices(def: RuleDefinition): boolean {
-  const walk = (list: readonly RuleAction[]): boolean => list.some((a) => a.kind === 'command' || a.kind === 'setting' || (a.kind === 'choose' && (a.branches.some((b) => walk(b.then)) || (a.else ? walk(a.else) : false))));
+  const walk = (list: readonly RuleAction[]): boolean => list.some((a) => a.kind === 'command' || a.kind === 'setting' || a.kind === 'notify' || (a.kind === 'choose' && (a.branches.some((b) => walk(b.then)) || (a.else ? walk(a.else) : false))));
   return walk(def.then);
 }
 
