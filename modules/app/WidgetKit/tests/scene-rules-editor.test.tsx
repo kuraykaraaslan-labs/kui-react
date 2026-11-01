@@ -240,7 +240,7 @@ describe('SceneRulesEditor: editing', () => {
 
 describe('SceneRulesEditor: names, values and words a person reads (next-boilerplate e2e round 5, E14, V1-B2, B4, B5)', () => {
   it('"Which value" offers the values of the symbol the condition reads, by name, from the host; any other name is typed under Another value', () => {
-    const valuesOf = (id: string) => (id === 'pump1' ? [{ key: 'running', label: 'Running' }, { key: 'position', label: 'Opening' }] : id === 'tank1' ? [{ key: 'value', label: 'Level' }] : undefined);
+    const valuesOf = (e: { id: string; symbol: string }) => (e.symbol === 'home.router' ? [{ key: 'running', label: 'Running' }, { key: 'position', label: 'Opening' }] : e.id === 'tank1' ? [{ key: 'value', label: 'Level' }] : undefined);
     const { probe } = mount([{ target: 'pump1', key: '', op: 'true' }], { host: { symbolValues: valuesOf } });
     fireEvent.click(screen.getByRole('button', { name: /When/ }));
     const which = screen.getByLabelText('Which value') as HTMLSelectElement;

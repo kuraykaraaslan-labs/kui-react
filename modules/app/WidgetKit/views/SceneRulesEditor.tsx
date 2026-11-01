@@ -118,7 +118,14 @@ export function SceneRulesEditor({ ctx, messages, className }: SceneRulesEditorP
     return out;
   }, [list, s, ctx.data.points, ctx.data.things, ctx.params]);
 
-  const valuesOf = ctx.host.symbolValues;
+  // the values of a symbol of the drawing, from the host, by the library key it is drawn with
+  const symbolValues = ctx.host.symbolValues;
+  const symbolOf = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const e of Array.isArray(s.elements) ? (s.elements as unknown[]) : []) if (isRec(e) && typeof e.id === 'string') out.set(e.id, typeof e.symbol === 'string' ? e.symbol : '');
+    return out;
+  }, [s]);
+  const valuesOf = symbolValues ? (id: string) => (symbolOf.has(id) ? symbolValues({ id, symbol: symbolOf.get(id) ?? '' }) : undefined) : undefined;
   const env: Env = { m, base, ctx, run, names, columns, params, issue: (i, f) => issues.get(i)?.get(f), ...(valuesOf ? { valuesOf } : {}) };
   const valueNames = m.valueNames ?? {};
   const nameOf = (id: string): string | undefined => names.find((x) => x.id === id)?.text;
