@@ -464,9 +464,31 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     await user.click(within(r).getByRole('button', { name: 'Invert' }));
     expect(expression('Running')).toHaveValue('!value');
     await waitFor(() => expect(within(r).getByText('1 → Off')).toBeInTheDocument());
-    // a second chip is applied to what the box holds (next-boilerplate AD-15), never written over it
+    // a second chip is applied to what the box holds (next-boilerplate AD-15), never written over it; "Scale 0–100" asks for the raw range first (E15)
     await user.click(within(r).getByRole('button', { name: 'Scale 0–100' }));
-    expect(expression('Running')).toHaveValue('(!value) / 4095 * 100');
+    const form = within(r).getByTestId('scale-form');
+    const use = within(form).getByRole('button', { name: 'Use these numbers' });
+    expect(use).toBeDisabled();
+    await user.type(within(form).getByLabelText('Raw value at 0 %'), '1500');
+    await user.type(within(form).getByLabelText('Raw value at 100 %'), '3300');
+    await user.click(use);
+    expect(expression('Running')).toHaveValue('((!value) - 1500) / (3300 - 1500) * 100');
+    expect(within(r).queryByTestId('scale-form')).toBeNull();
+  });
+  it('"Scale 0–100" starts from the scale the key\'s profile declares, and refuses two equal numbers', async () => {
+    const user = userEvent.setup();
+    const probe: DeviceKey[] = [{ key: 'vwc_raw', label: 'Soil moisture (raw)', value: 2387, ts: NOW - 2000, min: 1500, max: 3300 }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Moisture', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'vwc_raw' } }] }), loadKeys: vi.fn(async () => probe), previewScript: stub })} />);
+    await waitFor(() => expect(picker('Moisture')).toBeEnabled());
+    await user.selectOptions(source('Moisture'), 'expression');
+    await user.click(within(row('Moisture')).getByRole('button', { name: 'Scale 0–100' }));
+    const form = within(row('Moisture')).getByTestId('scale-form');
+    expect(within(form).getByLabelText('Raw value at 0 %')).toHaveValue('1500');
+    expect(within(form).getByLabelText('Raw value at 100 %')).toHaveValue('3300');
+    await user.clear(within(form).getByLabelText('Raw value at 100 %'));
+    await user.type(within(form).getByLabelText('Raw value at 100 %'), '1500');
+    expect(within(form).getByText('Give two different numbers.')).toBeInTheDocument();
+    expect(within(form).getByRole('button', { name: 'Use these numbers' })).toBeDisabled();
   });
   it('a chip wraps the expression the person typed instead of overwriting it (next-boilerplate e2e Slice 21, AD-15)', async () => {
     const user = userEvent.setup();
@@ -787,7 +809,7 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     await rowsReady();
     expect(screen.queryByRole('button', { name: 'Next symbol' })).toBeNull();
   });
-  it('starts the next symbol on the device the last one was saved on', async () => {
+  it('offers the device the last symbol was saved on to the next one, never picks it by itself (next-boilerplate e2e round 5, E5)', async () => {
     const onSave = vi.fn();
     const user = userEvent.setup();
     const { rerender } = render(<SymbolBindingPanel {...props({ onSave })} />);
@@ -796,8 +818,50 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }));
     rerender(<SymbolBindingPanel {...props({ onSave, symbol: symbol({ id: 'second_one', label: 'Fan' }) })} />);
     expect(screen.getByRole('heading', { name: 'Fan' })).toBeInTheDocument();
+    // nothing carried silently: no device, no value picked
+    expect(deviceBox()).toHaveValue('');
+    expect(screen.queryByRole('group', { name: 'Running' })).toBeNull();
+    const hint = screen.getByTestId('device-suggestion');
+    expect(hint).toHaveTextContent('Suggested: Roof unit, the device you picked last.');
+    await user.click(within(hint).getByRole('button', { name: 'Use' }));
     expect(deviceBox()).toHaveValue('Roof unit');
     await waitFor(() => expect(picker('Running')).toHaveValue('pump_on'));
+  });
+  it('shows the host\'s suggestion (a device named like the symbol) instead, and nothing for null; a device of its own takes none', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<SymbolBindingPanel {...props({ suggestedDevice: { id: D2, name: 'Roof unit', why: 'name' } })} />);
+    expect(screen.getByTestId('device-suggestion')).toHaveTextContent('Suggested: Roof unit. Its name matches this symbol.');
+    expect(deviceBox()).toHaveValue('');
+    await user.click(within(screen.getByTestId('device-suggestion')).getByRole('button', { name: 'Use' }));
+    expect(deviceBox()).toHaveValue('Roof unit');
+    expect(screen.queryByTestId('device-suggestion')).toBeNull();
+    rerender(<SymbolBindingPanel {...props({ symbol: symbol({ id: 'other' }), suggestedDevice: null })} />);
+    expect(screen.queryByTestId('device-suggestion')).toBeNull();
+    rerender(<SymbolBindingPanel {...props({ symbol: symbol({ id: 'third' }), defaultDevice: { id: D1, name: 'Boiler room' }, suggestedDevice: { id: D2, name: 'Roof unit', why: 'last' } })} />);
+    expect(deviceBox()).toHaveValue('Boiler room');
+    expect(screen.queryByTestId('device-suggestion')).toBeNull();
+  });
+  it('an empty value list says the device sent nothing, never "nothing matches what you typed" (e2e round 5, V1-B18)', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ loadKeys: vi.fn(async () => []) })} />);
+    await pickDevice(user, 'Roof unit');
+    await rowsReady();
+    await user.click(picker('Running'));
+    const list = await screen.findByRole('listbox');
+    expect(list).toHaveTextContent('This device has not sent any values yet.');
+    expect(list).not.toHaveTextContent(/typed/);
+  });
+  it('a row nothing is proposed for (suggest: false) is offered, never filled or suggested by itself', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'running', label: 'Running', suggest: false }, { name: 'value', label: 'Flow' }] }) })} />);
+    await pickDevice(user, 'Roof unit');
+    await waitFor(() => expect(picker('Flow')).toHaveValue('flow'));
+    expect(picker('Running')).toHaveValue('');
+    expect(within(row('Running')).queryByText(/^Suggested/)).toBeNull();
+    await user.click(picker('Running'));
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option').map((o) => o.textContent ?? '');
+    expect(options.some((o) => o.includes('pump_on'))).toBe(true);
+    expect(options.some((o) => o.includes('Suggested'))).toBe(false);
   });
   it('Clear, behind the "…" menu, asks through ConfirmDialog and saves an empty entry', async () => {
     const onSave = vi.fn();

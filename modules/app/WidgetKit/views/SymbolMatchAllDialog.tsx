@@ -10,7 +10,7 @@ import { Modal } from '@/modules/ui/Modal';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column, DataTableRowId } from '@/modules/ui/Table/types';
 import { useNow } from '../useNow';
-import { ageText, formatValue, type MatchRow } from './symbol-binding-logic';
+import { ageText, formatValue, type MatchEmptyReason, type MatchRow } from './symbol-binding-logic';
 import { DEFAULT_SYMBOL_BINDING_MESSAGES, mergeMessages, type DeepPartial, type SymbolBindingMessages } from './symbol-binding-messages';
 
 export interface SymbolMatchAllDialogProps {
@@ -23,6 +23,11 @@ export interface SymbolMatchAllDialogProps {
   busy?: boolean;
   /** The host is still reading the devices' values: the dialog says so instead of "nothing to propose", Apply waits, Cancel still closes. */
   loading?: boolean;
+  /**
+   * Why there are no rows (`matchEmptyReason`): every symbol is connected, the devices sent no values, there is no device, or no proposal is sure. The
+   * dialog says that instead of one sentence for all of them (next-boilerplate e2e round 5, E4).
+   */
+  emptyReason?: MatchEmptyReason;
   /** The time the ages are counted from (ms); default the clock. */
   now?: number;
   messages?: DeepPartial<SymbolBindingMessages>;
@@ -34,7 +39,7 @@ export function SymbolMatchAllDialog(props: SymbolMatchAllDialogProps) {
   return props.open ? <MatchForm key="open" {...props} /> : null;
 }
 
-function MatchForm({ rows, onApply, onClose, busy = false, loading = false, messages, portalTarget, ...rest }: SymbolMatchAllDialogProps) {
+function MatchForm({ rows, onApply, onClose, busy = false, loading = false, emptyReason, messages, portalTarget, ...rest }: SymbolMatchAllDialogProps) {
   const m = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages).matchAll, [messages]);
   const age = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages).age, [messages]);
   const tick = useNow(5000);
@@ -77,7 +82,7 @@ function MatchForm({ rows, onApply, onClose, busy = false, loading = false, mess
       open
       onClose={busy ? () => undefined : onClose}
       title={m.title}
-      description={loading && rows.length === 0 ? m.loading : rows.length === 0 ? m.empty : m.intro(rows.length, confident.length)}
+      description={loading && rows.length === 0 ? m.loading : rows.length === 0 ? (emptyReason ? m.emptyBecause[emptyReason] : m.empty) : m.intro(rows.length, confident.length)}
       size="xl"
       {...(portalTarget ? { portalTarget } : {})}
       footer={(

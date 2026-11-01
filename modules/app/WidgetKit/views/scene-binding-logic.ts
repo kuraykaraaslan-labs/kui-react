@@ -236,8 +236,23 @@ function deviceOfElement(role: string, e: DeviceElement, devices: Readonly<Recor
 
 const norm = (s: string | undefined): string => (s ?? '').trim().toLowerCase();
 
-/** The words of a name: `pump_circulation`, `pumpCirculation` and "Pump circulation" all give `pump` and `circulation`. */
-const nameWordsOf = (s: string): string[] => s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w !== '');
+/**
+ * A text folded for comparing words: lower case with the accents taken off, so a label in Turkish (or any Latin script) and an ASCII key meet
+ * (`Açıklık` is `aciklik`, `Sıcaklık` is `sicaklik`, `İ` is `i`; next-boilerplate e2e round 5, E3).
+ */
+export function foldText(s: string): string {
+  return s.replace(/İ/g, 'i').toLowerCase().normalize('NFD').replace(/\p{M}+/gu, '').replace(/ı/g, 'i');
+}
+
+/**
+ * The words of a name, in any language: `pump_circulation`, `pumpCirculation` and "Pump circulation" all give `pump` and `circulation`; a word is a run of
+ * Unicode letters and digits, so "Açıklık" is the one word `aciklik`, never `a`, `kl`, `k` (an ASCII split made "Açıklık" and "Bulanıklık" share `kl`).
+ */
+export function textWords(s: string): string[] {
+  return foldText(s.replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, '$1 $2')).split(/[^\p{L}\p{N}]+/u).filter((w) => w !== '');
+}
+
+const nameWordsOf = textWords;
 
 /** The name of the piece of equipment a label gives, when the label reads `<name> · <field>` ("Circulation pump · running"); '' otherwise. */
 export function elementLabelOf(label: string | undefined): string {
@@ -520,6 +535,7 @@ export type BindingIssueCode =
   | 'slot-invalid'
   | 'kind-missing'
   | 'kind-invalid'
+  /** Never raised since a view may hold no device (e2e round 5, E9); kept so a host's table of issue texts still fits. */
   | 'no-devices'
   | 'too-many-devices'
   | 'too-many-map'
@@ -578,7 +594,7 @@ export function validateDraft(d: BindingDraft): BindingIssue[] {
   if (!d.kind) issues.push({ code: 'kind-missing' });
   else if (!KIND_GRAMMAR.test(d.kind)) issues.push({ code: 'kind-invalid', subject: d.kind });
   const roles = Object.keys(d.devices);
-  if (roles.length === 0) issues.push({ code: 'no-devices' });
+  // a view with no device is a view (a floor or a room that holds none yet, next-boilerplate e2e round 5, E9): the server stores it, so it is no issue here
   if (roles.length > MAX_BINDING_DEVICES) issues.push({ code: 'too-many-devices' });
   for (const role of roles) {
     if (role !== MAIN_ROLE && !isRoleName(role)) issues.push({ code: 'role-invalid', subject: role });

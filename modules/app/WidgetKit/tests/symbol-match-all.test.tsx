@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SymbolMatchAllDialog } from '../views/SymbolMatchAllDialog';
-import { entriesOfMatches, matchAllRows, type DeviceKey, type MatchRow, type MatchSymbol } from '../views/symbol-binding-logic';
+import { deviceNameRelation, entriesOfMatches, matchAllRows, matchEmptyReason, type DeviceKey, type MatchRow, type MatchSymbol } from '../views/symbol-binding-logic';
 
 /**
  * "Match everything" (slice 16, U3): one proposal per unconnected parameter of every symbol of the drawing, the certain ones ticked by default, one Apply.
@@ -88,9 +88,13 @@ describe('matchAllRows across a site\'s devices (next-boilerplate phase 46.2)', 
     expect(matchAllRows([site({ candidates: [{ deviceId: D3, deviceName: 'Gone' }] })], new Map([[D1, meterBox]]))).toEqual([]);
     expect(matchAllRows([site({ candidates: [{ deviceId: D1, deviceName: 'Only box' }] })], new Map([[D1, meterBox]]))[0]).toMatchObject({ deviceId: D1, confident: true });
   });
-  it('three devices of the same type tie: nobody\'s pick, nothing proposed', () => {
+  it('three devices of the same type tie: each is offered with its own row, none ticked (a tie dropped said "nothing to propose", e2e round 5, E4)', () => {
     const same = [{ deviceId: D1, deviceName: 'Pool plant · Antalya' }, { deviceId: D2, deviceName: 'Pool plant · Izmir' }, { deviceId: D3, deviceName: 'Pool plant · Konya' }];
-    expect(matchAllRows([site({ candidates: same })], new Map([[D1, meterBox], [D2, meterBox], [D3, meterBox]]))).toEqual([]);
+    const rows = matchAllRows([site({ candidates: same })], new Map([[D1, meterBox], [D2, meterBox], [D3, meterBox]]));
+    expect(rows.map((r) => [r.deviceId, r.confident])).toEqual([[D1, false], [D2, false], [D3, false]]);
+    expect(new Set(rows.map((r) => r.id)).size).toBe(3);
+    // ticking two of them writes the first: one parameter reads one value
+    expect(entriesOfMatches(rows, new Set(rows.map((r) => r.id)))).toEqual({ meter: { fields: { value: { deviceId: D1, key: 'meter_flow.value', label: 'Flow meter · value' } } } });
   });
   it('a word the device\'s name shares with the symbol breaks the tie, but a close lead ticks nothing', () => {
     const named = [{ deviceId: D1, deviceName: 'Flow station' }, { deviceId: D2, deviceName: 'Spare box' }];
@@ -101,6 +105,94 @@ describe('matchAllRows across a site\'s devices (next-boilerplate phase 46.2)', 
   it('a symbol that has a device keeps it: the candidates are not read', () => {
     const rows = matchAllRows([site({ deviceId: D1, deviceName: 'Pump box', candidates: [{ deviceId: D2, deviceName: 'Meter box' }] })], new Map([[D1, pumpBox], [D2, meterBox]]));
     expect(rows.every((r) => r.deviceId === D1)).toBe(true);
+  });
+});
+
+describe('matchAllRows: the run\'s sites (next-boilerplate e2e round 5, E3 and E4)', () => {
+  const ids = Array.from({ length: 9 }, (_, i) => `${i + 1}${i + 1}${i + 1}${i + 1}${i + 1}${i + 1}${i + 1}${i + 1}-0000-4000-8000-000000000000`);
+  // S02: a cold store's site view, four rooms named after the rooms; four controllers (one per room) and three dock door sensors placed on the site
+  const room = (id: string, label: string): MatchSymbol => ({
+    id, label, kindLabel: 'Cold room', deviceId: '', deviceName: '',
+    fields: [{ name: 'running', label: 'Running', suggest: false }, { name: 'value', label: 'Reading' }, { name: 'status', label: 'Status', suggest: false }],
+  });
+  const rooms = [room('cold1', 'Chiller 1'), room('cold2', 'Chiller 2'), room('cold3', 'Freezer 1'), room('cold4', 'Freezer 2')];
+  const devices = [
+    { deviceId: ids[0], deviceName: 'Chiller 1 controller', place: 'Chiller 1' }, { deviceId: ids[1], deviceName: 'Chiller 2 controller', place: 'Chiller 2' },
+    { deviceId: ids[2], deviceName: 'Freezer 1 controller', place: 'Freezer 1' }, { deviceId: ids[3], deviceName: 'Freezer 2 controller', place: 'Freezer 2' },
+    { deviceId: ids[4], deviceName: 'Dock door 1 sensor', place: 'Dock' }, { deviceId: ids[5], deviceName: 'Dock door 2 sensor', place: 'Dock' },
+    { deviceId: ids[6], deviceName: 'Dock door 3 sensor', place: 'Dock' },
+  ];
+  const controller = (t: number): DeviceKey[] => [
+    k('temperature', t, { label: 'Room temperature', unit: '°C', type: 'number' }), k('door_open', false, { label: 'Door open', type: 'boolean' }),
+    k('defrost', false, { label: 'Defrost running', type: 'boolean' }), k('compressor', true, { label: 'Compressor running', type: 'boolean' }),
+  ];
+  const dock = (): DeviceKey[] => [k('door_closed', 1, { label: 'Door closed', type: 'number' }), k('battery_pct', 88, { label: 'Battery', unit: '%', type: 'number' })];
+  const site = rooms.map((r) => ({ ...r, candidates: devices }));
+
+  it('S02 as it ran: only Chiller 2 had sent values; the other rooms never take its temperature, let alone as certain', () => {
+    const rows = matchAllRows(site, new Map([[ids[1], controller(3.7)], [ids[4], dock()], [ids[5], dock()], [ids[6], dock()]]));
+    expect(rows.map((r) => [r.symbolLabel, r.deviceName, r.key, r.confident])).toEqual([['Chiller 2', 'Chiller 2 controller', 'temperature', true]]);
+  });
+  it('S02 with every controller live: each room reads its own controller, by its name and its place, certain', () => {
+    const rows = matchAllRows(site, new Map([[ids[0], controller(3.4)], [ids[1], controller(3.7)], [ids[2], controller(-20.6)], [ids[3], controller(-15)], [ids[4], dock()]]));
+    expect(rows.map((r) => [r.symbolLabel, r.field, r.deviceName, r.confident])).toEqual([
+      ['Chiller 1', 'value', 'Chiller 1 controller', true], ['Chiller 2', 'value', 'Chiller 2 controller', true],
+      ['Freezer 1', 'value', 'Freezer 1 controller', true], ['Freezer 2', 'value', 'Freezer 2 controller', true],
+    ]);
+    // only the place names the room: still the room's own device
+    const byPlace = devices.map((d) => ({ ...d, deviceName: `Controller ${d.deviceId.slice(0, 1)}` }));
+    const placed = matchAllRows(rooms.slice(0, 1).map((r) => ({ ...r, candidates: byPlace })), new Map([[ids[0], controller(3.4)], [ids[1], controller(3.7)]]));
+    expect(placed.map((r) => [r.deviceId, r.confident])).toEqual([[ids[0], true]]);
+  });
+  it('four rooms pinned on ONE controller share its room temperature by their kind\'s word: proposed to each, certain for none', () => {
+    const pinned = rooms.map((r) => ({ ...r, deviceId: ids[1], deviceName: 'Chiller 2 controller' }));
+    const rows = matchAllRows(pinned, new Map([[ids[1], controller(3.7)]]));
+    expect(rows.map((r) => [r.symbolLabel, r.key, r.confident])).toEqual([
+      ['Chiller 1', 'temperature', false], ['Chiller 2', 'temperature', false], ['Freezer 1', 'temperature', false], ['Freezer 2', 'temperature', false],
+    ]);
+  });
+  // S03: a farm's site view, six soil probes named in Turkish ("Sera 1 A"), six probe devices ("Sera 1 probe A") and the fertigation controller
+  it('S03: each probe reads its own probe device, by the name\'s number and letter, certain; never the controller\'s greenhouse values', () => {
+    const probe = (id: string, label: string): MatchSymbol => ({ id, label, kindLabel: 'Soil moisture probe', deviceId: '', deviceName: '', fields: [{ name: 'value', label: 'Ölçüm' }] });
+    const probes = [probe('p1a', 'Sera 1 A'), probe('p1b', 'Sera 1 B'), probe('p2a', 'Sera 2 A')];
+    const probeDevices = [
+      { deviceId: ids[0], deviceName: 'Sera 1 probe A' }, { deviceId: ids[1], deviceName: 'Sera 1 probe B' }, { deviceId: ids[2], deviceName: 'Sera 2 probe A' },
+      { deviceId: ids[3], deviceName: 'Fertigation controller' },
+    ];
+    const soil = (raw: number): DeviceKey[] => [k('vwc_raw', raw, { label: 'Soil moisture (raw)', type: 'number' }), k('soil_temp', 19, { label: 'Soil temperature', unit: '°C' }), k('battery_v', 3.4, { label: 'Battery', unit: 'V' })];
+    const ctrl = [k('greenhouse_1.value', 61, { label: 'Greenhouse 1 · value' }), k('greenhouse_2.value', 58, { label: 'Greenhouse 2 · value' }), k('level', 62, { label: 'Tank level', unit: '%' })];
+    const rows = matchAllRows(probes.map((p) => ({ ...p, candidates: probeDevices })), new Map([[ids[0], soil(2387)], [ids[1], soil(1820)], [ids[2], soil(2500)], [ids[3], ctrl]]));
+    expect(rows.map((r) => [r.symbolLabel, r.deviceName, r.key, r.confident])).toEqual([
+      ['Sera 1 A', 'Sera 1 probe A', 'vwc_raw', true], ['Sera 1 B', 'Sera 1 probe B', 'vwc_raw', true], ['Sera 2 A', 'Sera 2 probe A', 'vwc_raw', true],
+    ]);
+    // on the controller's own page the probes are offered nothing certain: its greenhouses and its tank are other equipment
+    const onController = matchAllRows(probes.map((p) => ({ ...p, deviceId: ids[3], deviceName: 'Fertigation controller' })), new Map([[ids[3], ctrl]]));
+    expect(onController.filter((r) => r.confident)).toEqual([]);
+  });
+  it('a parameter nothing is proposed for (suggest: false) has no row', () => {
+    const rows = matchAllRows([{ ...rooms[0], deviceId: ids[0], deviceName: 'Chiller 1 controller' }], new Map([[ids[0], controller(3.4)]]));
+    expect(rows.map((r) => r.field)).toEqual(['value']);
+  });
+});
+
+describe('deviceNameRelation and matchEmptyReason (e2e round 5, E4)', () => {
+  it('numbers and letters count: a twin is never the symbol\'s device', () => {
+    expect(deviceNameRelation({ deviceName: 'Chiller 1 controller' }, 'Chiller 1')).toBe('names');
+    expect(deviceNameRelation({ deviceName: 'Controller A', place: 'Chiller 1' }, 'Chiller 1')).toBe('names');
+    expect(deviceNameRelation({ deviceName: 'Chiller 2 controller' }, 'Chiller 1')).toBe('twin');
+    expect(deviceNameRelation({ deviceName: 'Sera 1 probe B' }, 'Sera 1 A')).toBe('twin');
+    expect(deviceNameRelation({ deviceName: 'T-102' }, 'T-101')).toBe('twin');
+    expect(deviceNameRelation({ deviceName: 'Flow station' }, 'Flow meter')).toBe('shares');
+    expect(deviceNameRelation({ deviceName: 'RTU 4' }, 'Pump 1')).toBe('none');
+    expect(deviceNameRelation({ deviceName: 'Kazan Dairesi' }, 'Kazan dairesi')).toBe('names');
+  });
+  it('says why nothing is proposed: all linked, no device, no values, or nothing sure', () => {
+    const s = (over: Partial<MatchSymbol> = {}): MatchSymbol => ({ id: 's', label: 'S', kindLabel: 'S', deviceId: D1, deviceName: 'd', fields: [{ name: 'value', label: 'Reading' }], ...over });
+    expect(matchEmptyReason([], new Map())).toBe('allLinked');
+    expect(matchEmptyReason([s({ fields: [{ name: 'running', label: 'Running', suggest: false }] })], new Map())).toBe('allLinked');
+    expect(matchEmptyReason([s({ deviceId: '', candidates: [] })], new Map())).toBe('noDevices');
+    expect(matchEmptyReason([s()], new Map([[D1, []]]))).toBe('noValues');
+    expect(matchEmptyReason([s()], new Map([[D1, [k('x', 'a')]]]))).toBe('unsure');
   });
 });
 
@@ -141,6 +233,14 @@ describe('SymbolMatchAllDialog', () => {
     render(<SymbolMatchAllDialog open rows={[]} onApply={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText('Nothing to propose: every symbol is connected, or the devices have not sent values yet.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Apply 0 proposals' })).toBeDisabled();
+  });
+  it('says why there is nothing to propose when the host knows (e2e round 5, E4)', () => {
+    const { rerender } = render(<SymbolMatchAllDialog open rows={[]} onApply={vi.fn()} onClose={vi.fn()} emptyReason="noValues" />);
+    expect(screen.getByText('The devices have not sent any values yet, so there is nothing to compare. Try again once they do.')).toBeInTheDocument();
+    rerender(<SymbolMatchAllDialog open rows={[]} onApply={vi.fn()} onClose={vi.fn()} emptyReason="unsure" />);
+    expect(screen.getByText('No proposal is sure enough. Click a symbol to pick its device and value by hand.')).toBeInTheDocument();
+    rerender(<SymbolMatchAllDialog open rows={[]} onApply={vi.fn()} onClose={vi.fn()} emptyReason="allLinked" />);
+    expect(screen.getByText('Every symbol is already connected.')).toBeInTheDocument();
   });
   it('waits while the host applies, and Cancel closes', async () => {
     const user = userEvent.setup();

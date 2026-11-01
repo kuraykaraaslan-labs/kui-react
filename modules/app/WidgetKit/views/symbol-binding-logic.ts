@@ -5,11 +5,11 @@
 // `scene-binding-logic.ts`'s, not redefined here): a field reads a device value (`key`), or an expression over named inputs, or both.
 
 import {
-  INPUT_NAME_GRAMMAR, MAX_FIELD_LABEL, MAX_FIELDS_PER_KEY, MAX_INPUTS_PER_FIELD, RESERVED_INPUT_NAMES, UUID_GRAMMAR, elementLabelOf, fieldHasSource, isInputName, isSymbolField,
-  isTelemetryKey, sameWords, type FieldInput, type FieldRead, type MapEntry,
+  INPUT_NAME_GRAMMAR, MAX_FIELD_LABEL, MAX_FIELDS_PER_KEY, MAX_INPUTS_PER_FIELD, RESERVED_INPUT_NAMES, UUID_GRAMMAR, elementLabelOf, fieldHasSource, foldText, isInputName, isSymbolField,
+  isTelemetryKey, sameWords, textWords, type FieldInput, type FieldRead, type MapEntry,
 } from './scene-binding-logic';
 
-export { MAX_INPUTS_PER_FIELD, elementLabelOf, sameWords };
+export { MAX_INPUTS_PER_FIELD, elementLabelOf, foldText, sameWords };
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -48,6 +48,12 @@ export interface SymbolFieldSpec {
   kind?: FieldKind;
   /** The unit the drawing shows it in, when known. */
   unit?: string;
+  /**
+   * `false`: the row is offered (its picker lists every value of the device) but nothing is picked or proposed for it by itself, here or in "Match
+   * everything": a symbol that measures draws whether it runs and its status only when the person says so (next-boilerplate e2e round 5, E5: every gauge
+   * of a floor got "Running ← Panel on battery"). Default true.
+   */
+  suggest?: boolean;
   currentSource?: FieldSource;
   /** The one-liner the binding has for this field now. */
   currentScript?: string;
@@ -83,6 +89,14 @@ export interface DeviceKey {
   internal?: boolean;
   /** Whether the device's profile declares the key (false: a key the device sent that its profile does not know; the picker says so). Unknown when absent. */
   declared?: boolean;
+  /**
+   * The type the device's profile declares for the key, when it declares one: what the value IS, before any guess from the value itself (next-boilerplate
+   * e2e round 5, V1-B19: a text state RUNNING / JAMMED was called on/off because one live value read like a state word).
+   */
+  type?: 'number' | 'boolean' | 'string';
+  /** The scale the profile declares for the key (its raw range), when it does: the 0–100 helper starts from it (e2e round 5, E15). */
+  min?: number;
+  max?: number;
 }
 
 /** One field of a saved entry: the map v2 `FieldRead` (`deviceId` is left out when the field reads the entry's own device), the one-liner and its named inputs. */
@@ -160,9 +174,16 @@ export function fieldKindOf(field: { name: string; kind?: FieldKind }): FieldKin
   return null;
 }
 
-/** What a key sends, read off its live value: a state (a boolean, 0/1 with no unit, an on/off word), a number (a measure, or a number with a unit), a text; null when it has no value. */
-export function keyKindOf(k: Pick<DeviceKey, 'value' | 'unit'>): FieldKind | null {
+/**
+ * What a key sends. The type its profile declares comes first (a declared boolean is a state, a declared text is a text whatever word it holds now: an on/off
+ * word is a state only for a boolean key, V1-B19); a declared number is a measure unless it is a 0/1 with no unit. With no declared type it is read off the
+ * live value: a state (a boolean, 0/1 with no unit, an on/off word), a number (a measure, or a number with a unit), a text; null when it has no value.
+ */
+export function keyKindOf(k: Pick<DeviceKey, 'value' | 'unit' | 'type'>): FieldKind | null {
   const unit = k.unit !== undefined && k.unit !== '';
+  if (k.type === 'boolean') return 'state';
+  if (k.type === 'string') return 'text';
+  if (k.type === 'number') return typeof k.value === 'number' && Number.isFinite(k.value) && !unit && (k.value === 0 || k.value === 1) ? 'state' : 'number';
   if (typeof k.value === 'boolean') return 'state';
   if (typeof k.value === 'number') return Number.isFinite(k.value) ? (unit || isMeasure(k.value) ? 'number' : 'state') : null;
   if (typeof k.value === 'string') return isBooleanish(k.value) ? 'state' : isWord(k.value) ? 'text' : null;
@@ -171,37 +192,44 @@ export function keyKindOf(k: Pick<DeviceKey, 'value' | 'unit'>): FieldKind | nul
 
 // ─── Words: the synonym table and the units ──────────────────────────────────
 
-const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+const norm = (s: string): string => foldText(s).replace(/[^\p{L}\p{N}]+/gu, '');
 
-/** The words of a name: `supply_temp`, `supplyTemp`, `Supply temperature` all give `supply` and `temp`/`temperature`. */
+/**
+ * The words of a name: `supply_temp`, `supplyTemp`, `Supply temperature` all give `supply` and `temp`/`temperature`. Words are Unicode letters and digits,
+ * folded (`Açıklık` is the word `aciklik`; next-boilerplate e2e round 5, E3: an ASCII split cut it into `a`, `kl`, `k`, which "Bulanıklık" shared).
+ */
 export function wordsOf(s: string): string[] {
-  return s.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w !== '');
+  return textWords(s);
 }
+
+/** A word that can match a word of a key: two letters or more, not a bare number (a symbol's "1" or "A" tells it from its twin, it names nothing). */
+const matchable = (w: string): boolean => w.length > 1 && !/^\d+$/.test(w);
 
 /**
  * Words that mean the same thing on a device and on a drawing. One line per concept: a field whose name or label holds any word of a line
  * is also looked for under the other words of that line (a drawing's "Reading" field finds a device's `temp_1`; "Running" finds `pump_on`).
+ * The Turkish words stand folded (`sicaklik` for "Sıcaklık", `aciklik` for "Açıklık"), as `wordsOf` gives them.
  */
 export const SYNONYMS: ReadonlyArray<ReadonlyArray<string>> = [
-  ['running', 'run', 'on', 'off', 'active', 'state', 'enabled', 'enable', 'power', 'powered', 'started', 'start', 'switch', 'operating', 'working', 'is_on', 'motor'],
-  ['status', 'state', 'mode', 'health', 'condition', 'alarm', 'fault', 'error', 'warning', 'code', 'phase'],
-  ['value', 'reading', 'measure', 'measurement', 'pv', 'process', 'level', 'amount'],
-  ['temperature', 'temp', 'tmp', 't', 'celsius', 'thermometer', 'thermostat'],
-  ['flow', 'flowrate', 'flowmeter', 'lpm', 'm3h', 'gpm'],
-  ['pressure', 'press', 'bar', 'psi'],
-  ['humidity', 'hum', 'rh', 'moisture'],
-  ['level', 'lvl', 'fill', 'filling', 'tank'],
-  ['power', 'kw', 'watt', 'watts', 'load'],
-  ['energy', 'kwh', 'consumption'],
-  ['voltage', 'volt', 'volts', 'v'],
-  ['current', 'amp', 'amps', 'ampere', 'a'],
-  ['speed', 'rpm', 'frequency', 'freq', 'hz', 'rate', 'velocity'],
-  ['position', 'opening', 'open', 'opened', 'pos', 'angle', 'travel', 'stroke', 'aperture', 'valve', 'damper'],
-  ['direction', 'dir', 'forward', 'reverse', 'fwd', 'rev', 'rotation', 'heading'],
+  ['running', 'run', 'on', 'off', 'active', 'state', 'enabled', 'enable', 'power', 'powered', 'started', 'start', 'switch', 'operating', 'working', 'is_on', 'motor', 'calisiyor', 'calisma', 'devrede'],
+  ['status', 'state', 'mode', 'health', 'condition', 'alarm', 'fault', 'error', 'warning', 'code', 'phase', 'durum', 'durumu', 'ariza', 'hata', 'uyari', 'mod'],
+  ['value', 'reading', 'measure', 'measurement', 'pv', 'process', 'level', 'amount', 'deger', 'degeri', 'olcum', 'olcumu'],
+  ['temperature', 'temp', 'tmp', 't', 'celsius', 'thermometer', 'thermostat', 'sicaklik', 'sicakligi'],
+  ['flow', 'flowrate', 'flowmeter', 'lpm', 'm3h', 'gpm', 'debi', 'debisi', 'akis', 'akisi'],
+  ['pressure', 'press', 'bar', 'psi', 'basinc', 'basinci'],
+  ['humidity', 'hum', 'rh', 'moisture', 'nem', 'nemi'],
+  ['level', 'lvl', 'fill', 'filling', 'tank', 'seviye', 'seviyesi', 'doluluk'],
+  ['power', 'kw', 'watt', 'watts', 'load', 'guc', 'gucu'],
+  ['energy', 'kwh', 'consumption', 'enerji', 'tuketim'],
+  ['voltage', 'volt', 'volts', 'v', 'gerilim', 'voltaj'],
+  ['current', 'amp', 'amps', 'ampere', 'a', 'akim', 'akimi'],
+  ['speed', 'rpm', 'frequency', 'freq', 'hz', 'rate', 'velocity', 'hiz', 'hizi', 'devir'],
+  ['position', 'opening', 'open', 'opened', 'pos', 'angle', 'travel', 'stroke', 'aperture', 'valve', 'damper', 'aciklik', 'acikligi', 'konum'],
+  ['direction', 'dir', 'forward', 'reverse', 'fwd', 'rev', 'rotation', 'heading', 'yon', 'yonu'],
   ['value2', 'setpoint', 'sp', 'target', 'second', 'secondary', 'aux'],
-  ['door', 'hatch', 'lid', 'cover'],
-  ['weight', 'mass', 'kg'],
-  ['volume', 'litre', 'liter', 'l'],
+  ['door', 'hatch', 'lid', 'cover', 'kapi', 'kapisi'],
+  ['weight', 'mass', 'kg', 'agirlik'],
+  ['volume', 'litre', 'liter', 'l', 'hacim'],
 ];
 
 /**
@@ -209,7 +237,7 @@ export const SYNONYMS: ReadonlyArray<ReadonlyArray<string>> = [
  * synonym of those. Words are matched whole (`rh` is a word, never a part of `through`).
  */
 export function fieldWords(field: { name: string; label?: string }, hints: readonly string[] = []): Set<string> {
-  const base = new Set([...wordsOf(field.name), ...(field.label ? wordsOf(field.label) : []), ...hints.flatMap(wordsOf)]);
+  const base = new Set([...wordsOf(field.name), ...(field.label ? wordsOf(field.label) : []), ...hints.flatMap(wordsOf).filter(matchable)]);
   const out = new Set(base);
   for (const line of SYNONYMS) if (line.some((w) => base.has(w))) for (const w of line) out.add(w);
   return out;
@@ -278,11 +306,14 @@ export function keyQuantity(k: Pick<DeviceKey, 'key' | 'label' | 'unit'>): { qua
 export type Mismatch = 'text-for-number' | 'state-for-number' | 'number-for-state' | 'text-for-state' | 'number-for-text' | 'quantity';
 
 /**
- * `symbol`: the shared word came from the symbol's own words (its label or kind), not from the field's: a reason specific to THIS symbol.
+ * `symbol`: the shared word is one of the symbol's OWN name that its kind does not have ("Supply" of a "Supply temperature"): a reason specific to THIS
+ * symbol. `kind`: the shared word comes from the symbol's kind, or is a kind word its name repeats ("room" of a "Cold room", "pump" of a "Circulation
+ * pump"): scored alike, but every symbol of that kind has it, so it never names THIS symbol (next-boilerplate e2e round 5, E3: four cold rooms took one
+ * controller's room temperature as certain through "room").
  * `stale`: the key's last value is much older than the device's newest one (next-boilerplate e2e round 3, M-R3-06: a 12-hour-old raw key was
  * offered above the live value): it counts against the key and it is never picked by itself.
  */
-export type RankReason = 'element' | 'label' | 'name' | 'synonym' | 'symbol' | 'contains' | 'type' | 'unit' | 'only' | 'stale';
+export type RankReason = 'element' | 'label' | 'name' | 'synonym' | 'symbol' | 'kind' | 'contains' | 'type' | 'unit' | 'only' | 'stale';
 
 /** One key of the device as a candidate for a field: its score, whether the panel may pick it by itself, why, and the kind problem if it has one. */
 export interface RankedKey {
@@ -300,7 +331,7 @@ export interface RankedKey {
 }
 
 /** The kind problem of feeding `key` to `field`, or null when the kinds agree or one of them is not known. */
-export function mismatchOf(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit'>): Mismatch | null {
+export function mismatchOf(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit' | 'type'>): Mismatch | null {
   const want = fieldKindOf(field);
   const got = keyKindOf(key);
   if (!want || !got || want === got) return null;
@@ -315,7 +346,7 @@ export function mismatchOf(field: { name: string; kind?: FieldKind }, key: Pick<
  * a Running field most likely reads, but a kind alone never makes a certainty: a tee's Running is not the device's one door), a mismatch costs (a state
  * for a number only a little: 0/1 may well be a reading at rest).
  */
-function typeScore(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit'>, onlyOfKind: boolean): number {
+function typeScore(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit' | 'type'>, onlyOfKind: boolean): number {
   const want = fieldKindOf(field);
   const got = keyKindOf(key);
   if (!want || !got) return 0;
@@ -339,6 +370,62 @@ export const KIND_ALONE_SCORE = 50;
 export const STALE_GAP_MS = 60 * 60 * 1000;
 /** What a stale key loses. */
 export const STALE_PENALTY = 40;
+/**
+ * What a key of another piece of equipment loses (`RankedKey.foreign`): it is still offered, but never ties with, or leads, the symbol's own key (e2e
+ * round 5, E3: greenhouse 2's value tied with greenhouse 1's for "Sera 1", and nothing was certain).
+ */
+export const FOREIGN_PENALTY = 30;
+
+/** The words that make a key a set-point: `setpoint`, `sp`, `target` and their Turkish `hedef`, or the pairs "set point" and "ayar noktası". */
+const SETPOINT_WORDS = new Set(['setpoint', 'sp', 'target', 'targets', 'hedef', 'soll', 'setp']);
+const SETPOINT_PAIRS: ReadonlyArray<readonly [string, string]> = [['set', 'point'], ['set', 'pt'], ['ayar', 'noktasi'], ['ayar', 'degeri']];
+
+/** Whether some words (in their order) name a set-point. */
+export function isSetpointWords(words: readonly string[]): boolean {
+  if (words.some((w) => SETPOINT_WORDS.has(w))) return true;
+  return words.some((w, i) => SETPOINT_PAIRS.some(([a, b]) => w === a && words[i + 1] === b));
+}
+
+/**
+ * Words that name a piece of equipment (folded; English and the common Turkish ones). A flat key whose label holds one the symbol does not have reads
+ * another piece of equipment ("Tank level" for a soil probe, "Pump kiosk" for a booster set, "Battery" for a dock door; e2e round 5, E3).
+ */
+const EQUIPMENT_WORDS: ReadonlySet<string> = new Set([
+  'pump', 'valve', 'tank', 'fan', 'motor', 'compressor', 'heater', 'boiler', 'chiller', 'freezer', 'cooler', 'fridge', 'door', 'gate', 'hatch', 'lid', 'damper',
+  'filter', 'kiosk', 'hydrant', 'reservoir', 'vessel', 'silo', 'bin', 'conveyor', 'mixer', 'agitator', 'turbine', 'generator', 'transformer', 'breaker',
+  'inverter', 'battery', 'panel', 'greenhouse', 'room', 'chamber', 'oven', 'fryer', 'kettle', 'borehole', 'well', 'basin', 'clarifier', 'blower', 'crane',
+  'lift', 'elevator', 'escalator', 'lamp', 'light', 'camera', 'sprinkler', 'pivot', 'barn', 'radiator', 'dryer', 'washer', 'router', 'rack', 'charger',
+  'switch', 'thermostat', 'meter', 'gauge', 'sensor', 'probe', 'manifold', 'cylinder', 'compressor', 'evaporator', 'condenser', 'tower',
+  'pompa', 'vana', 'kazan', 'sera', 'oda', 'kapi', 'kapisi', 'firin', 'depo', 'fan', 'sayac', 'sensor', 'jenerator', 'trafo', 'aku',
+]);
+
+/**
+ * The words of a label that name a thing rather than what is read of it: the words of the label left once the words of a reading (every word of the
+ * synonym lines but the pieces of equipment among them: temperature, running, level …) and the generic ones (raw, total, ok …) are taken out. "Pump
+ * kiosk" names `pump`, `kiosk`; "Room temperature" names `room`; "Tank level" names `tank`; "Defrost running" names `defrost`; "Door open" names `door`.
+ */
+const READING_WORDS: ReadonlySet<string> = new Set([
+  ...SYNONYMS.flat().filter((w) => !EQUIPMENT_WORDS.has(w)),
+  'raw', 'total', 'actual', 'measured', 'live', 'trend', 'ok', 'avg', 'average', 'mean', 'min', 'max', 'last', 'daily', 'hourly', 'ago', 'pct', 'percent',
+  'closed', 'shut', 'is', 'of', 'at', 'the', 'and', 'or', 'in', 'to', 'by', 'h', 'c', 'f', 'k', 'm', 's', 'x',
+]);
+const thingWords = (text: string): string[] => wordsOf(text).filter((w) => !READING_WORDS.has(w) && !/^\d+$/.test(w));
+
+/**
+ * The piece of equipment a key names, as words (numbers too, they tell twins apart): a dotted key's element (its prefix's words and the equipment name of
+ * its label, "Greenhouse 1 valve · running"), else the thing a flat key's label (or name) speaks of ("Pump kiosk", "Greenhouse 1 temperature"). `prefixed`
+ * says which. Null for a flat key that names no thing (`temp`, "Door open").
+ */
+function equipmentOf(k: Pick<DeviceKey, 'key' | 'label'>): { words: Set<string>; prefixed: boolean } | null {
+  const lower = k.key.toLowerCase();
+  const dot = lower.lastIndexOf('.');
+  if (dot > 0) return { words: new Set([...wordsOf(lower.slice(0, dot)), ...wordsOf(elementLabelOf(k.label))]), prefixed: true };
+  const text = k.label && k.label.trim() ? k.label : k.key;
+  const named = thingWords(text);
+  if (named.length === 0) return null;
+  // a flat label's number belongs to its thing ("Greenhouse 1 temperature"): kept beside its words
+  return { words: new Set([...named, ...wordsOf(text).filter((w) => /^\d+$/.test(w))]), prefixed: false };
+}
 
 const tsOf = (k: Pick<DeviceKey, 'ts'>): number => {
   if (k.ts === undefined || k.ts === null) return 0;
@@ -389,24 +476,35 @@ export function keyNamesSymbol(k: Pick<DeviceKey, 'key' | 'label'>, symbolLabel:
  *           found by the name instead of the id (a drawing keyed `pump` for the device's `pump_circulation`);
  *  name     the key's local part (after its last dot), or its label, is the field's name or label: 80;
  *  synonym  the key and the field share a whole word, or a synonym of one (`Reading` of a thermometer finds `temp_1`, `Running` finds `pump_on`): 65,
- *           and 15 more for each further shared word (`Supply temperature` beats `Return temperature` for a supply field);
- *  symbol   the key shares a word of the SYMBOL's own (its label or kind: Door ↔ `door`, Circulation pump ↔ `pump_on`): 65 on its own, 15 beside a
- *           name or synonym match; the one reason that ties a key to this symbol rather than to any symbol with the same parameter;
+ *           and 15 more for each further shared word (`Supply temperature` beats `Return temperature` for a supply field). "on" and "off" count only as
+ *           the last word of a key or a label (`pump_on`, "Pump on"; never "Panel on battery");
+ *  symbol   the key shares a word of the symbol's own NAME that its kind does not have ("Supply" of a "Supply temperature" in `supply_temp`): 65 on its
+ *           own, 15 beside a name or synonym match; the one word reason that ties a key to this symbol rather than to any symbol of its kind;
+ *  kind     the same for a word of the symbol's kind, or a kind word its name repeats (Door ↔ `door`, Circulation pump ↔ `pump_on`): scored as `symbol`,
+ *           but every symbol of that kind has it, so it never names THIS symbol (next-boilerplate e2e round 5, E3);
  *  contains the key holds a word of the field of four letters or more: 55;
  *  type     what the key sends agrees with what the field expects: 15, or `KIND_ALONE_SCORE` (50: offered, never certain) when it is the only key of
  *           that kind the device sends and no key matched by a word (words first, the kind as the fallback); a mismatch is flagged and costs (45;
  *           10 for a 0/1 where a number is expected);
- *  unit     the key measures what the field measures (by its unit: 45; by its words, `temp_1` for a temperature: 20); a different quantity costs 20
- *           and bars the kind fallback (a temperature is never the one number a speed reads);
- *  only     the one key there is, when nothing else says anything: 60.
- * `hints` are the symbol's own words (its label and kind), used for a number field whose own words say no quantity ("Reading" of a "Thermometer").
- * `confident` is on the best alone: a score from `CONFIDENT_SCORE`, no mismatch, not `foreign`, and a lead of `CONFIDENT_LEAD` over the next.
- * `foreign`: a key under another piece of equipment's prefix (`drain_valve.running` for an "Open basin"), told by the symbol's own raw words (no synonyms:
- * "open" must not reach "valve" through the position line); the element rule overrides it. A prefix that shares a word with the symbol is still
- * another piece of equipment when each side has a word of its own the other lacks (`heat_pump` for a "Mud pump": both are pumps, neither is the
- * other; next-boilerplate e2e round 3, M-R3-03); the symbol's own name is the FIRST hint, its kind the rest, and the words are compared with their
- * synonyms (a "Supply temperature" is `supply_temp`).
+ *  unit     the key measures what the field measures (by its unit: 45; by its words, `temp_1` for a temperature: 20; a percent says no more than a
+ *           word: humidity, opening, level and load all read %, e2e round 5); a different quantity costs 20 and bars the kind fallback (a temperature is
+ *           never the one number a speed reads);
+ *  only     the one key there is, when nothing else says anything: 60;
  *  stale    the key's last value is far behind the device's newest (`STALE_GAP_MS`): minus `STALE_PENALTY`, and never picked by itself.
+ * A set-point (`setpoint`, `sp`, `target`, "set point") is never ranked for a field that shows what is measured (any field but a second value or a
+ * set-point of its own): a target is no reading (e2e round 5, E3). The picker still lists it, last.
+ * `hints` are the symbol's own words: its NAME first, then its kind ([label, kindLabel]); used for a number field whose own words say no quantity
+ * ("Reading" of a "Thermometer"). A word of one letter or a bare number never matches (a symbol's "1" or "A" tells twins apart, it names nothing).
+ * `confident` is on the best alone: a score from `CONFIDENT_SCORE`, a word (or the one key there is, or a unit that names its quantity: a percent does
+ * not) behind it, no mismatch, not `foreign`, not stale, and a lead of `CONFIDENT_LEAD`.
+ * `foreign`: a key of another piece of equipment than the symbol (E2E-2.11, M-R3-03, e2e round 5 E3), measured on the symbol's identity (its name and
+ * its kind, as written: "open" must not reach "valve" through the position line). A dotted key's element is another when it shares no word with the
+ * identity, or when it shares one but each side has a word the other lacks (`heat_pump` for a "Mud pump"; `greenhouse_1` for a "Sera 1 A" soil probe;
+ * `greenhouse_2` for "Sera 1", a Greenhouse); a flat key is another in the second way, by the thing its label names ("Greenhouse 1 temperature" for
+ * "Sera 2"), or, on a device that names its pieces of equipment in its keys (two prefixes or more), when its label names a piece of equipment the
+ * symbol is not ("Tank level" for a soil probe, "Pump kiosk" for a booster set): on a one-purpose device a flat key is the device's own ("pump_on" of a
+ * combi boiler, "Room temperature" of a cold room controller). The element rule and the symbol's name
+ * on the equipment (`label`) override it; a foreign key loses `FOREIGN_PENALTY`.
  */
 export function rankKeysForField(
   field: { name: string; label?: string; kind?: FieldKind; unit?: string },
@@ -416,7 +514,11 @@ export function rankKeysForField(
   hints: readonly string[] = [],
 ): RankedKey[] {
   const used = new Set(taken);
-  const list = pickableKeys(keys).filter((k) => !used.has(k.key));
+  // a set-point is never what a field that shows a measured value reads (a second value or a set-point field may read one)
+  const fieldOwn = [...wordsOf(field.name), ...(field.label ? wordsOf(field.label) : [])];
+  const readsMeasure = field.name !== 'value2' && !isSetpointWords(fieldOwn);
+  const isSetpointKey = (k: DeviceKey): boolean => isSetpointWords([...wordsOf(k.key.slice(k.key.lastIndexOf('.') + 1)), ...(k.label ? wordsOf(k.label) : [])]);
+  const list = pickableKeys(keys).filter((k) => !used.has(k.key) && !(readsMeasure && isSetpointKey(k)));
   if (list.length === 0) return [];
   const want = `${element ?? ''}.${field.name}`.toLowerCase();
   const name = norm(field.name);
@@ -424,27 +526,33 @@ export function rankKeysForField(
   const kind = fieldKindOf(field);
   const useHints = kind === 'number' || kind === null;
   const words = fieldWords(field, useHints ? hints : []);
-  // the symbol's own words (and their synonyms), apart: a key that shares one of them is matched to THIS symbol, not to any symbol with the same field
-  const ownWords = fieldWords({ name: '' }, hints);
   const fieldOnly = fieldWords(field);
+  // the symbol's NAME and its KIND apart: a word of the name its kind lacks names THIS symbol; a kind word names every symbol of the kind
+  const nameRaw = (hints[0] ?? '') !== '' ? wordsOf(hints[0]) : [];
+  const kindRaw = hints.slice(1).flatMap(wordsOf);
+  const kindSet = new Set(kindRaw);
+  const specific = nameRaw.filter((w) => matchable(w) && !kindSet.has(w) && !READING_WORDS.has(w));
+  const specificWords = fieldWords({ name: '' }, specific);
+  const kindWords = fieldWords({ name: '' }, [...kindRaw, ...nameRaw.filter((w) => !specific.includes(w))]);
+  // the symbol's identity, as written (numbers and letters too: they tell twins apart), and widened by the synonyms for a fair comparison
+  const identity = new Set([...nameRaw, ...kindRaw]);
+  const identityAll = new Set([...identity, ...fieldWords({ name: '' }, [...identity])]);
   const long = [...new Set([...wordsOf(field.name), ...(field.label ? wordsOf(field.label) : [])])].filter((w) => w.length >= 4);
   const quantity = fieldQuantity(field) ?? (useHints ? fieldQuantity({ name: hints.join(' ') }) : null);
   const kinds = new Map<FieldKind | null, number>();
   for (const k of list) kinds.set(keyKindOf(k), (kinds.get(keyKindOf(k)) ?? 0) + 1);
-  // the symbol's own words as written (no synonyms): what tells its equipment from another's
-  const rawOwn = new Set(hints.flatMap(wordsOf));
-  // the symbol's own NAME (the first hint), with its synonyms: what a prefix is measured against when it shares a word with the symbol
-  const ownName = hints.length > 0 ? fieldWords({ name: '' }, [hints[0]]) : new Set<string>();
-  const ownNameRaw = hints.length > 0 ? wordsOf(hints[0]) : [];
   const stale = staleKeys(list);
   const symbolLabel = hints[0] ?? '';
+  // a device that names its pieces of equipment in its keys (two element prefixes or more: a plant, a controller): its flat keys may be another
+  // piece's too; on a one-purpose device (flat keys only) a pump or a fan in a key's name is a part of the thing the device is
+  const prefixes = new Set(list.filter((k) => k.key.includes('.')).map((k) => k.key.slice(0, k.key.lastIndexOf('.')).toLowerCase()));
+  const manyThings = prefixes.size >= 2;
   // first the words (the element, a name, a shared word, a contained word) …
   const worded = list.map((k) => {
     const reasons: RankReason[] = [];
     let score = 0;
     const lower = k.key.toLowerCase();
     const local = lower.slice(lower.lastIndexOf('.') + 1);
-    const prefix = lower.includes('.') ? lower.slice(0, lower.lastIndexOf('.')) : '';
     const nlocal = norm(local);
     const nlabel = k.label ? norm(k.label) : '';
     if (element && lower === want) { score += 100; reasons.push('element'); }
@@ -452,45 +560,68 @@ export function rankKeysForField(
     const named = keyNamesSymbol(k, symbolLabel);
     if (named && !reasons.includes('element') && local === field.name.toLowerCase()) { score += 100; reasons.push('label'); }
     if (nlocal === name || (label && (nlocal === label || nlabel === label)) || (nlabel && nlabel === name)) { score += 80; reasons.push('name'); }
-    const keyWords = new Set([...wordsOf(local), ...(k.label ? wordsOf(k.label) : [])]);
+    const keyWords = new Set([...wordsOfKey(local), ...(k.label ? wordsOfKey(k.label) : [])]);
     const shared = [...keyWords].filter((w) => words.has(w)).length;
     if (!reasons.includes('name') && shared > 0) { score += 65 + Math.min(2, shared - 1) * 15; reasons.push('synonym'); }
-    // another piece of equipment of the same device: the key's prefix names nothing of this symbol (and the element rule did not claim it), or it
-    // shares a word but each side has a word of its own the other lacks (a heat pump is not a mud pump)
-    const prefixWords = prefix ? wordsOf(prefix) : [];
-    const sharesOwn = prefixWords.some((w) => rawOwn.has(w));
-    const prefixAll = prefix ? fieldWords({ name: '' }, [prefix]) : new Set<string>();
-    const differentEquipment = sharesOwn && ownNameRaw.length > 0 && prefixWords.some((w) => !ownName.has(w)) && ownNameRaw.some((w) => !prefixAll.has(w));
-    // a word of the symbol's own in the key, its label or its prefix (Door ↔ `door`, Circulation pump ↔ `pump_on` or `pump_circulation.running`): a match to
-    // THIS symbol, scored like a synonym (a second signal beside one), 15 more for each further shared word (`supply_temp` beats `return_temp` for a
-    // "Supply temperature"); never for a prefix that names another piece of equipment
-    const ownHits = new Set([...keyWords, ...(differentEquipment ? [] : prefixWords)].filter((w) => ownWords.has(w) && !fieldOnly.has(w)));
-    if (ownHits.size > 0) { score += (reasons.length === 0 ? 65 : 15) + Math.min(2, ownHits.size - 1) * 15; reasons.push('symbol'); }
+    // the piece of equipment the key names, against the symbol's identity: another one when it shares nothing (a dotted key), or when it shares a word
+    // but each side has a word of its own the other lacks (a heat pump is not a mud pump; greenhouse 2 is not "Sera 1")
+    const equipment = equipmentOf(k);
+    const equipWords = equipment ? [...equipment.words] : [];
+    const sharesIdentity = equipWords.some((w) => identity.has(w));
+    const equipAll = new Set([...equipWords, ...fieldWords({ name: '' }, equipWords)]);
+    const differentEquipment = sharesIdentity && equipWords.some((w) => !identityAll.has(w)) && [...identity].some((w) => !equipAll.has(w));
+    // a flat key whose label names a piece of equipment the symbol is not ("Tank level" for a soil probe): another one, whatever word it shares
+    const otherThing = manyThings && !!equipment && !equipment.prefixed && equipWords.some((w) => EQUIPMENT_WORDS.has(w) && !identityAll.has(w));
+    const prefixWords = equipment?.prefixed ? equipWords : [];
+    // a word of the symbol's own in the key, its label or its element: a match to THIS symbol (`symbol`) or to its kind (`kind`), scored like a synonym (a
+    // second signal beside one), 15 more for each further shared word; never through an element that is another piece of equipment
+    const hits = [...keyWords, ...(differentEquipment ? [] : prefixWords)].filter((w) => matchable(w) && !fieldOnly.has(w));
+    const ownHits = new Set(hits.filter((w) => specificWords.has(w)));
+    const kindHits = new Set(hits.filter((w) => kindWords.has(w) && !ownHits.has(w)));
+    const hitCount = ownHits.size + kindHits.size;
+    if (hitCount > 0) { score += (reasons.length === 0 ? 65 : 15) + Math.min(2, hitCount - 1) * 15; reasons.push(ownHits.size > 0 ? 'symbol' : 'kind'); }
     if (reasons.length === 0 && long.some((w) => nlocal.includes(w) || nlabel.includes(w))) { score += 55; reasons.push('contains'); }
-    const foreign = prefix !== '' && rawOwn.size > 0 && !reasons.includes('element') && !named && (!sharesOwn || differentEquipment);
+    const ruled = reasons.includes('element') || named;
+    const foreign = identity.size > 0 && !!equipment && !ruled && (equipment.prefixed ? !sharesIdentity || differentEquipment : differentEquipment || otherThing);
     return { k, reasons, score, foreign };
   });
   // … then the kind: the only key of the field's kind decides by itself only when no key matched by a word (words first, the kind as the fallback)
   const anyWords = worded.some((w) => w.reasons.length > 0);
+  const strong = new Set<string>();
   const ranked = worded.map(({ k, reasons, score: base, foreign }): RankedKey => {
     let score = base;
+    // a word, the one key there is, or a unit that names its quantity is what may make a pick certain; a kind or a percent alone never does
+    if (reasons.length > 0) strong.add(k.key);
     const kq = quantity ? keyQuantity(k) : null;
     const contradicts = !!kq && kq.quantity !== quantity;
     const t = typeScore(field, k, !anyWords && !contradicts && kinds.get(keyKindOf(k)) === 1);
     if (t !== 0) { score += t; reasons.push('type'); }
-    if (kq) { score += contradicts ? -20 : kq.byUnit ? 45 : 20; reasons.push('unit'); }
-    if (list.length === 1 && reasons.length === 0) { score += 60; reasons.push('only'); }
+    // a percent is a scale, not a quantity: it says no more than a word (a humidity in % is no door's opening)
+    if (kq) {
+      const named = kq.byUnit && kq.quantity !== 'percent';
+      score += contradicts ? -20 : named ? 45 : 20;
+      reasons.push('unit');
+      if (named && !contradicts) strong.add(k.key);
+    }
+    if (list.length === 1 && reasons.length === 0) { score += 60; reasons.push('only'); strong.add(k.key); }
     // a value the device stopped sending long ago (an old key name, a sensor that went away) comes after the live ones
     const isStale = stale.has(k.key);
     if (isStale) { score -= STALE_PENALTY; reasons.push('stale'); }
+    if (foreign) score -= FOREIGN_PENALTY;
     // a key that measures another quantity than the field is never picked by itself, whatever word it shares (a supply temperature for a valve's opening)
     const mismatch = mismatchOf(field, k) ?? (contradicts ? 'quantity' : null);
     return { key: k.key, score, confident: false, reasons, ...(mismatch ? { mismatch } : {}), ...(foreign ? { foreign } : {}) };
   }).filter((r) => r.score > 0);
   ranked.sort((a, b) => b.score - a.score);
   const [top, second] = ranked;
-  if (top && top.score >= CONFIDENT_SCORE && !top.mismatch && !top.foreign && !top.reasons.includes('stale') && (second === undefined || top.score - second.score >= CONFIDENT_LEAD)) top.confident = true;
+  if (top && top.score >= CONFIDENT_SCORE && strong.has(top.key) && !top.mismatch && !top.foreign && !top.reasons.includes('stale') && (second === undefined || top.score - second.score >= CONFIDENT_LEAD)) top.confident = true;
   return ranked;
+}
+
+/** The words of a key or a label as `rankKeysForField` matches them: "on" and "off" only as the last word (`pump_on`; "Panel on battery" is not "on"). */
+function wordsOfKey(text: string): string[] {
+  const all = wordsOf(text);
+  return all.filter((w, i) => (w !== 'on' && w !== 'off') || i === all.length - 1);
 }
 
 /**
@@ -601,11 +732,48 @@ export interface ScriptTemplate {
   script: string;
 }
 
-/** The quick-fill chips, each an expression over `value` (the field's picked value); the numbers are a starting point the person edits. */
-export function scriptTemplates(): ScriptTemplate[] {
+/** A raw range of a value: what it reads at 0 % and at 100 % (a soil probe: 1500 when dry, 3300 when soaked). */
+export interface RawRange { from: number; to: number }
+
+const numberText = (n: number): string => String(Math.round(n * 1e6) / 1e6);
+
+/**
+ * The 0–100 expression over a raw range (next-boilerplate e2e round 5, E15: a fixed `value / 4095 * 100` turned a probe's 2387 into 58 % where its own
+ * scale, 1500 dry to 3300 soaked, says 49 %): `value / 3300 * 100` from 0, else `(value - 1500) / (3300 - 1500) * 100`, both numbers as the person gave them.
+ */
+export function scaleScript(range: RawRange): string {
+  const { from, to } = range;
+  if (from === 0) return `value / ${numberText(to)} * 100`;
+  const minus = from < 0 ? `+ ${numberText(-from)}` : `- ${numberText(from)}`;
+  return `(value ${minus}) / (${numberText(to)} ${minus}) * 100`;
+}
+
+/** Two numbers typed for a raw range ("1500", "3 300", "0,5"), or null when either is not a number or both are the same. */
+export function rawRangeOf(from: string, to: string): RawRange | null {
+  const num = (t: string): number | null => {
+    const s = t.trim().replace(/\s+/g, '').replace(',', '.');
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s)) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  };
+  const a = num(from);
+  const b = num(to);
+  return a === null || b === null || a === b ? null : { from: a, to: b };
+}
+
+/** The raw range a key's profile declares (its `min` and `max`), or null when it declares none: the 0–100 helper starts from it. */
+export function declaredRange(k: Pick<DeviceKey, 'min' | 'max'> | undefined): RawRange | null {
+  return k && typeof k.min === 'number' && typeof k.max === 'number' && Number.isFinite(k.min) && Number.isFinite(k.max) && k.min !== k.max ? { from: k.min, to: k.max } : null;
+}
+
+/**
+ * The quick-fill chips, each an expression over `value` (the field's picked value); the numbers are a starting point the person edits. "Scale 0–100" asks
+ * for the raw range first (`scaleScript`); without one it is the plain 0–100 of a value that already reads 0 to 100.
+ */
+export function scriptTemplates(range: RawRange = { from: 0, to: 100 }): ScriptTemplate[] {
   return [
     { id: 'invert', script: '!value' },
-    { id: 'scale', script: 'value / 4095 * 100' },
+    { id: 'scale', script: scaleScript(range) },
     { id: 'round', script: 'Math.round(value * 10) / 10' },
     { id: 'threshold', script: 'value > 80' },
     { id: 'words', script: 'value === "on"' },
@@ -835,20 +1003,24 @@ export interface MatchSymbol {
   /** The symbol's device; '' when no one device is known and `candidates` decide. */
   deviceId: string;
   deviceName: string;
-  fields: ReadonlyArray<{ name: string; label: string; kind?: FieldKind; unit?: string }>;
+  /** `suggest: false` is a parameter nothing is proposed for (`SymbolFieldSpec.suggest`: a measuring symbol's Running and Status). */
+  fields: ReadonlyArray<{ name: string; label: string; kind?: FieldKind; unit?: string; suggest?: boolean }>;
   /** The keys the symbol's other parameters read already (its own entries, the drawing's own naming): never proposed again for it. */
   taken?: readonly string[];
   /**
    * The devices the symbol may read from while `deviceId` is '' (a site's devices, next-boilerplate phase 46.2: a site's view whose symbols name no
-   * device yet). Each is ranked as the symbol's device would be; the device whose proposals score best is the symbol's (a word its name shares with the
-   * symbol's label counts too). Two devices that score the same propose nothing (nobody's pick); a lead under `CONFIDENT_LEAD` ticks nothing.
+   * device yet), each with the place it sits in (`place`: the room or area of the site) when the host knows it. The device whose name or place holds the
+   * symbol's own name is the symbol's (e2e round 5, E4: "Chiller 1 controller", or the device placed in "Chiller 1", for the symbol "Chiller 1"); a device
+   * whose number or letter tells another twin ("Chiller 2 controller", "Sera 1 probe B" for "Sera 1 A"), or that another symbol's name claims, is never
+   * this symbol's. Without such a name the device whose proposals score best is offered; devices that score the same are all offered (at most
+   * `MAX_TIED_DEVICES`). Only a device that names the symbol, or the one device there is, makes a proposal certain: a guess across devices never is.
    */
-  candidates?: ReadonlyArray<{ deviceId: string; deviceName: string }>;
+  candidates?: ReadonlyArray<{ deviceId: string; deviceName: string; place?: string }>;
 }
 
 /** One row of the preview table: a parameter of a symbol with the device value proposed for it. */
 export type MatchRow = {
-  /** `<symbol id>.<field>`; internal. */
+  /** `<symbol id>.<field>`, and `@<device id>` after it for the second and later devices of a tie; internal. */
   id: string;
   symbolId: string;
   symbolLabel: string;
@@ -874,18 +1046,19 @@ interface DeviceProposals {
   total: number;
 }
 
-function proposalsOn(s: MatchSymbol, deviceId: string, deviceName: string, keys: readonly DeviceKey[]): DeviceProposals {
+function proposalsOn(s: MatchSymbol, deviceId: string, deviceName: string, keys: readonly DeviceKey[], idSuffix = ''): DeviceProposals {
   const rows: MatchRow[] = [];
   const reasons = new Map<string, readonly RankReason[]>();
   let total = 0;
   const taken: string[] = [...(s.taken ?? [])];
   for (const f of s.fields) {
+    if (f.suggest === false) continue;
     const [top, second] = rankKeysForField(f, keys, s.element, taken, [s.label, s.kindLabel]);
     if (!top || top.score < MIN_PROPOSAL_SCORE || (second && second.score === top.score)) continue;
     const k = keys.find((x) => x.key === top.key);
     if (!k) continue;
     taken.push(top.key);
-    const id = `${s.id}.${f.name}`;
+    const id = `${s.id}.${f.name}${idSuffix}`;
     reasons.set(id, top.reasons);
     total += top.score;
     rows.push({
@@ -898,70 +1071,147 @@ function proposalsOn(s: MatchSymbol, deviceId: string, deviceName: string, keys:
 }
 
 /**
- * What a device's name adds for a symbol: a word of three letters or more that it shares with the symbol's label ("Flow meter FM-2" for a "Flow meter").
- * It breaks a tie between devices that send the same keys, but stays under `CONFIDENT_LEAD`: a name alone never ticks a proposal.
+ * What a device's name adds for a symbol when no device names it: a word of two letters or more that it shares with the symbol's label ("Flow meter FM-2"
+ * for a "Flow meter"). It breaks a tie between devices that send the same keys, but stays under `CONFIDENT_LEAD`.
  */
 export const DEVICE_NAME_SCORE = 10;
+/** The most devices a tie offers for one symbol (each with its own rows, none ticked): more would bury the table. */
+export const MAX_TIED_DEVICES = 3;
 
-const deviceNameScore = (deviceName: string, symbolLabel: string): number => {
-  const own = new Set(wordsOf(symbolLabel).filter((w) => w.length >= 3));
-  return wordsOf(deviceName).some((w) => own.has(w)) ? DEVICE_NAME_SCORE : 0;
-};
+/** A name as words and as tags: the numbers and single letters that tell twins apart ("Chiller 1", "Sera 1 A", "T-101"). */
+function nameParts(text: string): { words: Set<string>; tags: Set<string> } {
+  const all = wordsOf(text);
+  return { words: new Set(all.filter(matchable)), tags: new Set(all.filter((w) => !matchable(w))) };
+}
+
+/**
+ * How a device stands to a symbol by name: `names` when the device's name or place holds every word and tag of the symbol's own name ("Chiller 1
+ * controller", or a device placed in "Chiller 1", for "Chiller 1"); `twin` when they share a word or a tag but each has a tag the other lacks ("Chiller 2
+ * controller" for "Chiller 1", "Sera 1 probe B" for "Sera 1 A"): another of the same things; `shares` when they share a word; else `none`.
+ */
+export function deviceNameRelation(device: { deviceName: string; place?: string }, symbolLabel: string): 'names' | 'twin' | 'shares' | 'none' {
+  const own = nameParts(symbolLabel);
+  if (own.words.size + own.tags.size === 0) return 'none';
+  const dev = nameParts(`${device.deviceName} ${device.place ?? ''}`);
+  const has = (w: string) => dev.words.has(w) || dev.tags.has(w);
+  if ([...own.words, ...own.tags].every(has)) return 'names';
+  const sharesWord = [...own.words].some((w) => dev.words.has(w));
+  const sharesAny = sharesWord || [...own.tags].some((w) => dev.tags.has(w));
+  if (sharesAny && [...dev.tags].some((w) => !own.tags.has(w)) && [...own.tags].some((w) => !dev.tags.has(w))) return 'twin';
+  return sharesWord ? 'shares' : 'none';
+}
+
+/** A symbol named by its author (not only by its kind): its name can claim a device. */
+const ownName = (s: Pick<MatchSymbol, 'label' | 'kindLabel'>): boolean => s.label.trim() !== '' && norm(s.label) !== norm(s.kindLabel);
 
 /**
  * The proposals for a whole drawing: for every parameter of every symbol, the best key of the symbol's device by `rankKeysForField` (the element rule, the
  * symbol's name on the device's equipment, the words of the symbol, the kind, the unit), one key per symbol at most once. A parameter with no candidate, a
- * candidate under `MIN_PROPOSAL_SCORE`, or a tie at the top (nobody's pick), has no row; a confident one is checked by default, a weaker one is offered
- * unchecked, a mismatch is said. A device whose keys are not known proposes nothing. A symbol with no device of its own and `candidates` (a site's devices)
- * takes the device that fits it best, ranked across all of them (next-boilerplate phase 46.2).
+ * candidate under `MIN_PROPOSAL_SCORE`, a tie at the top between two keys, or a parameter nothing is proposed for (`suggest: false`) has no row; a confident
+ * one is checked by default, a weaker one is offered unchecked, a mismatch is said. A device whose keys are not known proposes nothing. A symbol with no
+ * device of its own and `candidates` (a site's devices, phase 46.2) is matched across them as `MatchSymbol.candidates` says (e2e round 5, E3 and E4).
  */
 export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: ReadonlyMap<string, readonly DeviceKey[]>): MatchRow[] {
   const out: MatchRow[] = [];
   // the reasons of each row, kept aside: a key proposed for the same parameter of several symbols is certain only where a reason names THAT symbol
   const reasonsOf = new Map<string, readonly RankReason[]>();
-  const take = (p: DeviceProposals, sure: boolean) => {
+  // `sure`: the device is the symbol's own and leads clearly; `byName`: it leads clearly, so a row that reads the symbol's own equipment by its id or its
+  // name (the element rule, `label`: a "Flow meter" on the one site device that sends "Flow meter · value") keeps its certainty on it
+  const take = (p: DeviceProposals, sure: boolean, byName = sure) => {
     for (const r of p.rows) {
-      out.push(sure ? r : { ...r, confident: false });
-      reasonsOf.set(r.id, p.reasons.get(r.id) ?? []);
+      const reasons = p.reasons.get(r.id) ?? [];
+      out.push(sure || (byName && (reasons.includes('element') || reasons.includes('label'))) ? r : { ...r, confident: false });
+      reasonsOf.set(r.id, reasons);
     }
   };
+  // the devices each symbol's own name claims: such a device is that symbol's, never another named symbol's
+  const named = symbols.filter(ownName);
   for (const s of symbols) {
     if (s.deviceId) {
       const keys = keysByDevice.get(s.deviceId);
       if (keys && keys.length > 0) take(proposalsOn(s, s.deviceId, s.deviceName, keys), true);
       continue;
     }
-    // no device of its own: every candidate is ranked as the symbol's device would be, and the best one is the symbol's
-    const options = (s.candidates ?? [])
+    const candidates = s.candidates ?? [];
+    const mine = ownName(s);
+    // a twin (another number or letter of the same thing) is never this symbol's; nor is a device another symbol's name claims and this one's does not
+    const viable = candidates.filter((c) => {
+      const rel = mine ? deviceNameRelation(c, s.label) : 'none';
+      if (rel === 'twin') return false;
+      if (rel === 'names') return true;
+      return !named.some((o) => o.id !== s.id && deviceNameRelation(c, o.label) === 'names');
+    });
+    const naming = mine ? viable.filter((c) => deviceNameRelation(c, s.label) === 'names') : [];
+    // the device the symbol's name points at decides; only without one is the symbol ranked across the others
+    const pool = naming.length > 0 ? naming : viable;
+    const options = pool
       .map((c) => ({ c, keys: keysByDevice.get(c.deviceId) }))
-      .filter((o): o is { c: { deviceId: string; deviceName: string }; keys: readonly DeviceKey[] } => !!o.keys && o.keys.length > 0)
+      .filter((o): o is { c: { deviceId: string; deviceName: string; place?: string }; keys: readonly DeviceKey[] } => !!o.keys && o.keys.length > 0)
       .map((o) => {
         const p = proposalsOn(s, o.c.deviceId, o.c.deviceName, o.keys);
-        return { ...p, total: p.rows.length > 0 ? p.total + deviceNameScore(o.c.deviceName, s.label) : 0 };
+        const bonus = naming.length === 0 && mine && deviceNameRelation(o.c, s.label) === 'shares' ? DEVICE_NAME_SCORE : 0;
+        return { ...p, c: o.c, total: p.rows.length > 0 ? p.total + bonus : 0 };
       })
       .filter((p) => p.rows.length > 0)
       .sort((a, b) => b.total - a.total);
     const [best, next] = options;
-    if (!best || (next && next.total === best.total)) continue;
-    take(best, !next || best.total - next.total >= CONFIDENT_LEAD);
+    if (!best) continue;
+    const tied = options.filter((o) => o.total === best.total);
+    if (tied.length > 1) {
+      // devices that fit the same are all offered, none ticked: the person knows which one it is (a tie dropped said "nothing to propose")
+      tied.slice(0, MAX_TIED_DEVICES).forEach((o, i) => {
+        const p = i === 0 ? o : proposalsOn(s, o.c.deviceId, o.c.deviceName, keysByDevice.get(o.c.deviceId) ?? [], `@${o.c.deviceId}`);
+        for (const r of p.rows) { out.push({ ...r, confident: false }); reasonsOf.set(r.id, p.reasons.get(r.id) ?? []); }
+      });
+      continue;
+    }
+    // certain only on the symbol's own device: the one its name points at, or the one device there is; a guess across devices never is
+    const own = naming.length > 0 || candidates.length === 1;
+    const lead = !next || best.total - next.total >= CONFIDENT_LEAD;
+    take(best, own && lead, lead);
   }
-  // the one state key of a device fits the Running of every symbol by its kind alone: proposed to each, certain only for the symbol it names
-  // (the element rule, its name, or a word of the symbol's own), so a whole drawing is never ticked onto one key by accident
-  const claims = new Map<string, number>();
-  for (const r of out) { const k = `${r.deviceId}\n${r.field}\n${r.key}`; claims.set(k, (claims.get(k) ?? 0) + 1); }
+  // the one state key of a device fits the Running of every symbol by its kind alone: proposed to each, certain only for the symbol it names (the element
+  // rule, its name, a word of the symbol's own name, or a word of its kind that no other symbol claiming the key shares: four cold rooms on one room
+  // temperature are each certain of nothing), so a whole drawing is never ticked onto one key by accident
+  const claims = new Map<string, MatchRow[]>();
+  for (const r of out) { const k = `${r.deviceId}\n${r.field}\n${r.key}`; claims.set(k, [...(claims.get(k) ?? []), r]); }
   for (const r of out) {
+    const rivals = (claims.get(`${r.deviceId}\n${r.field}\n${r.key}`) ?? []).filter((x) => x !== r);
+    if (!r.confident || rivals.length === 0) continue;
     const reasons = reasonsOf.get(r.id) ?? [];
-    if (r.confident && (claims.get(`${r.deviceId}\n${r.field}\n${r.key}`) ?? 0) > 1 && !reasons.includes('element') && !reasons.includes('label') && !reasons.includes('symbol')) r.confident = false;
+    const ownKind = reasons.includes('kind') && rivals.every((x) => norm(x.kindLabel) !== norm(r.kindLabel));
+    if (!reasons.includes('element') && !reasons.includes('label') && !reasons.includes('symbol') && !ownKind) r.confident = false;
   }
   return out;
 }
 
-/** The entries "Match everything" writes for the chosen rows: one per symbol, each field read from the proposed key of the symbol's device. */
+/** Why "Match everything" has nothing to propose: every symbol is connected, the devices sent no values, there is no device to read, or no proposal is sure. */
+export type MatchEmptyReason = 'allLinked' | 'noValues' | 'noDevices' | 'unsure';
+
+/**
+ * Why `matchAllRows` gave no row for these symbols (next-boilerplate e2e round 5, E4: "Nothing to propose" was said while nothing was linked and the
+ * devices were live): `allLinked` when no symbol has a parameter left to connect (only those the host passes), `noDevices` when no symbol has a device to
+ * read (its own or a candidate), `noValues` when none of those devices has sent a value, else `unsure`: there are values, but no proposal is good enough.
+ */
+export function matchEmptyReason(symbols: readonly MatchSymbol[], keysByDevice: ReadonlyMap<string, readonly DeviceKey[]>): MatchEmptyReason {
+  const open = symbols.filter((s) => s.fields.some((f) => f.suggest !== false));
+  if (open.length === 0) return 'allLinked';
+  const devices = new Set(open.flatMap((s) => (s.deviceId ? [s.deviceId] : (s.candidates ?? []).map((c) => c.deviceId))));
+  if (devices.size === 0) return 'noDevices';
+  if (![...devices].some((d) => (keysByDevice.get(d)?.length ?? 0) > 0)) return 'noValues';
+  return 'unsure';
+}
+
+/**
+ * The entries "Match everything" writes for the chosen rows: one per symbol, each field read from the proposed key of the symbol's device. When the rows of
+ * two tied devices are both ticked for one parameter, the first in the table's order is written.
+ */
 export function entriesOfMatches(rows: readonly MatchRow[], chosen: ReadonlySet<string>): Record<string, BindingEntry> {
   const out: Record<string, BindingEntry> = {};
   for (const r of rows) {
     if (!chosen.has(r.id) || !isSymbolField(r.field) || !isTelemetryKey(r.key) || !UUID_GRAMMAR.test(r.deviceId)) continue;
     const entry = (out[r.symbolId] ??= { fields: {} });
+    if (own(entry.fields, r.field)) continue;
     entry.fields[r.field] = { deviceId: r.deviceId, key: r.key, ...(r.keyLabel && r.keyLabel !== r.key ? { label: r.keyLabel.slice(0, MAX_FIELD_LABEL) } : {}) };
   }
   return out;

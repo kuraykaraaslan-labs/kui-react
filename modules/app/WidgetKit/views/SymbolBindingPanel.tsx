@@ -30,8 +30,8 @@ import type { Column } from '@/modules/ui/Table/types';
 import { Select } from '@/modules/ui/Select';
 import { useNow } from '../useNow';
 import {
-  ageText, applyTemplate, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
-  pickableKeys, previewLine, rankKeysForField, scriptErrorKind, scriptTemplates, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
+  ageText, applyTemplate, declaredRange, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
+  pickableKeys, previewLine, rankKeysForField, rawRangeOf, scaleScript, scriptErrorKind, scriptTemplates, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
   type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type RankedKey, type ScriptOutcome, type ScriptTemplate, type SourceMode,
   type SymbolFieldSpec, type SymbolSpec } from './symbol-binding-logic';
 import { DEFAULT_SYMBOL_BINDING_MESSAGES, mergeMessages, type DeepPartial, type SymbolBindingMessages } from './symbol-binding-messages';
@@ -85,8 +85,18 @@ export interface SymbolBindingPanelProps {
   headerAction?: SymbolBindingMenuAction;
   /** How many symbols of the drawing are connected, for the header line. */
   progress?: { connected: number; total: number; automatic?: number };
-  /** The device a symbol with none starts on (the one the last symbol used); the panel remembers its own saves too. */
+  /**
+   * The device a symbol with none of its own starts on, when it is the symbol's by the drawing (a device page's device, the binding's main or only
+   * device). Never a guess: a symbol whose device is not known starts on none, and the guess is `suggestedDevice` (next-boilerplate e2e round 5, E5:
+   * the previous symbol's device was carried silently and its values pre-picked on the next symbol).
+   */
   defaultDevice?: { id: string; name: string } | null;
+  /**
+   * The device proposed for a symbol that starts on none, shown under the device picker with a one-click Use and never picked by itself: the device
+   * whose name or place matches the symbol (`why` 'name' / 'place'), else the device the person picked last ('last'; the host keeps it, so it survives
+   * the panel's reloads). Absent: the panel proposes the device of its own last save; null: nothing.
+   */
+  suggestedDevice?: { id: string; name: string; why?: 'name' | 'place' | 'last' } | null;
   /** How often the values are asked again, in ms; 0 asks once. Default 5000. */
   refreshMs?: number;
   /** The time the ages are counted from (ms); default the clock. */
@@ -104,7 +114,7 @@ const VALUES_SEARCH_FROM = 8;
 const PREVIEW_DEBOUNCE_MS = 250;
 
 export function SymbolBindingPanel(props: SymbolBindingPanelProps) {
-  // The device last saved is the proposal for the next symbol that reads nothing; it outlives one symbol's form.
+  // The device last saved is offered (never picked) to the next symbol that reads nothing, when the host proposes none; it outlives one symbol's form.
   const [last, setLast] = useState<{ id: string; name: string } | null>(null);
   // One form per symbol: moving to the next symbol starts its draft over.
   return <SymbolForm key={props.symbol.id} {...props} last={last} onRemember={setLast} />;
@@ -144,7 +154,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   // ─── Draft and baseline ────────────────────────────────────────────────────
   const symbolEntry = useMemo(() => entryFromSymbol(symbol), [symbol]);
   const symbolSig = JSON.stringify(symbolEntry);
-  const [draft, setDraft] = useState<BindingDraft>(() => draftFromSymbol(symbol, props.defaultDevice ?? last));
+  // a symbol starts on its own device only; a guess is shown as a suggestion, never picked silently (E5)
+  const [draft, setDraft] = useState<BindingDraft>(() => draftFromSymbol(symbol, props.defaultDevice ?? null));
   const [baseline, setBaseline] = useState<BindingEntry>(symbolEntry);
   // The host answered with a changed symbol (a save came back): what it says is the new baseline.
   const [seenSig, setSeenSig] = useState(symbolSig);
@@ -214,6 +225,14 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     setSuggestedFor('');
   }
 
+  // the device proposed for a symbol with none: the host's, else the panel's own last save; taken with one click, never by itself
+  const deviceSuggestion = props.suggestedDevice !== undefined ? props.suggestedDevice : last ? { ...last, why: 'last' as const } : null;
+  function takeSuggestedDevice() {
+    if (!deviceSuggestion) return;
+    known.current.set(deviceSuggestion.id, { id: deviceSuggestion.id, name: deviceSuggestion.name });
+    pickDevice(deviceSuggestion.id);
+  }
+
   // ─── The values of the device, live ────────────────────────────────────────
   const [keysState, setKeysState] = useState<KeysState | null>(null);
   const [retry, setRetry] = useState(0);
@@ -254,7 +273,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   const [suggestedFor, setSuggestedFor] = useState('');
   if (!readOnly && keysStatus === 'ready' && suggestedFor !== draft.deviceId) {
     setSuggestedFor(draft.deviceId);
-    const empty = symbol.fields.filter((f) => draft.fields[f.name] && draft.fields[f.name].key === '' && draft.fields[f.name].mode === 'value');
+    // a row the drawing offers but never fills by itself (`suggest: false`: a measuring symbol's Running and Status) is left for the person
+    const empty = symbol.fields.filter((f) => f.suggest !== false && draft.fields[f.name] && draft.fields[f.name].key === '' && draft.fields[f.name].mode === 'value');
     const taken = new Set(Object.values(draft.fields).filter((f) => f.key !== '' && (f.deviceId === '' || f.deviceId === draft.deviceId)).map((f) => f.key));
     const fields = { ...draft.fields };
     const sure = new Set<string>();
@@ -569,6 +589,12 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
               disabled={readOnly}
             />
           </div>
+          {!draft.deviceId && !readOnly && deviceSuggestion && (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary" data-testid="device-suggestion">
+              <span>{m.suggestedDevice(deviceSuggestion.name, deviceSuggestion.why ?? 'last')}</span>
+              <Button variant="outline" size="xs" onClick={takeSuggestedDevice}>{m.useSuggestion}</Button>
+            </p>
+          )}
         </div>
 
         {/* 2. One row per thing the symbol draws */}
@@ -774,7 +800,8 @@ function FieldRow(p: FieldRowProps) {
     const ranked = rankKeysForField(field, keys, undefined, [], hints);
     const order = new Map(ranked.map((r, i) => [r.key, i]));
     const list = [...pickableKeys(keys).sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity)), ...keys.filter((k) => k.internal)];
-    const best = ranked[0]?.key;
+    // a row nothing is proposed for (`suggest: false`) lists the best first all the same, but calls none of them "Suggested"
+    const best = field.suggest === false ? undefined : ranked[0]?.key;
     const out = list.map((k): ComboBoxOption => {
       // a key the device's profile declares but the device has not sent yet (no reading, no time) is offered with "No value yet", not "–" (E2E-1.4)
       const value = k.ts ? m.optionLine(formatValue(k.value, k.unit), ageText(k.ts, now, m.age)) : m.noValueYet;
@@ -826,7 +853,7 @@ function FieldRow(p: FieldRowProps) {
                     value={f.key}
                     onChange={(v) => p.onPickKey(v)}
                     placeholder={m.pickerPlaceholder}
-                    noResultsText={`${m.pickerNoResults} ${m.typedNoMatch}`}
+                    noResultsText={keys.length === 0 ? m.valuesEmpty : `${m.pickerNoResults} ${m.typedNoMatch}`}
                     clearable={!readOnly && f.key !== ''}
                     disabled={readOnly || (!ready && f.key === '')}
                     messages={{ clear: m.notUsed }}
@@ -979,6 +1006,8 @@ function ExpressionBox(p: ExpressionBoxProps) {
     [p.options, f.key, f.inputs],
   );
   const needsSomething = f.script.trim() === '' && !f.key && f.inputs.length === 0;
+  // "Scale 0–100" asks for the raw range first (E15): the form under the chips
+  const [scaling, setScaling] = useState(false);
 
   return (
     <div className="space-y-2">
@@ -1029,7 +1058,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
               value={f.key}
               onChange={(v) => p.onPickKey(v)}
               placeholder={m.pickerPlaceholder}
-              noResultsText={m.pickerNoResults}
+              noResultsText={keys.length === 0 ? m.valuesEmpty : m.pickerNoResults}
               clearable={false}
               disabled={readOnly}
             />
@@ -1046,7 +1075,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
                 value=""
                 onChange={(v) => { if (v) p.onAddInput(v); }}
                 placeholder={m.addInputPlaceholder}
-                noResultsText={m.pickerNoResults}
+                noResultsText={keys.length === 0 ? m.valuesEmpty : m.pickerNoResults}
                 clearable={false}
                 disabled={keys.length === 0}
               />
@@ -1056,14 +1085,66 @@ function ExpressionBox(p: ExpressionBoxProps) {
       </div>
       <div className="flex flex-wrap gap-1">
         {scriptTemplates().map((t) => (
-          <Button key={t.id} variant="outline" size="xs" disabled={readOnly} onClick={() => p.onTemplate(t)}>
+          <Button
+            key={t.id} variant="outline" size="xs" disabled={readOnly}
+            aria-expanded={t.id === 'scale' ? scaling : undefined}
+            onClick={() => (t.id === 'scale' ? setScaling((v) => !v) : p.onTemplate(t))}
+          >
             {m.templates[t.id]}
           </Button>
         ))}
       </div>
+      {scaling && !readOnly && (
+        <ScaleForm
+          uid={editorId}
+          start={declaredRange(info) ?? declaredRange(keyByName.get(f.inputs[0]?.key ?? ''))}
+          m={m}
+          onCancel={() => setScaling(false)}
+          onApply={(range) => { setScaling(false); p.onTemplate({ id: 'scale', script: scaleScript(range) }); }}
+        />
+      )}
       {needsSomething
         ? <p className="text-xs text-text-secondary">{m.expressionNeedsSomething}</p>
         : <ScriptPreview script={settled} sample={sample} wrapped={wrapped} hasSample={hasAnySample} problem={problem} marked={marked} previewScript={p.previewScript} m={m} />}
+    </div>
+  );
+}
+
+/**
+ * The raw range "Scale 0–100" writes its expression over (next-boilerplate e2e round 5, E15): what the value reads at 0 % and at 100 %, started from the
+ * scale the key's profile declares when it does, else empty; "Use these numbers" waits for two different numbers.
+ */
+function ScaleForm(p: { uid: string; start: { from: number; to: number } | null; m: SymbolBindingMessages; onApply: (range: { from: number; to: number }) => void; onCancel: () => void }) {
+  const { m } = p;
+  const [from, setFrom] = useState(p.start ? String(p.start.from) : '');
+  const [to, setTo] = useState(p.start ? String(p.start.to) : '');
+  const range = rawRangeOf(from, to);
+  const typed = from.trim() !== '' && to.trim() !== '';
+  const id = `${p.uid}-scale`;
+  return (
+    <div role="group" aria-labelledby={`${id}-title`} className="space-y-2 rounded-md border border-border p-2" data-testid="scale-form">
+      <p id={`${id}-title`} className="text-xs font-medium text-text-primary">{m.scaleTitle}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="space-y-1 text-xs text-text-secondary">
+          <span className="block">{m.scaleFrom}</span>
+          <input
+            type="text" inputMode="decimal" value={from} onChange={(e) => setFrom(e.target.value)} aria-invalid={typed && !range ? true : undefined}
+            className="h-8 w-full rounded-md border border-border bg-surface-base px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+          />
+        </label>
+        <label className="space-y-1 text-xs text-text-secondary">
+          <span className="block">{m.scaleTo}</span>
+          <input
+            type="text" inputMode="decimal" value={to} onChange={(e) => setTo(e.target.value)} aria-invalid={typed && !range ? true : undefined}
+            className="h-8 w-full rounded-md border border-border bg-surface-base px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+          />
+        </label>
+      </div>
+      <p className={cn('text-xs', typed && !range ? 'text-error' : 'text-text-secondary')}>{typed && !range ? m.scaleInvalid : m.scaleHint}</p>
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" size="xs" onClick={p.onCancel}>{m.cancel}</Button>
+        <Button variant="primary" size="xs" disabled={!range} onClick={() => { if (range) p.onApply(range); }}>{m.scaleApply}</Button>
+      </div>
     </div>
   );
 }

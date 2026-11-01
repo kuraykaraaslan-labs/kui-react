@@ -318,7 +318,10 @@ describe('validateDraft', () => {
   it('a good draft has no issue', () => expect(validateDraft(ok)).toEqual([]));
   it('names every missing part', () => {
     // an empty slot is no missing part: it is a new view (phase 47)
-    expect(codes({ ...ok, documentId: '', slot: '', kind: '', devices: {} })).toEqual(['document-missing', 'kind-missing', 'no-devices']);
+    expect(codes({ ...ok, documentId: '', slot: '', kind: '', devices: {} })).toEqual(['document-missing', 'kind-missing']);
+  });
+  it('a view of a floor or room that holds no device is a good draft, as the server takes it (next-boilerplate e2e round 5, E9)', () => {
+    expect(validateDraft({ ...ok, devices: {}, map: {} })).toEqual([]);
   });
   it('checks the grammar of keys, elements, roles and hidden', () => {
     expect(codes({ ...ok, map: { 'bad key': { deviceId: U1, element: 'x' } } })).toContain('key-invalid');

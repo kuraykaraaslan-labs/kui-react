@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, fieldKindOf, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty,
   keyKindOf, keyNamesSymbol, mismatchOf, nextUnbound, pickableKeys, previewLine, rankKeysForField, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields,
-  templateFor, unitQuantity, applyTemplate,
+  templateFor, unitQuantity, applyTemplate, wordsOf, isSetpointWords, scaleScript, rawRangeOf, declaredRange,
   CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE, staleKeys,
   type BindingDraft, type DeviceKey, type FieldDraft, type SymbolSpec,
 } from '../views/symbol-binding-logic';
@@ -134,7 +134,7 @@ describe('scriptTemplates and previews', () => {
     const t = scriptTemplates();
     expect(t.map((x) => x.id)).toEqual(['invert', 'scale', 'round', 'threshold', 'words']);
     expect(t.find((x) => x.id === 'invert')?.script).toBe('!value');
-    expect(t.find((x) => x.id === 'scale')?.script).toBe('value / 4095 * 100');
+    expect(t.find((x) => x.id === 'scale')?.script).toBe('value / 100 * 100');
     expect(t.find((x) => x.id === 'round')?.script).toBe('Math.round(value * 10) / 10');
     expect(t.find((x) => x.id === 'threshold')?.script).toBe('value > 80');
     expect(t.find((x) => x.id === 'words')?.script).toBe('value === "on"');
@@ -519,7 +519,7 @@ describe('applyTemplate: a chip wraps or extends what was typed, never overwrite
   });
   it('every chip applies itself to the typed text; one plain name needs no brackets', () => {
     expect(applyTemplate(tpl('invert'), 'a > b', [], true)).toBe('!(a > b)');
-    expect(applyTemplate(tpl('scale'), 'raw', [], true)).toBe('raw / 4095 * 100');
+    expect(applyTemplate(tpl('scale'), 'raw', [], true)).toBe('raw / 100 * 100');
     expect(applyTemplate(tpl('threshold'), 'value / 2', [], true)).toBe('(value / 2) > 80');
     expect(applyTemplate(tpl('words'), 'value', [], true)).toBe('value === "on"');
   });
@@ -615,9 +615,13 @@ describe('entryFromDraft with expressions', () => {
 
 describe('a shared word of the symbol\'s own is a reason of its own; a quantity contradiction is a mismatch (slice 16)', () => {
   it('names the symbol reason and bars confidence on a quantity mismatch', () => {
+    // "pump" is the circulation pump's KIND word: a reason, but one every pump has (e2e round 5, E3); "circulation" is its own
     const [top] = rankKeysForField({ name: 'running', label: 'Running' }, [k('pump_on', true), k('t', 20)], undefined, [], ['Circulation pump', 'Pump']);
     expect(top).toMatchObject({ key: 'pump_on', confident: true });
-    expect(top.reasons).toContain('symbol');
+    expect(top.reasons).toContain('kind');
+    expect(top.reasons).not.toContain('symbol');
+    const [own] = rankKeysForField({ name: 'running', label: 'Running' }, [k('circulation_on', true), k('t', 20)], undefined, [], ['Circulation pump', 'Pump']);
+    expect(own.reasons).toContain('symbol');
     const plain = rankKeysForField({ name: 'running', label: 'Running' }, [k('pump_on', true), k('t', 20)], undefined, [], ['Strainer', 'Strainer']);
     expect(plain[0].reasons).not.toContain('symbol');
     const [opening] = rankKeysForField({ name: 'position', label: 'Opening' }, [k('supply_temp', 60.2), k('x', 'a')], undefined, [], ['Supply valve', 'Actuated valve']);
@@ -685,5 +689,136 @@ describe('defaultInputName: the key, not a cut of the label (e2e round 2, E2E-2.
     const a = defaultInputName('temp_24h');
     const b = defaultInputName('temp', [a]);
     expect([a, b]).toEqual(['temp_24h', 'temp']);
+  });
+});
+
+// ─── e2e round 5 (next-boilerplate, 2026-11-01), E3: wrong pairs marked certain ─────────────────────────────────────────────────
+
+describe('rankKeysForField: the run\'s wrong "certain" pairs (e2e round 5, E3)', () => {
+  // the utility RTU of S01 (the "utility" vendor contract): every element of the network board, the pump speed gauge and the booster load among them
+  const rtu: DeviceKey[] = [
+    key('booster_set.running', true, { label: 'Booster set · running', type: 'boolean' }), key('booster_set.value', 58.7, { label: 'Booster set · value', type: 'number' }),
+    key('gauge_pump_speed.value', 1450, { label: 'Pump speed · value', unit: 'rpm', type: 'number' }), key('pump_kiosk.running', true, { label: 'Pump kiosk · running', type: 'boolean' }),
+    key('booster', 66, { label: 'Booster load', unit: '%', type: 'number' }), key('kiosk', true, { label: 'Pump kiosk', type: 'boolean' }),
+  ];
+  it('S01: a booster set\'s Speed is never the pump speed gauge\'s, and its Direction is never the booster load: offered at most, never certain', () => {
+    const hints = ['Booster set', 'Booster pump set'];
+    const speed = rankKeysForField({ name: 'speed', label: 'Speed' }, rtu, 'booster1', [], hints);
+    expect(speed.find((r) => r.key === 'gauge_pump_speed.value')).toMatchObject({ foreign: true, confident: false });
+    expect(speed.some((r) => r.confident)).toBe(false);
+    const direction = rankKeysForField({ name: 'direction', label: 'Direction' }, rtu, 'booster1', [], hints);
+    expect(direction.some((r) => r.confident)).toBe(false);
+    expect(direction.find((r) => r.key === 'booster')?.mismatch).toBe('number-for-text');
+    // its own element, found by its name, stays certain
+    expect(rankKeysForField({ name: 'running', label: 'Running' }, rtu, 'booster1', [], hints)[0]).toMatchObject({ key: 'booster_set.running', confident: true });
+  });
+
+  // the fertigation controller of S03 (the "agri" contract without its soil sensors): the greenhouses' values, never a soil probe's
+  const controller: DeviceKey[] = [
+    key('greenhouse_1.value', 61, { label: 'Greenhouse 1 · value' }), key('greenhouse_2.value', 58, { label: 'Greenhouse 2 · value' }),
+    key('greenhouse_1.running', true, { label: 'Greenhouse 1 · running' }), key('temp', 24.1, { label: 'Greenhouse 1 temperature', unit: '°C' }),
+    key('level', 62, { label: 'Tank level', unit: '%' }),
+  ];
+  it('S03: a soil probe named in Turkish is never paired with the controller\'s greenhouse as certain: the greenhouse is another piece of equipment', () => {
+    const ranked = rankKeysForField({ name: 'value', label: 'Ölçüm' }, controller, 'probe_1a', [], ['Sera 1 A', 'Soil moisture probe']);
+    expect(ranked.find((r) => r.key === 'greenhouse_1.value')).toMatchObject({ foreign: true, confident: false });
+    expect(ranked.some((r) => r.confident)).toBe(false);
+    // the greenhouse itself, named in Turkish, is greenhouse_1 by its kind and its number: not foreign
+    const house = rankKeysForField({ name: 'value', label: 'Ölçüm' }, controller, 'sera1', [], ['Sera 1', 'Greenhouse']);
+    expect(house[0]).toMatchObject({ key: 'greenhouse_1.value', confident: true });
+    expect(house[0].foreign).toBeUndefined();
+    // and greenhouse 2's is another twin: foreign
+    expect(rankKeysForField({ name: 'value', label: 'Ölçüm' }, controller, 'sera2', [], ['Sera 2', 'Greenhouse']).find((r) => r.key === 'greenhouse_1.value')).toMatchObject({ foreign: true, confident: false });
+  });
+  it('a flat key is foreign when its label names another twin of the symbol\'s thing ("Greenhouse 1 temperature" for "Sera 2"), and its own when it names the symbol', () => {
+    const other = rankKeysForField({ name: 'value', label: 'Temperature' }, [key('temp', 24.1, { label: 'Greenhouse 1 temperature', unit: '°C' }), key('rh', 70, { unit: '%' })], undefined, [], ['Sera 2', 'Greenhouse']);
+    expect(other[0]).toMatchObject({ key: 'temp', foreign: true, confident: false });
+    const own = rankKeysForField({ name: 'value', label: 'Temperature' }, [key('temp', 24.1, { label: 'Greenhouse 1 temperature', unit: '°C' }), key('rh', 70, { unit: '%' })], undefined, [], ['Sera 1', 'Greenhouse']);
+    expect(own[0]).toMatchObject({ key: 'temp', confident: true });
+    // a flat key that names nothing of the symbol is the device's own (a one-purpose device): not foreign
+    expect(rankKeysForField({ name: 'value', label: 'Temperature' }, [key('temp_c', 3.4, { label: 'Room temperature', unit: '°C' })], undefined, [], ['Chiller 1', 'Cold room'])[0]).toMatchObject({ key: 'temp_c', confident: true });
+  });
+  it('the kind\'s words are a reason, never the symbol\'s own (four cold rooms share "room")', () => {
+    const [top] = rankKeysForField({ name: 'value', label: 'Reading' }, [key('temperature', 3.7, { label: 'Room temperature', unit: '°C' }), key('defrost', false, { label: 'Defrost running', type: 'boolean' })], undefined, [], ['Chiller 1', 'Cold room']);
+    expect(top).toMatchObject({ key: 'temperature', confident: true });
+    expect(top.reasons).toContain('kind');
+    expect(top.reasons).not.toContain('symbol');
+  });
+  it('a set-point is never a reading: vetoed for a Reading, still a second value\'s', () => {
+    const keys = [key('temp', 24.1, { label: 'Greenhouse 1 temperature', unit: '°C' }), key('target', 22, { label: 'Greenhouse target', unit: '°C' })];
+    const reading = rankKeysForField({ name: 'value', label: 'Reading' }, keys, undefined, [], ['Sera 1', 'Greenhouse']);
+    expect(reading[0]).toMatchObject({ key: 'temp', confident: true });
+    expect(reading.find((r) => r.key === 'target')).toBeUndefined();
+    // a set-point alone is not even proposed for a reading
+    expect(rankKeysForField({ name: 'value', label: 'Reading' }, [key('sp_temp', 22, { label: 'Temperature set point', unit: '°C' })], undefined, [], ['Room', 'Thermometer'])).toEqual([]);
+    expect(rankKeysForField({ name: 'value2', label: 'Set point' }, keys, undefined, [], ['Sera 1', 'Greenhouse'])[0]).toMatchObject({ key: 'target' });
+    expect(isSetpointWords(wordsOf('Spillway gate set-point'))).toBe(true);
+    expect(isSetpointWords(wordsOf('Booster set'))).toBe(false);
+  });
+  it('a percent says no more than a word: a door\'s Opening is never certain of a relative humidity (S17)', () => {
+    const ranked = rankKeysForField({ name: 'position', label: 'Opening' }, [key('temp_c', 20.4, { label: 'Room temperature', unit: '°C' }), key('rh_pct', 41, { label: 'Relative humidity', unit: '%' })], undefined, [], ['Airlock door', 'Door']);
+    expect(ranked.find((r) => r.key === 'rh_pct')?.confident).toBe(false);
+    expect(suggestKeyForField({ name: 'position', label: 'Opening' }, [key('rh_pct', 41, { label: 'Relative humidity', unit: '%' })], undefined, ['Airlock door', 'Door'])).toBeNull();
+  });
+  it('on a device that names its equipment, a state named after another piece of equipment is not even offered (a tee is not a door)', () => {
+    const plant = [key('door', false), key('temp_1', 21.5), key('tee_main.status', 'ok'), key('pump_1.value', 3)];
+    const ranked = rankKeysForField({ name: 'running', label: 'Running' }, plant, 'tee1', [], ['Supply tee', 'Pipe (tee)']);
+    expect(ranked.filter((r) => r.key === 'door' && r.score >= MIN_PROPOSAL_SCORE)).toEqual([]);
+  });
+  it('"on" counts only as a last word: "Panel on battery" is no Running', () => {
+    const ranked = rankKeysForField({ name: 'running', label: 'Running' }, [key('panel_on_battery', true, { label: 'Panel on battery', type: 'boolean' }), key('o2_bar', 4.3, { label: 'Oxygen pressure', unit: 'bar' })], undefined, [], ['Floor 1', 'Pressure gauge']);
+    expect(ranked[0]?.reasons ?? []).not.toContain('synonym');
+    expect(ranked.some((r) => r.confident)).toBe(false);
+    expect(rankKeysForField({ name: 'running', label: 'Running' }, [key('pump_on', true), key('t', 20)])[0]).toMatchObject({ key: 'pump_on', confident: true });
+  });
+});
+
+describe('Turkish words (e2e round 5, E3: an ASCII split cut "Açıklık" into a, kl, k)', () => {
+  it('a word is a run of Unicode letters and digits, folded', () => {
+    expect(wordsOf('Açıklık')).toEqual(['aciklik']);
+    expect(wordsOf('Bulanıklık')).toEqual(['bulaniklik']);
+    expect(wordsOf('Kazan Sıcaklığı')).toEqual(['kazan', 'sicakligi']);
+    expect(wordsOf('İSTASYON çıkışı')).toEqual(['istasyon', 'cikisi']);
+    expect(wordsOf('supplyTemp_2')).toEqual(['supply', 'temp', '2']);
+  });
+  it('"Açıklık" and "Bulanıklık" share no word, and a Turkish label meets its quantity', () => {
+    const ranked = rankKeysForField({ name: 'position', label: 'Açıklık' }, [key('turbidity', 3.2, { label: 'Bulanıklık' }), key('valve_open', 40, { label: 'Vana açıklığı', unit: '%' })]);
+    expect(ranked[0]).toMatchObject({ key: 'valve_open', confident: true });
+    expect(ranked.find((r) => r.key === 'turbidity')?.reasons ?? []).not.toContain('synonym');
+    expect(suggestKeyForField({ name: 'value', label: 'Ölçüm' }, [key('kazan_sicakligi', 61, { label: 'Kazan sıcaklığı' }), key('pompa', true)], undefined, ['Kazan', 'Thermometer'])).toBe('kazan_sicakligi');
+  });
+});
+
+describe('keyKindOf: the declared type first (e2e round 5, V1-B19)', () => {
+  it('a declared text is a text whatever word it holds; an on/off word is a state only for a boolean key', () => {
+    expect(keyKindOf({ value: 'RUNNING', type: 'string' })).toBe('text');
+    expect(keyKindOf({ value: 'on', type: 'string' })).toBe('text');
+    expect(keyKindOf({ value: 'on', type: 'boolean' })).toBe('state');
+    expect(keyKindOf({ value: 1, type: 'number' })).toBe('state');
+    expect(keyKindOf({ value: 1, unit: '%', type: 'number' })).toBe('number');
+    expect(keyKindOf({ value: null, type: 'number' })).toBe('number');
+    expect(mismatchOf({ name: 'value' }, { value: 'JAMMED', type: 'string' })).toBe('text-for-number');
+    expect(mismatchOf({ name: 'status' }, { value: 'RUNNING', type: 'string' })).toBeNull();
+  });
+});
+
+describe('the 0–100 helper asks for the raw range (e2e round 5, E15: a fixed 4095)', () => {
+  it('writes the expression over the range the person gives, from the declared scale when the profile has one', () => {
+    expect(scaleScript({ from: 1500, to: 3300 })).toBe('(value - 1500) / (3300 - 1500) * 100');
+    expect(scaleScript({ from: 0, to: 4095 })).toBe('value / 4095 * 100');
+    expect(scaleScript({ from: -20, to: 60 })).toBe('(value + 20) / (60 + 20) * 100');
+    expect(rawRangeOf('1500', '3 300')).toEqual({ from: 1500, to: 3300 });
+    expect(rawRangeOf('0,5', '4.5')).toEqual({ from: 0.5, to: 4.5 });
+    expect(rawRangeOf('5', '5')).toBeNull();
+    expect(rawRangeOf('', '10')).toBeNull();
+    expect(rawRangeOf('dry', '10')).toBeNull();
+    expect(declaredRange({ min: 1500, max: 3300 })).toEqual({ from: 1500, to: 3300 });
+    expect(declaredRange({ min: 0 })).toBeNull();
+    expect(declaredRange(undefined)).toBeNull();
+    // the probe of S03: 2387 is about 49 %, not 58 %
+    const pct = (2387 - 1500) / (3300 - 1500) * 100;
+    expect(Math.round(pct)).toBe(49);
+    // applied over what was typed, as every chip is
+    expect(applyTemplate({ id: 'scale', script: scaleScript({ from: 1500, to: 3300 }) }, '!value', [], true)).toBe('((!value) - 1500) / (3300 - 1500) * 100');
   });
 });

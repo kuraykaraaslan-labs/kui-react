@@ -4,7 +4,7 @@
 // a role or a match: the panel speaks of the symbol, the device and its values.
 
 import { mergeMessages, type DeepPartial } from './scene-editor-messages-panels';
-import { DEFAULT_AGE_WORDS, type AgeWords, type Mismatch, type ScriptErrorKind, type ScriptTemplateId } from './symbol-binding-logic';
+import { DEFAULT_AGE_WORDS, type AgeWords, type MatchEmptyReason, type Mismatch, type ScriptErrorKind, type ScriptTemplateId } from './symbol-binding-logic';
 
 export type { DeepPartial };
 export { mergeMessages };
@@ -23,6 +23,11 @@ export interface SymbolBindingMessages {
   /** The empty state of the device search. */
   devicePlaceholder: string;
   deviceNoResults: string;
+  /**
+   * The device proposed for a symbol that has none of its own, with a one-click Use (never picked by itself; next-boilerplate e2e round 5, E5): why it
+   * is proposed, `name` (its name matches the symbol's), `place` (it is placed where the symbol's name says) or `last` (the device picked last).
+   */
+  suggestedDevice: (name: string, why: 'name' | 'place' | 'last') => string;
 
   // 2. What the symbol shows: one row per thing the symbol draws
   rowsSection: string;
@@ -88,6 +93,13 @@ export interface SymbolBindingMessages {
   inputsFull: (max: number) => string;
   expressionNeedsSomething: string;
   templates: Record<ScriptTemplateId, string>;
+  /** "Scale 0–100" asks for the raw range first (e2e round 5, E15): the two numbers, a hint, and the button that writes the expression. */
+  scaleTitle: string;
+  scaleFrom: string;
+  scaleTo: string;
+  scaleHint: string;
+  scaleApply: string;
+  scaleInvalid: string;
   /** The live preview. */
   previewWait: string;
   previewResult: (from: string, to: string) => string;
@@ -135,7 +147,10 @@ export interface SymbolBindingMessages {
   matchAll: {
     title: string;
     intro: (proposed: number, confident: number) => string;
+    /** Nothing to propose, when the host does not say why. */
     empty: string;
+    /** Nothing to propose, and why (e2e round 5, E4: "Nothing to propose" was said while nothing was linked and the devices were live). */
+    emptyBecause: Record<MatchEmptyReason, string>;
     /** While the host reads the devices' values: nothing is proposed yet, and Cancel still works. */
     loading: string;
     symbol: string;
@@ -163,6 +178,9 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   deviceLabel: 'Device',
   devicePlaceholder: 'Pick the device that measures this',
   deviceNoResults: 'No device found.',
+  suggestedDevice: (name, why) => (why === 'name'
+    ? `Suggested: ${name}. Its name matches this symbol.`
+    : why === 'place' ? `Suggested: ${name}. It is placed where this symbol's name says.` : `Suggested: ${name}, the device you picked last.`),
 
   rowsSection: 'What this symbol shows',
   showsNow: (value) => `Shows ${value} now`,
@@ -220,6 +238,12 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
     threshold: 'Threshold',
     words: 'Words',
   },
+  scaleTitle: 'Make 0–100 from the raw value',
+  scaleFrom: 'Raw value at 0 %',
+  scaleTo: 'Raw value at 100 %',
+  scaleHint: 'Use the numbers of the device\'s own scale, for example 1500 when dry and 3300 when soaked.',
+  scaleApply: 'Use these numbers',
+  scaleInvalid: 'Give two different numbers.',
   previewWait: 'Waiting for a value to try it on.',
   previewResult: (from, to) => `${from} → ${to}`,
   resultNow: (to) => `Result now: ${to}`,
@@ -263,6 +287,12 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
     title: 'Match everything',
     intro: (proposed, confident) => `${proposed} values proposed for this drawing; ${confident} are certain and ticked. Untick what is wrong, then apply.`,
     empty: 'Nothing to propose: every symbol is connected, or the devices have not sent values yet.',
+    emptyBecause: {
+      allLinked: 'Every symbol is already connected.',
+      noValues: 'The devices have not sent any values yet, so there is nothing to compare. Try again once they do.',
+      noDevices: 'There is no device to read from yet. Place a device here, or connect the symbols one by one.',
+      unsure: 'No proposal is sure enough. Click a symbol to pick its device and value by hand.',
+    },
     loading: 'Reading the values of the devices…',
     symbol: 'Symbol',
     parameter: 'Shows',
