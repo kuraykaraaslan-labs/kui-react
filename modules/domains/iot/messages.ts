@@ -618,6 +618,7 @@ export const IOT_MESSAGES = {
     overlapIgnore: 'Ignore the new one',
     overlapQueue: 'Wait for the one running, then run',
     overlapParallel: 'Run them side by side',
+    overlapRestart: 'Start over: stop the one running at its next wait',
     overlapMax: 'At most',
     runInManualLabel: 'Also runs in Manual',
     runInManualHint: 'Only for a rule that just tells people or raises alarms.',

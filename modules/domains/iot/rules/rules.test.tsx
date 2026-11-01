@@ -413,3 +413,16 @@ describe('starting another rule', () => {
     expect(onSave.mock.calls[0]![0].definition.then[0]).toMatchObject({ kind: 'rule', op: 'run', rule: 'r2' });
   });
 });
+
+describe('overlap: start over', () => {
+  it('is offered with the others and saved as restart', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const def: RuleDefinition = { v: 1, when: [{ id: 't1', kind: 'manual' }], then: [{ id: 'a1', kind: 'wait', sec: 5 }], options: { overlap: 'ignore' } };
+    render(<RuleEditor scope={scope} initial={{ name: 'Again', definition: def }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.selectOptions(document.querySelector('#rule-overlap')!, 'restart');
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]![0].definition.options.overlap).toBe('restart');
+  });
+});

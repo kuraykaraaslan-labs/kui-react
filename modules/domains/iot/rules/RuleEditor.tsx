@@ -137,7 +137,7 @@ export function RuleEditor({
           <Select
             id="rule-overlap" label={m.rules.overlapLabel} value={def.options.overlap}
             onChange={(e) => setDef((d) => ({ ...d, options: { ...d.options, overlap: e.target.value as RuleDefinition['options']['overlap'], ...(e.target.value === 'ignore' ? { max: undefined } : {}) } }))}
-            options={[{ value: 'ignore', label: m.rules.overlapIgnore }, { value: 'queue', label: m.rules.overlapQueue }, { value: 'parallel', label: m.rules.overlapParallel }]}
+            options={[{ value: 'ignore', label: m.rules.overlapIgnore }, { value: 'queue', label: m.rules.overlapQueue }, { value: 'parallel', label: m.rules.overlapParallel }, { value: 'restart', label: m.rules.overlapRestart }]}
           />
           {def.options.overlap === 'queue' || def.options.overlap === 'parallel' ? (
             <label className="flex flex-col gap-1 text-sm text-text-primary">
