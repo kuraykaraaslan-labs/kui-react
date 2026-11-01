@@ -110,7 +110,7 @@ export function TreeNodeRow({
           <span className="w-3 shrink-0" aria-hidden="true" />
         )}
         {renderLabel ? (
-          <span data-tree-label className="min-w-0 flex-1">{renderLabel(node)}</span>
+          <span data-tree-label={node.label} className="min-w-0 flex-1">{renderLabel(node)}</span>
         ) : (
           <span>{node.label}</span>
         )}
