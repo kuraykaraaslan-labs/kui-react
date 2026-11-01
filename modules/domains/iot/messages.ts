@@ -561,6 +561,9 @@ export const IOT_MESSAGES = {
     isDay: 'It is day',
     isNight: 'It is night',
     formulaLabel: 'Formula',
+    formulaPlaceholder: '[Room 1].[temperature] > [Outdoor].[temperature] + 3',
+    formulaInsert: 'Add this value',
+    formulaHint: 'Write a device and one of its values in brackets, like [Room 1].[temperature], and compare or calculate with them: > < == && || + - * /.',
     /* actions */
     aCommand: 'Send a command',
     aSetting: 'Change a setting',

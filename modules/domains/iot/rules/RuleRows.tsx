@@ -1,5 +1,5 @@
 'use client';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowDown, faArrowUp, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { Button } from '@/modules/ui/Button';
@@ -279,6 +279,25 @@ const groupWith = (kind: GroupKind, children: RuleCondition[]): RuleCondition =>
 
 const conditionKindLabel = (m: M, k: ConditionKind) => ({ value: m.cValue, status: m.cStatus, alarm: m.cAlarm, time: m.cTime, date: m.cDate, holiday: m.cHoliday, sun: m.cSun, expr: m.cExpr })[k];
 
+/** A formula in the engine's expression language over `[Device].[value]` references, with a picker that writes a reference at the end. */
+function FormulaRow({ id, value, scope, m, onChange }: { id: string; value: string; scope: RuleScope; m: M; onChange: (v: string) => void }) {
+  const [device, setDevice] = useState('');
+  const [key, setKey] = useState('');
+  const ref = device ? refOf(device) : undefined;
+  const name = ref && 'device' in ref ? scope.devices.find((d) => d.deviceId === ref.device)?.name : undefined;
+  return (
+    <div className="flex min-w-[16rem] flex-1 flex-col gap-2">
+      <Txt id={`${id}-expr`} label={m.formulaLabel} placeholder={m.formulaPlaceholder} value={value} onChange={onChange} className="w-full" />
+      <div className="flex flex-wrap items-center gap-2">
+        <Pick id={`${id}-ref-device`} label={m.device} value={device} placeholder={m.pickDevice} options={scope.devices.map((d) => ({ value: `d:${d.deviceId}`, label: d.name }))} onChange={(v) => { setDevice(v); setKey(''); }} />
+        <Pick id={`${id}-ref-key`} label={m.value} value={key} placeholder={m.pickValue} options={valueOptions(scope, ref)} onChange={setKey} />
+        <Button type="button" size="xs" variant="outline" disabled={!name || !key} onClick={() => { onChange(`${value}${value && !value.endsWith(' ') ? ' ' : ''}[${name}].[${key}]`); setKey(''); }}>{m.formulaInsert}</Button>
+      </div>
+      <p className="text-xs text-text-secondary">{m.formulaHint}</p>
+    </div>
+  );
+}
+
 function ConditionLeaf({ c, path, ctx, onChange }: { c: Exclude<RuleCondition, { all: unknown } | { any: unknown } | { not: unknown }>; path: Array<string | number>; ctx: Ctx; onChange: (c: RuleCondition) => void }) {
   const { scope, m } = ctx;
   const devices = deviceOptions(scope, m);
@@ -336,7 +355,7 @@ function ConditionLeaf({ c, path, ctx, onChange }: { c: Exclude<RuleCondition, {
       ) : null}
       {c.kind === 'holiday' ? <Pick id={`${id}-is`} label={m.cHoliday} value={String(c.is)} options={[{ value: 'true', label: m.isHoliday }, { value: 'false', label: m.isNotHoliday }]} onChange={(v) => onChange({ ...c, is: v === 'true' })} /> : null}
       {c.kind === 'sun' ? <Pick id={`${id}-is`} label={m.cSun} value={c.is} options={[{ value: 'day', label: m.isDay }, { value: 'night', label: m.isNight }]} onChange={(v) => onChange({ ...c, is: v as typeof c.is })} /> : null}
-      {c.kind === 'expr' ? <Txt id={`${id}-expr`} label={m.formulaLabel} placeholder={m.formulaLabel} value={c.expr} onChange={(v) => onChange({ ...c, expr: v })} /> : null}
+      {c.kind === 'expr' ? <FormulaRow id={id} value={c.expr} scope={scope} m={m} onChange={(v) => onChange({ ...c, expr: v })} /> : null}
     </div>
   );
 }
