@@ -229,10 +229,11 @@ describe('SymbolMatchAllDialog', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Apply 3 proposals' }));
     expect(onApply).toHaveBeenCalledWith(['thermo.value', 'pump.running', 'door.running']);
   });
-  it('says so when there is nothing to propose, and Apply is off', () => {
+  it('says so when there is nothing to propose, and offers no Apply of nothing (next-boilerplate e2e round 5, S01-J3-12)', () => {
     render(<SymbolMatchAllDialog open rows={[]} onApply={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText('Nothing to propose: every symbol is connected, or the devices have not sent values yet.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Apply 0 proposals' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /^Apply/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
   });
   it('says why there is nothing to propose when the host knows (e2e round 5, E4)', () => {
     const { rerender } = render(<SymbolMatchAllDialog open rows={[]} onApply={vi.fn()} onClose={vi.fn()} emptyReason="noValues" />);

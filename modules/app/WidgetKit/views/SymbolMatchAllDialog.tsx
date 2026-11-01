@@ -88,7 +88,10 @@ function MatchForm({ rows, onApply, onClose, busy = false, loading = false, empt
       footer={(
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" disabled={busy} onClick={onClose}>{m.cancel}</Button>
-          <Button variant="primary" size="sm" loading={busy} disabled={busy || loading || chosen.length === 0} onClick={() => void onApply(chosen.map(String))}>{m.apply(chosen.length)}</Button>
+          {/* nothing to propose: no "Apply 0 proposals" (next-boilerplate e2e round 5, S01-J3-12); the text above says why */}
+          {(rows.length > 0 || loading || busy) && (
+            <Button variant="primary" size="sm" loading={busy} disabled={busy || loading || chosen.length === 0} onClick={() => void onApply(chosen.map(String))}>{m.apply(chosen.length)}</Button>
+          )}
         </div>
       )}
     >
