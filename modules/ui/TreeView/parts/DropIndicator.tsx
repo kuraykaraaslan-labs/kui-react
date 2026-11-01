@@ -1,24 +1,40 @@
 'use client';
 // modules/ui/TreeView/parts/DropIndicator.tsx
 //
-// Stub — full implementation arrives in M2 alongside the `useDnD` hook. Kept
-// as a named export so the file can be wired into the directory split now
-// without touching imports later.
+// Where a drag would drop (M2). Absolutely positioned inside the row's `li`
+// (which is `relative` while moving is on), so it never shifts the layout:
+//   - before / after: a 2px line in the 2px gap above / below the row, starting
+//     where a row of `depth` starts its content (depth × 1.25rem);
+//   - inside: a 2px frame around the row (the row itself takes the tint).
+// Pixel-parity contract with kui-ejs `TreeView/partials/_node.ejs` and the
+// KUInative TreeView.
 
-// TODO M2: Replace this stub with a real drop indicator.
-//  - Visual: 2px line (`bg-border-focus`) for before/after, full-row tint for
-//    "inside" intent.
-//  - Position prop: 'before' | 'after' | 'inside'.
-//  - Should attach to a portal-ed layer so it never affects layout/scroll.
+import type { TreeDropPosition } from '../types';
 
 export type DropIndicatorProps = {
   /** When `null` the indicator renders nothing. */
-  position?: 'before' | 'after' | 'inside' | null;
+  position?: TreeDropPosition | null;
+  /** Depth of the slot the line marks (before/after only). */
+  depth?: number;
 };
 
-export function DropIndicator({ position = null }: DropIndicatorProps) {
+export function DropIndicator({ position = null, depth = 0 }: DropIndicatorProps) {
   if (!position) return null;
-  // TODO M2: real rendering. For now we render nothing so the M1 tree looks
-  // identical to the EJS version.
-  return null;
+  if (position === 'inside') {
+    return (
+      <span
+        aria-hidden="true"
+        data-tree-drop-indicator="inside"
+        className="pointer-events-none absolute inset-0 rounded-md border-2 border-border-focus"
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      data-tree-drop-indicator={position}
+      className="pointer-events-none absolute right-0 h-0.5 rounded-full bg-border-focus"
+      style={{ left: `${depth * 1.25}rem`, ...(position === 'before' ? { top: '-2px' } : { bottom: '-2px' }) }}
+    />
+  );
 }

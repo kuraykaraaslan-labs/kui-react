@@ -4,6 +4,8 @@
 // it can be safely re-exported from the back-compat shim at
 // `modules/ui/TreeView.tsx`.
 
+import type { ReactNode } from 'react';
+
 export type NodeId = string;
 
 export type TreeNode<T = unknown> = {
@@ -18,17 +20,40 @@ export type TreeNode<T = unknown> = {
 
 export type SelectionMode = 'single' | 'multi';
 
+/**
+ * Where a move puts the moved nodes. `index` is the position the first moved
+ * node takes among `parentId`'s children once the move is done, that is after
+ * the moved nodes were taken out of their old places (`null` = the root list).
+ * `applyTreeMove(nodes, ids, target)` applies one immutably.
+ */
+export type TreeMoveTarget = { parentId: NodeId | null; index: number };
+
+/** Where a pointer drag would drop, relative to the row under the pointer. */
+export type TreeDropPosition = 'before' | 'after' | 'inside';
+
 export type TreeViewMessages = {
   /** aria-label fallback when no `label` prop is supplied. */
   tree: string;
   expandAll: string;
   collapseAll: string;
+  /** Announced after a move at the root level. `{label}`, `{pos}`, `{count}` are replaced. */
+  moved: string;
+  /** Announced after a move inside a parent. `{label}`, `{pos}`, `{count}`, `{parent}` are replaced. */
+  movedIn: string;
+  /** Announced when `canDrop` refuses a keyboard move. `{label}` is replaced. */
+  moveRefused: string;
+  /** Stands for `{label}` when several nodes move at once. `{count}` is replaced. */
+  itemCount: string;
 };
 
 export const DEFAULT_TREE_MESSAGES: TreeViewMessages = {
   tree: 'Tree',
   expandAll: 'Expand all',
   collapseAll: 'Collapse all',
+  moved: '{label} moved to position {pos} of {count}',
+  movedIn: '{label} moved to position {pos} of {count} in {parent}',
+  moveRefused: '{label} cannot move there',
+  itemCount: '{count} items',
 };
 
 export type TreeViewProps = {
@@ -55,13 +80,24 @@ export type TreeViewProps = {
   hideToolbar?: boolean;
   messages?: Partial<TreeViewMessages>;
 
-  // TODO M2: onMove?: (ids: NodeId[], target: { parentId: NodeId | null; index: number }) => void;
-  // TODO M2: canDrop?: (drag: NodeId[], drop: { parentId: NodeId | null; index: number }) => boolean;
+  /**
+   * Turns on moving: pointer drag (a long press on touch) and Alt+Arrow keys.
+   * The tree never changes `nodes` itself; apply the move here (for example
+   * with `applyTreeMove`) and pass the new `nodes` back. A drag of a selected
+   * row in multi-select mode moves every selected node.
+   */
+  onMove?: (ids: NodeId[], target: TreeMoveTarget) => void;
+  /** Refuse a target: no drop indicator there, no keyboard move to it. A node never drops into itself or its own subtree. */
+  canDrop?: (ids: NodeId[], target: TreeMoveTarget) => boolean;
+  /** With `onMove`: a drag starts only from a grip at the start of each row instead of the whole row. */
+  dragHandle?: boolean;
+  /** Custom row content after the chevron. Default: `node.label` (type-ahead still matches `node.label`). */
+  renderLabel?: (node: TreeNode) => ReactNode;
+
   // TODO M3: onLoadChildren?: (node: TreeNode) => Promise<TreeNode[]>;
   // TODO M3: virtualize?: boolean;
   // TODO M4: contextMenuItems?: (node: TreeNode) => unknown[];
   // TODO M4: onRename?: (id: NodeId, name: string) => Promise<void>;
-  // TODO M5: renderNode?: (node: TreeNode) => React.ReactNode;
 };
 
 /** A node decorated with traversal metadata produced by `flattenVisible`. */

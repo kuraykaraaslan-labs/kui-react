@@ -1,7 +1,8 @@
 // modules/ui/TreeView/hooks/useKeyboardNav.ts
 //
 // Keyboard handler returning an `onKeyDown` callback bound to the tree root.
-// Implements the WAI-ARIA Tree pattern (M1 subset) including type-ahead.
+// Implements the WAI-ARIA Tree pattern (M1 subset) including type-ahead, and
+// (M2, when moving is on) Alt+Arrow moves of the focused node.
 
 import { useCallback, useRef } from 'react';
 import type { NodeId, VisibleRow } from '../types';
@@ -9,12 +10,23 @@ import type { UseTreeStateReturn } from './useTreeState';
 
 const TYPE_AHEAD_RESET_MS = 500;
 
+export type MoveDirection = 'up' | 'down' | 'out' | 'in';
+
+const MOVE_KEYS: Record<string, MoveDirection> = {
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowLeft: 'out',
+  ArrowRight: 'in',
+};
+
 type Options = {
   state: UseTreeStateReturn;
   onActivate?: (id: NodeId) => void;
+  /** Alt+ArrowUp/Down among siblings, Alt+ArrowLeft out to the parent's level, Alt+ArrowRight into the previous sibling. */
+  onMoveKey?: (id: NodeId, direction: MoveDirection) => void;
 };
 
-export function useKeyboardNav({ state, onActivate }: Options) {
+export function useKeyboardNav({ state, onActivate, onMoveKey }: Options) {
   const {
     visibleRows,
     focusId,
@@ -81,6 +93,13 @@ export function useKeyboardNav({ state, onActivate }: Options) {
       if (!focusId) return;
       const row = findRow(focusId);
       if (!row) return;
+
+      // Alt+Arrow moves the focused node (only when moving is on).
+      if (onMoveKey && e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && MOVE_KEYS[e.key]) {
+        e.preventDefault();
+        onMoveKey(focusId, MOVE_KEYS[e.key]);
+        return;
+      }
 
       // Type-ahead — printable single characters, no modifiers (except Shift for caps).
       if (
@@ -206,6 +225,7 @@ export function useKeyboardNav({ state, onActivate }: Options) {
       selectAllVisible,
       selected,
       onActivate,
+      onMoveKey,
     ],
   );
 

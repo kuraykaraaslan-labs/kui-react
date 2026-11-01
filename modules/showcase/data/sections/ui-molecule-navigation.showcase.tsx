@@ -6,7 +6,7 @@ import { DropdownMenu } from '@/modules/ui/DropdownMenu';
 import { TabGroup } from '@/modules/ui/TabGroup';
 import { Button } from '@/modules/ui/Button';
 import { Stepper } from '@/modules/ui/Stepper';
-import { TreeView } from '@/modules/ui/TreeView';
+import { TreeView, applyTreeMove, type TreeNode } from '@/modules/ui/TreeView';
 import { TabButton } from '@/modules/ui/TabButton';
 import { ViewToggle, type ViewOrientation } from '@/modules/ui/ViewToggle';
 import { useEffect, useState } from 'react';
@@ -155,6 +155,78 @@ function TreeViewMultiSelectDemo() {
           { id: 'e2e', label: 'e2e' },
         ]},
       ]}
+    />
+  );
+}
+
+const MENU_TREE: TreeNode<{ kind: 'group' | 'item'; hidden?: boolean; renamed?: boolean }>[] = [
+  { id: 'overview', label: 'Overview', data: { kind: 'group' }, children: [
+    { id: 'home', label: 'Home', data: { kind: 'item' } },
+    { id: 'dashboards', label: 'Dashboards', data: { kind: 'item' } },
+  ]},
+  { id: 'devices', label: 'Devices', data: { kind: 'group', renamed: true }, children: [
+    { id: 'device-list', label: 'Devices', data: { kind: 'item' } },
+    { id: 'profiles', label: 'Device profiles', data: { kind: 'item' } },
+    { id: 'firmware', label: 'Firmware', data: { kind: 'item', hidden: true } },
+  ]},
+  { id: 'automation', label: 'Automation', data: { kind: 'group' }, children: [
+    { id: 'flows', label: 'Flows', data: { kind: 'item', renamed: true } },
+  ]},
+];
+
+function TreeViewMoveDemo() {
+  const [nodes, setNodes] = useState<TreeNode[]>([
+    { id: 'src', label: 'src', children: [
+      { id: 'components', label: 'components', children: [
+        { id: 'Button', label: 'Button.tsx' },
+        { id: 'Input', label: 'Input.tsx' },
+      ]},
+      { id: 'index', label: 'index.ts' },
+    ]},
+    { id: 'docs', label: 'docs', children: [{ id: 'guide', label: 'guide.md' }] },
+    { id: 'readme', label: 'README.md' },
+  ]);
+  return (
+    <TreeView
+      label="Files you can rearrange"
+      nodes={nodes}
+      onMove={(ids, target) => setNodes((n) => applyTreeMove(n, ids, target))}
+    />
+  );
+}
+
+function kindOf(nodes: TreeNode[], id: string | null): 'root' | 'group' | 'item' {
+  if (id === null) return 'root';
+  for (const n of nodes) {
+    if (n.id === id) return (n.data as { kind: 'group' | 'item' }).kind;
+    const inner = n.children ? kindOf(n.children, id) : 'root';
+    if (inner !== 'root') return inner;
+  }
+  return 'root';
+}
+
+function TreeViewMenuEditorDemo() {
+  const [nodes, setNodes] = useState<TreeNode[]>(MENU_TREE as TreeNode[]);
+  return (
+    <TreeView
+      label="Menu"
+      nodes={nodes}
+      dragHandle
+      // Groups stay at the top level; items stay inside a group.
+      canDrop={(ids, target) =>
+        ids.every((id) => (kindOf(nodes, id) === 'group' ? target.parentId === null : kindOf(nodes, target.parentId) === 'group'))
+      }
+      onMove={(ids, target) => setNodes((n) => applyTreeMove(n, ids, target))}
+      renderLabel={(node) => {
+        const data = node.data as { hidden?: boolean; renamed?: boolean };
+        return (
+          <span className="flex items-center gap-2">
+            <span className={data.hidden ? 'text-text-disabled line-through' : undefined}>{node.label}</span>
+            {data.renamed && <Badge size="sm" variant="info">renamed</Badge>}
+            {data.hidden && <Badge size="sm" variant="neutral">hidden</Badge>}
+          </span>
+        );
+      }}
     />
   );
 }
@@ -502,9 +574,9 @@ export function Breadcrumb({ items, className, renderLink, ariaLabel = 'Breadcru
       title: 'TreeView',
       category: 'Organism',
       abbr: 'Tv',
-      description: 'Collapsible tree with keyboard navigation, selection, and aria-tree roles.',
+      description: 'Collapsible tree with keyboard navigation, selection, and aria-tree roles. With onMove, nodes move by pointer drag (a long press on touch), with a drop line or a tinted row, auto-scroll near the edges, and by Alt+Arrow keys, each move announced in a polite live region; canDrop refuses targets. The tree stays controlled: apply the move (applyTreeMove) and pass the nodes back. renderLabel draws custom row content.',
       filePath: 'modules/ui/TreeView/index.tsx',
-      sourceCode: `'use client';\nimport { useTreeState } from './hooks/useTreeState';\nimport { useKeyboardNav } from './hooks/useKeyboardNav';\nimport { TreeNodeRow } from './parts/Node';\n\nexport function TreeView({ nodes, selectedId, selectedIds, onSelect, onSelectionChange, selectionMode = 'single', ... }) {\n  // M1: expand all / collapse all, single + multi (Cmd/Shift-click) selection,\n  //      arrow keys, Home/End, type-ahead jump, Space toggle, Enter activate.\n  // M2-M5: drag-drop, lazy load, virtualize, context menu, full ARIA polish.\n}`,
+      sourceCode: `'use client';\nimport { useTreeState } from './hooks/useTreeState';\nimport { useKeyboardNav } from './hooks/useKeyboardNav';\nimport { TreeNodeRow } from './parts/Node';\n\nexport function TreeView({ nodes, selectedId, selectedIds, onSelect, onSelectionChange, selectionMode = 'single', ... }) {\n  // M1: expand all / collapse all, single + multi (Cmd/Shift-click) selection,\n  //      arrow keys, Home/End, type-ahead jump, Space toggle, Enter activate.\n  // M2: onMove / canDrop: pointer drag, touch long press, Alt+Arrow moves, live-region announcements; renderLabel.\n  // M3-M5: lazy load, virtualize, context menu, full ARIA polish.\n}`,
       variants: [
         {
           title: 'File tree',
@@ -525,6 +597,16 @@ export function Breadcrumb({ items, className, renderLink, ariaLabel = 'Breadcru
           title: 'Multi-select + type-ahead',
           preview: <TreeViewMultiSelectDemo />,
           code: `function Demo() {\n  const [ids, setIds] = useState<string[]>(['Card']);\n  return (\n    <TreeView\n      label="Project files"\n      selectionMode="multi"\n      selectedIds={ids}\n      onSelectionChange={setIds}\n      nodes={[\n        { id: 'docs', label: 'Documents', children: [\n          { id: 'spec', label: 'spec.md' },\n          { id: 'roadmap', label: 'roadmap.md' },\n        ]},\n        { id: 'src', label: 'src', children: [\n          { id: 'Button', label: 'Button.tsx' },\n          { id: 'Card', label: 'Card.tsx' },\n          { id: 'Drawer', label: 'Drawer.tsx' },\n          { id: 'TreeView', label: 'TreeView.tsx' },\n        ]},\n      ]}\n    />\n  );\n}\n\n// Try it:\n//  - Cmd/Ctrl-click       → toggle individual rows\n//  - Shift-click          → range-select between anchor and clicked row\n//  - Type "tre"           → focus jumps to "TreeView.tsx"\n//  - Cmd/Ctrl+A           → select all visible rows\n//  - Arrow keys / Home/End / Space / Enter — full keyboard nav.`,
+        },
+        {
+          title: 'Move: drag and Alt+Arrow keys',
+          preview: <TreeViewMoveDemo />,
+          code: `function Demo() {\n  const [nodes, setNodes] = useState(INITIAL);\n  return (\n    <TreeView\n      label="Files"\n      nodes={nodes}\n      onMove={(ids, target) => setNodes((n) => applyTreeMove(n, ids, target))}\n    />\n  );\n}\n\n// Try it:\n//  - Drag a row: top quarter = before, bottom quarter = after, middle = inside.\n//    After the last child of a group, move left to drop after the group instead.\n//  - Touch: long-press a row, then drag.\n//  - Alt+ArrowUp / Alt+ArrowDown: move among siblings.\n//  - Alt+ArrowLeft: out, after the parent. Alt+ArrowRight: into the previous sibling.`,
+        },
+        {
+          title: 'Menu editor: drag handle, canDrop, renderLabel',
+          preview: <TreeViewMenuEditorDemo />,
+          code: `<TreeView\n  label="Menu"\n  nodes={nodes}\n  dragHandle\n  // Groups stay at the top level; items stay inside a group.\n  canDrop={(ids, target) => ids.every((id) =>\n    kindOf(id) === 'group' ? target.parentId === null : kindOf(target.parentId) === 'group')}\n  onMove={(ids, target) => setNodes((n) => applyTreeMove(n, ids, target))}\n  renderLabel={(node) => (\n    <span className="flex items-center gap-2">\n      {node.label}\n      {node.data.renamed && <Badge size="sm" variant="info">renamed</Badge>}\n    </span>\n  )}\n/>`,
         },
       ],
     },
