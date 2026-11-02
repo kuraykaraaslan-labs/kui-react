@@ -9,6 +9,7 @@ import { MetricSparklineCard } from '@/modules/domains/iot/telemetry/MetricSpark
 import { TelemetryTimeSeriesChart } from '@/modules/domains/iot/telemetry/TelemetryTimeSeriesChart';
 import { LogStreamRow } from '@/modules/domains/iot/telemetry/LogStreamRow';
 import { buildIoTPlatformEntries } from './domain-iot-platform.showcase';
+import { buildIoTSettingsEntries } from './domain-iot-settings.showcase';
 import { DEMO_CATALOG, DEMO_CHOICES, DEMO_FLOW } from '@/modules/app/RulesetEditor/demo';
 import type { Device, CloudWorkspace, RuleNode, RuleEdge } from '@/modules/domains/iot/types';
 
@@ -486,5 +487,6 @@ ref.current?.arrange(); ref.current?.select(['n1']); ref.current?.reveal('n4');`
       ],
     },
     ...buildIoTPlatformEntries(),
+    ...buildIoTSettingsEntries(),
   ];
 }

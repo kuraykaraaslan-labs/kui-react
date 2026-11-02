@@ -4,6 +4,22 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- IoT device settings (`modules/domains/iot/settings/`, next-boilerplate docs/concepts/iot-device-settings 05, docs/concepts/iot-platform/phases/12):
+  `DeviceSettingsView` (a device's Settings tab: the sections of its own settings manifest with their state, the unverified and read-only
+  notices, a History drawer), `SectionEditorDrawer` (notices for on its way / being tried / undone / refused / changed on the device / to check
+  after an update, the editor, what saving restarts or may cut, a dry run before the one ConfirmDialog, the section name typed for a change
+  that can cut the device off), `SettingsForm` (the generic editor from the section's JSON Schema and `x-roltek` annotations: SchemaForm for
+  plain fields, write-only `SecretField`, values only the device can change shown read-only, "Automatic or a number" choices, lists as a
+  DataTable with a drawer per row, kinds of a `oneOf`, a baseline mode with an Include switch per setting), the firewall / Wi-Fi / LTE hints
+  (`settings-presets`: columns, ordered rules with Move up / down, zone and APN profile pickers, bands as checkboxes, the internet warning on a
+  rule or port forward), `SettingsStateBadge`, `SettingsDiffTable`, `SettingsHistoryTable`, `BaselinesView` with `BaselineEditorDrawer`,
+  `JobsView` with `NewJobDrawer` (dry-run plan, START typed for a dangerous job) and `JobDetailView` (waves, devices, pause / resume past a
+  failed wave / cancel). Data through the host's `DeviceSettingsAdapter` / `SettingsFleetAdapter`; texts in `SETTINGS_MESSAGES`
+  (`settingsMessagesFrom` for a host's dictionary). Demo: the device page's Settings tab and `/theme/iot/device-settings` (bulk jobs,
+  baselines, a job) on `settings/demo-settings.ts`.
+
 ### Changed
 
 - `SceneSetupDrawer` (next-boilerplate phase 47, views by name): the slot leaves the drawer. The `slots`, `allowNewSlot`, `slotLocked` and

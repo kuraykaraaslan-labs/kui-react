@@ -11,6 +11,7 @@ api/        the adapter contract, the live contract and IotAdapterProvider (docs
 device/     device components and views (the Log timeline and useDeviceLog; DeviceQuickView, the list's drawer)
 profile/    device profile list, editor and its sections (online rule, auth modes, transport policy, topic schemes, rate limits, key schemas)
 ruleset/
+settings/   a device's settings from its own manifest (the Settings tab, SettingsForm, firewall / Wi-Fi / LTE hints, baselines, bulk jobs; phase 12)
 telemetry/
 types/      platform entities, one file per entity (alarm.ts, alarm-rule.ts, asset.ts, device.ts, profile.ts, rpc.ts); ../types.ts re-exports them
 workspace/

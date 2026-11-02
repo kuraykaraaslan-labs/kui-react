@@ -2225,6 +2225,54 @@
     "category": "Domain",
     "file": "iot-device-placement-panel.md"
   },
+  "iot-device-settings-view": {
+    "name": "DeviceSettingsView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-device-settings-view.md"
+  },
+  "iot-settings-form": {
+    "name": "SettingsForm",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-settings-form.md"
+  },
+  "iot-secret-field": {
+    "name": "SecretField",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-secret-field.md"
+  },
+  "iot-settings-state-badge": {
+    "name": "SettingsStateBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-settings-state-badge.md"
+  },
+  "iot-settings-diff-table": {
+    "name": "SettingsDiffTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-settings-diff-table.md"
+  },
+  "iot-settings-baselines-view": {
+    "name": "BaselinesView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-settings-baselines-view.md"
+  },
+  "iot-settings-jobs-view": {
+    "name": "JobsView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-settings-jobs-view.md"
+  },
+  "iot-settings-job-detail-view": {
+    "name": "JobDetailView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-settings-job-detail-view.md"
+  },
   "nft-rarity-badge": {
     "name": "RarityBadge",
     "layer": "domain",

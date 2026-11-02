@@ -6,3 +6,4 @@ export * from './profile';
 export * from './alarm-rule';
 export * from './asset';
 export * from './rules';
+export * from './settings';

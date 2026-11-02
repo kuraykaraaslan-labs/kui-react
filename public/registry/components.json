@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-01T06:24:41.332Z",
+  "generatedAt": "2026-11-02T18:48:54.400Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -10934,6 +10934,194 @@
       ],
       "status": "beta",
       "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-device-settings-view",
+      "name": "DeviceSettingsView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/settings/DeviceSettingsView.tsx",
+      "abbr": "SG",
+      "description": "The device page's Settings tab: the sections of the device's own settings manifest with where each stands; a section opens its editor in a drawer (generic, or the firewall, Wi-Fi and LTE hints), with a dry run, the one ConfirmDialog (the section name typed for a change that can cut the device off), drift and history.",
+      "source": "import { DeviceSettingsView } from '@/modules/domains/iot';\n<DeviceSettingsView adapter={settingsAdapter} deviceId={id} />",
+      "variants": [
+        {
+          "title": "A Roltek router (Wi-Fi, LTE, firewall, port forwards; firewall rules changed on the device)",
+          "code": "<DeviceSettingsView adapter={adapter} deviceId=\"r1\" />"
+        },
+        {
+          "title": "A device that takes no settings from the cloud",
+          "code": "<DeviceSettingsView adapter={adapter} deviceId=\"s1\" />"
+        },
+        {
+          "title": "A model not described yet",
+          "code": "<DeviceSettingsView adapter={adapter} deviceId=\"u1\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-settings-form",
+      "name": "SettingsForm",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/settings/SettingsForm.tsx",
+      "abbr": "SJ",
+      "description": "The generic editor of one settings section from its JSON Schema and annotations: plain fields through SchemaForm, write-only secrets, values only the device can change shown read-only, \"Automatic or a number\" choices, lists of objects as a DataTable with a drawer per row. Baseline mode: an Include switch per setting, no secrets.",
+      "source": "<SettingsForm section=\"wifi\" schema={manifest.sections.wifi.schema} values={values} onChange={setValues} reported={section.reported} />",
+      "variants": [
+        {
+          "title": "A device's Wi-Fi",
+          "code": "<SettingsForm section=\"wifi\" schema={schema} values={values} onChange={setValues} />"
+        },
+        {
+          "title": "Part of a baseline",
+          "code": "<SettingsForm mode=\"baseline\" include={{ keys, onToggle }} … />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-secret-field",
+      "name": "SecretField",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/settings/SecretField.tsx",
+      "abbr": "SK",
+      "description": "A write-only setting (a Wi-Fi or APN password): says whether one is set, \"Change\" types a new one with Show / Hide, \"Keep the current one\" goes back. The value is never shown.",
+      "source": "<SecretField id=\"key\" label=\"Password\" value={value} onChange={setValue} />",
+      "variants": [
+        {
+          "title": "Set",
+          "code": "<SecretField label=\"Password\" value={{ $keep: true }} … />"
+        },
+        {
+          "title": "Not set",
+          "code": "<SecretField label=\"Password\" value={undefined} … />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-settings-state-badge",
+      "name": "SettingsStateBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/settings/SettingsStateBadge.tsx",
+      "abbr": "SH",
+      "description": "Where a settings section stands in words: applied, on its way, the device trying it, undone or refused by the device, withdrawn while offline, to check after an update; \"Changed on the device\" beside it for drift.",
+      "source": "<SettingsStateBadge state=\"applied\" drift />",
+      "variants": [
+        {
+          "title": "Every state",
+          "code": "<SettingsStateBadge state=\"pending\" />"
+        },
+        {
+          "title": "Drift",
+          "code": "<SettingsStateBadge state=\"applied\" drift />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-settings-diff-table",
+      "name": "SettingsDiffTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/settings/SettingsDiffTable.tsx",
+      "abbr": "SL",
+      "description": "Where a device runs something else than was asked: one row per setting, what was asked and what the device has, in words; a secret only says whether each side holds one.",
+      "source": "<SettingsDiffTable section=\"wifi\" schema={schema} desired={section.desired} reported={section.reported} />",
+      "variants": [
+        {
+          "title": "Changed on the device",
+          "code": "<SettingsDiffTable … />"
+        },
+        {
+          "title": "The same",
+          "code": "<SettingsDiffTable … />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-settings-baselines-view",
+      "name": "BaselinesView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/settings/BaselinesView.tsx",
+      "abbr": "BV",
+      "description": "The tenant's settings baselines (named partial settings for some models): a DataTable with search, the editor in a drawer with the sections of the chosen models and an Include switch per setting, delete through the ConfirmDialog.",
+      "source": "<BaselinesView adapter={fleetAdapter} jobsHref=\"/jobs\" />",
+      "variants": [
+        {
+          "title": "Manage",
+          "code": "<BaselinesView adapter={adapter} />"
+        },
+        {
+          "title": "Read only",
+          "code": "<BaselinesView adapter={adapter} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-settings-jobs-view",
+      "name": "JobsView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/settings/JobsView.tsx",
+      "abbr": "JV",
+      "description": "The bulk settings jobs: a DataTable with status filters and how far each job's waves have gone; \"New job\" opens a drawer (baseline, devices by models, profile or picked, waves and their checks) with a dry-run plan and the confirmation.",
+      "source": "<JobsView adapter={fleetAdapter} jobHref={(id) => `/jobs/${id}`} baselinesHref=\"/baselines\" />",
+      "variants": [
+        {
+          "title": "Manage",
+          "code": "<JobsView adapter={adapter} jobHref={href} />"
+        },
+        {
+          "title": "Read only",
+          "code": "<JobsView adapter={adapter} jobHref={href} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-settings-job-detail-view",
+      "name": "JobDetailView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/settings/JobDetailView.tsx",
+      "abbr": "JD",
+      "description": "One bulk settings job: status and why it paused, Pause / Resume (past a failed wave: said and recorded) / Cancel, the waves with their counters and results, and every device with what happened per section.",
+      "source": "<JobDetailView adapter={fleetAdapter} jobId={id} />",
+      "variants": [
+        {
+          "title": "Running",
+          "code": "<JobDetailView adapter={adapter} jobId=\"job-1\" />"
+        },
+        {
+          "title": "Read only",
+          "code": "<JobDetailView adapter={adapter} jobId=\"job-1\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
       "designTokens": []
     },
     {

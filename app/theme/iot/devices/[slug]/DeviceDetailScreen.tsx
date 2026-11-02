@@ -8,12 +8,14 @@ import { DeviceTelemetryView } from '@/modules/domains/iot/device/DeviceTelemetr
 import { AlarmListView } from '@/modules/domains/iot/alarm/AlarmListView';
 import { RpcConsoleView } from '@/modules/domains/iot/rpc/RpcConsoleView';
 import { DevicePlacementPanel } from '@/modules/domains/iot/asset/DevicePlacementPanel';
+import { DeviceSettingsView } from '@/modules/domains/iot/settings/DeviceSettingsView';
+import { demoSettingsAdapter } from '../../_demo/demo-settings';
 import { EmptyState } from '@/modules/ui/EmptyState';
 import { demoHrefs, deviceIdOfSlug } from '../../_demo/demo-hrefs';
 
 /**
  * The client half of /theme/iot/devices/[slug]: `DeviceDetailView` with the tabs other modules contribute in NB (Alarms here
- * Commands (RPC), Placement (sites and assets, phase 08) and Telemetry (`DeviceTelemetryView`) for real; OTA as a placeholder until its phase). The open tab
+ * Commands (RPC), Placement (sites and assets, phase 08), Telemetry (`DeviceTelemetryView`) and Settings (`DeviceSettingsView`, the settings demo) for real; OTA as a placeholder until its phase). The open tab
  * lives in `?tab=`.
  */
 export function DeviceDetailScreen({ slug }: { slug: string }) {
@@ -41,6 +43,7 @@ export function DeviceDetailScreen({ slug }: { slug: string }) {
           { id: 'rpc', label: 'Commands', order: 60, content: <RpcConsoleView deviceId={deviceId} /> },
           { id: 'ota', label: 'OTA', order: 70, content: placeholder(faClockRotateLeft, 'Firmware updates', 'Contributed by the OTA module (phase 06).') },
           { id: 'placement', label: 'Placement', order: 80, content: <DevicePlacementPanel deviceId={deviceId} hrefs={{ asset: demoHrefs.asset }} /> },
+          { id: 'settings', label: 'Settings', order: 90, content: <DeviceSettingsView adapter={demoSettingsAdapter()} deviceId={deviceId} /> },
         ]}
       />
     </div>
