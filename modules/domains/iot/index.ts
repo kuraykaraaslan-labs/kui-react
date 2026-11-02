@@ -11,6 +11,8 @@ export { TelemetryTimeSeriesChart } from './telemetry/TelemetryTimeSeriesChart';
 export type { TelemetrySeries } from './telemetry/TelemetryTimeSeriesChart';
 export { LogStreamRow } from './telemetry/LogStreamRow';
 export type { LogLevel } from './telemetry/LogStreamRow';
+export { RecordingTimeline } from './camera/RecordingTimeline';
+export type { RecordingTimelineProps, RecordingRange, RecordingClipRange, RecordingMarker } from './camera/RecordingTimeline';
 
 // ── Platform screens: adapter, live, texts (phase 00) ─────────────────────────────────────────────────────────────────
 export * from './api/adapter';

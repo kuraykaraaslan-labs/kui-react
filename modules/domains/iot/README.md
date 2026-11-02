@@ -7,6 +7,7 @@ IoT platform domain — device fleet management, telemetry, rulesets, alarms, an
 ```
 alarm/      alarm components and views (OD-9: Alarm, five severities; alarm-severity.ts is the one severity table)
 asset/      sites and assets: the table page with its asset and map drawers, the tree and pickers, device placement (phase 08; NB iot_asset)
+camera/     RecordingTimeline: the day bar of a camera's recordings (footage, gaps, kept clips, event markers, a slider cursor); NB iot_camera phase 10
 api/        the adapter contract, the live contract and IotAdapterProvider (docs/concepts/iot-platform/phases/00)
 device/     device components and views (the Log timeline and useDeviceLog; DeviceQuickView, the list's drawer)
 profile/    device profile list, editor and its sections (online rule, auth modes, transport policy, topic schemes, rate limits, key schemas)

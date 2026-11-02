@@ -139,6 +139,16 @@ export const IOT_MESSAGES = {
     secretFilled: 'The lines carry the new secret while it is shown: copy them now.',
     secretPlaceholder: 'Replace the placeholder with the device\'s secret (shown once, when it is issued).',
   },
+  recording: {
+    bar: 'Recordings timeline',
+    coverage: 'Recorded',
+    gap: 'Not recorded',
+    clip: 'Kept clip',
+    marker: '{kind} at {time}',
+    event: 'Event',
+    noFootage: 'Nothing was recorded in this period.',
+    legend: 'Recorded footage is green, kept clips are outlined, events are dots. Use the arrow keys to move a minute (with Shift ten), Home and End for the ends, Enter to play.',
+  },
   connection: {
     connected: 'Connected',
     disconnected: 'Disconnected',

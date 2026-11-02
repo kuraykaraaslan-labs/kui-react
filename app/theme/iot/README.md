@@ -16,6 +16,7 @@ devices/
 iot.data.ts
 layout.tsx
 page.tsx
+recordings/         a camera's recordings day: RecordingTimeline over demo coverage, clips and events
 rulesets/
 workspaces/
 ```
