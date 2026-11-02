@@ -46,10 +46,11 @@ import { RateLimitEditor } from '@/modules/domains/iot/profile/RateLimitEditor';
 import { TelemetryKeySchemaTable } from '@/modules/domains/iot/profile/TelemetryKeySchemaTable';
 import { CfgSchemaTable } from '@/modules/domains/iot/profile/CfgSchemaTable';
 import { ProvisioningSettingsCard } from '@/modules/domains/iot/profile/ProvisioningSettingsCard';
+import { ProvisioningKeysPanel } from '@/modules/domains/iot/profile/ProvisioningKeysPanel';
 import { AlarmRuleSetEditor } from '@/modules/domains/iot/alarm/AlarmRuleSetEditor';
 import { AlarmRuleDrawer } from '@/modules/domains/iot/alarm/AlarmRuleDrawer';
 import { RpcCommandCatalogEditor } from '@/modules/domains/iot/rpc/RpcCommandCatalogEditor';
-import { blankProfileDraft, DEFAULT_RATE_LIMITS, type DeviceProfile, type ProfileAuthMode, type ProfileRateLimits, type TelemetryKeySpec, type CfgKeySpec } from '@/modules/domains/iot/types/profile';
+import { blankProfileDraft, DEFAULT_RATE_LIMITS, type DeviceProfile, type ProfileAuthMode, type ProfileRateLimits, type ProvisionKey, type TelemetryKeySpec, type CfgKeySpec } from '@/modules/domains/iot/types/profile';
 import { newThresholdRule, type AlarmRuleDefinition } from '@/modules/domains/iot/types/alarm-rule';
 import { IotAdapterProvider } from '@/modules/domains/iot/api/IotAdapterProvider';
 import { AssetKindBadge } from '@/modules/domains/iot/asset/AssetKindBadge';
@@ -66,7 +67,7 @@ import { AssetRelationTable } from '@/modules/domains/iot/asset/AssetRelationTab
 import { DevicePlacementPanel } from '@/modules/domains/iot/asset/DevicePlacementPanel';
 import { DevicePlacementPicker } from '@/modules/domains/iot/asset/DevicePlacementPicker';
 import type { AssetCrumb, AssetNode, AssetRecord, AssetRelation, AssetRow, AssetSummary, PlacedDevice } from '@/modules/domains/iot/types/asset';
-import { IotApiError, type AssetListQuery, type IotAdapter } from '@/modules/domains/iot/api/adapter';
+import { IotApiError, type AssetListQuery, type IotAdapter, type IotProvisioningApi } from '@/modules/domains/iot/api/adapter';
 import type { Alarm, AlarmEvent } from '@/modules/domains/iot/types/alarm';
 import type { AttributeEntry, DeviceConnectionEvent, DeviceLogEntry, DeviceLogFilter, DeviceRecord } from '@/modules/domains/iot/types/device';
 
@@ -390,6 +391,37 @@ function OneBell() {
 function Fixture({ fail = false, children }: { fail?: boolean; children: React.ReactNode }) {
   const [adapter] = useState(() => fixtureAdapter(fail));
   return <IotAdapterProvider adapter={adapter} locale="en-GB">{children}</IotAdapterProvider>;
+}
+
+/** A profile's provisioning keys in memory: one in use, one old key still accepted, one revoked; `factory` = a platform template's (no grace). */
+function provisioningFixture(factory: boolean, empty: boolean): IotProvisioningApi {
+  const day = 86_400_000;
+  let keys: ProvisionKey[] = empty ? [] : [
+    { provisionKeyId: factory ? 'roltek-m1-k2' : 'pk-5b1e09a2', provisionKey: 'pk_5b1e09a2c4d7f013', state: 'active', createdAt: new Date(NOW - 12 * day) },
+    { provisionKeyId: factory ? 'roltek-m1-k1' : 'pk-0c77d3f1', provisionKey: 'pk_0c77d3f1a98e2b40', state: 'retired', createdAt: new Date(NOW - 200 * day), retiredAt: new Date(NOW - 12 * day), graceUntil: factory ? null : new Date(NOW + 18 * day) },
+    ...(factory ? [] : [{ provisionKeyId: 'pk-91aa40e6', provisionKey: 'pk_91aa40e6b2c15d77', state: 'revoked' as const, createdAt: new Date(NOW - 400 * day), revokedAt: new Date(NOW - 200 * day), revocationReason: 'The secret was pasted into a support ticket.' }]),
+  ];
+  let n = 3;
+  return {
+    async get() { await wait(); return { keys: structuredClone(keys), availableStrategies: ['DISABLED', 'ALLOW_CREATE_NEW_DEVICES', 'CHECK_PRE_PROVISIONED_DEVICES'], rotationGrace: factory ? null : { min: 0, max: 365, default: 30 } }; },
+    async rotate() {
+      await wait();
+      keys = keys.map((k) => (k.state === 'active' ? { ...k, state: 'retired', retiredAt: new Date(), graceUntil: factory ? null : new Date(Date.now() + 30 * day) } : k));
+      const key = { provisionKeyId: factory ? `roltek-m1-k${n++}` : `pk-demo000${n++}`, provisionKey: `pk_demo${String(n).padStart(12, '0')}`, state: 'active' as const, createdAt: new Date() };
+      keys = [key, ...keys];
+      return { key, provisionSecret: 'ps_0f1e2d3c4b5a69788796a5b4c3d2e1f0' };
+    },
+    async revoke(_id, { provisionKeyId, reason }) {
+      await wait();
+      keys = keys.map((k) => (k.provisionKeyId === provisionKeyId ? { ...k, state: 'revoked', revokedAt: new Date(), revocationReason: reason } : k));
+      return keys.find((k) => k.provisionKeyId === provisionKeyId)!;
+    },
+  };
+}
+
+function ProvisioningKeysDemo({ factory = false, empty = false }: { factory?: boolean; empty?: boolean }) {
+  const [adapter] = useState<IotAdapter>(() => ({ provisioning: provisioningFixture(factory, empty) }));
+  return <IotAdapterProvider adapter={adapter} capabilities={{ canManageProvisioning: true }} locale="en-GB"><ProvisioningKeysPanel profileId="p1" /></IotAdapterProvider>;
 }
 
 function AssetsViewDemo({ fail = false }: { fail?: boolean }) {
@@ -1001,6 +1033,20 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       variants: [
         { title: 'No provisioning yet (placeholder)', layout: 'stack', preview: <ProvisioningSettingsCard strategy="DISABLED" />, code: '<ProvisioningSettingsCard strategy="DISABLED" />' },
         { title: 'Strategies offered', layout: 'stack', preview: <ProvisioningSettingsCard strategy="CHECK_PRE_PROVISIONED_DEVICES" availableStrategies={['DISABLED', 'ALLOW_CREATE_NEW_DEVICES', 'CHECK_PRE_PROVISIONED_DEVICES']} />, code: "<ProvisioningSettingsCard strategy=\"CHECK_PRE_PROVISIONED_DEVICES\" availableStrategies={[…]} />" },
+        { title: 'With the keys panel', layout: 'stack', preview: <ProvisioningSettingsCard strategy="ALLOW_CREATE_NEW_DEVICES" availableStrategies={['DISABLED', 'ALLOW_CREATE_NEW_DEVICES', 'CHECK_PRE_PROVISIONED_DEVICES']} keys={<ProvisioningKeysDemo />} />, code: '<ProvisioningSettingsCard strategy={draft.provisionStrategy} availableStrategies={served} keys={<ProvisioningKeysPanel profileId={id} />} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-provisioning-keys-panel',
+      title: 'ProvisioningKeysPanel',
+      abbr: 'PK',
+      description: 'A profile’s provisioning keys through the IoT adapter (OD-1): the keys in a DataTable (key id and key, state, created, until when an old key is accepted), Create / Replace key with the days the old key keeps working, the new secret shown once with copy and “you will not see it again”, and Revoke through the ConfirmDialog with a reason and the key id typed again.',
+      filePath: 'modules/domains/iot/profile/ProvisioningKeysPanel.tsx',
+      usage: `<IotAdapterProvider adapter={adapter}><ProvisioningKeysPanel profileId={id} onInfo={(i) => setServed(i.availableStrategies)} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'Keys of a customer profile', layout: 'stack', preview: <ProvisioningKeysDemo />, code: '<ProvisioningKeysPanel profileId="p1" />' },
+        { title: 'Keys of a factory template (no grace)', layout: 'stack', preview: <ProvisioningKeysDemo factory />, code: '<ProvisioningKeysPanel profileId="roltek-m1" />' },
+        { title: 'No key yet', layout: 'stack', preview: <ProvisioningKeysDemo empty />, code: '<ProvisioningKeysPanel profileId="p2" />' },
       ],
     }),
     entry({

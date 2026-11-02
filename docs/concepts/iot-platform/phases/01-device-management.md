@@ -73,6 +73,17 @@ Added by the owner decisions of 2026-10-04: `devices.activate(id)` (OD-1, quaran
     > - Settings: provisioning rate limit per key (successful provisions per hour, default 60), `autoActivate` toggle (default **off**: devices created by this profile land `QUARANTINED` until activated) with a one-line explanation of the risk.
     > - Strategy `ROLTEK_FACTORY` (platform-owned Roltek factory profiles) is shown read-only to tenants; its keys are visible only to platform operators.
     >
+    > **Built 2026-11-03 (NB iot_device_profile 02 §2.2):** `ProvisioningKeysPanel` for `ProvisioningSettingsCard`'s `keys` slot, on the
+    > adapter's `provisioning` API (`get` = keys + the strategies the host serves + the rotation grace, `setStrategy`, `rotate`, `revoke`) and
+    > the `canManageProvisioning` capability (one capability for strategy and keys, as NB's one permission). The keys are a DataTable (key id
+    > and key, plain state, created, until when an old key is accepted, last used when the host has it); "Create key" / "Replace key" asks for
+    > the days the old key keeps working (FZ-33; none on a factory template, whose old key stays for its own units); the new secret is shown
+    > once (masked, Show, Copy, "You will not see it again", gone after "I have copied it" or when the panel unmounts; never stored); "Revoke"
+    > goes through the ConfirmDialog with a reason and the key id typed again, and on a factory key says the unclaimed units need a platform
+    > operator. The editor's Save sends a changed strategy to `provisioning.setStrategy` apart from the profile patch. Not built: devices
+    > provisioned per key (no host count yet), the rate limit and `autoActivate` settings, the read-only factory view for tenants (NB answers
+    > a tenant 404 on a template's provisioning).
+    >
     > **→ DECISION OD-85 (owner, 2026-10-04):** this provisioning is our own protocol. A profile whose only scheme is "ThingsBoard compatible" gets no ThingsBoard device-provisioning or claiming API: its Provisioning section shows "Devices on the ThingsBoard scheme are added by hand or by import" and offers no provisioning-key strategy for that scheme.
   - OTA: default firmware and software package (links to phase 06). **→ DECISION OD-7 (owner, 2026-10-04):** an "Allow OTA over metered links (LTE)" toggle (`fwAllowMetered`, default **off**) with the hint "never applied while the data quota is exhausted"; the device detail can override it per device.
 - [ ] (not done, ED-K21) Settings blocks that are declarative (transport options, provisioning) render with `SchemaForm` (9.10) from a schema the adapter returns, so NB can add fields without a kui-react release. **→ DECISION OD-16 (owner, 2026-10-04):** that schema is the `FieldSchema` vocabulary (moved from NB `common/ui/schema-form` into kui-react 9.10); no IoT-specific schema format.

@@ -2135,6 +2135,12 @@
     "category": "Domain",
     "file": "iot-provisioning-settings-card.md"
   },
+  "iot-provisioning-keys-panel": {
+    "name": "ProvisioningKeysPanel",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-provisioning-keys-panel.md"
+  },
   "iot-alarm-rule-set-editor": {
     "name": "AlarmRuleSetEditor",
     "layer": "domain",

@@ -3,6 +3,7 @@ import { useId } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faKey } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
+import { Callout } from '@/modules/ui/Callout';
 import { Select } from '@/modules/ui/Select';
 import { UnavailableContribution } from '@/modules/ui/UnavailableContribution';
 import { useIotText } from '../api/IotAdapterProvider';
@@ -13,8 +14,9 @@ import { ProfileSection } from './profile-fields';
 /**
  * ProvisioningSettingsCard — a profile's provisioning (02 §2.1, OD-1): the strategy select, where a strategy the host cannot serve yet
  * is listed disabled ("not available yet"), and the provisioning keys. The keys (rotation with key ids, revocation, the show-once
- * secret) need the host's provisioning service; until it exists (`keys` absent) the section is a clearly disabled placeholder and no
- * secret, key or button is drawn. `ROLTEK_FACTORY` belongs to platform templates and is never offered to a tenant.
+ * secret) are the host's `keys` (`ProvisioningKeysPanel`), with a note while the strategy is `DISABLED` (no device can register yet);
+ * without them (`keys` absent: no provisioning service, or a viewer who may not manage it) the section is a clearly disabled
+ * placeholder and no secret, key or button is drawn. `ROLTEK_FACTORY` belongs to platform templates and is never offered to a tenant.
  */
 export type ProvisioningSettingsCardProps = {
   strategy: ProvisionStrategy;
@@ -53,6 +55,7 @@ export function ProvisioningSettingsCard({ strategy, onChange, availableStrategi
       </ProfileSection>
 
       <ProfileSection title={m.provisioning.keysTitle}>
+        {keys && strategy === 'DISABLED' && <Callout variant="info" title={null}>{m.provisioning.disabledNote}</Callout>}
         {keys ?? (
           <div aria-disabled="true" data-testid="provisioning-keys-placeholder">
             <UnavailableContribution

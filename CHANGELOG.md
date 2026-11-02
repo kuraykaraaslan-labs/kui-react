@@ -6,6 +6,16 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `ProvisioningKeysPanel` (IoT kit, `modules/domains/iot/profile/`, next-boilerplate iot-device-profile 02 §2.2, OD-1): a profile's provisioning
+  keys for `ProvisioningSettingsCard`'s `keys` slot. The keys in a DataTable (key id and key, state in plain words, created, until when an
+  old key is accepted, last used when the host records it); Create / Replace key with the days the old key keeps working (none on a factory
+  template); the new secret shown once in `IssuedProvisionKeyNotice` (masked, Show, Copy, "You will not see it again", never stored);
+  Revoke through the ConfirmDialog with a reason and the key id typed again. Adapter: `IotAdapter.provisioning` (`get`, `setStrategy`,
+  `rotate`, `revoke`), the `canManageProvisioning` capability, the `ProvisionKey` / `ProvisioningInfo` / `IssuedProvisionKey` types;
+  `DeviceProfileEditorView` saves a changed strategy through `provisioning.setStrategy` apart from the profile patch;
+  `ProvisioningSettingsCard` notes that no device can register while the strategy is Disabled. Demo: the Provisioning tab of
+  `/theme/iot/profiles/[slug]` on `_demo/demo-provisioning.ts`.
+
 - IoT device settings (`modules/domains/iot/settings/`, next-boilerplate docs/concepts/iot-device-settings 05, docs/concepts/iot-platform/phases/12):
   `DeviceSettingsView` (a device's Settings tab: the sections of its own settings manifest with their state, the unverified and read-only
   notices, a History drawer), `SectionEditorDrawer` (notices for on its way / being tried / undone / refused / changed on the device / to check

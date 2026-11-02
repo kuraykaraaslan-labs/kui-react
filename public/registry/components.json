@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-02T18:48:54.400Z",
+  "generatedAt": "2026-11-02T21:54:41.275Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -10585,6 +10585,37 @@
         {
           "title": "Strategies offered",
           "code": "<ProvisioningSettingsCard strategy=\"CHECK_PRE_PROVISIONED_DEVICES\" availableStrategies={[…]} />"
+        },
+        {
+          "title": "With the keys panel",
+          "code": "<ProvisioningSettingsCard strategy={draft.provisionStrategy} availableStrategies={served} keys={<ProvisioningKeysPanel profileId={id} />} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-provisioning-keys-panel",
+      "name": "ProvisioningKeysPanel",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/profile/ProvisioningKeysPanel.tsx",
+      "abbr": "PK",
+      "description": "A profile’s provisioning keys through the IoT adapter (OD-1): the keys in a DataTable (key id and key, state, created, until when an old key is accepted), Create / Replace key with the days the old key keeps working, the new secret shown once with copy and “you will not see it again”, and Revoke through the ConfirmDialog with a reason and the key id typed again.",
+      "source": "<IotAdapterProvider adapter={adapter}><ProvisioningKeysPanel profileId={id} onInfo={(i) => setServed(i.availableStrategies)} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "Keys of a customer profile",
+          "code": "<ProvisioningKeysPanel profileId=\"p1\" />"
+        },
+        {
+          "title": "Keys of a factory template (no grace)",
+          "code": "<ProvisioningKeysPanel profileId=\"roltek-m1\" />"
+        },
+        {
+          "title": "No key yet",
+          "code": "<ProvisioningKeysPanel profileId=\"p2\" />"
         }
       ],
       "status": "beta",

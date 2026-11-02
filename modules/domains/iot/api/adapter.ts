@@ -6,7 +6,10 @@ import type {
   DeviceRecord, DeviceRegistryStatus, DeviceStatePatch, IssuedSecret,
 } from '../types/device';
 import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcCommandTemplate, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
-import type { DeviceProfile, DeviceProfileInput, DeviceProfileUsage, OnlineRule, ProfileKeyUsage, ProfileTransport } from '../types/profile';
+import type {
+  DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTransport, ProvisionKey, ProvisioningInfo,
+  ProvisionStrategy,
+} from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
 import type {
   AssetInput, AssetNode, AssetRecord, AssetRow, AssetSummary, AssetRelation, AssetRelationInput, DevicePlacement, PlacedDevice, RelationEntityType,
@@ -158,6 +161,20 @@ export interface IotProfilesApi {
   keyUsage?(profileId: string, keys: string[], signal?: AbortSignal): Promise<ProfileKeyUsage[]>;
   /** Rewrites what reads the old keys to the new names (`{ old: new }`) where the viewer may; answers what each module changed. */
   renameKeys?(profileId: string, renames: Record<string, string>): Promise<ProfileKeyUsage[]>;
+}
+
+/**
+ * The provisioning of a profile (NB `iot_device_profile` 02 §2.2, OD-1), for a viewer with `canManageProvisioning`: the keys and what
+ * the host serves, the strategy, a rotation (the new secret answered once) and a revocation (the key id typed again, a reason).
+ */
+export interface IotProvisioningApi {
+  get(profileId: string, signal?: AbortSignal): Promise<ProvisioningInfo>;
+  /** Sets the strategy (the editor's Save sends it here instead of in the profile patch); answers the stored one. */
+  setStrategy?(profileId: string, strategy: ProvisionStrategy): Promise<ProvisionStrategy>;
+  /** A new active key; the previous active key is retired with `graceDays` (absent: the host's default). The secret is in the answer only. */
+  rotate(profileId: string, input: { graceDays?: number }): Promise<IssuedProvisionKey>;
+  /** Immediate and final; `confirmKeyId` is the key id the viewer typed again. */
+  revoke(profileId: string, input: { provisionKeyId: string; confirmKeyId: string; reason: string }): Promise<ProvisionKey>;
 }
 
 /** The alarm rules of a profile (NB `iot_alarm`): read, and replace the whole set (types unique in a profile). */
@@ -386,6 +403,8 @@ export type IotCapabilities = {
   canSendRpc: boolean;
   /** Create, edit, delete profiles and make one the default. */
   canManageProfiles: boolean;
+  /** Manage a profile's provisioning: its strategy and keys (rotate, revoke). */
+  canManageProvisioning: boolean;
   /** Edit the alarm rules of a profile. */
   canManageAlarmRules: boolean;
   /** Edit the command catalog of a profile (create, edit, delete, import). */
@@ -414,6 +433,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canComment: false,
   canSendRpc: false,
   canManageProfiles: false,
+  canManageProvisioning: false,
   canManageAlarmRules: false,
   canManageRpcCommands: false,
   canManageAssets: false,
@@ -426,6 +446,7 @@ export interface IotAdapter {
   name?: string;
   devices?: IotDevicesApi;
   profiles?: IotProfilesApi;
+  provisioning?: IotProvisioningApi;
   credentials?: IotCredentialsApi;
   attributes?: IotAttributesApi;
   alarms?: IotAlarmsApi;

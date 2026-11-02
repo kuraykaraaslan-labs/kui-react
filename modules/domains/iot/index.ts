@@ -99,6 +99,8 @@ export { RateLimitEditor } from './profile/RateLimitEditor';
 export { TelemetryKeySchemaTable } from './profile/TelemetryKeySchemaTable';
 export { CfgSchemaTable, parseCfgEnum } from './profile/CfgSchemaTable';
 export { ProvisioningSettingsCard } from './profile/ProvisioningSettingsCard';
+export { ProvisioningKeysPanel, IssuedProvisionKeyNotice } from './profile/ProvisioningKeysPanel';
+export type { ProvisioningKeysPanelProps } from './profile/ProvisioningKeysPanel';
 export { AlarmRuleSetEditor } from './alarm/AlarmRuleSetEditor';
 export { AlarmRuleDrawer, parseRuleValue, formatRuleValue, isFormable } from './alarm/AlarmRuleDrawer';
 export { RpcCommandCatalogEditor } from './rpc/RpcCommandCatalogEditor';

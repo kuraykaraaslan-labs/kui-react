@@ -23,6 +23,12 @@ A profile’s provisioning strategy (strategies the host cannot serve yet are ma
 <ProvisioningSettingsCard strategy="CHECK_PRE_PROVISIONED_DEVICES" availableStrategies={[…]} />
 ```
 
+### With the keys panel
+
+```tsx
+<ProvisioningSettingsCard strategy={draft.provisionStrategy} availableStrategies={served} keys={<ProvisioningKeysPanel profileId={id} />} />
+```
+
 ## Full source
 
 ```tsx

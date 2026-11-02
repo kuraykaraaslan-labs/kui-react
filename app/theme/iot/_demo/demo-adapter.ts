@@ -10,6 +10,7 @@ import { alarmRuleKeys, conditionLeaves, isInactivityRule, newInactivityRule, ty
 import { ALARMS, ALARM_EVENTS, DEVICES, DEVICE_PROFILES } from '../iot.data';
 import type { DemoLive } from './demo-live';
 import { createDemoAssets } from './demo-assets';
+import { createDemoProvisioning } from './demo-provisioning';
 import { createDemoTelemetry, demoLivePoint } from './demo-telemetry';
 
 /*
@@ -323,11 +324,12 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     name: 'Demo, in memory',
     assets,
     telemetry: createDemoTelemetry(wait),
+    provisioning: createDemoProvisioning(wait, profileOf),
     async capabilities() {
       return {
         canCreateDevice: true, canEditDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true,
         canWriteAttributes: true, canActivateDevice: true, canReleaseDevice: false, canReadAlarms: true, canAcknowledge: true,
-        canClear: true, canComment: true, canSendRpc: true, canManageProfiles: true, canManageAlarmRules: true, canManageRpcCommands: true,
+        canClear: true, canComment: true, canSendRpc: true, canManageProfiles: true, canManageProvisioning: true, canManageAlarmRules: true, canManageRpcCommands: true,
         canManageAssets: true, canPlaceDevices: true, canReadTelemetry: true,
       };
     },

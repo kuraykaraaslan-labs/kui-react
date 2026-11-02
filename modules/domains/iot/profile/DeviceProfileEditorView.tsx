@@ -36,7 +36,8 @@ import { announceProfileKeyRenames } from './profile-key-events';
  * DeviceProfileEditorView — one device profile (phase 01 §1.4; NB iot_device_profile 03 §3.2–3.3), read and written through the
  * adapter. Own tabs: General, Transport & auth (transport, plain MQTT or TLS, URL tokens, networks, auth modes, topic schemes and
  * custom topics), Online status (OD-57 / OD-63), Limits (rate limits, payload and session caps), Telemetry keys, Configuration keys and
- * Provisioning (strategy; the keys are a disabled placeholder until the host has them). Every own tab edits ONE draft with one Save:
+ * Provisioning (strategy; the keys are the host's `provisioningKeys`, e.g. `ProvisioningKeysPanel`, else a disabled placeholder; with
+ * `adapter.provisioning.setStrategy` Save sends a changed strategy there, apart from the profile patch). Every own tab edits ONE draft with one Save:
  * only the changed fields are sent, the form blocks what the host would refuse (a transport that forbids the chosen online rule
  * included) and shows the host's own refusal when it still comes. The host's `extraTabs` (Alarm rules, Commands, … contributed by other
  * modules) follow, each saving on its own. Without `canManageProfiles` everything is read-only. The device count follows every 30 s.
@@ -60,7 +61,7 @@ export type DeviceProfileEditorViewProps = {
   transports?: readonly ProfileTransport[];
   /** The provisioning strategies the host can serve (default `DISABLED` only). */
   availableStrategies?: readonly ProvisionStrategy[];
-  /** The provisioning key management, when the host has it (absent: the disabled placeholder). */
+  /** The provisioning key management, when the host has it and the viewer may use it (`ProvisioningKeysPanel`; absent: the disabled placeholder). */
   provisioningKeys?: React.ReactNode;
   className?: string;
 };
@@ -80,7 +81,9 @@ const tabOf = (field: string) => TAB_OF.find(([re]) => re.test(field))?.[1] ?? '
 export function DeviceProfileEditorView({
   profileId, extraTabs = [], tab, onTabChange, onDeleted, transports, availableStrategies, provisioningKeys, className,
 }: DeviceProfileEditorViewProps) {
-  const api = useIotAdapter().profiles;
+  const adapter = useIotAdapter();
+  const api = adapter.profiles;
+  const provisioning = adapter.provisioning;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
   const { m, locale } = useIotText();
@@ -169,7 +172,21 @@ export function DeviceProfileEditorView({
     setSaveError(null);
     setServerErrors({});
     try {
-      const saved = await api.update(profileId, patch);
+      // a host with a provisioning API takes the strategy there (it guards it with its own permission), the rest in the profile patch
+      const { provisionStrategy, ...rest } = patch;
+      const strategyApart = provisionStrategy !== undefined && !!provisioning?.setStrategy;
+      const general = strategyApart ? rest : patch;
+      let saved = Object.keys(general).length ? await api.update(profileId, general) : profile!;
+      if (strategyApart) {
+        try {
+          saved = { ...saved, provisionStrategy: await provisioning!.setStrategy!(profileId, provisionStrategy!) };
+        } catch (e) {
+          // the rest is saved: keep it, and keep the strategy change in the draft so Save can try it again
+          setProfile(saved);
+          setDraft({ ...draftOf(saved), provisionStrategy: provisionStrategy! });
+          throw e instanceof IotApiError && !e.fieldErrors ? new IotApiError(e.code, e.message, { fieldErrors: { provisionStrategy: e.message } }) : e;
+        }
+      }
       setProfile(saved);
       setDraft(draftOf(saved));
       notify({ tone: 'success', message: m.profile.saved });

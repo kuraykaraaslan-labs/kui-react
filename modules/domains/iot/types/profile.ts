@@ -33,6 +33,45 @@ export type CfgDriftPolicy = (typeof CFG_DRIFT_POLICIES)[number];
 export const PROVISION_STRATEGIES = ['DISABLED', 'ALLOW_CREATE_NEW_DEVICES', 'CHECK_PRE_PROVISIONED_DEVICES', 'ROLTEK_FACTORY'] as const;
 export type ProvisionStrategy = (typeof PROVISION_STRATEGIES)[number];
 
+/**
+ * 02 §2.1b / §2.2 (OD-1): a profile's provisioning keys. Rotation makes a new `active` key and turns the previous one `retired` (still
+ * accepted until `graceUntil`; a factory key keeps no grace and stays accepted for the units written with it); revocation is immediate
+ * and final. States only move forward. The key itself is not secret; its secret is never part of a key row.
+ */
+export const PROVISION_KEY_STATES = ['active', 'retired', 'revoked'] as const;
+export type ProvisionKeyState = (typeof PROVISION_KEY_STATES)[number];
+
+export type ProvisionKey = {
+  /** The readable key id (`roltek-m1-k2`, `pk-3f9a01bc`): what a revocation is confirmed with. */
+  provisionKeyId: string;
+  /** The provisioning key a device sends (`pk_` + 16 hex). Not secret. */
+  provisionKey: string;
+  state: ProvisionKeyState;
+  createdAt: Date | string;
+  /** A retired key is accepted until then; null = no end (a factory key: accepted for the units written with it). */
+  graceUntil?: Date | string | null;
+  retiredAt?: Date | string | null;
+  revokedAt?: Date | string | null;
+  revocationReason?: string | null;
+  /** When a device last used it, when the host records it. */
+  lastUsedAt?: Date | string | null;
+};
+
+/** What the provisioning keys panel reads: the keys (newest first) and what the host can do for this profile. */
+export type ProvisioningInfo = {
+  keys: ProvisionKey[];
+  /** The strategies the host can serve for this profile (always includes `DISABLED`). */
+  availableStrategies: ProvisionStrategy[];
+  /** The grace a rotation may give the previous key, in days; null = none (a factory profile: the old key stays for its own units). */
+  rotationGrace: { min: number; max: number; default: number } | null;
+};
+
+/** A rotation's answer: the new key row and its secret, returned this once and never again. */
+export type IssuedProvisionKey = {
+  key: ProvisionKey;
+  provisionSecret: string;
+};
+
 /** Protocol 09 §2: one limit string per family, `count:seconds[,count:seconds]*`. */
 export const RATE_LIMIT_FAMILIES = ['telemetry_msgs', 'telemetry_points', 'attr_msgs', 'attr_requests', 'rpc_msgs', 'csr', 'connects'] as const;
 export type RateLimitFamily = (typeof RATE_LIMIT_FAMILIES)[number];
