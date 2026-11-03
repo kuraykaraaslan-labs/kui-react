@@ -32,6 +32,8 @@ export type LoraFrameRow = {
   result: 'processed' | 'dropped' | 'retransmission' | 'sent' | string;
   reason?: string;
   deviceId?: string;
+  /** The device's name as the host's frames read returns it (NB: one read of the frames' devices), so a device that is not on the page is named too. */
+  deviceName?: string;
   devEui?: string;
   devAddr?: string;
   fCnt?: number;

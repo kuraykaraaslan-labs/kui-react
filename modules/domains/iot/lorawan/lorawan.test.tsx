@@ -141,4 +141,23 @@ describe('LoRaWAN lists (sort, search, filters, paging)', () => {
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2));
     expect(screen.getByText('Cold room')).toBeTruthy();
   });
+
+  it('a frame of a device the host does not know is named by the row (deviceName), then by its DevEUI, and found by that name', async () => {
+    const user = userEvent.setup();
+    render(<LoraFrameTable
+      rows={[
+        { t: 3, type: 'up', result: 'processed', deviceId: 'd9', deviceName: 'Pump 9', devEui: '70B3D57ED0000009', gateways: [] },
+        { t: 2, type: 'up', result: 'processed', deviceId: 'd8', devEui: '70B3D57ED0000008', gateways: [] },
+        { t: 1, type: 'up', result: 'processed', deviceId: 'd1', deviceName: 'Old name', gateways: [] },
+      ]}
+      deviceName={(id) => (id === 'd1' ? 'Cold room' : undefined)}
+    />);
+    const rows = screen.getAllByRole('row');
+    expect(rows[1].textContent).toMatch(/Pump 9/);
+    expect(rows[1].textContent).not.toMatch(/70B3D57ED0000009/);
+    expect(rows[2].textContent).toMatch(/70B3D57ED0000008/);
+    expect(rows[3].textContent).toMatch(/Cold room/);
+    await user.type(screen.getByRole('searchbox'), 'pump');
+    await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2));
+  });
 });

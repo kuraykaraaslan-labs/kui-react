@@ -29,11 +29,13 @@ const FRAMES: LoraFrameRow[] = [
   { t: now - 60_000, type: 'join', result: 'dropped', reason: 'join_mic_failed', deviceId: 'd2', dr: 0, freq: 868_300_000, gateways: gws(1) },
   { t: now - 90_000, type: 'dropped', result: 'dropped', reason: 'foreign_tenant', dr: 2, freq: 868_500_000, gateways: gws(2) },
   { t: now - 120_000, type: 'cup', result: 'retransmission', deviceId: 'd1', fCnt: 811, gateways: gws(1) },
+  // a device that is not in the device list above: the row carries its name (the host's frames read)
+  { t: now - 150_000, type: 'up', result: 'processed', deviceId: 'd7', deviceName: 'Water meter 7', devEui: 'A840410000000007', fCnt: 96, fPort: 1, dr: 3, freq: 867_700_000, gateways: gws(2) },
 ];
-const SETUP = { lnsUrl: 'wss://lns.example.com', routerInfoUrl: 'wss://lns.example.com/router-info', trustAvailable: true };
+const SETUP = { lnsUrl: 'wss://acme.lns.example.com', routerInfoUrl: 'wss://acme.lns.example.com/router-info', trustAvailable: true };
 const ISSUED: LoraIssuedToken = {
   token: 'lns_Q2xvdWQgTG9SYVdBTiBkZW1vIHRva2VuIG9ubHkgb25jZQ',
-  files: [{ name: 'tc.uri', content: 'wss://lns.example.com\n' }, { name: 'tc.trust', content: '-----BEGIN CERTIFICATE-----\n…\n' }, { name: 'tc.key', content: 'Authorization: Bearer lns_…\n' }],
+  files: [{ name: 'tc.uri', content: 'wss://acme.lns.example.com\n' }, { name: 'tc.trust', content: '-----BEGIN CERTIFICATE-----\n…\n' }, { name: 'tc.key', content: 'Authorization: Bearer lns_…\n' }],
 };
 
 /** /theme/iot/lorawan — the cloud LoRaWAN screens (NB iot_lorawan 13): gateways with their connection, the setup a customer follows alone, end devices with their join state, the frames log. */

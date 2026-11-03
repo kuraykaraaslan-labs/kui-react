@@ -11,7 +11,8 @@ import type { LoraFrameRow } from './types';
 /**
  * LoraFrameTable — the join and uplink log (OD-103: the recent frames only, nothing stored): time, frame type, device, FCnt, FPort, DR and
  * frequency, the receiving gateways with the best RSSI/SNR, and the result (processed, the gateway a downlink went out through, or why a
- * frame was dropped; a foreign network's device is named only as such). The host names devices and gateways (`deviceName`, `gatewayName`).
+ * frame was dropped; a foreign network's device is named only as such). A device is named by the host's `deviceName` lookup, else by the
+ * row's own `deviceName` (a frame of a device that is not on the host's current page), else by its DevEUI; gateways by `gatewayName`.
  *
  * The log is short and held whole (the host passes every recent frame it read), so the table pages, sorts (time, FCnt, FPort; newest
  * first), searches (device name, DevEUI, DevAddr, the result's words) and filters (frame type, result) it in the browser.
@@ -44,14 +45,15 @@ export function LoraFrameTable({ rows, deviceName, gatewayName, onOpenDevice, lo
     if (r.result === 'sent') return fillText(m.sent, { gateway: (r.chosenGatewayId && gatewayName?.(r.chosenGatewayId)) ?? r.chosenGatewayId ?? '' }) + (r.window ? ` (${r.window.toUpperCase()})` : '');
     return text[r.result] ?? r.result;
   };
+  const nameOf = (r: LoraFrameRow) => (r.deviceId ? deviceName?.(r.deviceId) : undefined) ?? r.deviceName;
   const columns: Column<LoraFrameRow>[] = [
     { key: 't', header: m.time, sortable: true, searchable: false, render: (r) => <time className="whitespace-nowrap text-xs tabular-nums">{formatDateTime(r.t, { locale })}</time> },
     { key: 'type', header: m.type, searchValue: (r) => text[r.type] ?? r.type, render: (r) => <span className="text-xs">{text[r.type] ?? r.type}</span> },
     {
       key: 'device', header: m.device,
-      searchValue: (r) => [r.deviceId ? deviceName?.(r.deviceId) : undefined, r.devEui, r.devAddr].filter(Boolean).join(' '),
+      searchValue: (r) => [nameOf(r), r.devEui, r.devAddr].filter(Boolean).join(' '),
       render: (r) => (r.deviceId
-        ? (onOpenDevice ? <button type="button" className="text-xs text-primary hover:underline" onClick={(e) => { e.stopPropagation(); onOpenDevice(r.deviceId!); }}>{deviceName?.(r.deviceId) ?? r.devEui ?? r.deviceId}</button> : <span className="text-xs">{deviceName?.(r.deviceId) ?? r.devEui}</span>)
+        ? (onOpenDevice ? <button type="button" className="text-xs text-primary hover:underline" onClick={(e) => { e.stopPropagation(); onOpenDevice(r.deviceId!); }}>{nameOf(r) ?? r.devEui ?? r.deviceId}</button> : <span className="text-xs">{nameOf(r) ?? r.devEui}</span>)
         : <code className="font-mono text-xs text-text-secondary">{r.devAddr ?? all.common.none}</code>),
     },
     { key: 'fCnt', header: m.fCnt, sortable: true, searchable: false, hideBelow: 'sm', align: 'right', render: (r) => <span className="tabular-nums text-xs">{r.fCnt ?? all.common.none}</span> },
