@@ -10,7 +10,8 @@ import { EmptyState } from '@/modules/ui/EmptyState';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { Toggle } from '@/modules/ui/Toggle';
 import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
@@ -172,6 +173,9 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
     {
       key: 'type',
       header: m.alarmRules.type,
+      sortable: true,
+      sortValue: ({ r }) => r.type,
+      searchValue: ({ r }) => r.type,
       render: ({ r }) => {
         const unknown = undeclaredRuleKeys(r, telemetryKeys);
         return (
@@ -189,10 +193,11 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
         );
       },
     },
-    { key: 'title', header: m.alarmRules.titleField, render: ({ r }) => <span className="text-sm text-text-primary">{r.title}</span> },
+    { key: 'title', header: m.alarmRules.titleField, sortable: true, sortValue: ({ r }) => r.title ?? null, searchValue: ({ r }) => r.title ?? '', render: ({ r }) => <span className="text-sm text-text-primary">{r.title}</span> },
     {
       key: 'when',
       header: m.alarmRules.when,
+      searchValue: ({ r }) => (isInactivityRule(r) ? '' : r.severities.map((s) => describeCondition(s.condition, words)).join(' ')),
       render: ({ r }) => (
         <ul className="space-y-1 text-xs text-text-secondary">
           {isInactivityRule(r) ? (
@@ -220,6 +225,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
       key: 'actions',
       header: <span className="sr-only">{m.profiles.actions}</span>,
       align: 'right' as const,
+      searchable: false,
       render: ({ i, r }: RuleRow) => (
         <span className="inline-flex items-center justify-end gap-1">
           <Toggle id={`rule-enabled-${i}`} size="sm" label={m.alarmRules.enabled} checked={r.enabled}
@@ -230,6 +236,18 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
         </span>
       ),
     }] : []),
+  ];
+  const filterFields: DataTableFilterField<RuleRow>[] = [
+    {
+      id: 'kind', label: m.alarmRules.type, type: 'select',
+      options: [{ value: 'threshold', label: m.alarmRules.thresholdKind }, { value: 'offline', label: m.alarmRules.offlineKind }],
+      match: ({ r }, v) => !v || (v === 'offline') === isInactivityRule(r),
+    },
+    {
+      id: 'enabled', label: m.alarmRules.enabled, type: 'select',
+      options: [{ value: 'true', label: m.alarmRules.enabled }, { value: 'false', label: m.alarmRules.disabledRule }],
+      match: ({ r }, v) => !v || String(r.enabled) === v,
+    },
   ];
   return (
     <div className={cn('space-y-4', className)}>
@@ -256,7 +274,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
         <EmptyState icon={<FontAwesomeIcon icon={faBolt} aria-hidden="true" />} title={m.alarmRules.title} description={m.alarmRules.empty} />
       ) : (
         <DataTable<RuleRow>
-          mode="manual"
+          mode="paginated"
           variant="plain"
           caption={m.alarmRules.title}
           columns={columns}
@@ -264,8 +282,10 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
           rowId={(x) => `${x.r.type}-${x.i}`}
           rowClassName={(x) => (x.r.enabled ? undefined : 'opacity-70')}
           messages={{ loading: m.common.loading, retry: m.common.retry }}
-          searchable={false}
-          pageSizeOptions={[]}
+          searchPlaceholder={m.alarmRules.search}
+          filterFields={filterFields}
+          pageSize={25}
+          pageSizeOptions={LIST_PAGE_SIZES}
         />
       )}
 

@@ -1,10 +1,12 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
-import { errorMessage, type RpcCatalog } from '../api/adapter';
+import { errorMessage, RPC_SORT_KEYS, type RpcCatalog, type RpcListQuery } from '../api/adapter';
+import { toIotSort } from '../api/list-table';
+import type { DataTableQuery } from '@/modules/ui/Table/types';
 import { useIotAdapter, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { iotTopics } from '../api/live';
-import type { RpcRequest, RpcSendInput } from '../types/rpc';
+import { RPC_STATUSES, type RpcRequest, type RpcSendInput, type RpcStatus } from '../types/rpc';
 import { RpcRequestDetail } from './RpcRequestDetail';
 import { RpcRequestList } from './RpcRequestList';
 import { RpcSendPanel } from './RpcSendPanel';
@@ -14,7 +16,8 @@ import { RpcSendPanel } from './RpcSendPanel';
  * profile's catalog (what the viewer may send, the typed confirmation of high-impact commands, never a factory reset) and the
  * request history, which follows the device's `rpc` live topic (a sent request moves QUEUED → SENT → DELIVERED → SUCCESSFUL without a
  * reload; 30 s polling without a live source). A row opens the detail drawer (answer, progress, send again, cancel). Without
- * `deviceId` it is the fleet log (every device's requests, no send panel) when the host offers one.
+ * `deviceId` it is the fleet log (every device's requests, no send panel) when the host offers one. The history is a full list:
+ * its table's search, sort, filters, rows per page and paging go to the host (`RpcListQuery` page mode), one page at a time.
  */
 export type RpcConsoleViewProps = {
   deviceId?: string;
@@ -31,9 +34,9 @@ export function RpcConsoleView({ deviceId, deviceOnline, pageSize = 25, now, cla
   const { m } = useIotText();
   const [catalog, setCatalog] = useState<RpcCatalog | null>(null);
   const [items, setItems] = useState<RpcRequest[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [query, setQuery] = useState<DataTableQuery | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fresh, setFresh] = useState<ReadonlySet<string>>(new Set());
   const [openId, setOpenId] = useState<string | null>(null);
@@ -42,34 +45,48 @@ export function RpcConsoleView({ deviceId, deviceOnline, pageSize = 25, now, cla
   const openRef = useRef<string | null>(null);
   useEffect(() => { openRef.current = openId; }, [openId]);
 
+  /** The table's query as the adapter's: a 1-based page, the method search, one sort, the status and source lists. */
+  const listQuery = useCallback((q: DataTableQuery | null): RpcListQuery => {
+    const size = q?.pageSize ?? pageSize;
+    const list = (v: unknown) => (Array.isArray(v) && v.length ? v.map(String) : undefined);
+    const statuses = list(q?.filterValues.status)?.filter((s): s is RpcStatus => (RPC_STATUSES as readonly string[]).includes(s));
+    return {
+      deviceId, page: q?.page ?? 1, pageSize: size, limit: size,
+      search: q?.search.trim() || undefined, sort: q ? toIotSort(q.sort, RPC_SORT_KEYS) : undefined,
+      statuses: statuses?.length ? statuses : undefined, sources: list(q?.filterValues.source),
+    };
+  }, [deviceId, pageSize]);
+
+  // The table reports its first query on mount; nothing is read before it.
   const first = useCallback((signal?: AbortSignal): Promise<void> => {
-    if (!api) return Promise.resolve();
-    return api.list({ deviceId, limit: pageSize }, signal).then(
-      (page) => { if (!signal?.aborted) { setItems(page.items); setCursor(page.nextCursor); setError(null); setLoaded(true); } },
+    if (!api || !query) return Promise.resolve();
+    return api.list(listQuery(query), signal).then(
+      (page) => { if (!signal?.aborted) { setItems(page.items); setTotal(page.total ?? page.items.length); setError(null); setLoaded(true); } },
       (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.rpc.loadError)); setLoaded(true); } },
     );
-  }, [api, deviceId, pageSize, m.rpc.loadError]);
+  }, [api, listQuery, query, m.rpc.loadError]);
 
   useEffect(() => {
     const ctrl = new AbortController();
     first(ctrl.signal).catch(() => undefined);
+    return () => ctrl.abort();
+  }, [first]);
+
+  useEffect(() => {
+    const ctrl = new AbortController();
     if (api && deviceId) api.methods(deviceId, ctrl.signal).then((c) => { if (!ctrl.signal.aborted) setCatalog(c); }).catch(() => undefined);
     return () => ctrl.abort();
-  }, [api, deviceId, first]);
-
-  function more() {
-    if (!api || !cursor) return;
-    setLoadingMore(true);
-    api.list({ deviceId, limit: pageSize, cursor }).then(
-      (page) => { setItems((cur) => [...cur, ...page.items.filter((p) => !cur.some((c) => c.rpcId === p.rpcId))]); setCursor(page.nextCursor); },
-      (e) => notify({ tone: 'error', message: errorMessage(e, m.rpc.loadError) }),
-    ).finally(() => setLoadingMore(false));
-  }
+  }, [api, deviceId]);
 
   const upsert = useCallback((r: RpcRequest, highlight = false) => {
     setItems((cur) => {
       const i = cur.findIndex((c) => c.rpcId === r.rpcId);
-      if (i < 0) return [r, ...cur];
+      if (i < 0) {
+        // a new request belongs on the first page of the default order only; elsewhere the next read places it
+        const onTop = !query || (query.page === 1 && !query.sort.length && !query.search.trim() && !Object.keys(query.filterValues).length);
+        if (!onTop) return cur;
+        return [r, ...cur].slice(0, query?.pageSize ?? pageSize);
+      }
       const next = [...cur];
       next[i] = { ...cur[i], ...r, params: r.params ?? cur[i].params, response: r.response ?? cur[i].response };
       return next;
@@ -78,7 +95,7 @@ export function RpcConsoleView({ deviceId, deviceOnline, pageSize = 25, now, cla
       setFresh((f) => new Set([...f, r.rpcId]));
       setTimeout(() => setFresh((f) => { const n = new Set(f); n.delete(r.rpcId); return n; }), 4_000);
     }
-  }, []);
+  }, [query, pageSize]);
 
   useLiveOrPoll({
     key: deviceId ?? '*',
@@ -147,11 +164,12 @@ export function RpcConsoleView({ deviceId, deviceOnline, pageSize = 25, now, cla
           showDevice={!deviceId}
           fresh={fresh}
           onOpen={open}
-          loading={!loaded || loadingMore}
+          loading={!loaded}
           error={error}
           onRetry={() => { first().catch(() => undefined); }}
-          hasMore={!!cursor}
-          onLoadMore={more}
+          total={total}
+          onQueryChange={(q) => setQuery((prev) => (prev && JSON.stringify(prev) === JSON.stringify(q) ? prev : q))}
+          defaultQuery={{ pageSize }}
           now={now}
         />
       </section>

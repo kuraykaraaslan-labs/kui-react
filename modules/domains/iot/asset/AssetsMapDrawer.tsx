@@ -9,6 +9,7 @@ import { MapCanvas } from '@/modules/ui/MapView/MapCanvas';
 import type { MapMarker } from '@/modules/ui/MapView/types';
 import { SkeletonText } from '@/modules/ui/Skeleton';
 import { DataTable } from '@/modules/ui/Table/DataTable';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import type { Column } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessages } from '../messages';
@@ -124,6 +125,8 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
   const siteColumns = useMemo((): Column<AssetSite>[] => [{
     key: 'name',
     header: m.assets.mapSites,
+    sortable: true,
+    searchValue: (s) => `${s.name} ${s.code}`,
     render: (s) => (
       <button
         type="button"
@@ -153,22 +156,8 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
         <SkeletonText lines={6} label={m.common.loading} />
       ) : (
         <div className="flex min-h-0 flex-col gap-3 lg:h-full">
-          {(alarms || markers.length > 0) && (
+          {markers.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              {alarms && (
-                <button
-                  type="button"
-                  aria-pressed={onlyAlarmed}
-                  onClick={() => setOnlyAlarmed((v) => !v)}
-                  className={cn(
-                    'rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-                    onlyAlarmed ? 'border-primary bg-primary-subtle text-primary' : 'border-border text-text-secondary hover:bg-surface-overlay',
-                    TOUCH,
-                  )}
-                >
-                  {m.assets.filterAlarmed}
-                </button>
-              )}
               {markers.length > 0 && (
                 <Button variant="outline" size="sm" className={cn('ml-auto', TOUCH)} onClick={() => { setFocus(null); setFitRound((n) => n + 1); }}
                   iconLeft={<FontAwesomeIcon icon={faExpand} className="h-3 w-3" aria-hidden="true" />}>
@@ -205,7 +194,7 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
             </div>
             <div className="min-h-0 overflow-y-auto rounded-xl border border-border lg:w-72 lg:shrink-0" data-testid="assets-map-sites">
               <DataTable<AssetSite>
-                mode="static"
+                mode="paginated"
                 variant="plain"
                 bordered={false}
                 density="compact"
@@ -217,7 +206,14 @@ export function AssetsMapDrawer({ open = true, onClose, summary, error, onRetry,
                 rowClassName={(s) => (s.assetId === selectedId ? 'bg-surface-overlay' : undefined)}
                 emptyMessage={m.assets.mapNoSites}
                 messages={{ loading: m.common.loading, retry: m.common.retry }}
-                searchable={false}
+                searchPlaceholder={m.assets.mapSearchSites}
+                // "Only with active alarms" is the table's own filter; the map shows the same sites
+                filterFields={alarms ? [{ id: 'alarmed', type: 'checkbox', label: m.assets.filterAlarmed, match: () => true }] : undefined}
+                filterValues={onlyAlarmed ? { alarmed: true } : {}}
+                onFilterValuesChange={(v) => setOnlyAlarmed(v.alarmed === true)}
+                filtersLive
+                pageSize={25}
+                pageSizeOptions={LIST_PAGE_SIZES}
               />
               {summary.sitesTruncated && (
                 <p className="border-t border-border px-3 py-2 text-xs text-text-secondary">{fill(m.assets.mapTruncated, { n: summary.siteList.length })}</p>

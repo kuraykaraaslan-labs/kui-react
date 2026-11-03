@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { useIotText } from '../api/IotAdapterProvider';
 import { formatRelative } from '../format';
 import type { DeviceOnlineState, DeviceRegistryStatus } from '../types/device';
@@ -15,6 +16,9 @@ import { DeviceOnlineDot } from './DeviceOnlineDot';
  * a host delivers (no fetching here), an online dot with "last seen" and a stale threshold computed from `lastSeenAt`,
  * optional telemetry key columns (unit, decimals) merged by row id, and a row click (keyboard too) the host turns into an
  * action (narrow a board, open the device). Loading, error and empty states; columns drop below `md` so it fits 360 px.
+ *
+ * A full list on the DataTable's own toolbar, in the browser (the rows are the host's): search (name, label, profile, type), the
+ * Filters panel (connection, profile), sortable columns (the key columns too), rows per page and paging.
  */
 export type DeviceTableRow = {
   id: string;
@@ -95,6 +99,8 @@ export function DeviceTable({
     name: {
       key: 'name',
       header: m.devices.name,
+      sortable: true,
+      searchValue: (r) => `${r.name} ${r.label ?? ''}`,
       render: (r) => (
         <span className="flex min-w-0 flex-col">
           <span className="truncate font-medium">{r.name}</span>
@@ -105,19 +111,25 @@ export function DeviceTable({
     connection: {
       key: 'connection',
       header: m.devices.connection,
+      sortable: true,
+      searchable: false,
+      sortValue: (r) => ({ ONLINE: 0, LAST_SEEN: 1, OFFLINE: 2 } as Record<string, number>)[stateOf(r)] ?? 3,
       render: (r) => (r.status && r.status !== 'ACTIVE'
         ? <DeviceConnectionBadge online={r.online ?? null} status={r.status} size="sm" locale={lang} messages={messages} />
         : <DeviceOnlineDot state={stateOf(r)} lastSeenAt={r.lastSeenAt} staleAfterSeconds={staleAfterSeconds} locale={lang} now={at} messages={messages} />),
     },
-    profile: { key: 'profile', header: m.devices.profile, hideBelow: 'md', render: (r) => r.profile ?? '—' },
-    type: { key: 'type', header: m.device.type, hideBelow: 'lg', render: (r) => r.type ?? '—' },
+    profile: { key: 'profile', header: m.devices.profile, sortable: true, hideBelow: 'md', render: (r) => r.profile ?? '—' },
+    type: { key: 'type', header: m.device.type, sortable: true, hideBelow: 'lg', render: (r) => r.type ?? '—' },
     lastSeen: {
       key: 'lastSeen',
       header: m.devices.lastSeen,
       hideBelow: 'sm',
+      sortable: true,
+      searchable: false,
+      sortValue: (r) => (r.lastSeenAt ? new Date(r.lastSeenAt).getTime() : null),
       render: (r) => <span className="text-xs text-text-secondary">{formatRelative(r.lastSeenAt, { locale: lang, now: at })}</span>,
     },
-    address: { key: 'address', header: m.devices.address, hideBelow: 'md', render: (r) => <DeviceAddress ip={r.remoteIp} compact locale={lang} messages={messages} /> },
+    address: { key: 'address', header: m.devices.address, sortable: true, searchValue: (r) => r.remoteIp ?? '', sortValue: (r) => r.remoteIp ?? null, hideBelow: 'md', render: (r) => <DeviceAddress ip={r.remoteIp} compact locale={lang} messages={messages} /> },
   };
 
   const cols: Column<DeviceTableRow>[] = [
@@ -126,13 +138,29 @@ export function DeviceTable({
       key: `value:${kc.key}`,
       header: kc.label ?? kc.key,
       align: 'right',
+      sortable: true,
+      searchable: false,
+      sortValue: (r) => {
+        const v = r.values?.[kc.key] ?? r[kc.key];
+        return typeof v === 'number' || typeof v === 'string' ? v : v === null || v === undefined ? null : String(v);
+      },
       render: (r) => <span className="tabular-nums">{formatKeyValue(r.values?.[kc.key] ?? r[kc.key], kc, lang)}</span>,
     })),
   ];
 
+  const profiles = useMemo(() => [...new Set(rows.map((r) => r.profile).filter((p): p is string => !!p))].sort(), [rows]);
+  const filterFields = useMemo((): DataTableFilterField<DeviceTableRow>[] => [
+    {
+      id: 'connection', label: m.devices.connection, type: 'checkboxes',
+      options: [{ value: 'ONLINE', label: m.device.online }, { value: 'OFFLINE', label: m.device.offline }, { value: 'LAST_SEEN', label: m.devices.lastSeenOnly }],
+      match: (r, v) => !Array.isArray(v) || !v.length || (v as string[]).includes(stateOf(r)),
+    },
+    ...(profiles.length > 1 ? [{ id: 'profile', label: m.devices.profile, type: 'checkboxes' as const, options: profiles.map((p) => ({ value: p, label: p })) }] : []),
+  ], [m, profiles]);
+
   return (
     <DataTable<DeviceTableRow>
-      mode="manual"
+      mode="paginated"
       variant="plain"
       bordered={false}
       className={className}
@@ -141,14 +169,16 @@ export function DeviceTable({
       rows={rows as DeviceTableRow[]}
       rowId={(r) => r.id}
       onRowClick={onRowClick ? (r) => onRowClick(r) : undefined}
-      loading={loading}
-      error={error || undefined}
+      state={error ? 'error' : loading && !rows.length ? 'loading' : undefined}
+      errorMessage={error || undefined}
       onRetry={onRetry}
       emptyMessage={emptyText ?? m.deviceTable.empty}
       messages={{ loading: m.common.loading, retry: m.common.retry }}
       density="compact"
-      searchable={false}
-      pageSizeOptions={[]}
+      searchPlaceholder={m.deviceTable.search}
+      filterFields={filterFields}
+      pageSize={10}
+      pageSizeOptions={LIST_PAGE_SIZES}
       keyboardNavigation
     />
   );

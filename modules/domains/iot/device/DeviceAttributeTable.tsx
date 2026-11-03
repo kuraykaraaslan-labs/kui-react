@@ -6,13 +6,14 @@ import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { Input } from '@/modules/ui/Input';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { TabGroup } from '@/modules/ui/TabGroup';
 import { Textarea } from '@/modules/ui/Textarea';
 import { useIotText } from '../api/IotAdapterProvider';
 import { fill, formatRelative } from '../format';
-import { ATTRIBUTE_SCOPES, type AttributeEntry, type AttributeScope } from '../types/device';
+import { ATTRIBUTE_SCOPES, DESIRED_REPORTED_STATES, type AttributeEntry, type AttributeScope } from '../types/device';
 import type { IotMessagesInput } from '../messages';
 import { DesiredReportedBadge } from './DesiredReportedBadge';
 
@@ -21,6 +22,9 @@ import { DesiredReportedBadge } from './DesiredReportedBadge';
  * the desired/reported sync badge per key when the host sends one) and Client (reported by the device, read-only). Server and
  * Shared values are edited inline as JSON (validated before any request) and added or deleted when `canWrite`; a secret key
  * is write-only and never shown. Values are saved one key at a time through `onSave`.
+ *
+ * Each scope is a full list on the DataTable's own toolbar, in the browser (the host holds the scope's keys): search (key, value),
+ * sortable key, sync and updated columns, the Shared tab's sync filter, rows per page and paging.
  */
 export type DeviceAttributeTableProps = {
   entries: Partial<Record<AttributeScope, readonly AttributeEntry[]>>;
@@ -169,10 +173,12 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
   );
 
   const columns: Column<AttributeEntry>[] = [
-    { key: 'key', header: m.attribute.key, render: (e) => <code className="break-all font-mono text-xs">{e.key}</code> },
+    { key: 'key', header: m.attribute.key, sortable: true, render: (e) => <code className="break-all font-mono text-xs">{e.key}</code> },
     {
       key: 'value',
       header: m.attribute.value,
+      // a secret is never searched by its value
+      searchValue: (e) => (e.secret ? '' : valueToText(e.value)),
       render: (e) => (editing === e.key ? editor(e.key) : e.secret ? (
         <span className="inline-flex items-center gap-1 text-xs text-text-secondary">
           <FontAwesomeIcon icon={faLock} className="h-3 w-3" aria-hidden="true" />{m.attribute.secret}
@@ -184,13 +190,16 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
     ...(scope === 'SHARED' ? [{
       key: 'sync',
       header: m.attribute.device,
+      sortable: true,
+      searchable: false,
       render: (e: AttributeEntry) => (e.sync ? <DesiredReportedBadge state={e.sync} reason={e.syncReason} messages={messages} /> : null),
     }] : []),
-    { key: 'updated', header: m.attribute.updated, hideBelow: 'md', render: (e) => <span className="text-xs text-text-secondary">{formatRelative(e.updatedAt, { locale: lang, now })}</span> },
+    { key: 'updated', header: m.attribute.updated, hideBelow: 'md', sortable: true, searchable: false, sortValue: (e) => (e.updatedAt ? new Date(e.updatedAt).getTime() : null), render: (e) => <span className="text-xs text-text-secondary">{formatRelative(e.updatedAt, { locale: lang, now })}</span> },
     ...(canWrite ? [{
       key: 'actions',
       header: <span className="sr-only">{m.attribute.actions}</span>,
       align: 'right' as const,
+      searchable: false,
       render: (e: AttributeEntry) => (editing === e.key ? null : (
         <div className="flex justify-end gap-1">
           <Button variant="ghost" size="xs" iconOnly aria-label={`${m.attribute.edit} ${e.key}`} onClick={() => startEdit(e)}>
@@ -206,26 +215,32 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
     }] : []),
   ];
 
+  const filterFields: DataTableFilterField<AttributeEntry>[] = scope === 'SHARED'
+    ? [{ id: 'sync', label: m.attribute.device, type: 'checkboxes', options: DESIRED_REPORTED_STATES.map((st) => ({ value: st, label: m.sync[st] })) }]
+    : [];
+
   return (
     <div className="space-y-3 pt-3">
       <p className="text-xs text-text-secondary">
         {scope === 'CLIENT' ? m.attribute.clientReadOnly : scope === 'SHARED' ? m.attribute.sharedHint : m.attribute.serverHint}
       </p>
       <DataTable<AttributeEntry>
-        mode="manual"
+        mode="paginated"
         variant="plain"
         caption={m.attribute[scope]}
         columns={columns}
         rows={rows as AttributeEntry[]}
         rowId={(e) => e.key}
-        loading={loading}
-        error={error || undefined}
+        state={error ? 'error' : loading && !rows.length ? 'loading' : undefined}
+        errorMessage={error || undefined}
         onRetry={onRetry ? () => onRetry(scope) : undefined}
         emptyMessage={m.attribute.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
         density="compact"
-        searchable={false}
-        pageSizeOptions={[]}
+        searchPlaceholder={m.attribute.search}
+        filterFields={filterFields}
+        pageSize={20}
+        pageSizeOptions={LIST_PAGE_SIZES}
         keyboardNavigation
       />
       {canWrite && (editing === '' ? (

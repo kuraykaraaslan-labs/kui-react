@@ -255,8 +255,24 @@ describe('AssetDrawer', () => {
     await screen.findByText('Press sensor');
     await user.click(screen.getByRole('button', { name: 'Page 2' }));
     await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', { page: 2, pageSize: 10, recursive: true }, expect.anything()));
-    await user.selectOptions(screen.getAllByLabelText(/Rows per page/)[0], '50');
+    // the devices table's own rows per page (the drawer's other tables have theirs)
+    let root: HTMLElement | null = screen.getByRole('table', { name: 'Devices' }).parentElement;
+    while (root && !within(root).queryByLabelText(/Rows per page/)) root = root.parentElement;
+    await user.selectOptions(within(root!).getByLabelText(/Rows per page/), '50');
     await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', { page: 1, pageSize: 50, recursive: true }, expect.anything()));
+  });
+
+  it('searches, sorts and filters the devices on the host', async () => {
+    const user = userEvent.setup();
+    const assets = fakeAssets({ devices: vi.fn().mockResolvedValue({ items: PLACED, total: 45 }) });
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} />, assets);
+    await screen.findByText('Press sensor');
+    let root: HTMLElement | null = screen.getByRole('table', { name: 'Devices' }).parentElement;
+    while (root && !within(root).queryByRole('searchbox')) root = root.parentElement;
+    await user.type(within(root!).getByRole('searchbox'), 'press');
+    await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', expect.objectContaining({ search: 'press', recursive: true }), expect.anything()));
+    await user.click(within(screen.getByRole('table', { name: 'Devices' })).getByRole('button', { name: /Connection/ }));
+    await waitFor(() => expect(assets.devices).toHaveBeenLastCalledWith('press-line', expect.objectContaining({ sort: { key: 'connection', dir: 'asc' } }), expect.anything()));
   });
 
   it('reads the child assets through the list (parentId), opens a child and a path step in the drawer, and says when there are none', async () => {
@@ -510,15 +526,18 @@ describe('AssetsMapDrawer', () => {
     ]);
     // the kit's table (check:tables in NB), one site a row, each a button
     const list = screen.getByRole('table', { name: 'Sites' });
-    expect(within(list).getAllByRole('button').map((b) => b.textContent)).toEqual(['Berlin plant3 devices · 3 active', 'Logistics hub0 devices · 0 active · No location']);
+    const siteButtons = () => within(list).getAllByRole('button').filter((b) => b.closest('tbody'));
+    expect(siteButtons().map((b) => b.textContent)).toEqual(['Berlin plant3 devices · 3 active', 'Logistics hub0 devices · 0 active · No location']);
     // fixed to the column's width: a long name is cut off with an ellipsis, the list never scrolls sideways
     expect(list).toHaveClass('table-fixed');
     expect(within(list).getByText('Berlin plant')).toHaveClass('truncate');
     await user.click(within(list).getByRole('button', { name: /Logistics hub/ }));
     expect(within(list).getByRole('button', { name: /Logistics hub/ })).toHaveAttribute('aria-current', 'true');
     expect(within(list).getByRole('button', { name: /Logistics hub/ }).closest('tr')).toHaveClass('bg-surface-overlay');
-    await user.click(screen.getByRole('button', { name: 'Only with active alarms' }));
-    expect(within(list).getAllByRole('button')).toHaveLength(1);
+    // "Only with active alarms" is the sites table's own filter, and the map follows it
+    await user.click(screen.getByRole('button', { name: /filters/i }));
+    await user.click(screen.getByRole('checkbox', { name: 'Only with active alarms' }));
+    await waitFor(() => expect(siteButtons()).toHaveLength(1));
     await user.click(within(map).getByRole('button', { name: 'marker plant' }));
     const card = await screen.findByTestId('assets-map-site');
     expect(within(card).getByRole('link', { name: 'Alarms' })).toHaveAttribute('href', '/alarms?site=plant');
@@ -570,7 +589,6 @@ describe('AssetsMapDrawer', () => {
     // a new map fits itself to the markers
     await waitFor(() => expect(mapMounts.n).toBe(mounts + 1));
     expect(screen.getByRole('button', { name: 'Fit all' })).toHaveClass('max-sm:min-h-10');
-    expect(screen.getByRole('button', { name: 'Only with active alarms' })).toHaveClass('max-sm:min-h-10');
     await user.click(screen.getByRole('button', { name: 'marker plant' }));
     const card = await screen.findByTestId('assets-map-site');
     for (const b of within(card).getAllByRole('button')) expect(b).toHaveClass('max-sm:min-h-10');
@@ -597,7 +615,7 @@ describe('AssetsMapDrawer', () => {
     const plain = { ...SUMMARY, alarms: false, siteList: SUMMARY.siteList.map((s) => ({ ...s, alarmCount: null, worstSeverity: null, alarmsBySeverity: null })) };
     const { unmount } = wrap(<AssetsMapDrawer onClose={() => undefined} summary={plain} onListAssets={() => undefined} onOpenSite={() => undefined} />, fakeAssets());
     expect(JSON.parse(screen.getByTestId('fake-map').getAttribute('data-markers')!)[0].variant).toBe('neutral');
-    expect(screen.queryByRole('button', { name: 'Only with active alarms' })).toBeNull();
+    expect(within(screen.getByTestId('assets-map-sites')).queryByRole('button', { name: /filters/i })).toBeNull();
     unmount();
     wrap(<AssetsMapDrawer onClose={() => undefined} summary={{ ...SUMMARY, siteList: [SUMMARY.siteList[1]] }} onListAssets={() => undefined} onOpenSite={() => undefined} />, fakeAssets());
     expect(screen.getByText(/No site has a location yet/)).toBeInTheDocument();

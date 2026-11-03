@@ -7,6 +7,7 @@ import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column } from '@/modules/ui/Table/types';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
 import { fill } from '../format';
@@ -59,6 +60,9 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
     {
       key: 'key',
       header: m.schema.key,
+      sortable: true,
+      sortValue: (r) => r.k.key,
+      searchValue: (r) => r.k.key,
       render: ({ i, k }) => {
         const bad = isBad(i, k);
         return locked ? <code className="font-mono text-xs">{k.key}</code> : (
@@ -70,6 +74,9 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
     {
       key: 'type',
       header: m.schema.type,
+      sortable: true,
+      searchable: false,
+      sortValue: (r) => r.k.type ?? null,
       render: (r) => (locked ? typeLabel(r.k.type) : (
         <select className={cn(cell, 'min-w-[7rem]')} value={r.k.type ?? ''} aria-label={`${m.schema.type} ${nameOf(r)}`}
           onChange={(e) => set(r.i, { type: (e.target.value || undefined) as TelemetryKeySpec['type'] })}>
@@ -81,30 +88,40 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
     {
       key: 'unit',
       header: m.schema.unit,
+      sortable: true,
+      sortValue: (r) => r.k.unit ?? null,
+      searchValue: (r) => r.k.unit ?? '',
       render: (r) => (locked ? (r.k.unit ?? '—') : <input className={cell} value={r.k.unit ?? ''} maxLength={32} aria-label={`${m.schema.unit} ${nameOf(r)}`} onChange={(e) => set(r.i, { unit: e.target.value })} />),
     },
     {
       key: 'label',
       header: m.schema.label,
+      sortable: true,
+      sortValue: (r) => r.k.label ?? null,
+      searchValue: (r) => r.k.label ?? '',
       render: (r) => (locked ? (r.k.label ?? '—') : <input className={cn(cell, 'min-w-[10rem]')} value={r.k.label ?? ''} maxLength={128} aria-label={`${m.schema.label} ${nameOf(r)}`} onChange={(e) => set(r.i, { label: e.target.value })} />),
     },
     {
       key: 'min',
       header: m.schema.min,
+      searchable: false,
       render: (r) => (locked ? (r.k.min ?? '—') : <input className={cell} type="number" value={r.k.min ?? ''} aria-label={`${m.schema.min} ${nameOf(r)}`} onChange={(e) => set(r.i, { min: num(e.target.value) })} />),
     },
     {
       key: 'max',
       header: m.schema.max,
+      searchable: false,
       render: (r) => (locked ? (r.k.max ?? '—') : <input className={cell} type="number" value={r.k.max ?? ''} aria-label={`${m.schema.max} ${nameOf(r)}`} onChange={(e) => set(r.i, { max: num(e.target.value) })} />),
     },
     {
       key: 'decimals',
       header: m.schema.decimals,
+      searchable: false,
       render: (r) => (locked ? (r.k.decimals ?? '—') : <input className={cell} type="number" min={0} max={10} value={r.k.decimals ?? ''} aria-label={`${m.schema.decimals} ${nameOf(r)}`} onChange={(e) => set(r.i, { decimals: num(e.target.value) })} />),
     },
     ...(locked ? [] : [{
       key: 'actions',
+      searchable: false,
       header: <span className="sr-only">{m.profiles.actions}</span>,
       align: 'right' as const,
       render: (r: TelemetryRow) => (
@@ -124,7 +141,7 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
         </p>
       )}
       <DataTable<TelemetryRow>
-        mode="manual"
+        mode="paginated"
         variant="plain"
         caption={m.schema.telemetryTitle}
         columns={columns}
@@ -132,8 +149,10 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
         rowId={(r) => r.i}
         emptyMessage={m.schema.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
-        searchable={false}
-        pageSizeOptions={[]}
+        searchPlaceholder={m.schema.search}
+        filterFields={[{ id: 'type', label: m.schema.type, type: 'checkboxes', options: TYPES.map((t) => ({ value: t, label: typeLabel(t) })), match: (r, v) => !Array.isArray(v) || !v.length || (v as string[]).includes(r.k.type ?? '') }]}
+        pageSize={25}
+        pageSizeOptions={LIST_PAGE_SIZES}
         density="compact"
         tableClassName="min-w-[48rem]"
       />
