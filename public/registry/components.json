@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-03T08:30:12.917Z",
+  "generatedAt": "2026-11-03T13:49:03.207Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -7589,6 +7589,75 @@
         {
           "title": "Turkish labels, no status",
           "code": "<OpeningHours title=\"Çalışma saatleri\" showStatus={false} labels={{ closed: 'Kapalı', mo: 'Pazartesi' /* … */ }} hours={hours} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-listing-cards",
+      "name": "ListingCards",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/listing/ListingCards.tsx",
+      "abbr": "LC",
+      "description": "Website listing cards for a property, a vehicle or a room: picture, status, a free-text price and period, location and key facts. A sold or booked listing stays, dimmed.",
+      "source": "import { ListingCards } from '@/modules/domains/landing/listing/ListingCards';\n<ListingCards title=\"Current listings\" listings={listings} footnote=\"Authorisation certificate no. 3500123\" />",
+      "variants": [
+        {
+          "title": "Estate agent, with the authorisation footnote",
+          "code": "<ListingCards title=\"Current listings\" listings={[{ title: '3+1 flat with a sea view', price: '₺8,450,000', status: 'For sale', facts: [{ icon: faBed, text: '3 bedrooms' }] }]} footnote=\"…\" />"
+        },
+        {
+          "title": "Hotel rooms, wide pictures, two columns",
+          "code": "<ListingCards title=\"Rooms\" columns={2} imageShape=\"wide\" linkLabel=\"Ask for dates\" listings={[{ title: 'Double room', price: '€89', period: '/ night' }]} />"
+        },
+        {
+          "title": "Cars for sale, with marks on the picture",
+          "code": "<ListingCards columns={2} imageShape=\"wide\" listings={[{ title: 'Hatchback 1.5, 2021', marks: ['360° view'], status: 'For sale' }]} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-timetable",
+      "name": "Timetable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/schedule/Timetable.tsx",
+      "abbr": "TT",
+      "description": "A weekly class or lesson timetable: a column per day, time, class, who and where, with chips that filter by class.",
+      "source": "import { Timetable } from '@/modules/domains/landing/schedule/Timetable';\n<Timetable title=\"This week\" sessions={[{ day: 0, start: '07:00', end: '08:00', name: 'Spin', who: 'Ayşe' }]} />",
+      "variants": [
+        {
+          "title": "Gym week with a class filter",
+          "code": "<Timetable title=\"This week\" sessions={sessions} note=\"Book your place at the front desk.\" />"
+        },
+        {
+          "title": "Turkish, empty days left out",
+          "code": "<Timetable sessions={sessions} hideEmptyDays days={['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']} labels={{ all: 'Tümü', none: 'Ders yok' }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-image-marks",
+      "name": "ImageMarks",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/media/ImageMarks.tsx",
+      "abbr": "IM",
+      "description": "Large marks set into a picture (2D, 3D, Map, Live), so a card says what kind of screen it shows. Dark glass, white text, real text for screen readers.",
+      "source": "import { ImageMarks } from '@/modules/domains/landing/media/ImageMarks';\n<div className=\"relative\"><img src=\"…\" alt=\"\" /><ImageMarks marks={['2D', '3D']} /></div>",
+      "variants": [
+        {
+          "title": "On a screenshot, large and medium",
+          "code": "<ImageMarks marks={['2D', '3D']} />\n<ImageMarks marks={['Map', 'Live']} size=\"md\" position=\"top-left\" />"
         }
       ],
       "status": "stable",

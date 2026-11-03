@@ -264,6 +264,9 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'landing-announcement-bar',    title: 'AnnouncementBar',    category: 'Domain', abbr: 'AB', since: '2026-05' },
       { id: 'landing-mega-menu',           title: 'MegaMenu',           category: 'Domain', abbr: 'MM', since: '2026-05' },
       { id: 'landing-opening-hours',       title: 'OpeningHours',       category: 'Domain', abbr: 'OH', since: '2026-11' },
+      { id: 'landing-listing-cards',       title: 'ListingCards',       category: 'Domain', abbr: 'LC', since: '2026-11' },
+      { id: 'landing-timetable',           title: 'Timetable',          category: 'Domain', abbr: 'TT', since: '2026-11' },
+      { id: 'landing-image-marks',         title: 'ImageMarks',         category: 'Domain', abbr: 'IM', since: '2026-11' },
     ],
   },
   {

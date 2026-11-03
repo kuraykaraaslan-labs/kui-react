@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-03T08:30:12.917Z",
+  "generatedAt": "2026-11-03T13:49:03.207Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -4542,6 +4542,45 @@
       "since": "2026-11",
       "designTokens": [],
       "variantCount": 3
+    },
+    {
+      "id": "landing-listing-cards",
+      "name": "ListingCards",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/listing/ListingCards.tsx",
+      "abbr": "LC",
+      "description": "Website listing cards for a property, a vehicle or a room: picture, status, a free-text price and period, location and key facts. A sold or booked listing stays, dimmed.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "landing-timetable",
+      "name": "Timetable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/schedule/Timetable.tsx",
+      "abbr": "TT",
+      "description": "A weekly class or lesson timetable: a column per day, time, class, who and where, with chips that filter by class.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "landing-image-marks",
+      "name": "ImageMarks",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/media/ImageMarks.tsx",
+      "abbr": "IM",
+      "description": "Large marks set into a picture (2D, 3D, Map, Live), so a card says what kind of screen it shows. Dark glass, white text, real text for screen readers.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 1
     },
     {
       "id": "jobs-status-badge",

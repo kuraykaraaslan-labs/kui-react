@@ -1355,6 +1355,24 @@
     "category": "Domain",
     "file": "landing-opening-hours.md"
   },
+  "landing-listing-cards": {
+    "name": "ListingCards",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-listing-cards.md"
+  },
+  "landing-timetable": {
+    "name": "Timetable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-timetable.md"
+  },
+  "landing-image-marks": {
+    "name": "ImageMarks",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-image-marks.md"
+  },
   "jobs-status-badge": {
     "name": "JobStatusBadge",
     "layer": "domain",

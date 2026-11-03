@@ -15,6 +15,10 @@ import { TeamMemberCard } from '@/modules/domains/landing/team/TeamMemberCard';
 import { PartnerLogosStrip } from '@/modules/domains/landing/partner/PartnerLogosStrip';
 import { HowItWorksSection } from '@/modules/domains/landing/how-it-works/HowItWorksSection';
 import { OpeningHours, type OpeningHoursRow } from '@/modules/domains/landing/hours/OpeningHours';
+import { ListingCards, type Listing } from '@/modules/domains/landing/listing/ListingCards';
+import { Timetable, type TimetableSession } from '@/modules/domains/landing/schedule/Timetable';
+import { ImageMarks } from '@/modules/domains/landing/media/ImageMarks';
+import { faBed, faBath, faRulerCombined, faUsers, faGasPump, faGear, faCalendar } from '@fortawesome/free-solid-svg-icons';
 import {
   faBullhorn, faTag,
   faRocket, faCodeBranch, faChartLine, faPlug,
@@ -45,6 +49,28 @@ const HOURS_RESTAURANT: OpeningHoursRow[] = [
   { day: 'we', open: '12:00', close: '23:00' }, { day: 'th', open: '12:00', close: '23:00' },
   { day: 'fr', open: '12:00', close: '01:00' }, { day: 'sa', open: '12:00', close: '01:00' },
   { day: 'su', open: '12:00', close: '22:00' },
+];
+
+const LISTINGS_ESTATE: Listing[] = [
+  { title: '3+1 flat with a sea view', price: '₺8,450,000', location: 'Karşıyaka, İzmir', status: 'For sale', href: '#', imageUrl: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80', facts: [{ icon: faBed, text: '3 bedrooms' }, { icon: faBath, text: '2 bathrooms' }, { icon: faRulerCombined, text: '135 m²' }] },
+  { title: '2+1 flat near the metro', price: '₺32,000', period: '/ month', location: 'Bornova, İzmir', status: 'For rent', href: '#', imageUrl: 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80', facts: [{ icon: faBed, text: '2 bedrooms' }, { icon: faRulerCombined, text: '95 m²' }] },
+  { title: 'Detached house with a garden', location: 'Urla, İzmir', status: 'Sold', imageUrl: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80', facts: [{ icon: faBed, text: '4 bedrooms' }, { icon: faRulerCombined, text: '210 m²' }] },
+];
+const LISTINGS_ROOMS: Listing[] = [
+  { title: 'Double room, sea view', price: '€89', period: '/ night', href: '#', imageUrl: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&q=80', facts: [{ icon: faUsers, text: '2 guests' }, { icon: faBed, text: 'Double bed' }] },
+  { title: 'Suite with a terrace', price: '€149', period: '/ night', status: 'Booked', imageUrl: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&q=80', facts: [{ icon: faUsers, text: '2 guests' }, { icon: faBed, text: 'King bed' }] },
+];
+const LISTINGS_CARS: Listing[] = [
+  { title: 'Hatchback 1.5, 2021', price: '₺1,190,000', location: '48,000 km', status: 'For sale', href: '#', imageUrl: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=800&q=80', facts: [{ icon: faGasPump, text: 'Diesel' }, { icon: faGear, text: 'Automatic' }, { icon: faCalendar, text: '2021' }] },
+  { title: 'Estate 1.6, 2019', price: '₺925,000', location: '91,000 km', status: 'Reserved', imageUrl: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&q=80', facts: [{ icon: faGasPump, text: 'Petrol' }, { icon: faGear, text: 'Manual' }] },
+];
+const TIMETABLE_GYM: TimetableSession[] = [
+  { day: 0, start: '07:00', end: '08:00', name: 'Spin', who: 'Ayşe', where: 'Studio 1' },
+  { day: 0, start: '19:00', end: '20:00', name: 'Yoga', who: 'Ece', where: 'Studio 2' },
+  { day: 1, start: '18:30', end: '19:30', name: 'Strength', who: 'Mert', where: 'Gym floor' },
+  { day: 2, start: '07:00', end: '08:00', name: 'Spin', who: 'Ayşe', where: 'Studio 1' },
+  { day: 3, start: '19:00', end: '20:00', name: 'Pilates', who: 'Ece', where: 'Studio 2' },
+  { day: 5, start: '10:00', end: '11:00', name: 'HIIT', who: 'Mert', where: 'Studio 1' },
 ];
 
 const HERO_WITH_IMAGE: Hero = {
@@ -808,6 +834,77 @@ function Nav() {
             </div>
           ),
           code: `<OpeningHours title="Çalışma saatleri" showStatus={false} labels={{ closed: 'Kapalı', mo: 'Pazartesi' /* … */ }} hours={hours} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-listing-cards',
+      title: 'ListingCards',
+      category: 'Domain',
+      abbr: 'LC',
+      description: 'Website listing cards for a property, a vehicle or a room: picture, status, a free-text price and period, location and key facts. A sold or booked listing stays, dimmed.',
+      filePath: 'modules/domains/landing/listing/ListingCards.tsx',
+      sourceCode: `import { ListingCards } from '@/modules/domains/landing/listing/ListingCards';
+<ListingCards title="Current listings" listings={listings} footnote="Authorisation certificate no. 3500123" />`,
+      variants: [
+        {
+          title: 'Estate agent, with the authorisation footnote',
+          preview: <ListingCards title="Current listings" listings={LISTINGS_ESTATE} footnote="Ege Emlak · Real estate authorisation certificate no. 3500123 · Prices exclude VAT." />,
+          code: `<ListingCards title="Current listings" listings={[{ title: '3+1 flat with a sea view', price: '₺8,450,000', status: 'For sale', facts: [{ icon: faBed, text: '3 bedrooms' }] }]} footnote="…" />`,
+        },
+        {
+          title: 'Hotel rooms, wide pictures, two columns',
+          preview: <ListingCards title="Rooms" listings={LISTINGS_ROOMS} columns={2} imageShape="wide" linkLabel="Ask for dates" />,
+          code: `<ListingCards title="Rooms" columns={2} imageShape="wide" linkLabel="Ask for dates" listings={[{ title: 'Double room', price: '€89', period: '/ night' }]} />`,
+        },
+        {
+          title: 'Cars for sale, with marks on the picture',
+          preview: <ListingCards listings={LISTINGS_CARS.map((l, i) => (i === 0 ? { ...l, marks: ['360° view'] } : l))} columns={2} imageShape="wide" />,
+          code: `<ListingCards columns={2} imageShape="wide" listings={[{ title: 'Hatchback 1.5, 2021', marks: ['360° view'], status: 'For sale' }]} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-timetable',
+      title: 'Timetable',
+      category: 'Domain',
+      abbr: 'TT',
+      description: 'A weekly class or lesson timetable: a column per day, time, class, who and where, with chips that filter by class.',
+      filePath: 'modules/domains/landing/schedule/Timetable.tsx',
+      sourceCode: `import { Timetable } from '@/modules/domains/landing/schedule/Timetable';
+<Timetable title="This week" sessions={[{ day: 0, start: '07:00', end: '08:00', name: 'Spin', who: 'Ayşe' }]} />`,
+      variants: [
+        {
+          title: 'Gym week with a class filter',
+          preview: <Timetable title="This week" sessions={TIMETABLE_GYM} note="Book your place at the front desk or in the app." />,
+          code: `<Timetable title="This week" sessions={sessions} note="Book your place at the front desk." />`,
+        },
+        {
+          title: 'Turkish, empty days left out',
+          preview: <Timetable sessions={TIMETABLE_GYM} hideEmptyDays days={['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']} labels={{ all: 'Tümü', none: 'Ders yok', filter: 'Dersleri göster' }} />,
+          code: `<Timetable sessions={sessions} hideEmptyDays days={['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']} labels={{ all: 'Tümü', none: 'Ders yok' }} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-image-marks',
+      title: 'ImageMarks',
+      category: 'Domain',
+      abbr: 'IM',
+      description: 'Large marks set into a picture (2D, 3D, Map, Live), so a card says what kind of screen it shows. Dark glass, white text, real text for screen readers.',
+      filePath: 'modules/domains/landing/media/ImageMarks.tsx',
+      sourceCode: `import { ImageMarks } from '@/modules/domains/landing/media/ImageMarks';
+<div className="relative"><img src="…" alt="" /><ImageMarks marks={['2D', '3D']} /></div>`,
+      variants: [
+        {
+          title: 'On a screenshot, large and medium',
+          preview: (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="relative overflow-hidden rounded-xl"><img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80" alt="" className="aspect-[16/10] w-full object-cover" /><ImageMarks marks={['2D', '3D']} /></div>
+              <div className="relative overflow-hidden rounded-xl"><img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80" alt="" className="aspect-[16/10] w-full object-cover" /><ImageMarks marks={['Map', 'Live']} size="md" position="top-left" /></div>
+            </div>
+          ),
+          code: `<ImageMarks marks={['2D', '3D']} />\n<ImageMarks marks={['Map', 'Live']} size="md" position="top-left" />`,
         },
       ],
     },
