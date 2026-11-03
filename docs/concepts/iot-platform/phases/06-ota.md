@@ -39,3 +39,22 @@ New Domain entries: `FirmwareListView`, `FirmwareUploadDialog`, `OtaAssignDialog
 - In the demo: upload a package, assign it to a profile, watch the mock rollout move devices through the states with one failure, retry it, see the device detail show the new version.
 - (OD-7) A seeded LTE device with `fwAllowMetered` off stays "held: metered link" until the toggle is turned on for it; the toggle is off in a fresh profile.
 - (OD-13) A seeded router with "needs local approval" stays "waiting for device approval" until the mock source reports its approval.
+
+## 2026-11-03 — as built (next-boilerplate iot_ota 04)
+
+`modules/domains/iot/ota/` (demo: `/theme/iot/firmware`, `/theme/iot/firmware/package?id=`), read through its own `OtaAdapter`
+(`ota-adapter.ts`, the settings views' pattern) rather than `IotAdapter.ota`, so a host can hand-port the folder alone:
+
+- `FirmwareListView` (one DataTable: sort, filters by status, type, profile and signature; header: "Signing keys" and "Upload firmware",
+  both drawers), `FirmwareUploadDrawer` (SHA-256 in the browser shown before the upload, version check against the same name, usign `.sig`
+  file / ESP32 signature inside / unsigned, progress), `SigningKeysDrawer` (public keys only; Revoke behind the ConfirmDialog).
+- `FirmwareDetailView`: details with the signature and the key it verified with, release notes, assignments (DataTable, Remove confirmed),
+  Assign / Retire / Offer again / Revoke / Delete (each confirmed), and `OtaRolloutView` (stacked state bar + per-device DataTable with
+  "Try again"; live through `adapter.watch` when the host has one, else polling while a device is on its way).
+- `OtaAssignDrawer`: profile, some devices (picked, or a profile's devices frozen now: NB's GROUP target) or one device; "Check" is a dry
+  run whose counts and skip reasons are shown in words with the OD-7 / OD-13 rules, "Assign" confirms through the ConfirmDialog.
+- `OtaStateBadge`: NB `iot_ota` state names; WAITING is neutral with its reason (`metered`, `quota_exhausted`, `approval`) in words and a
+  tooltip. `OtaDevicePanel` (device Firmware tab: running version, current update, retry, "Allow updates over LTE" as same-as-profile /
+  allowed / not allowed with a confirmation when allowing, the router-approval note, history) and `OtaProfilePanel` (profile Firmware tab:
+  updates on/off, LTE, unsigned, time limits, tries, the profile's package and Assign).
+- Phase 03 (waves, pause/resume/cancel) is not built in NB; the rollout view is per package until it is.

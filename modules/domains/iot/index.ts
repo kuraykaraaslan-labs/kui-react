@@ -191,3 +191,11 @@ export { SETTINGS_MESSAGES, mergeSettingsMessages, settingsMessagesFrom, flatten
 export type { SettingsMessages, SettingsMessagesInput } from './settings/messages';
 export { SettingsApiError, isSettingsApiError } from './settings/settings-adapter';
 export type { DeviceSettingsAdapter, SettingsFleetAdapter, SettingsDeviceOption } from './settings/settings-adapter';
+
+// ── Firmware updates (docs/concepts/iot-platform/phases/06; next-boilerplate iot_ota 04): packages, signing keys, assignment, devices ────
+export {
+  FirmwareListView, FirmwareDetailView, FirmwareUploadDrawer, OtaAssignDrawer, OtaRolloutView, OtaStateBar, OtaDevicePanel, OtaProfilePanel,
+  SigningKeysDrawer, OtaStateBadge, OtaPackageStatusBadge, OtaTextProvider, OtaApiError, isOtaApiError, OTA_MESSAGES, mergeOtaMessages,
+  otaMessagesFrom, flattenOtaMessages,
+} from './ota';
+export type { OtaAdapter, OtaMessages, OtaMessagesInput } from './ota';
