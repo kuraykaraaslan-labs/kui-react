@@ -48,12 +48,12 @@ export default function LorawanPage() {
       <DocumentTitle text="LoRaWAN — IoT Theme" />
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
         <PageHeader title="LoRaWAN" subtitle="Gateways, end devices and the frames the cloud network server heard." actions={[{ label: 'Add gateway', onClick: () => setAddGw(true), variant: 'primary' }]} />
-        <Card className="p-4"><LoraGatewayTable rows={GATEWAYS} onOpen={(g) => { setOpen(g); setIssued(null); }} now={now} /></Card>
-        <Card className="space-y-3 p-4">
+        <Card title="Gateways" className="p-4"><LoraGatewayTable rows={GATEWAYS} onOpen={(g) => { setOpen(g); setIssued(null); }} now={now} /></Card>
+        <Card title="End devices" className="space-y-3 p-4">
           <div className="flex justify-end"><Button variant="outline" onClick={() => setAddDev(true)}>Add device</Button></div>
           <LoraDeviceTable rows={DEVICES} now={now} />
         </Card>
-        <Card className="p-4"><LoraFrameTable rows={FRAMES} deviceName={(id) => DEVICES.find((d) => d.deviceId === id)?.name ?? undefined} gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} /></Card>
+        <Card title="Frames" className="p-4"><LoraFrameTable rows={FRAMES} deviceName={(id) => DEVICES.find((d) => d.deviceId === id)?.name ?? undefined} gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} /></Card>
       </div>
       <Drawer open={addGw} onClose={() => setAddGw(false)} title="Add a gateway">
         <LoraGatewayForm onCancel={() => setAddGw(false)} onSubmit={(v) => { setAddGw(false); setIssued(ISSUED); setOpen({ ...GATEWAYS[0], gatewayId: 'new', name: v.name, eui: v.eui, live: { online: false, rttMs: null, connectedAt: null } }); }} />

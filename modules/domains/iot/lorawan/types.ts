@@ -12,6 +12,9 @@ export type LoraGatewayRow = {
 
 export type LoraJoinState = { state: string; reason?: string; at: number } | null;
 
+/** The Join filter's values (`loraJoinStateOf`): the last join accepted, refused, or none yet. */
+export type LoraJoinFilter = 'joined' | 'refused' | 'never';
+
 export type LoraDeviceRow = {
   deviceId: string;
   name: string | null;

@@ -14,6 +14,10 @@ export const LORA_MESSAGES = {
   },
   gateways: {
     caption: 'LoRaWAN gateways',
+    title: 'Gateways',
+    search: 'Search by name or EUI',
+    connection: 'Connection',
+    active: 'Active',
     name: 'Name',
     eui: 'Gateway EUI',
     protocol: 'Protocol',
@@ -63,6 +67,9 @@ export const LORA_MESSAGES = {
   },
   devices: {
     caption: 'LoRaWAN devices',
+    title: 'End devices',
+    search: 'Search by name, DevEUI or JoinEUI',
+    refused: 'Join refused',
     name: 'Name',
     devEui: 'DevEUI',
     class: 'Class',
@@ -100,6 +107,7 @@ export const LORA_MESSAGES = {
   },
   frames: {
     caption: 'LoRaWAN frames',
+    search: 'Search by device, DevEUI or DevAddr',
     time: 'Time',
     type: 'Frame',
     device: 'Device',
@@ -117,6 +125,7 @@ export const LORA_MESSAGES = {
     dropped: 'Dropped',
     processed: 'Processed',
     sent: 'Sent via {gateway}',
+    sentAny: 'Sent',
     retransmission: 'Retransmission',
     reason_unknown_devaddr: 'Unknown device address',
     reason_foreign_tenant: 'A device of another network',
