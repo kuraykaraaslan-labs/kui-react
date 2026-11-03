@@ -6,6 +6,10 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `TransportPolicyCard` (IoT kit): with plain MQTT allowed, "Commands allowed without TLS", the profile's `plaintextRpcMethods`
+  (next-boilerplate gateway 12 §10, OD-160): exact command names in a tag input, none by default, checked like the host (no wildcard, never
+  `sys.factory_reset`, at most 32, no duplicates), with the note that firmware and settings never go in clear (D222). `DeviceProfile` and
+  its draft carry `plaintextRpcMethods`; `profileDraftIssues` names `invalid_method` / `too_many_methods` / `duplicate_method`.
 - `ProvisioningKeysPanel` (IoT kit, `modules/domains/iot/profile/`, next-boilerplate iot-device-profile 02 §2.2, OD-1): a profile's provisioning
   keys for `ProvisioningSettingsCard`'s `keys` slot. The keys in a DataTable (key id and key, state in plain words, created, until when an
   old key is accepted, last used when the host records it); Create / Replace key with the days the old key keeps working (none on a factory

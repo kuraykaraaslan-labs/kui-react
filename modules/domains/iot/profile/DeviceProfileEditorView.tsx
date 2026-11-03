@@ -69,7 +69,7 @@ export type DeviceProfileEditorViewProps = {
 /** Which own tab shows the field an issue is about (for the tab's error badge). */
 const TAB_OF: Array<[RegExp, string]> = [
   [/^(name|description)$/, 'general'],
-  [/^(transportType|mqttTransport|allowTokenInUrl|allowedNetworks|allowedAuthModes|topicSchemes|anyTopicEnabled|prefixKeysWithTopic|maxTopicDepth|maxTopicLength|maxDistinctTopicsPerDevice|rawMaxBytes)$/, 'transport'],
+  [/^(transportType|mqttTransport|allowTokenInUrl|allowedNetworks|plaintextRpcMethods|allowedAuthModes|topicSchemes|anyTopicEnabled|prefixKeysWithTopic|maxTopicDepth|maxTopicLength|maxDistinctTopicsPerDevice|rawMaxBytes)$/, 'transport'],
   [/^(onlineRule|expectedIntervalS|onlineWindowFactor)$/, 'online'],
   [/^(rateLimits\..*|replayMsgsPerS|payloadMaxBytes|downlinkMaxBytes|maxInflightMessages|inactivityTimeoutSec|maxGatewayChildren|rpcTimeoutDefaultSec)$/, 'limits'],
   [/^(telemetrySchema|strictKeys)$/, 'telemetry'],
@@ -321,7 +321,7 @@ export function DeviceProfileEditorView({
       content: (
         <div className="space-y-4">
           <TransportPolicyCard value={draft} transports={offered} disabled={readOnly} transportLocked={!!profile.builtinKey} onChange={set}
-            errors={{ allowedNetworks: err('allowedNetworks'), transportType: err('transportType') }} />
+            errors={{ allowedNetworks: err('allowedNetworks'), plaintextRpcMethods: err('plaintextRpcMethods'), transportType: err('transportType') }} />
           <ProfileSection title={m.transport.authModes}>
             <AuthModeSelector value={draft.allowedAuthModes} disabled={readOnly} error={err('allowedAuthModes')} onChange={(v) => set({ allowedAuthModes: v })} />
           </ProfileSection>

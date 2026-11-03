@@ -11,6 +11,7 @@ import {
 import { OnlineRuleField, formatSeconds, type OnlineRuleValue } from './OnlineRuleField';
 import { AuthModeSelector } from './AuthModeSelector';
 import { ProtocolMappingCard } from './ProtocolMappingCard';
+import { TransportPolicyCard, type TransportPolicyValue } from './TransportPolicyCard';
 import { RateLimitEditor } from './RateLimitEditor';
 import { TelemetryKeySchemaTable } from './TelemetryKeySchemaTable';
 import { CfgSchemaTable, parseCfgEnum } from './CfgSchemaTable';
@@ -84,6 +85,41 @@ function RuleHarness({ transport, initial, onValue }: { transport: ProfileTransp
   const [v, setV] = useState(initial);
   return <OnlineRuleField value={v} transport={transport} onChange={(n) => { setV(n); onValue?.(n); }} />;
 }
+
+describe('plaintext commands (OD-160, gateway 12 §10)', () => {
+  it('a blank draft lists no command; the list mirrors the host: exact names, no wildcard, never sys.factory_reset, at most 32, no twice', () => {
+    const d = blankProfileDraft('x');
+    expect(d.plaintextRpcMethods).toEqual([]);
+    expect(profileDraftIssues({ ...d, plaintextRpcMethods: ['fan.set', 'sys.info'] }).plaintextRpcMethods).toBeUndefined();
+    for (const bad of ['fan.*', 'sys.factory_reset', 'a b', '']) expect(profileDraftIssues({ ...d, plaintextRpcMethods: [bad] }).plaintextRpcMethods, bad).toBe('invalid_method');
+    expect(profileDraftIssues({ ...d, plaintextRpcMethods: ['a', 'a'] }).plaintextRpcMethods).toBe('duplicate_method');
+    expect(profileDraftIssues({ ...d, plaintextRpcMethods: Array.from({ length: 33 }, (_, i) => `m${i}`) }).plaintextRpcMethods).toBe('too_many_methods');
+  });
+
+  it('the card asks for the list only when plain MQTT is allowed, and says firmware and settings never go in clear', async () => {
+    const user = userEvent.setup();
+    function Host({ start }: { start: TransportPolicyValue }) {
+      const [v, setV] = useState(start);
+      return <TransportPolicyCard value={v} onChange={(p) => setV((x) => ({ ...x, ...p }))} />;
+    }
+    const base: TransportPolicyValue = { transportType: 'MQTT', mqttTransport: 'TLS_REQUIRED', allowTokenInUrl: false, allowedNetworks: [], plaintextRpcMethods: [] };
+    const { unmount } = render(<Host start={base} />);
+    expect(screen.queryByLabelText('Commands allowed without TLS')).toBeNull();
+    unmount();
+    render(<Host start={{ ...base, mqttTransport: 'PLAINTEXT_ALLOWED' }} />);
+    const input = screen.getByLabelText('Commands allowed without TLS');
+    await user.type(input, 'fan.set{Enter}');
+    expect(screen.getByText('fan.set')).toBeTruthy();
+    expect(screen.getByText(/Firmware updates and device settings are never sent in clear/)).toBeTruthy();
+  });
+
+  it('draftOf copies the list (a profile from an older host without it gets none)', () => {
+    const d = blankProfileDraft('x');
+    const p = { ...d, profileId: 'p1', isDefault: false, createdAt: '', updatedAt: '' } as unknown as DeviceProfile;
+    expect(draftOf({ ...p, plaintextRpcMethods: ['fan.set'] }).plaintextRpcMethods).toEqual(['fan.set']);
+    expect(draftOf({ ...p, plaintextRpcMethods: undefined as unknown as string[] }).plaintextRpcMethods).toEqual([]);
+  });
+});
 
 describe('OnlineRuleField (OD-57, OD-63)', () => {
   it('starts with nothing chosen and disables the live connection for LoRaWAN with the reason', () => {

@@ -971,8 +971,8 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       filePath: 'modules/domains/iot/profile/TransportPolicyCard.tsx',
       usage: `<TransportPolicyCard value={draft} onChange={(p) => set(p)} />`,
       variants: [
-        { title: 'TLS only, pinned network', layout: 'stack', preview: <TransportPolicyDemo initial={{ transportType: 'ANY', mqttTransport: 'TLS_REQUIRED', allowTokenInUrl: false, allowedNetworks: ['203.0.113.0/24'] }} />, code: '<TransportPolicyCard value={{ transportType: "ANY", mqttTransport: "TLS_REQUIRED", … }} />' },
-        { title: 'Plain MQTT and URL tokens (warns)', layout: 'stack', preview: <TransportPolicyDemo initial={{ transportType: 'MQTT', mqttTransport: 'PLAINTEXT_ALLOWED', allowTokenInUrl: true, allowedNetworks: [] }} />, code: '<TransportPolicyCard value={{ mqttTransport: "PLAINTEXT_ALLOWED", allowTokenInUrl: true, … }} />' },
+        { title: 'TLS only, pinned network', layout: 'stack', preview: <TransportPolicyDemo initial={{ transportType: 'ANY', mqttTransport: 'TLS_REQUIRED', allowTokenInUrl: false, allowedNetworks: ['203.0.113.0/24'], plaintextRpcMethods: [] }} />, code: '<TransportPolicyCard value={{ transportType: "ANY", mqttTransport: "TLS_REQUIRED", … }} />' },
+        { title: 'Plain MQTT and URL tokens (warns)', layout: 'stack', preview: <TransportPolicyDemo initial={{ transportType: 'MQTT', mqttTransport: 'PLAINTEXT_ALLOWED', allowTokenInUrl: true, allowedNetworks: [], plaintextRpcMethods: ['sys.info', 'fan.set'] }} />, code: '<TransportPolicyCard value={{ mqttTransport: "PLAINTEXT_ALLOWED", plaintextRpcMethods: ["sys.info", "fan.set"], … }} />' },
       ],
     }),
     entry({

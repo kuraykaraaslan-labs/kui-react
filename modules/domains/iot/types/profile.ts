@@ -107,6 +107,12 @@ export type ProfileRangeKey = keyof typeof PROFILE_RANGES;
 
 /** The most networks one profile may pin (NB `maxAllowedNetworks`). */
 export const MAX_ALLOWED_NETWORKS = 64;
+/** OD-160 (gateway 12 §10): at most this many methods in `plaintextRpcMethods`, each an exact wire name (the host's pattern). */
+export const MAX_PLAINTEXT_RPC_METHODS = 32;
+export const PLAINTEXT_RPC_METHOD_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
+/** OD-8: never sent at all, so never on the plaintext list. */
+export const NEVER_IN_CLEAR_METHODS: readonly string[] = ['sys.factory_reset'];
+export const isPlaintextRpcMethod = (m: string): boolean => PLAINTEXT_RPC_METHOD_RE.test(m) && !NEVER_IN_CLEAR_METHODS.includes(m);
 
 /** One fallback telemetry key (01 §1.1; used when the firmware's `profile.json` is unknown, P-4). */
 export type TelemetryKeySpec = {
@@ -147,6 +153,11 @@ export type DeviceProfile = {
   mqttTransport: MqttTransportPolicy;
   allowTokenInUrl: boolean;
   allowedNetworks: string[];
+  /**
+   * OD-160 (gateway 12 §10): the RPC methods, exact wire names, that may go to a device over plain MQTT or a plain HTTP poll; every
+   * other command waits for TLS. Empty = none. `sys.factory_reset` never (OD-8). Shared `fw_*` and `cfg.*` never go in clear (D222).
+   */
+  plaintextRpcMethods: string[];
   rateLimits: ProfileRateLimits;
   replayMsgsPerS: number | null;
   downlinkMaxBytes: number;
@@ -266,6 +277,7 @@ export function blankProfileDraft(name = ''): DeviceProfileDraft {
     mqttTransport: 'TLS_REQUIRED',
     allowTokenInUrl: false,
     allowedNetworks: [],
+    plaintextRpcMethods: [],
     rateLimits: { ...DEFAULT_RATE_LIMITS },
     replayMsgsPerS: null,
     downlinkMaxBytes: 65536,
@@ -299,6 +311,7 @@ export function draftOf(p: DeviceProfile): DeviceProfileDraft {
     ...rest,
     allowedAuthModes: [...p.allowedAuthModes],
     allowedNetworks: [...p.allowedNetworks],
+    plaintextRpcMethods: [...(p.plaintextRpcMethods ?? [])],
     rateLimits: { ...DEFAULT_RATE_LIMITS, ...p.rateLimits },
     topicSchemes: [...p.topicSchemes],
     telemetrySchema: p.telemetrySchema.map((k) => ({ ...k })),
@@ -386,7 +399,7 @@ export function isNetwork(raw: string): boolean {
 export type ProfileIssue =
   | 'name_required' | 'online_rule_required' | 'online_rule_not_allowed' | 'expected_interval_required' | 'out_of_range'
   | 'auth_mode_required' | 'topic_scheme_required' | 'raw_exceeds_payload' | 'invalid_limit' | 'invalid_network' | 'too_many_networks'
-  | 'duplicate_key' | 'invalid_key';
+  | 'duplicate_key' | 'invalid_key' | 'invalid_method' | 'too_many_methods' | 'duplicate_method';
 
 const TELEMETRY_KEY = /^[A-Za-z0-9_.-]{1,64}$/;
 const RESERVED_TELEMETRY_KEY = /^(_|fw_|current_fw_|cfg\.)/;
@@ -428,6 +441,9 @@ export function profileDraftIssues(d: DeviceProfileDraft): Partial<Record<string
   for (const f of RATE_LIMIT_FAMILIES) if (!parseLimitString(d.rateLimits[f] ?? '')) out[`rateLimits.${f}`] = 'invalid_limit';
   if (d.allowedNetworks.length > MAX_ALLOWED_NETWORKS) out.allowedNetworks = 'too_many_networks';
   else if (d.allowedNetworks.some((n) => !isNetwork(n) || (n.includes(':') && n.includes('.')))) out.allowedNetworks = 'invalid_network';
+  if (d.plaintextRpcMethods.length > MAX_PLAINTEXT_RPC_METHODS) out.plaintextRpcMethods = 'too_many_methods';
+  else if (d.plaintextRpcMethods.some((x) => !isPlaintextRpcMethod(x))) out.plaintextRpcMethods = 'invalid_method';
+  else if (new Set(d.plaintextRpcMethods).size !== d.plaintextRpcMethods.length) out.plaintextRpcMethods = 'duplicate_method';
   const tKeys = d.telemetrySchema.map((k) => k.key);
   if (tKeys.some((k) => !isTelemetryKey(k))) out.telemetrySchema = 'invalid_key';
   else if (new Set(tKeys).size !== tKeys.length) out.telemetrySchema = 'duplicate_key';

@@ -590,6 +590,7 @@ export const DEVICE_PROFILES: DeviceProfile[] = [
   {
     ...profileBase, profileId: 'prof-tb', name: 'Legacy meters (ThingsBoard compatible)', description: 'Third-party meters that speak the ThingsBoard topics.', isDefault: false,
     transportType: 'MQTT', topicSchemes: ['TB'], mqttTransport: 'PLAINTEXT_ALLOWED', onlineRule: 'LIVE_SOCKET', allowedNetworks: ['198.51.100.0/24', '2001:db8::/32'],
+    plaintextRpcMethods: ['sys.info'],
     createdAt: PROFILE_T0, updatedAt: new Date('2026-09-20T15:00:00Z'),
   },
   {

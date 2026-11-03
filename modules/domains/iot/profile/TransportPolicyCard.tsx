@@ -7,7 +7,7 @@ import { TagInput } from '@/modules/ui/TagInput';
 import { Toggle } from '@/modules/ui/Toggle';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
-import { isNetwork, MQTT_TRANSPORT_POLICIES, type DeviceProfileDraft, type ProfileTransport } from '../types/profile';
+import { isNetwork, isPlaintextRpcMethod, MQTT_TRANSPORT_POLICIES, type DeviceProfileDraft, type ProfileTransport } from '../types/profile';
 import { ProfileSection } from './profile-fields';
 
 /**
@@ -15,9 +15,10 @@ import { ProfileSection } from './profile-fields';
  * LoRaWAN where the host has it), plain MQTT or TLS only (OD-160: TLS only by default; plain MQTT is a deliberate choice for devices
  * that cannot do TLS, with the risk said), tokens in the URL for devices that cannot send headers (OD-161: such a profile is HTTP-only,
  * so the card warns when the transport still names MQTT), and the networks a device may connect from (empty = any; invalid entries are
- * named before any request). Changing the transport never touches the online rule (OD-63).
+ * named before any request). With plain MQTT allowed, the commands that may still go to a device in clear (gateway 12 §10: exact method
+ * names, none by default; firmware and settings attributes never go in clear). Changing the transport never touches the online rule (OD-63).
  */
-export type TransportPolicyValue = Pick<DeviceProfileDraft, 'transportType' | 'mqttTransport' | 'allowTokenInUrl' | 'allowedNetworks'>;
+export type TransportPolicyValue = Pick<DeviceProfileDraft, 'transportType' | 'mqttTransport' | 'allowTokenInUrl' | 'allowedNetworks' | 'plaintextRpcMethods'>;
 
 export type TransportPolicyCardProps = {
   value: TransportPolicyValue;
@@ -37,6 +38,9 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
   const id = useId();
   const usesMqtt = value.transportType === 'MQTT' || value.transportType === 'ANY';
   const badNetworks = value.allowedNetworks.filter((n) => !isNetwork(n) || (n.includes(':') && n.includes('.')));
+  const plainMethods = value.plaintextRpcMethods ?? [];
+  const badMethods = plainMethods.filter((x) => !isPlaintextRpcMethod(x));
+  const showPlainMethods = usesMqtt && value.mqttTransport === 'PLAINTEXT_ALLOWED';
   return (
     <div className={cn('space-y-4', className)}>
       <ProfileSection title={m.transport.type} hint={transportLocked ? m.transport.builtinFixed : m.transport.typeHint}>
@@ -82,6 +86,21 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
               );
             })}
           </fieldset>
+        </ProfileSection>
+      )}
+
+      {showPlainMethods && (
+        <ProfileSection title={m.transport.plainCommands} hint={m.transport.plainCommandsHint}>
+          <TagInput
+            id={`${id}-plain-commands`}
+            label={m.transport.plainCommands}
+            placeholder={m.transport.plainCommandsPlaceholder}
+            value={plainMethods}
+            disabled={disabled}
+            error={errors.plaintextRpcMethods ? `${errors.plaintextRpcMethods}${badMethods.length ? ` (${badMethods.join(', ')})` : ''}` : undefined}
+            onChange={(tags) => onChange?.({ plaintextRpcMethods: tags })}
+          />
+          <Callout variant="info" title={null}>{m.transport.plainNeverSent}</Callout>
         </ProfileSection>
       )}
 
