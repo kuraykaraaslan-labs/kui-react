@@ -1349,6 +1349,12 @@
     "category": "Domain",
     "file": "landing-mega-menu.md"
   },
+  "landing-opening-hours": {
+    "name": "OpeningHours",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-opening-hours.md"
+  },
   "jobs-status-badge": {
     "name": "JobStatusBadge",
     "layer": "domain",
@@ -1738,6 +1744,12 @@
     "layer": "domain",
     "category": "Domain",
     "file": "food-featured-dish-card.md"
+  },
+  "food-menu-section": {
+    "name": "MenuSection",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "food-menu-section.md"
   },
   "travel-booking-status-badge": {
     "name": "BookingStatusBadge",

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-02T21:54:41.275Z",
+  "generatedAt": "2026-11-03T08:30:12.917Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -4531,6 +4531,19 @@
       "variantCount": 2
     },
     {
+      "id": "landing-opening-hours",
+      "name": "OpeningHours",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/hours/OpeningHours.tsx",
+      "abbr": "OH",
+      "description": "A business's weekly opening hours: split days, spans past midnight, today marked and an \"open now\" line in the business's own time zone.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 3
+    },
+    {
       "id": "jobs-status-badge",
       "name": "JobStatusBadge",
       "layer": "domain",
@@ -5372,6 +5385,19 @@
       "since": "2026-05",
       "designTokens": [],
       "variantCount": 2
+    },
+    {
+      "id": "food-menu-section",
+      "name": "MenuSection",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/food/menu/MenuSection.tsx",
+      "abbr": "MS",
+      "description": "A website menu or price list section: free-text prices, dietary and highlight tags, a classic dotted-leader list or cards with photos. The website counterpart of MenuItemCard.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 3
     },
     {
       "id": "travel-booking-status-badge",

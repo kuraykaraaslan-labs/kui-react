@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-02T21:54:41.275Z",
+  "generatedAt": "2026-11-03T08:30:12.917Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -7569,6 +7569,33 @@
       "designTokens": []
     },
     {
+      "id": "landing-opening-hours",
+      "name": "OpeningHours",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/hours/OpeningHours.tsx",
+      "abbr": "OH",
+      "description": "A business's weekly opening hours: split days, spans past midnight, today marked and an \"open now\" line in the business's own time zone.",
+      "source": "import { OpeningHours } from '@/modules/domains/landing/hours/OpeningHours';\n<OpeningHours hours={hours} timeZone=\"Europe/Istanbul\" />",
+      "variants": [
+        {
+          "title": "Card with \"open now\"",
+          "code": "<OpeningHours hours={hours} timeZone=\"Europe/Istanbul\" note=\"Closed on public holidays.\" />"
+        },
+        {
+          "title": "Plain, split day and late nights",
+          "code": "<OpeningHours variant=\"plain\" title=\"Kitchen hours\" hours={[{ day: 'tu', open: '12:00', close: '15:00' }, { day: 'tu', open: '18:00', close: '23:00' }]} />"
+        },
+        {
+          "title": "Turkish labels, no status",
+          "code": "<OpeningHours title=\"Çalışma saatleri\" showStatus={false} labels={{ closed: 'Kapalı', mo: 'Pazartesi' /* … */ }} hours={hours} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
       "id": "jobs-status-badge",
       "name": "JobStatusBadge",
       "layer": "domain",
@@ -9054,6 +9081,33 @@
       "designTokens": []
     },
     {
+      "id": "food-menu-section",
+      "name": "MenuSection",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/food/menu/MenuSection.tsx",
+      "abbr": "MS",
+      "description": "A website menu or price list section: free-text prices, dietary and highlight tags, a classic dotted-leader list or cards with photos. The website counterpart of MenuItemCard.",
+      "source": "import { MenuSection } from '@/modules/domains/food/menu/MenuSection';\n<MenuSection title=\"Starters\" items={items} />",
+      "variants": [
+        {
+          "title": "Classic list (dotted leaders)",
+          "code": "<MenuSection title=\"Starters\" items={[{ name: 'Lentil soup', price: '₺160', tags: ['vegetarian'] }]} />"
+        },
+        {
+          "title": "Cards",
+          "code": "<MenuSection title=\"Starters\" layout=\"cards\" items={items} />"
+        },
+        {
+          "title": "Salon price list (no title, \"from\" prices)",
+          "code": "<MenuSection items={[{ name: 'Cut & blow-dry', price: 'from ₺600' }]} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
       "id": "travel-booking-status-badge",
       "name": "BookingStatusBadge",
       "layer": "domain",
@@ -10469,7 +10523,7 @@
         },
         {
           "title": "Plain MQTT and URL tokens (warns)",
-          "code": "<TransportPolicyCard value={{ mqttTransport: \"PLAINTEXT_ALLOWED\", allowTokenInUrl: true, … }} />"
+          "code": "<TransportPolicyCard value={{ mqttTransport: \"PLAINTEXT_ALLOWED\", plaintextRpcMethods: [\"sys.info\", \"fan.set\"], … }} />"
         }
       ],
       "status": "beta",

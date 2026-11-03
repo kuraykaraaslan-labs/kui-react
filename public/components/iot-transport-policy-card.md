@@ -20,7 +20,7 @@ How a profile’s devices reach the platform: transport, TLS only or plain MQTT 
 ### Plain MQTT and URL tokens (warns)
 
 ```tsx
-<TransportPolicyCard value={{ mqttTransport: "PLAINTEXT_ALLOWED", allowTokenInUrl: true, … }} />
+<TransportPolicyCard value={{ mqttTransport: "PLAINTEXT_ALLOWED", plaintextRpcMethods: ["sys.info", "fan.set"], … }} />
 ```
 
 ## Full source
