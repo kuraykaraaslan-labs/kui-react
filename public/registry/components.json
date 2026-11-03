@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-03T15:18:52.834Z",
+  "generatedAt": "2026-11-03T16:51:37.836Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -7723,6 +7723,162 @@
         {
           "title": "A mover",
           "code": "<QuoteCalculator currency=\"€\" baseFee={150} roundTo={10} inputs={[…]} extras={[…]} ctaHref=\"/contact\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-event-dates",
+      "name": "EventDates",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/events/EventDates.tsx",
+      "abbr": "ED",
+      "description": "Tour dates, fixtures or performances: a calendar badge, the venue, a status and a ticket link; past dates drop off in the visitor's browser.",
+      "source": "import { EventDates } from '@/modules/domains/landing/events/EventDates';\n<EventDates title=\"Tour dates\" dates={dates} />",
+      "variants": [
+        {
+          "title": "Tour dates",
+          "code": "<EventDates title=\"Tour dates\" dates={[{ date: '2030-10-02', time: '20:00', title: 'Live at the Arena', venue: 'Arena', city: 'Lisbon', href: '/tickets' }]} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-careers",
+      "name": "CareersSection",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/careers/CareersSection.tsx",
+      "abbr": "CS",
+      "description": "Open positions with team, place, contract and an apply link, a team filter and an open application.",
+      "source": "import { CareersSection } from '@/modules/domains/landing/careers/CareersSection';\n<CareersSection title=\"Work with us\" roles={roles} generalHref=\"/contact\" />",
+      "variants": [
+        {
+          "title": "Two teams",
+          "code": "<CareersSection title=\"Work with us\" roles={roles} generalHref=\"/contact\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-downloads",
+      "name": "Downloads",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/downloads/Downloads.tsx",
+      "abbr": "DL",
+      "description": "Files to download with an icon for their kind, their size and a named download link.",
+      "source": "import { Downloads } from '@/modules/domains/landing/downloads/Downloads';\n<Downloads files={[{ title: 'Catalogue 2026', href: '/catalogue.pdf', size: '2.4 MB' }]} />",
+      "variants": [
+        {
+          "title": "Brochures and forms",
+          "code": "<Downloads title=\"Downloads\" files={files} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-certificates",
+      "name": "Certificates",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/trust/Certificates.tsx",
+      "abbr": "CE",
+      "description": "Certificates, memberships and awards as badges with issuer, year, number and a verify link.",
+      "source": "import { Certificates } from '@/modules/domains/landing/trust/Certificates';\n<Certificates items={[{ title: 'ISO 9001', issuer: 'Bureau', year: '2025', verifyHref: 'https://…' }]} />",
+      "variants": [
+        {
+          "title": "Licences and awards",
+          "code": "<Certificates title=\"Licences and awards\" items={items} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-gift-voucher",
+      "name": "GiftVoucher",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/gift/GiftVoucher.tsx",
+      "abbr": "GV",
+      "description": "A gift voucher card in the brand colours, amount buttons and a buy link with the amount filled in.",
+      "source": "import { GiftVoucher } from '@/modules/domains/landing/gift/GiftVoucher';\n<GiftVoucher businessName=\"Serene Spa\" currency=\"€\" amounts={[50, 100, 150]} buyHref=\"/shop/voucher\" />",
+      "variants": [
+        {
+          "title": "A spa voucher",
+          "code": "<GiftVoucher businessName=\"Serene Spa\" currency=\"€\" amounts={[50, 100, 150]} buyHref=\"/shop/voucher\" terms=\"Valid for 12 months.\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-qr-codes",
+      "name": "QrCodes",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/media/QrCodes.tsx",
+      "abbr": "QR",
+      "description": "QR codes to any page, or one per table for a table menu, drawn in the browser and ready to print.",
+      "source": "import { QrCodes } from '@/modules/domains/landing/media/QrCodes';\n<QrCodes url=\"/menu\" tables={6} />",
+      "variants": [
+        {
+          "title": "One code",
+          "code": "<QrCodes url=\"/menu\" caption=\"Scan for the menu\" />"
+        },
+        {
+          "title": "One per table",
+          "code": "<QrCodes url=\"/menu\" tables={4} labels={{ table: 'Masa' }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-newsletter",
+      "name": "NewsletterSignup",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/newsletter/NewsletterSignup.tsx",
+      "abbr": "NL",
+      "description": "An e-mail sign-up with a required consent box and a privacy link; the host sends the address on.",
+      "source": "import { NewsletterSignup } from '@/modules/domains/landing/newsletter/NewsletterSignup';\n<NewsletterSignup onSubscribe={async (email) => subscribe(email)} privacyHref=\"/privacy\" />",
+      "variants": [
+        {
+          "title": "Sign-up",
+          "code": "<NewsletterSignup title=\"Stay in the loop\" privacyHref=\"/privacy\" onSubscribe={async (email) => subscribe(email)} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-reviews-strip",
+      "name": "ReviewsStrip",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/reviews/ReviewsStrip.tsx",
+      "abbr": "RS",
+      "description": "Reviews copied from Google, Instagram, Facebook or Tripadvisor with stars and source, the overall score and a link to the source.",
+      "source": "import { ReviewsStrip } from '@/modules/domains/landing/reviews/ReviewsStrip';\n<ReviewsStrip score={4.8} count={120} source=\"google\" reviews={reviews} />",
+      "variants": [
+        {
+          "title": "Google reviews",
+          "code": "<ReviewsStrip title=\"What guests say\" score={4.8} count={128} source=\"google\" reviews={reviews} />"
         }
       ],
       "status": "stable",

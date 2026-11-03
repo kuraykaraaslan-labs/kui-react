@@ -21,6 +21,14 @@ import { ImageMarks } from '@/modules/domains/landing/media/ImageMarks';
 import { Branches, type Branch } from '@/modules/domains/landing/locations/Branches';
 import { BeforeAfter } from '@/modules/domains/landing/media/BeforeAfter';
 import { QuoteCalculator } from '@/modules/domains/landing/pricing/QuoteCalculator';
+import { EventDates } from '@/modules/domains/landing/events/EventDates';
+import { CareersSection } from '@/modules/domains/landing/careers/CareersSection';
+import { Downloads } from '@/modules/domains/landing/downloads/Downloads';
+import { Certificates } from '@/modules/domains/landing/trust/Certificates';
+import { GiftVoucher } from '@/modules/domains/landing/gift/GiftVoucher';
+import { QrCodes } from '@/modules/domains/landing/media/QrCodes';
+import { NewsletterSignup } from '@/modules/domains/landing/newsletter/NewsletterSignup';
+import { ReviewsStrip } from '@/modules/domains/landing/reviews/ReviewsStrip';
 import { faBed, faBath, faRulerCombined, faUsers, faGasPump, faGear, faCalendar } from '@fortawesome/free-solid-svg-icons';
 import {
   faBullhorn, faTag,
@@ -983,6 +991,139 @@ function Nav() {
             />
           ),
           code: `<QuoteCalculator currency="€" baseFee={150} roundTo={10} inputs={[…]} extras={[…]} ctaHref="/contact" />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-event-dates',
+      title: 'EventDates',
+      category: 'Domain',
+      abbr: 'ED',
+      description: "Tour dates, fixtures or performances: a calendar badge, the venue, a status and a ticket link; past dates drop off in the visitor's browser.",
+      filePath: 'modules/domains/landing/events/EventDates.tsx',
+      sourceCode: `import { EventDates } from '@/modules/domains/landing/events/EventDates';\n<EventDates title="Tour dates" dates={dates} />`,
+      variants: [
+        {
+          title: 'Tour dates',
+          preview: <EventDates title="Tour dates" dates={[{ date: '2030-10-02', time: '20:00', title: 'Live at the Arena', venue: 'Arena', city: 'Lisbon', href: '#' }, { date: '2030-10-04', time: '21:00', title: 'Club night', venue: 'Lux', city: 'Porto', status: 'Sold out' }, { date: '2030-10-09', time: '20:00', title: 'Festival', venue: 'Main stage', city: 'Madrid', status: 'Few left', href: '#' }]} />,
+          code: `<EventDates title="Tour dates" dates={[{ date: '2030-10-02', time: '20:00', title: 'Live at the Arena', venue: 'Arena', city: 'Lisbon', href: '/tickets' }]} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-careers',
+      title: 'CareersSection',
+      category: 'Domain',
+      abbr: 'CS',
+      description: 'Open positions with team, place, contract and an apply link, a team filter and an open application.',
+      filePath: 'modules/domains/landing/careers/CareersSection.tsx',
+      sourceCode: `import { CareersSection } from '@/modules/domains/landing/careers/CareersSection';\n<CareersSection title="Work with us" roles={roles} generalHref="/contact" />`,
+      variants: [
+        {
+          title: 'Two teams',
+          preview: <CareersSection title="Work with us" generalHref="#" roles={[{ title: 'Chef de partie', team: 'Kitchen', location: 'City centre', type: 'Full-time', description: 'Hot section, modern Mediterranean.', href: '#' }, { title: 'Host', team: 'Floor', location: 'City centre', type: 'Part-time', href: '#' }, { title: 'Pastry chef', team: 'Kitchen', location: 'Bakery', type: 'Full-time', href: '#' }]} />,
+          code: `<CareersSection title="Work with us" roles={roles} generalHref="/contact" />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-downloads',
+      title: 'Downloads',
+      category: 'Domain',
+      abbr: 'DL',
+      description: 'Files to download with an icon for their kind, their size and a named download link.',
+      filePath: 'modules/domains/landing/downloads/Downloads.tsx',
+      sourceCode: `import { Downloads } from '@/modules/domains/landing/downloads/Downloads';\n<Downloads files={[{ title: 'Catalogue 2026', href: '/catalogue.pdf', size: '2.4 MB' }]} />`,
+      variants: [
+        {
+          title: 'Brochures and forms',
+          preview: <Downloads title="Downloads" files={[{ title: 'Catalogue 2026', href: '/files/catalogue.pdf', size: '2.4 MB', description: 'All products' }, { title: 'Price list', href: '/files/prices.xlsx', size: '120 KB' }, { title: 'Press kit', href: '/files/press.zip', size: '18 MB' }]} />,
+          code: `<Downloads title="Downloads" files={files} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-certificates',
+      title: 'Certificates',
+      category: 'Domain',
+      abbr: 'CE',
+      description: 'Certificates, memberships and awards as badges with issuer, year, number and a verify link.',
+      filePath: 'modules/domains/landing/trust/Certificates.tsx',
+      sourceCode: `import { Certificates } from '@/modules/domains/landing/trust/Certificates';\n<Certificates items={[{ title: 'ISO 9001', issuer: 'Bureau', year: '2025', verifyHref: 'https://…' }]} />`,
+      variants: [
+        {
+          title: 'Licences and awards',
+          preview: <Certificates title="Licences and awards" items={[{ title: 'ISO 9001', issuer: 'Certification body', year: '2025', number: 'Q-4411', verifyHref: 'https://example.com' }, { title: 'Hygiene rating 5', issuer: 'Food agency', year: '2026' }, { title: 'Best new studio', issuer: 'Design awards', year: '2024' }, { title: 'Member', issuer: 'Trade association' }]} />,
+          code: `<Certificates title="Licences and awards" items={items} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-gift-voucher',
+      title: 'GiftVoucher',
+      category: 'Domain',
+      abbr: 'GV',
+      description: 'A gift voucher card in the brand colours, amount buttons and a buy link with the amount filled in.',
+      filePath: 'modules/domains/landing/gift/GiftVoucher.tsx',
+      sourceCode: `import { GiftVoucher } from '@/modules/domains/landing/gift/GiftVoucher';\n<GiftVoucher businessName="Serene Spa" currency="€" amounts={[50, 100, 150]} buyHref="/shop/voucher" />`,
+      variants: [
+        {
+          title: 'A spa voucher',
+          preview: <GiftVoucher title="Give a day of calm" subtitle="A voucher for any treatment." businessName="Serene Spa" currency="€" amounts={[50, 100, 150]} buyHref="#" terms="Valid for 12 months. Not exchangeable for cash." />,
+          code: `<GiftVoucher businessName="Serene Spa" currency="€" amounts={[50, 100, 150]} buyHref="/shop/voucher" terms="Valid for 12 months." />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-qr-codes',
+      title: 'QrCodes',
+      category: 'Domain',
+      abbr: 'QR',
+      description: 'QR codes to any page, or one per table for a table menu, drawn in the browser and ready to print.',
+      filePath: 'modules/domains/landing/media/QrCodes.tsx',
+      sourceCode: `import { QrCodes } from '@/modules/domains/landing/media/QrCodes';\n<QrCodes url="/menu" tables={6} />`,
+      variants: [
+        {
+          title: 'One code',
+          preview: <QrCodes url="/menu" caption="Scan for the menu" showPrint={false} />,
+          code: `<QrCodes url="/menu" caption="Scan for the menu" />`,
+        },
+        {
+          title: 'One per table',
+          preview: <QrCodes url="/menu" tables={4} labels={{ table: 'Masa' }} />,
+          code: `<QrCodes url="/menu" tables={4} labels={{ table: 'Masa' }} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-newsletter',
+      title: 'NewsletterSignup',
+      category: 'Domain',
+      abbr: 'NL',
+      description: 'An e-mail sign-up with a required consent box and a privacy link; the host sends the address on.',
+      filePath: 'modules/domains/landing/newsletter/NewsletterSignup.tsx',
+      sourceCode: `import { NewsletterSignup } from '@/modules/domains/landing/newsletter/NewsletterSignup';\n<NewsletterSignup onSubscribe={async (email) => subscribe(email)} privacyHref="/privacy" />`,
+      variants: [
+        {
+          title: 'Sign-up',
+          preview: <NewsletterSignup title="Stay in the loop" subtitle="News and offers, about once a month." privacyHref="#" onSubscribe={async () => true} />,
+          code: `<NewsletterSignup title="Stay in the loop" privacyHref="/privacy" onSubscribe={async (email) => subscribe(email)} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-reviews-strip',
+      title: 'ReviewsStrip',
+      category: 'Domain',
+      abbr: 'RS',
+      description: 'Reviews copied from Google, Instagram, Facebook or Tripadvisor with stars and source, the overall score and a link to the source.',
+      filePath: 'modules/domains/landing/reviews/ReviewsStrip.tsx',
+      sourceCode: `import { ReviewsStrip } from '@/modules/domains/landing/reviews/ReviewsStrip';\n<ReviewsStrip score={4.8} count={120} source="google" reviews={reviews} />`,
+      variants: [
+        {
+          title: 'Google reviews',
+          preview: <ReviewsStrip title="What guests say" score={4.8} count={128} source="google" profileHref="https://example.com" reviews={[{ name: 'Ada', rating: 5, text: 'Lovely staff and the best coffee in town.', date: 'Oct 2026' }, { name: 'Mert', rating: 5, text: 'Booked a birthday, everything was perfect.', source: 'instagram' }, { name: 'Lea', rating: 4, text: 'Great food, a little busy on Saturdays.', source: 'tripadvisor' }]} />,
+          code: `<ReviewsStrip title="What guests say" score={4.8} count={128} source="google" reviews={reviews} />`,
         },
       ],
     },

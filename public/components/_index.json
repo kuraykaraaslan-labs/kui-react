@@ -1391,6 +1391,54 @@
     "category": "Domain",
     "file": "landing-quote-calculator.md"
   },
+  "landing-event-dates": {
+    "name": "EventDates",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-event-dates.md"
+  },
+  "landing-careers": {
+    "name": "CareersSection",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-careers.md"
+  },
+  "landing-downloads": {
+    "name": "Downloads",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-downloads.md"
+  },
+  "landing-certificates": {
+    "name": "Certificates",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-certificates.md"
+  },
+  "landing-gift-voucher": {
+    "name": "GiftVoucher",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-gift-voucher.md"
+  },
+  "landing-qr-codes": {
+    "name": "QrCodes",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-qr-codes.md"
+  },
+  "landing-newsletter": {
+    "name": "NewsletterSignup",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-newsletter.md"
+  },
+  "landing-reviews-strip": {
+    "name": "ReviewsStrip",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-reviews-strip.md"
+  },
   "jobs-status-badge": {
     "name": "JobStatusBadge",
     "layer": "domain",
