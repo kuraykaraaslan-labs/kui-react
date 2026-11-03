@@ -14,6 +14,7 @@ import { StatsBar } from '@/modules/domains/landing/stat/StatsBar';
 import { TeamMemberCard } from '@/modules/domains/landing/team/TeamMemberCard';
 import { PartnerLogosStrip } from '@/modules/domains/landing/partner/PartnerLogosStrip';
 import { HowItWorksSection } from '@/modules/domains/landing/how-it-works/HowItWorksSection';
+import { OpeningHours, type OpeningHoursRow } from '@/modules/domains/landing/hours/OpeningHours';
 import {
   faBullhorn, faTag,
   faRocket, faCodeBranch, faChartLine, faPlug,
@@ -32,6 +33,19 @@ import type {
 } from '@/modules/domains/landing/types';
 
 /* ─── demo data ─── */
+
+const HOURS_SHOP: OpeningHoursRow[] = [
+  ...(['mo', 'tu', 'we', 'th', 'fr'] as const).map((day) => ({ day, open: '09:00', close: '18:00' })),
+  { day: 'sa', open: '10:00', close: '16:00' },
+  { day: 'su', closed: true },
+];
+
+const HOURS_RESTAURANT: OpeningHoursRow[] = [
+  { day: 'tu', open: '12:00', close: '15:00' }, { day: 'tu', open: '18:00', close: '23:00' },
+  { day: 'we', open: '12:00', close: '23:00' }, { day: 'th', open: '12:00', close: '23:00' },
+  { day: 'fr', open: '12:00', close: '01:00' }, { day: 'sa', open: '12:00', close: '01:00' },
+  { day: 'su', open: '12:00', close: '22:00' },
+];
 
 const HERO_WITH_IMAGE: Hero = {
   eyebrow: 'Now in public beta',
@@ -761,6 +775,40 @@ function Nav() {
       variants: [
         { title: 'Product menu (with FeaturedCard)', layout: 'stack', preview: <MegaMenuProductDemo />, code: `<MegaMenu.Root id="product" openId={openId} onOpen={open} onScheduleClose={scheduleClose}>\n  <MegaMenu.Trigger label="Product" isOpen={openId === 'product'} />\n  {openId === 'product' && (\n    <MegaMenu.Panel id="product" onOpen={open} onScheduleClose={scheduleClose} width="w-[560px]">\n      ...\n    </MegaMenu.Panel>\n  )}\n</MegaMenu.Root>` },
         { title: 'Resources menu (2-column grid)', layout: 'stack', preview: <MegaMenuResourcesDemo />, code: `<MegaMenu.Section label="Resources">\n  <div className="grid grid-cols-2 gap-0.5">\n    {items.map((item) => <MegaMenu.Item key={item.label} {...item} iconVariant="neutral" />)}\n  </div>\n</MegaMenu.Section>` },
+      ],
+    },
+    {
+      id: 'landing-opening-hours',
+      title: 'OpeningHours',
+      category: 'Domain',
+      abbr: 'OH',
+      description: "A business's weekly opening hours: split days, spans past midnight, today marked and an \"open now\" line in the business's own time zone.",
+      filePath: 'modules/domains/landing/hours/OpeningHours.tsx',
+      sourceCode: `import { OpeningHours } from '@/modules/domains/landing/hours/OpeningHours';
+<OpeningHours hours={hours} timeZone="Europe/Istanbul" />`,
+      variants: [
+        {
+          title: 'Card with "open now"',
+          preview: <div className="max-w-md"><OpeningHours hours={HOURS_SHOP} timeZone="Europe/Istanbul" note="Closed on public holidays." /></div>,
+          code: `<OpeningHours hours={hours} timeZone="Europe/Istanbul" note="Closed on public holidays." />`,
+        },
+        {
+          title: 'Plain, split day and late nights',
+          preview: <div className="max-w-md"><OpeningHours variant="plain" title="Kitchen hours" hours={HOURS_RESTAURANT} timeZone="Europe/Istanbul" /></div>,
+          code: `<OpeningHours variant="plain" title="Kitchen hours" hours={[{ day: 'tu', open: '12:00', close: '15:00' }, { day: 'tu', open: '18:00', close: '23:00' }]} />`,
+        },
+        {
+          title: 'Turkish labels, no status',
+          preview: (
+            <div className="max-w-md">
+              <OpeningHours
+                title="Çalışma saatleri" hours={HOURS_SHOP} showStatus={false}
+                labels={{ closed: 'Kapalı', mo: 'Pazartesi', tu: 'Salı', we: 'Çarşamba', th: 'Perşembe', fr: 'Cuma', sa: 'Cumartesi', su: 'Pazar' }}
+              />
+            </div>
+          ),
+          code: `<OpeningHours title="Çalışma saatleri" showStatus={false} labels={{ closed: 'Kapalı', mo: 'Pazartesi' /* … */ }} hours={hours} />`,
+        },
       ],
     },
   ];

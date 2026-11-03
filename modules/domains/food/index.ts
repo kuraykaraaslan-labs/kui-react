@@ -14,3 +14,5 @@ export { CuisineHeroBanner } from './cuisine/CuisineHeroBanner';
 export type { CuisineIconKey } from './cuisine/CuisineHeroBanner';
 export { CuisineTagChip } from './cuisine/CuisineTagChip';
 export { FeaturedDishCard } from './menu/FeaturedDishCard';
+export { MenuSection } from './menu/MenuSection';
+export type { MenuSectionItem, MenuSectionTag } from './menu/MenuSection';

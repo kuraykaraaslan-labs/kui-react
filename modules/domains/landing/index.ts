@@ -5,6 +5,8 @@ export { FeatureCard } from './feature/FeatureCard';
 export { FeatureGrid } from './feature/FeatureGrid';
 export { HeroSection } from './hero/HeroSection';
 export { HowItWorksSection } from './how-it-works/HowItWorksSection';
+export { OpeningHours, isOpenAt } from './hours/OpeningHours';
+export type { OpeningHoursRow, WeekDay } from './hours/OpeningHours';
 export { AnnouncementBar } from './nav/AnnouncementBar';
 export { MegaMenu, useMegaMenu } from './nav/MegaMenu';
 export { PartnerLogosStrip } from './partner/PartnerLogosStrip';

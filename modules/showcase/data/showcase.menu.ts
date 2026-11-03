@@ -263,6 +263,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'landing-how-it-works',        title: 'HowItWorksSection',  category: 'Domain', abbr: 'HW', since: '2026-05' },
       { id: 'landing-announcement-bar',    title: 'AnnouncementBar',    category: 'Domain', abbr: 'AB', since: '2026-05' },
       { id: 'landing-mega-menu',           title: 'MegaMenu',           category: 'Domain', abbr: 'MM', since: '2026-05' },
+      { id: 'landing-opening-hours',       title: 'OpeningHours',       category: 'Domain', abbr: 'OH', since: '2026-11' },
     ],
   },
   {
@@ -441,6 +442,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'food-cuisine-hero-banner',     title: 'CuisineHeroBanner',     category: 'Domain', abbr: 'CB', since: '2026-05' },
       { id: 'food-cuisine-tag-chip',        title: 'CuisineTagChip',        category: 'Domain', abbr: 'TC', since: '2026-05' },
       { id: 'food-featured-dish-card',      title: 'FeaturedDishCard',      category: 'Domain', abbr: 'FD', since: '2026-05' },
+      { id: 'food-menu-section',            title: 'MenuSection',           category: 'Domain', abbr: 'MS', since: '2026-11' },
     ],
   },
   {

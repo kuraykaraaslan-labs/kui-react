@@ -11,8 +11,21 @@ import { EtaCountdownCard } from '@/modules/domains/food/order/EtaCountdownCard'
 import { CuisineHeroBanner } from '@/modules/domains/food/cuisine/CuisineHeroBanner';
 import { CuisineTagChip } from '@/modules/domains/food/cuisine/CuisineTagChip';
 import { FeaturedDishCard } from '@/modules/domains/food/menu/FeaturedDishCard';
+import { MenuSection, type MenuSectionItem } from '@/modules/domains/food/menu/MenuSection';
 
 /* ─── demo data ─── */
+
+const DEMO_MENU_SECTION: MenuSectionItem[] = [
+  { name: 'Lentil soup', description: 'Red lentils, lemon, mint butter', price: '₺160', tags: ['vegetarian'] },
+  { name: 'Grilled halloumi', description: 'Watermelon, basil', price: '₺240', tags: ['vegetarian', 'popular'] },
+  { name: 'Stuffed vine leaves', description: 'Rice, pine nuts, currants', price: '₺240', tags: ['vegan', 'gluten-free'] },
+];
+
+const DEMO_PRICE_LIST: MenuSectionItem[] = [
+  { name: 'Cut & blow-dry', price: 'from ₺600' },
+  { name: 'Balayage', description: 'Including toner and care', price: 'from ₺2.500', tags: ['popular'] },
+  { name: 'Gel polish', price: '₺650', tags: ['new'] },
+];
 
 const DEMO_RESTAURANT = {
   restaurantId: 'r-demo',
@@ -527,6 +540,33 @@ export function buildFoodDomainData(): ShowcaseComponent[] {
             </div>
           ),
           code: `<FeaturedDishCard name="Spicy Tonkotsu Ramen" restaurantName="Sakura Bento" price={15.5} currency="USD" hot />`,
+        },
+      ],
+    },
+    {
+      id: 'food-menu-section',
+      title: 'MenuSection',
+      category: 'Domain',
+      abbr: 'MS',
+      description: 'A website menu or price list section: free-text prices, dietary and highlight tags, a classic dotted-leader list or cards with photos. The website counterpart of MenuItemCard.',
+      filePath: 'modules/domains/food/menu/MenuSection.tsx',
+      sourceCode: `import { MenuSection } from '@/modules/domains/food/menu/MenuSection';
+<MenuSection title="Starters" items={items} />`,
+      variants: [
+        {
+          title: 'Classic list (dotted leaders)',
+          preview: <div className="max-w-xl"><MenuSection title="Starters" items={DEMO_MENU_SECTION} /></div>,
+          code: `<MenuSection title="Starters" items={[{ name: 'Lentil soup', price: '₺160', tags: ['vegetarian'] }]} />`,
+        },
+        {
+          title: 'Cards',
+          preview: <div className="max-w-3xl"><MenuSection title="Starters" layout="cards" items={DEMO_MENU_SECTION} /></div>,
+          code: `<MenuSection title="Starters" layout="cards" items={items} />`,
+        },
+        {
+          title: 'Salon price list (no title, "from" prices)',
+          preview: <div className="max-w-xl"><MenuSection items={DEMO_PRICE_LIST} /></div>,
+          code: `<MenuSection items={[{ name: 'Cut & blow-dry', price: 'from ₺600' }]} />`,
         },
       ],
     },
