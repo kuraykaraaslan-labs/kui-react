@@ -168,3 +168,5 @@ export { TranslatableField, DEFAULT_TRANSLATABLE_FIELD_MESSAGES } from './Transl
 export type { TranslatableFieldProps, TranslatableFieldMessages, TranslatableLanguage, TranslatableSuggestion } from './TranslatableField';
 export { ChatThread, ChatBubble, ChatTypingIndicator, TypingDots, formatAttachmentSize, DEFAULT_CHAT_THREAD_MESSAGES } from './ChatThread';
 export type { ChatThreadProps, ChatThreadMessages, ChatThreadMessage, ChatThreadAuthor, ChatThreadTyper, ChatBubbleProps, ChatTypingIndicatorProps, ChatAttachment, ChatDeliveryStatus, ChatMessageAction, ChatSide } from './ChatThread';
+export { ImportWizard } from './ImportWizard';
+export type { ImportWizardProps, ImportAdapter, ImportTarget, ImportJob, ImportField, ImportFollowUp, ImportRowProblem, ImportStrategy } from './ImportWizard';

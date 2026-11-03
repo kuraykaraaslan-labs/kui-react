@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faKey, faUser, faEnvelope, faLock, faEnvelopeCircleCheck, faShield,
   faCartShopping, faLightbulb, faCreditCard, faMagnifyingGlass,
-  faIdCard, faGear, faLocationDot, faBox, faArrowRight,
+  faIdCard, faGear, faLocationDot, faBox, faArrowRight, faFileImport,
 } from '@fortawesome/free-solid-svg-icons';
 import { THEME_TITLES } from '@/libs/config/showcase.config';
 
@@ -60,6 +60,14 @@ const SECTIONS = [
       { title: 'Address Book',     description: 'Manage delivery addresses with full add / edit / delete.',               href: '/theme/common/account/addresses',     icon: <FontAwesomeIcon icon={faLocationDot} /> },
       { title: 'Payment Methods',  description: 'Saved cards: add, remove, set default.',                                href: '/theme/common/account/payment-methods', icon: <FontAwesomeIcon icon={faCreditCard} /> },
       { title: 'Order History',    description: 'Filterable list with inline payment detail and totals summary.',         href: '/theme/common/account/orders',        icon: <FontAwesomeIcon icon={faBox} /> },
+    ],
+  },
+  {
+    id: 'data',
+    title: 'Data',
+    tag: 'ui/ImportWizard',
+    pages: [
+      { title: 'Import from a file', description: 'CSV import wizard: map columns, check every row, import, undo, one-time downloads.', href: '/theme/common/imports', icon: <FontAwesomeIcon icon={faFileImport} /> },
     ],
   },
 ];

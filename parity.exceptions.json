@@ -336,6 +336,20 @@
         "KUInative"
       ],
       "reason": "New for next-boilerplate phase 54 (menu editor, decision D54-10): built in kui-react only and vendored into next-boilerplate. Neither kui-ejs nor KUInative has a counterpart, and the rule is not to create one unless an app built on them needs it."
+    },
+    {
+      "id": "import-wizard",
+      "name": "ImportWizard",
+      "layer": "ui",
+      "path": "modules/ui/ImportWizard",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "New for next-boilerplate data_import (the CSV import wizard: file, columns, check, result with undo and a target's one-time download). Its only consumer is next-boilerplate's Imports page, which vendors it from here; the owner's rule for this task is kui-react only, and neither kui-ejs nor KUInative has an import surface yet."
     }
   ]
 }
