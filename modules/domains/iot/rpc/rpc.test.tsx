@@ -181,6 +181,34 @@ describe('RpcConsoleView', () => {
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView /></IotAdapterProvider>);
     await screen.findByText('net.status');
     expect([...subs][0].params).toEqual({ deviceId: '*' });
-    expect(adapter.rpc!.list).toHaveBeenLastCalledWith({ deviceId: undefined, limit: 25 }, expect.anything());
+    expect(adapter.rpc!.list).toHaveBeenLastCalledWith(
+      { deviceId: undefined, page: 1, pageSize: 25, limit: 25, search: undefined, sort: undefined, statuses: undefined, sources: undefined },
+      expect.anything(),
+    );
+  });
+
+  it('is a full list: a sort and a search go to the host with the page, and its total pages the table', async () => {
+    const user = userEvent.setup();
+    const { live, adapter } = fakes();
+    (adapter.rpc!.list as ReturnType<typeof vi.fn>).mockResolvedValue({ items: [req('old', { status: 'SUCCESSFUL', method: 'net.status' })], nextCursor: null, total: 60 });
+    render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    await screen.findByText('net.status');
+    expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /Method/ }));
+    await waitFor(() => expect(adapter.rpc!.list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1, sort: { key: 'method', dir: 'asc' } }), expect.anything()));
+    await user.type(screen.getByRole('searchbox'), 'net');
+    await waitFor(() => expect(adapter.rpc!.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'net' }), expect.anything()));
+  });
+});
+
+describe('RpcRequestList in the browser', () => {
+  it('without onQueryChange searches, sorts and pages the rows it holds', async () => {
+    const user = userEvent.setup();
+    const rows = Array.from({ length: 30 }, (_, i) => req(`r${i}`, { method: i % 2 ? `net.m${i}` : `sys.m${i}` }));
+    render(<RpcRequestList requests={rows} />);
+    expect(screen.getAllByRole('row').length).toBeLessThan(30);
+    await user.type(screen.getByRole('searchbox'), 'net.m1');
+    await waitFor(() => expect(screen.queryByText('sys.m2')).toBeNull());
+    expect(screen.getByText('net.m11')).toBeInTheDocument();
   });
 });

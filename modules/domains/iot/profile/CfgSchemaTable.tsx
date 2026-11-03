@@ -6,7 +6,8 @@ import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
 import { fill } from '../format';
@@ -57,6 +58,9 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
     {
       key: 'key',
       header: m.schema.key,
+      sortable: true,
+      sortValue: (r) => r.k.key,
+      searchValue: (r) => r.k.key,
       render: ({ i, k }) => {
         const bad = !isCfgKey(k.key) || keys.indexOf(k.key) !== i;
         return locked ? (
@@ -70,6 +74,9 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
     {
       key: 'type',
       header: m.schema.type,
+      sortable: true,
+      searchable: false,
+      sortValue: (r) => r.k.type,
       render: (r) => (locked ? r.k.type : (
         <select className={cell} value={r.k.type} aria-label={`${m.schema.type} ${nameOf(r)}`} onChange={(e) => {
           setEnumText((t) => Object.fromEntries(Object.entries(t).filter(([row]) => Number(row) !== r.i)));
@@ -82,11 +89,15 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
     {
       key: 'label',
       header: m.schema.label,
+      sortable: true,
+      sortValue: (r) => r.k.label ?? null,
+      searchValue: (r) => r.k.label ?? '',
       render: (r) => (locked ? (r.k.label ?? '—') : <input className={cell} value={r.k.label ?? ''} maxLength={128} aria-label={`${m.schema.label} ${nameOf(r)}`} onChange={(e) => set(r.i, { label: e.target.value })} />),
     },
     {
       key: 'range',
       header: `${m.schema.min} / ${m.schema.max}`,
+      searchable: false,
       render: (r) => {
         const { i, k } = r;
         const name = nameOf(r);
@@ -109,6 +120,7 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
     {
       key: 'enum',
       header: m.schema.enum,
+      searchValue: (r) => (r.k.enum ?? []).join(' '),
       render: (r) => {
         const { i, k } = r;
         const enumShown = enumText[i] ?? (k.enum ?? []).join(', ');
@@ -121,6 +133,9 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
     {
       key: 'secret',
       header: m.schema.secret,
+      sortable: true,
+      searchable: false,
+      sortValue: (r) => (r.k.secret ? 1 : 0),
       render: (r) => (
         <input type="checkbox" checked={!!r.k.secret} disabled={locked} aria-label={`${m.schema.secret} ${nameOf(r)}`}
           onChange={(e) => set(r.i, { secret: e.target.checked })}
@@ -131,6 +146,7 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
       key: 'actions',
       header: <span className="sr-only">{m.profiles.actions}</span>,
       align: 'right' as const,
+      searchable: false,
       render: (r: CfgRow) => (
         <button type="button" onClick={() => { setEnumText({}); onChange?.(value.filter((_, j) => j !== r.i)); }} aria-label={fill(m.schema.remove, { key: nameOf(r) })}
           className="rounded p-1.5 text-text-secondary hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
@@ -138,6 +154,10 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
         </button>
       ),
     }]),
+  ];
+  const filterFields: DataTableFilterField<CfgRow>[] = [
+    { id: 'type', label: m.schema.type, type: 'checkboxes', options: TYPES.map((t) => ({ value: t, label: t })), match: (r, v) => !Array.isArray(v) || !v.length || (v as string[]).includes(r.k.type) },
+    { id: 'secret', label: m.schema.secret, type: 'checkbox', match: (r) => !!r.k.secret },
   ];
   return (
     <div className={cn('space-y-2', className)}>
@@ -148,16 +168,18 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
         </p>
       )}
       <DataTable<CfgRow>
-        mode="manual"
         variant="plain"
         caption={m.schema.cfgTitle}
         columns={columns}
         rows={rows}
         rowId={(r) => r.i}
+        mode="paginated"
         emptyMessage={m.schema.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
-        searchable={false}
-        pageSizeOptions={[]}
+        searchPlaceholder={m.schema.search}
+        filterFields={filterFields}
+        pageSize={25}
+        pageSizeOptions={LIST_PAGE_SIZES}
         density="compact"
         tableClassName="min-w-[46rem]"
       />

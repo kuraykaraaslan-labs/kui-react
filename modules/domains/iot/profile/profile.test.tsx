@@ -219,7 +219,7 @@ describe('transport and auth pieces', () => {
   it('schema tables: read-only from firmware, enum parsing, a bad key marked', () => {
     const { container } = render(<TelemetryKeySchemaTable value={[{ key: 'temperature', unit: '°C' }]} fromFirmware="roltek-esp32 1.8.2" />);
     expect(screen.getByText('From firmware roltek-esp32 1.8.2')).toBeInTheDocument();
-    expect(container.querySelectorAll('input')).toHaveLength(0);
+    expect([...container.querySelectorAll('table input')].map((i) => i.outerHTML)).toEqual([]);
     expect(parseCfgEnum('1, 2, x', 'integer')).toEqual([1, 2]);
     expect(parseCfgEnum('true,maybe', 'boolean')).toEqual([true]);
     expect(parseCfgEnum('', 'string')).toBeUndefined();

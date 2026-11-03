@@ -609,10 +609,16 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
       },
       async list(q) {
         await wait();
-        const rows = store.rpc.filter((r) => (!q.deviceId || r.deviceId === q.deviceId) && (!q.status || r.status === q.status) && (!q.method || r.method === q.method));
-        const start = q.cursor ? Number(q.cursor) : 0;
-        const page = rows.slice(start, start + q.limit);
-        return { items: page.map((r) => ({ ...r })), nextCursor: start + q.limit < rows.length ? String(start + q.limit) : null };
+        const search = q.search?.trim().toLowerCase();
+        const rows = sortRows(store.rpc.filter((r) => (!q.deviceId || r.deviceId === q.deviceId) && (!q.status || r.status === q.status) && (!q.method || r.method === q.method)
+          && (!q.statuses?.length || q.statuses.includes(r.status)) && (!q.sources?.length || q.sources.includes(r.source))
+          && (!search || r.method.toLowerCase().includes(search))), q.sort, {
+          method: (r) => r.method, status: (r) => r.status, source: (r) => r.source, createdAt: (r) => time(r.createdAt), completedAt: (r) => time(r.completedAt),
+        });
+        const size = q.pageSize ?? q.limit;
+        const start = q.page ? (q.page - 1) * size : q.cursor ? Number(q.cursor) : 0;
+        const page = rows.slice(start, start + size);
+        return { items: page.map((r) => ({ ...r })), nextCursor: start + size < rows.length ? String(start + size) : null, total: rows.length };
       },
       async get(rpcId) {
         await wait();

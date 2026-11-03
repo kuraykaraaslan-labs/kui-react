@@ -5,7 +5,8 @@ import { faArrowsRotate } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { useIotText } from '../api/IotAdapterProvider';
 import { fill, formatDateTime, formatRelative } from '../format';
 import { ALARM_SEVERITIES, type AlarmSeverity, type AlarmStatus } from '../types/alarm';
@@ -16,9 +17,13 @@ import { AlarmStatusPill } from './AlarmStatusPill';
 
 /**
  * AlarmTable — the body of a dashboard's alarm table (`iot.alarm-table`, phase 07 §7.1; NB `iot.alarm_table`): the rows a host
- * delivers (no fetching here), the five OD-9 severity chips as a viewer-side filter (no re-query), status pills, relative times,
- * a row cap, and a row click (keyboard too) the host turns into an action. With `activeOnly`, a row that becomes RESOLVED fades
- * for `fadeOutMs` (default 5 s) and then leaves. An optional `rowAction` (e.g. Acknowledge) renders a button per row.
+ * delivers (no fetching here), most severe first, status pills, relative times, and a row click (keyboard too) the host turns into
+ * an action. With `activeOnly`, a row that becomes RESOLVED fades for `fadeOutMs` (default 5 s) and then leaves. An optional
+ * `rowAction` (e.g. Acknowledge) renders a button per row.
+ *
+ * A full list on the DataTable's own toolbar, in the browser (the rows are the host's): search (title, type, device), the Filters
+ * panel (the five OD-9 severities, starting from `severityFilter`, and the status), sortable columns, rows per page (`maxRows`
+ * rows a page) and paging. `showSeverityChips={false}` keeps the severities to `severityFilter`, with no severity filter.
  */
 export type AlarmTableRow = {
   id: string;
@@ -84,13 +89,6 @@ export function AlarmTable({
 }: AlarmTableProps) {
   const { m, locale: lang } = useIotText(messages, locale);
   const filterKey = severityFilter.join(',');
-  const [shown, setShown] = useState<ReadonlySet<AlarmSeverity>>(() => new Set(severityFilter));
-  const [shownFor, setShownFor] = useState(filterKey);
-  // the host changed the filter setting: start again from it (adjusted while rendering, not in an effect)
-  if (shownFor !== filterKey) {
-    setShownFor(filterKey);
-    setShown(new Set(severityFilter));
-  }
 
   // rows that became RESOLVED while visible: kept, fading, until their timer ends
   const [seenActive, setSeenActive] = useState<ReadonlySet<string>>(() => new Set());
@@ -121,20 +119,26 @@ export function AlarmTable({
   }, [leaving, fadeOutMs]);
 
   const visible = useMemo(() => {
-    const list = sortAlarmRows(rows).filter((r) => shown.has(r.severity))
+    const fixed = showSeverityChips ? undefined : new Set(severityFilter);
+    return sortAlarmRows(rows).filter((r) => !fixed || fixed.has(r.severity))
       .filter((r) => !activeOnly || r.status !== 'RESOLVED' || leaving.has(r.id))
       .filter((r) => !gone.has(r.id) || r.status !== 'RESOLVED');
-    return maxRows ? list.slice(0, maxRows) : list;
-  }, [rows, shown, activeOnly, leaving, gone, maxRows]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, showSeverityChips, filterKey, activeOnly, leaving, gone]);
 
-  function toggle(s: AlarmSeverity) {
-    setShown((cur) => {
-      const n = new Set(cur);
-      if (n.has(s)) n.delete(s);
-      else n.add(s);
-      return n;
-    });
-  }
+  const filterFields = useMemo((): DataTableFilterField<AlarmTableRow>[] => [
+    ...(showSeverityChips
+      ? [{
+          id: 'severity', label: m.alarms.severity, type: 'checkboxes' as const,
+          options: ALARM_SEVERITIES.map((s) => ({ value: s, label: m.severity[s] })),
+        }]
+      : []),
+    {
+      id: 'status', label: m.alarms.status, type: 'checkboxes' as const,
+      options: (['OPEN', 'ACKNOWLEDGED', 'RESOLVED'] as const).map((s) => ({ value: s, label: m.status[s] })),
+    },
+  ], [m, showSeverityChips]);
+  const pageSize = maxRows && maxRows > 0 ? maxRows : 10;
 
   async function run(row: AlarmTableRow) {
     if (!rowAction) return;
@@ -143,11 +147,13 @@ export function AlarmTable({
   }
 
   const defs: Record<AlarmTableColumnId, Column<AlarmTableRow>> = {
-    severity: { key: 'severity', header: m.alarms.severity, render: (r) => <AlarmSeverityBadge severity={r.severity} size="sm" /> },
-    status: { key: 'status', header: m.alarms.status, hideBelow: 'sm', render: (r) => <AlarmStatusPill status={r.status} size="sm" /> },
+    severity: { key: 'severity', header: m.alarms.severity, sortable: true, searchable: false, sortValue: (r) => ALARM_SEVERITY_META[r.severity].rank, render: (r) => <AlarmSeverityBadge severity={r.severity} size="sm" /> },
+    status: { key: 'status', header: m.alarms.status, sortable: true, searchable: false, hideBelow: 'sm', render: (r) => <AlarmStatusPill status={r.status} size="sm" /> },
     title: {
       key: 'title',
       header: m.alarms.alarm,
+      sortable: true,
+      searchValue: (r) => `${r.title} ${r.type ?? ''}`,
       render: (r) => (
         <span className="flex min-w-0 flex-col">
           <span className="truncate font-medium">{r.title}</span>
@@ -155,11 +161,14 @@ export function AlarmTable({
         </span>
       ),
     },
-    originator: { key: 'originator', header: m.alarms.device, hideBelow: 'md', render: (r) => r.originator ?? '—' },
+    originator: { key: 'originator', header: m.alarms.device, sortable: true, hideBelow: 'md', render: (r) => r.originator ?? '—' },
     openedAt: {
       key: 'openedAt',
       header: m.alarms.opened,
       hideBelow: 'sm',
+      sortable: true,
+      searchable: false,
+      sortValue: (r) => time(r.openedAt),
       render: (r) => (
         <time className="text-xs text-text-secondary" dateTime={r.openedAt ? new Date(r.openedAt).toISOString() : undefined} title={formatDateTime(r.openedAt, { locale: lang })}>
           {formatRelative(r.openedAt, { locale: lang, now })}
@@ -171,6 +180,9 @@ export function AlarmTable({
       header: '#',
       align: 'right',
       hideBelow: 'md',
+      sortable: true,
+      searchable: false,
+      sortValue: (r) => r.occurrences ?? 1,
       render: (r) => <span className="tabular-nums text-xs">{fill(m.alarmTable.occurrences, { n: r.occurrences ?? 1 })}</span>,
     },
   };
@@ -196,31 +208,10 @@ export function AlarmTable({
 
   return (
     <div className={cn('flex min-h-0 flex-col gap-2', className)}>
-      {showSeverityChips && (
-        <div role="group" aria-label={m.alarmTable.filter} className="flex flex-wrap gap-1.5">
-          {ALARM_SEVERITIES.map((s) => (
-            <button
-              key={s}
-              type="button"
-              aria-pressed={shown.has(s)}
-              onClick={() => toggle(s)}
-              className={cn(
-                'rounded-full transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
-                !shown.has(s) && 'opacity-40',
-              )}
-            >
-              <AlarmSeverityBadge severity={s} size="sm" />
-            </button>
-          ))}
-          {onRetry && (
-            <Button variant="ghost" size="xs" iconOnly aria-label={m.common.retry} className="ml-auto" onClick={onRetry}>
-              <FontAwesomeIcon icon={faArrowsRotate} className="h-3 w-3" aria-hidden="true" />
-            </Button>
-          )}
-        </div>
-      )}
       <DataTable<AlarmTableRow>
-        mode="manual"
+        // the host changed the severities to start from: the filter starts again from them
+        key={filterKey}
+        mode="paginated"
         variant="plain"
         caption={m.alarmTable.caption}
         columns={cols}
@@ -229,14 +220,22 @@ export function AlarmTable({
         onRowClick={onRowClick ? (r) => onRowClick(r) : undefined}
         rowState={(r) => (leaving.has(r.id) ? 'leaving' : undefined)}
         rowClassName={(r) => cn('border-l-2', r.status === 'RESOLVED' ? 'border-l-transparent' : ALARM_SEVERITY_META[r.severity].rowBorderClass)}
-        loading={loading}
-        error={error || undefined}
+        state={error ? 'error' : loading && !rows.length ? 'loading' : undefined}
+        errorMessage={error || undefined}
         onRetry={onRetry}
         emptyMessage={emptyText ?? m.alarmTable.empty}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
         density="compact"
-        searchable={false}
-        pageSizeOptions={[]}
+        searchPlaceholder={m.alarmTable.search}
+        filterFields={filterFields}
+        defaultFilterValues={showSeverityChips && severityFilter.length < ALARM_SEVERITIES.length ? { severity: [...severityFilter] } : undefined}
+        pageSize={pageSize}
+        pageSizeOptions={LIST_PAGE_SIZES.includes(pageSize) ? LIST_PAGE_SIZES : [...LIST_PAGE_SIZES, pageSize].sort((a, b) => a - b)}
+        toolbarEnd={onRetry ? (
+          <Button variant="ghost" size="xs" iconOnly aria-label={m.common.retry} onClick={onRetry}>
+            <FontAwesomeIcon icon={faArrowsRotate} className="h-3 w-3" aria-hidden="true" />
+          </Button>
+        ) : undefined}
         keyboardNavigation
       />
     </div>

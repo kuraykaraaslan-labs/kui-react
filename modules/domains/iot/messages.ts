@@ -105,6 +105,7 @@ export const IOT_MESSAGES = {
     newKey: 'New key',
     secret: 'Write-only',
     empty: 'No attributes in this scope.',
+    search: 'Search keys and values',
     clientReadOnly: 'Client attributes are reported by the device and cannot be changed here.',
     sharedHint: 'Shared attributes are sent to the device.',
     serverHint: 'Server attributes stay on the platform.',
@@ -686,6 +687,7 @@ export const IOT_MESSAGES = {
     duration: 'Duration',
     device: 'Device',
     empty: 'No commands sent yet.',
+    search: 'Search by method',
     loadMore: 'Load more',
     loadError: 'The commands could not be read.',
     detail: 'Command {method}',
@@ -707,12 +709,14 @@ export const IOT_MESSAGES = {
   alarmTable: {
     caption: 'Alarms',
     empty: 'No alarms.',
+    search: 'Search alarms',
     filter: 'Show severities',
     occurrences: '×{n}',
   },
   deviceTable: {
     caption: 'Devices',
     empty: 'No devices.',
+    search: 'Search devices',
   },
   profiles: {
     title: 'Device profiles',
@@ -905,6 +909,7 @@ export const IOT_MESSAGES = {
     range: 'Allowed: {min} to {max}',
   },
   schema: {
+    search: 'Search keys',
     telemetryTitle: 'Telemetry keys',
     telemetryHint: 'Used for devices without a known firmware description: units, ranges and labels for lists and widgets.',
     cfgTitle: 'Configuration keys',
@@ -991,6 +996,7 @@ export const IOT_MESSAGES = {
     copyLabel: 'Copy {what}',
   },
   alarmRules: {
+    search: 'Search rules',
     title: 'Alarm rules',
     subtitle: 'Evaluated for every message of this profile\'s devices by the alarm-rules step of the default flow.',
     add: 'Add rule',
@@ -1066,6 +1072,7 @@ export const IOT_MESSAGES = {
     issue_after_out_of_range: 'Between 10 seconds and 7 days.',
   },
   rpcCatalog: {
+    search: 'Search commands',
     title: 'Commands',
     subtitle: 'The commands operators may send to the devices of this profile; each tier needs its own permission.',
     add: 'Add command',
@@ -1211,6 +1218,7 @@ export const IOT_MESSAGES = {
     mapTruncated: 'Only the first {n} sites are listed.',
     closeSite: 'Close the site summary',
     mapFitAll: 'Fit all',
+    mapSearchSites: 'Search sites',
   },
   asset: {
     kind: 'Kind',
@@ -1277,6 +1285,9 @@ export const IOT_MESSAGES = {
     placeFailed: 'Could not place the devices.',
     currentlyAt: 'now at {name}',
     noRelations: 'No relations.',
+    searchChildren: 'Search child assets',
+    searchDevices: 'Search devices',
+    searchRelations: 'Search relations',
     relationType: 'Relation',
     relationFrom: 'From',
     relationTo: 'To',

@@ -5,24 +5,25 @@ import { faArrowsUpDownLeftRight, faChartLine, faEllipsis, faPen, faPlus, faTras
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column, DataTableQuery } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField, DataTableQuery } from '@/modules/ui/Table/types';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Drawer } from '@/modules/ui/Drawer';
 import { DropdownMenu } from '@/modules/ui/DropdownMenu';
 import { SkeletonText } from '@/modules/ui/Skeleton';
-import { Toggle } from '@/modules/ui/Toggle';
 import { errorMessage } from '../api/adapter';
-import { LIST_PAGE_SIZES } from '../api/list-table';
+import { ASSET_SORT_KEYS, type AssetSortKey, type IotListSort, type PlacedDeviceQuery } from '../api/adapter';
+import { LIST_PAGE_SIZES, toIotSort } from '../api/list-table';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill, formatDateTime } from '../format';
-import type { AssetNode, AssetRecord, AssetRelation, AssetRow, PlacedDevice } from '../types/asset';
+import { assetKindChoices, type AssetNode, type AssetRecord, type AssetRelation, type AssetRow, type PlacedDevice } from '../types/asset';
 import { AssetBreadcrumb } from './AssetBreadcrumb';
 import { AssetFormDrawer } from './AssetFormDrawer';
 import { AssetKindBadge } from './AssetKindBadge';
+import { assetKindLabel } from './asset-kind';
 import { AssetRelationTable } from './AssetRelationTable';
 import { MoveAssetDialog } from './MoveAssetDialog';
 import { PlaceDevicesDialog } from './PlaceDevicesDialog';
-import { PlacedDeviceTable } from './PlacedDeviceTable';
+import { PLACED_DEVICE_SORT_KEYS, PlacedDeviceTable } from './PlacedDeviceTable';
 
 /**
  * AssetDrawer — one site or asset in a right-side drawer over the Sites & assets table (owner 2026-10-27, option B; it replaces the
@@ -267,20 +268,22 @@ function Overview({ asset }: { asset: AssetRecord }) {
         </dl>
       </Section>
       <Section title={m.asset.attributes}>
-        <DataTable<{ key: string; value: unknown }>
-          mode="manual"
+        {/* the asset's own attributes, a full list in the browser: search, sort, rows per page and paging */}
+        <DataTable<{ key: string; value: unknown; text: string }>
+          mode="paginated"
           variant="plain"
           caption={m.asset.attributes}
           columns={[
-            { key: 'key', header: m.attribute.key, render: (r) => <code className="font-mono text-xs text-text-secondary">{r.key}</code> },
-            { key: 'value', header: m.attribute.value, render: (r) => <span className="break-words">{typeof r.value === 'string' ? r.value : JSON.stringify(r.value)}</span> },
+            { key: 'key', header: m.attribute.key, sortable: true, render: (r) => <code className="font-mono text-xs text-text-secondary">{r.key}</code> },
+            { key: 'text', header: m.attribute.value, sortable: true, render: (r) => <span className="break-words">{r.text}</span> },
           ]}
-          rows={attrs.map(([key, value]) => ({ key, value }))}
+          rows={attrs.map(([key, value]) => ({ key, value, text: typeof value === 'string' ? value : JSON.stringify(value) }))}
           rowId={(r) => r.key}
           emptyMessage={m.asset.noAttributes}
           messages={{ loading: m.common.loading, retry: m.common.retry }}
-          searchable={false}
-          pageSizeOptions={[]}
+          searchPlaceholder={m.attribute.search}
+          pageSize={10}
+          pageSizeOptions={LIST_PAGE_SIZES}
           density="compact"
         />
       </Section>
@@ -295,21 +298,20 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
   const caps = useIotCapabilities();
   const notify = useIotNotify();
   const { m } = useIotText();
-  const [recursive, setRecursive] = useState(true);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(firstPageSize);
+  // the table's query: its page, search, sort and the connection / placed-below filters, served by the host page by page
+  const [query, setQuery] = useState<PlacedDeviceQuery>({ page: 1, pageSize: firstPageSize, recursive: true });
   const [rows, setRows] = useState<PlacedDevice[]>([]);
   const [total, setTotal] = useState(0);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const key = `${recursive}:${page}:${pageSize}`;
+  const key = JSON.stringify(query);
 
-  const load = useCallback((signal?: AbortSignal) => api.devices(asset.assetId, { page, pageSize, recursive }, signal).then(
-    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(`${recursive}:${page}:${pageSize}`); } },
-    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(`${recursive}:${page}:${pageSize}`); } },
-  ), [api, asset.assetId, page, pageSize, recursive, m.asset.loadError]);
+  const load = useCallback((signal?: AbortSignal) => api.devices(asset.assetId, query, signal).then(
+    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(key); } },
+    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(key); } },
+  ), [api, asset.assetId, query, key, m.asset.loadError]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -333,12 +335,11 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
   const here = new Set(rows.filter((r) => r.placement.assetId === asset.assetId).map((r) => r.device.deviceId));
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Toggle id={`asset-devices-recursive-${asset.assetId}`} checked={recursive} onChange={(on: boolean) => { setRecursive(on); setPage(1); }} label={m.asset.recursive} />
-        {caps.canPlaceDevices && (
+      {caps.canPlaceDevices && (
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <Button variant="primary" size="sm" onClick={() => setPlacing(true)} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>{m.asset.placeDevices}</Button>
-        )}
-      </div>
+        </div>
+      )}
       <PlacedDeviceTable
         rows={rows}
         assetId={asset.assetId}
@@ -346,7 +347,18 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
         assetHref={hrefs.asset}
         onUnplace={caps.canPlaceDevices ? (id) => void unplace(id) : undefined}
         busyId={busyId}
-        paging={{ page, pageSize, total, onChange: (p, size) => { setPage(size === pageSize ? p : 1); setPageSize(size); } }}
+        total={total}
+        defaultQuery={{ pageSize: firstPageSize }}
+        onQueryChange={(q: DataTableQuery) => {
+          const sort = toIotSort(q.sort, PLACED_DEVICE_SORT_KEYS);
+          const next: PlacedDeviceQuery = {
+            page: q.page, pageSize: q.pageSize, recursive: q.filterValues.recursive === true,
+            ...(q.search.trim() ? { search: q.search.trim() } : {}),
+            ...(sort ? { sort } : {}),
+            ...(q.filterValues.online === 'true' || q.filterValues.online === 'false' ? { online: q.filterValues.online === 'true' } : {}),
+          };
+          setQuery((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+        }}
         loading={loadedKey !== key}
         error={error}
         onRetry={() => void load()}
@@ -365,17 +377,20 @@ function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }:
 }) {
   const api = useIotAdapter().assets!;
   const { m } = useIotText();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(firstPageSize);
+  // the table's query (its search, sort, kind filter and page), served by the host's asset list under this asset
+  const [query, setQuery] = useState<{ page: number; pageSize: number; search: string; sort?: IotListSort<AssetSortKey>; kind?: string }>({ page: 1, pageSize: firstPageSize, search: '' });
   const [rows, setRows] = useState<AssetRow[] | null>(null);
   const [total, setTotal] = useState(0);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const key = `${page}:${pageSize}`;
-  const load = useCallback((signal?: AbortSignal) => api.list({ page, pageSize, parentId: asset.assetId, sort: { key: 'name', dir: 'asc' } }, signal).then(
-    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(`${page}:${pageSize}`); } },
-    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(`${page}:${pageSize}`); } },
-  ), [api, asset.assetId, page, pageSize, m.asset.loadError]);
+  const key = JSON.stringify(query);
+  const load = useCallback((signal?: AbortSignal) => api.list({
+    page: query.page, pageSize: query.pageSize, parentId: asset.assetId, sort: query.sort ?? { key: 'name', dir: 'asc' },
+    search: query.search || undefined, kind: query.kind,
+  }, signal).then(
+    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(key); } },
+    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(key); } },
+  ), [api, asset.assetId, query, key, m.asset.loadError]);
   useEffect(() => {
     if (!asset.childCount) return;
     const ctrl = new AbortController();
@@ -388,6 +403,7 @@ function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }:
     {
       key: 'name',
       header: m.asset.name,
+      sortable: true,
       render: (c) => {
         const body = (
           <>
@@ -400,8 +416,11 @@ function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }:
           : hrefs.asset ? <a href={hrefs.asset(c.assetId)} className={link}>{body}</a> : <span className={link}>{body}</span>;
       },
     },
-    { key: 'childCount', header: m.asset.children, align: 'right', hideBelow: 'sm', render: (c) => String(c.childCount) },
-    { key: 'deviceCount', header: m.asset.devices, align: 'right', render: (c) => String(c.deviceCount) },
+    { key: 'childCount', sortKey: 'children', header: m.asset.children, align: 'right', sortable: true, hideBelow: 'sm', render: (c) => String(c.childCount) },
+    { key: 'deviceCount', sortKey: 'devices', header: m.asset.devices, align: 'right', sortable: true, render: (c) => String(c.deviceCount) },
+  ];
+  const filterFields: DataTableFilterField<AssetRow>[] = [
+    { id: 'kind', label: m.asset.kind, type: 'select', options: assetKindChoices([], query.kind).map((k) => ({ value: k, label: assetKindLabel(k, m) })) },
   ];
   return (
     <>
@@ -417,11 +436,20 @@ function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }:
         onRetry={() => void load()}
         emptyMessage={m.asset.noChildren}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
-        searchable={false}
-        // every child is reachable: the host's pages, the table's own pagination and rows per page
+        // every child is reachable: the host's pages, sort, search and kind filter through the table's own toolbar and pagination
         total={asset.childCount ? total : 0}
-        query={{ page, pageSize }}
-        onQueryChange={(q: DataTableQuery) => { if (q.page !== page || q.pageSize !== pageSize) { setPage(q.pageSize === pageSize ? q.page : 1); setPageSize(q.pageSize); } }}
+        defaultQuery={{ pageSize: firstPageSize }}
+        onQueryChange={(q: DataTableQuery) => {
+          const next = {
+            page: q.page, pageSize: q.pageSize, search: q.search.trim(), sort: toIotSort(q.sort, ASSET_SORT_KEYS),
+            kind: typeof q.filterValues.kind === 'string' && q.filterValues.kind ? q.filterValues.kind : undefined,
+          };
+          setQuery((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+        }}
+        multiSort={false}
+        searchPlaceholder={m.asset.searchChildren}
+        filterFields={filterFields}
+        pageSize={firstPageSize}
         pageSizeOptions={LIST_PAGE_SIZES}
         density="compact"
       />

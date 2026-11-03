@@ -265,11 +265,27 @@ export interface IotAlarmsApi {
 
 // ── RPC (phase 04) ───────────────────────────────────────────────────────────────────────────────────────────────────
 
+/** The columns a request history sorts by on the host. */
+export const RPC_SORT_KEYS = ['method', 'status', 'source', 'createdAt', 'completedAt'] as const;
+export type RpcSortKey = (typeof RPC_SORT_KEYS)[number];
+
+/**
+ * One page of a request history. The console sends the list query of its table (`page`, `pageSize`, `search` over the method,
+ * `sort`, `statuses`, `sources`) and the host answers that page with `total`; `cursor` / `limit` keep an older keyset host working
+ * (`limit` is the page size).
+ */
 export type RpcListQuery = {
   /** Absent: the fleet log (every device of the tenant), when the host offers it. */
   deviceId?: string;
   status?: RpcStatus;
+  statuses?: readonly RpcStatus[];
+  sources?: readonly string[];
   method?: string;
+  /** 1-based page of `pageSize` rows. */
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  sort?: IotListSort<RpcSortKey>;
   cursor?: string | null;
   limit: number;
 };
@@ -290,7 +306,8 @@ export interface IotRpcApi {
   methods(deviceId: string, signal?: AbortSignal): Promise<RpcCatalog>;
   /** Sends; answers the request as it stands (often QUEUED; the rest arrives live or by `get`). */
   send(deviceId: string, input: RpcSendInput): Promise<RpcRequest>;
-  list(query: RpcListQuery, signal?: AbortSignal): Promise<{ items: RpcRequest[]; nextCursor: string | null }>;
+  /** One page; `total` (the rows across every page) lets the table page, sort and filter on the host. */
+  list(query: RpcListQuery, signal?: AbortSignal): Promise<{ items: RpcRequest[]; nextCursor: string | null; total?: number }>;
   get(rpcId: string, signal?: AbortSignal): Promise<RpcRequest>;
   /** QUEUED or SENT only. */
   cancel(rpcId: string): Promise<RpcRequest>;
@@ -300,7 +317,18 @@ export interface IotRpcApi {
 
 // ── sites and assets (phase 08) ─────────────────────────────────────────────────────────────────────────────────────
 
-export type PlacedDeviceQuery = { page: number; pageSize: number; /** Devices on descendants too (default true). */ recursive?: boolean };
+export type PlacedDeviceQuery = {
+  page: number;
+  pageSize: number;
+  /** Devices on descendants too (default true). */
+  recursive?: boolean;
+  /** Name, label or the node it sits on. */
+  search?: string;
+  /** `name`: the device's name; `connection`: online first, then the most recently active. Default: by name. */
+  sort?: IotListSort<'name' | 'connection'>;
+  /** Only online (`true`) or offline (`false`) devices. */
+  online?: boolean;
+};
 
 /** The columns the Sites & assets table sorts by on the host (no sort: tree order, each site followed by what is under it). */
 export const ASSET_SORT_KEYS = ['name', 'kind', 'location', 'children', 'devices', 'alarms'] as const;

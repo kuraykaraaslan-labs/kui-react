@@ -11,7 +11,8 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { EmptyState } from '@/modules/ui/EmptyState';
 import { Input } from '@/modules/ui/Input';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { ConfirmDialog, confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Select } from '@/modules/ui/Select';
 import { Textarea } from '@/modules/ui/Textarea';
@@ -108,6 +109,9 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
     {
       key: 'command',
       header: m.rpcCatalog.method,
+      sortable: true,
+      sortValue: (c) => c.label || c.method,
+      searchValue: (c) => `${c.label} ${c.method}`,
       render: (c) => (
         <span className="flex min-w-0 flex-col">
           <span className="truncate font-medium text-text-primary">{c.label}</span>
@@ -118,12 +122,16 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
     {
       key: 'tier',
       header: m.rpcCatalog.tier,
+      sortable: true,
+      searchable: false,
+      sortValue: (c) => ({ basic: 0, privileged: 1, critical: 2 } as Record<string, number>)[c.tier] ?? 3,
       render: (c) => <Badge variant={c.tier === 'critical' ? 'error' : c.tier === 'privileged' ? 'warning' : 'neutral'} size="sm">{m.rpcCatalog[c.tier]}</Badge>,
     },
     {
       key: 'flags',
       header: m.rpcCatalog.flags,
       hideBelow: 'md',
+      searchable: false,
       render: (c) => (
         <span className="flex flex-wrap gap-1 text-xs text-text-secondary">
           {c.highImpact && <Badge variant="warning" size="sm">{c.confirmText ? `${m.rpcCatalog.confirmText}: ${c.confirmText}` : m.rpcCatalog.highImpact}</Badge>}
@@ -136,6 +144,7 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
       key: 'actions',
       header: <span className="sr-only">{m.profiles.actions}</span>,
       align: 'right' as const,
+      searchable: false,
       render: (c: RpcCatalogCommand) => (
         <span className="inline-flex items-center justify-end gap-1">
           <Button variant="ghost" size="xs" aria-label={`${m.rpcCatalog.edit} ${c.method}`} onClick={() => setEditing({ command: c })}
@@ -146,6 +155,10 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
     }] : []),
   ];
 
+  const filterFields: DataTableFilterField<RpcCatalogCommand>[] = [
+    { id: 'tier', label: m.rpcCatalog.tier, type: 'checkboxes', options: (['basic', 'privileged', 'critical'] as const).map((t) => ({ value: t, label: m.rpcCatalog[t] })) },
+    { id: 'highImpact', label: m.rpcCatalog.highImpact, type: 'checkbox' },
+  ];
   return (
     <div className={cn('space-y-4', className)}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -169,16 +182,18 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
         <EmptyState icon={<FontAwesomeIcon icon={faTerminal} aria-hidden="true" />} title={m.rpcCatalog.title} description={m.rpcCatalog.empty} />
       ) : (
         <DataTable<RpcCatalogCommand>
-          mode="manual"
+          mode="paginated"
           variant="plain"
           caption={m.rpcCatalog.title}
           columns={columns}
           rows={commands ?? []}
           rowId={(c) => c.commandId}
-          loading={commands === null}
+          state={commands === null ? 'loading' : undefined}
           messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
-          searchable={false}
-          pageSizeOptions={[]}
+          searchPlaceholder={m.rpcCatalog.search}
+          filterFields={filterFields}
+          pageSize={25}
+          pageSizeOptions={LIST_PAGE_SIZES}
           keyboardNavigation
         />
       )}

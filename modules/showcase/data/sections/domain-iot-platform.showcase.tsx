@@ -860,7 +860,7 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       abbr: 'RL',
       description: 'RPC requests newest first: method, status with outcome, who sent it (console, a flow, a dashboard control), created and duration; a row opens the detail.',
       filePath: 'modules/domains/iot/rpc/RpcRequestList.tsx',
-      usage: `<RpcRequestList requests={items} onOpen={open} hasMore={!!cursor} onLoadMore={more} />`,
+      usage: `<RpcRequestList requests={items} onOpen={open} total={total} onQueryChange={setQuery} />`,
       variants: [
         { title: 'Fleet log', layout: 'stack', preview: <RpcRequestList requests={RPC_REQUESTS} showDevice now={NOW} locale="en-GB" onOpen={() => undefined} />, code: '<RpcRequestList requests={items} showDevice />' },
         { title: 'Empty', layout: 'stack', preview: <RpcRequestList requests={[]} />, code: '<RpcRequestList requests={[]} />' },

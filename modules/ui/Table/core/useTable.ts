@@ -33,12 +33,20 @@ function compareValues(a: unknown, b: unknown): number {
 export function applySort<T extends Record<string, unknown>>(
   rows: T[],
   sort: SortState[],
+  /** The columns, for a column's own `sortValue`; without them each key reads `row[key]`. */
+  columns?: readonly Column<T>[],
 ): T[] {
   if (!sort.length) return rows;
+  const valueOf = new Map<string, (row: T) => unknown>();
+  for (const s of sort) {
+    const col = columns?.find((c) => String(c.key) === s.key);
+    valueOf.set(s.key, col?.sortValue ?? ((row: T) => row[s.key as keyof T]));
+  }
   return [...rows].sort((a, b) => {
     for (const s of sort) {
-      const av = a[s.key as keyof T];
-      const bv = b[s.key as keyof T];
+      const get = valueOf.get(s.key)!;
+      const av = get(a);
+      const bv = get(b);
       const ae = isEmptyValue(av);
       const be = isEmptyValue(bv);
       if (ae || be) {
@@ -199,9 +207,9 @@ export function useTable<T extends Record<string, unknown>>({
     return predicate ? narrowed.filter(predicate) : narrowed;
   }, [rows, columns, search, filters, predicate, searchText]);
   const sorted = useMemo(() => {
-    const ordered = applySort(filtered, sort);
+    const ordered = applySort(filtered, sort, columns);
     return groupBy ? applyGrouping(ordered, groupBy, rows) : ordered;
-  }, [filtered, sort, groupBy, rows]);
+  }, [filtered, sort, columns, groupBy, rows]);
 
   const total = sorted.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

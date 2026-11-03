@@ -5,7 +5,7 @@ import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column, DataTableQuery } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField, DataTableQuery } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
 import { LIST_PAGE_SIZES } from '../api/list-table';
 import { DeviceAddress } from '../device/DeviceAddress';
@@ -18,8 +18,12 @@ import { AssetKindBadge } from './AssetKindBadge';
 /**
  * PlacedDeviceTable — the devices placed under an asset (phase 08 §8.2): the device (a link) with the node it sits on under its name
  * when that is a descendant, and its connection (`DeviceOnlineDot`, OD-57) with the address of its newest connect (`DeviceAddress`)
- * under it. With `onUnplace`, each row can lose its placement. With `paging` the rows are one page of `total` and the table's own
- * pagination and rows per page move through them (the host reads each page).
+ * under it. With `onUnplace`, each row can lose its placement.
+ *
+ * A full list on the DataTable's own toolbar: search (name, label, the node), the Filters panel (connection, devices placed below),
+ * sortable columns (device, connection; one at a time), rows per page and paging. With `onQueryChange` the host serves every page
+ * (`mode="manual"`, `total` rows in all; sort keys `PLACED_DEVICE_SORT_KEYS`, filter ids `online` as `true` / `false` and `recursive`,
+ * a checkbox ticked at first). Without it the table does the same over `rows` in the browser.
  *
  * Its host is a drawer (`AssetDrawer`, 40rem), narrow at any screen width, so the table keeps to two columns and the actions, and
  * caps its texts (each in full in its tooltip): a column hidden below a screen breakpoint would still show in a narrow drawer on a
@@ -33,8 +37,12 @@ export type PlacedDeviceTableProps = {
   assetHref?: (assetId: string) => string;
   onUnplace?: (deviceId: string) => void;
   busyId?: string | null;
-  /** Server paging: the page shown, its size and every row's count; `onChange` reads another page or size. */
-  paging?: { page: number; pageSize: number; total: number; onChange: (page: number, pageSize: number) => void };
+  /** With `onQueryChange`: the rows across every page. */
+  total?: number;
+  /** The host serves the pages: every change of page, rows per page, sort, search or filters, and the first query on mount. */
+  onQueryChange?: (query: DataTableQuery) => void;
+  /** The query to start from (rows per page, a sort). */
+  defaultQuery?: Partial<DataTableQuery>;
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -44,8 +52,11 @@ export type PlacedDeviceTableProps = {
   className?: string;
 };
 
+/** The columns a placed-device list sorts by on the host. */
+export const PLACED_DEVICE_SORT_KEYS = ['name', 'connection'] as const;
+
 export function PlacedDeviceTable({
-  rows, assetId, deviceHref, assetHref, onUnplace, busyId, paging, loading, error, onRetry, now, locale, messages, className,
+  rows, assetId, deviceHref, assetHref, onUnplace, busyId, total, onQueryChange, defaultQuery, loading, error, onRetry, now, locale, messages, className,
 }: PlacedDeviceTableProps) {
   const { m } = useIotText(messages, locale);
   const link = 'rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
@@ -53,6 +64,9 @@ export function PlacedDeviceTable({
     {
       key: 'name',
       header: m.devices.name,
+      sortable: true,
+      sortValue: (r) => r.device.name,
+      searchValue: (r) => `${r.device.name} ${r.device.label ?? ''} ${r.placement.name}`,
       render: ({ device: d, placement: p }) => {
         const inner = (
           <>
@@ -84,6 +98,10 @@ export function PlacedDeviceTable({
     {
       key: 'connection',
       header: m.devices.connection,
+      sortable: true,
+      searchable: false,
+      // online first, then the most recently active
+      sortValue: (r) => (r.device.online ? 0 : 1) * 1e15 - (r.device.lastActivityAt ? new Date(r.device.lastActivityAt).getTime() : 0),
       render: ({ device: d }) => (
         <span className="flex min-w-0 flex-col gap-0.5 sm:max-w-[13rem]">
           <DeviceOnlineDot state={onlineStateOf(d.online)} lastSeenAt={d.lastActivityAt} now={now} compact className="sm:hidden" />
@@ -96,6 +114,7 @@ export function PlacedDeviceTable({
       key: 'actions',
       header: <span className="sr-only">{m.asset.unplace}</span>,
       align: 'right' as const,
+      searchable: false,
       render: ({ device: d }: PlacedDevice) => (
         <Button
           variant="ghost"
@@ -111,25 +130,34 @@ export function PlacedDeviceTable({
       ),
     }] : []),
   ];
+  const filterFields: DataTableFilterField<PlacedDevice>[] = [
+    {
+      id: 'online', label: m.devices.connection, type: 'select',
+      options: [{ value: 'true', label: m.device.online }, { value: 'false', label: m.device.offline }],
+      match: (r, v) => !v || String(r.device.online === true) === v,
+    },
+    ...(onQueryChange ? [{ id: 'recursive', label: m.asset.recursive, type: 'checkbox' as const, defaultValue: true }] : []),
+  ];
   return (
     <DataTable<PlacedDevice>
-      mode="manual"
+      {...(onQueryChange
+        ? { mode: 'manual' as const, total: total ?? rows.length, onQueryChange, loading, error: error || undefined }
+        : { mode: 'paginated' as const, state: error ? 'error' as const : loading && !rows.length ? 'loading' as const : undefined, errorMessage: error || undefined })}
       variant="plain"
       className={className}
       caption={m.asset.devices}
       columns={columns}
       rows={rows}
-      total={paging?.total}
-      query={paging ? { page: paging.page, pageSize: paging.pageSize } : undefined}
-      onQueryChange={paging ? (q: DataTableQuery) => { if (q.page !== paging.page || q.pageSize !== paging.pageSize) paging.onChange(q.page, q.pageSize); } : undefined}
-      pageSizeOptions={paging ? LIST_PAGE_SIZES : []}
+      defaultQuery={defaultQuery}
+      multiSort={false}
+      searchPlaceholder={m.asset.searchDevices}
+      filterFields={filterFields}
+      pageSize={defaultQuery?.pageSize ?? 10}
+      pageSizeOptions={LIST_PAGE_SIZES}
       rowId={(r) => r.device.deviceId}
-      loading={loading}
-      error={error || undefined}
       onRetry={onRetry}
       emptyMessage={m.asset.noDevices}
       messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
-      searchable={false}
       keyboardNavigation
     />
   );

@@ -59,6 +59,11 @@ export type Column<T> = {
   searchValue?: (row: T) => string;
   /** `false`: the toolbar search skips this column (static and paginated modes). Default `true`. */
   searchable?: boolean;
+  /**
+   * Static and paginated modes: the value this column sorts by (a rank, a time, a computed or rendered cell). Defaults to
+   * `row[key]`. Server and manual modes send the sort key outward instead.
+   */
+  sortValue?: (row: T) => string | number | Date | null | undefined;
   align?: 'left' | 'center' | 'right';
   sortable?: boolean;
   /** M1: per-column filter popover config. Set to truthy to enable. */

@@ -207,10 +207,20 @@ export function createDemoAssets(
       await wait();
       row(id);
       const scope = new Set(q.recursive === false ? [id] : subtree(id));
+      const search = q.search?.trim().toLowerCase();
       const items = placements().filter((x) => scope.has(x.fromId)).flatMap((x) => {
         const d = devices().find((dv) => dv.deviceId === x.toId);
         return d ? [{ device: { ...d }, placement: crumb(row(x.fromId)) }] : [];
-      }).sort((a, b) => a.device.name.localeCompare(b.device.name));
+      }).filter((i) => (q.online === undefined || (i.device.online === true) === q.online)
+        && (!search || `${i.device.name} ${i.device.label ?? ''} ${i.placement.name}`.toLowerCase().includes(search)))
+        .sort((a, b) => {
+          const dir = q.sort?.dir === 'desc' ? -1 : 1;
+          if (q.sort?.key === 'connection') {
+            const at = (v: unknown) => (v ? new Date(v as string).getTime() : 0);
+            return dir * ((Number(!a.device.online) - Number(!b.device.online)) || at(b.device.lastActivityAt) - at(a.device.lastActivityAt));
+          }
+          return dir * a.device.name.localeCompare(b.device.name);
+        });
       return { items: items.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: items.length };
     },
     async place(id, deviceIds) {

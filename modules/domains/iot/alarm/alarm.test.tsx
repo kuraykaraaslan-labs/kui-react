@@ -162,17 +162,33 @@ describe('AlarmTable', () => {
     { id: 'm', severity: 'MAJOR', status: 'ACKNOWLEDGED', title: 'Major one', openedAt: ago(2_000) },
   ];
 
-  it('sorts most severe first, filters by the chips on the viewer side and caps the rows', async () => {
+  it('sorts most severe first, filters the severities in its own Filters panel and pages maxRows rows at a time', async () => {
     const user = userEvent.setup();
     expect(sortAlarmRows(rows).map((r) => r.id)).toEqual(['c', 'm', 'i']);
     render(<AlarmTable rows={rows} now={NOW} maxRows={2} />);
     expect(screen.getByText('Critical one')).toBeInTheDocument();
     expect(screen.queryByText('Info one')).toBeNull();
-    const chips = screen.getByRole('group', { name: 'Show severities' });
-    expect(within(chips).getAllByRole('button')).toHaveLength(5);
-    await user.click(within(chips).getByRole('button', { name: /Critical/ }));
+    expect(screen.queryByRole('group', { name: 'Show severities' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /filters/i }));
+    const panel = screen.getByRole('form', { name: 'Filters' });
+    await user.click(within(panel).getByRole('checkbox', { name: 'Major' }));
+    await user.click(within(panel).getByRole('checkbox', { name: 'Info' }));
+    await user.click(within(panel).getByRole('button', { name: 'Apply' }));
     expect(screen.queryByText('Critical one')).toBeNull();
     expect(screen.getByText('Info one')).toBeInTheDocument();
+  });
+
+  it('searches and sorts by a column in the browser', async () => {
+    const user = userEvent.setup();
+    render(<AlarmTable rows={rows} now={NOW} />);
+    await user.type(screen.getByRole('searchbox'), 'major');
+    expect(screen.queryByText('Critical one')).toBeNull();
+    expect(screen.getByText('Major one')).toBeInTheDocument();
+    await user.clear(screen.getByRole('searchbox'));
+    await user.click(screen.getByRole('button', { name: /Severity/ }));
+    await user.click(screen.getByRole('button', { name: /Severity/ }));
+    const titles = screen.getAllByRole('row').slice(1).map((r) => r.textContent ?? '');
+    expect(titles[0]).toContain('Info one');
   });
 
   it('runs a row action and turns a row click into the host callback', async () => {
