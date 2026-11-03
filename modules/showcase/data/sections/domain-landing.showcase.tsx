@@ -18,6 +18,9 @@ import { OpeningHours, type OpeningHoursRow } from '@/modules/domains/landing/ho
 import { ListingCards, type Listing } from '@/modules/domains/landing/listing/ListingCards';
 import { Timetable, type TimetableSession } from '@/modules/domains/landing/schedule/Timetable';
 import { ImageMarks } from '@/modules/domains/landing/media/ImageMarks';
+import { Branches, type Branch } from '@/modules/domains/landing/locations/Branches';
+import { BeforeAfter } from '@/modules/domains/landing/media/BeforeAfter';
+import { QuoteCalculator } from '@/modules/domains/landing/pricing/QuoteCalculator';
 import { faBed, faBath, faRulerCombined, faUsers, faGasPump, faGear, faCalendar } from '@fortawesome/free-solid-svg-icons';
 import {
   faBullhorn, faTag,
@@ -71,6 +74,12 @@ const TIMETABLE_GYM: TimetableSession[] = [
   { day: 2, start: '07:00', end: '08:00', name: 'Spin', who: 'Ayşe', where: 'Studio 1' },
   { day: 3, start: '19:00', end: '20:00', name: 'Pilates', who: 'Ece', where: 'Studio 2' },
   { day: 5, start: '10:00', end: '11:00', name: 'HIIT', who: 'Mert', where: 'Studio 1' },
+];
+
+const BRANCHES: Branch[] = [
+  { name: 'City centre', address: 'Istiklal Cd. 120, Beyoğlu, Istanbul', phone: '+90 212 555 01 01', hours: ['Mon–Sat 08:00–20:00', 'Sun 10:00–18:00'], position: [41.0336, 28.9770] },
+  { name: 'Airport', address: 'Istanbul Airport, arrivals hall', phone: '+90 212 555 01 02', hours: ['Every day 06:00–24:00'], position: [41.2620, 28.7420], note: 'Desk next to exit 8' },
+  { name: 'Kadıköy', address: 'Moda Cd. 45, Kadıköy, Istanbul', phone: '+90 216 555 01 03', hours: ['Mon–Fri 09:00–19:00'], position: [40.9870, 29.0270] },
 ];
 
 const HERO_WITH_IMAGE: Hero = {
@@ -905,6 +914,75 @@ function Nav() {
             </div>
           ),
           code: `<ImageMarks marks={['2D', '3D']} />\n<ImageMarks marks={['Map', 'Live']} size="md" position="top-left" />`,
+        },
+      ],
+    },
+
+    {
+      id: 'landing-branches',
+      title: 'Branches',
+      category: 'Domain',
+      abbr: 'BR',
+      description: "A business's branches: cards with address, phone, hours and directions, and every branch as a pin on one map; picking a card moves the map, clicking a pin picks the card.",
+      filePath: 'modules/domains/landing/locations/Branches.tsx',
+      sourceCode: `import { Branches } from '@/modules/domains/landing/locations/Branches';
+<Branches title="Our branches" branches={[{ name: 'City centre', address: '…', position: [41.03, 28.97] }]} />`,
+      variants: [
+        {
+          title: 'Three branches on one map',
+          preview: <Branches title="Our branches" branches={BRANCHES} />,
+          code: `<Branches title="Our branches" branches={branches} />`,
+        },
+        {
+          title: 'Cards only, Turkish labels',
+          preview: <Branches showMap={false} branches={BRANCHES} labels={{ directions: 'Yol tarifi' }} />,
+          code: `<Branches showMap={false} branches={branches} labels={{ directions: 'Yol tarifi' }} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-before-after',
+      title: 'BeforeAfter',
+      category: 'Domain',
+      abbr: 'BA',
+      description: 'Before / after pictures as a keyboard-operable slider or side by side, with captions and a note on what the pictures are.',
+      filePath: 'modules/domains/landing/media/BeforeAfter.tsx',
+      sourceCode: `import { BeforeAfter } from '@/modules/domains/landing/media/BeforeAfter';
+<BeforeAfter pairs={[{ before: '/old.jpg', after: '/new.jpg', caption: 'Kitchen' }]} note="Our own jobs." />`,
+      variants: [
+        {
+          title: 'Slider',
+          preview: <BeforeAfter title="Before and after" note="Our own jobs, photographed on site." pairs={[{ before: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=900&q=80&sat=-100', after: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=900&q=80', caption: 'Kitchen, two weeks' }]} />,
+          code: `<BeforeAfter title="Before and after" pairs={[{ before: '/old.jpg', after: '/new.jpg', caption: 'Kitchen, two weeks' }]} />`,
+        },
+        {
+          title: 'Side by side, Turkish labels',
+          preview: <BeforeAfter mode="side-by-side" labels={{ before: 'Önce', after: 'Sonra' }} pairs={[{ before: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&q=80&sat=-100', after: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=600&q=80', caption: 'Fade and beard' }]} />,
+          code: `<BeforeAfter mode="side-by-side" labels={{ before: 'Önce', after: 'Sonra' }} pairs={pairs} />`,
+        },
+      ],
+    },
+    {
+      id: 'landing-quote-calculator',
+      title: 'QuoteCalculator',
+      category: 'Domain',
+      abbr: 'QC',
+      description: 'Sliders and extras that add up to an estimate with the sum written out, and a button to the quote form with the estimate in the address.',
+      filePath: 'modules/domains/landing/pricing/QuoteCalculator.tsx',
+      sourceCode: `import { QuoteCalculator } from '@/modules/domains/landing/pricing/QuoteCalculator';
+<QuoteCalculator currency="€" baseFee={150} inputs={[{ label: 'Home size', unit: 'm²', min: 20, max: 300, rate: 4 }]} ctaHref="/contact" />`,
+      variants: [
+        {
+          title: 'A mover',
+          preview: (
+            <QuoteCalculator
+              title="What will it cost?" subtitle="Move the sliders for an estimate." currency="€" baseFee={150} roundTo={10} ctaHref="#"
+              inputs={[{ label: 'Home size', unit: 'm²', min: 20, max: 300, step: 5, value: 80, rate: 4 }, { label: 'Floors without a lift', min: 0, max: 10, value: 0, rate: 25 }, { label: 'Distance', unit: 'km', min: 0, max: 100, step: 5, value: 10, rate: 2 }]}
+              extras={[{ label: 'Packing service', price: 150 }, { label: 'Move-out cleaning', price: 120 }]}
+              note="An estimate, not a binding price: the quote after the survey is the price."
+            />
+          ),
+          code: `<QuoteCalculator currency="€" baseFee={150} roundTo={10} inputs={[…]} extras={[…]} ctaHref="/contact" />`,
         },
       ],
     },

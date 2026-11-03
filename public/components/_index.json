@@ -1373,6 +1373,24 @@
     "category": "Domain",
     "file": "landing-image-marks.md"
   },
+  "landing-branches": {
+    "name": "Branches",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-branches.md"
+  },
+  "landing-before-after": {
+    "name": "BeforeAfter",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-before-after.md"
+  },
+  "landing-quote-calculator": {
+    "name": "QuoteCalculator",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-quote-calculator.md"
+  },
   "jobs-status-badge": {
     "name": "JobStatusBadge",
     "layer": "domain",

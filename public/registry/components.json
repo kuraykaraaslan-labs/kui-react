@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-03T13:49:03.207Z",
+  "generatedAt": "2026-11-03T15:18:22.058Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -7658,6 +7658,71 @@
         {
           "title": "On a screenshot, large and medium",
           "code": "<ImageMarks marks={['2D', '3D']} />\n<ImageMarks marks={['Map', 'Live']} size=\"md\" position=\"top-left\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-branches",
+      "name": "Branches",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/locations/Branches.tsx",
+      "abbr": "BR",
+      "description": "A business's branches: cards with address, phone, hours and directions, and every branch as a pin on one map; picking a card moves the map, clicking a pin picks the card.",
+      "source": "import { Branches } from '@/modules/domains/landing/locations/Branches';\n<Branches title=\"Our branches\" branches={[{ name: 'City centre', address: '…', position: [41.03, 28.97] }]} />",
+      "variants": [
+        {
+          "title": "Three branches on one map",
+          "code": "<Branches title=\"Our branches\" branches={branches} />"
+        },
+        {
+          "title": "Cards only, Turkish labels",
+          "code": "<Branches showMap={false} branches={branches} labels={{ directions: 'Yol tarifi' }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-before-after",
+      "name": "BeforeAfter",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/media/BeforeAfter.tsx",
+      "abbr": "BA",
+      "description": "Before / after pictures as a keyboard-operable slider or side by side, with captions and a note on what the pictures are.",
+      "source": "import { BeforeAfter } from '@/modules/domains/landing/media/BeforeAfter';\n<BeforeAfter pairs={[{ before: '/old.jpg', after: '/new.jpg', caption: 'Kitchen' }]} note=\"Our own jobs.\" />",
+      "variants": [
+        {
+          "title": "Slider",
+          "code": "<BeforeAfter title=\"Before and after\" pairs={[{ before: '/old.jpg', after: '/new.jpg', caption: 'Kitchen, two weeks' }]} />"
+        },
+        {
+          "title": "Side by side, Turkish labels",
+          "code": "<BeforeAfter mode=\"side-by-side\" labels={{ before: 'Önce', after: 'Sonra' }} pairs={pairs} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "landing-quote-calculator",
+      "name": "QuoteCalculator",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/pricing/QuoteCalculator.tsx",
+      "abbr": "QC",
+      "description": "Sliders and extras that add up to an estimate with the sum written out, and a button to the quote form with the estimate in the address.",
+      "source": "import { QuoteCalculator } from '@/modules/domains/landing/pricing/QuoteCalculator';\n<QuoteCalculator currency=\"€\" baseFee={150} inputs={[{ label: 'Home size', unit: 'm²', min: 20, max: 300, rate: 4 }]} ctaHref=\"/contact\" />",
+      "variants": [
+        {
+          "title": "A mover",
+          "code": "<QuoteCalculator currency=\"€\" baseFee={150} roundTo={10} inputs={[…]} extras={[…]} ctaHref=\"/contact\" />"
         }
       ],
       "status": "stable",
