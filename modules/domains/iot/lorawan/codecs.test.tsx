@@ -158,6 +158,8 @@ describe('profile LoRaWAN tab (10.6)', () => {
     render(<LoraProfilePanel view={view} codecOptions={[{ value: 'auto', label: 'Automatic' }]} onSave={onSave} />);
     expect(screen.getByText(/Online rule not chosen yet/)).toBeTruthy();
     expect(screen.getByText(/A shared AppKey is stored/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/^RX1 delay/), { target: { value: '' } });
+    expect(screen.getByText(/from 1 to 15/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/^RX1 delay/), { target: { value: '3' } });
     fireEvent.change(screen.getByLabelText(/^New shared AppKey/), { target: { value: 'zz' } });
     expect((screen.getByText('Save').closest('button') as HTMLButtonElement).disabled).toBe(true);
