@@ -126,3 +126,21 @@ New Domain entries (each with a data and an empty/error variant): `LoraGatewayLi
 - (OD-57) A LoRaWAN demo profile shows "Recent message" selected and "Live connection" disabled in the Online status group; the LoRa panel links to it. (**OD-63:** the seeded demo profile stores that rule; a new blank LoRaWAN profile starts with nothing selected and cannot be saved until a rule is chosen.)
 - (OD-60) The Basics Station Credentials tab has no CUPS fields; §10.8 has no route and no demo entry.
 - Every route above renders from the demo adapter (no `iot.data.ts` import in a page), has loading/empty/error states reachable from `/theme/iot/settings`, and is in the route smoke test.
+
+## 2026-11-04 — Map, device and profile tabs, codec library (`feat/lora-codecs-ui`; NB iot_lorawan 13, iot_lorawan_codecs 05)
+
+Built in `modules/domains/iot/lorawan/`, shown on `/theme/iot/lorawan` (header buttons "Map" and "Codecs" open wide drawers, owner rule:
+no tabs or nested menus; the two tab cards show the device and profile tabs):
+
+- **10.2** `LoraGatewayMap` on the kit's one map (`MapCanvas`, the Sites & assets map): pins by state (online, offline, never connected),
+  tooltips with round trip and EUI, a click opens the gateway; gateways without a location are listed beside the map (a DataTable), never at
+  0,0, with "Place on the map" (the pin starts in the middle of the placed ones and is dragged into place; `onMove` saves). Relay lines and the
+  device coverage view wait for relays (NB 10) and are not built.
+- **10.4** `LoraDevicePanel` (the device tab): identity and join state, frame counters, the codec choice, the latest reception only (OD-103),
+  recent frames, "Reset session" for the host's ConfirmDialog. The downlink queue and "Send downlink" stay with the RPC console.
+- **10.6** `LoraProfilePanel` (the profile tab): radio (EU868 only, OD-55; RX1 delay 5 s default, OD-56), ADR range, de-dup window, the
+  profile's codec, radio keys, any JoinEUI, the shared AppKey write-only, the online rule read-only (OD-57 / OD-63). A plain form, no accordion.
+- **10.7** `LoraCodecTable` (library and own codecs, server or browser mode), `LoraCodecDetail` (facts, decoder-only line OD-106, test bench,
+  keys it decodes, revisions, the table read-only; Save a copy / Edit / Delete / Withdraw / Restore are the host's), `LoraCodecEditor` (id
+  `t.<slug>`, the table as JSON, Check with every own vector pass / fail, Publish, refusals in words) and `LoraCodecBench`. No JavaScript codec
+  anywhere (OD-83).
