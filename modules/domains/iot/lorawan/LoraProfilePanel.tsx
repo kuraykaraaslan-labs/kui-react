@@ -47,13 +47,23 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
   const [busy, setBusy] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  // the two number fields are kept as typed (a person clears one and types again); they are checked on save, never clamped while typing
+  const [rx1Text, setRx1Text] = useState(String(view?.settings.rx1DelayS ?? ''));
+  const [dedupText, setDedupText] = useState(String(view?.settings.dedupMs ?? ''));
   const [seen, setSeen] = useState(view);
-  if (view !== seen) { setSeen(view); setForm(view?.settings ?? null); setKey(''); setRemoveKey(false); }
+  if (view !== seen) {
+    setSeen(view); setForm(view?.settings ?? null); setKey(''); setRemoveKey(false);
+    setRx1Text(String(view?.settings.rx1DelayS ?? '')); setDedupText(String(view?.settings.dedupMs ?? ''));
+  }
   if (error) return <Callout variant="danger">{error}</Callout>;
   if (loading && !view) return <p className="text-sm text-text-secondary">{all.common.loading}</p>;
   if (!view || !form) return <Callout variant="note">{m.notLora}</Callout>;
   const set = <K extends keyof LoraProfileSettings>(k: K, v: LoraProfileSettings[K]) => { setForm((f) => (f ? { ...f, [k]: v } : f)); setSaved(false); };
   const drBad = form.minDr > form.maxDr;
+  const rx1 = Number(rx1Text);
+  const dedup = Number(dedupText);
+  const rx1Bad = !(Number.isInteger(rx1) && rx1 >= 1 && rx1 <= 15);
+  const dedupBad = !(Number.isInteger(dedup) && dedup >= 50 && dedup <= 1000);
   const keyBad = key !== '' && !KEY.test(key.replace(/\s/g, ''));
   const dr = Array.from({ length: 6 }, (_, i) => ({ value: String(i), label: `DR${i}` }));
   const disabled = !onSave;
@@ -61,8 +71,8 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
   return (
     <form className="flex max-w-3xl flex-col gap-6" noValidate onSubmit={(e) => {
       e.preventDefault();
-      if (!onSave || drBad || keyBad) return;
-      const change: LoraProfileChange = { ...profileChange(view.settings, form), ...(key ? { sharedAppKey: key.replace(/\s/g, '').toLowerCase() } : removeKey ? { sharedAppKey: null } : {}) };
+      if (!onSave || drBad || keyBad || rx1Bad || dedupBad) return;
+      const change: LoraProfileChange = { ...profileChange(view.settings, { ...form, rx1DelayS: rx1, dedupMs: dedup }), ...(key ? { sharedAppKey: key.replace(/\s/g, '').toLowerCase() } : removeKey ? { sharedAppKey: null } : {}) };
       setBusy(true); setSaveError(null); setSaved(false);
       onSave(change).then(() => { setSaved(true); setKey(''); setRemoveKey(false); }, (err: unknown) => setSaveError(err instanceof Error ? err.message : String(err))).finally(() => setBusy(false));
     }}>
@@ -73,15 +83,15 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
           onChange={(e) => set('macVersion', e.target.value as LoraProfileSettings['macVersion'])} />
         <Select id="lora-profile-class" label={m.class} options={[{ value: 'A', label: all.deviceForm.classA }, { value: 'C', label: all.deviceForm.classC }]} value={form.class} disabled={disabled}
           onChange={(e) => set('class', e.target.value as LoraProfileSettings['class'])} />
-        <Input id="lora-profile-rx1" type="number" min={1} max={15} label={m.rx1Delay} hint={m.rx1DelayHint} value={String(form.rx1DelayS)} disabled={disabled}
-          onChange={(e) => set('rx1DelayS', Math.min(15, Math.max(1, Math.round(Number(e.target.value) || 1))))} />
+        <Input id="lora-profile-rx1" type="number" min={1} max={15} label={m.rx1Delay} hint={m.rx1DelayHint} value={rx1Text} disabled={disabled}
+          error={rx1Bad ? m.rx1DelayInvalid : undefined} onChange={(e) => { setRx1Text(e.target.value); setSaved(false); }} />
         <div className="sm:col-span-2"><Checkbox id="lora-profile-adr" label={m.adr} checked={form.adrEnabled} disabled={disabled} onChange={(e) => set('adrEnabled', e.target.checked)} /></div>
         <Select id="lora-profile-mindr" label={m.minDr} options={dr} value={String(form.minDr)} disabled={disabled || !form.adrEnabled} error={drBad ? m.drInvalid : undefined}
           onChange={(e) => set('minDr', Number(e.target.value))} />
         <Select id="lora-profile-maxdr" label={m.maxDr} options={dr} value={String(form.maxDr)} disabled={disabled || !form.adrEnabled}
           onChange={(e) => set('maxDr', Number(e.target.value))} />
-        <Input id="lora-profile-dedup" type="number" min={50} max={1000} label={m.dedup} hint={m.dedupHint} value={String(form.dedupMs)} disabled={disabled}
-          onChange={(e) => set('dedupMs', Math.min(1000, Math.max(50, Math.round(Number(e.target.value) || 50))))} />
+        <Input id="lora-profile-dedup" type="number" min={50} max={1000} label={m.dedup} hint={m.dedupHint} value={dedupText} disabled={disabled}
+          error={dedupBad ? m.dedupInvalid : undefined} onChange={(e) => { setDedupText(e.target.value); setSaved(false); }} />
       </section>
       <section className="grid gap-4">
         <h3 className="text-sm font-semibold text-text-primary">{m.decoding}</h3>
@@ -109,7 +119,7 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
       {onSave && (
         <div className="flex items-center justify-end gap-3">
           {saved && <span className="text-xs text-success-fg">{m.saved}</span>}
-          <Button type="submit" loading={busy} disabled={drBad || keyBad}>{m.save}</Button>
+          <Button type="submit" loading={busy} disabled={drBad || keyBad || rx1Bad || dedupBad}>{m.save}</Button>
         </div>
       )}
     </form>
