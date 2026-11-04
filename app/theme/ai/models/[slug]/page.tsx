@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { Badge } from '@/modules/ui/Badge';
+import { DescriptionList } from '@/modules/ui/DescriptionList';
 import { ModelCard } from '@/modules/domains/ai/model/ModelCard';
 import { ModelProviderBadge } from '@/modules/domains/ai/model/ModelProviderBadge';
 import { ModelTypeBadge } from '@/modules/domains/ai/model/ModelTypeBadge';
@@ -94,32 +95,13 @@ export default async function ModelDetailPage({
           {/* Pricing table */}
           <div className="rounded-xl border border-border bg-surface-raised p-6">
             <h2 className="text-base font-semibold text-text-primary mb-4">Pricing</h2>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left pb-2 text-text-secondary font-medium">Token type</th>
-                  <th className="text-right pb-2 text-text-secondary font-medium">Price per 1k tokens</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                <tr>
-                  <td className="py-3 text-text-primary">Input (prompt)</td>
-                  <td className="py-3 text-right text-text-primary font-mono">
-                    {model.pricingPromptPer1k != null
-                      ? `$${model.pricingPromptPer1k.toFixed(5)}`
-                      : '—'}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-3 text-text-primary">Output (completion)</td>
-                  <td className="py-3 text-right text-text-primary font-mono">
-                    {model.pricingCompletionPer1k != null
-                      ? `$${model.pricingCompletionPer1k.toFixed(5)}`
-                      : '—'}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            {/* two label/value lines of one model: the kit's DescriptionList (a record's details), not a table */}
+            <DescriptionList
+              items={[
+                { label: 'Input (prompt), per 1k tokens', mono: true, value: model.pricingPromptPer1k != null ? `$${model.pricingPromptPer1k.toFixed(5)}` : null },
+                { label: 'Output (completion), per 1k tokens', mono: true, value: model.pricingCompletionPer1k != null ? `$${model.pricingCompletionPer1k.toFixed(5)}` : null },
+              ]}
+            />
           </div>
         </div>
 
