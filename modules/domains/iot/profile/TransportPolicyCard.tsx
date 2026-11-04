@@ -8,7 +8,7 @@ import { Toggle } from '@/modules/ui/Toggle';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
 import {
-  isNetwork, isPlaintextRpcMethod, isPolledTransport, MQTT_TRANSPORT_POLICIES, transportChoices, type DeviceProfileDraft, type ProfileTransport, type ProfileTransportOption,
+  isNetwork, isPlaintextRpcMethod, isPolledTransport, MQTT_TRANSPORT_POLICIES, transportChoices, transportLogsIn, type DeviceProfileDraft, type ProfileTransport, type ProfileTransportOption,
 } from '../types/profile';
 import { ProfileSection } from './profile-fields';
 
@@ -21,7 +21,8 @@ import { ProfileSection } from './profile-fields';
  * names, none by default; firmware and settings attributes never go in clear). Changing the transport never touches the online rule (OD-63).
  * The transports are the host's (built-ins and the protocols it polls, `useProfileTransports`); the select always shows the profile's
  * current value with its label, offered or not. A polled transport (NB iot-gateway 13.3: the platform asks the device) has no MQTT, token
- * or network settings: the card says so instead of showing them.
+ * or network settings: the card says so instead of showing them. Neither has a transport whose devices do not log in themselves (the host's
+ * option says `deviceCredentials: false`, NB's LoRaWAN radios and gateways; `transportLogsIn`): the card says that instead.
  */
 export type TransportPolicyValue = Pick<DeviceProfileDraft, 'transportType' | 'mqttTransport' | 'allowTokenInUrl' | 'allowedNetworks' | 'plaintextRpcMethods'>;
 
@@ -48,6 +49,7 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
   const showPlainMethods = usesMqtt && value.mqttTransport === 'PLAINTEXT_ALLOWED';
   const polled = isPolledTransport(value.transportType);
   const known = transports.filter((t): t is ProfileTransportOption => typeof t !== 'string');
+  const logsIn = transportLogsIn(value.transportType, known);
   const choices = transportChoices(transports, (t) => m.transport[t], value.transportType, known);
   return (
     <div className={cn('space-y-4', className)}>
@@ -61,9 +63,10 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
           options={choices.map((t) => ({ value: t.value, label: t.label }))}
         />
         {polled && <Callout variant="info" title={null}>{m.transport.polledHint}</Callout>}
+        {!polled && !logsIn && <Callout variant="info" title={null}>{m.transport.noLoginHint}</Callout>}
       </ProfileSection>
 
-      {!polled && value.transportType !== 'HTTP' && value.transportType !== 'LORAWAN' && (
+      {logsIn && value.transportType !== 'HTTP' && value.transportType !== 'LORAWAN' && (
         <ProfileSection title={m.transport.mqttTransport}>
           <fieldset className="grid gap-2 md:grid-cols-2" aria-label={m.transport.mqttTransport}>
             {MQTT_TRANSPORT_POLICIES.map((p) => {
@@ -113,7 +116,7 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
         </ProfileSection>
       )}
 
-      {!polled && (<>
+      {logsIn && (<>
       <ProfileSection title={m.transport.tokenInUrl} hint={m.transport.tokenInUrlHint}>
         <Toggle id={`${id}-token-url`} label={m.transport.tokenInUrl} checked={value.allowTokenInUrl} disabled={disabled} onChange={(v) => onChange?.({ allowTokenInUrl: v })} />
         {value.allowTokenInUrl && usesMqtt && <Callout variant="warning" title={null}>{m.transport.tokenInUrlMqtt}</Callout>}

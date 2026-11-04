@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider, useIotAdapter } from './api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotCapabilities } from './api/adapter';
@@ -346,6 +346,20 @@ describe('DeviceDetailView', () => {
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent);
     expect(tabs).toEqual(['Overview', 'Attributes', 'Log', 'Alarms']);
     expect(screen.queryByText(/factory reset/i)).toBeNull();
+  });
+
+  it('hides the credentials tab for a device that does not log in itself (its record says deviceCredentials: false), and only then', async () => {
+    const base = createFakeAdapter();
+    const adapter = createFakeAdapter({ devices: { ...base.devices!, get: vi.fn().mockImplementation(async (id: string) => ({ ...DEVICES.find((d) => d.deviceId === id)!, deviceCredentials: false })) } });
+    wrap(<DeviceDetailView deviceId="d1" />, { adapter });
+    await screen.findByRole('heading', { name: 'Pump 4' });
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Overview', 'Attributes', 'Log']);
+    expect(adapter.credentials!.get).not.toHaveBeenCalled();
+    cleanup();
+    const unknown = createFakeAdapter({ devices: { ...base.devices!, get: vi.fn().mockImplementation(async (id: string) => ({ ...DEVICES.find((d) => d.deviceId === id)!, deviceCredentials: null })) } });
+    wrap(<DeviceDetailView deviceId="d1" />, { adapter: unknown });
+    await screen.findByRole('heading', { name: 'Pump 4' });
+    expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Overview', 'Attributes', 'Credentials', 'Log']);
   });
 
   it('rotates the credential and shows the new secret once', async () => {

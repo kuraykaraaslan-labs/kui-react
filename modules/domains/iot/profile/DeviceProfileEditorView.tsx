@@ -17,8 +17,8 @@ import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { fill, formatDateTime } from '../format';
 import {
-  CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isPolledTransport, isTelemetryKey, nextKeyOrigins, profileDraftIssues, profilePatch,
-  telemetryKeyChanges, transportLabel,
+  CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isTelemetryKey, nextKeyOrigins, profileDraftIssues, profilePatch,
+  telemetryKeyChanges, transportLabel, transportLogsIn,
   type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileKeyUsage, type ProfileTransport, type ProvisionStrategy,
 } from '../types/profile';
 import { AuthModeSelector } from './AuthModeSelector';
@@ -340,8 +340,8 @@ export function DeviceProfileEditorView({
         <div className="space-y-4">
           <TransportPolicyCard value={draft} transports={offered} disabled={readOnly} transportLocked={!!profile.builtinKey} onChange={set}
             errors={{ allowedNetworks: err('allowedNetworks'), plaintextRpcMethods: err('plaintextRpcMethods'), transportType: err('transportType') }} />
-          {/* a polled profile's devices never log in or publish: no auth modes, no topics (the card says so) */}
-          {!isPolledTransport(draft.transportType) && (<>
+          {/* a polled profile's devices, or devices that reach the platform another way, never log in or publish: no auth modes, no topics (the card says so) */}
+          {transportLogsIn(draft.transportType, offered) && (<>
             <ProfileSection title={m.transport.authModes}>
               <AuthModeSelector value={draft.allowedAuthModes} disabled={readOnly} error={err('allowedAuthModes')} onChange={(v) => set({ allowedAuthModes: v })} />
             </ProfileSection>

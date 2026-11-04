@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
 import {
-  blankProfileDraft, isNetwork, nextKeyOrigins, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, DEFAULT_RATE_LIMITS,
+  allowedOnlineRules, blankProfileDraft, isNetwork, isPolledTransport, transportLogsIn, nextKeyOrigins, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, DEFAULT_RATE_LIMITS,
   type DeviceProfile, type DeviceProfileDraft, type ProfileAuthMode, type ProfileRateLimits, type ProfileTransport,
 } from '../types/profile';
 import { OnlineRuleField, formatSeconds, type OnlineRuleValue } from './OnlineRuleField';
@@ -419,6 +419,37 @@ describe('DeviceProfileEditorView', () => {
     await user.click((screen.getAllByRole('radio') as HTMLInputElement[]).find((r) => r.value === 'LAST_SEEN_ONLY')!);
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { transportType: 'snmp', onlineRule: 'LAST_SEEN_ONLY' }));
+  });
+
+  it('a host transport whose devices do not log in (deviceCredentials: false) is not polled and hides the login settings; Live connection still fits', async () => {
+    const user = userEvent.setup();
+    const adapter = profilesAdapter({ transports: ['MQTT', 'HTTP', 'ANY'], transportOptions: async () => [
+      { value: 'LORAWAN', label: 'LoRaWAN', polled: false, deviceCredentials: false },
+      { value: 'LORAWAN_GATEWAY', label: 'LoRaWAN gateway', polled: false, deviceCredentials: false },
+    ] }, [profile({ transportType: 'LORAWAN_GATEWAY', onlineRule: 'LIVE_SOCKET', builtinKey: 'lorawan_gateway' })]);
+    render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
+    await screen.findByRole('heading', { name: /Pumps/ });
+    await user.click(screen.getByRole('tab', { name: /Transport & auth/ }));
+    const select = screen.getByLabelText('Transport') as HTMLSelectElement;
+    await waitFor(() => expect([...select.options].map((o) => o.textContent)).toEqual(['MQTT', 'HTTP', 'MQTT and HTTP', 'LoRaWAN', 'LoRaWAN gateway']));
+    expect(select.value).toBe('LORAWAN_GATEWAY');
+    expect(screen.getByText(/do not log in to the platform themselves/)).toBeInTheDocument();
+    expect(screen.queryByText(/The platform polls the devices/)).toBeNull();
+    for (const gone of ['Plain MQTT', 'Allowed authentication']) expect(screen.queryByText(gone)).toBeNull();
+    await user.click(screen.getByRole('tab', { name: /Online status/ }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('D210: polled is the case of the value; a host option decides whether devices log in, else only a kit built-in does', () => {
+    expect(isPolledTransport('snmp')).toBe(true);
+    expect(isPolledTransport('LORAWAN_GATEWAY')).toBe(false);
+    expect(isPolledTransport('MQTT')).toBe(false);
+    expect(transportLogsIn('MQTT')).toBe(true);
+    expect(transportLogsIn('snmp', [{ value: 'snmp', label: 'SNMP', deviceCredentials: true }])).toBe(false);
+    expect(transportLogsIn('LORAWAN', [{ value: 'LORAWAN', label: 'LoRaWAN', deviceCredentials: false }])).toBe(false);
+    expect(transportLogsIn('LORAWAN')).toBe(true);
+    expect(transportLogsIn('LORAWAN_GATEWAY')).toBe(false);
+    expect(allowedOnlineRules('LORAWAN_GATEWAY')).toEqual(['LIVE_SOCKET', 'UPLINK_WINDOW', 'LAST_SEEN_ONLY']);
   });
 
   it('always shows the profile\'s own transport with its label, offered or not', async () => {

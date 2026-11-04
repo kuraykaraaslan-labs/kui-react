@@ -24,8 +24,8 @@ import { useDeviceLog } from './useDeviceLog';
 
 /**
  * DeviceDetailView — one device (phase 01 §1.2, NB iot_device 05 §5.3), read through the adapter: `DeviceDetailHeader` and the
- * tabs Overview, Attributes (with `canReadAttributes`), Credentials (only with `canViewCredentials`; rotate shows the new
- * secret once) and Log (the connection log and the audited changes in one timeline, `DeviceLogTimeline`; a `connections` link opens
+ * tabs Overview, Attributes (with `canReadAttributes`), Credentials (only with `canViewCredentials`, and not for a device whose record
+ * says `deviceCredentials: false`; rotate shows the new secret once) and Log (the connection log and the audited changes in one timeline, `DeviceLogTimeline`; a `connections` link opens
  * it too), plus the host's `extraTabs` (tabs other modules contribute: Alarms, Telemetry, RPC, …, ordered
  * by `order`). The header's actions: copy id, Edit (name, label, type, profile, status and additional info, `canEditDevice` and `devices.update`: `EditDeviceDrawer`), Activate
  * for a quarantined device (`canActivateDevice`, OD-1), delete
@@ -134,7 +134,8 @@ export function DeviceDetailView({
   const tabs: Tab[] = [
     { id: 'overview', label: m.detail.overview, order: 0, content: <Overview device={device} /> },
     ...(caps.canReadAttributes && adapter.attributes ? [{ id: 'attributes', label: m.detail.attributes, order: 10, content: <AttributesTab deviceId={deviceId} now={now} /> }] : []),
-    ...(caps.canViewCredentials && adapter.credentials ? [{ id: 'credentials', label: m.detail.credentials, order: 20, content: <CredentialsTab deviceId={deviceId} /> }] : []),
+    // a device that does not log in itself (its record says `deviceCredentials: false`) has no credential to show or rotate
+    ...(caps.canViewCredentials && adapter.credentials && device.deviceCredentials !== false ? [{ id: 'credentials', label: m.detail.credentials, order: 20, content: <CredentialsTab deviceId={deviceId} /> }] : []),
     { id: 'log', label: m.detail.log, order: 30, content: <LogTab deviceId={deviceId} /> },
     ...extraTabs,
   ];

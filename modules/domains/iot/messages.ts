@@ -825,6 +825,7 @@ export const IOT_MESSAGES = {
     typeHint: 'Changing the transport never changes the online rule; a rule the transport cannot use blocks saving.',
     builtinFixed: 'A built-in profile keeps its transport: devices of its protocol are registered with it.',
     polledHint: 'The platform polls the devices of this profile through their endpoints (Connection tab of each device). The MQTT, token and network settings do not apply.',
+    noLoginHint: 'The devices of this profile do not log in to the platform themselves: a network server brings their data. The MQTT, token, network and authentication settings do not apply.',
     authModes: 'Allowed authentication',
     ACCESS_TOKEN: 'Access token',
     MQTT_BASIC: 'MQTT basic (username and password)',

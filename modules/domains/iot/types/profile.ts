@@ -14,12 +14,33 @@ export type BuiltinProfileTransport = (typeof PROFILE_TRANSPORTS)[number];
  * OD-177). The kit names no protocol: the host lists the ones it has (`profiles.transportOptions`) with their labels.
  */
 export type ProfileTransport = BuiltinProfileTransport | (string & {});
-/** One choice of the transport select: the value, its label in the app language, and whether the platform polls its devices. */
-export type ProfileTransportOption = { value: ProfileTransport; label: string; polled?: boolean };
+/**
+ * One choice of the transport select: the value, its label in the app language, whether the platform polls its devices, and whether its
+ * devices log in to the platform themselves (`deviceCredentials`: an access token, MQTT basic or a certificate; NB iot-device-profile D211).
+ * A host sets `deviceCredentials: false` for a transport whose devices reach it another way (NB: LoRaWAN radios and gateways, which a
+ * network server brings in); absent means they do, for a built-in.
+ */
+export type ProfileTransportOption = { value: ProfileTransport; label: string; polled?: boolean; deviceCredentials?: boolean };
 
 export const isBuiltinTransport = (t: string): t is BuiltinProfileTransport => (PROFILE_TRANSPORTS as readonly string[]).includes(t);
-/** A polled transport (any value that is not a built-in): no socket, no uplink window; the platform asks the device (NB iot-gateway 13.3). */
-export const isPolledTransport = (t: string): boolean => !isBuiltinTransport(t);
+/**
+ * A polled transport: a lower-case value, the id of a protocol the host polls (NB `iot_gateway:protocol`, OD-177); no socket, no uplink
+ * window, the platform asks the device (NB iot-gateway 13.3). Built-ins and a host's other transports are upper case (NB's `LORAWAN_GATEWAY`),
+ * so the answer needs no list and holds for a value the host no longer offers (NB iot-device-profile D210).
+ */
+export const isPolledTransport = (t: string): boolean => /^[a-z]/.test(t);
+
+/**
+ * Whether the devices of a transport log in to the platform themselves, so the profile's MQTT, token, network, authentication and topic
+ * settings apply. Never for a polled transport; for another one the host's option says (`deviceCredentials`); without an option a kit
+ * built-in does and any other value does not (a transport nobody vouches for gets no login settings).
+ */
+export function transportLogsIn(t: ProfileTransport, known: readonly ProfileTransportOption[] = []): boolean {
+  if (isPolledTransport(t)) return false;
+  const o = known.find((k) => k.value === t);
+  if (o && o.deviceCredentials !== undefined) return o.deviceCredentials;
+  return isBuiltinTransport(t);
+}
 
 /**
  * The choices of the transport select: the offered ones (built-ins labelled by the kit's texts, a host option with its own label), and the

@@ -55,6 +55,12 @@ export const DeviceRecordSchema = z.object({
   lastTransport: z.string().nullable().optional(),
   /** Why the last session ended (a protocol reason such as `keepalive_timeout`), when known. */
   lastDisconnectReason: z.string().nullable().optional(),
+  /**
+   * Whether the device logs in to the platform itself (its profile's transport, as the host decides it; NB iot-device 05 D293): false for a
+   * device that reaches the platform another way (polled, or a LoRaWAN radio or gateway), which hides the Credentials tab. Absent or null:
+   * the host does not say, the tab shows.
+   */
+  deviceCredentials: z.boolean().nullable().optional(),
   createdAt: z.coerce.date().optional(),
 });
 export type DeviceRecord = z.infer<typeof DeviceRecordSchema>;
