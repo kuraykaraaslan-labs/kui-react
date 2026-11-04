@@ -10,10 +10,10 @@ import type { LoraDeviceRow } from './types';
 
 /**
  * LoraDeviceTable — the tenant's LoRaWAN end devices: name, DevEUI, join state (why a join was refused: "wrong AppKey?"), DevAddr and last
- * uplink of the active session, frame counter, class and LoRaWAN version. Never a key: the AppKey is not part of a row.
+ * uplink of the active session, frame counter, class, LoRaWAN version and when it was added. Never a key: the AppKey is not part of a row.
  *
  * A full list on the DataTable's own toolbar: search (name, DevEUI, JoinEUI), the Filters panel (class, LoRaWAN version, join state),
- * sortable columns (name, DevEUI, class, LoRaWAN version; one at a time), rows per page and paging. With `onQueryChange` the host serves
+ * sortable columns (name, DevEUI, class, LoRaWAN version, added; one at a time), rows per page and paging. With `onQueryChange` the host serves
  * every page (`mode="manual"`, `total` rows in all): the query's sort keys (`LORA_DEVICE_SORT_KEYS`) and filter ids (`class`,
  * `macVersion`, `joinState` as `joined` / `refused` / `never`, the rule of `loraJoinStateOf`) are NB iot_lorawan's list parameters.
  * Without it the table pages, sorts, searches and filters `rows` in the browser.
@@ -39,7 +39,7 @@ export type LoraDeviceTableProps = {
 };
 
 /** The columns a device list sorts by, as the host's API names them. */
-export const LORA_DEVICE_SORT_KEYS = ['name', 'devEui', 'class', 'macVersion'] as const;
+export const LORA_DEVICE_SORT_KEYS = ['name', 'devEui', 'class', 'macVersion', 'createdAt'] as const;
 const DEFAULT_MAC_VERSIONS: readonly string[] = ['1.0.2', '1.0.3', '1.0.4'];
 
 export function LoraDeviceTable({
@@ -48,6 +48,7 @@ export function LoraDeviceTable({
   const all = mergeLoraMessages(messages);
   const m = all.devices;
   const dash = <span className="text-xs text-text-secondary">{all.common.none}</span>;
+  const date = useMemo(() => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }), [locale]);
   const columns: Column<LoraDeviceRow>[] = [
     { key: 'name', header: m.name, sortable: true, searchValue: (d) => d.name ?? d.devEui, render: (d) => <span className="font-medium">{d.name ?? d.devEui}</span> },
     { key: 'devEui', header: m.devEui, sortable: true, hideBelow: 'sm', render: (d) => <code className="font-mono text-xs">{d.devEui}</code> },
@@ -57,6 +58,10 @@ export function LoraDeviceTable({
     { key: 'fCnt', header: m.fCnt, hideBelow: 'lg', align: 'right', searchable: false, render: (d) => (d.session?.fCntUp !== null && d.session?.fCntUp !== undefined ? <span className="tabular-nums text-xs">{d.session.fCntUp}</span> : dash) },
     { key: 'class', header: m.class, sortable: true, hideBelow: 'lg', searchable: false, render: (d) => <span className="text-xs">{d.class}</span> },
     { key: 'macVersion', header: m.macVersion, sortable: true, hideBelow: 'lg', searchable: false, render: (d) => <span className="text-xs">{d.macVersion}</span> },
+    {
+      key: 'createdAt', header: m.createdAt, sortable: true, hideBelow: 'lg', searchable: false, sortValue: (d) => d.createdAt ?? '',
+      render: (d) => (d.createdAt ? <span className="text-xs">{date.format(new Date(d.createdAt))}</span> : dash),
+    },
   ];
   const filterFields = useMemo((): DataTableFilterField<LoraDeviceRow>[] => [
     { id: 'class', label: m.class, type: 'select', options: [{ value: 'A', label: 'A' }, { value: 'C', label: 'C' }] },

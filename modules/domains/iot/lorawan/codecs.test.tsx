@@ -141,9 +141,18 @@ describe('device LoRaWAN tab (10.4)', () => {
     expect(onResetSession).toHaveBeenCalled();
     expect(screen.getByText('No uplink heard yet.')).toBeTruthy();
   });
-  it('a device that is not a LoRaWAN device shows one line', () => {
+  it('a device without a LoRaWAN record shows one line saying where LoRaWAN devices are added', () => {
     render(<LoraDevicePanel device={null} frames={[]} codecOptions={[]} />);
-    expect(screen.getByText(/not a LoRaWAN device/)).toBeTruthy();
+    expect(screen.getByText(/has no LoRaWAN record/)).toBeTruthy();
+    expect(screen.queryByText(/LoRaWAN page/)).toBeNull();
+  });
+  it('offers Remove only when the host passes onRemove', () => {
+    const onRemove = vi.fn();
+    const { rerender } = render(<LoraDevicePanel device={device} frames={[]} codecOptions={[]} />);
+    expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+    rerender(<LoraDevicePanel device={device} frames={[]} codecOptions={[]} onRemove={onRemove} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect(onRemove).toHaveBeenCalled();
   });
 });
 

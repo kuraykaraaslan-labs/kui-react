@@ -8,7 +8,7 @@ import { PageHeader } from '@/modules/ui/PageHeader';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 import {
   CODEC_OUTLINE, LoraCodecDetail, LoraCodecEditor, LoraCodecTable, LoraDeviceForm, LoraDevicePanel, LoraDeviceTable, LoraFrameTable, LoraGatewayForm,
-  LoraGatewayMap, LoraGatewayTable, LoraProfilePanel, LoraStationSetup,
+  LoraGatewayMap, LoraGatewayPanel, LoraGatewayTable, LoraProfilePanel, LoraStationSetup,
 } from '@/modules/domains/iot/lorawan';
 import type {
   LoraBenchFrame, LoraCodecCheck, LoraCodecDoc as CodecDetail, LoraCodecRow, LoraDeviceRow, LoraFrameRow, LoraGatewayRow, LoraIssuedToken, LoraProfileView,
@@ -23,9 +23,9 @@ const GATEWAYS: LoraGatewayRow[] = [
   { gatewayId: 'g4', name: 'Old gateway', eui: 'AA555A0000000004', protocol: 'BASICS_STATION', status: 'DISABLED', region: 'EU868', lastSeenAt: ago(60 * 24 * 9) },
 ];
 const DEVICES: LoraDeviceRow[] = [
-  { deviceId: 'd1', name: 'Cold room 1', devEui: 'A840410000000001', joinEui: '0000000000000001', class: 'A', macVersion: '1.0.3', lastJoin: { state: 'joined', at: now - 7_200_000 }, session: { devAddr: '26011234', fCntUp: 812, fCntDown: 14, lastUplinkAt: ago(3), status: 'ACTIVE' } },
-  { deviceId: 'd2', name: 'Door sensor', devEui: '24E124136B502217', joinEui: '24E124C0002A0001', class: 'A', macVersion: '1.0.2', lastJoin: { state: 'join_mic_failed', at: now - 60_000 }, session: null },
-  { deviceId: 'd3', name: 'Pump controller', devEui: '2CF7F12000000003', joinEui: '0000000000000000', class: 'C', macVersion: '1.0.4', lastJoin: null, session: null },
+  { deviceId: 'd1', name: 'Cold room 1', devEui: 'A840410000000001', joinEui: '0000000000000001', class: 'A', macVersion: '1.0.3', lastJoin: { state: 'joined', at: now - 7_200_000 }, session: { devAddr: '26011234', fCntUp: 812, fCntDown: 14, lastUplinkAt: ago(3), status: 'ACTIVE' }, createdAt: ago(60 * 24 * 30) },
+  { deviceId: 'd2', name: 'Door sensor', devEui: '24E124136B502217', joinEui: '24E124C0002A0001', class: 'A', macVersion: '1.0.2', lastJoin: { state: 'join_mic_failed', at: now - 60_000 }, session: null, createdAt: ago(60 * 24 * 2) },
+  { deviceId: 'd3', name: 'Pump controller', devEui: '2CF7F12000000003', joinEui: '0000000000000000', class: 'C', macVersion: '1.0.4', lastJoin: null, session: null, createdAt: ago(45) },
 ];
 const gws = (n: number) => GATEWAYS.slice(0, n).map((g, i) => ({ gatewayId: g.gatewayId, eui: g.eui, rssi: -78 - i * 14, snr: 7.5 - i * 6 }));
 const FRAMES: LoraFrameRow[] = [
@@ -89,7 +89,12 @@ export default function LorawanPage() {
         </Card>
         <Card title="Device page: the LoRaWAN tab (Cold room 1)" className="p-4">
           <LoraDevicePanel device={{ ...DEVICES[0], codecId: 'auto' }} frames={FRAMES.filter((f) => f.deviceId === 'd1')} codecOptions={CODEC_OPTIONS}
-            gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} onCodecChange={() => later(undefined)} onResetSession={() => undefined} />
+            gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} onCodecChange={() => later(undefined)} onResetSession={() => undefined} onRemove={() => undefined} />
+        </Card>
+<Card title="Device page: the LoRaWAN tab of a gateway (Roof, north side)" className="p-4">
+          <LoraGatewayPanel gateway={{ ...GATEWAYS[0], deviceId: 'dg1', mode: 'CLOUD', altitude: 40 }} setup={SETUP} issued={issued} frames={FRAMES.filter((f) => f.gateways.some((g) => g.gatewayId === 'g1'))}
+            deviceName={(id) => DEVICES.find((d) => d.deviceId === id)?.name ?? undefined} gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} now={now}
+            onDownload={() => undefined} onRotate={() => setConfirm(true)} onDisable={() => undefined} onRemove={() => undefined} />
         </Card>
         <Card title="Device profile page: the LoRaWAN tab" className="p-4">
           <LoraProfilePanel view={PROFILE} codecOptions={CODEC_OPTIONS} onSave={() => later(undefined)} onlineRuleLabel={() => 'Recent message'} />

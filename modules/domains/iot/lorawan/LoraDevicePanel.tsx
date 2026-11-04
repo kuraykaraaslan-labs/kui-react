@@ -16,8 +16,8 @@ import type { LoraCodecOption, LoraDeviceDetail, LoraFrameRow } from './types';
  * nested tabs: who the device is on the network (DevEUI, JoinEUI, DevAddr, version and class, frame counters, last uplink, the AppKey
  * never shown) with its join state; its codec (Automatic, None, a library codec or the tenant's own; saved by the host); the latest
  * reception, one row per gateway that heard the last uplink (OD-103: no history, the note says where history comes from); its recent
- * frames. "Reset session" is the host's (confirmed by its ConfirmDialog). A device that is not a LoRaWAN device (`device` null) shows one
- * line pointing at the LoRaWAN page.
+ * frames. "Reset session" and "Remove" (the device, its keys and its DevEUI claim) are the host's, each confirmed by its ConfirmDialog. A device
+ * without a LoRaWAN record (`device` null) shows one line saying where LoRaWAN devices are added (New device on the Devices page).
  */
 export type LoraDevicePanelProps = {
   device: LoraDeviceDetail | null;
@@ -25,6 +25,8 @@ export type LoraDevicePanelProps = {
   codecOptions: readonly LoraCodecOption[];
   onCodecChange?: (codecId: string) => Promise<void>;
   onResetSession?: () => void;
+  /** Removes the LoRaWAN device (the host asks first); left out, no Remove button. */
+  onRemove?: () => void;
   gatewayName?: (gatewayId: string) => string | undefined;
   loading?: boolean;
   error?: string | null;
@@ -42,7 +44,7 @@ export function latestReception(frames: readonly LoraFrameRow[]): RxRow[] {
 }
 
 export function LoraDevicePanel({
-  device, frames, codecOptions, onCodecChange, onResetSession, gatewayName, loading, error, locale, messages,
+  device, frames, codecOptions, onCodecChange, onResetSession, onRemove, gatewayName, loading, error, locale, messages,
 }: LoraDevicePanelProps) {
   const all = mergeLoraMessages(messages);
   const m = all.deviceTab;
@@ -66,7 +68,12 @@ export function LoraDevicePanel({
   const options = codecOptions.some((o) => o.value === current) ? codecOptions : [...codecOptions, { value: current, label: current }];
   return (
     <div className="space-y-6">
-      {onResetSession && <div className="flex flex-wrap gap-2"><Button variant="outline" size="sm" onClick={onResetSession}>{m.reset}</Button></div>}
+      {(onResetSession || onRemove) && (
+        <div className="flex flex-wrap gap-2">
+          {onResetSession && <Button variant="outline" size="sm" onClick={onResetSession}>{m.reset}</Button>}
+          {onRemove && <Button variant="danger" size="sm" onClick={onRemove}>{m.remove}</Button>}
+        </div>
+      )}
       <section className="space-y-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-text-primary">{m.identity}<LoraJoinStateBadge device={device} messages={messages} /></h3>
         <DescriptionList

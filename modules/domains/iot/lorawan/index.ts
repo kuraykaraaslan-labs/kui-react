@@ -10,6 +10,7 @@ export { LoraCodecBench, benchInputOk, type LoraCodecBenchProps } from './LoraCo
 export { LoraCodecDetail, type LoraCodecDetailProps } from './LoraCodecDetail';
 export { LoraCodecEditor, loraRefusalText, CODEC_OUTLINE, TENANT_CODEC_ID, type LoraCodecEditorProps } from './LoraCodecEditor';
 export { LoraDevicePanel, latestReception, type LoraDevicePanelProps } from './LoraDevicePanel';
+export { LoraGatewayPanel, type LoraGatewayPanelProps } from './LoraGatewayPanel';
 export { LoraProfilePanel, profileChange, type LoraProfileChange, type LoraProfilePanelProps } from './LoraProfilePanel';
 export { LORA_MESSAGES, mergeLoraMessages, type LoraMessages, type LoraMessagesInput } from './messages';
 export type * from './types';

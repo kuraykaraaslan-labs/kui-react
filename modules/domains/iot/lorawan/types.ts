@@ -1,16 +1,22 @@
 /** The LoRaWAN rows the components draw (NB iot_lorawan's API shapes; no key, no token hash). */
 export type LoraGatewayRow = {
   gatewayId: string;
+  /** The device the gateway is (NB: every gateway is an `iot_device`; a Roltek router's own device for the Roltek link). */
+  deviceId?: string;
   name: string;
   eui: string;
   protocol: 'BASICS_STATION' | 'ROLTEK_LINK';
   status: 'ACTIVE' | 'DISABLED' | 'PENDING';
   region: string;
+  /** `CLOUD`: the cloud network server schedules on it; `LOCAL`: informational, a network server on the gateway itself. */
+  mode?: 'CLOUD' | 'LOCAL' | string;
   lastSeenAt: string | null;
   live?: { online: boolean; rttMs: number | null; connectedAt: number | null };
   /** Where the gateway stands (the map); null until someone places it. */
   latitude?: number | null;
   longitude?: number | null;
+  /** Metres above sea level, when the host knows it. */
+  altitude?: number | null;
 };
 
 export type LoraJoinState = { state: string; reason?: string; at: number } | null;
@@ -27,6 +33,8 @@ export type LoraDeviceRow = {
   macVersion: string;
   lastJoin: LoraJoinState;
   session?: { devAddr: string; fCntUp: number | null; fCntDown: number; lastUplinkAt: string | null; status: string } | null;
+  /** When the device was added (ISO); the list's Added column. */
+  createdAt?: string;
 };
 
 export type LoraFrameRow = {

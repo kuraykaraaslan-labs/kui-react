@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
-  LoraDeviceForm, LoraDeviceTable, LoraFrameTable, LoraGatewayForm, LoraGatewayTable, LoraJoinStateBadge, LoraStationSetup, isEui, isKey, loraJoinStateOf,
+  LoraDeviceForm, LoraDeviceTable, LoraFrameTable, LoraGatewayForm, LoraGatewayPanel, LoraGatewayTable, LoraJoinStateBadge, LoraStationSetup, isEui, isKey,
+  loraJoinStateOf, LORA_DEVICE_SORT_KEYS,
 } from '.';
 import type { LoraDeviceRow, LoraGatewayRow } from '.';
 
@@ -122,6 +123,17 @@ describe('LoRaWAN lists (sort, search, filters, paging)', () => {
     await waitFor(() => expect(names()).toEqual(['Door']));
   });
 
+  it('the device table shows when each device was added and sorts by it', async () => {
+    const user = userEvent.setup();
+    const onQueryChange = vi.fn();
+    const rows = [dev('d1', 'Cold room', { createdAt: '2026-11-02T10:00:00.000Z' }), dev('d2', 'Door')];
+    render(<LoraDeviceTable rows={rows} total={2} onQueryChange={onQueryChange} locale="en-GB" />);
+    expect(screen.getByText(new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date('2026-11-02T10:00:00.000Z')))).toBeTruthy();
+    expect(LORA_DEVICE_SORT_KEYS).toContain('createdAt');
+    await user.click(within(screen.getByRole('columnheader', { name: /Added/ })).getByRole('button'));
+    await waitFor(() => expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ sort: [{ key: 'createdAt', dir: 'asc' }] })));
+  });
+
   it('a join is joined (accepted, or a session without a recorded join), refused, or never', () => {
     expect(loraJoinStateOf({ lastJoin: { state: 'joined', at: 1 }, session: null })).toBe('joined');
     expect(loraJoinStateOf({ lastJoin: null, session: { devAddr: '01', fCntUp: 1, fCntDown: 0, lastUplinkAt: null, status: 'ACTIVE' } })).toBe('joined');
@@ -159,5 +171,51 @@ describe('LoRaWAN lists (sort, search, filters, paging)', () => {
     expect(rows[3].textContent).toMatch(/Cold room/);
     await user.type(screen.getByRole('searchbox'), 'pump');
     await waitFor(() => expect(screen.getAllByRole('row')).toHaveLength(2));
+  });
+});
+
+describe('LoraGatewayPanel (a gateway under Devices)', () => {
+  const setup = { lnsUrl: 'wss://lns.example.com', routerInfoUrl: null, trustAvailable: true };
+  const station: LoraGatewayRow = { ...gw, deviceId: 'dev-1', mode: 'CLOUD', lastSeenAt: '2026-11-04T08:00:00.000Z', latitude: 41.015137, longitude: 28.97953, altitude: 40 };
+
+  it('shows the connection and the facts, the slow link, the location, and the frames it heard', () => {
+    render(<LoraGatewayPanel gateway={station} setup={setup} frames={[{ t: 1, type: 'up', result: 'processed', deviceId: 'd1', gateways: [{ gatewayId: 'g1', eui: gw.eui, rssi: -80, snr: 7 }] }]} deviceName={() => 'Cold room'} />);
+    expect(screen.getByText('LoRaWAN gateway')).toBeTruthy();
+    expect(screen.getByText('Online')).toBeTruthy();
+    expect(screen.getByText('950 ms')).toBeTruthy();
+    expect(screen.getByText(/fall back to RX2/)).toBeTruthy();
+    expect(screen.getByText('Cloud')).toBeTruthy();
+    expect(screen.getByText('41.015137, 28.97953 · 40 m')).toBeTruthy();
+    expect(screen.getByText('Cold room')).toBeTruthy();
+    expect(screen.getByText(/Rotate the token/)).toBeTruthy();
+  });
+
+  it('shows the token only while it was just issued', () => {
+    render(<LoraGatewayPanel gateway={station} setup={setup} issued={{ token: 'lns_once', files: null }} frames={[]} />);
+    expect(screen.getByText('Authorization: Bearer lns_once')).toBeTruthy();
+  });
+
+  it('offers the host\'s actions by status and protocol: Rotate for Basics Station only, Enable for a disabled gateway, Remove', () => {
+    const onRotate = vi.fn(); const onEnable = vi.fn(); const onDisable = vi.fn(); const onRemove = vi.fn();
+    const props = { setup, frames: [], onRotate, onEnable, onDisable, onRemove };
+    const { rerender } = render(<LoraGatewayPanel gateway={station} {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rotate token' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Disable' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
+    expect([onRotate, onDisable, onRemove].every((f) => f.mock.calls.length === 1)).toBe(true);
+    rerender(<LoraGatewayPanel gateway={{ ...gw2, status: 'DISABLED' }} {...props} />);
+    expect(screen.queryByRole('button', { name: 'Rotate token' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Enable' }));
+    expect(onEnable).toHaveBeenCalled();
+    expect(screen.getByText('Not on the map')).toBeTruthy();
+    rerender(<LoraGatewayPanel gateway={station} setup={setup} frames={[]} />);
+    expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
+  });
+
+  it('a loading or failed read says so', () => {
+    const { rerender } = render(<LoraGatewayPanel gateway={null} setup={null} frames={[]} loading />);
+    expect(screen.getByText('Loading…')).toBeTruthy();
+    rerender(<LoraGatewayPanel gateway={null} setup={null} frames={[]} error="Nope" />);
+    expect(screen.getByText('Nope')).toBeTruthy();
   });
 });
