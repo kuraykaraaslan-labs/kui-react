@@ -4,6 +4,8 @@ import { ModelProviderBadge } from '../model/ModelProviderBadge';
 import { FeatureCheckCell, type FeatureCheckValue } from './FeatureCheckCell';
 import { ModelScoreSparkline } from './ModelScoreSparkline';
 import type { AIModel } from '../types';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
 
 export type ModelComparisonRow = {
   model: AIModel;
@@ -20,96 +22,71 @@ export type ModelComparisonTableProps = {
   className?: string;
 };
 
+type Row = ModelComparisonRow & Record<string, unknown>;
+
+/**
+ * ModelComparisonTable — models side by side (context, price, benchmark trend, a column per feature): the kit's DataTable with this
+ * column preset, searchable (name, id, provider), sortable, filterable by provider, a page at a time.
+ */
 export function ModelComparisonTable({ rows, featureKeys, className }: ModelComparisonTableProps) {
+  const providers = [...new Set(rows.map((r) => String(r.model.provider)))].sort();
+  const columns: Column<Row>[] = [
+    {
+      key: 'model', header: 'Model', sortable: true, sortValue: (r) => r.model.name,
+      searchValue: (r) => `${r.model.name} ${r.model.modelId} ${r.model.provider}`,
+      render: ({ model }) => (
+        <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-text-primary">{model.name}</p>
+            <p className="font-mono text-[10px] font-normal text-text-secondary truncate">{model.modelId}</p>
+          </div>
+          <ModelProviderBadge provider={model.provider} size="sm" />
+        </div>
+      ),
+    },
+    {
+      key: 'context', header: 'Context', sortable: true, searchable: false, sortValue: (r) => r.model.contextWindow ?? null,
+      render: ({ model }) => <span className="whitespace-nowrap text-text-primary">{model.contextWindow ? `${(model.contextWindow / 1000).toFixed(0)}k` : '—'}</span>,
+    },
+    {
+      key: 'price', header: 'Price · in / out', sortable: true, searchable: false, sortValue: (r) => r.model.pricingPromptPer1k ?? null,
+      render: ({ model }) => (
+        <span className="whitespace-nowrap text-text-primary">
+          {model.pricingPromptPer1k != null ? `$${model.pricingPromptPer1k.toFixed(4)}` : '—'}
+          <span className="text-text-secondary"> / </span>
+          {model.pricingCompletionPer1k != null ? `$${model.pricingCompletionPer1k.toFixed(4)}` : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'benchmark', header: 'Benchmark trend', sortable: true, searchable: false, sortValue: (r) => r.headlineScore ?? null,
+      render: ({ benchmarkScores, headlineScore }) => (
+        <div className="flex items-center gap-3">
+          <ModelScoreSparkline scores={benchmarkScores} width={80} height={28} />
+          {headlineScore != null && <span className="font-mono text-xs font-semibold text-text-primary">{headlineScore.toFixed(1)}</span>}
+        </div>
+      ),
+    },
+    ...featureKeys.map((f): Column<Row> => ({
+      key: `feature:${f.key}`, header: f.label, align: 'center', sortable: true, searchable: false,
+      sortValue: (r) => String(r.features[f.key] ?? 'no'),
+      render: (r) => <FeatureCheckCell value={r.features[f.key] ?? 'no'} />,
+    })),
+  ];
+  const filterFields: DataTableFilterField<Row>[] = providers.length > 1
+    ? [{ id: 'provider', label: 'Provider', type: 'checkboxes', options: providers.map((p) => ({ value: p, label: p })), match: (r, v) => !Array.isArray(v) || !v.length || (v as string[]).includes(String(r.model.provider)) }]
+    : [];
   return (
-    <div
-      className={cn(
-        'rounded-xl border border-border bg-surface-raised overflow-x-auto',
-        className,
-      )}
-    >
-      <table className="w-full text-sm" role="table">
-        <thead className="bg-surface-overlay text-text-secondary text-xs uppercase tracking-wider">
-          <tr>
-            <th scope="col" className="text-left font-semibold px-4 py-3 sticky left-0 bg-surface-overlay">
-              Model
-            </th>
-            <th scope="col" className="text-left font-semibold px-4 py-3 whitespace-nowrap">
-              Context
-            </th>
-            <th scope="col" className="text-left font-semibold px-4 py-3 whitespace-nowrap">
-              Price · in / out
-            </th>
-            <th scope="col" className="text-left font-semibold px-4 py-3 whitespace-nowrap">
-              Benchmark trend
-            </th>
-            {featureKeys.map((f) => (
-              <th
-                key={f.key}
-                scope="col"
-                className="text-center font-semibold px-4 py-3 whitespace-nowrap"
-              >
-                {f.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ model, benchmarkScores, features, headlineScore }, i) => (
-            <tr
-              key={model.modelId}
-              className={cn(
-                'border-t border-border',
-                i % 2 === 1 && 'bg-surface-base/40',
-              )}
-            >
-              <th
-                scope="row"
-                className="text-left font-semibold text-text-primary px-4 py-3 align-middle sticky left-0 bg-surface-raised"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate">{model.name}</p>
-                    <p className="font-mono text-[10px] font-normal text-text-secondary truncate">
-                      {model.modelId}
-                    </p>
-                  </div>
-                  <ModelProviderBadge provider={model.provider} size="sm" />
-                </div>
-              </th>
-              <td className="px-4 py-3 align-middle whitespace-nowrap text-text-primary">
-                {model.contextWindow
-                  ? `${(model.contextWindow / 1000).toFixed(0)}k`
-                  : '—'}
-              </td>
-              <td className="px-4 py-3 align-middle whitespace-nowrap text-text-primary">
-                {model.pricingPromptPer1k != null
-                  ? `$${model.pricingPromptPer1k.toFixed(4)}`
-                  : '—'}
-                <span className="text-text-secondary"> / </span>
-                {model.pricingCompletionPer1k != null
-                  ? `$${model.pricingCompletionPer1k.toFixed(4)}`
-                  : '—'}
-              </td>
-              <td className="px-4 py-3 align-middle">
-                <div className="flex items-center gap-3">
-                  <ModelScoreSparkline scores={benchmarkScores} width={80} height={28} />
-                  {headlineScore != null && (
-                    <span className="font-mono text-xs font-semibold text-text-primary">
-                      {headlineScore.toFixed(1)}
-                    </span>
-                  )}
-                </div>
-              </td>
-              {featureKeys.map((f) => (
-                <td key={f.key} className="px-4 py-3 align-middle text-center">
-                  <FeatureCheckCell value={features[f.key] ?? 'no'} />
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <DataTable<Row>
+      mode="paginated"
+      className={cn('overflow-x-auto', className)}
+      caption="Model comparison"
+      columns={columns}
+      rows={rows as Row[]}
+      rowId={(r) => r.model.modelId}
+      filterFields={filterFields}
+      pageSize={25}
+      pageSizeOptions={[10, 25, 50, 100]}
+    />
   );
 }

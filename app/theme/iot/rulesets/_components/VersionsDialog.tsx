@@ -8,6 +8,10 @@ import { Badge } from '@/modules/ui/Badge';
 import type { RuleChain } from '@/modules/domains/iot/types';
 import type { RulesetVersion } from '@/modules/app/RulesetEditor/transfer';
 import { formatDateTime } from './download';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
+
+type VersionRow = RulesetVersion & Record<string, unknown>;
 
 export function VersionsDialog({ chain, versions, onClose, onRestore, onDownload }: {
   /** the ruleset whose versions are shown; null closes the dialog */
@@ -20,6 +24,37 @@ export function VersionsDialog({ chain, versions, onClose, onRestore, onDownload
 }) {
   const [status, setStatus] = useState('');
   const sorted = [...versions].sort((a, b) => b.version - a.version);
+  const columns: Column<VersionRow>[] = [
+    {
+      key: 'version', header: 'Version', sortable: true, searchValue: (v) => `v${v.version}`,
+      render: (v) => (
+        <span className="whitespace-nowrap font-medium text-text-primary">
+          v{v.version}
+          {v.version === current && <Badge variant="success" size="sm" className="ml-2">current</Badge>}
+        </span>
+      ),
+    },
+    { key: 'savedAt', header: 'Saved at', sortable: true, searchable: false, render: (v) => <span className="whitespace-nowrap text-text-secondary">{formatDateTime(v.savedAt)}</span> },
+    { key: 'by', header: 'By', sortable: true },
+    { key: 'summary', header: 'Changes' },
+    {
+      key: 'actions', header: <span className="sr-only">Actions</span>, align: 'right', searchable: false,
+      render: (v) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button variant="ghost" size="xs" onClick={() => download(v)} aria-label={`Download version ${v.version}`}>
+            <FontAwesomeIcon icon={faDownload} className="h-3 w-3" aria-hidden="true" />
+            <span className="hidden sm:inline">Download</span>
+          </Button>
+          {v.version !== current && (
+            <Button variant="outline" size="xs" onClick={() => restore(v)} aria-label={`Restore version ${v.version}`}>
+              <FontAwesomeIcon icon={faRotateLeft} className="h-3 w-3" aria-hidden="true" />
+              <span className="hidden sm:inline">Restore</span>
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
   const current = sorted[0]?.version;
 
   function download(v: RulesetVersion) {
@@ -49,47 +84,17 @@ export function VersionsDialog({ chain, versions, onClose, onRestore, onDownload
         {sorted.length === 0 ? (
           <p className="text-sm text-text-secondary">No versions saved yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-[36rem] text-left text-sm">
-              <caption className="sr-only">Saved versions</caption>
-              <thead className="bg-surface-overlay text-xs uppercase tracking-wide text-text-secondary">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-semibold">Version</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Saved at</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">By</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Changes</th>
-                  <th scope="col" className="px-3 py-2 text-right font-semibold"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {sorted.map((v) => (
-                  <tr key={v.version}>
-                    <td className="whitespace-nowrap px-3 py-2 font-medium text-text-primary">
-                      v{v.version}
-                      {v.version === current && <Badge variant="success" size="sm" className="ml-2">current</Badge>}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-text-secondary">{formatDateTime(v.savedAt)}</td>
-                    <td className="px-3 py-2 text-text-secondary">{v.by}</td>
-                    <td className="px-3 py-2 text-text-secondary">{v.summary}</td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="xs" onClick={() => download(v)} aria-label={`Download version ${v.version}`}>
-                          <FontAwesomeIcon icon={faDownload} className="h-3 w-3" aria-hidden="true" />
-                          <span className="hidden sm:inline">Download</span>
-                        </Button>
-                        {v.version !== current && (
-                          <Button variant="outline" size="xs" onClick={() => restore(v)} aria-label={`Restore version ${v.version}`}>
-                            <FontAwesomeIcon icon={faRotateLeft} className="h-3 w-3" aria-hidden="true" />
-                            <span className="hidden sm:inline">Restore</span>
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          // the saved versions: the kit's DataTable (newest first; search, sort and paging in the browser)
+          <DataTable<VersionRow>
+            mode="paginated"
+            caption="Saved versions"
+            columns={columns}
+            rows={sorted as VersionRow[]}
+            rowId={(v) => v.version}
+            pageSize={10}
+            pageSizeOptions={[10, 25, 50]}
+            tableClassName="min-w-[36rem]"
+          />
         )}
       </div>
     </Modal>

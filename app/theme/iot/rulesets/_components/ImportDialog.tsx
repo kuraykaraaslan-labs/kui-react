@@ -3,6 +3,8 @@ import { useId, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFileImport, faCircleExclamation, faCircleInfo, faPuzzlePiece } from '@fortawesome/free-solid-svg-icons';
 import { Modal } from '@/modules/ui/Modal';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { Button } from '@/modules/ui/Button';
 import { Badge } from '@/modules/ui/Badge';
 import { Textarea } from '@/modules/ui/Textarea';
@@ -19,6 +21,8 @@ const selectCls = cn(
   'w-full min-w-36 rounded-lg border border-border bg-surface-base px-2 py-1.5 text-xs text-text-primary',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus',
 );
+
+type ImportRow = ImportPreview['items'][number] & { name: string; exists: 'existing' | 'new' } & Record<string, unknown>;
 
 export function ImportDialog({ open, chains, onClose, onImport }: {
   open: boolean;
@@ -65,6 +69,63 @@ export function ImportDialog({ open, chains, onClose, onImport }: {
   }
 
   const count = preview ? preview.items.filter((i) => !i.existing || choices[i.key] !== 'skip').length : 0;
+
+  const importColumns: Column<ImportRow>[] = [
+    {
+      key: 'name', header: 'Ruleset', sortable: true, searchValue: (item) => `${item.chain.name} ${item.chain.chainId}`,
+      render: (item) => (
+        <>
+          <p className="font-medium text-text-primary">{item.chain.name}</p>
+          <p className="font-mono text-[11px] text-text-secondary">{item.chain.chainId}</p>
+        </>
+      ),
+    },
+    {
+      key: 'nodes', header: 'Nodes', align: 'center', sortable: true, searchable: false,
+      render: (item) => (
+        <span className="tabular-nums text-text-secondary">
+          {item.nodes}
+          {item.placeholders > 0 && (
+            <Badge variant="warning" size="sm" className="mt-1 flex w-max items-center gap-1">
+              <FontAwesomeIcon icon={faPuzzlePiece} className="h-2.5 w-2.5" aria-hidden="true" />
+              {item.placeholders} not available here
+            </Badge>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: 'notes', header: 'Notes', searchValue: (item) => item.notes.join(' '),
+      render: (item) => (
+        <span className="text-xs text-text-secondary">
+          {item.notes.length ? (
+            <ul className="list-disc space-y-0.5 pl-4">
+              {item.notes.map((n, i) => <li key={i}>{n}</li>)}
+            </ul>
+          ) : 'Ready'}
+        </span>
+      ),
+    },
+    {
+      key: 'exists', header: 'Already exists', sortable: true, searchable: false,
+      render: (item) => (item.existing ? (
+        <>
+          <label htmlFor={`${id}-c-${item.key}`} className="sr-only">
+            {`"${item.existing.name}" already exists: what to do`}
+          </label>
+          <select
+            id={`${id}-c-${item.key}`}
+            value={choices[item.key] ?? 'copy'}
+            onChange={(e) => setChoices((c) => ({ ...c, [item.key]: e.target.value as ConflictChoice }))}
+            className={selectCls}
+          >
+            {CHOICES.map((c) => <option key={c} value={c}>{CONFLICT_LABELS[c]}</option>)}
+          </select>
+          <p className="mt-1 text-[11px] text-text-secondary">Same id as “{item.existing.name}”</p>
+        </>
+      ) : <span className="text-xs text-text-secondary">New</span>),
+    },
+  ];
 
   return (
     <Modal
@@ -143,63 +204,18 @@ export function ImportDialog({ open, chains, onClose, onImport }: {
             </div>
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full min-w-[36rem] text-left text-sm">
-              <caption className="sr-only">Rulesets in this import</caption>
-              <thead className="bg-surface-overlay text-xs uppercase tracking-wide text-text-secondary">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-semibold">Ruleset</th>
-                  <th scope="col" className="px-3 py-2 text-center font-semibold">Nodes</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Notes</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Already exists</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {preview.items.map((item) => (
-                  <tr key={item.key} className="align-top">
-                    <td className="px-3 py-2">
-                      <p className="font-medium text-text-primary">{item.chain.name}</p>
-                      <p className="font-mono text-[11px] text-text-secondary">{item.chain.chainId}</p>
-                    </td>
-                    <td className="px-3 py-2 text-center tabular-nums text-text-secondary">
-                      {item.nodes}
-                      {item.placeholders > 0 && (
-                        <Badge variant="warning" size="sm" className="mt-1 flex w-max items-center gap-1">
-                          <FontAwesomeIcon icon={faPuzzlePiece} className="h-2.5 w-2.5" aria-hidden="true" />
-                          {item.placeholders} not available here
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-text-secondary">
-                      {item.notes.length ? (
-                        <ul className="list-disc space-y-0.5 pl-4">
-                          {item.notes.map((n, i) => <li key={i}>{n}</li>)}
-                        </ul>
-                      ) : 'Ready'}
-                    </td>
-                    <td className="px-3 py-2">
-                      {item.existing ? (
-                        <>
-                          <label htmlFor={`${id}-c-${item.key}`} className="sr-only">
-                            {`"${item.existing.name}" already exists: what to do`}
-                          </label>
-                          <select
-                            id={`${id}-c-${item.key}`}
-                            value={choices[item.key] ?? 'copy'}
-                            onChange={(e) => setChoices((c) => ({ ...c, [item.key]: e.target.value as ConflictChoice }))}
-                            className={selectCls}
-                          >
-                            {CHOICES.map((c) => <option key={c} value={c}>{CONFLICT_LABELS[c]}</option>)}
-                          </select>
-                          <p className="mt-1 text-[11px] text-text-secondary">Same id as “{item.existing.name}”</p>
-                        </>
-                      ) : <span className="text-xs text-text-secondary">New</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {/* the rulesets of the import: the kit's DataTable (search, sort, a filter for the ones that exist, paging) */}
+          <DataTable<ImportRow>
+            mode="paginated"
+            caption="Rulesets in this import"
+            columns={importColumns}
+            rows={preview.items.map((item) => ({ ...item, name: item.chain.name, exists: item.existing ? 'existing' : 'new' })) as ImportRow[]}
+            rowId={(item) => item.key}
+            filterFields={[{ id: 'exists', label: 'Already exists', type: 'select', options: [{ value: 'existing', label: 'Already exists' }, { value: 'new', label: 'New' }] }]}
+            pageSize={10}
+            pageSizeOptions={[10, 25, 50]}
+            tableClassName="min-w-[36rem]"
+          />
         </div>
       )}
     </Modal>
