@@ -668,7 +668,10 @@ describe('PlaceDevicesDialog', () => {
     wrap(<PlaceDevicesDialog open asset={{ assetId: 'press-3', name: 'Press 3' }} onClose={() => undefined} />, fakeAssets(), undefined, { devices });
     await screen.findByLabelText('Press sensor');
     await user.type(within(screen.getByRole('dialog')).getByRole('searchbox'), 'probe');
-    await waitFor(() => expect(devices.list).toHaveBeenLastCalledWith({ page: 1, pageSize: 50, search: 'probe' }, expect.anything()));
+    await waitFor(() => expect(devices.list).toHaveBeenLastCalledWith({ page: 1, pageSize: 20, search: 'probe' }, expect.anything()));
+    // a sort goes to the host too (the device list's own keys)
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /Connection/ }));
+    await waitFor(() => expect(devices.list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'connection', dir: 'asc' } }), expect.anything()));
   });
 });
 
