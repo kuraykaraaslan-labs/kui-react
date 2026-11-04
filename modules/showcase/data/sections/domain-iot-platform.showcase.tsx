@@ -286,6 +286,7 @@ function fixtureAdapter(fail = false): IotAdapter {
       async create(input) { await wait(); return { ...PROFILES[0], ...input, profileId: 'p-new', isDefault: false } as DeviceProfile; },
       async update(id, patch) { await wait(); if (patch.transportType === 'HTTP') throw new IotApiError('validation', 'The chosen online rule cannot be used with this transport (online_rule_not_allowed).'); return { ...PROFILES.find((x) => x.profileId === id)!, ...patch } as DeviceProfile; },
       async setDefault(id) { await wait(); return { ...PROFILES.find((x) => x.profileId === id)!, isDefault: true }; },
+      async duplicate(id) { await wait(); const p = PROFILES.find((x) => x.profileId === id)!; return { ...p, profileId: 'p-copy', name: `${p.name} (copy)`, isDefault: false, builtinKey: null }; },
       async remove() { await wait(); throw new IotApiError('conflict', 'The device profile is still in use by 2 devices (iot_device).'); },
       async usage(ids) { await wait(); return Object.fromEntries(ids.map((id) => [id, { devices: DEVICES.filter((d) => d.deviceProfileId === id).length, references: [{ moduleId: 'iot_device', count: DEVICES.filter((d) => d.deviceProfileId === id).length, label: 'devices' }] }])); },
     },
@@ -906,7 +907,7 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       id: 'iot-device-profile-list-view',
       title: 'DeviceProfileListView',
       abbr: 'PN',
-      description: 'The device profiles through the IoT adapter: search, transport and online-rule filters, the default first, device counts refreshed every 30 s, New profile (explicit online rule, OD-63), Make default and delete (the host refuses the default and a profile in use).',
+      description: 'The device profiles through the IoT adapter: search, transport and online-rule filters, the default first, device counts refreshed every 30 s, New profile (explicit online rule, OD-63), Make default, Duplicate (every setting under a free name the host picks, never the default, provisioning off and no key copied) and delete (the host refuses the default and a profile in use).',
       filePath: 'modules/domains/iot/profile/DeviceProfileListView.tsx',
       usage: `<IotAdapterProvider adapter={adapter}><DeviceProfileListView hrefs={{ profile: (id) => \`/profiles/\${id}\` }} /></IotAdapterProvider>`,
       variants: [
@@ -918,7 +919,7 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       id: 'iot-device-profile-editor-view',
       title: 'DeviceProfileEditorView',
       abbr: 'QE',
-      description: 'One device profile through the IoT adapter: General, Transport & auth, Online status, Limits, Telemetry keys, Configuration keys and Provisioning on one draft with one Save that sends only the changed fields and blocks what the host would refuse; contributed tabs (alarm rules, commands) follow.',
+      description: 'One device profile through the IoT adapter: General, Transport & auth, Online status, Limits, Telemetry keys, Configuration keys and Provisioning on one draft with one Save that sends only the changed fields and blocks what the host would refuse; contributed tabs (alarm rules, commands) follow. The header copies the ID, makes the profile the default, duplicates it (`onDuplicated` gets the copy) and deletes it.',
       filePath: 'modules/domains/iot/profile/DeviceProfileEditorView.tsx',
       usage: `<DeviceProfileEditorView profileId={id} extraTabs={[{ id: 'alarm-rules', label: 'Alarm rules', content: <AlarmRuleSetEditor profileId={id} /> }]} />`,
       variants: [

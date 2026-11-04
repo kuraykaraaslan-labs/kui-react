@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPlus, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faClone, faPlus, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
@@ -31,6 +31,8 @@ export type DeviceProfileListViewProps = {
   onQueryChange?: (query: ProfileListQuery) => void;
   /** After a create (the host opens the new profile). */
   onCreated?: (profile: DeviceProfile) => void;
+  /** After a duplicate (the host opens the copy); without it the list reloads with the copy in it. */
+  onDuplicated?: (profile: DeviceProfile) => void;
   pageSize?: number;
   now?: number;
   className?: string;
@@ -40,7 +42,7 @@ export function usageList(u: DeviceProfileUsage | undefined): string {
   return (u?.references ?? []).filter((r) => r.count > 0).map((r) => `${r.count} ${r.label}`).join(', ');
 }
 
-export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCreated, pageSize = 20, now, className }: DeviceProfileListViewProps) {
+export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCreated, onDuplicated, pageSize = 20, now, className }: DeviceProfileListViewProps) {
   const api = useIotAdapter().profiles;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
@@ -136,6 +138,20 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
     }
   }
 
+  async function duplicate(p: DeviceProfile) {
+    if (!api?.duplicate) return;
+    setBusyId(p.profileId);
+    try {
+      const copy = await api.duplicate(p.profileId);
+      notify({ tone: 'success', message: fill(m.profiles.duplicated, { name: copy.name }) });
+      if (onDuplicated) onDuplicated(copy); else await load(queryRef.current);
+    } catch (e) {
+      notify({ tone: 'error', message: errorMessage(e, m.profiles.loadError) });
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   async function remove(p: DeviceProfile) {
     if (!api?.remove) return;
     setBusyId(p.profileId);
@@ -196,6 +212,12 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
           <span className="inline-flex items-center justify-end gap-1">
             {!p.isDefault && api?.setDefault && (
               <Button variant="ghost" size="xs" loading={busyId === p.profileId} onClick={() => void makeDefault(p)}>{m.profiles.setDefault}</Button>
+            )}
+            {api?.duplicate && (
+              <Button variant="ghost" size="xs" disabled={busyId === p.profileId} onClick={() => void duplicate(p)} aria-label={`${m.profiles.duplicate} ${p.name}`} title={m.profile.duplicateHint}
+                iconLeft={<FontAwesomeIcon icon={faClone} className="h-3 w-3" aria-hidden="true" />}>
+                <span className="sr-only">{m.profiles.duplicate}</span>
+              </Button>
             )}
             {api?.remove && (p.isDefault || p.builtinKey ? (
               <span title={p.isDefault ? m.profiles.deleteDefault : m.profiles.deleteBuiltin}>

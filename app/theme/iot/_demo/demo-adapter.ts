@@ -374,6 +374,17 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         if (hit) throw new IotApiError('conflict', `The device profile is still in use by ${hit.count} ${hit.label} (${hit.moduleId}).`);
         store.profiles = store.profiles.filter((x) => x.profileId !== id);
       },
+      async duplicate(id) {
+        await wait();
+        const src = profileOf(id);
+        // the host names the copy: "<name> (copy)", then "(copy 2)", … the first free one
+        const taken = new Set(store.profiles.map((x) => x.name));
+        let name = `${src.name} (copy)`;
+        for (let n = 2; taken.has(name); n++) name = `${src.name} (copy ${n})`;
+        const copy: DeviceProfile = { ...structuredClone(src), profileId: `prof-n${++seq}`, name, isDefault: false, builtinKey: null, provisionStrategy: 'DISABLED', template: null, createdAt: new Date(), updatedAt: new Date() } as DeviceProfile;
+        store.profiles.push(copy);
+        return structuredClone(copy);
+      },
       async setDefault(id) {
         await wait();
         const p = profileOf(id);

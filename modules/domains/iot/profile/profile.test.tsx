@@ -521,6 +521,21 @@ describe('DeviceProfileEditorView', () => {
     expect(await screen.findByText(/online_rule_not_allowed/)).toBeInTheDocument();
   });
 
+  it('duplicates the open profile from its header and hands the copy to the host; read-only viewers get no button', async () => {
+    const user = userEvent.setup();
+    const copy = profile({ profileId: 'p8', name: 'Pumps (copy)' });
+    const adapter = profilesAdapter({ duplicate: vi.fn(async () => copy) });
+    const onDuplicated = vi.fn();
+    const { unmount } = render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" onDuplicated={onDuplicated} /></Wrap>);
+    await user.click(await screen.findByRole('button', { name: /Duplicate profile/ }));
+    await waitFor(() => expect(onDuplicated).toHaveBeenCalledWith(copy));
+    expect(adapter.profiles!.duplicate).toHaveBeenCalledWith('p1');
+    unmount();
+    render(<Wrap adapter={adapter} caps={{}}><DeviceProfileEditorView profileId="p1" /></Wrap>);
+    await screen.findByLabelText(/^Name/);
+    expect(screen.queryByRole('button', { name: /Duplicate profile/ })).toBeNull();
+  });
+
   it('is read-only without canManageProfiles and never offers delete for the default profile', async () => {
     const adapter = profilesAdapter();
     const { unmount } = render(<Wrap adapter={adapter} caps={{}}><DeviceProfileEditorView profileId="p1" /></Wrap>);
@@ -557,6 +572,38 @@ describe('DeviceProfileListView', () => {
     await user.click(within(screen.getByRole('columnheader', { name: /Updated/ })).getByRole('button'));
     await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'updated', dir: 'asc' }, transportType: 'HTTP' }), expect.anything()));
     expect(screen.queryByRole('columnheader', { name: /Devices/ })).not.toHaveAttribute('aria-sort');
+  });
+
+  it('duplicates a profile from its row: the copy is announced by its name and handed to the host, or the list reloads', async () => {
+    const user = userEvent.setup();
+    const notify = vi.fn();
+    const copy = profile({ profileId: 'p7', name: 'Meters (copy)', transportType: 'HTTP' });
+    const adapter = profilesAdapter({ duplicate: vi.fn(async () => copy) });
+    const onDuplicated = vi.fn();
+    const { unmount } = render(<IotAdapterProvider adapter={adapter} capabilities={ALL} notify={notify}><DeviceProfileListView hrefs={{ profile: (id) => `#${id}` }} onDuplicated={onDuplicated} /></IotAdapterProvider>);
+    const row = (await screen.findByText('Meters')).closest('tr')!;
+    await user.click(within(row).getByRole('button', { name: 'Duplicate Meters' }));
+    await waitFor(() => expect(adapter.profiles!.duplicate).toHaveBeenCalledWith('p2'));
+    expect(onDuplicated).toHaveBeenCalledWith(copy);
+    expect(notify).toHaveBeenCalledWith({ tone: 'success', message: 'Copied as Meters (copy)' });
+    unmount();
+    // without the callback the list reloads; a refusal is shown as it comes
+    const failing = profilesAdapter({ duplicate: vi.fn(async () => { throw new IotApiError('conflict', 'A device profile with this name already exists.'); }) });
+    const list = vi.spyOn(failing.profiles!, 'list');
+    render(<IotAdapterProvider adapter={failing} capabilities={ALL} notify={notify}><DeviceProfileListView hrefs={{ profile: (id) => `#${id}` }} /></IotAdapterProvider>);
+    await user.click(within((await screen.findByText('Pumps')).closest('tr')!).getByRole('button', { name: 'Duplicate Pumps' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'error', message: 'A device profile with this name already exists.' }));
+    expect(list).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no duplicate without the adapter method or without canManageProfiles', async () => {
+    const { unmount } = render(<IotAdapterProvider adapter={profilesAdapter()} capabilities={ALL}><DeviceProfileListView hrefs={{ profile: (id) => `#${id}` }} /></IotAdapterProvider>);
+    await screen.findByText('Meters');
+    expect(screen.queryByRole('button', { name: /^Duplicate/ })).toBeNull();
+    unmount();
+    render(<IotAdapterProvider adapter={profilesAdapter({ duplicate: vi.fn() })} capabilities={{}}><DeviceProfileListView hrefs={{ profile: (id) => `#${id}` }} /></IotAdapterProvider>);
+    await screen.findByText('Meters');
+    expect(screen.queryByRole('button', { name: /^Duplicate/ })).toBeNull();
   });
 
   it('a built-in profile is marked and cannot be deleted from the list (the reason on the button)', async () => {

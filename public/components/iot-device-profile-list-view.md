@@ -7,7 +7,7 @@
 - **status:** beta
 - **since:** 2026-10
 
-The device profiles through the IoT adapter: search, transport and online-rule filters, the default first, device counts refreshed every 30 s, New profile (explicit online rule, OD-63), Make default and delete (the host refuses the default and a profile in use).
+The device profiles through the IoT adapter: search, transport and online-rule filters, the default first, device counts refreshed every 30 s, New profile (explicit online rule, OD-63), Make default, Duplicate (every setting under a free name the host picks, never the default, provisioning off and no key copied) and delete (the host refuses the default and a profile in use).
 
 ## Variants
 

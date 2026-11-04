@@ -153,6 +153,12 @@ export interface IotProfilesApi {
   /** Refused (conflict) for the default profile and while anything still references it. */
   remove?(profileId: string): Promise<void>;
   setDefault?(profileId: string): Promise<DeviceProfile>;
+  /**
+   * A new profile with every setting of this one (transport, auth, limits, topics, telemetry and configuration keys, online rule) under
+   * a free name the host picks (`<name> (copy)`). The copy is never the default and never built-in, and its provisioning is off with no
+   * keys: a key is a secret of the profile it was made for.
+   */
+  duplicate?(profileId: string): Promise<DeviceProfile>;
   /** What still points at each profile (devices, alarm rules, commands, …), for the list's device count and the delete hint. */
   usage?(profileIds: string[], signal?: AbortSignal): Promise<Record<string, DeviceProfileUsage>>;
   /** The built-in transports this host offers (default MQTT, HTTP, ANY). */

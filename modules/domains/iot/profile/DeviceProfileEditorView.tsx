@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faCopy, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faClone, faCopy, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
@@ -59,6 +59,8 @@ export type DeviceProfileEditorViewProps = {
   tab?: string;
   onTabChange?: (tab: string) => void;
   onDeleted?: () => void;
+  /** After a duplicate, with the copy (the host opens it). Without it the button is still offered when the adapter can duplicate. */
+  onDuplicated?: (profile: DeviceProfile) => void;
   /** The built-in transports the host offers (default: the adapter's, else MQTT, HTTP, ANY); the adapter's `transportOptions` follow. */
   transports?: readonly ProfileTransport[];
   /** The provisioning strategies the host can serve (default `DISABLED` only). */
@@ -81,7 +83,7 @@ const TAB_OF: Array<[RegExp, string]> = [
 const tabOf = (field: string) => TAB_OF.find(([re]) => re.test(field))?.[1] ?? 'general';
 
 export function DeviceProfileEditorView({
-  profileId, extraTabs = [], tab, onTabChange, onDeleted, transports, availableStrategies, provisioningKeys, className,
+  profileId, extraTabs = [], tab, onTabChange, onDeleted, onDuplicated, transports, availableStrategies, provisioningKeys, className,
 }: DeviceProfileEditorViewProps) {
   const adapter = useIotAdapter();
   const api = adapter.profiles;
@@ -244,6 +246,20 @@ export function DeviceProfileEditorView({
       const p = await api.setDefault(profileId);
       setProfile((cur) => (cur ? { ...cur, isDefault: p.isDefault } : cur));
       notify({ tone: 'success', message: fill(m.profiles.madeDefault, { name: profile.name }) });
+    } catch (e) {
+      notify({ tone: 'error', message: errorMessage(e, m.profile.loadError) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function duplicate() {
+    if (!api?.duplicate) return;
+    setBusy(true);
+    try {
+      const copy = await api.duplicate(profileId);
+      notify({ tone: 'success', message: fill(m.profiles.duplicated, { name: copy.name }) });
+      onDuplicated?.(copy);
     } catch (e) {
       notify({ tone: 'error', message: errorMessage(e, m.profile.loadError) });
     } finally {
@@ -440,6 +456,10 @@ export function DeviceProfileEditorView({
           {caps.canManageProfiles && !profile.isDefault && api.setDefault && (
             <Button variant="outline" size="sm" loading={busy} onClick={() => void makeDefault()}
               iconLeft={<FontAwesomeIcon icon={faStar} className="h-3 w-3" aria-hidden="true" />}>{m.profile.setDefault}</Button>
+          )}
+          {caps.canManageProfiles && api.duplicate && (
+            <Button variant="outline" size="sm" loading={busy} onClick={() => void duplicate()} title={m.profile.duplicateHint}
+              iconLeft={<FontAwesomeIcon icon={faClone} className="h-3 w-3" aria-hidden="true" />}>{m.profile.duplicate}</Button>
           )}
           {caps.canManageProfiles && api.remove && (profile.isDefault || profile.builtinKey ? (
             <span title={profile.isDefault ? m.profiles.deleteDefault : m.profiles.deleteBuiltin}>

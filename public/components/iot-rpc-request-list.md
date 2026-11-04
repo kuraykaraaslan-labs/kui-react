@@ -26,5 +26,5 @@ RPC requests newest first: method, status with outcome, who sent it (console, a 
 ## Full source
 
 ```tsx
-<RpcRequestList requests={items} onOpen={open} hasMore={!!cursor} onLoadMore={more} />
+<RpcRequestList requests={items} onOpen={open} total={total} onQueryChange={setQuery} />
 ```
