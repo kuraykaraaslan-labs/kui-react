@@ -118,7 +118,7 @@ export function RuleList({
   return (
     <div className={cn('flex flex-col', className)}>
       <DataTable<RuleItem>
-        mode="static"
+        mode="paginated"
         variant="plain"
         caption={m.rules.title}
         columns={columns}
@@ -127,7 +127,6 @@ export function RuleList({
         rowClassName={(r) => (r.stoppedByManual === true ? 'opacity-60' : undefined)}
         loading={loading}
         messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
-        searchable={false}
         pageSizeOptions={[]}
         keyboardNavigation
       />

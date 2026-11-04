@@ -446,7 +446,7 @@ function ListTable({ label, node, rows, onChange, path, cls, locked, description
       <DataTable<Row>
         columns={columns}
         rows={data}
-        mode="static"
+        mode="paginated"
         variant="plain"
         title={label}
         caption={label}

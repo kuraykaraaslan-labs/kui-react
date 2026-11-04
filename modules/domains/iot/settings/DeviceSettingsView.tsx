@@ -148,7 +148,7 @@ export function DeviceSettingsView({ adapter, deviceId, pollMs = 5000, initialSe
       <DataTable<Row>
         columns={columns}
         rows={rows}
-        mode="static"
+        mode="paginated"
         variant="plain"
         title={m.tab.title}
         subtitle={m.tab.intro}

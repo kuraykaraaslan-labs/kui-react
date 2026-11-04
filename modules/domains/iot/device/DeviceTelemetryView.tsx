@@ -202,7 +202,7 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
           {error && <Callout variant="danger" title={null} role="alert">{error}</Callout>}
           {chart}
           <DataTable<Row>
-            mode="static"
+            mode="paginated"
             variant="plain"
             caption={t.caption}
             columns={columns}

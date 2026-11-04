@@ -108,11 +108,11 @@ export function JobDetailView({ adapter, jobId, pollMs = 10_000, backHref, devic
   };
   const waveRows: WaveRow[] = waves.map((w) => ({ ...w, id: String(w.wave) }));
   const waveColumns: Column<WaveRow>[] = [
-    { key: 'wave', header: m.fleet.waveColumn, render: (r) => fill(m.fleet.wave, { n: r.wave + 1 }) },
-    { key: 'size', header: m.fleet.size, render: (r) => String(r.size) },
-    { key: 'applied', header: m.fleet.applied, render: (r) => String(r.counters.applied) },
-    { key: 'reverted', header: m.fleet.reverted, render: (r) => String(r.counters.reverted) },
-    { key: 'rejected', header: m.fleet.rejected, hideBelow: 'sm', render: (r) => String(r.counters.rejected) },
+    { key: 'wave', header: m.fleet.waveColumn, sortable: true, searchable: false, render: (r) => fill(m.fleet.wave, { n: r.wave + 1 }) },
+    { key: 'size', header: m.fleet.size, sortable: true, searchable: false, render: (r) => String(r.size) },
+    { key: 'applied', header: m.fleet.applied, sortable: true, searchable: false, sortValue: (r) => r.counters.applied, render: (r) => String(r.counters.applied) },
+    { key: 'reverted', header: m.fleet.reverted, sortable: true, searchable: false, sortValue: (r) => r.counters.reverted, render: (r) => String(r.counters.reverted) },
+    { key: 'rejected', header: m.fleet.rejected, hideBelow: 'sm', sortable: true, searchable: false, sortValue: (r) => r.counters.rejected, render: (r) => String(r.counters.rejected) },
     { key: 'offline', header: m.fleet.offline, hideBelow: 'sm', render: (r) => String(r.counters.offline + r.counters.skipped) },
     { key: 'waiting', header: m.fleet.waiting, hideBelow: 'md', render: (r) => String(r.counters.queued + r.counters.sent) },
     {
@@ -164,7 +164,7 @@ export function JobDetailView({ adapter, jobId, pollMs = 10_000, backHref, devic
         <Callout variant="warning">{fill(m.fleet.pausedGate, { n: job.currentWave + 1, ...shares(gate) })}</Callout>
       )}
       {job.state === 'paused' && job.pauseReason === 'no_data' && <Callout variant="warning">{fill(m.fleet.pausedNoData, { n: job.currentWave + 1 })}</Callout>}
-      <DataTable<WaveRow> columns={waveColumns} rows={waveRows} mode="static" variant="plain" searchable={false} title={m.fleet.waveTable} caption={m.fleet.waveTable} rowId={(r) => r.id} />
+      <DataTable<WaveRow> columns={waveColumns} rows={waveRows} mode="paginated" variant="plain" title={m.fleet.waveTable} caption={m.fleet.waveTable} rowId={(r) => r.id} />
       <DataTable<TargetRow>
         columns={targetColumns}
         mode="server"

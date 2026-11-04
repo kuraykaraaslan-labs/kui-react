@@ -198,7 +198,7 @@ export function ProvisioningKeysPanel({ profileId, onInfo, messages, className }
 
       {!loadError && (info === null || keys.length > 0) && (
         <DataTable<Row>
-          mode="static"
+          mode="paginated"
           variant="plain"
           caption={p.keysTitle}
           columns={columns}
@@ -207,7 +207,6 @@ export function ProvisioningKeysPanel({ profileId, onInfo, messages, className }
           rowClassName={(k) => (k.state === 'revoked' ? 'opacity-60' : undefined)}
           loading={info === null}
           messages={{ loading: m.common.loading, retry: m.common.retry }}
-          searchable={false}
           pageSizeOptions={[]}
           density="compact"
         />

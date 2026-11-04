@@ -50,7 +50,7 @@ export function SettingsDiffTable({ section, schema, desired, reported, messages
       className={className}
       columns={columns}
       rows={rows}
-      mode="static"
+      mode="paginated"
       variant="plain"
       caption={m.diff.table}
       rowId={(r) => r.path}
