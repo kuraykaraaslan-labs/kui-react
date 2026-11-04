@@ -57,22 +57,38 @@ Zod types in `modules/domains/iot/types/snmp.ts`: `SnmpTarget`, `SnmpCredentialS
 
 ## 11.3 Mapping editor (OID → telemetry key)
 
-- [ ] `SnmpMappingEditor` at `/theme/iot/snmp/profiles/[slug]`, also the "SNMP" section of the phase 01 profile editor for profiles with transport `SNMP` (replaces the "Transport / mapping" topic table there, as LoRaWAN does in [10](10-lorawan.md) §10.6); the target editor's `?tab=mapping` shows the profile's mapping read-only with "Edit in profile <name>" (`canEditSnmpMapping`).
-- [ ] **Scalar rows** (`SnmpMappingRow` table editor): OID (numeric, validated; name from `snmp.oids.lookup` shown beside it when known), key (validated against the profile's key rules), kind `telemetry` | `attribute`, **type** `gauge` | `counter32` | `counter64` | `timeticks` | `string` | `enum` | `ipaddr`, **scale** (multiplier, e.g. `0.1`; with a live "raw 235 → 23.5" preview from the last test poll), unit, **rate** toggle (only for counters: "per second, first sample after start is skipped, wrap handled"), enum map (9.9 `KeyValueEditor`, only for `enum`), optional per-row interval.
-- [ ] **Table rows** (`SnmpTableMappingEditor`): base OID, index by (a column OID or "index"), columns (each like a scalar row), row cap (default 64); a preview "keys look like `if.in_bps.eth0`".
-- [ ] **Trap rows** (`SnmpTrapMappingEditor`): trap OID, key, value ("1" or "from varbind"), varbind → key rows. A hint: "a trap sets a key; add an alarm rule on that key to raise an alarm".
-- [ ] **Expected key count** before save (`snmp.profiles.expectedKeys`, optionally against a sample target): "this mapping produces ~412 keys per device" with a warning above the profile's key limit (NB risk: a 48-port switch × 10 columns).
-- [ ] "Add from test poll": rows of a test-poll result (11.4) can be added to the mapping in one click with OID, a suggested key and the detected type.
-- [ ] Templates: profiles copied from NB's SNMP templates (MIB-II + IF-MIB, HOST-RESOURCES-MIB, UPS-MIB, Printer-MIB) open with their rows and the "from template" hint of phase 01; editing makes it the tenant's own mapping.
-- [ ] The profile's Online status group (phase 01 §1.4, OD-57/OD-63) stays visible for SNMP profiles; nothing is preselected (OD-63); for cloud-polled targets "Live connection" is disabled with the reason "the cloud polls this device; there is no connection to hold".
+- [x] `SnmpMappingEditor` at `/theme/iot/snmp/profiles/[slug]`, also the "SNMP" section of the phase 01 profile editor for profiles with transport `SNMP` (replaces the "Transport / mapping" topic table there, as LoRaWAN does in [10](10-lorawan.md) §10.6); the target editor's `?tab=mapping` shows the profile's mapping read-only with "Edit in profile <name>" (`canEditSnmpMapping`).
+- [x] **Scalar rows** (`SnmpMappingRow` table editor): OID (numeric, validated; name from `snmp.oids.lookup` shown beside it when known), key (validated against the profile's key rules), kind `telemetry` | `attribute`, **type** `gauge` | `counter32` | `counter64` | `timeticks` | `string` | `enum` | `ipaddr`, **scale** (multiplier, e.g. `0.1`; with a live "raw 235 → 23.5" preview from the last test poll), unit, **rate** toggle (only for counters: "per second, first sample after start is skipped, wrap handled"), enum map (9.9 `KeyValueEditor`, only for `enum`), optional per-row interval.
+- [x] **Table rows** (`SnmpTableMappingEditor`): base OID, index by (a column OID or "index"), columns (each like a scalar row), row cap (default 64); a preview "keys look like `if.in_bps.eth0`".
+- [x] **Trap rows** (`SnmpTrapMappingEditor`): trap OID, key, value ("1" or "from varbind"), varbind → key rows. A hint: "a trap sets a key; add an alarm rule on that key to raise an alarm".
+- [x] **Expected key count** before save (`snmp.profiles.expectedKeys`, optionally against a sample target): "this mapping produces ~412 keys per device" with a warning above the profile's key limit (NB risk: a 48-port switch × 10 columns).
+- [x] "Add from test poll": rows of a test-poll result (11.4) can be added to the mapping in one click with OID, a suggested key and the detected type.
+- [x] Templates: profiles copied from NB's SNMP templates (MIB-II + IF-MIB, HOST-RESOURCES-MIB, UPS-MIB, Printer-MIB) open with their rows and the "from template" hint of phase 01; editing makes it the tenant's own mapping.
+- [x] The profile's Online status group (phase 01 §1.4, OD-57/OD-63) stays visible for SNMP profiles; nothing is preselected (OD-63); for cloud-polled targets "Live connection" is disabled with the reason "the cloud polls this device; there is no connection to hold".
+
+> **Built 2026-11-04 (NB iot_gateway 11, the profile's SNMP tab).** `modules/domains/iot/snmp`: `SnmpMappingEditor` (values, tables and traps,
+> each a kit DataTable whose row opens a drawer; a table's columns are edited in the same drawer, never a drawer over a drawer; Remove asks
+> through the kit ConfirmDialog), `SnmpMappingView` (the draft with one Save, a refused save marks the rows the host named, the test poll in a
+> drawer from the header) and the pure rules in `snmp/types.ts`, which mirror NB's `snmp.profile.ts` (numeric OIDs, the key rule
+> `^[A-Za-z][A-Za-z0-9_.:-]{0,95}$`, rate only on counters, enum maps, duplicate keys and OIDs, the key budget 200 telemetry / 50 attributes).
+> Adapted to NB: the editor is mounted as the profile page's SNMP tab (NB has no SNMP target screen yet, so no `?tab=mapping` on a target);
+> a table has no separate base OID (each column OID is walked); no per-row interval (OD-65: profile-only); no `snmp.oids.lookup` name beside an
+> OID (OD-66); the expected key count is computed from the draft as NB's `keyBudget` does (no sample target). The Online status item is
+> covered by the profile editor: a polled transport allows only "Last seen only", the other rules disabled with the reason.
 
 ## 11.4 Test poll (MIB-free)
 
-- [ ] `SnmpTestPollPanel` (`?tab=test` on a target, and inline in the editor before save): runs `snmp.targets.testPoll` with the default system OIDs (`sysUpTime.0`, `sysObjectID.0`, `sysDescr.0`, `sysName.0`) or the OIDs the user types / pastes (numeric, one per line) or "all OIDs of this profile's mapping".
-- [ ] Result table: OID, name (only when the adapter knows it; never required), SNMP type, raw value, and for mapped OIDs the mapped key with the scaled value; poll duration; per-OID errors (`noSuchObject`, `noSuchInstance`, timeout, auth failure for v3 shown as "authentication failed (check user and keys)", not the agent's raw text).
-- [ ] Works with **no MIB file** anywhere: numeric OIDs in, numeric OIDs out. A one-line note says so.
+- [x] `SnmpTestPollPanel` (`?tab=test` on a target, and inline in the editor before save): runs `snmp.targets.testPoll` with the default system OIDs (`sysUpTime.0`, `sysObjectID.0`, `sysDescr.0`, `sysName.0`) or the OIDs the user types / pastes (numeric, one per line) or "all OIDs of this profile's mapping".
+- [x] Result table: OID, name (only when the adapter knows it; never required), SNMP type, raw value, and for mapped OIDs the mapped key with the scaled value; poll duration; per-OID errors (`noSuchObject`, `noSuchInstance`, timeout, auth failure for v3 shown as "authentication failed (check user and keys)", not the agent's raw text).
+- [x] Works with **no MIB file** anywhere: numeric OIDs in, numeric OIDs out. A one-line note says so.
 - [ ] "Who ran it": "tested from the cloud collector (egress IP x)" or "tested by router <name>".
-- [ ] Rate limit feedback: when NB refuses a test poll because of the per-target or per-tenant rate limit, the panel shows the retry time instead of an error.
+- [x] Rate limit feedback: when NB refuses a test poll because of the per-target or per-tenant rate limit, the panel shows the retry time instead of an error.
+
+> **Built 2026-11-04 (NB iot_gateway 11).** `SnmpTestPollPanel`: a device of the profile (one bound to an SNMP endpoint; the host polls with
+> the endpoint's stored credentials), typed or pasted numeric OIDs (at most 64), the system group or the draft's values; a kit DataTable of the
+> answer (OID, the host's name when it has one, SNMP type, raw value, the mapped key with the scaled value, per-OID exceptions), the duration,
+> the endpoint's warnings, failures in words, a rate limit as "try again in n s" (`SnmpTestPollRetry`), and "Add to mapping" with a suggested
+> key and the detected type. Not built: "Who ran it" (NB polls from the cloud collector only; its egress addresses are not served yet).
 
 ## 11.5 Trap receiver view
 

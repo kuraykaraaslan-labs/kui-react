@@ -9,6 +9,7 @@ import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { blankProfileDraft, profileDraftIssues, type DeviceProfile, type ProfileTransport } from '../types/profile';
 import { OnlineRuleField, type OnlineRuleValue } from './OnlineRuleField';
+import { useProfileTransports } from './profile-transports';
 
 /**
  * NewDeviceProfileDrawer — "New profile" (phase 01 §1.4): name, description, transport and the online rule. OD-63: the online rule
@@ -27,7 +28,7 @@ export function NewDeviceProfileDrawer({ open, transports, onClose, onCreated }:
   const api = useIotAdapter().profiles;
   const notify = useIotNotify();
   const { m } = useIotText();
-  const offered = transports ?? api?.transports ?? ['MQTT', 'HTTP', 'ANY'];
+  const offered = useProfileTransports(transports);
   const [draft, setDraft] = useState(() => blankProfileDraft());
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -84,7 +85,7 @@ export function NewDeviceProfileDrawer({ open, transports, onClose, onCreated }:
           onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
         <Select id="new-profile-transport" label={m.newProfile.transport} value={draft.transportType}
           onChange={(e) => setDraft({ ...draft, transportType: e.target.value as ProfileTransport })}
-          options={offered.map((t) => ({ value: t, label: m.transport[t] }))} />
+          options={offered.map((t) => ({ value: t.value, label: t.label }))} />
         <OnlineRuleField
           value={rule}
           transport={draft.transportType}

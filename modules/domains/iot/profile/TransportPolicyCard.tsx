@@ -7,7 +7,9 @@ import { TagInput } from '@/modules/ui/TagInput';
 import { Toggle } from '@/modules/ui/Toggle';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
-import { isNetwork, isPlaintextRpcMethod, MQTT_TRANSPORT_POLICIES, type DeviceProfileDraft, type ProfileTransport } from '../types/profile';
+import {
+  isNetwork, isPlaintextRpcMethod, isPolledTransport, MQTT_TRANSPORT_POLICIES, transportChoices, type DeviceProfileDraft, type ProfileTransport, type ProfileTransportOption,
+} from '../types/profile';
 import { ProfileSection } from './profile-fields';
 
 /**
@@ -17,14 +19,17 @@ import { ProfileSection } from './profile-fields';
  * so the card warns when the transport still names MQTT), and the networks a device may connect from (empty = any; invalid entries are
  * named before any request). With plain MQTT allowed, the commands that may still go to a device in clear (gateway 12 §10: exact method
  * names, none by default; firmware and settings attributes never go in clear). Changing the transport never touches the online rule (OD-63).
+ * The transports are the host's (built-ins and the protocols it polls, `useProfileTransports`); the select always shows the profile's
+ * current value with its label, offered or not. A polled transport (NB iot-gateway 13.3: the platform asks the device) has no MQTT, token
+ * or network settings: the card says so instead of showing them.
  */
 export type TransportPolicyValue = Pick<DeviceProfileDraft, 'transportType' | 'mqttTransport' | 'allowTokenInUrl' | 'allowedNetworks' | 'plaintextRpcMethods'>;
 
 export type TransportPolicyCardProps = {
   value: TransportPolicyValue;
   onChange?: (patch: Partial<TransportPolicyValue>) => void;
-  /** The transports the host offers (default MQTT, HTTP, ANY). */
-  transports?: readonly ProfileTransport[];
+  /** The transports the host offers: built-in values or labelled options (default MQTT, HTTP, ANY). */
+  transports?: readonly (ProfileTransport | ProfileTransportOption)[];
   errors?: Partial<Record<keyof TransportPolicyValue, string>>;
   disabled?: boolean;
   /** A built-in profile (a protocol module's): its transport cannot change; everything else on the card can. */
@@ -41,6 +46,9 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
   const plainMethods = value.plaintextRpcMethods ?? [];
   const badMethods = plainMethods.filter((x) => !isPlaintextRpcMethod(x));
   const showPlainMethods = usesMqtt && value.mqttTransport === 'PLAINTEXT_ALLOWED';
+  const polled = isPolledTransport(value.transportType);
+  const known = transports.filter((t): t is ProfileTransportOption => typeof t !== 'string');
+  const choices = transportChoices(transports, (t) => m.transport[t], value.transportType, known);
   return (
     <div className={cn('space-y-4', className)}>
       <ProfileSection title={m.transport.type} hint={transportLocked ? m.transport.builtinFixed : m.transport.typeHint}>
@@ -50,11 +58,12 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
           value={value.transportType}
           disabled={disabled || transportLocked}
           onChange={(e) => onChange?.({ transportType: e.target.value as ProfileTransport })}
-          options={transports.map((t) => ({ value: t, label: m.transport[t] }))}
+          options={choices.map((t) => ({ value: t.value, label: t.label }))}
         />
+        {polled && <Callout variant="info" title={null}>{m.transport.polledHint}</Callout>}
       </ProfileSection>
 
-      {value.transportType !== 'HTTP' && value.transportType !== 'LORAWAN' && (
+      {!polled && value.transportType !== 'HTTP' && value.transportType !== 'LORAWAN' && (
         <ProfileSection title={m.transport.mqttTransport}>
           <fieldset className="grid gap-2 md:grid-cols-2" aria-label={m.transport.mqttTransport}>
             {MQTT_TRANSPORT_POLICIES.map((p) => {
@@ -104,6 +113,7 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
         </ProfileSection>
       )}
 
+      {!polled && (<>
       <ProfileSection title={m.transport.tokenInUrl} hint={m.transport.tokenInUrlHint}>
         <Toggle id={`${id}-token-url`} label={m.transport.tokenInUrl} checked={value.allowTokenInUrl} disabled={disabled} onChange={(v) => onChange?.({ allowTokenInUrl: v })} />
         {value.allowTokenInUrl && usesMqtt && <Callout variant="warning" title={null}>{m.transport.tokenInUrlMqtt}</Callout>}
@@ -121,6 +131,7 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
           onChange={(tags) => onChange?.({ allowedNetworks: tags })}
         />
       </ProfileSection>
+      </>)}
     </div>
   );
 }

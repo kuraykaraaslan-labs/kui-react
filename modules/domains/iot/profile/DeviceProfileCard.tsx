@@ -6,7 +6,7 @@ import { Badge } from '@/modules/ui/Badge';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
 import { fill } from '../format';
-import type { DeviceProfile } from '../types/profile';
+import { transportLabel, type DeviceProfile } from '../types/profile';
 
 /**
  * DeviceProfileCard — one profile at a glance (phase 01 §1.4, NB iot_device_profile 03 §3.2): name, the default star, the template it
@@ -35,7 +35,7 @@ export function DeviceProfileCard({ profile, deviceCount, href, messages, classN
         {profile.template && <Badge variant="info" size="sm">{fill(m.profile.template, { key: profile.template.key, version: profile.template.version })}</Badge>}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <Badge variant="neutral" size="sm">{m.transport[profile.transportType]}</Badge>
+        <Badge variant="neutral" size="sm">{transportLabel(profile.transportType, (t) => m.transport[t])}</Badge>
         <Badge variant="neutral" size="sm">{m.online[profile.onlineRule]}</Badge>
         <span className="ml-auto inline-flex items-center gap-1 text-xs text-text-secondary">
           <FontAwesomeIcon icon={faMicrochip} className="h-3 w-3" aria-hidden="true" />

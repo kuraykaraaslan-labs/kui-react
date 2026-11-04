@@ -335,6 +335,8 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
     },
     profiles: {
       transports: ['MQTT', 'HTTP', 'ANY', 'LORAWAN'],
+      // the protocols a host polls (NB: iot_gateway's registry), with their labels
+      async transportOptions() { await wait(); return [{ value: 'snmp', label: 'SNMP', polled: true }, { value: 'isapi', label: 'Hikvision (ISAPI)', polled: true }]; },
       async options() { await wait(); return store.profiles.map((p) => ({ id: p.profileId, name: p.name })); },
       async list(q) {
         await wait();

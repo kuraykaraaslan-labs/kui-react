@@ -7,7 +7,7 @@ import type {
 } from '../types/device';
 import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcCommandTemplate, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
 import type {
-  DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTransport, ProvisionKey, ProvisioningInfo,
+  DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTransport, ProfileTransportOption, ProvisionKey, ProvisioningInfo,
   ProvisionStrategy,
 } from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
@@ -155,8 +155,13 @@ export interface IotProfilesApi {
   setDefault?(profileId: string): Promise<DeviceProfile>;
   /** What still points at each profile (devices, alarm rules, commands, …), for the list's device count and the delete hint. */
   usage?(profileIds: string[], signal?: AbortSignal): Promise<Record<string, DeviceProfileUsage>>;
-  /** The transports this host offers (default MQTT, HTTP, ANY). */
+  /** The built-in transports this host offers (default MQTT, HTTP, ANY). */
   transports?: ProfileTransport[];
+  /**
+   * The polled transports (protocols) this workspace may pick, with their labels in the app language (NB: the protocols registered at
+   * `iot_gateway:protocol`, through the profile's transport point). Merged after `transports` in the transport selects; the kit names none.
+   */
+  transportOptions?(signal?: AbortSignal): Promise<ProfileTransportOption[]>;
   /** Who still reads some telemetry keys of the profile (alarm rules, …): asked after a save removed keys. Only non-zero counts. */
   keyUsage?(profileId: string, keys: string[], signal?: AbortSignal): Promise<ProfileKeyUsage[]>;
   /** Rewrites what reads the old keys to the new names (`{ old: new }`) where the viewer may; answers what each module changed. */

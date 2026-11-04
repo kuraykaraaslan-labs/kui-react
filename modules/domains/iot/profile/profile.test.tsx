@@ -43,6 +43,9 @@ describe('profile rules (mirrors of the host)', () => {
     expect(profileDraftIssues(d).onlineRule).toBe('online_rule_required');
     for (const t of ['HTTP', 'LORAWAN'] as ProfileTransport[]) expect(profileDraftIssues({ ...d, transportType: t, onlineRule: 'LIVE_SOCKET' }).onlineRule).toBe('online_rule_not_allowed');
     for (const t of ['MQTT', 'ANY'] as ProfileTransport[]) expect(profileDraftIssues({ ...d, transportType: t, onlineRule: 'LIVE_SOCKET' }).onlineRule).toBeUndefined();
+    // a polled transport (a protocol id): only Last seen only, as NB's allowedOnlineRules
+    for (const r of ['LIVE_SOCKET', 'UPLINK_WINDOW'] as const) expect(profileDraftIssues({ ...d, transportType: 'snmp', onlineRule: r, expectedIntervalS: 600 }).onlineRule).toBe('online_rule_not_allowed');
+    expect(profileDraftIssues({ ...d, transportType: 'snmp', onlineRule: 'LAST_SEEN_ONLY' }).onlineRule).toBeUndefined();
   });
 
   it('OD-57: the interval is required only for the window rule, the factor is 1.5 to 10 with one decimal', () => {
@@ -397,6 +400,38 @@ describe('DeviceProfileEditorView', () => {
     expect(screen.getByText(/A built-in profile keeps its transport/)).toBeInTheDocument();
     await user.click(screen.getByRole('tab', { name: /General/ }));
     expect(screen.getByRole('textbox', { name: /Name/ })).not.toBeDisabled();
+  });
+
+  it('offers the host\'s polled transports after the built-ins, saves one with Last seen only, and hides what a polled profile has not', async () => {
+    const user = userEvent.setup();
+    const adapter = profilesAdapter({ transportOptions: async () => [{ value: 'snmp', label: 'SNMP', polled: true }, { value: 'isapi', label: 'Hikvision (ISAPI)', polled: true }] });
+    render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
+    await screen.findByRole('heading', { name: /Pumps/ });
+    await user.click(screen.getByRole('tab', { name: /Transport & auth/ }));
+    const select = screen.getByLabelText('Transport') as HTMLSelectElement;
+    await waitFor(() => expect([...select.options].map((o) => o.textContent)).toEqual(['MQTT', 'HTTP', 'MQTT and HTTP', 'LoRaWAN', 'SNMP', 'Hikvision (ISAPI)']));
+    await user.selectOptions(select, 'snmp');
+    expect(screen.getByText(/The platform polls the devices of this profile/)).toBeInTheDocument();
+    expect(screen.queryByText('Plain MQTT')).toBeNull();
+    expect(screen.queryByText('Allowed authentication')).toBeNull();
+    await user.click(screen.getByRole('tab', { name: /Online status/ }));
+    expect(screen.getAllByText(/only Last seen only fits/).length).toBeGreaterThan(0);
+    await user.click((screen.getAllByRole('radio') as HTMLInputElement[]).find((r) => r.value === 'LAST_SEEN_ONLY')!);
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { transportType: 'snmp', onlineRule: 'LAST_SEEN_ONLY' }));
+  });
+
+  it('always shows the profile\'s own transport with its label, offered or not', async () => {
+    const user = userEvent.setup();
+    const adapter = profilesAdapter({ transportOptions: async () => [{ value: 'isapi', label: 'Hikvision (ISAPI)', polled: true }] },
+      [profile({ transportType: 'snmp', onlineRule: 'LAST_SEEN_ONLY' })]);
+    render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
+    await screen.findByRole('heading', { name: /Pumps/ });
+    expect(screen.getAllByText('SNMP')[0]).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /Transport & auth/ }));
+    const select = screen.getByLabelText('Transport') as HTMLSelectElement;
+    expect(select.value).toBe('snmp');
+    expect([...select.options].find((o) => o.value === 'snmp')?.textContent).toBe('SNMP');
   });
 
   it('UX-11: after a save that renamed a key in use, offers to update the rules to the new name, or keeps them and says what still reads it', async () => {

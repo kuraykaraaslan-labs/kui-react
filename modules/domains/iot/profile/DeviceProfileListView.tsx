@@ -13,7 +13,8 @@ import { PROFILE_SORT_KEYS, errorMessage, type ProfileListQuery } from '../api/a
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { LIST_PAGE_SIZES, choiceOf, sameSort, toIotSort, toTableSort } from '../api/list-table';
 import { fill, formatDateTime, formatRelative } from '../format';
-import { ONLINE_RULES, type DeviceProfile, type DeviceProfileUsage, type ProfileTransport } from '../types/profile';
+import { ONLINE_RULES, transportLabel, type DeviceProfile, type DeviceProfileUsage, type ProfileTransport } from '../types/profile';
+import { useProfileTransports } from './profile-transports';
 import { NewDeviceProfileDrawer } from './NewDeviceProfileDrawer';
 
 /**
@@ -46,6 +47,8 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
   const { m, locale } = useIotText();
   const hostTransports = api?.transports;
   const transports = useMemo(() => hostTransports ?? (['MQTT', 'HTTP', 'ANY'] as ProfileTransport[]), [hostTransports]);
+  // the built-ins and the host's polled transports, labelled (the filter and the transport column)
+  const transportList = useProfileTransports(transports);
 
   const [query, setQuery] = useState<ProfileListQuery>(() => ({ ...initialQuery, page: initialQuery?.page ?? 1, pageSize: initialQuery?.pageSize ?? pageSize }));
   const [items, setItems] = useState<DeviceProfile[]>([]);
@@ -105,12 +108,12 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
   }
   /** The Filters panel was applied (back to page 1). */
   function filtersChanged(v: DataTableFilterValues) {
-    change({ transportType: choiceOf(v.transportType, transports), onlineRule: choiceOf(v.onlineRule, ONLINE_RULES) });
+    change({ transportType: choiceOf(v.transportType, transportList.map((t) => t.value)), onlineRule: choiceOf(v.onlineRule, ONLINE_RULES) });
   }
   const filterFields = useMemo((): DataTableFilterField<DeviceProfile>[] => [
-    { id: 'transportType', label: m.profiles.transport, type: 'select', options: transports.map((t) => ({ value: t, label: m.transport[t] })) },
+    { id: 'transportType', label: m.profiles.transport, type: 'select', options: transportList.map((t) => ({ value: t.value, label: t.label })) },
     { id: 'onlineRule', label: m.profiles.onlineRule, type: 'select', options: ONLINE_RULES.map((r) => ({ value: r, label: m.online[r] })) },
-  ], [transports, m]);
+  ], [transportList, m]);
   const filterValues = useMemo((): DataTableFilterValues => ({
     ...(query.transportType ? { transportType: query.transportType } : {}),
     ...(query.onlineRule ? { onlineRule: query.onlineRule } : {}),
@@ -165,7 +168,7 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
         </a>
       ),
     },
-    { key: 'transport', header: m.profiles.transport, hideBelow: 'sm', sortable: true, render: (p) => m.transport[p.transportType] },
+    { key: 'transport', header: m.profiles.transport, hideBelow: 'sm', sortable: true, render: (p) => transportLabel(p.transportType, (t) => m.transport[t], transportList) },
     { key: 'online', header: m.profiles.onlineRule, hideBelow: 'md', sortable: true, render: (p) => m.online[p.onlineRule] },
     {
       key: 'devices',

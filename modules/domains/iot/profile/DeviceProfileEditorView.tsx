@@ -17,7 +17,8 @@ import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { fill, formatDateTime } from '../format';
 import {
-  CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isTelemetryKey, nextKeyOrigins, profileDraftIssues, profilePatch, telemetryKeyChanges,
+  CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isPolledTransport, isTelemetryKey, nextKeyOrigins, profileDraftIssues, profilePatch,
+  telemetryKeyChanges, transportLabel,
   type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileKeyUsage, type ProfileTransport, type ProvisionStrategy,
 } from '../types/profile';
 import { AuthModeSelector } from './AuthModeSelector';
@@ -30,6 +31,7 @@ import { RateLimitEditor } from './RateLimitEditor';
 import { TelemetryKeySchemaTable } from './TelemetryKeySchemaTable';
 import { TransportPolicyCard } from './TransportPolicyCard';
 import { ProfileSection, RangeNumberField } from './profile-fields';
+import { useProfileTransports } from './profile-transports';
 import { announceProfileKeyRenames } from './profile-key-events';
 
 /**
@@ -57,7 +59,7 @@ export type DeviceProfileEditorViewProps = {
   tab?: string;
   onTabChange?: (tab: string) => void;
   onDeleted?: () => void;
-  /** The transports the host offers (default: the adapter's, else MQTT, HTTP, ANY). */
+  /** The built-in transports the host offers (default: the adapter's, else MQTT, HTTP, ANY); the adapter's `transportOptions` follow. */
   transports?: readonly ProfileTransport[];
   /** The provisioning strategies the host can serve (default `DISABLED` only). */
   availableStrategies?: readonly ProvisionStrategy[];
@@ -87,7 +89,7 @@ export function DeviceProfileEditorView({
   const caps = useIotCapabilities();
   const notify = useIotNotify();
   const { m, locale } = useIotText();
-  const offered = transports ?? api?.transports ?? (['MQTT', 'HTTP', 'ANY'] as ProfileTransport[]);
+  const offered = useProfileTransports(transports);
 
   const [profile, setProfile] = useState<DeviceProfile | null>(null);
   const [draft, setDraftState] = useState<DeviceProfileDraft | null>(null);
@@ -322,11 +324,14 @@ export function DeviceProfileEditorView({
         <div className="space-y-4">
           <TransportPolicyCard value={draft} transports={offered} disabled={readOnly} transportLocked={!!profile.builtinKey} onChange={set}
             errors={{ allowedNetworks: err('allowedNetworks'), plaintextRpcMethods: err('plaintextRpcMethods'), transportType: err('transportType') }} />
-          <ProfileSection title={m.transport.authModes}>
-            <AuthModeSelector value={draft.allowedAuthModes} disabled={readOnly} error={err('allowedAuthModes')} onChange={(v) => set({ allowedAuthModes: v })} />
-          </ProfileSection>
-          <ProtocolMappingCard value={draft} disabled={readOnly} onChange={set}
-            errors={{ topicSchemes: err('topicSchemes'), maxTopicDepth: err('maxTopicDepth'), maxTopicLength: err('maxTopicLength'), maxDistinctTopicsPerDevice: err('maxDistinctTopicsPerDevice'), rawMaxBytes: err('rawMaxBytes') }} />
+          {/* a polled profile's devices never log in or publish: no auth modes, no topics (the card says so) */}
+          {!isPolledTransport(draft.transportType) && (<>
+            <ProfileSection title={m.transport.authModes}>
+              <AuthModeSelector value={draft.allowedAuthModes} disabled={readOnly} error={err('allowedAuthModes')} onChange={(v) => set({ allowedAuthModes: v })} />
+            </ProfileSection>
+            <ProtocolMappingCard value={draft} disabled={readOnly} onChange={set}
+              errors={{ topicSchemes: err('topicSchemes'), maxTopicDepth: err('maxTopicDepth'), maxTopicLength: err('maxTopicLength'), maxDistinctTopicsPerDevice: err('maxDistinctTopicsPerDevice'), rawMaxBytes: err('rawMaxBytes') }} />
+          </>)}
         </div>
       ),
     },
@@ -423,7 +428,7 @@ export function DeviceProfileEditorView({
             {profile.template && <Badge variant="info" size="sm">{fill(m.profile.template, { key: profile.template.key, version: profile.template.version })}</Badge>}
           </h1>
           <p className="mt-1 flex flex-wrap gap-1.5 text-xs text-text-secondary">
-            <Badge variant="neutral" size="sm">{m.transport[profile.transportType]}</Badge>
+            <Badge variant="neutral" size="sm">{transportLabel(profile.transportType, (t) => m.transport[t], offered)}</Badge>
             <Badge variant="neutral" size="sm">{m.online[profile.onlineRule]}</Badge>
             {usage && usage.devices !== null && <Badge variant="neutral" size="sm">{`${usage.devices} ${m.profiles.devices.toLowerCase()}`}</Badge>}
           </p>

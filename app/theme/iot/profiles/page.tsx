@@ -3,7 +3,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { DeviceProfileListView } from '@/modules/domains/iot/profile/DeviceProfileListView';
 import { PROFILE_SORT_KEYS, type ProfileListQuery } from '@/modules/domains/iot/api/adapter';
 import { pageSizeFromParam, sortFromParam, sortToParam } from '@/modules/domains/iot/api/list-table';
-import { ONLINE_RULES, PROFILE_TRANSPORTS, type OnlineRule, type ProfileTransport } from '@/modules/domains/iot/types/profile';
+import { ONLINE_RULES, type OnlineRule, type ProfileTransport } from '@/modules/domains/iot/types/profile';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 import { demoHrefs } from '../_demo/demo-hrefs';
 
@@ -18,7 +18,8 @@ export default function DeviceProfilesPage() {
     pageSize: pageSizeFromParam(sp.get('size')),
     sort: sortFromParam(sp.get('sort'), PROFILE_SORT_KEYS),
     search: sp.get('q') ?? undefined,
-    transportType: transport && PROFILE_TRANSPORTS.includes(transport) ? transport : undefined,
+    // a built-in or a polled protocol id (the host lists them)
+    transportType: transport && /^(?:[A-Z][A-Z0-9_]{0,31}|[a-z][a-z0-9_]{0,31})$/.test(transport) ? transport : undefined,
     onlineRule: online && ONLINE_RULES.includes(online) ? online : undefined,
   };
   function sync(q: ProfileListQuery) {

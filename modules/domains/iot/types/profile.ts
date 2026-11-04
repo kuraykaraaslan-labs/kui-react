@@ -6,9 +6,46 @@
  * (no zod), like the other entity files; the pure rules below mirror NB's so the form refuses what the server refuses.
  */
 
-/** LoRaWAN is listed for the hosts that have it (`iot_lorawan`); a host passes the transports it offers. */
+/** The built-in transports (devices reach the platform themselves). LoRaWAN is listed for the hosts that have it; a host passes the transports it offers. */
 export const PROFILE_TRANSPORTS = ['MQTT', 'HTTP', 'ANY', 'LORAWAN'] as const;
-export type ProfileTransport = (typeof PROFILE_TRANSPORTS)[number];
+export type BuiltinProfileTransport = (typeof PROFILE_TRANSPORTS)[number];
+/**
+ * A profile's transport: a built-in, or the id of a protocol the host polls (NB `iot_gateway:protocol`: `snmp`, `isapi`, `rtsp`, lower case,
+ * OD-177). The kit names no protocol: the host lists the ones it has (`profiles.transportOptions`) with their labels.
+ */
+export type ProfileTransport = BuiltinProfileTransport | (string & {});
+/** One choice of the transport select: the value, its label in the app language, and whether the platform polls its devices. */
+export type ProfileTransportOption = { value: ProfileTransport; label: string; polled?: boolean };
+
+export const isBuiltinTransport = (t: string): t is BuiltinProfileTransport => (PROFILE_TRANSPORTS as readonly string[]).includes(t);
+/** A polled transport (any value that is not a built-in): no socket, no uplink window; the platform asks the device (NB iot-gateway 13.3). */
+export const isPolledTransport = (t: string): boolean => !isBuiltinTransport(t);
+
+/**
+ * The choices of the transport select: the offered ones (built-ins labelled by the kit's texts, a host option with its own label), and the
+ * profile's current value even when it is not offered (a protocol whose module is gone, a built-in the host does not offer), labelled by
+ * the host's option or the value itself. Never a duplicate.
+ */
+export function transportChoices(
+  offered: readonly (ProfileTransport | ProfileTransportOption)[],
+  builtinLabel: (t: BuiltinProfileTransport) => string,
+  current?: ProfileTransport | null,
+  known: readonly ProfileTransportOption[] = [],
+): ProfileTransportOption[] {
+  const out: ProfileTransportOption[] = [];
+  const label = (t: string) => transportLabel(t, builtinLabel, known);
+  for (const o of offered) {
+    const opt = typeof o === 'string' ? { value: o, label: label(o), polled: isPolledTransport(o) } : { polled: isPolledTransport(o.value), ...o };
+    if (!out.some((x) => x.value === opt.value)) out.push(opt);
+  }
+  if (current && !out.some((x) => x.value === current)) out.push({ value: current, label: label(current), polled: isPolledTransport(current) });
+  return out;
+}
+
+/** A transport in words: the host's option label, the kit's text for a built-in, else the protocol id in capitals (`snmp` → SNMP). */
+export function transportLabel(t: ProfileTransport, builtinLabel: (t: BuiltinProfileTransport) => string, known: readonly ProfileTransportOption[] = []): string {
+  return known.find((k) => k.value === t)?.label ?? (isBuiltinTransport(t) ? builtinLabel(t) : t.toUpperCase());
+}
 
 /** Protocol 01 §4. MQTT basic is ALWAYS a username and a password: there is no client-ID-only login (OD-163). */
 export const PROFILE_AUTH_MODES = ['ACCESS_TOKEN', 'MQTT_BASIC', 'X509_CERTIFICATE'] as const;
@@ -350,8 +387,12 @@ export function formatLimitString(windows: readonly LimitWindow[]): string {
 
 // ── online rule (OD-57, OD-63) ───────────────────────────────────────────────────────────────────────────────────────
 
-/** Why a transport cannot serve a rule, or null. The transport only FORBIDS a rule; it never picks one (OD-63). */
-export function onlineRuleBlock(rule: OnlineRule, transport: ProfileTransport): 'no_socket_http' | 'no_socket_lorawan' | null {
+/**
+ * Why a transport cannot serve a rule, or null. The transport only FORBIDS a rule; it never picks one (OD-63). A polled transport (NB
+ * iot-gateway 13.3) has no socket and no uplink window: only "Last seen only" fits.
+ */
+export function onlineRuleBlock(rule: OnlineRule, transport: ProfileTransport): 'no_socket_http' | 'no_socket_lorawan' | 'polled_last_seen_only' | null {
+  if (isPolledTransport(transport)) return rule === 'LAST_SEEN_ONLY' ? null : 'polled_last_seen_only';
   if (rule !== 'LIVE_SOCKET') return null;
   if (transport === 'HTTP') return 'no_socket_http';
   if (transport === 'LORAWAN') return 'no_socket_lorawan';
