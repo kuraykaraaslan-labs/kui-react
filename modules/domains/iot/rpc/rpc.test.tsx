@@ -53,7 +53,7 @@ describe('RpcSendPanel', () => {
     expect(onSend).not.toHaveBeenCalled();
     await user.type(screen.getByLabelText(/Host/), '8.8.8.8');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'sys.ping', params: { host: '8.8.8.8' } }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'sys.ping', params: { host: '8.8.8.8' }, requestKey: expect.stringMatching(/^rpc-/) }));
   });
 
   it('asks for the typed phrase of a high-impact command, and a click confirmation without one', async () => {
@@ -62,14 +62,14 @@ describe('RpcSendPanel', () => {
     render(<RpcSendPanel commands={COMMANDS} onSend={onSend} />);
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.reboot');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Send sys.reboot?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Send Reboot (sys.reboot)?' });
     await user.type(within(dialog).getByLabelText('Type REBOOT to confirm'), 'REBOOT');
     await user.click(within(dialog).getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'sys.reboot', confirm: true, confirmText: 'REBOOT' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ method: 'sys.reboot', confirm: true, confirmText: 'REBOOT' })));
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.restart');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    await user.click(within(await screen.findByRole('dialog', { name: 'Send sys.restart?' })).getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(onSend).toHaveBeenLastCalledWith({ method: 'sys.restart', confirm: true }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Send Restart (sys.restart)?' })).getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenLastCalledWith({ method: 'sys.restart', confirm: true, requestKey: expect.any(String) }));
   });
 
   it('sends raw RPC only with the capability, refuses a non-object, and warns about an offline device', async () => {
@@ -91,7 +91,7 @@ describe('RpcSendPanel', () => {
     await user.clear(params);
     await user.type(params, '{{"path":"system"}');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'ubus.call', params: { path: 'system' }, persistent: true }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'ubus.call', params: { path: 'system' }, persistent: true, requestKey: expect.any(String) }));
   });
 
   it('is disabled with the reason for a ThingsBoard-scheme device (OD-85)', () => {
@@ -162,7 +162,7 @@ describe('RpcConsoleView', () => {
     expect([...subs][0].params).toEqual({ deviceId: 'd1' });
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.info');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(adapter.rpc!.send).toHaveBeenCalledWith('d1', { method: 'sys.info' }));
+    await waitFor(() => expect(adapter.rpc!.send).toHaveBeenCalledWith('d1', { method: 'sys.info', requestKey: expect.any(String) }));
     const row = (await screen.findByText('Queued')).closest('tr')!;
     expect(row).toHaveAttribute('data-state', 'new');
     act(() => live.emit({ request: req('new', { status: 'SUCCESSFUL', completedAt: new Date(T0.getTime() + 900) }) }));

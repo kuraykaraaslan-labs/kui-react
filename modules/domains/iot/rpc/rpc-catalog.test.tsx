@@ -153,7 +153,8 @@ describe('RpcCommandCatalogEditor', () => {
     const [, id, patch] = (api.update as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(id).toBe('c2');
     expect(patch).not.toHaveProperty('method');
-    expect(patch).toMatchObject({ label: 'Restart the router', confirmText: 'REBOOT', highImpact: true });
+    // only what changed is sent (41-ui-fixes/23 1.17)
+    expect(patch).toEqual({ label: 'Restart the router' });
     await user.click(screen.getByRole('button', { name: 'Remove sys.info' }));
     await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Remove' }));
     await waitFor(() => expect(api.remove).toHaveBeenCalledWith('p1', 'c1'));

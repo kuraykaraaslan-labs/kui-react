@@ -444,17 +444,19 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         store.catalog.set(profileId, [...catalogOf(profileId), c]);
         return structuredClone(c);
       },
-      async update(profileId, commandId, patch) {
+      async update(profileId, commandId, patch, options) {
         await wait();
         const c = catalogOf(profileId).find((x) => x.commandId === commandId);
         if (!c) throw new IotApiError('not_found', 'Command not found.');
-        Object.assign(c, patch);
+        // someone changed it meanwhile: the edit is refused, as a host does with the version it was sent
+        if (options?.expectedVersion !== undefined && (c.version ?? 1) !== options.expectedVersion) throw new IotApiError('stale', 'The command changed meanwhile.');
+        Object.assign(c, patch, { version: (c.version ?? 1) + 1 });
         return structuredClone(c);
       },
       async remove(profileId, commandId) { await wait(); store.catalog.set(profileId, catalogOf(profileId).filter((c) => c.commandId !== commandId)); },
       async exportAll(profileId) {
         await wait();
-        return catalogOf(profileId).map(({ commandId: _id, sendable: _s, updatedAt: _u, ...rest }): RpcCommandInput => rest);
+        return catalogOf(profileId).map(({ commandId: _id, sendable: _s, updatedAt: _u, version: _v, ...rest }): RpcCommandInput => rest);
       },
       async importAll(profileId, commands) {
         await wait();
@@ -677,6 +679,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         return { ...r };
       },
       parseLive(p) { return p && typeof p === 'object' && 'request' in p ? (p as { request: RpcRequest }) : null; },
+      parseSnapshot(p) { return p && typeof p === 'object' && Array.isArray((p as { requests?: unknown }).requests) ? (p as { requests: RpcRequest[] }).requests : null; },
     },
     sim: {
       raise(deviceId) {
