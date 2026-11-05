@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { DeviceConnectionInfo } from '../types/device';
 import { Button } from '@/modules/ui/Button';
 import { Checkbox } from '@/modules/ui/Checkbox';
@@ -7,14 +7,18 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { Input } from '@/modules/ui/Input';
 import { Select } from '@/modules/ui/Select';
 import { errorMessage, IotApiError, type CreatedDevice } from '../api/adapter';
-import { useIotAdapter, useIotNotify, useIotText } from '../api/IotAdapterProvider';
+import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { IssuedSecretNotice } from './DeviceCredentialPanel';
 
 /**
  * NewDeviceDrawer — "New device" (phase 01 §1.1): name, label, profile (the default one when none is chosen) and the gateway
  * flag. On success the drawer shows the new access token once (`IssuedSecretNotice`, with the "Connection details" card when the
  * host tells where devices connect) and a link to the device; the token lives only in this open drawer's state and is gone when it
- * closes.
+ * closes. A profile without access tokens issues none: the drawer says so, and who can set a credential (NB 41-ui-fixes/21 1.2).
+ *
+ * The token cannot be lost unseen (NB 41-ui-fixes/21 1.1): while it is shown the drawer does not close (Esc, the backdrop, the close
+ * button, Close and Open device all wait) until "I have stored it", which drops it; nor while the create runs. Create is the form's
+ * submit button (Enter in a field creates), disabled while it runs, so a double click cannot send it twice (1.14, 1.24).
  *
  * A host may offer other ways to add a device (`choices`: claiming a vendor's device with the code on its screen, …). The drawer
  * then opens on a choice between them and "Other device" (the form above, only with `canCreate`); a single way opens at once.
@@ -41,16 +45,25 @@ export type NewDeviceDrawerProps = {
   choices?: readonly DeviceAddChoice[];
   /** Whether "Other device" (the create form) is offered. Default true. */
   canCreate?: boolean;
+  /** Opens a link in the host's router (a plain click on Open device); without it the link is a plain link. */
+  onOpen?: (href: string) => void;
 };
+
+/** A plain left click (no modifier): the host's router opens the link; any other click keeps the link's own behaviour. */
+function plainClick(e: React.MouseEvent): boolean {
+  return !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
 
 /** The create form's id among the choices. */
 const OTHER = '_other';
 
-export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated, onAdded, choices = [], canCreate = true }: NewDeviceDrawerProps) {
+export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated, onAdded, choices = [], canCreate = true, onOpen }: NewDeviceDrawerProps) {
   const adapter = useIotAdapter();
   const api = adapter.devices;
+  const caps = useIotCapabilities();
   const notify = useIotNotify();
   const { m } = useIotText();
+  const formId = useId();
   const [name, setName] = useState('');
   const [label, setLabel] = useState('');
   const [profileId, setProfileId] = useState('');
@@ -59,18 +72,32 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<CreatedDevice | null>(null);
+  // whether the create issued a secret, and whether the viewer said it is stored (the secret is dropped then)
+  const [issued, setIssued] = useState(false);
+  const [stored, setStored] = useState(false);
   const [connection, setConnection] = useState<DeviceConnectionInfo | null>(null);
+  const secretPending = issued && !stored;
+  // nothing closes the drawer while the create runs or while a new secret waits to be stored
+  const locked = busy || secretPending;
   const ways = [...choices.map((c) => c.id), ...(canCreate ? [OTHER] : [])];
   // with one way there is nothing to choose: it opens at once
   const [picked, setPicked] = useState<string | null>(ways.length === 1 ? ways[0] : null);
   const choice = choices.find((c) => c.id === picked);
 
   function close() {
+    if (locked) return;
     setCreated(null); // the secret leaves with the drawer
     setConnection(null);
+    setIssued(false);
+    setStored(false);
     onClose();
   }
+  function storedIt() {
+    setStored(true);
+    setCreated((c) => (c ? { ...c, secret: null } : c));
+  }
   function back() {
+    if (locked) return;
     setCreated(null);
     setError(null);
     setFieldErrors({});
@@ -78,7 +105,7 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
   }
 
   async function submit() {
-    if (!api?.create) return;
+    if (!api?.create || busy) return;
     if (!name.trim()) { setFieldErrors({ name: m.newDevice.nameRequired }); return; }
     setBusy(true);
     setError(null);
@@ -86,6 +113,8 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
     try {
       const res = await api.create({ name: name.trim(), label: label.trim() || null, profileId: profileId || undefined, isGateway: gateway });
       setCreated(res);
+      setIssued(!!res.secret);
+      setStored(false);
       adapter.credentials?.connection?.(res.device.deviceId).then(setConnection, () => undefined);
       notify({ tone: 'success', message: m.newDevice.created });
       onCreated?.(res.device);
@@ -98,8 +127,9 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
   }
 
   const backButton = ways.length > 1
-    ? <Button variant="ghost" size="sm" className="mr-auto" onClick={back}>{m.newDevice.back}</Button>
+    ? <Button variant="ghost" size="sm" className="mr-auto" onClick={back} disabled={locked}>{m.newDevice.back}</Button>
     : null;
+  const href = created ? deviceHref(created.device.deviceId) : '';
 
   if (picked === null || choice) {
     return (
@@ -147,26 +177,37 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
       closeLabel={m.common.close}
       className={created ? 'w-[36rem]' : undefined}
       footer={created ? (
-        <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={close}>{m.common.close}</Button>
-          <Button as="a" href={deviceHref(created.device.deviceId)} variant="primary" size="sm">{m.newDevice.open}</Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {secretPending && <p id={`${formId}-store-first`} className="mr-auto text-xs text-text-secondary">{m.newDevice.storeFirst}</p>}
+          <Button variant="ghost" size="sm" onClick={close} disabled={secretPending} aria-describedby={secretPending ? `${formId}-store-first` : undefined}>
+            {m.common.close}
+          </Button>
+          {secretPending ? (
+            <Button variant="primary" size="sm" disabled aria-describedby={`${formId}-store-first`}>{m.newDevice.open}</Button>
+          ) : (
+            <Button as="a" href={href} variant="primary" size="sm"
+              onClick={onOpen ? (e: React.MouseEvent) => { if (plainClick(e)) { e.preventDefault(); close(); onOpen(href); } } : undefined}>
+              {m.newDevice.open}
+            </Button>
+          )}
         </div>
-      ) : (
-        <div className="flex justify-end gap-2">
-          {backButton}
-          <Button variant="ghost" size="sm" onClick={close}>{m.common.cancel}</Button>
-          <Button variant="primary" size="sm" loading={busy} onClick={() => void submit()}>{m.newDevice.create}</Button>
-        </div>
-      )}
+      ) : undefined}
     >
       {created ? (
         <div className="space-y-3">
           <p className="text-sm text-text-primary">{created.device.name}</p>
-          {created.secret && <IssuedSecretNotice secret={created.secret} connection={connection} credentialType={created.credential?.type} />}
-          <p className="text-xs text-text-secondary">{m.newDevice.credentialHint}</p>
+          {!issued ? (
+            <p className="text-sm text-text-secondary">
+              {m.newDevice.noCredential} {caps.canViewCredentials ? m.newDevice.setCredential : m.newDevice.askAdmin}
+            </p>
+          ) : created.secret ? (
+            <IssuedSecretNotice secret={created.secret} onDismiss={storedIt} connection={connection} credentialType={created.credential?.type} />
+          ) : (
+            <p className="text-sm text-text-secondary">{m.newDevice.secretStored}</p>
+          )}
         </div>
       ) : (
-        <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <form id={formId} noValidate className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
           {error && <p role="alert" className="text-sm text-error">{error}</p>}
           <Input id="new-device-name" label={m.newDevice.name} required maxLength={128} value={name} error={fieldErrors.name} onChange={(e) => setName(e.target.value)} />
           <Input id="new-device-label" label={m.newDevice.label} maxLength={255} value={label} error={fieldErrors.label} onChange={(e) => setLabel(e.target.value)} />
@@ -180,6 +221,12 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
           />
           <Checkbox id="new-device-gateway" label={m.newDevice.gateway} checked={gateway} onChange={(e) => setGateway(e.target.checked)} />
           <p className="text-xs text-text-secondary">{m.newDevice.credentialHint}</p>
+          {/* in the form, so Enter in a field creates; disabled while the create runs */}
+          <div className="flex justify-end gap-2 pt-2">
+            {backButton}
+            <Button variant="ghost" size="sm" onClick={close} disabled={busy}>{m.common.cancel}</Button>
+            <Button type="submit" variant="primary" size="sm" loading={busy} disabled={busy}>{m.newDevice.create}</Button>
+          </div>
         </form>
       )}
     </Drawer>

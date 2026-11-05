@@ -27,7 +27,9 @@ const BOTH: readonly DeviceLogSource[] = ['connection', 'audit'];
 /**
  * One device's log, page by page, through `devices.log` (or `devices.connections` when the host has no `log`). The first page is
  * read again when the device or the filter changes, and until it arrives nothing of the previous device shows; "load more" appends
- * the next page and drops an entry it already shows (a new entry between two reads shifts the pages by one).
+ * the next page and drops an entry it already shows (a new entry between two reads shifts the pages by one). Only the newest read's
+ * answer is kept: a reload of the previous device that lands after the next device's first page is dropped, so it can neither show
+ * the old device's lines nor leave the log loading (NB 41-ui-fixes/21 1.13).
  */
 export function useDeviceLog(api: IotDevicesApi | undefined, deviceId: string, opts: { pageSize: number; filter?: DeviceLogFilter; errorText: string }): DeviceLogState {
   const { pageSize, filter = 'all', errorText } = opts;
@@ -36,6 +38,8 @@ export function useDeviceLog(api: IotDevicesApi | undefined, deviceId: string, o
   const [busy, setBusy] = useState(false);
   const current = useRef<Loaded | null>(null);
   useEffect(() => { current.current = loaded; }, [loaded]);
+  // every read takes a number; an answer that is not the newest read's is dropped
+  const seq = useRef(0);
 
   const fetchPage = useCallback(async (pageNo: number, signal?: AbortSignal): Promise<{ items: DeviceLogEntry[]; total: number }> => {
     if (!api) return { items: [], total: 0 };
@@ -45,23 +49,26 @@ export function useDeviceLog(api: IotDevicesApi | undefined, deviceId: string, o
     return { items: r.items.map(connectionToLogEntry), total: r.total };
   }, [api, deviceId, pageSize, filter]);
 
-  const read = useCallback((pageNo: number, signal?: AbortSignal): Promise<void> => fetchPage(pageNo, signal).then(
-    (res) => {
-      if (signal?.aborted) return;
-      setBusy(false);
-      setLoaded((cur) => {
-        if (pageNo === 1 || !cur || cur.key !== key) return { key, entries: res.items, total: res.total, error: null, page: 1 };
-        const seen = new Set(cur.entries.map((e) => e.id));
-        return { key, entries: [...cur.entries, ...res.items.filter((e) => !seen.has(e.id))], total: res.total, error: null, page: pageNo };
-      });
-    },
-    (e) => {
-      if (signal?.aborted) return;
-      const msg = errorMessage(e, errorText);
-      setBusy(false);
-      setLoaded((cur) => (cur && cur.key === key ? { ...cur, error: msg } : { key, entries: [], total: 0, error: msg, page: 1 }));
-    },
-  ), [fetchPage, key, errorText]);
+  const read = useCallback((pageNo: number, signal?: AbortSignal): Promise<void> => {
+    const mine = ++seq.current;
+    return fetchPage(pageNo, signal).then(
+      (res) => {
+        if (signal?.aborted || mine !== seq.current) return;
+        setBusy(false);
+        setLoaded((cur) => {
+          if (pageNo === 1 || !cur || cur.key !== key) return { key, entries: res.items, total: res.total, error: null, page: 1 };
+          const seen = new Set(cur.entries.map((e) => e.id));
+          return { key, entries: [...cur.entries, ...res.items.filter((e) => !seen.has(e.id))], total: res.total, error: null, page: pageNo };
+        });
+      },
+      (e) => {
+        if (signal?.aborted || mine !== seq.current) return;
+        const msg = errorMessage(e, errorText);
+        setBusy(false);
+        setLoaded((cur) => (cur && cur.key === key ? { ...cur, error: msg } : { key, entries: [], total: 0, error: msg, page: 1 }));
+      },
+    );
+  }, [fetchPage, key, errorText]);
 
   useEffect(() => {
     const ctrl = new AbortController();

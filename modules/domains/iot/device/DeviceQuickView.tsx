@@ -20,7 +20,8 @@ import { useDeviceLog } from './useDeviceLog';
  * (`DeviceLogTimeline`, compact) and the quick actions (copy ID, open the full page, open the log). ↑ / ↓ and the Previous / Next
  * buttons move to the neighbouring device of the list page without closing; Esc closes and focus goes back to the list. The host
  * (`DeviceListView`) owns which device is open, keeps it in the URL and patches it live. Latest telemetry values are not shown: the
- * adapter has no latest-values call yet; the full page has them.
+ * adapter has no latest-values call yet; the full page has them. With `onOpen` the full page and its log open in the host's router (a
+ * plain click; a modified click keeps the link's own behaviour, NB 41-ui-fixes/21 1.22).
  */
 export type DeviceQuickViewProps = {
   open: boolean;
@@ -39,7 +40,14 @@ export type DeviceQuickViewProps = {
   href: string;
   profileName?: string | null;
   now?: number;
+  /** Opens a link in the host's router (a plain click on Open page or View log); without it the links are plain links. */
+  onOpen?: (href: string) => void;
 };
+
+/** A plain left click (no modifier): the host's router opens the link; any other click keeps the link's own behaviour. */
+function plainClick(e: React.MouseEvent): boolean {
+  return !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
 
 const RECENT = 5;
 
@@ -52,7 +60,7 @@ function isEditable(t: EventTarget | null): boolean {
 const withTab = (href: string, tab: string) => `${href}${href.includes('?') ? '&' : '?'}tab=${tab}`;
 
 export function DeviceQuickView({
-  open, deviceId, device, error, onClose, onPrevious, onNext, position, href, profileName, now,
+  open, deviceId, device, error, onClose, onPrevious, onNext, position, href, profileName, now, onOpen,
 }: DeviceQuickViewProps) {
   const api = useIotAdapter().devices;
   const { m, locale } = useIotText();
@@ -95,6 +103,8 @@ export function DeviceQuickView({
     } catch { /* nothing to copy into */ }
   }
 
+  const openIn = (to: string) => (onOpen ? (e: React.MouseEvent) => { if (plainClick(e)) { e.preventDefault(); onOpen(to); } } : undefined);
+  const logHref = withTab(href, 'log');
   const name = device?.name ?? deviceId;
   const firmware = device ? [device.fwTitle, device.fwVersion].filter(Boolean).join(' ') : '';
   const profile = device ? (profileName ?? device.profileName ?? device.deviceProfileId) : '';
@@ -124,7 +134,7 @@ export function DeviceQuickView({
           <Button variant="ghost" size="sm" onClick={() => void copyId()} iconLeft={<FontAwesomeIcon icon={copied ? faCheck : faCopy} className="h-3 w-3" aria-hidden="true" />}>
             {copied ? m.common.copied : m.device.copyId}
           </Button>
-          <Button as="a" href={href} variant="primary" size="sm" iconLeft={<FontAwesomeIcon icon={faArrowUpRightFromSquare} className="h-3 w-3" aria-hidden="true" />}>
+          <Button as="a" href={href} onClick={openIn(href)} variant="primary" size="sm" iconLeft={<FontAwesomeIcon icon={faArrowUpRightFromSquare} className="h-3 w-3" aria-hidden="true" />}>
             {m.quickView.openPage}
           </Button>
         </div>
@@ -156,7 +166,7 @@ export function DeviceQuickView({
           <section aria-labelledby="device-quick-view-recent" className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <h3 id="device-quick-view-recent" className="text-sm font-semibold text-text-primary">{m.quickView.recent}</h3>
-              <a href={withTab(href, 'log')} className="rounded text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
+              <a href={logHref} onClick={openIn(logHref)} className="rounded text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
                 {m.quickView.viewLog}
               </a>
             </div>

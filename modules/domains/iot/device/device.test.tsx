@@ -49,7 +49,8 @@ describe('DeviceOnlineDot', () => {
     expect(screen.queryByText(/Offline/)).toBeNull();
     rerender(<DeviceOnlineDot state="ONLINE" lastSeenAt={ago(20 * MIN)} staleAfterSeconds={600} now={NOW} locale="en" />);
     expect(container.querySelector('[data-look="stale"]')).not.toBeNull();
-    expect(screen.getByText(/Stale/)).toBeInTheDocument();
+    // "Stale: last data 20 min. ago", never "no data for … ago" (NB 41-ui-fixes/21 1.20)
+    expect(screen.getByText(/^Stale: last data 20 min/)).toBeInTheDocument();
   });
 });
 
@@ -62,7 +63,10 @@ describe('DeviceConnectionBadge and DeviceStatusBadge (OD-1)', () => {
     rerender(<DeviceConnectionBadge online={null} lastActivityAt={ago(MIN)} now={NOW} locale="en" />);
     expect(container.querySelector('[data-state="LAST_SEEN"]')).not.toBeNull();
     rerender(<DeviceConnectionBadge online={false} lastActivityAt={ago(MIN)} lastDisconnectReason="keepalive_timeout" now={NOW} />);
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Last disconnect: keepalive_timeout');
+    // the reason code reads as words (NB 41-ui-fixes/21 1.21); one the kit does not know shows as it is
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Last disconnect: No keep-alive in time');
+    rerender(<DeviceConnectionBadge online={false} lastActivityAt={ago(MIN)} lastDisconnectReason="brand_new_reason" now={NOW} />);
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Last disconnect: brand_new_reason');
   });
 
   it('has a Quarantined state on the demo badge', () => {

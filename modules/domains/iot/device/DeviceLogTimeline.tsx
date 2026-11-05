@@ -14,6 +14,7 @@ import { fill, toDate } from '../format';
 import type { DeviceLogEntry, DeviceLogFilter, DeviceLogSource } from '../types/device';
 import type { IotMessages, IotMessagesInput } from '../messages';
 import { DeviceAddress } from './DeviceAddress';
+import { disconnectReasonText } from './DeviceConnectionBadge';
 
 /**
  * DeviceLogTimeline — everything that happened to one device, newest first (NB iot_device 05 §5.3, the Log tab): its connection log
@@ -121,7 +122,7 @@ export function DeviceLogTimeline({
           <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-text-secondary" data-source="connection">
             {e.remoteIp && <DeviceAddress ip={e.remoteIp} transport={e.transport} messages={messages} locale={locale} />}
             {!e.remoteIp && e.transport && <span>{fill(m.connection.via, { transport: e.transport })}</span>}
-            {e.reason && <span>{fill(m.connection.reason, { reason: e.reason })}</span>}
+            {e.reason && <span>{fill(m.connection.reason, { reason: disconnectReasonText(m, e.reason) })}</span>}
             {e.detail && <code className="rounded bg-surface-sunken px-1">{e.detail}</code>}
           </span>
         ) : undefined,
