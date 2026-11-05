@@ -22,7 +22,9 @@ import type { Series } from '@/modules/ui/Chart/types';
  * filterable by kind; and a trend of the numeric keys ticked in the table (up to `maxCharted`, the first numeric key to begin with) over a
  * window of the last hour to the last seven days. Needs the adapter's `telemetry`. When the host says it cut a window (it answers at most
  * so many points per key, the oldest kept), the trend says the newest are missing; ticking more keys than `maxCharted` says the
- * extra ones are not drawn (NB 41-ui-fixes/22 1.2, 6.5).
+ * extra ones are not drawn (NB 41-ui-fixes/22 1.2, 6.5). While live, every key is read again every minute (a hidden tab skipped): a
+ * value too large for the live channel (NB: over 8 KiB) never arrives live, and a read never puts back a value older than a live one
+ * (NB 41-ui-fixes/23 1.18).
  */
 export type DeviceTelemetryViewProps = {
   deviceId: string;
@@ -31,6 +33,8 @@ export type DeviceTelemetryViewProps = {
   locale?: string;
   /** "Now" for relative times (tests). */
   now?: number;
+  /** While live, how often every key is read again (a value the live channel cannot carry). Default 60 s. */
+  liveRereadMs?: number;
   messages?: IotMessagesInput;
   className?: string;
 };
@@ -64,7 +68,15 @@ async function readSeries(api: NonNullable<IotAdapter['telemetry']>, deviceId: s
   return seriesPageOf(await api.series(deviceId, { keys: keys.split(','), from: to - WINDOW_MS[win], to }, signal));
 }
 
-export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, messages, className }: DeviceTelemetryViewProps) {
+/**
+ * Another device is another view (NB 41-ui-fixes/23 C2): every row, chart and answer starts afresh, and a read of the device the view showed
+ * before can never land in the new one.
+ */
+export function DeviceTelemetryView(props: DeviceTelemetryViewProps) {
+  return <DeviceTelemetryBody key={props.deviceId} {...props} />;
+}
+
+function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveRereadMs = 60_000, messages, className }: DeviceTelemetryViewProps) {
   const adapter = useIotAdapter();
   const { m, locale: lc } = useIotText(messages, locale);
   const t = m.telemetry;
@@ -72,15 +84,23 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
 
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback((signal?: AbortSignal) => {
+  // `quiet`: the slow re-read beside live, whose failure the live values cover (no error over the table)
+  const load = useCallback((signal?: AbortSignal, quiet = false) => {
     if (!api) return;
     api.latest(deviceId, signal).then(
       (latest) => {
         if (signal?.aborted) return;
-        setRows(latest.map((l) => ({ ...l, kind: kindOf(l.value), name: l.label || l.key })));
+        const read: Row[] = latest.map((l) => ({ ...l, kind: kindOf(l.value), name: l.label || l.key }));
+        // a live point newer than the read stays, and so does a key only the live channel brought
+        setRows((prev) => {
+          if (!prev) return read;
+          const had = new Map(prev.map((r) => [r.key, r]));
+          const seen = new Set(read.map((r) => r.key));
+          return [...read.map((r) => { const p = had.get(r.key); return p && p.ts > r.ts ? p : r; }), ...prev.filter((r) => !seen.has(r.key))];
+        });
         setError(null);
       },
-      () => { if (!signal?.aborted) setError(t.loadError); },
+      () => { if (!signal?.aborted && !quiet) setError(t.loadError); },
     );
   }, [api, deviceId, t.loadError]);
   useEffect(() => {
@@ -116,6 +136,16 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
       onSnapshot: (s) => { for (const [key, v] of Object.entries(s?.values ?? {})) patch({ key, ts: v.ts, value: v.value }); },
     }),
   });
+
+  // the live channel carries no value over its size limit: while live, every key is read again slowly (a hidden tab is not read)
+  useEffect(() => {
+    if (liveState !== 'live' || !api) return;
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      load(undefined, true);
+    }, liveRereadMs);
+    return () => clearInterval(id);
+  }, [liveState, api, load, liveRereadMs]);
 
   // the keys charted: the freshest numeric key until the viewer ticks others (next-boilerplate e2e round 3, m-R3-04: the first key by name was an
   // 11-hour-old leftover, and the chart under "Live" said "No values in this window")
