@@ -4,8 +4,8 @@ import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Input } from '@/modules/ui/Input';
 import { useIotText } from '../api/IotAdapterProvider';
-import type { IotMessagesInput } from '../messages';
-import { fill } from '../format';
+import { IOT_MESSAGES, type IotMessages, type IotMessagesInput } from '../messages';
+import { fill, formatNumber } from '../format';
 import {
   ONLINE_RULES, PROFILE_RANGES, onlineRuleBlock, onlineWindowSeconds, type OnlineRule, type ProfileTransport,
 } from '../types/profile';
@@ -36,18 +36,19 @@ export type OnlineRuleFieldProps = {
   className?: string;
 };
 
-/** "3 h", "45 min", "90 s" for the offline hint. */
-export function formatSeconds(total: number): string {
-  if (total % 86_400 === 0) return `${total / 86_400} d`;
-  if (total >= 3_600) return `${Math.round((total / 3_600) * 10) / 10} h`;
-  if (total >= 60) return `${Math.round((total / 60) * 10) / 10} min`;
-  return `${total} s`;
+/** "3 h", "45 min", "90 s" for the offline hint: the host's unit texts (`units`) and the locale's decimals ("1,5 h"). */
+export function formatSeconds(total: number, units: IotMessages['units'] = IOT_MESSAGES.units, locale?: string): string {
+  const n = (v: number) => formatNumber(v, locale, 1);
+  if (total % 86_400 === 0) return fill(units.days, { n: n(total / 86_400) });
+  if (total >= 3_600) return fill(units.hours, { n: n(total / 3_600) });
+  if (total >= 60) return fill(units.minutes, { n: n(total / 60) });
+  return fill(units.seconds, { n: n(total) });
 }
 
 const numberOrNull = (raw: string): number | null => (raw.trim() === '' ? null : Number(raw));
 
 export function OnlineRuleField({ value, transport, onChange, fromTemplate, disabled, errors = {}, messages, className }: OnlineRuleFieldProps) {
-  const { m } = useIotText(messages);
+  const { m, locale } = useIotText(messages);
   const id = useId();
   const chosenBlock = value.onlineRule ? onlineRuleBlock(value.onlineRule, transport) : null;
   const windowS = value.onlineRule === 'UPLINK_WINDOW' ? onlineWindowSeconds(value.expectedIntervalS, value.onlineWindowFactor) : null;
@@ -145,7 +146,7 @@ export function OnlineRuleField({ value, transport, onChange, fromTemplate, disa
             onChange={(e) => set({ onlineWindowFactor: Number(e.target.value) })}
           />
           {windowS !== null && (
-            <p className="text-xs text-text-secondary @md:col-span-2" aria-live="polite">{fill(m.online.offlineAfter, { time: formatSeconds(windowS) })}</p>
+            <p className="text-xs text-text-secondary @md:col-span-2" aria-live="polite">{fill(m.online.offlineAfter, { time: formatSeconds(windowS, m.units, locale) })}</p>
           )}
         </div>
       )}
