@@ -109,6 +109,16 @@ export type CreatedDevice = {
 /** One page of a device's log, newest first; `source` narrows it to the connection log or to the audited changes. */
 export type DeviceLogQuery = { page: number; pageSize: number; source?: DeviceLogSource };
 
+/**
+ * A page of the log. `auditAvailable` false: the host could not read the audited changes this time (its audit log is off or did not
+ * answer), so the page holds connection entries only and the view says so instead of "No changes yet" (NB 41-ui-fixes/22 4.1).
+ * `maxDepth`: the deepest entry the host reads (page × pageSize); past it "Load more" is not offered (6.2).
+ */
+export type DeviceLogPage = Page<DeviceLogEntry> & { auditAvailable?: boolean; maxDepth?: number };
+
+/** What else a device's delete removes, for its confirm (NB 41-ui-fixes/22 2.2). `null`: the host could not count it. */
+export type DeviceDeleteImpact = { readingBindings?: number | null };
+
 export interface IotDevicesApi {
   list(query: DeviceListQuery, signal?: AbortSignal): Promise<Page<DeviceRecord>>;
   get(deviceId: string, signal?: AbortSignal): Promise<DeviceRecord>;
@@ -121,7 +131,9 @@ export interface IotDevicesApi {
   /** The connection log alone. Kept for hosts without `log`: the Log tab then shows connection entries only. */
   connections(deviceId: string, query: { page: number; pageSize: number }, signal?: AbortSignal): Promise<Page<DeviceConnectionEvent>>;
   /** The device's log: its connection log and its audited changes merged, newest first (the Log tab, the quick view's recent lines). */
-  log?(deviceId: string, query: DeviceLogQuery, signal?: AbortSignal): Promise<Page<DeviceLogEntry>>;
+  log?(deviceId: string, query: DeviceLogQuery, signal?: AbortSignal): Promise<DeviceLogPage>;
+  /** What a delete removes with the device (its reading bindings), asked when the delete confirm opens. */
+  deleteImpact?(deviceId: string, signal?: AbortSignal): Promise<DeviceDeleteImpact>;
   /** How many devices wait for activation (the "Quarantined (n)" quick filter). */
   quarantinedCount?(signal?: AbortSignal): Promise<number>;
   /** A `deviceState` live payload as a patch, or null when it is not one. */
@@ -216,10 +228,35 @@ export interface IotRpcCatalogApi {
   templates?: readonly RpcCommandTemplate[];
 }
 
+/**
+ * A credential to give a device ("Set credential", NB 41-ui-fixes/22 1.1). An access token is generated; MQTT basic takes a username
+ * (1–128 printable characters, not `provision`), an optional client id it is pinned to and an optional password (generated when left
+ * out, and only a generated one comes back); X.509 names a certificate of the host's certificate authority.
+ */
+export type SetCredentialInput =
+  | { type: 'ACCESS_TOKEN' }
+  | { type: 'MQTT_BASIC'; username: string; clientId?: string | null; password?: string | null }
+  | { type: 'X509_CERTIFICATE'; certificateId: string };
+
+/** A certificate a device's X.509 credential can be bound to (its subject names the device). */
+export type CertificateOption = { id: string; subject: string; expiresAt?: Date | string | null; fingerprint?: string | null };
+
 export interface IotCredentialsApi {
   get(deviceId: string, signal?: AbortSignal): Promise<DeviceCredential | null>;
   /** A new secret of the same type, returned once; the old one stops working at once. */
   rotate(deviceId: string): Promise<{ credential: DeviceCredential | null; secret: IssuedSecret | null }>;
+  /**
+   * Gives the device a credential (of any type its profile allows), replacing the active one: the old one stops working at once and its
+   * session ends. A generated token or password is answered once. Absent: the host cannot set credentials here.
+   */
+  set?(deviceId: string, input: SetCredentialInput): Promise<{ credential: DeviceCredential | null; secret: IssuedSecret | null }>;
+  /** Revokes the active credential at once (its session ends); the device cannot connect until it is given one. */
+  revoke?(deviceId: string): Promise<void>;
+  /**
+   * The certificates an X.509 credential of this device may name (the host's certificate authority, the ones whose subject is the
+   * device's serial). Absent, or the viewer lacks `canAttachCertificates`: X.509 is shown but cannot be picked here.
+   */
+  certificates?(device: { deviceId: string; serial?: string | null }, signal?: AbortSignal): Promise<CertificateOption[]>;
   /** Where the device connects (host, port, the HTTPS base, its profile's keys): the "Connection details" card. Absent: no card. */
   connection?(deviceId: string, signal?: AbortSignal): Promise<DeviceConnectionInfo>;
 }
@@ -414,6 +451,21 @@ export type TelemetryLatest = { key: string; ts: number; value: TelemetryValue; 
 /** One point of a numeric series (a bucket's value when the host aggregates). */
 export type TelemetryPoint = { ts: number; value: number };
 export type TelemetrySeriesQuery = { keys: string[]; from: number; to: number };
+/**
+ * A series answer that says whether the host cut it (it holds at most so many points per key, the oldest kept): the chart then says the
+ * newest part of the window is missing (NB 41-ui-fixes/22 1.2). A host may answer the bare record instead.
+ */
+export type TelemetrySeriesPage = { series: Record<string, TelemetryPoint[]>; truncated: boolean };
+export type TelemetrySeriesAnswer = Record<string, TelemetryPoint[]> | TelemetrySeriesPage;
+
+/** Either answer of `series` as the record and whether it was cut (a record's values are arrays, so `truncated` cannot be a key's). */
+export function seriesPageOf(a: TelemetrySeriesAnswer): TelemetrySeriesPage {
+  const maybe = a as Partial<TelemetrySeriesPage>;
+  if (typeof maybe.truncated === 'boolean' && maybe.series && typeof maybe.series === 'object' && !Array.isArray(maybe.series)) {
+    return { series: maybe.series, truncated: maybe.truncated };
+  }
+  return { series: a as Record<string, TelemetryPoint[]>, truncated: false };
+}
 
 /**
  * A device's telemetry (NB `telemetry` + `iot_telemetry`): every key's latest value, and numeric series over a window. A host
@@ -422,8 +474,8 @@ export type TelemetrySeriesQuery = { keys: string[]; from: number; to: number };
 export interface IotTelemetryApi {
   /** Every key the device has a latest value for. */
   latest(deviceId: string, signal?: AbortSignal): Promise<TelemetryLatest[]>;
-  /** One series per key over `[from, to)`, oldest first. */
-  series(deviceId: string, query: TelemetrySeriesQuery, signal?: AbortSignal): Promise<Record<string, TelemetryPoint[]>>;
+  /** One series per key over `[from, to)`, oldest first; a `TelemetrySeriesPage` says when the host cut it. */
+  series(deviceId: string, query: TelemetrySeriesQuery, signal?: AbortSignal): Promise<TelemetrySeriesAnswer>;
 }
 
 // ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -463,6 +515,8 @@ export type IotCapabilities = {
   canPlaceDevices: boolean;
   /** Read a device's telemetry (its latest values and series). */
   canReadTelemetry: boolean;
+  /** Pick a certificate of the host's certificate authority for an X.509 credential (the authority is there and the viewer may read it). */
+  canAttachCertificates: boolean;
 };
 
 /** Fail closed: nothing until the host says so. */
@@ -488,6 +542,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canManageAssets: false,
   canPlaceDevices: false,
   canReadTelemetry: false,
+  canAttachCertificates: false,
 };
 
 export interface IotAdapter {

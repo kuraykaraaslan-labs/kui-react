@@ -28,6 +28,10 @@ export function onlineStateOf(online: boolean | null | undefined): DeviceOnlineS
   return online ? 'ONLINE' : 'OFFLINE';
 }
 
+/** The credential types (01 §1.3); declared before the record, which names the ones its profile allows. */
+export const CREDENTIAL_TYPES = ['ACCESS_TOKEN', 'MQTT_BASIC', 'X509_CERTIFICATE'] as const;
+export type CredentialType = (typeof CREDENTIAL_TYPES)[number];
+
 export const DeviceRecordSchema = z.object({
   deviceId: z.string().min(1),
   name: z.string(),
@@ -61,6 +65,11 @@ export const DeviceRecordSchema = z.object({
    * the host does not say, the tab shows.
    */
   deviceCredentials: z.boolean().nullable().optional(),
+  /**
+   * The credential types the device's profile allows (NB 41-ui-fixes/22 1.1): "Set credential" offers only these. Absent or null: the
+   * host does not say, and every type is offered (the host still refuses one its profile does not allow).
+   */
+  allowedAuthModes: z.array(z.enum(CREDENTIAL_TYPES)).nullable().optional(),
   createdAt: z.coerce.date().optional(),
 });
 export type DeviceRecord = z.infer<typeof DeviceRecordSchema>;
@@ -80,15 +89,14 @@ export type DeviceStatePatch = {
 
 // ── credentials (01 §1.3) ────────────────────────────────────────────────────────────────────────────────────────────
 
-export const CREDENTIAL_TYPES = ['ACCESS_TOKEN', 'MQTT_BASIC', 'X509_CERTIFICATE'] as const;
-export type CredentialType = (typeof CREDENTIAL_TYPES)[number];
-
 /** The credential without any secret: never a token, password, hash or private key. */
 export type DeviceCredential = {
   type: CredentialType;
   clientId?: string | null;
   username?: string | null;
   certFingerprint?: string | null;
+  /** The certificate an X.509 credential is bound to, in the host's certificate authority (a link to it when the host gives one). */
+  certificateId?: string | null;
   certSubject?: string | null;
   certExpiresAt?: Date | string | null;
   createdAt?: Date | string | null;

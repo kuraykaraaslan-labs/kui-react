@@ -76,15 +76,15 @@ describe('DeviceLogTimeline', () => {
     render(<DeviceLogTimeline entries={LOG} locale="en" />);
     expect(screen.getByText('Device edited')).toBeInTheDocument();
     expect(screen.getAllByText('by Ada Lovelace')).toHaveLength(2);
-    expect(screen.getByText('Changed: label, name')).toBeInTheDocument();
+    expect(screen.getByText('Changed: Label, Name')).toBeInTheDocument();
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
     expect(screen.getByText('MQTTS')).toBeInTheDocument();
     expect(screen.getByText('Reason: No keep-alive in time')).toBeInTheDocument();
     // a member without a name, and the system
     expect(screen.getByText('by a team member')).toBeInTheDocument();
-    expect(screen.getByText('SHARED: cfg.mode')).toBeInTheDocument();
+    expect(screen.getByText('Shared: cfg.mode')).toBeInTheDocument();
     expect(screen.getByText('by the system')).toBeInTheDocument();
-    expect(screen.getByText('Type: ACCESS_TOKEN')).toBeInTheDocument();
+    expect(screen.getByText('Type: Access token')).toBeInTheDocument();
     // an action the kit does not know is drawn neutral with its name
     expect(screen.getByText('Change: iot_widget.thing.done')).toBeInTheDocument();
   });
@@ -92,7 +92,12 @@ describe('DeviceLogTimeline', () => {
   it('summarises metadata without values: fields, status, keys, credential type, command, alarm', () => {
     const m = IOT_MESSAGES as never;
     const e = (kind: string, metadata: Record<string, unknown>): DeviceLogEntry => ({ id: 'x', at: NOW, source: 'audit', kind, metadata });
-    expect(auditSummary(e('iot_device.device.disabled', { from: 'ACTIVE', to: 'DISABLED' }), m)).toBe('ACTIVE → DISABLED');
+    // in words (NB 41-ui-fixes/22 6.3); a code the kit does not know stays as it is
+    expect(auditSummary(e('iot_device.device.disabled', { from: 'ACTIVE', to: 'DISABLED' }), m)).toBe('Active → Disabled');
+    expect(auditSummary(e('iot_device.device.updated', { fields: ['deviceProfileId', 'additionalInfo', 'colour'] }), m)).toBe('Changed: Profile, Additional info, colour');
+    expect(auditSummary(e('iot_device.credential.set', { credentialType: 'MQTT_BASIC' }), m)).toBe('Type: MQTT basic (username and password)');
+    expect(auditSummary(e('iot_device.attributes.saved', { scope: 'SERVER', keys: ['a', 'b'] }), m)).toBe('Server: a, b');
+    expect(auditSummary(e('iot_device.device.updated', { from: 'ACTIVE', to: 'RETIRED' }), m)).toBe('Active → RETIRED');
     expect(auditSummary(e('iot_rpc.request.created', { method: 'sys.reboot', rpcId: 'r1' }), m)).toBe('Command sys.reboot');
     expect(auditSummary(e('iot_alarm.alarm.acknowledged', { alarmId: 'a1', alarmType: 'high_temperature' }), m)).toBe('Alarm high_temperature');
     expect(auditSummary(e('iot_device.device.created', {}), m)).toBeNull();

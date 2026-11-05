@@ -142,4 +142,33 @@ describe('DeviceTelemetryView', () => {
     const { container } = mount({});
     expect(container).toBeEmptyDOMElement();
   });
+
+  it('says so when the host cut the window (the newest points are missing), and only then (NB 41-ui-fixes/22 1.2)', async () => {
+    const page = { series: { humidity: [{ ts: NOW - 3_000, value: 1 }] }, truncated: true };
+    const series = vi.fn(async () => page);
+    const { unmount } = mount({ telemetry: { latest: vi.fn(async () => LATEST), series } });
+    expect(await screen.findByText(/the line ends where the read was cut/)).toBeInTheDocument();
+    expect(await screen.findByTestId('chart')).toHaveTextContent('humidity:1');
+    unmount();
+    const { api } = telemetryApi();
+    mount({ telemetry: api });
+    await screen.findByTestId('chart');
+    expect(screen.queryByText(/the line ends where the read was cut/)).toBeNull();
+  });
+
+  it('says when more keys are ticked than the trend draws (NB 41-ui-fixes/22 6.5)', async () => {
+    const many: TelemetryLatest[] = ['a', 'b', 'c'].map((key) => ({ key, ts: NOW - 60_000, value: 1 }));
+    const { api } = telemetryApi(many);
+    render(
+      <IotAdapterProvider adapter={{ telemetry: api }} live={null} capabilities={{ canReadTelemetry: true }}>
+        <DeviceTelemetryView deviceId="d1" now={NOW} locale="en" maxCharted={2} />
+      </IotAdapterProvider>,
+    );
+    await screen.findByRole('table', { name: 'Latest values' });
+    expect(screen.queryByText('At most 2 keys at a time.')).toBeNull();
+    // the first two are charted (one at first, then a second); a third tick is one too many
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Chart b' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Chart c' }));
+    expect(await screen.findByText('At most 2 keys at a time.')).toBeInTheDocument();
+  });
 });

@@ -159,7 +159,7 @@ describe('DeviceCredentialPanel', () => {
     expect(screen.queryByRole('button', { name: 'Rotate secret' })).toBeNull();
     expect(screen.getByText(/private key stays on the device/)).toBeInTheDocument();
     rerender(<DeviceCredentialPanel credential={null} />);
-    expect(screen.getByText('The device has no active credential.')).toBeInTheDocument();
+    expect(screen.getByText(/The device has no active credential/)).toBeInTheDocument();
   });
 });
 
