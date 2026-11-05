@@ -8,10 +8,10 @@ import { PageHeader } from '@/modules/ui/PageHeader';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 import {
   CODEC_OUTLINE, LoraCodecDetail, LoraCodecEditor, LoraCodecTable, LoraDeviceForm, LoraDevicePanel, LoraDeviceTable, LoraFrameTable, LoraGatewayForm,
-  LoraGatewayMap, LoraGatewayPanel, LoraGatewayTable, LoraProfilePanel, LoraStationSetup,
+  LoraGatewayMap, LoraGatewayPanel, LoraGatewayTable, LoraPairingPanel, LoraProfilePanel, LoraStationSetup,
 } from '@/modules/domains/iot/lorawan';
 import type {
-  LoraBenchFrame, LoraCodecCheck, LoraCodecDoc as CodecDetail, LoraCodecRow, LoraDeviceRow, LoraFrameRow, LoraGatewayRow, LoraIssuedToken, LoraProfileView,
+  LoraBenchFrame, LoraCodecCheck, LoraCodecDoc as CodecDetail, LoraCodecRow, LoraDeviceRow, LoraFrameRow, LoraGatewayRow, LoraIssuedToken, LoraPairingView, LoraProfileView,
 } from '@/modules/domains/iot/lorawan';
 
 const now = Date.now();
@@ -53,6 +53,13 @@ const PROFILE: LoraProfileView = {
   settings: { region: 'EU868', macVersion: '1.0.3', class: 'A', rx1DelayS: 5, adrEnabled: true, minDr: 0, maxDr: 5, dedupMs: 200, anyJoinEui: false, codecId: 'auto', storeRadioKeys: true },
   hasSharedAppKey: false, onlineRule: 'UPLINK_WINDOW', expectedIntervalS: 600,
 };
+const PAIRING: LoraPairingView = {
+  active: true, startedAt: ago(3), until: new Date(now + 12 * 60_000).toISOString(), hasSharedAppKey: true,
+  found: [
+    { deviceId: 'p1', devEui: '70B3D57ED0000101', name: 'LoRa 70B3D57ED0000101', held: true, pairedAt: ago(2) },
+    { deviceId: 'p2', devEui: '70B3D57ED0000102', name: 'Hall sensor 2', held: false, pairedAt: ago(1) },
+  ],
+};
 const CODEC_OPTIONS = [{ value: 'auto', label: 'Automatic (by maker and port)' }, { value: 'none', label: 'None (raw payload to the flows)' }, ...CODECS.map((c) => ({ value: c.id, label: `${c.title} (${c.id})` }))];
 const later = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 300));
 
@@ -89,7 +96,13 @@ export default function LorawanPage() {
         </Card>
         <Card title="Device page: the LoRaWAN tab (Cold room 1)" className="p-4">
           <LoraDevicePanel device={{ ...DEVICES[0], codecId: 'auto' }} frames={FRAMES.filter((f) => f.deviceId === 'd1')} codecOptions={CODEC_OPTIONS}
-            gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} onCodecChange={() => later(undefined)} onResetSession={() => undefined} onRemove={() => undefined} />
+            gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} onCodecChange={() => later(undefined)} onResetSession={() => undefined} onRemove={() => undefined}
+            onClassChange={() => later(undefined)} onKeysChange={() => later(undefined)} />
+        </Card>
+        <Card title="Device page: the LoRaWAN tab of an ABP device added by pairing mode" className="p-4">
+          <LoraDevicePanel device={{ ...DEVICES[2], codecId: 'auto', activation: 'ABP', hasSessionKeys: true, held: true, abp: { devAddr: '00ABCDEF', countersResetAt: ago(60 * 24) }, session: { devAddr: '00ABCDEF', fCntUp: 41, fCntDown: 3, lastUplinkAt: ago(5), status: 'ACTIVE' } }}
+            frames={[]} codecOptions={CODEC_OPTIONS} onCodecChange={() => later(undefined)} onResetCounters={() => undefined} onApprove={() => undefined}
+            onClassChange={() => later(undefined)} onKeysChange={() => later(undefined)} onRemove={() => undefined} />
         </Card>
 <Card title="Device page: the LoRaWAN tab of a gateway (Roof, north side)" className="p-4">
           <LoraGatewayPanel gateway={{ ...GATEWAYS[0], deviceId: 'dg1', mode: 'CLOUD', altitude: 40 }} setup={SETUP} issued={issued} frames={FRAMES.filter((f) => f.gateways.some((g) => g.gatewayId === 'g1'))}
@@ -98,6 +111,9 @@ export default function LorawanPage() {
         </Card>
         <Card title="Device profile page: the LoRaWAN tab" className="p-4">
           <LoraProfilePanel view={PROFILE} codecOptions={CODEC_OPTIONS} onSave={() => later(undefined)} onlineRuleLabel={() => 'Recent message'} />
+          <div className="mt-6 border-t border-border pt-4">
+            <LoraPairingPanel view={PAIRING} onStart={() => later(undefined)} onStop={() => later(undefined)} onApprove={() => undefined} />
+          </div>
         </Card>
         <Card title="Frames" className="p-4"><LoraFrameTable rows={FRAMES} deviceName={(id) => DEVICES.find((d) => d.deviceId === id)?.name ?? undefined} gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} /></Card>
       </div>

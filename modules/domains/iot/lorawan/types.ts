@@ -64,7 +64,28 @@ export type LoraSetup = { lnsUrl: string | null; routerInfoUrl: string | null; t
 export type LoraIssuedToken = { token: string; files: Array<{ name: string; content: string }> | null };
 
 export type LoraGatewayInput = { name: string; eui: string; region: 'EU868' };
-export type LoraDeviceInput = { name: string; devEui: string; joinEui: string; appKey: string; macVersion: '1.0.2' | '1.0.3' | '1.0.4'; class: 'A' | 'C' };
+/**
+ * A new end device. OTAA (the default): the AppKey, from which every join derives fresh session keys. ABP (NB iot_lorawan D508): no join;
+ * the device's DevAddr and its two LoRaWAN 1.0.x session keys are entered once and never shown again, and its frame counters start at 0.
+ */
+export type LoraDeviceInput = {
+  name: string;
+  devEui: string;
+  joinEui: string;
+  macVersion: '1.0.2' | '1.0.3' | '1.0.4';
+  class: 'A' | 'C';
+  activation?: 'OTAA' | 'ABP';
+  /** OTAA: 32 hex. */
+  appKey?: string;
+  /** ABP: 8 hex, the address the device sends with. */
+  devAddr?: string;
+  /** ABP: 32 hex each. */
+  nwkSKey?: string;
+  appSKey?: string;
+};
+
+/** New keys for a device (the LoRaWAN tab, write-only): a new AppKey (OTAA), or a new ABP session (DevAddr and both session keys). */
+export type LoraDeviceKeysChange = { appKey: string } | { devAddr: string; nwkSKey: string; appSKey: string };
 
 /** A codec in the list (NB iot_lorawan_codecs `GET /api/iot/lorawan/codec-library`): a library codec (`public`) or the tenant's own (`tenant`, id `t.<slug>`). */
 export type LoraCodecRow = {
@@ -135,6 +156,31 @@ export type LoraDeviceDetail = LoraDeviceRow & {
   activation?: string;
   hasAppKey?: boolean;
   useProfileKey?: boolean;
+  /** ABP: the session keys are stored (never shown). */
+  hasSessionKeys?: boolean;
+  /** ABP: the device's address and when its frame counters were last reset (ISO), if ever. */
+  abp?: { devAddr: string; countersResetAt: string | null } | null;
+  /** Added by pairing mode and waiting for an operator's approval: it is not answered until approved. */
+  held?: boolean;
+  /** When pairing mode added it (ISO). */
+  pairedAt?: string | null;
+};
+
+/** A device pairing mode added (the profile's pairing section). */
+export type LoraPairedDevice = { deviceId: string; devEui: string; name: string | null; held: boolean; pairedAt: string };
+
+/**
+ * A profile's pairing mode (NB iot_lorawan 04 §4.5): for a few minutes, an unknown device whose join request proves the profile's shared
+ * AppKey is added to the profile (waiting for approval unless the profile approves them itself). Off by default; needs a shared AppKey.
+ */
+export type LoraPairingView = {
+  active: boolean;
+  /** When the window closes (ISO); null when off. */
+  until: string | null;
+  startedAt: string | null;
+  hasSharedAppKey: boolean;
+  /** The devices this window (or the last one) added. */
+  found: LoraPairedDevice[];
 };
 
 /** The LoRaWAN settings of a device profile (NB iot_lorawan 08 §8.1); `codecId` is the profile's decoder choice. */
@@ -150,6 +196,10 @@ export type LoraProfileSettings = {
   anyJoinEui: boolean;
   codecId: string;
   storeRadioKeys: boolean;
+  /** Class C: how long a confirmed downlink waits for the device's acknowledgement before it is sent again (seconds). */
+  classCConfirmTimeoutS?: number;
+  /** Pairing mode adds devices ready to use instead of waiting for approval. */
+  pairingAutoActivate?: boolean;
 };
 
 export type LoraProfileView = {
