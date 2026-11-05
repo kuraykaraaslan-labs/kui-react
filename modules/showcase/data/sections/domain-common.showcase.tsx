@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { LoginForm } from '@/modules/domains/common/auth/LoginForm';
 import { AuthLayout } from '@/modules/domains/common/auth/AuthLayout';
+import { BrandLogo } from '@/modules/ui/BrandLogo';
 import { RegisterForm } from '@/modules/domains/common/auth/RegisterForm';
 import { OAuthButtons } from '@/modules/domains/common/auth/OAuthButtons';
 import { UserAvatar } from '@/modules/domains/common/user/UserAvatar';
@@ -84,10 +85,9 @@ function AuthLayoutSignInDemo() {
   return (
     <div className="flex w-full justify-center p-6">
       <AuthLayout
-        brand={<div className="flex h-10 items-center gap-2 text-2xl font-bold text-text-primary"><span className="inline-block h-8 w-8 rounded-md bg-primary" aria-hidden="true" />acme</div>}
-        tagline="From the field to your screen."
+        brand={<BrandLogo>A</BrandLogo>}
         title="Sign in"
-        description="Use your work email."
+        description="acme.example.com"
         footer={<>Don&apos;t have an account? <a href="#" className="font-medium text-primary hover:underline">Sign up</a></>}
       >
         <LoginForm onSubmit={async () => {}} />
@@ -673,21 +673,20 @@ export function buildCommonDomainData(): ShowcaseComponent[] {
       title: 'AuthLayout',
       category: 'Domain',
       abbr: 'AL',
-      description: 'The frame of every authentication page: the brand and tagline once above the card, the page title and one help line left-aligned at the top of the card, an optional footer below it.',
+      description: 'The frame of every authentication page, from the kit\'s own pieces: BrandLogo above a Card, the page title in PageHeader type with one line of real information (the workspace address), the form, an optional footer below.',
       filePath: 'modules/domains/common/auth/AuthLayout.tsx',
       sourceCode: `import { AuthLayout } from '@/modules/domains/common/auth/AuthLayout';
 
 <AuthLayout
-  brand={<BrandLogo />}
-  tagline="From the field to your screen."
+  brand={<BrandLogo logoLight={logo} alt="Acme" />}
   title="Sign in"
-  description="Use your work email."
+  description="acme.example.com"
   footer={<>Don't have an account? <a href="/register">Sign up</a></>}
 >
   <LoginForm onSubmit={handleLogin} />
 </AuthLayout>`,
       variants: [
-        { title: 'Sign in', layout: 'stack', preview: <AuthLayoutSignInDemo />, code: `<AuthLayout brand={<BrandLogo />} tagline="From the field to your screen." title="Sign in" description="Use your work email." footer={...}><LoginForm onSubmit={handleLogin} /></AuthLayout>` },
+        { title: 'Sign in', layout: 'stack', preview: <AuthLayoutSignInDemo />, code: `<AuthLayout brand={<BrandLogo />} title="Sign in" description="acme.example.com" footer={...}><LoginForm onSubmit={handleLogin} /></AuthLayout>` },
         { title: 'Title only', layout: 'stack', preview: <AuthLayoutMinimalDemo />, code: `<AuthLayout title="Verify your email" description="We sent a link to jane@acme.com.">…</AuthLayout>` },
       ],
     },

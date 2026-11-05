@@ -5,7 +5,9 @@ import { Input } from '@/modules/ui/Input';
 import { Button } from '@/modules/ui/Button';
 import { Form } from '@/modules/app/Form';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCheck, faArrowRight, faLock } from '@fortawesome/free-solid-svg-icons';
+import { faCheck, faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { BrandLogo } from '@/modules/ui/BrandLogo';
+import { AuthLayout } from '@/modules/domains/common/auth/AuthLayout';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 
 type FormState = 'idle' | 'loading' | 'success' | 'error';
@@ -61,54 +63,46 @@ export default function ResetPasswordPage() {
     <>
       <DocumentTitle text="Reset Password — Common Theme" />
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
-        <div className="rounded-2xl border border-border bg-surface-raised shadow-sm p-8 space-y-6">
-          <div className="text-center space-y-1">
-            <div className="flex justify-center mb-3">
-              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-subtle">
-                <FontAwesomeIcon icon={faLock} className="w-6 h-6 text-primary" aria-hidden="true" />
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold text-text-primary">Set new password</h1>
-            <p className="text-sm text-text-secondary">Choose a strong password for your account.</p>
-          </div>
-
-          <Form
-            onSubmit={handleSubmit}
-            error={formState === 'error' ? 'Something went wrong. Please try again.' : undefined}
-          >
-            <Input
-              id="new-password"
-              label="New Password"
-              type="password"
-              required
-              autoComplete="new-password"
-              hint="Minimum 8 characters"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              error={errors.newPassword}
-            />
-            <Input
-              id="confirm-password"
-              label="Confirm Password"
-              type="password"
-              required
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              error={errors.confirmPassword}
-            />
-            <Button type="submit" fullWidth loading={formState === 'loading'}>
-              Reset Password
-            </Button>
-          </Form>
-        </div>
-
-        <p className="text-center text-sm text-text-secondary">
-          Remembered it?{' '}
-          <Link href="/theme/common/auth/login" className="text-primary font-medium hover:underline">Back to login</Link>
-        </p>
-      </div>
+      <AuthLayout
+        brand={<BrandLogo>C</BrandLogo>}
+        title="Set a new password"
+        footer={<>
+          <p className="text-center text-sm text-text-secondary">
+            Remembered it?{' '}
+            <Link href="/theme/common/auth/login" className="text-primary font-medium hover:underline">Back to login</Link>
+          </p>
+        </>}
+      >
+        <Form
+          onSubmit={handleSubmit}
+          error={formState === 'error' ? 'Something went wrong. Please try again.' : undefined}
+        >
+          <Input
+            id="new-password"
+            label="New Password"
+            type="password"
+            required
+            autoComplete="new-password"
+            hint="Minimum 8 characters"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            error={errors.newPassword}
+          />
+          <Input
+            id="confirm-password"
+            label="Confirm Password"
+            type="password"
+            required
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            error={errors.confirmPassword}
+          />
+          <Button type="submit" fullWidth loading={formState === 'loading'}>
+            Reset Password
+          </Button>
+        </Form>
+      </AuthLayout>
     </div>
     </>
   );

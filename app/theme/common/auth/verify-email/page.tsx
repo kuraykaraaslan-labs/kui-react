@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowRight, faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { Button } from '@/modules/ui/Button';
+import { BrandLogo } from '@/modules/ui/BrandLogo';
+import { AuthLayout } from '@/modules/domains/common/auth/AuthLayout';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 
 const CODE_LENGTH = 6;
@@ -95,69 +97,61 @@ export default function VerifyEmailPage() {
     <>
       <DocumentTitle text="Verify Email — Common Theme" />
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
-        <div className="rounded-2xl border border-border bg-surface-raised shadow-sm p-8 space-y-6">
-          <div className="text-center space-y-1">
-            <span className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-info-subtle mb-3">
-              <FontAwesomeIcon icon={faEnvelope} className="w-6 h-6 text-info" aria-hidden="true" />
-            </span>
-            <h1 className="text-2xl font-bold text-text-primary">Check your email</h1>
-            <p className="text-sm text-text-secondary leading-relaxed">
-              We sent a 6-digit code to{' '}
-              <span className="font-semibold text-text-primary">john.doe@example.com</span>.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-3 text-center">
-                Enter verification code
-              </label>
-              <div className="flex gap-2 justify-center" onPaste={handlePaste}>
-                {digits.map((d, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => { inputRefs.current[i] = el; }}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={d}
-                    onChange={(e) => handleDigitChange(i, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(i, e)}
-                    aria-label={`Digit ${i + 1}`}
-                    className="h-12 w-10 rounded-lg border border-border bg-surface-base text-center text-xl font-bold text-text-primary tabular-nums
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:border-border-focus
-                      caret-transparent transition-colors"
-                  />
-                ))}
-              </div>
-              {error && <p className="text-xs text-error text-center mt-2">{error}</p>}
+      <AuthLayout
+        brand={<BrandLogo>C</BrandLogo>}
+        title="Check your email"
+        description={<>Sent to <span className="font-medium text-text-primary">john.doe@example.com</span></>}
+        footer={<>
+          <p className="text-center text-xs text-text-secondary">
+            Wrong email?{' '}
+            <Link href="/theme/common/auth/register" className="text-primary hover:underline">Go back</Link>
+          </p>
+        </>}
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-3 text-center">
+              Enter verification code
+            </label>
+            <div className="flex gap-2 justify-center" onPaste={handlePaste}>
+              {digits.map((d, i) => (
+                <input
+                  key={i}
+                  ref={(el) => { inputRefs.current[i] = el; }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={d}
+                  onChange={(e) => handleDigitChange(i, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(i, e)}
+                  aria-label={`Digit ${i + 1}`}
+                  className="h-12 w-10 rounded-lg border border-border bg-surface-base text-center text-xl font-bold text-text-primary tabular-nums
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:border-border-focus
+                    caret-transparent transition-colors"
+                />
+              ))}
             </div>
-
-            <Button type="submit" fullWidth loading={loading}>Verify Email</Button>
-          </form>
-
-          <div className="text-center text-sm text-text-secondary">
-            {countdown > 0 ? (
-              <span>Resend code in <span className="font-mono font-semibold text-text-primary">{countdown}s</span></span>
-            ) : (
-              <button
-                type="button"
-                onClick={handleResend}
-                disabled={resending}
-                className="text-primary font-medium hover:underline disabled:opacity-50"
-              >
-                {resending ? 'Sending…' : 'Resend code'}
-              </button>
-            )}
+            {error && <p className="text-xs text-error text-center mt-2">{error}</p>}
           </div>
-        </div>
 
-        <p className="text-center text-xs text-text-secondary">
-          Wrong email?{' '}
-          <Link href="/theme/common/auth/register" className="text-primary hover:underline">Go back</Link>
-        </p>
-      </div>
+          <Button type="submit" fullWidth loading={loading}>Verify Email</Button>
+        </form>
+
+        <div className="text-center text-sm text-text-secondary">
+          {countdown > 0 ? (
+            <span>Resend code in <span className="font-mono font-semibold text-text-primary">{countdown}s</span></span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resending}
+              className="text-primary font-medium hover:underline disabled:opacity-50"
+            >
+              {resending ? 'Sending…' : 'Resend code'}
+            </button>
+          )}
+        </div>
+      </AuthLayout>
     </div>
     </>
   );

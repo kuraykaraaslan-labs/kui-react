@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { useState, useRef } from 'react';
 import { Button } from '@/modules/ui/Button';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowRight, faShield } from '@fortawesome/free-solid-svg-icons';
+import { faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { BrandLogo } from '@/modules/ui/BrandLogo';
+import { AuthLayout } from '@/modules/domains/common/auth/AuthLayout';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
 
 const CODE_LENGTH = 6;
@@ -75,62 +77,55 @@ export default function TwoFactorPage() {
     <>
       <DocumentTitle text="Two-Factor Auth — Common Theme" />
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
-        <div className="rounded-2xl border border-border bg-surface-raised shadow-sm p-8 space-y-6">
-          <div className="text-center space-y-1">
-            <span className="flex h-14 w-14 mx-auto items-center justify-center rounded-2xl bg-warning-subtle mb-3">
-              <FontAwesomeIcon icon={faShield} className="w-6 h-6 text-warning" aria-hidden="true" />
-            </span>
-            <h1 className="text-2xl font-bold text-text-primary">Two-factor authentication</h1>
-            <p className="text-sm text-text-secondary leading-relaxed">
-              Open your authenticator app and enter the 6-digit code.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-3 text-center">
-                Authentication code
-              </label>
-              <div className="flex gap-2 justify-center" onPaste={handlePaste}>
-                {digits.map((d, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => { inputRefs.current[i] = el; }}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={d}
-                    onChange={(e) => handleDigitChange(i, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(i, e)}
-                    aria-label={`Digit ${i + 1}`}
-                    className="h-12 w-10 rounded-lg border border-border bg-surface-base text-center text-xl font-bold text-text-primary tabular-nums
-                      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:border-border-focus
-                      caret-transparent transition-colors"
-                  />
-                ))}
-              </div>
-              {error && <p className="text-xs text-error text-center mt-2">{error}</p>}
+      <AuthLayout
+        brand={<BrandLogo>C</BrandLogo>}
+        title="Enter your code"
+        description="From your authenticator app."
+        footer={<>
+          <p className="text-center text-sm text-text-secondary">
+            <Link href="/theme/common/auth/login" className="text-primary hover:underline">← Back to login</Link>
+          </p>
+        </>}
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-3 text-center">
+              Authentication code
+            </label>
+            <div className="flex gap-2 justify-center" onPaste={handlePaste}>
+              {digits.map((d, i) => (
+                <input
+                  key={i}
+                  ref={(el) => { inputRefs.current[i] = el; }}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={d}
+                  onChange={(e) => handleDigitChange(i, e.target.value)}
+                  onKeyDown={(e) => handleKeyDown(i, e)}
+                  aria-label={`Digit ${i + 1}`}
+                  className="h-12 w-10 rounded-lg border border-border bg-surface-base text-center text-xl font-bold text-text-primary tabular-nums
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:border-border-focus
+                    caret-transparent transition-colors"
+                />
+              ))}
             </div>
-
-            <Button type="submit" fullWidth loading={loading}>Verify</Button>
-          </form>
-
-          <div className="rounded-lg bg-surface-overlay border border-border px-4 py-3 space-y-1">
-            <p className="text-xs font-semibold text-text-primary">Can&apos;t access your authenticator?</p>
-            <p className="text-xs text-text-secondary">
-              Use a{' '}
-              <span className="text-primary cursor-pointer hover:underline">recovery code</span>
-              {' '}or contact{' '}
-              <span className="text-primary cursor-pointer hover:underline">support</span>.
-            </p>
+            {error && <p className="text-xs text-error text-center mt-2">{error}</p>}
           </div>
-        </div>
 
-        <p className="text-center text-sm text-text-secondary">
-          <Link href="/theme/common/auth/login" className="text-primary hover:underline">← Back to login</Link>
-        </p>
-      </div>
+          <Button type="submit" fullWidth loading={loading}>Verify</Button>
+        </form>
+
+        <div className="rounded-lg bg-surface-overlay border border-border px-4 py-3 space-y-1">
+          <p className="text-xs font-semibold text-text-primary">Can&apos;t access your authenticator?</p>
+          <p className="text-xs text-text-secondary">
+            Use a{' '}
+            <span className="text-primary cursor-pointer hover:underline">recovery code</span>
+            {' '}or contact{' '}
+            <span className="text-primary cursor-pointer hover:underline">support</span>.
+          </p>
+        </div>
+      </AuthLayout>
     </div>
     </>
   );

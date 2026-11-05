@@ -3,28 +3,30 @@ import { render, screen } from '@testing-library/react';
 import { AuthLayout } from './AuthLayout';
 
 describe('AuthLayout', () => {
-  it('puts the brand and tagline above the card and the page title inside it, once each', () => {
+  it('puts the brand above the kit Card and the page title with its one line inside it', () => {
     const { container } = render(
-      <AuthLayout brand={<span role="img" aria-label="Hermetry">H</span>} tagline="From the field to your screen." title="Sign in" description="Use your work email." footer={<button type="button">Sign up</button>}>
+      <AuthLayout brand={<span role="img" aria-label="Acme">A</span>} title="Sign in" description="acme.example.com" footer={<button type="button">Sign up</button>}>
         <form aria-label="sign in" />
       </AuthLayout>,
     );
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Sign in');
-    expect(screen.getByText('Use your work email.')).toBeTruthy();
-    expect(screen.getAllByText('From the field to your screen.')).toHaveLength(1);
-    const card = container.querySelector('.rounded-2xl')!;
-    // the brand is outside the card, the title and the form inside it
-    expect(card.contains(screen.getByRole("img", { name: "Hermetry" }))).toBe(false);
-    expect(card.contains(screen.getByRole('heading', { level: 1 }))).toBe(true);
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toBe('Sign in');
+    expect(heading.className).toContain('text-xl');
+    expect(screen.getByText('acme.example.com')).toBeTruthy();
+    const card = container.querySelector('.rounded-xl')!;
+    expect(card).toBeTruthy();
+    expect(card.contains(screen.getByRole('img', { name: 'Acme' }))).toBe(false);
+    expect(card.contains(heading)).toBe(true);
     expect(card.contains(screen.getByRole('form', { name: 'sign in' }))).toBe(true);
-    expect(card.contains(screen.getByRole("button", { name: "Sign up" }))).toBe(false);
+    expect(card.contains(screen.getByRole('button', { name: 'Sign up' }))).toBe(false);
   });
 
-  it('without a brand, a tagline, a description or a footer it renders none of their wrappers', () => {
+  it('without a brand, a description or a footer it renders none of their wrappers', () => {
     const { container } = render(<AuthLayout title="Verify your email"><p>body</p></AuthLayout>);
+    const card = container.querySelector('.rounded-xl')!;
     expect(container.querySelectorAll('h1')).toHaveLength(1);
-    expect(container.querySelector('.rounded-2xl')!.previousElementSibling).toBeNull();
-    expect(container.querySelector('.rounded-2xl')!.nextElementSibling).toBeNull();
+    expect(card.previousElementSibling).toBeNull();
+    expect(card.nextElementSibling).toBeNull();
     expect(container.querySelector('header p')).toBeNull();
   });
 });
