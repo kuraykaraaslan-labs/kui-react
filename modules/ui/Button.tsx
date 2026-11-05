@@ -82,6 +82,8 @@ export function Button<C extends React.ElementType = 'button'>({
         className
       )}
       {...rest}
+      // a native button is disabled while it loads, so a second click cannot send the action twice
+      {...(isNativeButton && loading ? { disabled: true } : {})}
     >
       {loading && <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full shrink-0" aria-hidden="true" />}
       {!loading && iconLeft && <span aria-hidden="true" className="shrink-0">{iconLeft}</span>}
