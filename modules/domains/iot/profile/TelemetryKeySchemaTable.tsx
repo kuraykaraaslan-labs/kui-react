@@ -30,6 +30,8 @@ export type TelemetryKeySchemaTableProps = {
   fromFirmware?: string | null;
   readOnly?: boolean;
   error?: string;
+  /** Errors of single cells by `<row>.<field>` (`3.decimals`), already in words: the cell is marked and the error listed under the table. */
+  fieldErrors?: Partial<Record<string, string>>;
   /** Mark every row, new empty ones included (the host's form after a Save press with something to fix). */
   showAll?: boolean;
   messages?: IotMessagesInput;
@@ -42,8 +44,9 @@ const num = (raw: string): number | undefined => (raw.trim() === '' ? undefined 
 /** A row of the table: the key and its position (the row's id, so editing a key keeps its row). */
 type TelemetryRow = { i: number; k: TelemetryKeySpec };
 
-export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnly, error, showAll = false, messages, className }: TelemetryKeySchemaTableProps) {
+export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnly, error, fieldErrors = {}, showAll = false, messages, className }: TelemetryKeySchemaTableProps) {
   const { m } = useIotText(messages);
+  const cellError = (i: number, field: string) => fieldErrors[`${i}.${field}`];
   const [touched, setTouched] = useState<ReadonlySet<number>>(() => new Set());
   const locked = readOnly || !!fromFirmware;
   const typeLabel = (t: TelemetryKeySpec['type']) => (t ? m.schema[`type_${t}`] : m.schema.notSet);
@@ -56,6 +59,11 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
   // rows keep their position as id: a key being typed never remounts its row (and never loses the caret)
   const rows: TelemetryRow[] = value.map((k, i) => ({ i, k }));
   const nameOf = ({ i, k }: TelemetryRow) => k.key || i + 1;
+  const listed = Object.entries(fieldErrors).filter((e): e is [string, string] => !!e[1]).map(([at, text]) => {
+    const [row, field] = at.split('.');
+    const head = (m.schema as Record<string, string>)[field] ?? field;
+    return `${value[Number(row)]?.key || Number(row) + 1} · ${head}: ${text}`;
+  });
   const columns: Column<TelemetryRow>[] = [
     {
       key: 'key',
@@ -66,7 +74,7 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
       render: ({ i, k }) => {
         const bad = isBad(i, k);
         return locked ? <code className="font-mono text-xs">{k.key}</code> : (
-          <input className={cn(cell, 'min-w-[8rem] font-mono', bad && 'border-error')} value={k.key} aria-label={`${m.schema.key} ${i + 1}`} aria-invalid={bad || undefined}
+          <input className={cn(cell, 'min-w-[8rem] font-mono', (bad || cellError(i, 'key')) && 'border-error')} value={k.key} aria-label={`${m.schema.key} ${i + 1}`} aria-invalid={bad || !!cellError(i, 'key') || undefined}
             maxLength={64} onChange={(e) => set(i, { key: e.target.value })} onBlur={() => setTouched((t) => (t.has(i) ? t : new Set(t).add(i)))} />
         );
       },
@@ -91,7 +99,7 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
       sortable: true,
       sortValue: (r) => r.k.unit ?? null,
       searchValue: (r) => r.k.unit ?? '',
-      render: (r) => (locked ? (r.k.unit ?? '—') : <input className={cell} value={r.k.unit ?? ''} maxLength={32} aria-label={`${m.schema.unit} ${nameOf(r)}`} onChange={(e) => set(r.i, { unit: e.target.value })} />),
+      render: (r) => (locked ? (r.k.unit ?? '—') : <input className={cn(cell, cellError(r.i, 'unit') && 'border-error')} value={r.k.unit ?? ''} maxLength={32} aria-label={`${m.schema.unit} ${nameOf(r)}`} aria-invalid={!!cellError(r.i, 'unit') || undefined} onChange={(e) => set(r.i, { unit: e.target.value })} />),
     },
     {
       key: 'label',
@@ -99,25 +107,25 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
       sortable: true,
       sortValue: (r) => r.k.label ?? null,
       searchValue: (r) => r.k.label ?? '',
-      render: (r) => (locked ? (r.k.label ?? '—') : <input className={cn(cell, 'min-w-[10rem]')} value={r.k.label ?? ''} maxLength={128} aria-label={`${m.schema.label} ${nameOf(r)}`} onChange={(e) => set(r.i, { label: e.target.value })} />),
+      render: (r) => (locked ? (r.k.label ?? '—') : <input className={cn(cell, 'min-w-[10rem]', cellError(r.i, 'label') && 'border-error')} value={r.k.label ?? ''} maxLength={128} aria-label={`${m.schema.label} ${nameOf(r)}`} aria-invalid={!!cellError(r.i, 'label') || undefined} onChange={(e) => set(r.i, { label: e.target.value })} />),
     },
     {
       key: 'min',
       header: m.schema.min,
       searchable: false,
-      render: (r) => (locked ? (r.k.min ?? '—') : <input className={cell} type="number" value={r.k.min ?? ''} aria-label={`${m.schema.min} ${nameOf(r)}`} onChange={(e) => set(r.i, { min: num(e.target.value) })} />),
+      render: (r) => (locked ? (r.k.min ?? '—') : <input className={cn(cell, cellError(r.i, 'min') && 'border-error')} type="number" value={r.k.min ?? ''} aria-label={`${m.schema.min} ${nameOf(r)}`} aria-invalid={!!cellError(r.i, 'min') || undefined} onChange={(e) => set(r.i, { min: num(e.target.value) })} />),
     },
     {
       key: 'max',
       header: m.schema.max,
       searchable: false,
-      render: (r) => (locked ? (r.k.max ?? '—') : <input className={cell} type="number" value={r.k.max ?? ''} aria-label={`${m.schema.max} ${nameOf(r)}`} onChange={(e) => set(r.i, { max: num(e.target.value) })} />),
+      render: (r) => (locked ? (r.k.max ?? '—') : <input className={cn(cell, cellError(r.i, 'max') && 'border-error')} type="number" value={r.k.max ?? ''} aria-label={`${m.schema.max} ${nameOf(r)}`} aria-invalid={!!cellError(r.i, 'max') || undefined} onChange={(e) => set(r.i, { max: num(e.target.value) })} />),
     },
     {
       key: 'decimals',
       header: m.schema.decimals,
       searchable: false,
-      render: (r) => (locked ? (r.k.decimals ?? '—') : <input className={cell} type="number" min={0} max={10} value={r.k.decimals ?? ''} aria-label={`${m.schema.decimals} ${nameOf(r)}`} onChange={(e) => set(r.i, { decimals: num(e.target.value) })} />),
+      render: (r) => (locked ? (r.k.decimals ?? '—') : <input className={cn(cell, cellError(r.i, 'decimals') && 'border-error')} type="number" min={0} max={10} step={1} value={r.k.decimals ?? ''} aria-label={`${m.schema.decimals} ${nameOf(r)}`} aria-invalid={!!cellError(r.i, 'decimals') || undefined} onChange={(e) => set(r.i, { decimals: num(e.target.value) })} />),
     },
     ...(locked ? [] : [{
       key: 'actions',
@@ -157,6 +165,9 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
         tableClassName="min-w-[48rem]"
       />
       {shownError && <p role="alert" className="text-xs text-error">{shownError}</p>}
+      {listed.length > 0 && (
+        <ul role="alert" className="list-inside list-disc text-xs text-error">{listed.map((line) => <li key={line}>{line}</li>)}</ul>
+      )}
       {!locked && (
         <Button variant="outline" size="sm" onClick={() => onChange?.([...value, { key: '', type: 'number' }])} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
           {m.schema.add}
@@ -166,14 +177,18 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
   );
 }
 
-/** Drops empty optional fields (the host refuses unknown and empty values alike). */
-function clean(k: TelemetryKeySpec): TelemetryKeySpec {
-  const out: TelemetryKeySpec = { key: k.key };
-  if (k.type) out.type = k.type;
-  if (k.unit) out.unit = k.unit;
-  if (k.label) out.label = k.label;
-  if (typeof k.min === 'number' && Number.isFinite(k.min)) out.min = k.min;
-  if (typeof k.max === 'number' && Number.isFinite(k.max)) out.max = k.max;
-  if (typeof k.decimals === 'number' && Number.isFinite(k.decimals)) out.decimals = k.decimals;
-  return out;
+/**
+ * Drops the empty fields the table edits (the host refuses empty values) and keeps every other field of the stored row as it is
+ * (`quantity`, or anything a later host adds): editing a row never loses what the table does not show.
+ */
+export function clean(k: TelemetryKeySpec): TelemetryKeySpec {
+  const { key, type, unit, label, min, max, decimals, ...kept } = k;
+  const out: TelemetryKeySpec = { key };
+  if (type) out.type = type;
+  if (unit) out.unit = unit;
+  if (label) out.label = label;
+  if (typeof min === 'number' && Number.isFinite(min)) out.min = min;
+  if (typeof max === 'number' && Number.isFinite(max)) out.max = max;
+  if (typeof decimals === 'number' && Number.isFinite(decimals)) out.decimals = decimals;
+  return { ...out, ...kept };
 }

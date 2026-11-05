@@ -25,6 +25,8 @@ export type CfgSchemaTableProps = {
   fromFirmware?: string | null;
   readOnly?: boolean;
   error?: string;
+  /** Errors of single cells by `<row>.<field>` (`2.enum`), already in words: the cell is marked and the error listed under the table. */
+  fieldErrors?: Partial<Record<string, string>>;
   messages?: IotMessagesInput;
   className?: string;
 };
@@ -35,22 +37,42 @@ const num = (raw: string): number | undefined => (raw.trim() === '' ? undefined 
 /** A row of the table: the key and its position (the row's id, so editing a key keeps its row). */
 type CfgRow = { i: number; k: CfgKeySpec };
 
-/** The comma list of allowed values, typed by the key's type (integers as numbers, booleans as true / false). */
+/**
+ * The comma list of allowed values, typed by the key's type (integers as numbers, booleans as true / false). A part that does not fit
+ * the type stays as the text typed, so the form refuses it (`invalid_enum`) instead of dropping it: a list with a typo never shrinks or
+ * vanishes silently (a vanished list would lift the restriction).
+ */
 export function parseCfgEnum(raw: string, type: CfgKeySpec['type']): CfgKeySpec['enum'] {
   const parts = raw.split(',').map((p) => p.trim()).filter(Boolean);
   if (!parts.length) return undefined;
-  if (type === 'integer') return parts.map(Number).filter((n) => Number.isInteger(n));
-  if (type === 'boolean') return parts.filter((p) => p === 'true' || p === 'false').map((p) => p === 'true');
+  if (type === 'integer') return parts.map((p) => (/^-?\d+$/.test(p) && Number.isSafeInteger(Number(p)) ? Number(p) : p));
+  if (type === 'boolean') return parts.map((p) => (p === 'true' ? true : p === 'false' ? false : p));
   return parts;
 }
 
-export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error, messages, className }: CfgSchemaTableProps) {
+export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error, fieldErrors = {}, messages, className }: CfgSchemaTableProps) {
   const { m } = useIotText(messages);
   const locked = readOnly || !!fromFirmware;
   const keys = value.map((k) => k.key);
+  const typeLabel = (t: CfgKeySpec['type']) => m.schema[`type_${t}`];
   // what is typed in an enum cell, kept until it parses (a trailing comma, a half-typed number)
   const [enumText, setEnumText] = useState<Record<number, string>>({});
-  const set = (i: number, patch: Partial<CfgKeySpec>) => onChange?.(value.map((k, j) => (j === i ? clean({ ...k, ...patch }) : k)));
+  // the table the typed texts belong to: a table the host replaces (Save, Discard, a reload) drops them, so they never outlive it
+  const [ownValue, setOwnValue] = useState<CfgKeySpec[] | null>(null);
+  const [seenValue, setSeenValue] = useState(value);
+  if (value !== seenValue) {
+    setSeenValue(value);
+    if (value !== ownValue) setEnumText({});
+  }
+  const emit = (next: CfgKeySpec[]) => { setOwnValue(next); onChange?.(next); };
+  const set = (i: number, patch: Partial<CfgKeySpec>) => emit(value.map((k, j) => (j === i ? clean({ ...k, ...patch }) : k)));
+  const cellError = (i: number, field: string) => fieldErrors[`${i}.${field}`];
+  const listed = Object.entries(fieldErrors).filter((e): e is [string, string] => !!e[1]).map(([at, text]) => {
+    const [row, field] = at.split('.');
+    const k = value[Number(row)];
+    const head = (m.schema as Record<string, string>)[field] ?? field;
+    return `${k?.key || Number(row) + 1} · ${head}: ${text}`;
+  });
   // rows keep their position as id: a key being typed never remounts its row (and never loses the caret)
   const rows: CfgRow[] = value.map((k, i) => ({ i, k }));
   const nameOf = ({ i, k }: CfgRow) => k.key || String(i + 1);
@@ -66,8 +88,8 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
         return locked ? (
           <code className="inline-flex items-center gap-1 font-mono text-xs">{k.secret && <FontAwesomeIcon icon={faLock} className="h-3 w-3 text-text-secondary" aria-label={m.schema.secret} />}{k.key}</code>
         ) : (
-          <input className={cn(cell, 'font-mono', bad && 'border-error')} value={k.key} placeholder="cfg." maxLength={128} aria-label={`${m.schema.key} ${i + 1}`}
-            aria-invalid={bad || undefined} onChange={(e) => set(i, { key: e.target.value })} />
+          <input className={cn(cell, 'font-mono', (bad || cellError(i, 'key')) && 'border-error')} value={k.key} placeholder="cfg." maxLength={128} aria-label={`${m.schema.key} ${i + 1}`}
+            aria-invalid={bad || !!cellError(i, 'key') || undefined} onChange={(e) => set(i, { key: e.target.value })} />
         );
       },
     },
@@ -77,12 +99,12 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
       sortable: true,
       searchable: false,
       sortValue: (r) => r.k.type,
-      render: (r) => (locked ? r.k.type : (
+      render: (r) => (locked ? typeLabel(r.k.type) : (
         <select className={cell} value={r.k.type} aria-label={`${m.schema.type} ${nameOf(r)}`} onChange={(e) => {
           setEnumText((t) => Object.fromEntries(Object.entries(t).filter(([row]) => Number(row) !== r.i)));
           set(r.i, { type: e.target.value as CfgKeySpec['type'], enum: undefined, min: undefined, max: undefined, minLength: undefined, maxLength: undefined });
         }}>
-          {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          {TYPES.map((t) => <option key={t} value={t}>{typeLabel(t)}</option>)}
         </select>
       )),
     },
@@ -92,7 +114,7 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
       sortable: true,
       sortValue: (r) => r.k.label ?? null,
       searchValue: (r) => r.k.label ?? '',
-      render: (r) => (locked ? (r.k.label ?? '—') : <input className={cell} value={r.k.label ?? ''} maxLength={128} aria-label={`${m.schema.label} ${nameOf(r)}`} onChange={(e) => set(r.i, { label: e.target.value })} />),
+      render: (r) => (locked ? (r.k.label ?? '—') : <input className={cn(cell, cellError(r.i, 'label') && 'border-error')} value={r.k.label ?? ''} maxLength={128} aria-label={`${m.schema.label} ${nameOf(r)}`} aria-invalid={!!cellError(r.i, 'label') || undefined} onChange={(e) => set(r.i, { label: e.target.value })} />),
     },
     {
       key: 'range',
@@ -105,11 +127,13 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
           k.type === 'integer' ? `${k.min ?? '…'} – ${k.max ?? '…'}` : `${k.minLength ?? 0} – ${k.maxLength ?? '…'}`
         ) : (
           <span className="flex items-center gap-1">
-            <input className={cell} type="number" step={1}
+            <input className={cn(cell, cellError(i, k.type === 'integer' ? 'min' : 'minLength') && 'border-error')} type="number" step={1}
+              aria-invalid={!!cellError(i, k.type === 'integer' ? 'min' : 'minLength') || undefined}
               value={(k.type === 'integer' ? k.min : k.minLength) ?? ''}
               aria-label={`${k.type === 'integer' ? m.schema.min : m.schema.minLength} ${name}`}
               onChange={(e) => set(i, k.type === 'integer' ? { min: num(e.target.value) } : { minLength: num(e.target.value) })} />
-            <input className={cell} type="number" step={1}
+            <input className={cn(cell, cellError(i, k.type === 'integer' ? 'max' : 'maxLength') && 'border-error')} type="number" step={1}
+              aria-invalid={!!cellError(i, k.type === 'integer' ? 'max' : 'maxLength') || undefined}
               value={(k.type === 'integer' ? k.max : k.maxLength) ?? ''}
               aria-label={`${k.type === 'integer' ? m.schema.max : m.schema.maxLength} ${name}`}
               onChange={(e) => set(i, k.type === 'integer' ? { max: num(e.target.value) } : { maxLength: num(e.target.value) })} />
@@ -125,7 +149,8 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
         const { i, k } = r;
         const enumShown = enumText[i] ?? (k.enum ?? []).join(', ');
         return locked ? ((k.enum ?? []).join(', ') || '—') : (
-          <input className={cell} value={enumShown} placeholder={m.schema.enumHint} aria-label={`${m.schema.enum} ${nameOf(r)}`}
+          <input className={cn(cell, cellError(i, 'enum') && 'border-error')} value={enumShown} placeholder={m.schema.enumHint} aria-label={`${m.schema.enum} ${nameOf(r)}`}
+            aria-invalid={!!cellError(i, 'enum') || undefined}
             onChange={(e) => { setEnumText((t) => ({ ...t, [i]: e.target.value })); set(i, { enum: parseCfgEnum(e.target.value, k.type) }); }} />
         );
       },
@@ -148,7 +173,7 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
       align: 'right' as const,
       searchable: false,
       render: (r: CfgRow) => (
-        <button type="button" onClick={() => { setEnumText({}); onChange?.(value.filter((_, j) => j !== r.i)); }} aria-label={fill(m.schema.remove, { key: nameOf(r) })}
+        <button type="button" onClick={() => { setEnumText({}); emit(value.filter((_, j) => j !== r.i)); }} aria-label={fill(m.schema.remove, { key: nameOf(r) })}
           className="rounded p-1.5 text-text-secondary hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <FontAwesomeIcon icon={faTrash} className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -156,7 +181,7 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
     }]),
   ];
   const filterFields: DataTableFilterField<CfgRow>[] = [
-    { id: 'type', label: m.schema.type, type: 'checkboxes', options: TYPES.map((t) => ({ value: t, label: t })), match: (r, v) => !Array.isArray(v) || !v.length || (v as string[]).includes(r.k.type) },
+    { id: 'type', label: m.schema.type, type: 'checkboxes', options: TYPES.map((t) => ({ value: t, label: typeLabel(t) })), match: (r, v) => !Array.isArray(v) || !v.length || (v as string[]).includes(r.k.type) },
     { id: 'secret', label: m.schema.secret, type: 'checkbox', match: (r) => !!r.k.secret },
   ];
   return (
@@ -184,8 +209,11 @@ export function CfgSchemaTable({ value, onChange, fromFirmware, readOnly, error,
         tableClassName="min-w-[46rem]"
       />
       {error && <p role="alert" className="text-xs text-error">{error}</p>}
+      {listed.length > 0 && (
+        <ul role="alert" className="list-inside list-disc text-xs text-error">{listed.map((line) => <li key={line}>{line}</li>)}</ul>
+      )}
       {!locked && (
-        <Button variant="outline" size="sm" onClick={() => onChange?.([...value, { key: 'cfg.', type: 'integer' }])} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
+        <Button variant="outline" size="sm" onClick={() => emit([...value, { key: 'cfg.', type: 'integer' }])} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
           {m.schema.add}
         </Button>
       )}

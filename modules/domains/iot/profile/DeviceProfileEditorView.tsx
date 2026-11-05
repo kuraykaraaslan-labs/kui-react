@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCheck, faClone, faCopy, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -15,10 +15,10 @@ import { Textarea } from '@/modules/ui/Textarea';
 import { Toggle } from '@/modules/ui/Toggle';
 import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
-import { fill, formatDateTime } from '../format';
+import { fill, formatDateTime, plural } from '../format';
 import {
   CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isTelemetryKey, nextKeyOrigins, profileDraftIssues, profilePatch,
-  telemetryKeyChanges, transportLabel, transportLogsIn,
+  telemetryKeyChanges, touchesAdmission, transportLabel, transportLogsIn,
   type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileKeyUsage, type ProfileTransport, type ProvisionStrategy,
 } from '../types/profile';
 import { AuthModeSelector } from './AuthModeSelector';
@@ -52,6 +52,14 @@ import { announceProfileKeyRenames } from './profile-key-events';
  * removed than the host takes in one question, or the host fails) a warning says so.
  *
  * Save can always be pressed: with something to fix it marks every field (new key rows nobody has typed in yet included) and sends nothing.
+ *
+ * Saving a change to what devices are admitted by (transport, auth modes, URL tokens, networks, topic schemes, limits) of a profile
+ * devices use asks first, naming the profile and the device count: live sessions that no longer qualify end at once. An edit carries
+ * the version it started from; when someone saved the profile in between the host refuses it (`stale`) and the form offers to reload.
+ * Unsaved changes are guarded when the page is left (`beforeunload`; `onDirtyChange` lets a host guard its own navigation). A platform
+ * template (`platformTemplate`) needs `canManageTemplates` too and is never deleted. A field error of the host clears once the field
+ * is edited; a host error on a key cell (`telemetrySchema.3.decimals`) lands on that cell and its tab. Capabilities that could not be
+ * read are said to be unknown (with a retry), never shown as "you may not change this".
  */
 export type DeviceProfileEditorViewProps = {
   profileId: string;
@@ -67,6 +75,10 @@ export type DeviceProfileEditorViewProps = {
   availableStrategies?: readonly ProvisionStrategy[];
   /** The provisioning key management, when the host has it and the viewer may use it (`ProvisioningKeysPanel`; absent: the disabled placeholder). */
   provisioningKeys?: React.ReactNode;
+  /** Called whenever the form gains or loses unsaved changes (a host guards its own navigation with it). */
+  onDirtyChange?: (dirty: boolean) => void;
+  /** Settings the host stores but does not apply yet: their fields say "stored, not enforced yet". */
+  notEnforced?: { strictKeys?: boolean; cfgDriftPolicy?: boolean };
   className?: string;
 };
 
@@ -76,8 +88,8 @@ const TAB_OF: Array<[RegExp, string]> = [
   [/^(transportType|mqttTransport|allowTokenInUrl|allowedNetworks|plaintextRpcMethods|allowedAuthModes|topicSchemes|anyTopicEnabled|prefixKeysWithTopic|maxTopicDepth|maxTopicLength|maxDistinctTopicsPerDevice|rawMaxBytes)$/, 'transport'],
   [/^(onlineRule|expectedIntervalS|onlineWindowFactor)$/, 'online'],
   [/^(rateLimits\..*|replayMsgsPerS|payloadMaxBytes|downlinkMaxBytes|maxInflightMessages|inactivityTimeoutSec|maxGatewayChildren|rpcTimeoutDefaultSec)$/, 'limits'],
-  [/^(telemetrySchema|strictKeys)$/, 'telemetry'],
-  [/^(cfgSchema|cfgDriftPolicy)$/, 'config'],
+  [/^(telemetrySchema(\..*)?|strictKeys)$/, 'telemetry'],
+  [/^(cfgSchema(\..*)?|cfgDriftPolicy)$/, 'config'],
   [/^provisionStrategy$/, 'provisioning'],
 ];
 const tabOf = (field: string) => TAB_OF.find(([re]) => re.test(field))?.[1] ?? 'general';
@@ -95,15 +107,17 @@ export function childProfileOptions(
 }
 
 export function DeviceProfileEditorView({
-  profileId, extraTabs = [], tab, onTabChange, onDeleted, onDuplicated, transports, availableStrategies, provisioningKeys, className,
+  profileId, extraTabs = [], tab, onTabChange, onDeleted, onDuplicated, transports, availableStrategies, provisioningKeys, onDirtyChange,
+  notEnforced, className,
 }: DeviceProfileEditorViewProps) {
   const adapter = useIotAdapter();
   const api = adapter.profiles;
   const provisioning = adapter.provisioning;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
-  const { m, locale } = useIotText();
+  const { m, locale, timeZone } = useIotText();
   const offered = useProfileTransports(transports);
+  const uid = useId();
 
   const [profile, setProfile] = useState<DeviceProfile | null>(null);
   // the profiles a gateway's children may get (Limits → Profile of new children); null until read
@@ -120,6 +134,8 @@ export function DeviceProfileEditorView({
   const [serverErrors, setServerErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // the host refused the save because the profile changed since it was read (NB 41-ui-fixes/20 1.7)
+  const [stale, setStale] = useState(false);
 
   const base = useMemo(() => (profile ? draftOf(profile) : null), [profile]);
   /** A draft read from the host or put back to it: its key rows are the saved rows. */
@@ -143,6 +159,9 @@ export function DeviceProfileEditorView({
         setProfile(p);
         setDraft(draftOf(p));
         setLoadError(null);
+        setStale(false);
+        setServerErrors({});
+        setSaveError(null);
       },
       (e) => { if (!signal?.aborted) setLoadError(errorMessage(e, m.profile.loadError)); },
     );
@@ -163,7 +182,20 @@ export function DeviceProfileEditorView({
     return () => ctrl.abort();
   }, [api]);
 
-  const readOnly = !caps.canManageProfiles || !api?.update;
+  const templateLocked = !!profile?.platformTemplate && !caps.canManageTemplates;
+  const readOnly = !caps.canManageProfiles || !api?.update || templateLocked;
+
+  // unsaved edits are never dropped silently: the host hears of them, and leaving the page asks first (NB 41-ui-fixes/20 1.9)
+  const onDirtyRef = useRef(onDirtyChange);
+  useEffect(() => { onDirtyRef.current = onDirtyChange; });
+  const guarded = dirty && !readOnly;
+  useEffect(() => { onDirtyRef.current?.(guarded); }, [guarded]);
+  useEffect(() => {
+    if (!guarded) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [guarded]);
   const issues = draft ? profileDraftIssues(draft) : {};
   const blocking = Object.keys(issues).length > 0;
   // the only thing wrong is a new key row nobody has typed in yet: nothing is marked before Save is pressed, so nothing is said either
@@ -172,11 +204,27 @@ export function DeviceProfileEditorView({
     && draft.telemetrySchema.every((k, i, all) => k.key === '' || (isTelemetryKey(k.key) && all.findIndex((x) => x.key === k.key) === i));
   const err = (field: string): string | undefined => {
     const issue = issues[field];
-    return issue ? m.issue[issue] : serverErrors[field];
+    if (issue) return m.issue[issue];
+    // a host that names a cell's error under its table too (`telemetrySchema` beside `telemetrySchema.3.decimals`): said once, on the cell
+    const own = serverErrors[field];
+    return own && Object.entries(serverErrors).some(([k, v]) => v === own && k.startsWith(`${field}.`)) ? undefined : own;
+  };
+  /** The host's errors of the cells under `prefix` (`telemetrySchema`), and the form's own, keyed `<row>.<field>`. */
+  const cellErrors = (prefix: string): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(serverErrors)) if (k.startsWith(`${prefix}.`)) out[k.slice(prefix.length + 1)] = v;
+    for (const [k, v] of Object.entries(issues)) if (v && k.startsWith(`${prefix}.`)) out[k.slice(prefix.length + 1)] = m.issue[v];
+    return out;
   };
   const set = (patch: Partial<DeviceProfileDraft>) => {
     setDraftState((d) => (d ? { ...d, ...patch } : d));
     setSaveError(null);
+    // a host error stays only until its field is edited (NB 41-ui-fixes/20 N3)
+    const fields = Object.keys(patch);
+    setServerErrors((cur) => {
+      const kept = Object.entries(cur).filter(([k]) => !fields.some((f) => k === f || k.startsWith(`${f}.`)));
+      return kept.length === Object.keys(cur).length ? cur : Object.fromEntries(kept);
+    });
   };
   const setKeys = (next: DeviceProfileDraft['telemetrySchema']) => {
     if (draft) setKeyOrigins((o) => nextKeyOrigins(draft.telemetrySchema, next, o));
@@ -188,9 +236,10 @@ export function DeviceProfileEditorView({
   }
 
   async function save() {
-    if (!api?.update || !base || !draft || blocking) return;
+    if (!api?.update || !base || !draft || !profile || blocking) return;
     const patch = profilePatch(base, draft);
     if (!Object.keys(patch).length) return;
+    if (!(await admissionConfirmed(patch))) return;
     const keyChanges = telemetryKeyChanges(base.telemetrySchema, draft.telemetrySchema, keyOrigins);
     setSaving(true);
     setSaveError(null);
@@ -200,10 +249,12 @@ export function DeviceProfileEditorView({
       const { provisionStrategy, ...rest } = patch;
       const strategyApart = provisionStrategy !== undefined && !!provisioning?.setStrategy;
       const general = strategyApart ? rest : patch;
-      let saved = Object.keys(general).length ? await api.update(profileId, general) : profile!;
+      let saved = Object.keys(general).length ? await sendUpdate(profile!, general) : profile!;
       if (strategyApart) {
         try {
-          saved = { ...saved, provisionStrategy: await provisioning!.setStrategy!(profileId, provisionStrategy!) };
+          const strategy = await provisioning!.setStrategy!(profileId, provisionStrategy!);
+          // the strategy write is a write of the row too: read it back, so the next edit starts from its version
+          saved = api.get ? await api.get(profileId) : { ...saved, provisionStrategy: strategy };
         } catch (e) {
           // the rest is saved: keep it, and keep the strategy change in the draft so Save can try it again
           setProfile(saved);
@@ -216,11 +267,41 @@ export function DeviceProfileEditorView({
       notify({ tone: 'success', message: m.profile.saved });
       if (keyChanges.removed.length) void followKeyChanges(keyChanges);
     } catch (e) {
+      if (e instanceof IotApiError && e.code === 'stale') {
+        setStale(true);
+        return;
+      }
       if (e instanceof IotApiError && e.fieldErrors) setServerErrors(e.fieldErrors);
       setSaveError(fill(m.profile.saveError, { message: errorMessage(e, m.profile.loadError) }));
     } finally {
       setSaving(false);
     }
+  }
+
+  /** An edit sent with the version it started from, when the host keeps one (NB 41-ui-fixes/20 1.7). */
+  function sendUpdate(p: DeviceProfile, patch: ReturnType<typeof profilePatch>) {
+    return typeof p.version === 'number' ? api!.update!(profileId, patch, { expectedVersion: p.version }) : api!.update!(profileId, patch);
+  }
+
+  /**
+   * A change to what devices are admitted by, on a profile devices use, ends their live sessions that no longer qualify: asked first,
+   * with the profile and the device count (NB 41-ui-fixes/20 1.3).
+   */
+  async function admissionConfirmed(patch: ReturnType<typeof profilePatch>): Promise<boolean> {
+    // asked unless the host said no device uses the profile: a count not read (yet) is no reason to skip the question
+    const devices = usage?.devices ?? null;
+    if (!profile || !touchesAdmission(patch) || devices === 0) return true;
+    return !!(await confirmDialog({
+      title: fill(m.profile.admissionTitle, { name: profile.name }),
+      message: devices === null ? m.profile.admissionBodyUnknown : fill(m.profile.admissionBody, { devices: deviceCount(devices) }),
+      tone: 'warning',
+      confirmLabel: m.profile.admissionConfirm,
+      cancelLabel: m.common.cancel,
+    }));
+  }
+
+  function deviceCount(n: number): string {
+    return plural(n, { one: m.profile.deviceCount_one, other: m.profile.deviceCount_other }, locale);
   }
 
   /** After a save that removed keys: what still reads them, and (for keys renamed in place) the offer to rewrite it. */
@@ -264,7 +345,7 @@ export function DeviceProfileEditorView({
     setBusy(true);
     try {
       const p = await api.setDefault(profileId);
-      setProfile((cur) => (cur ? { ...cur, isDefault: p.isDefault } : cur));
+      setProfile((cur) => (cur ? { ...cur, isDefault: p.isDefault, version: p.version ?? cur.version } : cur));
       notify({ tone: 'success', message: fill(m.profiles.madeDefault, { name: profile.name }) });
     } catch (e) {
       notify({ tone: 'error', message: errorMessage(e, m.profile.loadError) });
@@ -321,9 +402,17 @@ export function DeviceProfileEditorView({
   if (!profile || !draft || !base) return <SkeletonText lines={8} label={m.common.loading} className={className} />;
 
   const issueTabs = new Set([...(unmarkedOnly ? [] : Object.keys(issues)), ...Object.keys(serverErrors)].map(tabOf));
-  const badge = (id: string) => (issueTabs.has(id) ? <span className="ml-1 inline-block h-2 w-2 rounded-full bg-error" aria-label={m.profile.invalid} /> : undefined);
+  // the dot is drawn, its meaning is read out (an aria-label on a plain span is not; NB 41-ui-fixes/20 1.13)
+  const badge = (id: string) => (issueTabs.has(id) ? (
+    <span className="ml-1 inline-flex items-center">
+      <span aria-hidden="true" className="inline-block h-2 w-2 rounded-full bg-error" />
+      <span className="sr-only">{`(${m.profile.tabHasErrors})`}</span>
+    </span>
+  ) : undefined);
   const inUse = usageList(usage ?? undefined);
   const fromTemplate = !!profile.template && draft.onlineRule === base.onlineRule;
+  const deleteBlocked = profile.isDefault ? m.profiles.deleteDefault : profile.platformTemplate ? m.profiles.deleteTemplate
+    : profile.builtinKey ? m.profiles.deleteBuiltin : null;
 
   const tabs: Tab[] = [
     {
@@ -348,8 +437,8 @@ export function DeviceProfileEditorView({
                 {usage?.unverifiable?.length ? <span className="block text-xs text-warning">{fill(m.profile.usageUnknown, { modules: usage.unverifiable.join(', ') })}</span> : null}
               </dd>
             </div>
-            <div className="min-w-0"><dt className="text-xs text-text-secondary">{m.profile.created}</dt><dd className="text-text-primary">{formatDateTime(profile.createdAt, { locale })}</dd></div>
-            <div className="min-w-0"><dt className="text-xs text-text-secondary">{m.profile.updatedAt}</dt><dd className="text-text-primary">{formatDateTime(profile.updatedAt, { locale })}</dd></div>
+            <div className="min-w-0"><dt className="text-xs text-text-secondary">{m.profile.created}</dt><dd className="text-text-primary">{formatDateTime(profile.createdAt, { locale, timeZone })}</dd></div>
+            <div className="min-w-0"><dt className="text-xs text-text-secondary">{m.profile.updatedAt}</dt><dd className="text-text-primary">{formatDateTime(profile.updatedAt, { locale, timeZone })}</dd></div>
           </dl>
         </div>
       ),
@@ -430,8 +519,9 @@ export function DeviceProfileEditorView({
       content: (
         <ProfileSection title={m.schema.telemetryTitle} hint={m.schema.telemetryHint}>
           <TelemetryKeySchemaTable value={draft.telemetrySchema} readOnly={readOnly} fromFirmware={profile.schemaSource?.label ?? null}
-            error={err('telemetrySchema')} showAll={showAllIssues} onChange={setKeys} />
-          <Toggle id="profile-strict-keys" label={m.schema.strictKeys} description={m.schema.strictKeysHint} checked={draft.strictKeys} disabled={readOnly}
+            error={err('telemetrySchema')} fieldErrors={cellErrors('telemetrySchema')} showAll={showAllIssues} onChange={setKeys} />
+          <Toggle id="profile-strict-keys" label={m.schema.strictKeys} checked={draft.strictKeys} disabled={readOnly}
+            description={notEnforced?.strictKeys ? `${m.schema.strictKeysHint} ${m.profile.notEnforced}` : m.schema.strictKeysHint}
             onChange={(v) => set({ strictKeys: v })} />
         </ProfileSection>
       ),
@@ -441,8 +531,9 @@ export function DeviceProfileEditorView({
       content: (
         <ProfileSection title={m.schema.cfgTitle} hint={m.schema.cfgHint}>
           <CfgSchemaTable value={draft.cfgSchema} readOnly={readOnly} fromFirmware={profile.schemaSource?.label ?? null}
-            error={err('cfgSchema')} onChange={(v) => set({ cfgSchema: v })} />
+            error={err('cfgSchema')} fieldErrors={cellErrors('cfgSchema')} onChange={(v) => set({ cfgSchema: v })} />
           <Select id="profile-drift" label={m.schema.drift} value={draft.cfgDriftPolicy} disabled={readOnly}
+            hint={notEnforced?.cfgDriftPolicy ? m.profile.notEnforced : undefined}
             onChange={(e) => set({ cfgDriftPolicy: e.target.value as CfgDriftPolicy })}
             options={CFG_DRIFT_POLICIES.map((p) => ({ value: p, label: m.schema[p] }))} />
         </ProfileSection>
@@ -468,18 +559,19 @@ export function DeviceProfileEditorView({
             {profile.isDefault && <Badge variant="primary" size="sm">{m.profile.defaultBadge}</Badge>}
             {profile.builtinKey && <Badge variant="neutral" size="sm">{m.profile.builtinBadge}</Badge>}
             {profile.template && <Badge variant="info" size="sm">{fill(m.profile.template, { key: profile.template.key, version: profile.template.version })}</Badge>}
+            {profile.platformTemplate && <Badge variant="warning" size="sm">{fill(m.profile.platformTemplate, { key: profile.platformTemplate.key, version: profile.platformTemplate.version })}</Badge>}
           </h1>
           <p className="mt-1 flex flex-wrap gap-1.5 text-xs text-text-secondary">
             <Badge variant="neutral" size="sm">{transportLabel(profile.transportType, (t) => m.transport[t], offered)}</Badge>
             <Badge variant="neutral" size="sm">{m.online[profile.onlineRule]}</Badge>
-            {usage && usage.devices !== null && <Badge variant="neutral" size="sm">{`${usage.devices} ${m.profiles.devices.toLowerCase()}`}</Badge>}
+            {usage && usage.devices !== null && <Badge variant="neutral" size="sm">{deviceCount(usage.devices)}</Badge>}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => void copyId()} iconLeft={<FontAwesomeIcon icon={copied ? faCheck : faCopy} className="h-3 w-3" aria-hidden="true" />}>
             {copied ? m.common.copied : m.profile.copyId}
           </Button>
-          {caps.canManageProfiles && !profile.isDefault && api.setDefault && (
+          {caps.canManageProfiles && !templateLocked && !profile.isDefault && api.setDefault && (
             <Button variant="outline" size="sm" loading={busy} onClick={() => void makeDefault()}
               iconLeft={<FontAwesomeIcon icon={faStar} className="h-3 w-3" aria-hidden="true" />}>{m.profile.setDefault}</Button>
           )}
@@ -487,9 +579,10 @@ export function DeviceProfileEditorView({
             <Button variant="outline" size="sm" loading={busy} onClick={() => void duplicate()} title={m.profile.duplicateHint}
               iconLeft={<FontAwesomeIcon icon={faClone} className="h-3 w-3" aria-hidden="true" />}>{m.profile.duplicate}</Button>
           )}
-          {caps.canManageProfiles && api.remove && (profile.isDefault || profile.builtinKey ? (
-            <span title={profile.isDefault ? m.profiles.deleteDefault : m.profiles.deleteBuiltin}>
-              <Button variant="ghost" size="sm" disabled iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.profile.delete}</Button>
+          {caps.canManageProfiles && !templateLocked && api.remove && (deleteBlocked ? (
+            <span title={deleteBlocked}>
+              <Button variant="ghost" size="sm" disabled aria-describedby={`${uid}-delete-reason`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.profile.delete}</Button>
+              <span id={`${uid}-delete-reason`} className="sr-only">{deleteBlocked}</span>
             </span>
           ) : (
             <Button onClick={() => { void confirmDialog({ title: fill(m.profiles.deleteConfirm, { name: profile.name }), message: inUse ? fill(m.profiles.deleteInUse, { list: inUse }) : m.profiles.deleteHint, tone: 'danger', confirmLabel: m.profiles.delete, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void remove(); }); }} variant="ghost" size="sm" iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}>{m.profile.delete}</Button>
@@ -497,16 +590,29 @@ export function DeviceProfileEditorView({
         </div>
       </header>
 
-      {readOnly && <Callout variant="info" title={null}>{m.profile.readOnly}</Callout>}
+      {/* capabilities not read yet: no notice; not readable: unknown, said so with a retry; read: what they allow (NB 41-ui-fixes/20 1.12) */}
+      {caps.failed ? (
+        <Callout variant="warning" title={null}>
+          <span className="flex flex-wrap items-center gap-2">
+            {m.common.capabilitiesError}
+            <Button variant="outline" size="xs" onClick={caps.retry}>{m.common.retry}</Button>
+          </span>
+        </Callout>
+      ) : caps.ready && readOnly && <Callout variant="info" title={null}>{templateLocked && caps.canManageProfiles ? m.profile.readOnlyTemplate : m.profile.readOnly}</Callout>}
 
-      <TabGroup tabs={tabs} defaultTab={tab} onTabChange={onTabChange} label={m.profile.tabs} isolate retryLabel={m.common.retry} errorLabel={m.common.loadFailed} errorDetail={m.common.loadFailedDetail} />
+      <TabGroup tabs={tabs} defaultTab={tab} activeTab={tab} onTabChange={onTabChange} label={m.profile.tabs} isolate retryLabel={m.common.retry} errorLabel={m.common.loadFailed} errorDetail={m.common.loadFailedDetail} />
 
       {dirty && !readOnly && (
         <div role="region" aria-label={m.profile.unsaved}
           className="sticky bottom-0 z-10 flex flex-col gap-2 rounded-xl border border-border bg-surface-base p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-sm">
             <p className="font-medium text-text-primary">{m.profile.unsaved}</p>
-            {saveError ? <p role="alert" className="text-xs text-error">{saveError}</p>
+            {stale ? (
+              <p role="alert" className="flex flex-wrap items-center gap-2 text-xs text-error">
+                {m.profile.stale}
+                <Button variant="outline" size="xs" onClick={() => void load()}>{m.profile.staleReload}</Button>
+              </p>
+            ) : saveError ? <p role="alert" className="text-xs text-error">{saveError}</p>
               : blocking && !unmarkedOnly ? <p className="text-xs text-error">{m.profile.invalid}</p>
                 : <p className="text-xs text-text-secondary">{m.profile.leaveTab}</p>}
           </div>

@@ -223,8 +223,8 @@ describe('transport and auth pieces', () => {
     const { container } = render(<TelemetryKeySchemaTable value={[{ key: 'temperature', unit: '°C' }]} fromFirmware="roltek-esp32 1.8.2" />);
     expect(screen.getByText('From firmware roltek-esp32 1.8.2')).toBeInTheDocument();
     expect([...container.querySelectorAll('table input')].map((i) => i.outerHTML)).toEqual([]);
-    expect(parseCfgEnum('1, 2, x', 'integer')).toEqual([1, 2]);
-    expect(parseCfgEnum('true,maybe', 'boolean')).toEqual([true]);
+    expect(parseCfgEnum('1, 2, x', 'integer')).toEqual([1, 2, 'x']);
+    expect(parseCfgEnum('true,maybe', 'boolean')).toEqual([true, 'maybe']);
     expect(parseCfgEnum('', 'string')).toBeUndefined();
     render(<CfgSchemaTable value={[{ key: 'speed', type: 'integer' }]} onChange={() => undefined} />);
     expect(screen.getByLabelText('Key 1')).toHaveAttribute('aria-invalid', 'true');
@@ -383,6 +383,8 @@ describe('DeviceProfileEditorView', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('This transport cannot use the chosen online rule');
     await user.click(screen.getByRole('radio', { name: /Last seen only/ }));
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    // 12 devices use the profile and the transport is an admission field: the save asks first (NB 41-ui-fixes/20 1.3)
+    await user.click(await screen.findByRole('button', { name: 'Save and apply' }));
     await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { transportType: 'LORAWAN', onlineRule: 'LAST_SEEN_ONLY' }));
   });
 
@@ -442,6 +444,8 @@ describe('DeviceProfileEditorView', () => {
     expect(screen.getAllByText(/only Last seen only fits/).length).toBeGreaterThan(0);
     await user.click((screen.getAllByRole('radio') as HTMLInputElement[]).find((r) => r.value === 'LAST_SEEN_ONLY')!);
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    // 12 devices use the profile and the transport is an admission field: the save asks first (NB 41-ui-fixes/20 1.3)
+    await user.click(await screen.findByRole('button', { name: 'Save and apply' }));
     await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { transportType: 'snmp', onlineRule: 'LAST_SEEN_ONLY' }));
   });
 
