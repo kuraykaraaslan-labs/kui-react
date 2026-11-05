@@ -58,3 +58,21 @@ New Domain entries: `FirmwareListView`, `FirmwareUploadDialog`, `OtaAssignDialog
   allowed / not allowed with a confirmation when allowing, the router-approval note, history) and `OtaProfilePanel` (profile Firmware tab:
   updates on/off, LTE, unsigned, time limits, tries, the profile's package and Assign).
 - Phase 03 (waves, pause/resume/cancel) is not built in NB; the rollout view is per package until it is.
+
+## 2026-11-05 — rollouts in waves and the live source (next-boilerplate iot_ota 03, D459-D466)
+
+- `OtaAdapter.rollouts` (optional: a host without it hides everything below): `list({ packageId, status })` and `act(rolloutId, 'pause' |
+  'resume' | 'abort')`; `assignments.create(…, { dryRun, waves })` takes the wave plan (`OtaWaveSpec[]`), and the dry run answers each
+  wave's size (`OtaAssignPreview.waves`).
+- `OtaWavesEditor` in `OtaAssignDrawer` ("Send in waves", a profile or some devices only, never one device): each wave's size (a count or a
+  share of the devices to update; the last wave takes the rest), its wait after it passed, at least updated (%), at most failed (% and
+  devices), how long it stays open; Add a wave, Remove, Use the usual plan (1 % canary of 1-10 devices, 10 %, 50 %, the rest; 5 % / 90 %).
+  It edits a draft only: nothing is saved before "Assign" (no autosave), and an invalid plan locks Check and Assign with the problem in words.
+- `OtaRolloutPanel` (in `OtaRolloutView`, above the device table; every running or paused rollout and the newest that ended): status,
+  "Wave n of N", why it paused or ended, when the open wave closes or the next opens, the last gate reading, the waves in a DataTable
+  (devices, progress bar by state, phase, gate limits; sort, search, phase filter) and Pause / Resume / Abort in its header, each through the
+  ConfirmDialog (resuming past a failed gate says the failures so far are accepted). The device table gains a Wave column and filter and
+  "Waits for wave n" under a held device's state.
+- Live: `OtaAdapter.watch(packageId, { onEvent, onLive })` replaces the `onChange` callback: an event carries the package's counts, its
+  rollouts and the changed devices (`OtaLiveEvent`, the NB `otaRollout` topic); the view merges them, polls only while the source is not
+  live, and reads once more after a reconnect. The demo adapter runs the waves and emits these events on every `step()`.

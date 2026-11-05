@@ -108,9 +108,14 @@ export function FirmwareDetailView({ adapter, packageId, can = {}, backHref, dev
     { key: 'targetType', header: m.detail.target, sortable: true, render: (r) => targetLabel(r) },
     {
       key: 'targetName', header: m.rollout.device, sortable: true,
-      render: (r) => (r.targetType === 'GROUP' ? fill(m.detail.groupOf, { n: r.deviceCount ?? 0 })
-        : r.targetType === 'DEVICE' && deviceHref ? <a href={deviceHref(r.targetId)} className="text-primary hover:underline">{r.targetName ?? r.targetId}</a>
-          : r.targetName ?? r.targetId),
+      render: (r) => (
+        <span>
+          {r.targetType === 'GROUP' ? fill(m.detail.groupOf, { n: r.deviceCount ?? 0 })
+            : r.targetType === 'DEVICE' && deviceHref ? <a href={deviceHref(r.targetId)} className="text-primary hover:underline">{r.targetName ?? r.targetId}</a>
+              : r.targetName ?? r.targetId}
+          {r.rolloutId ? <span className="text-text-secondary"> · {m.detail.inWaves}</span> : null}
+        </span>
+      ),
     },
     { key: 'createdAt', header: m.detail.since, sortable: true, hideBelow: 'sm', render: (r) => formatDateTime(r.createdAt, { locale: lang }) },
   ];
@@ -186,7 +191,10 @@ export function FirmwareDetailView({ adapter, packageId, can = {}, backHref, dev
         emptyMessage={m.detail.noAssignments}
         rowActions={can.assign ? [{ id: 'remove', label: m.detail.remove, destructive: true, onClick: (r) => setAsk({ remove: r }) }] : undefined}
       />
-      <OtaRolloutView adapter={adapter} packageId={pkg.packageId} counts={counts} canRetry={can.assign} deviceHref={deviceHref} reloadKey={tick} messages={m} locale={lang} />
+      <OtaRolloutView
+        adapter={adapter} packageId={pkg.packageId} counts={counts} canRetry={can.assign} canManageRollouts={can.assign} title={pkg.title} version={pkg.version}
+        deviceHref={deviceHref} reloadKey={tick} messages={m} locale={lang}
+      />
       <OtaAssignDrawer
         open={assigning}
         onClose={() => setAssigning(false)}

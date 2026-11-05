@@ -1,12 +1,16 @@
 import { OtaApiError, type OtaAdapter } from './ota-adapter';
 import type {
-  OtaAssignment, OtaAttempt, OtaEvent, OtaOption, OtaPackage, OtaProfileSettings, OtaSettingsInput, OtaSigningKey, OtaState,
+  OtaAssignment, OtaAttempt, OtaEvent, OtaOption, OtaPackage, OtaProfileSettings, OtaRollout, OtaSettingsInput, OtaSigningKey, OtaState,
+  OtaWatchHandlers, OtaWaveSpec,
 } from './types';
 
 /**
  * The in-memory OTA adapter of the kui-react demo (`/theme/iot/firmware`). Seeded with packages, a key, an assignment and devices on their
  * way; every `step()` moves the devices one state on (one fails, then succeeds on retry), an LTE device with updates over LTE off stays
- * WAITING (metered) until it is allowed, and a router that asks first stays WAITING (approval) until `approve()` (OD-7, OD-13).
+ * WAITING (metered) until it is allowed, and a router that asks first stays WAITING (approval) until `approve()` (OD-7, OD-13). An
+ * assignment sent in waves gets a rollout: only its open wave moves, a wave whose failures pass the limit pauses it, a passed wave opens the
+ * next (no soak in the demo), and `watch` sends each package's counts, rollouts and changed devices after every step (the NB `otaRollout`
+ * topic's shape).
  */
 
 const now = Date.now();
@@ -45,6 +49,65 @@ export function createDemoOtaAdapter(opts: { delayMs?: number } = {}): DemoOtaAd
   const events = new Map<string, OtaEvent[]>();
   const failed = new Set<string>();
   const approved = new Set<string>();
+  const rollouts: OtaRollout[] = [];
+  const watchers = new Map<string, Set<OtaWatchHandlers>>();
+  /** Failures a resume accepted, per rollout (only new ones count against the open wave's gate). */
+  const acked = new Map<string, number>();
+  const FINISHED: ReadonlySet<OtaState> = new Set(['UPDATED', 'FAILED', 'TIMEOUT', 'ROLLED_BACK', 'SKIPPED', 'CANCELLED']);
+  const BAD: ReadonlySet<OtaState> = new Set(['FAILED', 'TIMEOUT', 'ROLLED_BACK']);
+  const waveSizes = (waves: readonly OtaWaveSpec[], n: number) => {
+    let left = n;
+    return waves.map((w, i) => {
+      if (i === waves.length - 1) return left;
+      const want = 'count' in w.size ? w.size.count : Math.max(1, Math.round((w.size.percent * n) / 100));
+      const take = Math.max(0, Math.min(left, want));
+      left -= take;
+      return take;
+    });
+  };
+  const waveStates = (r: OtaRollout, wave: number) => {
+    const states: Partial<Record<OtaState, number>> = {};
+    for (const a of attempts.values()) if (a.rolloutId === r.rolloutId && a.wave === wave) states[a.state] = (states[a.state] ?? 0) + 1;
+    return states;
+  };
+  const refresh = (r: OtaRollout) => {
+    r.progress = r.progress.map((p) => ({
+      ...p, states: waveStates(r, p.wave),
+      phase: r.status === 'COMPLETED' || p.wave < r.currentWave ? 'passed' : p.wave > r.currentWave ? (r.status === 'ABORTED' ? 'stopped' : 'waiting')
+        : r.status === 'PAUSED' ? 'paused' : r.status === 'ABORTED' ? 'stopped' : 'open',
+    }));
+    return r;
+  };
+  const openWave = (r: OtaRollout) => {
+    for (const a of attempts.values()) if (a.rolloutId === r.rolloutId && a.wave === r.currentWave && a.state === 'QUEUED') move(a, 'INITIATED');
+  };
+  /** The demo's gate run: the failure share at any time, the next wave when the open one is finished, completed after the last. */
+  const gate = (r: OtaRollout) => {
+    if (r.status !== 'RUNNING') return;
+    const list = [...attempts.values()].filter((a) => a.rolloutId === r.rolloutId && a.wave === r.currentWave && a.state !== 'SKIPPED' && a.state !== 'CANCELLED');
+    const bad = Math.max(0, list.filter((a) => BAD.has(a.state)).length - (acked.get(r.rolloutId) ?? 0));
+    const spec = r.waves[r.currentWave]!;
+    const failurePct = list.length ? Math.round((bad * 10_000) / list.length) / 100 : 0;
+    r.gate = { wave: r.currentWave, failures: bad, base: list.length, failurePct, successPct: null };
+    if (bad > 0 && failurePct > spec.maxFailurePct) { r.status = 'PAUSED'; r.pausedReason = 'failure_gate'; r.pausedAt = new Date().toISOString(); return; }
+    if (list.some((a) => !FINISHED.has(a.state))) return;
+    if (r.currentWave >= r.waves.length - 1) { r.status = 'COMPLETED'; r.endedReason = 'completed'; r.finishedAt = new Date().toISOString(); return; }
+    r.currentWave += 1;
+    r.waveStartedAt = new Date().toISOString();
+    acked.delete(r.rolloutId);
+    openWave(r);
+  };
+  const emit = () => {
+    for (const [packageId, set] of watchers) {
+      const states: Partial<Record<OtaState, number>> = {};
+      for (const a of attempts.values()) if (a.packageId === packageId) states[a.state] = (states[a.state] ?? 0) + 1;
+      const ev = structuredClone({
+        packageId, states, rollouts: rollouts.filter((r) => r.packageId === packageId).map(refresh),
+        rows: [...attempts.values()].filter((a) => a.packageId === packageId).slice(0, 50),
+      });
+      for (const h of set) h.onEvent(ev);
+    }
+  };
 
   const profileSettings = (profileId: string): OtaProfileSettings => ({
     otaEnabled: false, allowMetered: false, allowUnsigned: false, downloadTimeoutMin: 60, updateTimeoutMin: 20, maxAttempts: 3,
@@ -86,6 +149,11 @@ export function createDemoOtaAdapter(opts: { delayMs?: number } = {}): DemoOtaAd
     for (const a of attempts.values()) {
       const d = DEVICES.find((x) => x.id === a.deviceId)!;
       if (['UPDATED', 'FAILED', 'TIMEOUT', 'ROLLED_BACK', 'SKIPPED', 'CANCELLED'].includes(a.state)) continue;
+      if (a.state === 'QUEUED' && a.rolloutId) {
+        // a device of a wave not open yet, or of a paused or ended rollout, gets nothing
+        const r = rollouts.find((x) => x.rolloutId === a.rolloutId);
+        if (!r || r.status !== 'RUNNING' || (a.wave ?? 0) > r.currentWave) continue;
+      }
       if (a.state === 'INITIATED' || a.state === 'WAITING') {
         if (d.lte && !meteredOk(d)) { if (a.state !== 'WAITING' || a.waitReason !== 'metered') move(a, 'WAITING', { waitReason: 'metered' }); continue; }
         if (d.approval && !approved.has(d.id)) { if (a.state !== 'WAITING' || a.waitReason !== 'approval') move(a, 'WAITING', { waitReason: 'approval' }); continue; }
@@ -97,6 +165,8 @@ export function createDemoOtaAdapter(opts: { delayMs?: number } = {}): DemoOtaAd
       const next = ORDER[ORDER.indexOf(a.state) + 1];
       if (next) move(a, next, next === 'DOWNLOADED' ? { progress: 100 } : {});
     }
+    for (const r of rollouts) gate(r);
+    emit();
   }
 
   const adapter: DemoOtaAdapter = {
@@ -172,7 +242,12 @@ export function createDemoOtaAdapter(opts: { delayMs?: number } = {}): DemoOtaAd
           else if (!profileSettings(d.profileId).otaEnabled) incompatible.ota_disabled = (incompatible.ota_disabled ?? 0) + 1;
           else if (d.fw === pkg.version) alreadyOnTarget += 1;
         }
-        const preview = { devices: deviceIds.length, offline: deviceIds.includes('d-3') ? 1 : 0, incompatible, alreadyOnTarget };
+        const toUpdate = deviceIds.filter((did) => {
+          const d = DEVICES.find((x) => x.id === did)!;
+          return !(pkg.profileId && pkg.profileId !== d.profileId) && profileSettings(d.profileId).otaEnabled && d.fw !== pkg.version;
+        });
+        const sizes = o?.waves ? waveSizes(o.waves, toUpdate.length) : undefined;
+        const preview = { devices: deviceIds.length, offline: deviceIds.includes('d-3') ? 1 : 0, incompatible, alreadyOnTarget, ...(sizes ? { waves: sizes } : {}) };
         if (o?.dryRun) return wait({ assignment: null, preview });
         const targetId = target.targetType === 'GROUP' ? id('g') : target.targetId;
         const a: OtaAssignment = {
@@ -183,7 +258,24 @@ export function createDemoOtaAdapter(opts: { delayMs?: number } = {}): DemoOtaAd
         if (target.targetType !== 'GROUP') for (let i = assignments.length - 1; i >= 0; i--) if (assignments[i]!.targetType === target.targetType && assignments[i]!.targetId === targetId) assignments.splice(i, 1);
         assignments.unshift(a);
         for (const did of deviceIds) start(did, packageId, a.assignmentId);
-        for (const did of deviceIds) { const at = attempts.get(did)!; if (at.state === 'QUEUED') move(at, 'INITIATED'); }
+        if (o?.waves && sizes) {
+          // the canary first: online devices (the LTE valve station is the one offline here), then the rest in order
+          const ordered = [...toUpdate.filter((x) => x !== 'd-3'), ...toUpdate.filter((x) => x === 'd-3')];
+          const r: OtaRollout = {
+            rolloutId: id('r'), assignmentId: a.assignmentId, packageId, targetType: a.targetType, targetName: a.targetName ?? null, status: 'RUNNING',
+            currentWave: 0, waves: o.waves, progress: sizes.map((planned, wave) => ({ wave, planned, states: {}, phase: wave === 0 ? 'open' : 'waiting' })),
+            pausedReason: null, pausedAt: null, endedReason: null, waveStartedAt: new Date().toISOString(), closesAt: null, soakUntil: null, gate: null,
+            createdAt: new Date().toISOString(), finishedAt: null,
+          };
+          a.rolloutId = r.rolloutId;
+          let i = 0;
+          sizes.forEach((n, wave) => { for (let k = 0; k < n; k += 1) { const at = attempts.get(ordered[i++]!); if (at) Object.assign(at, { rolloutId: r.rolloutId, wave }); } });
+          rollouts.unshift(r);
+          openWave(r);
+        } else {
+          for (const did of deviceIds) { const at = attempts.get(did)!; if (at.state === 'QUEUED') move(at, 'INITIATED'); }
+        }
+        emit();
         return wait({ assignment: a, preview });
       },
       remove: (assignmentId) => {
@@ -224,6 +316,37 @@ export function createDemoOtaAdapter(opts: { delayMs?: number } = {}): DemoOtaAd
         settings.set(k, { ...(settings.get(k) ?? {}), ...input });
         return adapter.settings.get(targetType, targetId);
       },
+    },
+    rollouts: {
+      list: (q) => wait(rollouts.filter((r) => (!q.packageId || r.packageId === q.packageId) && (!q.status || r.status === q.status)).map(refresh)),
+      act: (rolloutId, action) => {
+        const r = rollouts.find((x) => x.rolloutId === rolloutId);
+        if (!r) return Promise.reject(new OtaApiError('Rollout not found.', 404));
+        const ok = action === 'pause' ? r.status === 'RUNNING' : action === 'resume' ? r.status === 'PAUSED' : r.status === 'RUNNING' || r.status === 'PAUSED';
+        if (!ok) return Promise.reject(new OtaApiError('state', 409, { reason: 'rollout_state' }));
+        if (action === 'pause') Object.assign(r, { status: 'PAUSED', pausedReason: 'manual', pausedAt: new Date().toISOString() });
+        else if (action === 'resume') {
+          if (r.pausedReason === 'failure_gate') {
+            acked.set(r.rolloutId, [...attempts.values()].filter((a) => a.rolloutId === r.rolloutId && a.wave === r.currentWave && BAD.has(a.state)).length);
+          }
+          Object.assign(r, { status: 'RUNNING', pausedReason: null, pausedAt: null });
+          openWave(r);
+        } else {
+          Object.assign(r, { status: 'ABORTED', endedReason: 'aborted', finishedAt: new Date().toISOString() });
+          for (const a of attempts.values()) if (a.rolloutId === r.rolloutId && !FINISHED.has(a.state) && a.state !== 'UPDATING') move(a, 'CANCELLED', { fwError: 'unassigned' });
+          const i = assignments.findIndex((x) => x.assignmentId === r.assignmentId);
+          if (i >= 0) assignments.splice(i, 1);
+        }
+        emit();
+        return wait(refresh(r));
+      },
+    },
+    watch: (packageId, handlers) => {
+      const set = watchers.get(packageId) ?? new Set<OtaWatchHandlers>();
+      set.add(handlers);
+      watchers.set(packageId, set);
+      handlers.onLive?.(true);
+      return () => { set.delete(handlers); handlers.onLive?.(false); };
     },
     profiles: () => wait(PROFILES),
     devices: (q) => wait(DEVICES.filter((d) => (!q.profileId || d.profileId === q.profileId) && (!q.search || d.name.toLowerCase().includes(q.search.toLowerCase()))).slice(0, q.pageSize).map(({ id: i, name, hint }) => ({ id: i, name, hint }))),

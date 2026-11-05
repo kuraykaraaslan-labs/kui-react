@@ -2,7 +2,9 @@ export { FirmwareListView, type FirmwareListViewProps } from './FirmwareListView
 export { FirmwareDetailView, type FirmwareDetailViewProps } from './FirmwareDetailView';
 export { FirmwareUploadDrawer, compareOtaVersions, type FirmwareUploadDrawerProps } from './FirmwareUploadDrawer';
 export { OtaAssignDrawer, previewLines, type OtaAssignDrawerProps, type OtaAssignPreset } from './OtaAssignDrawer';
-export { OtaRolloutView, OtaStateBar, OTA_ROLLOUT_LIMIT, type OtaRolloutViewProps, type OtaStateBarProps } from './OtaRolloutView';
+export { OtaRolloutView, OtaStateBar, OTA_ROLLOUT_LIMIT, mergeOtaAttempts, shownRollouts, type OtaRolloutViewProps, type OtaStateBarProps } from './OtaRolloutView';
+export { OtaRolloutPanel, otaRolloutReason, type OtaRolloutPanelProps } from './OtaRolloutPanel';
+export { OtaWavesEditor, OTA_MAX_WAVES, defaultOtaWaves, otaWavesProblem, otaWavesForApi, type OtaWavesEditorProps } from './OtaWavesEditor';
 export { OtaDevicePanel, type OtaDevicePanelProps } from './OtaDevicePanel';
 export { OtaProfilePanel, type OtaProfilePanelProps } from './OtaProfilePanel';
 export { SigningKeysDrawer, type SigningKeysDrawerProps } from './SigningKeysDrawer';

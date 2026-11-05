@@ -13,7 +13,8 @@ import { fill } from '../format';
 import type { OtaMessages, OtaMessagesInput } from './messages';
 import type { OtaAdapter } from './ota-adapter';
 import { otaErrorText, useOtaText } from './OtaText';
-import type { OtaAssignPreview, OtaAssignTarget, OtaOption, OtaPackage, OtaTargetType } from './types';
+import { defaultOtaWaves, otaWavesForApi, otaWavesProblem, OtaWavesEditor } from './OtaWavesEditor';
+import type { OtaAssignPreview, OtaAssignTarget, OtaOption, OtaPackage, OtaTargetType, OtaWaveSpec } from './types';
 
 type DeviceRow = OtaOption & Record<string, unknown>;
 
@@ -33,11 +34,12 @@ export interface OtaAssignDrawerProps {
   locale?: string;
 }
 
-/** The confirmation's lines from a dry run: covered, offline, already on it, and the skipped by reason. */
+/** The confirmation's lines from a dry run: covered, offline, already on it, the waves' sizes, and the skipped by reason. */
 export function previewLines(m: OtaMessages, p: OtaAssignPreview): { lines: string[]; skipped: Array<{ reason: string; n: number }> } {
   const lines = [fill(m.assign.previewDevices, { n: p.devices })];
   if (p.offline) lines.push(fill(m.assign.previewOffline, { n: p.offline }));
   if (p.alreadyOnTarget) lines.push(fill(m.assign.previewAlready, { n: p.alreadyOnTarget }));
+  if (p.waves?.length) lines.push(fill(m.waves.previewWaves, { sizes: p.waves.map((count, i) => fill(m.waves.previewWave, { n: i + 1, count })).join(', ') }));
   const skipped = Object.entries(p.incompatible).filter(([, n]) => (n ?? 0) > 0).map(([reason, n]) => ({ reason: (m.block as Record<string, string>)[reason] ?? reason, n: n ?? 0 }));
   return { lines, skipped };
 }
@@ -46,7 +48,9 @@ export function previewLines(m: OtaMessages, p: OtaAssignPreview): { lines: stri
  * OtaAssignDrawer — who gets a package: every device of a profile (later ones too), some devices (a list frozen now: picked one by one,
  * or all devices a profile has now), or one device. "Check" runs a dry run and shows what would happen (devices covered, offline, already
  * on the version, and the ones that would not take it with the reason in words, plus the metered-link and router-approval rules,
- * OD-7/OD-13); "Assign" asks once more through the ConfirmDialog with the device count.
+ * OD-7/OD-13); "Assign" asks once more through the ConfirmDialog with the device count. With a host that runs rollouts (`adapter.rollouts`),
+ * a profile or some devices may be sent in waves (`OtaWavesEditor`, the usual plan to start from); the check then shows each wave's size.
+ * Nothing is saved before "Assign".
  */
 export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset, onAssigned, messages, locale }: OtaAssignDrawerProps) {
   const { m } = useOtaText(messages, locale);
@@ -62,13 +66,15 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
   const [busy, setBusy] = useState(false);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inWaves, setInWaves] = useState(false);
+  const [waves, setWaves] = useState<OtaWaveSpec[]>(() => defaultOtaWaves());
 
   const ready = useMemo(() => (packages ?? []).filter((p) => p.status === 'READY'), [packages]);
   const chosen = pkg ?? ready.find((p) => p.packageId === chosenId) ?? null;
 
   const close = () => {
     setChosenId(''); setTargetType(preset?.targetType ?? 'PROFILE'); setProfileId(''); setWholeProfile(false); setSearch(''); setPicked([]);
-    setPreview(null); setError(null); setAsking(false);
+    setPreview(null); setError(null); setAsking(false); setInWaves(false); setWaves(defaultOtaWaves());
     onClose();
   };
 
@@ -97,15 +103,19 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
         : wholeProfile ? (profileId ? { targetType: 'GROUP', selector: { profileId } } : null)
           : picked.length ? { targetType: 'GROUP', deviceIds: picked.map(String) } : null;
 
+  // waves: a host that runs rollouts, and a profile or some devices (one device is never sent in waves)
+  const wavesAllowed = !!adapter.rollouts && (preset ? preset.targetType === 'PROFILE' : targetType !== 'DEVICE');
+  const plan = wavesAllowed && inWaves ? otaWavesForApi(waves) : null;
+  const wavesProblem = plan ? otaWavesProblem(m, waves) : null;
   // a new choice needs a new check: a result counts only for the choice it was made for
-  const choiceKey = JSON.stringify([chosen?.packageId ?? null, target]);
+  const choiceKey = JSON.stringify([chosen?.packageId ?? null, target, plan]);
   const preview = checked && checked.key === choiceKey ? checked.preview : null;
 
   async function check() {
-    if (!chosen || !target) return;
+    if (!chosen || !target || wavesProblem) return;
     setBusy(true); setError(null);
     try {
-      const r = await adapter.assignments.create(chosen.packageId, target, { dryRun: true });
+      const r = await adapter.assignments.create(chosen.packageId, target, { dryRun: true, ...(plan ? { waves: plan } : {}) });
       setPreview({ key: choiceKey, preview: r.preview });
     } catch (e) {
       setError(otaErrorText(m, e));
@@ -118,7 +128,7 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
     if (!chosen || !target) return;
     setBusy(true); setError(null);
     try {
-      await adapter.assignments.create(chosen.packageId, target);
+      await adapter.assignments.create(chosen.packageId, target, plan ? { waves: plan } : undefined);
       close();
       onAssigned();
     } catch (e) {
@@ -145,8 +155,8 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
       footer={(
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="ghost" onClick={close} disabled={busy}>{m.common.cancel}</Button>
-          <Button variant="outline" onClick={() => void check()} loading={busy && !asking} disabled={busy || !chosen || !target}>{m.assign.check}</Button>
-          <Button variant="primary" onClick={() => setAsking(true)} disabled={busy || !preview || preview.devices === 0}>{m.assign.submit}</Button>
+          <Button variant="outline" onClick={() => void check()} loading={busy && !asking} disabled={busy || !chosen || !target || !!wavesProblem}>{m.assign.check}</Button>
+          <Button variant="primary" onClick={() => setAsking(true)} disabled={busy || !preview || preview.devices === 0 || !!wavesProblem}>{m.assign.submit}</Button>
         </div>
       )}
     >
@@ -196,6 +206,15 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
               </div>
             )}
           </>
+        )}
+        {wavesAllowed && (
+          <div className="space-y-3 rounded-md border border-border p-3">
+            <Checkbox
+              id="ota-assign-waves" label={m.waves.toggle} hint={m.waves.toggleHint} checked={inWaves}
+              onChange={(e) => { setInWaves(e.target.checked); if (e.target.checked && checked) setWaves(defaultOtaWaves(checked.preview.devices)); }}
+            />
+            {inWaves && <OtaWavesEditor value={waves} onChange={setWaves} deviceCount={checked?.preview.devices ?? 0} disabled={busy} messages={m} />}
+          </div>
         )}
         {lines && preview && (
           <section className="space-y-2 rounded-md border border-border bg-surface-sunken p-3 text-sm" aria-live="polite" data-ota-preview>

@@ -88,6 +88,8 @@ export interface OtaAssignment {
   packageId: string;
   /** A group's frozen device count. */
   deviceCount: number | null;
+  /** The rollout in waves of this assignment, when it has one (NB iot_ota 03). */
+  rolloutId?: string | null;
   createdAt: string;
 }
 
@@ -110,6 +112,8 @@ export interface OtaAssignPreview {
   offline: number;
   incompatible: Partial<Record<OtaBlockReason | string, number>>;
   alreadyOnTarget: number;
+  /** With waves: how many devices each wave takes (the devices to update, in wave order). */
+  waves?: number[];
 }
 
 /** One device's current attempt of a package. */
@@ -118,6 +122,9 @@ export interface OtaAttempt {
   deviceName?: string | null;
   packageId: string;
   assignmentId: string | null;
+  /** The rollout in waves and the wave (0-based) the attempt belongs to, if any; a device of a wave not open yet stays QUEUED. */
+  rolloutId?: string | null;
+  wave?: number | null;
   state: OtaState;
   waitReason: OtaWaitReason | null;
   fromVersion: string | null;
@@ -180,4 +187,86 @@ export interface OtaAbilities {
   assign?: boolean;
   /** Register and revoke signing public keys. */
   manageKeys?: boolean;
+}
+
+// ── rollouts in waves (NB iot_ota 03) ────────────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One wave of a rollout: a count or a share of the devices to update (the last wave takes the rest), how long to wait after it passed
+ * (`soakMin`), its gates, and how long it may stay open before devices still on their way (offline, waiting) are carried on.
+ */
+export interface OtaWaveSpec {
+  size: { percent: number } | { count: number };
+  soakMin: number;
+  /** Minimum share of updated devices among the wave's finished ones (0–100). */
+  minSuccessPct: number;
+  /** Maximum share of failed devices (failed, no answer, went back) among the wave's devices to update (0–100); above it the rollout pauses at once. */
+  maxFailurePct: number;
+  /** Maximum number of failed devices in the wave; null = only the share counts. */
+  maxFailures?: number | null;
+  maxDurationMin: number;
+}
+
+export const OTA_ROLLOUT_STATUSES = ['RUNNING', 'PAUSED', 'COMPLETED', 'ABORTED'] as const;
+export type OtaRolloutStatus = (typeof OTA_ROLLOUT_STATUSES)[number];
+export type OtaPauseReason = 'failure_gate' | 'success_gate' | 'no_result' | 'manual';
+export type OtaWavePhase = 'waiting' | 'open' | 'soaking' | 'passed' | 'paused' | 'stopped';
+
+export interface OtaWaveProgress {
+  /** 0-based. */
+  wave: number;
+  planned: number;
+  states: Partial<Record<OtaState, number>>;
+  phase: OtaWavePhase;
+}
+
+/** The last gate evaluation of the open wave. */
+export interface OtaGateFacts {
+  wave: number;
+  failures: number;
+  base: number;
+  failurePct: number;
+  successPct: number | null;
+}
+
+export interface OtaRollout {
+  rolloutId: string;
+  assignmentId: string;
+  packageId: string;
+  targetType: OtaTargetType | null;
+  targetName: string | null;
+  status: OtaRolloutStatus;
+  /** 0-based. */
+  currentWave: number;
+  waves: OtaWaveSpec[];
+  progress: OtaWaveProgress[];
+  pausedReason: OtaPauseReason | null;
+  pausedAt: string | null;
+  /** completed, aborted, assignment_removed, replaced, package_revoked. */
+  endedReason: string | null;
+  waveStartedAt: string;
+  /** The open wave closes at the latest then (its devices still on their way are carried on). */
+  closesAt: string | null;
+  /** The passed wave's waiting time ends then and the next wave opens. */
+  soakUntil: string | null;
+  gate: OtaGateFacts | null;
+  createdAt: string;
+  finishedAt: string | null;
+}
+
+export type OtaRolloutAction = 'pause' | 'resume' | 'abort';
+
+/** One live event of a package (NB topic `otaRollout`): the counts now, its rollouts, and the devices that changed since the last one. */
+export interface OtaLiveEvent {
+  packageId: string;
+  states: Partial<Record<OtaState, number>>;
+  rollouts: OtaRollout[];
+  rows: OtaAttempt[];
+}
+
+/** What a live source calls while a package is watched. */
+export interface OtaWatchHandlers {
+  onEvent(event: OtaLiveEvent): void;
+  /** true while events arrive (the views stop polling); false when the source is connecting or gone (the views poll). */
+  onLive?(live: boolean): void;
 }

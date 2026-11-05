@@ -9,6 +9,9 @@ import { OTA_MESSAGES, flattenOtaMessages, otaMessagesFrom } from './messages';
 import { OtaDevicePanel } from './OtaDevicePanel';
 import { OtaStateBadge } from './OtaStateBadge';
 import { previewLines } from './OtaAssignDrawer';
+import { mergeOtaAttempts, shownRollouts } from './OtaRolloutView';
+import { OtaRolloutPanel } from './OtaRolloutPanel';
+import { defaultOtaWaves, otaWavesProblem, otaWavesForApi } from './OtaWavesEditor';
 
 const CAN = { managePackages: true, assign: true, manageKeys: true };
 
@@ -75,5 +78,81 @@ describe('OTA views (iot-platform 06)', () => {
     await waitFor(async () => expect((await adapter.settings.get('device', 'd-3')).stored.allowMetered).toBe(true));
     adapter.step();
     expect((await adapter.device('d-3')).attempt?.state).toBe('DOWNLOADING');
+  });
+});
+
+describe('rollouts in waves (NB iot_ota 03)', () => {
+  it('the usual plan is a small canary, 10 %, 50 % and the rest; a broken plan is put into words; the last wave goes to the API as the rest', () => {
+    const plan = defaultOtaWaves(500);
+    expect(plan.map((w) => w.size)).toEqual([{ count: 5 }, { percent: 10 }, { percent: 50 }, { percent: 100 }]);
+    expect(otaWavesProblem(OTA_MESSAGES, plan)).toBeNull();
+    expect(otaWavesProblem(OTA_MESSAGES, [{ ...plan[0]!, size: { percent: 0 } }, plan[3]!])).toContain(OTA_MESSAGES.waves.problemSize);
+    expect(otaWavesProblem(OTA_MESSAGES, [{ ...plan[0]!, maxDurationMin: 1 }])).toContain(OTA_MESSAGES.waves.problemDuration);
+    expect(otaWavesProblem(OTA_MESSAGES, [{ ...plan[0]!, maxFailurePct: Number.NaN }])).toContain(OTA_MESSAGES.waves.problemPct);
+    expect(otaWavesForApi([plan[0]!, { ...plan[1]!, size: { count: 3 } }]).at(-1)!.size).toEqual({ percent: 100 });
+  });
+
+  it('merges the changed devices of a live event into the table and keeps the newest ended rollout with the running ones', () => {
+    const base = { packageId: 'p', assignmentId: null, waitReason: null, fromVersion: '1', toVersion: '2', fwError: null, attempts: 1, progress: null, stateChangedAt: '2026-01-01T00:00:00Z', startedAt: null, finishedAt: null } as const;
+    const rows = [{ ...base, deviceId: 'a', deviceName: 'A', state: 'QUEUED' as const }];
+    const merged = mergeOtaAttempts(rows, [{ ...base, deviceId: 'a', state: 'DOWNLOADING' }, { ...base, deviceId: 'b', state: 'INITIATED' }, { ...base, packageId: 'x', deviceId: 'c', state: 'UPDATED' }], 'p');
+    expect(merged.map((r) => [r.deviceId, r.state, r.deviceName ?? null])).toEqual([['b', 'INITIATED', null], ['a', 'DOWNLOADING', 'A']]);
+    const ro = (id: string, status: 'RUNNING' | 'COMPLETED' | 'ABORTED', finishedAt: string | null) => ({ rolloutId: id, status, finishedAt, createdAt: '2026-01-01T00:00:00Z' }) as never;
+    expect(shownRollouts([ro('old', 'COMPLETED', '2026-01-02T00:00:00Z'), ro('run', 'RUNNING', null), ro('new', 'ABORTED', '2026-01-03T00:00:00Z')]).map((r: { rolloutId: string }) => r.rolloutId)).toEqual(['run', 'new']);
+  });
+
+  it('sends a profile in waves: only the canary gets the update first, the plan shows in the check, and the waves follow on the package page', async () => {
+    const adapter = createDemoOtaAdapter({ delayMs: 0 });
+    render(<FirmwareDetailView adapter={adapter} packageId="pkg-2" can={CAN} />);
+    await userEvent.click(await screen.findByRole('button', { name: OTA_MESSAGES.detail.assign }));
+    const drawer = await screen.findByRole('dialog');
+    await userEvent.selectOptions(within(drawer).getByLabelText(OTA_MESSAGES.assign.profile), 'p-rut');
+    await userEvent.click(within(drawer).getByRole('checkbox', { name: OTA_MESSAGES.waves.toggle }));
+    expect(within(drawer).getByRole('region', { name: OTA_MESSAGES.waves.editorTitle })).toBeTruthy();
+    // two waves: one device, then the rest
+    for (const n of [3, 2]) await userEvent.click(within(drawer).getByRole('button', { name: `Remove wave ${n}` }));
+    await userEvent.click(within(drawer).getByRole('button', { name: OTA_MESSAGES.assign.check }));
+    expect(await within(drawer).findByText('In waves: wave 1 1, wave 2 3.')).toBeTruthy();
+    await userEvent.click(within(drawer).getByRole('button', { name: OTA_MESSAGES.assign.submit }));
+    const confirm = (await screen.findAllByRole('dialog')).at(-1)!;
+    await userEvent.click(within(confirm).getByRole('button', { name: OTA_MESSAGES.assign.submit }));
+    const panel = await screen.findByRole('region', { name: OTA_MESSAGES.waves.title });
+    expect(within(panel).getByText(/Wave 1 of 2/)).toBeTruthy();
+    const states = (await adapter.attempts({ packageId: 'pkg-2' })).filter((a) => a.rolloutId);
+    expect(states.filter((a) => a.state === 'INITIATED')).toHaveLength(1);
+    expect(states.filter((a) => a.state === 'QUEUED' && a.wave === 1)).toHaveLength(3);
+  });
+
+  it('pauses, resumes and aborts a rollout only through the ConfirmDialog', async () => {
+    const adapter = createDemoOtaAdapter({ delayMs: 0 });
+    await adapter.assignments.create('pkg-2', { targetType: 'PROFILE', targetId: 'p-rut' }, { waves: [{ ...defaultOtaWaves()[0]! }, { ...defaultOtaWaves()[3]! }] });
+    const [r] = await adapter.rollouts!.list({ packageId: 'pkg-2' });
+    render(<OtaRolloutPanel adapter={adapter} rollout={r!} title="roltek-rut-fw" version="24.10.1-r1234" canAct />);
+    await userEvent.click(screen.getByRole('button', { name: OTA_MESSAGES.waves.pause }));
+    let confirm = (await screen.findAllByRole('dialog')).at(-1)!;
+    expect(within(confirm).getByText('Pause the rollout of roltek-rut-fw 24.10.1-r1234?')).toBeTruthy();
+    expect((await adapter.rollouts!.list({ packageId: 'pkg-2' }))[0]!.status).toBe('RUNNING');
+    await userEvent.click(within(confirm).getByRole('button', { name: OTA_MESSAGES.waves.pause }));
+    await waitFor(async () => expect((await adapter.rollouts!.list({ packageId: 'pkg-2' }))[0]!.status).toBe('PAUSED'));
+    await userEvent.click(screen.getByRole('button', { name: OTA_MESSAGES.waves.abort }));
+    confirm = (await screen.findAllByRole('dialog')).at(-1)!;
+    await userEvent.click(within(confirm).getByRole('button', { name: OTA_MESSAGES.waves.abort }));
+    await waitFor(async () => expect((await adapter.rollouts!.list({ packageId: 'pkg-2' }))[0]!.status).toBe('ABORTED'));
+  });
+
+  it('a wave whose failures pass the limit pauses the rollout and the panel says why', async () => {
+    const adapter = createDemoOtaAdapter({ delayMs: 0 });
+    // the reservoir router fails once at verify: as the only device of the first wave it is 100 % failed
+    await adapter.assignments.create('pkg-2', { targetType: 'GROUP', deviceIds: ['d-2', 'd-1'] }, { waves: [{ ...defaultOtaWaves()[0]!, size: { count: 1 } }, defaultOtaWaves()[3]!] });
+    const first = (await adapter.attempts({ packageId: 'pkg-2' })).find((a) => a.rolloutId && a.wave === 0)!;
+    expect(first.deviceId).toBe('d-2');
+    for (let i = 0; i < 6; i += 1) adapter.step();
+    const [r] = await adapter.rollouts!.list({ packageId: 'pkg-2' });
+    expect(r).toMatchObject({ status: 'PAUSED', pausedReason: 'failure_gate' });
+    render(<OtaRolloutPanel adapter={adapter} rollout={r!} title="t" version="v" canAct />);
+    expect(screen.getByText(`Paused: ${OTA_MESSAGES.pauseReason.failure_gate}.`)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: OTA_MESSAGES.waves.resume }));
+    const confirm = (await screen.findAllByRole('dialog')).at(-1)!;
+    expect(within(confirm).getByText(/Resuming accepts what happened so far/)).toBeTruthy();
   });
 });

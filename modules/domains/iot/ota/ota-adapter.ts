@@ -1,6 +1,7 @@
 import type {
   OtaAssignPreview, OtaAssignTarget, OtaAssignment, OtaAttempt, OtaDeviceView, OtaKeyScheme, OtaOption, OtaPackage, OtaPackageMeta,
-  OtaSettingsInput, OtaSettingsView, OtaSigningKey, OtaState, OtaTargetType,
+  OtaRollout, OtaRolloutAction, OtaRolloutStatus, OtaSettingsInput, OtaSettingsView, OtaSigningKey, OtaState, OtaTargetType, OtaWatchHandlers,
+  OtaWaveSpec,
 } from './types';
 
 /**
@@ -30,8 +31,11 @@ export interface OtaAdapter {
   };
   assignments: {
     list(q: { packageId?: string; targetType?: OtaTargetType; targetId?: string }, signal?: AbortSignal): Promise<OtaAssignment[]>;
-    /** `dryRun` answers the counts of the confirmation and writes nothing. */
-    create(packageId: string, target: OtaAssignTarget, opts?: { dryRun?: boolean }): Promise<{ assignment: OtaAssignment | null; preview: OtaAssignPreview }>;
+    /**
+     * `dryRun` answers the counts of the confirmation and writes nothing. `waves` (a profile or some devices, with `rollouts`) sends the update
+     * wave by wave; the dry run then answers each wave's size too.
+     */
+    create(packageId: string, target: OtaAssignTarget, opts?: { dryRun?: boolean; waves?: OtaWaveSpec[] }): Promise<{ assignment: OtaAssignment | null; preview: OtaAssignPreview }>;
     remove(assignmentId: string): Promise<void>;
   };
   /** Current attempts, newest change first (a package's devices, or one state). */
@@ -46,8 +50,19 @@ export interface OtaAdapter {
   /** The profiles and devices the assign drawer offers. */
   profiles(signal?: AbortSignal): Promise<OtaOption[]>;
   devices(q: { search: string; profileId?: string; pageSize: number }, signal?: AbortSignal): Promise<OtaOption[]>;
-  /** Optional live updates of a package's attempts: call `onChange` when something moved; returns the unsubscribe. Without it the views poll. */
-  watch?(packageId: string, onChange: () => void): () => void;
+  /**
+   * Rollouts in waves (optional: a host without them hides the waves editor and panel). `act` pauses a running rollout, resumes a paused
+   * one (past the gate that stopped it) or aborts either (its assignment is removed).
+   */
+  rollouts?: {
+    list(q: { packageId?: string; status?: OtaRolloutStatus }, signal?: AbortSignal): Promise<OtaRollout[]>;
+    act(rolloutId: string, action: OtaRolloutAction): Promise<OtaRollout>;
+  };
+  /**
+   * Optional live updates of a package (counts, rollouts, changed devices); returns the unsubscribe. While `onLive(true)` holds the views do
+   * not poll; without `watch`, or while it is not live, they read again every few seconds as long as something is on its way.
+   */
+  watch?(packageId: string, handlers: OtaWatchHandlers): () => void;
 }
 
 /** A refused request: the HTTP status and the server's `details.reason` (and the rest of its details). */
