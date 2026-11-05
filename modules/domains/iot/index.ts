@@ -199,3 +199,10 @@ export {
   otaMessagesFrom, flattenOtaMessages,
 } from './ota';
 export type { OtaAdapter, OtaMessages, OtaMessagesInput } from './ota';
+
+// ── eSIM (next-boilerplate iot_esim 01, D468-D475): a router's chip and profiles, the device page's eSIM button and drawer ────────────────
+export {
+  EsimPanel, EsimDeviceAction, EsimAddProfileForm, EsimAddProfileDrawer, EsimOperationBadge, EsimTextProvider, EsimApiError, isEsimApiError,
+  ESIM_MESSAGES, mergeEsimMessages, esimMessagesFrom, flattenEsimMessages,
+} from './esim';
+export type { EsimAdapter, EsimMessages, EsimMessagesInput } from './esim';
