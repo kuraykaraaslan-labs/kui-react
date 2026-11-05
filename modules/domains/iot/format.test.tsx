@@ -19,7 +19,7 @@ describe('counts, durations and times', () => {
   it('durations use the host\'s unit texts and the locale\'s decimals', () => {
     expect(formatSeconds(86_400)).toBe('1 d');
     expect(formatSeconds(5_400)).toBe('1.5 h');
-    expect(formatSeconds(5_400, { seconds: '{n} sn', minutes: '{n} dk', hours: '{n} sa', days: '{n} g', secondsShort: 'sn' }, 'tr')).toBe('1,5 sa');
+    expect(formatSeconds(5_400, { seconds: '{n} sn', minutes: '{n} dk', hours: '{n} sa', days: '{n} g', secondsShort: 'sn', milliseconds: '{n} ms' }, 'tr')).toBe('1,5 sa');
     expect(formatSeconds(90, undefined, 'en')).toBe('1.5 min');
     expect(formatNumber(2.25, 'en', 1)).toBe('2.3');
   });

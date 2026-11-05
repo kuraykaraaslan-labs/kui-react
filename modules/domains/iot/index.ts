@@ -81,8 +81,9 @@ export type { DeviceListViewProps } from './device/DeviceListView';
 export { RpcStatusBadge } from './rpc/RpcStatusBadge';
 export { RpcSendPanel } from './rpc/RpcSendPanel';
 export type { RpcSendPanelProps } from './rpc/RpcSendPanel';
-export { RpcRequestList, rpcDurationMs } from './rpc/RpcRequestList';
-export { RpcRequestDetail } from './rpc/RpcRequestDetail';
+export { RpcRequestList, rpcDurationMs, rpcDuration } from './rpc/RpcRequestList';
+export { RpcRequestDetail, rpcErrorText } from './rpc/RpcRequestDetail';
+export { rpcParamProblems, rpcParamsToSend } from './rpc/rpc-params';
 export { RpcConsoleView } from './rpc/RpcConsoleView';
 
 // ── Device profiles (phase 01 §1.4; NB iot_device_profile 03) ──────────────────────────────────────────────────────

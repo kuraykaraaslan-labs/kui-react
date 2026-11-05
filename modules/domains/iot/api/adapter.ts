@@ -217,8 +217,11 @@ export interface IotAlarmRulesApi {
 export interface IotRpcCatalogApi {
   list(profileId: string, signal?: AbortSignal): Promise<{ commands: RpcCatalogCommand[]; supported: boolean }>;
   create(profileId: string, command: RpcCommandInput): Promise<RpcCatalogCommand>;
-  /** Every field but the method (a renamed method is a new command). */
-  update(profileId: string, commandId: string, patch: Partial<Omit<RpcCommandInput, 'method'>>): Promise<RpcCatalogCommand>;
+  /**
+   * Every field but the method (a renamed method is a new command); the editor sends only the fields it changed. With `expectedVersion`
+   * (the command's `version` as the editor read it) a host refuses a command someone changed meanwhile with `stale` (NB 41-ui-fixes/23 1.17).
+   */
+  update(profileId: string, commandId: string, patch: Partial<Omit<RpcCommandInput, 'method'>>, options?: { expectedVersion?: number }): Promise<RpcCatalogCommand>;
   remove(profileId: string, commandId: string): Promise<void>;
   /** The import shape (no ids). */
   exportAll(profileId: string): Promise<RpcCommandInput[]>;
@@ -352,8 +355,18 @@ export type RpcCatalog = {
   /** False when the device cannot take RPC at all (OD-85: a ThingsBoard-scheme profile); `reason` says why. */
   supported: boolean;
   reason?: string;
+  /**
+   * The host's own rule for a parameter name that is a secret whatever the catalog says (NB: `iot_rpc`'s `isSecretParam`; `raw`: a method
+   * outside the catalog, where the host may hold more names secret). The panel types such a parameter in a password field and hides it in
+   * the confirmation; "Send again" leaves it out. Absent: only the commands' `maskedParams` (NB 41-ui-fixes/23 C7).
+   */
+  isSecretParam?(name: string, raw: boolean): boolean;
 };
 
+/**
+ * A live state change. A host leaves out what its event does not carry (a live event carries no params or answer, and may carry no
+ * one-way or persistent flag): the view keeps what it already read for those (NB 41-ui-fixes/23 N3).
+ */
 export type RpcLiveEvent = { request: RpcRequest };
 
 export interface IotRpcApi {
@@ -364,10 +377,18 @@ export interface IotRpcApi {
   /** One page; `total` (the rows across every page) lets the table page, sort and filter on the host. */
   list(query: RpcListQuery, signal?: AbortSignal): Promise<{ items: RpcRequest[]; nextCursor: string | null; total?: number }>;
   get(rpcId: string, signal?: AbortSignal): Promise<RpcRequest>;
-  /** QUEUED or SENT only. */
+  /**
+   * QUEUED or SENT only. A SENT request may already be on the device: the answer's `errorReason` `cancelled_after_sent` says so, and the
+   * view words it that way.
+   */
   cancel(rpcId: string): Promise<RpcRequest>;
   /** An `rpc` live payload (a state change, no params or answer) as an event, or null. */
   parseLive?(payload: unknown): RpcLiveEvent | null;
+  /**
+   * An `rpc` snapshot (sent on every (re)subscribe: the requests as they stand now) as requests, or null. The console merges it, so
+   * changes made while the connection was down are not missed (NB 41-ui-fixes/23 1.12).
+   */
+  parseSnapshot?(payload: unknown): RpcRequest[] | null;
 }
 
 // ── sites and assets (phase 08) ─────────────────────────────────────────────────────────────────────────────────────

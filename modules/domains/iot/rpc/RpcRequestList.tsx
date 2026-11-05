@@ -4,9 +4,9 @@ import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column, DataTableFilterField, DataTableQuery } from '@/modules/ui/Table/types';
 import { useIotText } from '../api/IotAdapterProvider';
 import { LIST_PAGE_SIZES } from '../api/list-table';
-import { formatDateTime, formatRelative, toDate } from '../format';
+import { fill, formatDateTime, formatNumber, formatRelative, toDate } from '../format';
 import { RPC_STATUSES, type RpcRequest } from '../types/rpc';
-import type { IotMessagesInput } from '../messages';
+import type { IotMessages, IotMessagesInput } from '../messages';
 import { RpcStatusBadge } from './RpcStatusBadge';
 
 /**
@@ -48,15 +48,18 @@ export function rpcDurationMs(r: Pick<RpcRequest, 'createdAt' | 'completedAt'>):
   return a && b ? Math.max(0, b.getTime() - a.getTime()) : null;
 }
 
-function duration(ms: number | null): string {
+/** A duration in the viewer's units and digits ("850 ms", "1.5 s", "1,5 sn", "3 min"; NB 41-ui-fixes/23 1.21). */
+export function rpcDuration(ms: number | null, units: IotMessages['units'], locale?: string): string {
   if (ms === null) return '—';
-  return ms < 1000 ? `${ms} ms` : ms < 60_000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms / 60_000)} min`;
+  if (ms < 1000) return fill(units.milliseconds, { n: formatNumber(ms, locale, 0) });
+  if (ms < 60_000) return fill(units.seconds, { n: formatNumber(ms / 1000, locale, 1) });
+  return fill(units.minutes, { n: formatNumber(ms / 60_000, locale, 0) });
 }
 
 export function RpcRequestList({
   requests, onOpen, showDevice = false, fresh, loading = false, error, onRetry, total, onQueryChange, defaultQuery, locale, now, messages, className,
 }: RpcRequestListProps) {
-  const { m, locale: lang } = useIotText(messages, locale);
+  const { m, locale: lang, timeZone } = useIotText(messages, locale);
   const sourceLabel = (s: string) => (m.rpc as Record<string, string>)[`source_${s}`] ?? s;
   const statusLabel = (s: string) => (m.rpc as Record<string, string>)[s] ?? s;
   const columns: Column<RpcRequest>[] = [
@@ -66,11 +69,11 @@ export function RpcRequestList({
     { key: 'source', header: m.rpc.sentBy, sortable: true, searchable: false, hideBelow: 'md', render: (r) => sourceLabel(r.source) },
     {
       key: 'createdAt', header: m.rpc.created, sortable: true, searchable: false, hideBelow: 'sm',
-      render: (r) => <time className="text-xs text-text-secondary" title={formatDateTime(r.createdAt, { locale: lang })}>{formatRelative(r.createdAt, { locale: lang, now })}</time>,
+      render: (r) => <time className="text-xs text-text-secondary" title={formatDateTime(r.createdAt, { locale: lang, timeZone })}>{formatRelative(r.createdAt, { locale: lang, now })}</time>,
     },
     {
       key: 'completedAt', header: m.rpc.duration, sortable: true, searchable: false, hideBelow: 'lg', align: 'right',
-      render: (r) => <span className="tabular-nums text-xs" title={r.completedAt ? formatDateTime(r.completedAt, { locale: lang }) : undefined}>{duration(rpcDurationMs(r))}</span>,
+      render: (r) => <span className="tabular-nums text-xs" title={r.completedAt ? formatDateTime(r.completedAt, { locale: lang, timeZone }) : undefined}>{rpcDuration(rpcDurationMs(r), m.units, lang)}</span>,
     },
   ];
   const filterFields = useMemo((): DataTableFilterField<RpcRequest>[] => [
