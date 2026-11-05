@@ -172,3 +172,42 @@ describe('DeviceTelemetryView', () => {
     expect(await screen.findByText('At most 2 keys at a time.')).toBeInTheDocument();
   });
 });
+
+describe('DeviceTelemetryView beside live (NB 41-ui-fixes/23 1.18)', () => {
+  it('reads every key again slowly while live (a value too large for the live channel), never over a newer live value', async () => {
+    const { api } = telemetryApi();
+    const { live, subs } = fakeLive();
+    render(
+      <IotAdapterProvider adapter={{ telemetry: api }} live={live} capabilities={{ canReadTelemetry: true }}>
+        <DeviceTelemetryView deviceId="d1" now={NOW} locale="en" liveRereadMs={40} />
+      </IotAdapterProvider>,
+    );
+    await screen.findByText('temperature');
+    act(() => subs[0]!.onLive({ key: 'temperature', ts: NOW + 1_000, value: 30 }));
+    (api.latest as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { key: 'temperature', ts: NOW - 60_000, value: 21.5 },
+      { key: 'blob', ts: NOW, value: { big: 'x' } },
+    ]);
+    await waitFor(() => expect(screen.getByText('blob')).toBeInTheDocument());
+    expect(screen.getByText('30')).toBeInTheDocument();
+    expect((api.latest as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(1);
+  });
+});
+
+describe('DeviceTelemetryView and another device (NB 41-ui-fixes/23 C2)', () => {
+  it('starts afresh for another device: a late read of the first never lands in it', async () => {
+    let lateA!: (v: TelemetryLatest[]) => void;
+    const latest = vi.fn((id: string) => (id === 'a' ? new Promise<TelemetryLatest[]>((r) => { lateA = r; }) : Promise.resolve([{ key: 'pressure', ts: NOW, value: 2 }])));
+    const api: IotTelemetryApi = { latest, series: vi.fn(async () => ({})) };
+    const ui = (deviceId: string) => (
+      <IotAdapterProvider adapter={{ telemetry: api }} live={null} capabilities={{ canReadTelemetry: true }}>
+        <DeviceTelemetryView deviceId={deviceId} now={NOW} locale="en" />
+      </IotAdapterProvider>
+    );
+    const { rerender } = render(ui('a'));
+    rerender(ui('b'));
+    expect(await screen.findByText('pressure')).toBeInTheDocument();
+    await act(async () => { lateA([{ key: 'temperature', ts: NOW, value: 1 }]); });
+    expect(screen.queryByText('temperature')).toBeNull();
+  });
+});
