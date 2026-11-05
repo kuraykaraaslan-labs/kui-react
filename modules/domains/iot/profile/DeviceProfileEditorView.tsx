@@ -82,6 +82,18 @@ const TAB_OF: Array<[RegExp, string]> = [
 ];
 const tabOf = (field: string) => TAB_OF.find(([re]) => re.test(field))?.[1] ?? 'general';
 
+/**
+ * The choices of "Profile of new children" (NB OD-119 step 2): the generic child profile first (no value), then the tenant's profiles but
+ * this one; a stored choice the list no longer has (deleted, or not read yet) stays shown by its id, so a save never changes it silently.
+ */
+export function childProfileOptions(
+  profiles: ReadonlyArray<{ id: string; name: string }> | null, selfId: string, current: string | null, genericLabel: string,
+): Array<{ value: string; label: string }> {
+  const out = [{ value: '', label: genericLabel }, ...(profiles ?? []).filter((p) => p.id !== selfId).map((p) => ({ value: p.id, label: p.name }))];
+  if (current && !out.some((o) => o.value === current)) out.push({ value: current, label: current });
+  return out;
+}
+
 export function DeviceProfileEditorView({
   profileId, extraTabs = [], tab, onTabChange, onDeleted, onDuplicated, transports, availableStrategies, provisioningKeys, className,
 }: DeviceProfileEditorViewProps) {
@@ -94,6 +106,8 @@ export function DeviceProfileEditorView({
   const offered = useProfileTransports(transports);
 
   const [profile, setProfile] = useState<DeviceProfile | null>(null);
+  // the profiles a gateway's children may get (Limits → Profile of new children); null until read
+  const [childProfiles, setChildProfiles] = useState<Array<{ id: string; name: string }> | null>(null);
   const [draft, setDraftState] = useState<DeviceProfileDraft | null>(null);
   // where each row of the draft's key table came from in the saved one (-1: added), for renames in place (`telemetryKeyChanges`)
   const [keyOrigins, setKeyOrigins] = useState<number[]>([]);
@@ -142,6 +156,12 @@ export function DeviceProfileEditorView({
   }, [load, readUsage]);
 
   useLiveOrPoll({ key: profileId, poll: () => { void readUsage(); } });
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    api?.options(ctrl.signal).then((o) => { if (!ctrl.signal.aborted) setChildProfiles(o); }, () => { if (!ctrl.signal.aborted) setChildProfiles([]); });
+    return () => ctrl.abort();
+  }, [api]);
 
   const readOnly = !caps.canManageProfiles || !api?.update;
   const issues = draft ? profileDraftIssues(draft) : {};
@@ -392,6 +412,12 @@ export function DeviceProfileEditorView({
                 disabled={readOnly} error={err('inactivityTimeoutSec')} onChange={(v) => set({ inactivityTimeoutSec: v ?? Number.NaN })} />
               <RangeNumberField id="profile-children" label={m.limits.maxGatewayChildren} range="maxGatewayChildren" value={draft.maxGatewayChildren}
                 disabled={readOnly} error={err('maxGatewayChildren')} onChange={(v) => set({ maxGatewayChildren: v ?? Number.NaN })} />
+              {draft.maxGatewayChildren > 0 && (
+                <Select id="profile-default-child" label={m.limits.defaultChildProfile} hint={m.limits.defaultChildProfileHint}
+                  value={draft.defaultChildProfileId ?? ''} disabled={readOnly}
+                  onChange={(e) => set({ defaultChildProfileId: e.target.value || null })}
+                  options={childProfileOptions(childProfiles, profileId, draft.defaultChildProfileId ?? null, m.limits.defaultChildGeneric)} />
+              )}
               <RangeNumberField id="profile-rpc-timeout" label={m.limits.rpcTimeoutDefaultSec} range="rpcTimeoutDefaultSec" value={draft.rpcTimeoutDefaultSec}
                 disabled={readOnly} error={err('rpcTimeoutDefaultSec')} onChange={(v) => set({ rpcTimeoutDefaultSec: v ?? Number.NaN })} />
             </div>

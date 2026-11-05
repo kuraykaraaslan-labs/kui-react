@@ -221,6 +221,11 @@ export type DeviceProfile = {
   downlinkMaxBytes: number;
   inactivityTimeoutSec: number;
   maxGatewayChildren: number;
+  /**
+   * NB OD-119 step 2 (iot_device_profile D417): on a gateway's profile, the profile its new children get when their type names none; null
+   * (or absent) = the host's generic child profile. A host without the field leaves it out.
+   */
+  defaultChildProfileId?: string | null;
   rpcTimeoutDefaultSec: number;
   maxInflightMessages: number;
   topicSchemes: TopicScheme[];

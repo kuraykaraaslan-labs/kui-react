@@ -17,7 +17,7 @@ import { TelemetryKeySchemaTable } from './TelemetryKeySchemaTable';
 import { CfgSchemaTable, parseCfgEnum } from './CfgSchemaTable';
 import { ProvisioningSettingsCard } from './ProvisioningSettingsCard';
 import { NewDeviceProfileDrawer } from './NewDeviceProfileDrawer';
-import { DeviceProfileEditorView } from './DeviceProfileEditorView';
+import { DeviceProfileEditorView, childProfileOptions } from './DeviceProfileEditorView';
 import { DeviceProfileListView } from './DeviceProfileListView';
 import { PROFILE_KEYS_RENAMED_EVENT } from './profile-key-events';
 
@@ -384,6 +384,30 @@ describe('DeviceProfileEditorView', () => {
     await user.click(screen.getByRole('radio', { name: /Last seen only/ }));
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { transportType: 'LORAWAN', onlineRule: 'LAST_SEEN_ONLY' }));
+  });
+
+  it('OD-119: a gateway profile chooses the profile of its new children (generic by default, never itself) and saves it with Save', async () => {
+    const user = userEvent.setup();
+    const adapter = profilesAdapter();
+    render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
+    await screen.findByRole('heading', { name: /Pumps/ });
+    await user.click(screen.getByRole('tab', { name: /Limits/ }));
+    const select = await screen.findByLabelText('Profile of new children');
+    await waitFor(() => expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Generic child profile', 'Meters']));
+    expect((select as HTMLSelectElement).value).toBe('');
+    await user.selectOptions(select, 'p2');
+    expect(adapter.profiles!.update).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { defaultChildProfileId: 'p2' }));
+    await user.clear(screen.getByLabelText('Max children of a gateway'));
+    await user.type(screen.getByLabelText('Max children of a gateway'), '0');
+    expect(screen.queryByLabelText('Profile of new children')).toBeNull();
+  });
+
+  it('childProfileOptions keeps a stored choice the list no longer has', () => {
+    expect(childProfileOptions([{ id: 'a', name: 'A' }, { id: 'self', name: 'Self' }], 'self', 'gone', 'Generic')).toEqual([
+      { value: '', label: 'Generic' }, { value: 'a', label: 'A' }, { value: 'gone', label: 'gone' },
+    ]);
   });
 
   it('a built-in profile (a protocol module\'s): marked, its delete disabled with the reason, its transport locked; other fields stay editable', async () => {
