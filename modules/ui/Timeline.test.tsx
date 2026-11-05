@@ -99,4 +99,14 @@ describe('Timeline', () => {
     rerender(<Timeline timeZone="UTC" items={items} hasMore onLoadMore={() => undefined} />);
     expect(container.querySelector('[data-part="load-more"]')!.className).toContain('pt-5');
   });
+
+  it('shows seconds and the time zone when asked, minutes alone by default (NB 41-ui-fixes/22 6.4)', () => {
+    const items = [{ id: 'a', at: '2026-08-24T10:05:09Z', title: 'A' }];
+    const { container, rerender } = render(<Timeline timeZone="UTC" locale="en-GB" groupByDay={false} items={items} />);
+    expect(container.querySelector('time')?.textContent).toBe('10:05');
+    rerender(<Timeline timeZone="UTC" locale="en-GB" groupByDay={false} items={items} timePrecision="seconds" showTimeZone />);
+    expect(container.querySelector('time')?.textContent).toBe('10:05:09 UTC');
+    rerender(<Timeline timeZone="Europe/Istanbul" locale="en-GB" groupByDay={false} items={items} timePrecision="seconds" showTimeZone />);
+    expect(container.querySelector('time')?.textContent).toMatch(/^13:05:09 (GMT\+3|TRT)$/);
+  });
 });
