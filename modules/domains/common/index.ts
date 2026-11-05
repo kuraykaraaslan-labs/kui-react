@@ -9,6 +9,7 @@ export { LoginForm } from './auth/LoginForm';
 export { OAuthButtons } from './auth/OAuthButtons';
 export { RegisterForm } from './auth/RegisterForm';
 export { SessionExpiredBanner } from './auth/SessionExpiredBanner';
+export { AuthLayout } from './auth/AuthLayout';
 export { CartBadge } from './cart/CartBadge';
 export { CartItem } from './cart/CartItem';
 export { CartPreview } from './cart/CartPreview';

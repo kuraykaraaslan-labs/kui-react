@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { LoginForm } from '@/modules/domains/common/auth/LoginForm';
+import { AuthLayout } from '@/modules/domains/common/auth/AuthLayout';
 import { RegisterForm } from '@/modules/domains/common/auth/RegisterForm';
 import { OAuthButtons } from '@/modules/domains/common/auth/OAuthButtons';
 import { UserAvatar } from '@/modules/domains/common/user/UserAvatar';
@@ -77,6 +78,33 @@ const USER_NO_PROFILE = {
   userRole: 'USER' as const,
   userStatus: 'INACTIVE' as const,
 };
+
+/* ─── AuthLayout ─── */
+function AuthLayoutSignInDemo() {
+  return (
+    <div className="flex w-full justify-center p-6">
+      <AuthLayout
+        brand={<div className="flex h-10 items-center gap-2 text-2xl font-bold text-text-primary"><span className="inline-block h-8 w-8 rounded-md bg-primary" aria-hidden="true" />acme</div>}
+        tagline="From the field to your screen."
+        title="Sign in"
+        description="Use your work email."
+        footer={<>Don&apos;t have an account? <a href="#" className="font-medium text-primary hover:underline">Sign up</a></>}
+      >
+        <LoginForm onSubmit={async () => {}} />
+      </AuthLayout>
+    </div>
+  );
+}
+
+function AuthLayoutMinimalDemo() {
+  return (
+    <div className="flex w-full justify-center p-6">
+      <AuthLayout title="Verify your email" description="We sent a link to jane@acme.com.">
+        <p className="text-sm text-text-secondary">Open the link in the email to finish.</p>
+      </AuthLayout>
+    </div>
+  );
+}
 
 /* ─── LoginForm ─── */
 function LoginFormDefaultDemo() {
@@ -640,6 +668,29 @@ function PaymentSummaryCardPendingDemo() {
 /* ─── builder ─── */
 export function buildCommonDomainData(): ShowcaseComponent[] {
   return [
+    {
+      id: 'common-auth-layout',
+      title: 'AuthLayout',
+      category: 'Domain',
+      abbr: 'AL',
+      description: 'The frame of every authentication page: the brand and tagline once above the card, the page title and one help line left-aligned at the top of the card, an optional footer below it.',
+      filePath: 'modules/domains/common/auth/AuthLayout.tsx',
+      sourceCode: `import { AuthLayout } from '@/modules/domains/common/auth/AuthLayout';
+
+<AuthLayout
+  brand={<BrandLogo />}
+  tagline="From the field to your screen."
+  title="Sign in"
+  description="Use your work email."
+  footer={<>Don't have an account? <a href="/register">Sign up</a></>}
+>
+  <LoginForm onSubmit={handleLogin} />
+</AuthLayout>`,
+      variants: [
+        { title: 'Sign in', layout: 'stack', preview: <AuthLayoutSignInDemo />, code: `<AuthLayout brand={<BrandLogo />} tagline="From the field to your screen." title="Sign in" description="Use your work email." footer={...}><LoginForm onSubmit={handleLogin} /></AuthLayout>` },
+        { title: 'Title only', layout: 'stack', preview: <AuthLayoutMinimalDemo />, code: `<AuthLayout title="Verify your email" description="We sent a link to jane@acme.com.">…</AuthLayout>` },
+      ],
+    },
     {
       id: 'common-login-form',
       title: 'LoginForm',

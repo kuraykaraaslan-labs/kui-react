@@ -8,6 +8,7 @@ export {
   AddressCard,
   AddressForm,
   AddressSelector,
+  AuthLayout,
   ChangePasswordForm,
   ForgotPasswordForm,
   LoginForm,
