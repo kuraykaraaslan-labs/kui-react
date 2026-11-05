@@ -63,6 +63,12 @@ export type TimelineProps = {
   locale?: string;
   /** Hide the sticky day headings. */
   groupByDay?: boolean;
+  /**
+   * How precise an entry's time is: `minutes` (the default, `14:05`) or `seconds` (`14:05:09`, a log where several entries share a
+   * minute). `showTimeZone` adds the zone's short name (`14:05:09 GMT+3`), so a time read beside another zone's is not taken for it.
+   */
+  timePrecision?: 'minutes' | 'seconds';
+  showTimeZone?: boolean;
   /** `newest` first (a feed, the default) or `oldest` first (a process from its start). */
   order?: 'newest' | 'oldest';
   /** Day heading of the undated entries (with `groupByDay`); without it they follow the last day unheaded. */
@@ -110,6 +116,8 @@ export function Timeline({
   timeZone,
   locale,
   groupByDay = true,
+  timePrecision = 'minutes',
+  showTimeZone = false,
   order = 'newest',
   undatedLabel,
   emptyMessage = 'Nothing here yet.',
@@ -141,6 +149,8 @@ export function Timeline({
     timeZone,
     hour: '2-digit',
     minute: '2-digit',
+    ...(timePrecision === 'seconds' ? { second: '2-digit' as const } : {}),
+    ...(showTimeZone ? { timeZoneName: 'short' as const } : {}),
     // `hourCycle` rather than `hour12: false`: the latter renders midnight as
     // hour "24" on some ICU builds.
     hourCycle: 'h23',
