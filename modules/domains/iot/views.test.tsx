@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider, useIotAdapter } from './api/IotAdapterProvider';
-import { IotApiError, type IotAdapter, type IotCapabilities } from './api/adapter';
+import { IotApiError, type DeviceListQuery, type IotAdapter, type IotCapabilities } from './api/adapter';
 import type { IotLive, IotLiveState, IotLiveSubscription } from './api/live';
 import { DeviceListView } from './device/DeviceListView';
 import { DeviceDetailView } from './device/DeviceDetailView';
@@ -235,9 +235,10 @@ describe('DeviceListView', () => {
     expect(screen.queryByRole('checkbox', { name: 'Select Probe 12' })).toBeNull();
   });
 
-  it('creates a device and shows its token once, gone when the drawer closes', async () => {
+  it('creates a device and shows its token once; the drawer waits for "I have stored it", and the token is gone after it', async () => {
     const user = userEvent.setup();
-    wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} now={NOW} />);
+    const onOpen = vi.fn();
+    wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} onOpen={onOpen} now={NOW} />);
     await user.click(await screen.findByRole('button', { name: /New device/ }));
     await user.click(screen.getByRole('button', { name: 'Create device' }));
     expect(screen.getByText('A name is required.')).toBeInTheDocument();
@@ -245,8 +246,58 @@ describe('DeviceListView', () => {
     await user.click(screen.getByRole('button', { name: 'Create device' }));
     await user.click(await screen.findByRole('button', { name: 'Show' }));
     expect(screen.getByTestId('issued-secret')).toHaveTextContent('TOKEN-ONCE');
-    await user.click(screen.getAllByRole('button', { name: 'Close' })[0]);
-    await waitFor(() => expect(screen.queryByTestId('issued-secret')).toBeNull());
+    // NB 41-ui-fixes/21 1.1: Esc, the close button, Close and Open device all wait while the token is not stored
+    const dialog = screen.getByRole('dialog', { name: 'New device' });
+    expect(within(dialog).getByText(/Store the access token first/)).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    for (const b of within(dialog).getAllByRole('button', { name: 'Close' })) await user.click(b);
+    expect(screen.getByTestId('issued-secret')).toBeInTheDocument();
+    expect(within(dialog).getAllByRole('button', { name: 'Close' }).some((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    expect(within(dialog).getByRole('button', { name: 'Open device' })).toBeDisabled();
+    await user.click(within(dialog).getByRole('button', { name: 'I have stored it' }));
+    expect(screen.queryByTestId('issued-secret')).toBeNull();
+    expect(within(dialog).getByText('The access token was handed over. It cannot be shown again.')).toBeInTheDocument();
+    // Open device: the host's router on a plain click
+    await user.click(within(dialog).getByRole('link', { name: 'Open device' }));
+    expect(onOpen).toHaveBeenCalledWith('/d/d9');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'New device' })).toBeNull());
+  });
+
+  it('Enter in a field creates; Create is disabled and the drawer stays while the create runs (1.14, 1.24)', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    let finish!: (v: unknown) => void;
+    (adapter.devices!.create as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise((r) => { finish = r; }));
+    wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} now={NOW} />, { adapter });
+    await user.click(await screen.findByRole('button', { name: /New device/ }));
+    await user.type(screen.getByLabelText(/^Name/), 'Pump 9{Enter}');
+    expect(adapter.devices!.create).toHaveBeenCalledTimes(1);
+    const create = screen.getByRole('button', { name: 'Create device' });
+    expect(create).toBeDisabled();
+    await user.click(create);
+    await user.keyboard('{Escape}');
+    expect(adapter.devices!.create).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('dialog', { name: 'New device' })).toBeInTheDocument();
+    await act(async () => { finish({ device: { ...DEVICES[0], deviceId: 'd9', name: 'Pump 9' }, credential: { type: 'ACCESS_TOKEN' }, secret: { token: 'T' } }); });
+    expect(await screen.findByTestId('issued-secret')).toBeInTheDocument();
+  });
+
+  it('says when no credential was issued (a profile without access tokens), and who can set one (1.2, N4)', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    (adapter.devices!.create as ReturnType<typeof vi.fn>).mockResolvedValue({ device: { ...DEVICES[0], deviceId: 'd9', name: 'New' }, credential: null, secret: null });
+    const { unmount } = wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} now={NOW} />, { adapter, caps: { ...ALL, canViewCredentials: false } });
+    await user.click(await screen.findByRole('button', { name: /New device/ }));
+    await user.type(screen.getByLabelText(/^Name/), 'New{Enter}');
+    expect(await screen.findByText(/No credential was issued/)).toHaveTextContent('An administrator can set one on its Credentials tab.');
+    expect(screen.queryByTestId('issued-secret')).toBeNull();
+    // nothing to store: Close closes at once
+    expect(within(screen.getByRole('dialog', { name: 'New device' })).getByRole('link', { name: 'Open device' })).toHaveAttribute('href', '/d/d9');
+    unmount();
+    wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} now={NOW} />, { adapter });
+    await user.click(await screen.findByRole('button', { name: /New device/ }));
+    await user.type(screen.getByLabelText(/^Name/), 'New{Enter}');
+    expect(await screen.findByText(/No credential was issued/)).toHaveTextContent('Set one on its Credentials tab.');
   });
 
   it('offers the host\'s ways to add a device beside "Other device", each in the drawer with "Choose another way" back to the choice', async () => {
@@ -334,8 +385,139 @@ describe('DeviceListView', () => {
     await act(async () => { vi.advanceTimersByTime(30_000); });
     expect((adapter.devices!.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(before + 1);
     act(() => live.set('live'));
-    await act(async () => { vi.advanceTimersByTime(60_000); });
+    await act(async () => { vi.advanceTimersByTime(59_000); });
     expect((adapter.devices!.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(before + 1);
+    // while live, a slow re-read about every minute (41-ui-fixes/21 1.10)
+    await act(async () => { vi.advanceTimersByTime(1_000); });
+    expect((adapter.devices!.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(before + 2);
+  });
+
+  it('while live: no slow re-read while the tab is hidden; a patch naming a device it does not show reads again once (1.10)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const adapter = createFakeAdapter();
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    const live = createFakeLive('live');
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} now={NOW} />, { adapter, live });
+    await screen.findByText('Pump 4');
+    const before = list.mock.calls.length;
+    const hidden = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    await act(async () => { vi.advanceTimersByTime(60_000); });
+    expect(list.mock.calls.length).toBe(before);
+    hidden.mockRestore();
+    // a device added elsewhere connects: one re-read soon after, and none again for the same device while it is not on this page
+    act(() => { live.publish('deviceState', { deviceId: 'd7', online: true }); live.publish('deviceState', { deviceId: 'd8', online: true }); });
+    await act(async () => { vi.advanceTimersByTime(2_000); });
+    expect(list.mock.calls.length).toBe(before + 1);
+    await act(async () => { await Promise.resolve(); });
+    act(() => live.publish('deviceState', { deviceId: 'd7', online: false }));
+    await act(async () => { vi.advanceTimersByTime(2_000); });
+    expect(list.mock.calls.length).toBe(before + 1);
+  });
+
+  it('while live and filtered to online: a shown device that goes offline makes the list read again (1.10)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const adapter = createFakeAdapter();
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    const live = createFakeLive('live');
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} initialQuery={{ online: 'online' }} now={NOW} />, { adapter, live });
+    await screen.findByText('Pump 4');
+    const before = list.mock.calls.length;
+    act(() => live.publish('deviceState', { deviceId: 'd1', online: true }));
+    await act(async () => { vi.advanceTimersByTime(2_000); });
+    expect(list.mock.calls.length).toBe(before);
+    act(() => live.publish('deviceState', { deviceId: 'd1', online: false }));
+    await act(async () => { vi.advanceTimersByTime(2_000); });
+    expect(list.mock.calls.length).toBe(before + 1);
+  });
+
+  it('shows only the newest read: a late answer of an older query neither replaces the rows nor leaves the table loading (1.8)', async () => {
+    const adapter = createFakeAdapter();
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    let late!: (v: unknown) => void;
+    list.mockImplementationOnce(() => new Promise((r) => { late = r; }));
+    const ui = (q: Partial<DeviceListQuery>) => (
+      <IotAdapterProvider adapter={adapter} live={null} capabilities={ALL} locale="en"><DeviceListView hrefs={{ device: (id) => id }} initialQuery={q} now={NOW} /></IotAdapterProvider>
+    );
+    const { rerender } = render(ui({}));
+    rerender(ui({ status: 'QUARANTINED' }));
+    expect(await screen.findByText('Probe 12')).toBeInTheDocument();
+    await act(async () => { late({ items: [{ ...DEVICES[0], name: 'Stale pump' }], total: 1 }); });
+    expect(screen.queryByText('Stale pump')).toBeNull();
+    expect(screen.getByText('Probe 12')).toBeInTheDocument();
+  });
+
+  it('moves a page past the end to the last page (1.9)', async () => {
+    const adapter = createFakeAdapter();
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    list.mockImplementation(async (q: DeviceListQuery) => (q.page > 1 ? { items: [], total: 2 } : { items: DEVICES, total: 2 }));
+    const onQueryChange = vi.fn();
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} initialQuery={{ page: 7 }} onQueryChange={onQueryChange} now={NOW} />, { adapter });
+    expect(await screen.findByText('Pump 4')).toBeInTheDocument();
+    expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }), expect.anything());
+    expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 }), 'replace');
+  });
+
+  it('follows the host\'s query by value: the filters and page it names, its own rows per page when the host names none (1.19)', async () => {
+    const adapter = createFakeAdapter();
+    const list = adapter.devices!.list as ReturnType<typeof vi.fn>;
+    const ui = (q: Partial<DeviceListQuery>) => (
+      <IotAdapterProvider adapter={adapter} live={null} capabilities={ALL} locale="en"><DeviceListView hrefs={{ device: (id) => id }} initialQuery={q} pageSize={50} now={NOW} /></IotAdapterProvider>
+    );
+    const { rerender } = render(ui({ status: 'ACTIVE' }));
+    await screen.findByText('Pump 4');
+    rerender(ui({ status: 'ACTIVE' }));
+    expect(list).toHaveBeenCalledTimes(1);
+    rerender(ui({ online: 'offline', page: 2 }));
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ online: 'offline', page: 2, pageSize: 50 }), expect.anything()));
+    expect(list.mock.calls.at(-1)![0]).not.toHaveProperty('status', 'ACTIVE');
+  });
+
+  it('opens a device in the host\'s router on a plain click; a modified click keeps the link (1.22)', async () => {
+    const onOpen = vi.fn();
+    wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} onOpen={onOpen} now={NOW} />);
+    const link = await screen.findByRole('link', { name: /Pump 4/ });
+    fireEvent.click(link, { ctrlKey: true });
+    expect(onOpen).not.toHaveBeenCalled();
+    fireEvent.click(link);
+    expect(onOpen).toHaveBeenCalledWith('/d/d1');
+  });
+
+  it('cuts a typed search to what the host takes (N3)', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} now={NOW} />, { adapter });
+    await screen.findByText('Pump 4');
+    await user.click(screen.getByRole('searchbox'));
+    await user.paste('x'.repeat(140));
+    await waitFor(() => expect(adapter.devices!.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'x'.repeat(128) }), expect.anything()));
+  });
+
+  it('says when the capabilities could not be read, with a retry (1.12)', async () => {
+    const user = userEvent.setup();
+    const capabilities = vi.fn().mockRejectedValueOnce(new Error('down')).mockResolvedValue(ALL);
+    render(<IotAdapterProvider adapter={createFakeAdapter({ capabilities })} live={null} locale="en"><DeviceListView hrefs={{ device: (id) => id }} now={NOW} /></IotAdapterProvider>);
+    expect(await screen.findByText(/could not be read, so nothing can be changed yet/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /New device/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(await screen.findByRole('button', { name: /New device/ })).toBeInTheDocument();
+    expect(screen.queryByText(/could not be read, so nothing can be changed yet/)).toBeNull();
+  });
+
+  it('says when the profiles could not be read, and keeps a profile filter by the name its rows carry (1.11, N2)', async () => {
+    const user = userEvent.setup();
+    const adapter = createFakeAdapter();
+    const options = vi.fn().mockRejectedValueOnce(new Error('down')).mockResolvedValue([{ id: 'p1', name: 'Pumps' }]);
+    adapter.profiles = { options };
+    (adapter.devices!.list as ReturnType<typeof vi.fn>).mockResolvedValue({ items: [{ ...DEVICES[0], deviceProfileId: 'p7', profileName: 'Far pumps' }], total: 1 });
+    wrap(<DeviceListView hrefs={{ device: (id) => id }} initialQuery={{ profileId: 'p7' }} now={NOW} />, { adapter });
+    expect(await screen.findByText(/device profiles could not be read/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(screen.queryByText(/device profiles could not be read/)).toBeNull());
+    expect(options).toHaveBeenCalledTimes(2);
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    const select = within(screen.getByRole('form', { name: 'Filters' })).getByLabelText('Profile') as HTMLSelectElement;
+    expect(select.value).toBe('p7');
+    expect(select.selectedOptions[0].textContent).toBe('Far pumps');
   });
 });
 

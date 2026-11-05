@@ -1,10 +1,11 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEllipsis, faPenToSquare, faPlus, faPowerOff } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
+import { Callout } from '@/modules/ui/Callout';
 import { Drawer } from '@/modules/ui/Drawer';
 import { DropdownMenu, type DropdownItem } from '@/modules/ui/DropdownMenu';
 import { DataTable } from '@/modules/ui/Table/DataTable';
@@ -40,6 +41,14 @@ import { NewDeviceDrawer, type DeviceAddChoice } from './NewDeviceDrawer';
  * for the devices waiting in quarantine: an "Awaiting approval (n)" button opens it in a drawer, in place of the "Quarantined (n)"
  * quick filter) and `moreActions` (a "⋯" menu). A row has an Edit button (`canEditDevice` and `devices.update`) that opens the
  * `EditDeviceDrawer` without opening the quick view.
+ *
+ * Only the answer of the newest read is shown (a late poll or reload of another filter never overwrites the rows, nor leaves the table
+ * loading); a page past the end (its last device deleted, a page number from a stale URL) moves to the last page. The host's
+ * `initialQuery` is followed by value when it changes (Back, a menu click): the page and the filters always, rows per page and sort only
+ * when it names them. While the live source is live the list still re-reads about every minute (not while the tab is hidden), and soon
+ * after a live change names a device it does not show or one that left its connection filter, so devices added, removed or changed
+ * elsewhere appear (NB 41-ui-fixes/21 1.8–1.10, 1.16, 1.19). `onOpen` opens a device, its page or its log in the host's router (a plain
+ * click; a modified click keeps the link's own behaviour). A failed capabilities read or profile read says so, with a retry (1.11, 1.12).
  */
 export type DeviceListViewProps = {
   hrefs: { device: (deviceId: string) => string };
@@ -54,11 +63,51 @@ export type DeviceListViewProps = {
   renderQuarantine?: (ctx: { close: () => void; changed: () => void }) => React.ReactNode;
   /** The header's "⋯" menu (e.g. a link to a related list). */
   moreActions?: readonly DropdownItem[];
+  /** Opens a link (a device page, its log) in the host's router on a plain click; without it the links are plain links. */
+  onOpen?: (href: string) => void;
 };
 
 const MAX_ACTIVATE = 100;
 const ONLINE: readonly DeviceOnlineFilter[] = ['online', 'offline', 'last_seen'];
 const STATUSES: readonly DeviceRegistryStatus[] = ['ACTIVE', 'QUARANTINED', 'DISABLED'];
+/** The longest search the host takes (NB `ListIotDevicesDTO.search`); a longer one is cut, never refused (NB 41-ui-fixes/21 N3). */
+export const DEVICE_SEARCH_MAX = 128;
+/** While live: the slow re-read beside the patches, and the wait before a re-read a patch asked for (NB 41-ui-fixes/21 1.10). */
+export const LIVE_REREAD_MS = 60_000;
+export const PATCH_REREAD_MS = 2_000;
+
+/** A list query as a value (the fields one by one; the open device is not part of it). */
+function queryKey(q: DeviceListQuery): string {
+  return JSON.stringify([q.page, q.pageSize, q.search || null, q.profileId ?? null, q.online ?? null, q.status ?? null, q.gateway ?? null,
+    q.sort?.key ?? null, q.sort?.dir ?? null]);
+}
+const sameQuery = (a: DeviceListQuery, b: DeviceListQuery) => queryKey(a) === queryKey(b);
+
+/** What the host's query names, as a value (an absent or undefined field is not named; the open device is followed on its own). */
+function hostKey(q: Partial<DeviceListQuery> | undefined): string {
+  return JSON.stringify(Object.entries(q ?? {}).filter(([k, v]) => v !== undefined && k !== 'device').sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
+/** The list's query moved to the host's: page and filters as the host has them, rows per page and sort only when it names them. */
+function followHost(cur: DeviceListQuery, host: Partial<DeviceListQuery> | undefined): DeviceListQuery {
+  const h = host ?? {};
+  const next: DeviceListQuery = {
+    ...cur, page: h.page ?? 1, search: h.search, profileId: h.profileId, online: h.online, status: h.status, gateway: h.gateway,
+  };
+  if (h.pageSize !== undefined) next.pageSize = h.pageSize;
+  if (h.sort !== undefined) next.sort = h.sort;
+  return next;
+}
+
+/** Whether a device's live connection still fits the connection filter. */
+function fitsOnline(filter: DeviceOnlineFilter | undefined, online: boolean | null): boolean {
+  return !filter || (filter === 'online' ? online === true : filter === 'offline' ? online === false : online === null);
+}
+
+/** A plain left click (no modifier): the host's router opens the link; any other click keeps the link's own behaviour. */
+function plainClick(e: React.MouseEvent): boolean {
+  return !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
 
 export function applyStatePatch(d: DeviceRecord, p: DeviceStatePatch): DeviceRecord {
   return {
@@ -74,7 +123,7 @@ export function applyStatePatch(d: DeviceRecord, p: DeviceStatePatch): DeviceRec
 }
 
 export function DeviceListView({
-  hrefs, initialQuery, onQueryChange, pageSize = 20, now, className, addChoices = [], renderQuarantine, moreActions = [],
+  hrefs, initialQuery, onQueryChange, pageSize = 20, now, className, addChoices = [], renderQuarantine, moreActions = [], onOpen,
 }: DeviceListViewProps) {
   const adapter = useIotAdapter();
   const api = adapter.devices;
@@ -102,6 +151,8 @@ export function DeviceListView({
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<Array<{ id: string; name: string }>>([]);
+  const [profilesFailed, setProfilesFailed] = useState(false);
+  const [profilesAttempt, setProfilesAttempt] = useState(0);
   const [quarantined, setQuarantined] = useState<number | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<DeviceRecord | null>(null);
@@ -109,27 +160,58 @@ export function DeviceListView({
   const [approving, setApproving] = useState(false);
   const [activating, setActivating] = useState(false);
   const queryRef = useRef(query);
-  useEffect(() => { queryRef.current = query; }, [query]);
+  // a layout effect: the table reports its page for a query the host moved before the passive effects run, and must compare with it
+  useLayoutEffect(() => { queryRef.current = query; }, [query]);
   const openRef = useRef(openId);
   useEffect(() => { openRef.current = openId; }, [openId]);
+  const itemsRef = useRef(items);
+  useEffect(() => { itemsRef.current = items; }, [items]);
+  // the host's query moved under the mounted list (its URL changed): follow it by value (NB 41-ui-fixes/21 1.19)
+  const initialKey = hostKey(initialQuery);
+  const [seenInitial, setSeenInitial] = useState(initialKey);
+  if (initialKey !== seenInitial) {
+    setSeenInitial(initialKey);
+    const next = followHost(query, initialQuery);
+    if (!sameQuery(next, query)) setQuery(next);
+  }
+  // only the newest read is shown: a late answer of an older one is dropped (NB 41-ui-fixes/21 1.8)
+  const seqRef = useRef(0);
+  const clampRef = useRef<(q: DeviceListQuery, total: number) => void>(() => undefined);
+  // live patches that named a device the list does not show; the ones still not shown after a re-read are not asked about again
+  // while the query stays (each device costs one re-read at most, NB 41-ui-fixes/21 1.10)
+  const pendingRef = useRef<Set<string>>(new Set());
+  const offPageRef = useRef<{ key: string; ids: Set<string> }>({ key: '', ids: new Set() });
 
   const apply = useCallback((q: DeviceListQuery, page: { items: DeviceRecord[]; total: number } | null, e?: unknown) => {
     if (page) {
       setItems(page.items);
       setTotal(page.total);
       setError(null);
+      const key = JSON.stringify(q);
+      if (offPageRef.current.key !== key) offPageRef.current = { key, ids: new Set() };
+      for (const id of pendingRef.current) if (!page.items.some((d) => d.deviceId === id)) offPageRef.current.ids.add(id);
+      pendingRef.current.clear();
     } else {
       setError(errorMessage(e, m.devices.loadError));
     }
     setLoadedKey(JSON.stringify(q));
   }, [m.devices.loadError]);
 
-  /** Reads `q` and shows it (also the poll and the retry); an aborted read changes nothing. */
+  /** Reads `q` and shows it (also the poll and the retry); an aborted read, or one a newer read overtook, changes nothing. */
   const load = useCallback((q: DeviceListQuery, signal?: AbortSignal): Promise<void> => {
     if (!api) return Promise.resolve();
+    const seq = ++seqRef.current;
     return api.list(q, signal).then(
-      (page) => { if (!signal?.aborted) apply(q, page); },
-      (e) => { if (!signal?.aborted) apply(q, null, e); },
+      (page) => {
+        if (signal?.aborted || seq !== seqRef.current) return;
+        // a page past the end (its last device deleted, a stale URL): the last page instead of an empty list (NB 41-ui-fixes/21 1.9)
+        if (!page.items.length && page.total > 0 && q.page > 1) {
+          clampRef.current(q, page.total);
+          return;
+        }
+        apply(q, page);
+      },
+      (e) => { if (!signal?.aborted && seq === seqRef.current) apply(q, null, e); },
     );
   }, [api, apply]);
 
@@ -145,9 +227,12 @@ export function DeviceListView({
   useEffect(() => { loadQuarantined().catch(() => undefined); }, [loadQuarantined]);
   useEffect(() => {
     const ctrl = new AbortController();
-    adapter.profiles?.options(ctrl.signal).then((p) => { if (!ctrl.signal.aborted) setProfiles(p); }).catch(() => undefined);
+    adapter.profiles?.options(ctrl.signal).then(
+      (p) => { if (!ctrl.signal.aborted) { setProfiles(p); setProfilesFailed(false); } },
+      () => { if (!ctrl.signal.aborted) setProfilesFailed(true); },
+    );
     return () => ctrl.abort();
-  }, [adapter.profiles]);
+  }, [adapter.profiles, profilesAttempt]);
 
   // a device opened from the URL that is not on the shown page: read it alone (no neighbours then)
   const listed = loadedKey === JSON.stringify(query);
@@ -164,6 +249,7 @@ export function DeviceListView({
 
   function change(patch: Partial<DeviceListQuery>) {
     const next = { ...queryRef.current, ...patch, page: patch.page ?? 1 };
+    if (next.search && next.search.length > DEVICE_SEARCH_MAX) next.search = next.search.slice(0, DEVICE_SEARCH_MAX);
     // at once, not in the effect: the table reports page 1 for a new filter before that effect runs, and must see this query
     queryRef.current = next;
     setQuery(next);
@@ -187,11 +273,17 @@ export function DeviceListView({
       }, 0);
     }
   }
+  useEffect(() => {
+    clampRef.current = (q, all) => {
+      if (!sameQuery(q, queryRef.current)) return;
+      change({ page: Math.max(1, Math.ceil(all / q.pageSize)) });
+    };
+  });
   /** The table's page, rows per page, sort or search changed (it reports its query on mount too: nothing then). */
   function tableQuery(t: DataTableQuery) {
     const cur = queryRef.current;
     const sort = toIotSort(t.sort, DEVICE_SORT_KEYS);
-    const search = t.search || undefined;
+    const search = t.search ? t.search.slice(0, DEVICE_SEARCH_MAX) : undefined;
     if (t.page === cur.page && t.pageSize === cur.pageSize && search === (cur.search || undefined) && sameSort(sort, cur.sort)) return;
     change({ page: t.page, pageSize: t.pageSize, search, sort });
   }
@@ -205,6 +297,22 @@ export function DeviceListView({
     });
   }
 
+  /** The open device again when it is not on the shown page (it is read alone); a failed re-read keeps what is shown. */
+  const rereadLoose = useCallback(() => {
+    const id = openRef.current;
+    if (!api || !id || itemsRef.current.some((d) => d.deviceId === id)) return;
+    api.get(id).then((d) => { if (openRef.current === id) setLoose({ id, device: d, error: null }); }, () => undefined);
+  }, [api]);
+  /** The list, the quarantined count and a loose open device again (the poll, the slow live re-read, a host change). */
+  const reread = useCallback(() => { void load(queryRef.current); void loadQuarantined(); rereadLoose(); }, [load, loadQuarantined, rereadLoose]);
+  // a re-read a live patch asked for: at most one per PATCH_REREAD_MS
+  const patchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const askReread = useCallback(() => {
+    if (patchTimer.current) return;
+    patchTimer.current = setTimeout(() => { patchTimer.current = null; void load(queryRef.current); }, PATCH_REREAD_MS);
+  }, [load]);
+  useEffect(() => () => { if (patchTimer.current) clearTimeout(patchTimer.current); }, []);
+
   const state = useLiveOrPoll({
     key: '*',
     subscribe: api ? (live) => live.subscribe({
@@ -212,15 +320,29 @@ export function DeviceListView({
       onLive: (payload) => {
         const p = api.parseState?.(payload);
         if (!p) return;
-        setItems((cur) => (cur.some((d) => d.deviceId === p.deviceId) ? cur.map((d) => (d.deviceId === p.deviceId ? applyStatePatch(d, p) : d)) : cur));
+        if (itemsRef.current.some((d) => d.deviceId === p.deviceId)) {
+          setItems((cur) => cur.map((d) => (d.deviceId === p.deviceId ? applyStatePatch(d, p) : d)));
+          // it left the connection filter: the list reads again (it drops out)
+          if (!fitsOnline(queryRef.current.online, p.online)) askReread();
+        } else if (!(offPageRef.current.key === JSON.stringify(queryRef.current) && offPageRef.current.ids.has(p.deviceId))) {
+          // a device the list does not show (added elsewhere, or on another page): read again once to see whether it belongs here
+          pendingRef.current.add(p.deviceId);
+          askReread();
+        }
         setLoose((l) => (l?.device && l.device.deviceId === p.deviceId ? { ...l, device: applyStatePatch(l.device, p) } : l));
       },
     }) : undefined,
-    poll: () => { void load(queryRef.current); void loadQuarantined(); },
+    poll: reread,
   });
-
-  /** The list and the quarantined count again, after the host added or approved a device. */
-  const reread = useCallback(() => { void load(queryRef.current); void loadQuarantined(); }, [load, loadQuarantined]);
+  // live: patches keep the rows current, and a slow re-read catches what no patch names (a device deleted or edited elsewhere)
+  useEffect(() => {
+    if (state !== 'live') return;
+    const t = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      reread();
+    }, LIVE_REREAD_MS);
+    return () => clearInterval(t);
+  }, [state, reread]);
 
   async function activate() {
     if (!api?.activate) return;
@@ -242,8 +364,18 @@ export function DeviceListView({
   const canActivate = caps.canActivateDevice && !!api?.activate && query.status === 'QUARANTINED';
   const canCreate = caps.canCreateDevice && !!api?.create;
   const canEdit = caps.canEditDevice && !!api?.update;
+  // a profile filter the options do not hold (beyond the first page of profiles, or the read failed) keeps its name from the rows
+  const selectedProfile = query.profileId;
+  const profileOptions = useMemo(() => {
+    const opts = profiles.map((p) => ({ value: p.id, label: p.name }));
+    if (selectedProfile && !profiles.some((p) => p.id === selectedProfile)) {
+      const named = items.find((d) => d.deviceProfileId === selectedProfile && d.profileName)?.profileName;
+      opts.push({ value: selectedProfile, label: named ?? selectedProfile });
+    }
+    return opts;
+  }, [profiles, selectedProfile, items]);
   const filterFields = useMemo((): DataTableFilterField<DeviceRecord>[] => [
-    { id: 'profileId', label: m.devices.profile, type: 'select', options: profiles.map((p) => ({ value: p.id, label: p.name })) },
+    { id: 'profileId', label: m.devices.profile, type: 'select', options: profileOptions },
     {
       id: 'online', label: m.devices.connection, type: 'select',
       options: [{ value: 'online', label: m.device.online }, { value: 'offline', label: m.device.offline }, { value: 'last_seen', label: m.devices.lastSeenOnly }],
@@ -253,7 +385,7 @@ export function DeviceListView({
       options: [{ value: 'ACTIVE', label: m.devices.active }, { value: 'QUARANTINED', label: m.device.quarantined }, { value: 'DISABLED', label: m.device.disabled }],
     },
     { id: 'gateway', label: m.devices.gateway, type: 'select', options: [{ value: 'true', label: m.common.yes }, { value: 'false', label: m.common.no }] },
-  ], [profiles, m]);
+  ], [profileOptions, m]);
   const filterValues = useMemo((): DataTableFilterValues => ({
     ...(query.profileId ? { profileId: query.profileId } : {}),
     ...(query.online ? { online: query.online } : {}),
@@ -268,7 +400,8 @@ export function DeviceListView({
       sortable: true,
       hideable: false,
       render: (d) => (
-        <a href={hrefs.device(d.deviceId)} className="flex min-w-0 flex-col rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
+        <a href={hrefs.device(d.deviceId)} className="flex min-w-0 flex-col rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+          onClick={onOpen ? (e) => { if (plainClick(e)) { e.preventDefault(); onOpen(hrefs.device(d.deviceId)); } } : undefined}>
           <span className="flex items-center gap-1.5 truncate font-medium text-text-primary hover:text-primary">
             {d.name}
             {d.isGateway && <Badge variant="primary" size="sm">{m.device.gateway}</Badge>}
@@ -376,6 +509,23 @@ export function DeviceListView({
         <span className="ml-auto text-xs text-text-secondary" aria-live="polite">{state === 'live' ? m.common.live : m.common.polling}</span>
       </div>
 
+      {caps.failed && (
+        <Callout variant="warning" title={null}>
+          <span className="flex flex-wrap items-center gap-2">
+            {m.common.capabilitiesError}
+            <Button variant="outline" size="xs" onClick={caps.retry}>{m.common.retry}</Button>
+          </span>
+        </Callout>
+      )}
+      {profilesFailed && (
+        <Callout variant="warning" title={null}>
+          <span className="flex flex-wrap items-center gap-2">
+            {m.devices.profilesError}
+            <Button variant="outline" size="xs" onClick={() => setProfilesAttempt((n) => n + 1)}>{m.common.retry}</Button>
+          </span>
+        </Callout>
+      )}
+
       <DataTable<DeviceRecord>
         mode="manual"
         caption={m.devices.title}
@@ -427,6 +577,7 @@ export function DeviceListView({
           href={hrefs.device(openId)}
           profileName={openDeviceRecord ? profileName(openDeviceRecord.deviceProfileId, openDeviceRecord.profileName) : null}
           now={now}
+          onOpen={onOpen}
         />
       )}
 
@@ -450,6 +601,7 @@ export function DeviceListView({
           onAdded={reread}
           choices={addChoices}
           canCreate={canCreate}
+          onOpen={onOpen}
         />
       )}
 

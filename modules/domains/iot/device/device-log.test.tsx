@@ -1,14 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
-import type { IotAdapter, IotCapabilities, DeviceListQuery } from '../api/adapter';
+import type { IotAdapter, IotCapabilities, IotDevicesApi, DeviceListQuery } from '../api/adapter';
 import type { IotLive, IotLiveSubscription } from '../api/live';
 import type { DeviceLogEntry, DeviceRecord } from '../types/device';
 import { IOT_MESSAGES } from '../messages';
 import { DeviceLogTimeline, auditSummary } from './DeviceLogTimeline';
 import { DeviceDetailView } from './DeviceDetailView';
 import { DeviceListView } from './DeviceListView';
+import { useDeviceLog } from './useDeviceLog';
 
 const NOW = new Date('2026-10-24T12:00:00Z').getTime();
 const ago = (ms: number) => new Date(NOW - ms);
@@ -78,7 +79,7 @@ describe('DeviceLogTimeline', () => {
     expect(screen.getByText('Changed: label, name')).toBeInTheDocument();
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
     expect(screen.getByText('MQTTS')).toBeInTheDocument();
-    expect(screen.getByText('Reason: keepalive_timeout')).toBeInTheDocument();
+    expect(screen.getByText('Reason: No keep-alive in time')).toBeInTheDocument();
     // a member without a name, and the system
     expect(screen.getByText('by a team member')).toBeInTheDocument();
     expect(screen.getByText('SHARED: cfg.mode')).toBeInTheDocument();
@@ -229,6 +230,34 @@ describe('DeviceListView: the quick view', () => {
     expect(adapter.devices!.list).toHaveBeenCalledWith(expect.not.objectContaining({ device: expect.anything() }), expect.anything());
   });
 
+  it('opens the full page and the log in the host\'s router (1.22)', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    wrap(<DeviceListView hrefs={hrefs} onOpen={onOpen} now={NOW} />);
+    await user.click(within((await screen.findByText('Pump 4')).closest('tr')!).getAllByRole('cell')[1]);
+    const dialog = await screen.findByRole('dialog', { name: 'Device Pump 4' });
+    await user.click(within(dialog).getByRole('link', { name: 'Open the log' }));
+    expect(onOpen).toHaveBeenLastCalledWith('/d/d1?tab=log');
+    await user.click(within(dialog).getByRole('link', { name: 'Open full page' }));
+    expect(onOpen).toHaveBeenLastCalledWith('/d/d1');
+  });
+
+  it('a device off the page is read again on every poll, so it does not freeze (1.16)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const adapter = adapterWith();
+      let n = 0;
+      (adapter.devices!.get as ReturnType<typeof vi.fn>).mockImplementation(async (id: string) => ({ ...DEVICES[0], deviceId: id, name: `Elsewhere ${id}`, online: n++ === 0 }));
+      render(<IotAdapterProvider adapter={adapter} live={null} capabilities={ALL} locale="en"><DeviceListView hrefs={hrefs} initialQuery={{ device: 'd9' }} now={NOW} /></IotAdapterProvider>);
+      const dialog = await screen.findByRole('dialog', { name: 'Device Elsewhere d9' });
+      expect(within(dialog).getByText('Online')).toBeInTheDocument();
+      await act(async () => { vi.advanceTimersByTime(30_000); });
+      expect(await within(dialog).findByText('Offline')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('follows the open device live', async () => {
     const user = userEvent.setup();
     const live = fakeLive();
@@ -239,5 +268,23 @@ describe('DeviceListView: the quick view', () => {
     act(() => live.publish('deviceState', { deviceId: 'd2', online: true, lastActivityAt: NOW, remoteIp: '192.0.2.44', transport: 'mqtt' }));
     expect(await within(dialog).findByText('192.0.2.44')).toBeInTheDocument();
     expect(within(dialog).getByText('Online')).toBeInTheDocument();
+  });
+});
+
+describe('useDeviceLog', () => {
+  it('drops a late answer of the previous device: the log neither shows it nor stays loading (1.13)', async () => {
+    const line = (id: string): DeviceLogEntry => ({ id, at: NOW, source: 'connection', kind: 'connected' });
+    const log = vi.fn().mockImplementation(async (id: string) => ({ items: [line(`${id}-1`)], total: 1 }));
+    const api = { list: vi.fn(), get: vi.fn(), connections: vi.fn(), log } as unknown as IotDevicesApi;
+    const { result, rerender } = renderHook(({ id }) => useDeviceLog(api, id, { pageSize: 5, errorText: 'x' }), { initialProps: { id: 'd1' } });
+    await waitFor(() => expect(result.current.entries[0]?.id).toBe('d1-1'));
+    let late!: (v: unknown) => void;
+    log.mockImplementationOnce(() => new Promise((r) => { late = r; }));
+    act(() => result.current.reload());
+    rerender({ id: 'd2' });
+    await waitFor(() => expect(result.current.entries[0]?.id).toBe('d2-1'));
+    await act(async () => { late({ items: [line('d1-late')], total: 1 }); });
+    expect(result.current.entries.map((e) => e.id)).toEqual(['d2-1']);
+    expect(result.current.loading).toBe(false);
   });
 });
