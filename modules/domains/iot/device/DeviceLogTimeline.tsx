@@ -10,7 +10,7 @@ import { Timeline, type TimelineItem } from '@/modules/ui/Timeline';
 import { Button } from '@/modules/ui/Button';
 import { cn } from '@/libs/utils/cn';
 import { useIotText } from '../api/IotAdapterProvider';
-import { fill, toDate } from '../format';
+import { fill, formatNumber, toDate } from '../format';
 import type { DeviceLogEntry, DeviceLogFilter, DeviceLogSource } from '../types/device';
 import type { IotMessages, IotMessagesInput } from '../messages';
 import { DeviceAddress } from './DeviceAddress';
@@ -21,7 +21,10 @@ import { disconnectReasonText } from './DeviceConnectionBadge';
  * (connects, disconnects with their protocol reason, takeovers, rule switches, with the client address and transport through
  * `DeviceAddress`) and its audited changes (created, edited, status, credential, attribute writes, commands, alarm handling) with who
  * made them ("by Ada Lovelace"). A chip row filters All / Connections / Changes; paging is the host's (`onLoadMore`). `compact`
- * draws a short list without day headings, filter or paging (the quick view's recent lines).
+ * draws a short list without day headings, filter or paging (the quick view's recent lines). Times carry seconds and the zone (the
+ * host's `timeZone`, else the viewer's); an audit line names fields, statuses, credential types and scopes in words, a code it does
+ * not know as it is. `auditAvailable` false says the changes could not be read instead of "No changes yet" (NB 41-ui-fixes/22 4.1,
+ * 6.3, 6.4).
  */
 export type DeviceLogTimelineProps = {
   entries: readonly DeviceLogEntry[];
@@ -33,6 +36,10 @@ export type DeviceLogTimelineProps = {
   onFilterChange?: (filter: DeviceLogFilter) => void;
   /** Without a `log` call the host has connection entries only: the Changes chip is left out. */
   sources?: readonly DeviceLogSource[];
+  /** False: the host could not read the audited changes this time (said above the timeline). */
+  auditAvailable?: boolean;
+  /** The host reads no deeper than this: "Showing the newest {n} entries" under the last one. */
+  capped?: number | null;
   compact?: boolean;
   locale?: string;
   timeZone?: string;
@@ -74,19 +81,36 @@ export const DEVICE_LOG_ACTIONS: Readonly<Record<string, Look & { title: LogKey 
 const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 const list = (v: unknown): string | null => (Array.isArray(v) && v.length ? v.filter((x) => typeof x === 'string').join(', ') : null);
 
-/** One short line from an audit row's metadata: the changed fields, the keys, the credential type, the command or the alarm. */
+/** A device field's name in words (the edit drawer's labels); a field it does not know as it is. */
+export function fieldLabel(field: string, m: IotMessages): string {
+  const words: Record<string, string> = {
+    name: m.editDevice.name, label: m.editDevice.label, type: m.editDevice.type, deviceProfileId: m.editDevice.profile, profileId: m.editDevice.profile,
+    status: m.editDevice.status, additionalInfo: m.editDevice.additionalInfo, isGateway: m.device.gateway, serial: m.device.serial,
+  };
+  return words[field] ?? field;
+}
+
+/** A registry status in words; an unknown one as it is. */
+export function statusLabel(status: string, m: IotMessages): string {
+  const words: Record<string, string> = { ACTIVE: m.editDevice.statusActive, QUARANTINED: m.device.quarantined, DISABLED: m.device.disabled };
+  return words[status] ?? status;
+}
+
+/** One short line from an audit row's metadata: the changed fields, the keys, the credential type, the command or the alarm, in words. */
 export function auditSummary(e: DeviceLogEntry, m: IotMessages): string | null {
   const md = e.metadata ?? {};
   const parts: string[] = [];
-  const fields = list(md.fields);
-  if (fields) parts.push(fill(m.log.changed, { fields }));
+  const fieldList = Array.isArray(md.fields) ? md.fields.filter((x): x is string => typeof x === 'string') : [];
+  if (fieldList.length) parts.push(fill(m.log.changed, { fields: fieldList.map((f) => fieldLabel(f, m)).join(', ') }));
   const from = str(md.from);
   const to = str(md.to);
-  if (from && to) parts.push(fill(m.log.status, { from, to }));
+  if (from && to) parts.push(fill(m.log.status, { from: statusLabel(from, m), to: statusLabel(to, m) }));
   const keys = list(md.keys);
-  if (keys) parts.push(str(md.scope) ? fill(m.log.keys, { scope: String(md.scope), keys }) : keys);
+  const scope = str(md.scope);
+  const scopeWord = scope ? ((m.attribute as Record<string, string>)[scope.toUpperCase()] ?? scope) : null;
+  if (keys) parts.push(scopeWord ? fill(m.log.keys, { scope: scopeWord, keys }) : keys);
   const type = str(md.credentialType);
-  if (type) parts.push(fill(m.log.credentialType, { type }));
+  if (type) parts.push(fill(m.log.credentialType, { type: (m.credential as Record<string, string>)[type] ?? type }));
   const method = str(md.method);
   if (method) parts.push(fill(m.log.method, { method }));
   const alarmType = str(md.alarmType) ?? (e.kind.startsWith('iot_alarm.') ? str(md.type) : null);
@@ -96,9 +120,10 @@ export function auditSummary(e: DeviceLogEntry, m: IotMessages): string | null {
 
 export function DeviceLogTimeline({
   entries, loading = false, hasMore = false, onLoadMore, filter = 'all', onFilterChange, sources = ['connection', 'audit'], compact = false,
-  locale, timeZone, messages, className,
+  auditAvailable = true, capped = null, locale, timeZone, messages, className,
 }: DeviceLogTimelineProps) {
-  const { m, locale: lang } = useIotText(messages, locale);
+  const { m, locale: lang, timeZone: hostZone } = useIotText(messages, locale);
+  const zone = timeZone ?? hostZone;
   const connectionTitles: Record<string, string> = {
     connected: m.connection.connected,
     disconnected: m.connection.disconnected,
@@ -152,7 +177,7 @@ export function DeviceLogTimeline({
     ...(sources.includes('connection') ? [{ id: 'connection' as const, label: m.log.connections }] : []),
     ...(sources.includes('audit') ? [{ id: 'audit' as const, label: m.log.changes }] : []),
   ];
-  const empty = filter === 'connection' ? m.log.emptyConnections : filter === 'audit' ? m.log.emptyChanges : m.log.empty;
+  const empty = filter === 'connection' ? m.log.emptyConnections : filter === 'audit' ? (auditAvailable ? m.log.emptyChanges : m.log.auditUnavailable) : m.log.empty;
 
   return (
     <div className={cn('space-y-3', className)}>
@@ -174,11 +199,18 @@ export function DeviceLogTimeline({
           ))}
         </div>
       )}
-      <Timeline items={items} locale={lang} timeZone={timeZone} groupByDay={!compact} emptyMessage={loading ? m.common.loading : empty} />
+      {!compact && !auditAvailable && filter !== 'connection' && sources.includes('audit') && (items.length > 0 || filter === 'all') && (
+        <p role="status" className="text-xs text-text-secondary">{m.log.auditUnavailable}</p>
+      )}
+      <Timeline items={items} locale={lang} timeZone={zone} groupByDay={!compact} timePrecision="seconds" showTimeZone={!compact}
+        emptyMessage={loading ? m.common.loading : empty} />
       {!compact && hasMore && onLoadMore && (
         <div className="flex justify-center">
           <Button variant="outline" size="sm" loading={loading} onClick={onLoadMore}>{m.log.loadMore}</Button>
         </div>
+      )}
+      {!compact && !hasMore && capped !== null && capped > 0 && (
+        <p className="text-center text-xs text-text-secondary">{fill(m.log.depthCap, { n: formatNumber(capped, lang, 0) })}</p>
       )}
     </div>
   );

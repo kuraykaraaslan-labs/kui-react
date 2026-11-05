@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Button } from '@/modules/ui/Button';
 import { Drawer } from '@/modules/ui/Drawer';
@@ -17,7 +17,10 @@ import type { DeviceRecord } from '../types/device';
  * A change that ends a connected device's session (a new name, a new profile, disabling it) asks first through the ConfirmDialog; the
  * device connects again by itself unless it is disabled. A quarantined device keeps its status (it is approved with Activate). The
  * gateway flag is not here. The profile list comes from `profiles` when the host page already has it, else from `profiles.options`.
- * Closing the drawer drops the draft.
+ * Closing the drawer drops the draft; nothing closes it while the save runs, and Save sends once (NB 41-ui-fixes/22 2.1). A host refuses
+ * a profile that does not allow the device's credential type (NB: 409 `auth_mode_not_allowed`), shown at the top. The draft is compared with
+ * the device as it was when the drawer opened, so a re-read of the page while it is open never makes Save undo someone else's change;
+ * when the device changed underneath, the drawer says so (41-ui-fixes/22 C11, C12).
  */
 export type EditDeviceDrawerProps = {
   open: boolean;
@@ -61,14 +64,19 @@ export function EditDeviceDrawer({ open, device, profiles: profilesProp, onClose
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const profiles = profilesProp ?? loaded;
-  const quarantined = device.status === 'QUARANTINED';
-  const hasInfo = device.additionalInfo !== undefined;
+  // the device as it was when the drawer opened: what the draft is compared with
+  const [base, setBase] = useState(device);
+  const quarantined = base.status === 'QUARANTINED';
+  const hasInfo = base.additionalInfo !== undefined;
+  // one save at a time: a fast second click while the confirm is open or the request runs does nothing
+  const submitting = useRef(false);
 
   // every opening starts from the device as it is now (state adjusted while rendering, not in an effect)
   const [wasOpen, setWasOpen] = useState(open);
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
+      setBase(device);
       setName(device.name); setLabel(device.label ?? ''); setType(device.type ?? '');
       setProfileId(device.deviceProfileId); setStatus(device.status === 'DISABLED' ? 'DISABLED' : 'ACTIVE'); setInfo(infoText(device.additionalInfo));
       setError(null); setFieldErrors({});
@@ -84,8 +92,20 @@ export function EditDeviceDrawer({ open, device, profiles: profilesProp, onClose
     return () => ctrl.abort();
   }, [open, profilesProp, loadOptions]);
 
+  function close() {
+    if (busy) return;
+    onClose();
+  }
+
   async function submit() {
+    if (!api?.update || busy || submitting.current) return;
+    submitting.current = true;
+    try { await save(); } finally { submitting.current = false; }
+  }
+
+  async function save() {
     if (!api?.update) return;
+    const device = base;
     if (!name.trim()) { setFieldErrors({ name: m.editDevice.nameRequired }); return; }
     const patch: UpdateDeviceInput = {};
     if (name.trim() !== device.name) patch.name = name.trim();
@@ -127,27 +147,31 @@ export function EditDeviceDrawer({ open, device, profiles: profilesProp, onClose
     }
   }
 
-  const profileOptions = profiles.some((p) => p.id === device.deviceProfileId)
+  const profileOptions = profiles.some((p) => p.id === base.deviceProfileId)
     ? profiles.map((p) => ({ value: p.id, label: p.name }))
-    : [{ value: device.deviceProfileId, label: device.profileName ?? device.deviceProfileId }, ...profiles.map((p) => ({ value: p.id, label: p.name }))];
+    : [{ value: base.deviceProfileId, label: base.profileName ?? base.deviceProfileId }, ...profiles.map((p) => ({ value: p.id, label: p.name }))];
+  // changed underneath while open (another member, an earlier tab): Save sends only this draft's own changes
+  const changed = open && (device.name !== base.name || (device.label ?? null) !== (base.label ?? null) || (device.type ?? null) !== (base.type ?? null)
+    || device.deviceProfileId !== base.deviceProfileId || device.status !== base.status || infoText(device.additionalInfo) !== infoText(base.additionalInfo));
 
   return (
     <Drawer
       open={open}
-      onClose={onClose}
+      onClose={close}
       title={m.editDevice.title}
       closeLabel={m.common.close}
       footer={(
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>{m.common.cancel}</Button>
-          <Button variant="primary" size="sm" loading={busy} onClick={() => void submit()}>{m.editDevice.save}</Button>
+          <Button variant="ghost" size="sm" onClick={close} disabled={busy}>{m.common.cancel}</Button>
+          <Button variant="primary" size="sm" loading={busy} disabled={busy} onClick={() => void submit()}>{m.editDevice.save}</Button>
         </div>
       )}
     >
       <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
         {error && <p role="alert" className="text-sm text-error">{error}</p>}
+        {changed && <p role="status" className="text-xs text-warning-fg">{m.editDevice.changedUnderneath}</p>}
         <Input id="edit-device-name" label={m.editDevice.name} required maxLength={128} value={name} error={fieldErrors.name} onChange={(e) => setName(e.target.value)} />
-        {name.trim() !== device.name && <p className="text-xs text-text-secondary">{m.editDevice.liveHint}</p>}
+        {name.trim() !== base.name && <p className="text-xs text-text-secondary">{m.editDevice.liveHint}</p>}
         <Input id="edit-device-label" label={m.editDevice.label} maxLength={255} value={label} error={fieldErrors.label} onChange={(e) => setLabel(e.target.value)} />
         <Input id="edit-device-type" label={m.editDevice.type} hint={m.editDevice.typeHint} maxLength={64} value={type} error={fieldErrors.type} onChange={(e) => setType(e.target.value)} />
         <Select

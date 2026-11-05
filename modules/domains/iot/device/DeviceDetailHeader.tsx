@@ -13,11 +13,14 @@ import { DeviceConnectionBadge } from './DeviceConnectionBadge';
  * DeviceDetailHeader — a device page's header: name and label, connection badge (quarantined / disabled win, OD-1),
  * gateway tag, serial, profile (a link when `profileHref` is given), firmware and protocol, and an `actions` slot the host
  * fills (Activate, Release device, delete, copy id). There is no factory-reset action anywhere (OD-8): the slot is the
- * only place actions come from.
+ * only place actions come from. `onOpen` opens the profile link in the host's router on a plain click (a modified click keeps the
+ * link's own behaviour), so the app does not reload (NB 41-ui-fixes/22 6.6).
  */
 export type DeviceDetailHeaderProps = {
   device: Pick<DeviceRecord, 'name' | 'label' | 'serial' | 'status' | 'online' | 'isGateway' | 'fwTitle' | 'fwVersion' | 'protocolMajor' | 'profileName' | 'deviceProfileId' | 'lastActivityAt' | 'lastDisconnectReason' | 'lastRemoteIp' | 'lastTransport'>;
   profileHref?: string;
+  /** Opens a link in the host's router on a plain click; without it the link is a plain link. */
+  onOpen?: (href: string) => void;
   actions?: React.ReactNode;
   locale?: string;
   now?: number;
@@ -25,7 +28,12 @@ export type DeviceDetailHeaderProps = {
   className?: string;
 };
 
-export function DeviceDetailHeader({ device, profileHref, actions, locale, now, messages, className }: DeviceDetailHeaderProps) {
+/** A plain left click (no modifier): the host's router opens the link; any other click keeps the link's own behaviour. */
+function plainClick(e: React.MouseEvent): boolean {
+  return !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
+
+export function DeviceDetailHeader({ device, profileHref, onOpen, actions, locale, now, messages, className }: DeviceDetailHeaderProps) {
   const { m } = useIotText(messages, locale);
   const firmware = [device.fwTitle, device.fwVersion].filter(Boolean).join(' ');
   const profile = device.profileName ?? device.deviceProfileId;
@@ -61,7 +69,7 @@ export function DeviceDetailHeader({ device, profileHref, actions, locale, now, 
           icon={faLayerGroup}
           term={m.device.profile}
           value={profileHref ? (
-            <a href={profileHref} className="rounded font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">{profile}</a>
+            <a href={profileHref} onClick={onOpen ? (e) => { if (plainClick(e)) { e.preventDefault(); onOpen(profileHref); } } : undefined} className="rounded font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">{profile}</a>
           ) : <span className="font-medium text-text-primary">{profile}</span>}
         />
         <Meta icon={faCodeBranch} term={m.device.firmware} value={firmware ? <span className="text-text-primary">{firmware}</span> : '—'} />

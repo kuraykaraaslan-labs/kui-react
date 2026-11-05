@@ -9,7 +9,7 @@ import { EmptyState } from '@/modules/ui/EmptyState';
 import { Callout } from '@/modules/ui/Callout';
 import { Select } from '@/modules/ui/Select';
 import { useIotAdapter, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
-import type { IotAdapter, TelemetryLatest, TelemetryPoint, TelemetryValue } from '../api/adapter';
+import { seriesPageOf, type IotAdapter, type TelemetryLatest, type TelemetrySeriesPage, type TelemetryValue } from '../api/adapter';
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime, formatRelative } from '../format';
 import type { IotMessagesInput } from '../messages';
@@ -20,7 +20,9 @@ import type { Series } from '@/modules/ui/Chart/types';
  * DeviceTelemetryView — the device page's Telemetry tab: every key the device sends with its latest value and when it came, live (a
  * value changes in place as the device sends it; without a live source the table is read again every 30 s), searchable, sortable and
  * filterable by kind; and a trend of the numeric keys ticked in the table (up to `maxCharted`, the first numeric key to begin with) over a
- * window of the last hour to the last seven days. Needs the adapter's `telemetry`.
+ * window of the last hour to the last seven days. Needs the adapter's `telemetry`. When the host says it cut a window (it answers at most
+ * so many points per key, the oldest kept), the trend says the newest are missing; ticking more keys than `maxCharted` says the
+ * extra ones are not drawn (NB 41-ui-fixes/22 1.2, 6.5).
  */
 export type DeviceTelemetryViewProps = {
   deviceId: string;
@@ -56,10 +58,10 @@ export function showValue(v: TelemetryValue, m: { on: string; off: string }, loc
 }
 
 /** The series of `want` (`<window>|<key,key>`) up to now. */
-async function readSeries(api: NonNullable<IotAdapter['telemetry']>, deviceId: string, want: string, signal: AbortSignal): Promise<Record<string, TelemetryPoint[]>> {
+async function readSeries(api: NonNullable<IotAdapter['telemetry']>, deviceId: string, want: string, signal: AbortSignal): Promise<TelemetrySeriesPage> {
   const [win, keys] = want.split('|') as [WindowKey, string];
   const to = Date.now();
-  return api.series(deviceId, { keys: keys.split(','), from: to - WINDOW_MS[win], to }, signal);
+  return seriesPageOf(await api.series(deviceId, { keys: keys.split(','), from: to - WINDOW_MS[win], to }, signal));
 }
 
 export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, messages, className }: DeviceTelemetryViewProps) {
@@ -119,11 +121,13 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
   // 11-hour-old leftover, and the chart under "Live" said "No values in this window")
   const numeric = useMemo(() => (rows ?? []).filter((r) => r.kind === 'number').sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0) || a.key.localeCompare(b.key)).map((r) => r.key), [rows]);
   const [ticked, setTicked] = useState<string[] | null>(null);
+  // more keys ticked than the trend draws: said under the table (the selection itself keeps the first `maxCharted`)
+  const [tooMany, setTooMany] = useState(false);
   const charted = (ticked ?? numeric.slice(0, 1)).filter((k) => numeric.includes(k)).slice(0, maxCharted);
   const [win, setWin] = useState<WindowKey>('6h');
   // a read's answer is kept with what it was asked for, so a chart never draws another window's or other keys' lines
   const want = `${win}|${charted.join(',')}`;
-  const [answer, setAnswer] = useState<{ for: string; series: Record<string, TelemetryPoint[]> | null; error: string | null } | null>(null);
+  const [answer, setAnswer] = useState<{ for: string; page: TelemetrySeriesPage | null; error: string | null } | null>(null);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     // the trend follows the clock: read again every minute
@@ -134,12 +138,13 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
     if (!api || !want.split('|')[1]) return;
     const ctrl = new AbortController();
     readSeries(api, deviceId, want, ctrl.signal)
-      .then((series) => setAnswer({ for: want, series, error: null }))
-      .catch(() => { if (!ctrl.signal.aborted) setAnswer({ for: want, series: null, error: t.chartError }); });
+      .then((page) => setAnswer({ for: want, page, error: null }))
+      .catch(() => { if (!ctrl.signal.aborted) setAnswer({ for: want, page: null, error: t.chartError }); });
     return () => ctrl.abort();
   }, [api, deviceId, want, tick, t.chartError]);
   const current = answer?.for === want ? answer : null;
-  const series = current?.series ?? null;
+  const series = current?.page?.series ?? null;
+  const truncated = !!current?.page?.truncated;
   const seriesError = current?.error ?? null;
 
   const kindLabel: Record<Kind, string> = { number: t.typeNumber, flag: t.typeFlag, text: t.typeText, json: t.typeJson };
@@ -175,6 +180,7 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
       <section className="rounded-xl border border-border bg-surface-raised p-4" aria-label={t.chartTitle}>
         <h3 className="mb-2 text-sm font-semibold text-text-primary">{t.chartTitle}</h3>
         <LineChart series={lines} xAxis="time" locale={lc} height={240} curve="linear" showLegend ariaLabel={`${t.chartTitle}: ${charted.join(', ')}`} />
+        {truncated && <p role="status" className="mt-2 text-xs text-warning-fg">{t.truncated}</p>}
       </section>
     );
   })();
@@ -219,14 +225,14 @@ export function DeviceTelemetryView({ deviceId, maxCharted = 4, locale, now, mes
             isRowSelectable={(r) => (r.kind === 'number' ? true : t.chartOnlyNumbers)}
             rowSelectLabel={(r) => fill(t.chartKey, { key: r.key })}
             selectedRowIds={charted}
-            onSelectionChange={(ids) => setTicked(ids.map(String).slice(0, maxCharted))}
+            onSelectionChange={(ids) => { setTooMany(ids.length > maxCharted); setTicked(ids.map(String).slice(0, maxCharted)); }}
             emptyMessage={t.empty}
             messages={{ loading: m.common.loading, retry: m.common.retry }}
             density="compact"
             pageSizeOptions={[]}
             keyboardNavigation
           />
-          {(ticked?.length ?? 0) > maxCharted && <p className="text-xs text-text-secondary">{fill(t.chartTooMany, { max: maxCharted })}</p>}
+          {tooMany && <p role="status" className="text-xs text-text-secondary">{fill(t.chartTooMany, { max: maxCharted })}</p>}
         </>
       )}
     </div>

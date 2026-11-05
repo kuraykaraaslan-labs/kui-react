@@ -11,8 +11,9 @@ import { LIST_PAGE_SIZES } from '../api/list-table';
 import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { TabGroup } from '@/modules/ui/TabGroup';
 import { Textarea } from '@/modules/ui/Textarea';
+import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotText } from '../api/IotAdapterProvider';
-import { fill, formatRelative } from '../format';
+import { fill, formatDateTime, formatRelative } from '../format';
 import { ATTRIBUTE_SCOPES, DESIRED_REPORTED_STATES, type AttributeEntry, type AttributeScope } from '../types/device';
 import type { IotMessagesInput } from '../messages';
 import { DesiredReportedBadge } from './DesiredReportedBadge';
@@ -24,7 +25,12 @@ import { DesiredReportedBadge } from './DesiredReportedBadge';
  * is write-only and never shown. Values are saved one key at a time through `onSave`.
  *
  * Each scope is a full list on the DataTable's own toolbar, in the browser (the host holds the scope's keys): search (key, value),
- * sortable key, sync and updated columns, the Shared tab's sync filter, rows per page and paging.
+ * sortable key, sync and updated columns, the Shared tab's sync filter, rows per page and paging. The sync column and filter show only
+ * when some key of the scope has a sync state; "Updated" carries the exact time as its title.
+ *
+ * A new key is checked here against the host's key rules (`attributeKeyProblem`) before any request, and a key the scope already holds
+ * asks before its value is replaced (a shared one is sent to the device). A save that fails says why, or that it failed (NB
+ * 41-ui-fixes/22 2.4, 4.3, 6.4, 6.6).
  */
 export type DeviceAttributeTableProps = {
   entries: Partial<Record<AttributeScope, readonly AttributeEntry[]>>;
@@ -36,12 +42,54 @@ export type DeviceAttributeTableProps = {
   /** Called when a scope tab is opened (load it lazily). */
   onScopeOpen?: (scope: AttributeScope) => void;
   onRetry?: (scope: AttributeScope) => void;
+  /** A scope whose newest re-read failed while rows were shown: the rows stay, with this line above them (NB 41-ui-fixes/22 C3). */
+  stale?: Partial<Record<AttributeScope, string | null>>;
   defaultScope?: AttributeScope;
   locale?: string;
   now?: number;
   messages?: IotMessagesInput;
   className?: string;
 };
+
+/** The key syntax every scope shares (NB `ATTRIBUTE_KEY`). */
+export const ATTRIBUTE_KEY = /^[A-Za-z0-9_.-]{1,128}$/;
+/** A shared key other than `cfg.*` can take a desired value, so `<key>.reason` must fit the device's 64-character key limit. */
+export const SHARED_KEY_MAX = 57;
+const RESERVED_PREFIXES = ['_', 'fw_', 'current_fw_'];
+const RESERVED_SUFFIXES = ['.state', '.reason'];
+/** Keys the device reports about itself, and the shared key the platform computes (NB `CLIENT_BOOKKEEPING_KEYS`, `COMPUTED_SHARED_KEYS`). */
+const RESERVED_KEYS = new Set(['deleted', 'cfg_rejected', 'cfg_applied_ts', 'cfg_hash', 'attr_error', 'rpc_result', 'cert_not_after', 'time_quality']);
+const COMPUTED_SHARED = new Set(['session_limits']);
+
+/**
+ * Why a key cannot be written by a person in this scope, in words, or null (the host's cloud-write rules, NB iot_device
+ * `attributeKeyIssue`): the syntax, the keys the platform or the device own, `cfg.*` in Shared only, a shared key of at most 57.
+ */
+export function attributeKeyProblem(key: string, scope: Exclude<AttributeScope, 'CLIENT'>, m: { attribute: Record<string, string> }): string | null {
+  if (!ATTRIBUTE_KEY.test(key)) return m.attribute.keyInvalid;
+  if (RESERVED_KEYS.has(key) || RESERVED_PREFIXES.some((p) => key.startsWith(p)) || RESERVED_SUFFIXES.some((x) => key.endsWith(x))) return m.attribute.keyReserved;
+  if (key.startsWith('cfg.')) return scope === 'SHARED' ? null : m.attribute.keyConfigShared;
+  if (scope === 'SHARED') {
+    if (COMPUTED_SHARED.has(key)) return m.attribute.keyReserved;
+    if (key.length > SHARED_KEY_MAX) return m.attribute.keySharedTooLong;
+  }
+  return null;
+}
+
+/** The deepest a value may nest (NB `MAX_VALUE_DEPTH`, protocol 09 §1): a scalar is 0, `{"a":{"b":1}}` is 2. */
+export const MAX_VALUE_DEPTH = 8;
+
+/** JSON nesting depth of a value (a scalar is 0), as the host counts it; stops counting past `limit`. */
+export function jsonDepth(value: unknown, limit = MAX_VALUE_DEPTH + 1): number {
+  if (value === null || typeof value !== 'object') return 0;
+  if (limit <= 0) return 1;
+  let max = 0;
+  for (const v of Array.isArray(value) ? value : Object.values(value as Record<string, unknown>)) {
+    max = Math.max(max, jsonDepth(v, limit - 1));
+    if (max >= limit) break;
+  }
+  return max + 1;
+}
 
 /** The JSON a value is edited as. */
 export function valueToText(v: unknown): string {
@@ -59,7 +107,7 @@ export function parseValue(text: string): { ok: true; value: unknown } | { ok: f
 }
 
 export function DeviceAttributeTable({
-  entries, loading = {}, errors = {}, canWrite = false, onSave, onDelete, onScopeOpen, onRetry, defaultScope = 'SERVER',
+  entries, loading = {}, errors = {}, canWrite = false, onSave, onDelete, onScopeOpen, onRetry, stale = {}, defaultScope = 'SERVER',
   locale, now, messages, className,
 }: DeviceAttributeTableProps) {
   const { m } = useIotText(messages, locale);
@@ -79,6 +127,7 @@ export function DeviceAttributeTable({
               rows={entries[scope] ?? []}
               loading={!!loading[scope]}
               error={errors[scope] ?? null}
+              stale={stale[scope] ?? null}
               canWrite={canWrite && scope !== 'CLIENT' && !!onSave}
               onSave={onSave}
               onDelete={onDelete}
@@ -95,11 +144,12 @@ export function DeviceAttributeTable({
   );
 }
 
-function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, onOpen, onRetry, locale, now, messages }: {
+function ScopePanel({ scope, rows, loading, error, stale, canWrite, onSave, onDelete, onOpen, onRetry, locale, now, messages }: {
   scope: AttributeScope;
   rows: readonly AttributeEntry[];
   loading: boolean;
   error: string | null;
+  stale: string | null;
   canWrite: boolean;
   onSave?: DeviceAttributeTableProps['onSave'];
   onDelete?: DeviceAttributeTableProps['onDelete'];
@@ -109,7 +159,7 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
   now?: number;
   messages?: IotMessagesInput;
 }) {
-  const { m, locale: lang } = useIotText(messages, locale);
+  const { m, locale: lang, timeZone } = useIotText(messages, locale);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [draftKey, setDraftKey] = useState('');
@@ -135,17 +185,34 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
   }
 
   async function commit() {
-    if (!writable || !onSave || editing === null) return;
-    const key = editing === '' ? draftKey.trim() : editing;
+    if (!writable || !onSave || editing === null || busy) return;
+    const adding = editing === '';
+    const key = adding ? draftKey.trim() : editing;
     if (!key) { setFieldError(m.attribute.keyRequired); return; }
+    if (adding) {
+      const problem = attributeKeyProblem(key, writable, m);
+      if (problem) { setFieldError(problem); return; }
+    }
     const parsed = parseValue(draft);
     if (!parsed.ok) { setFieldError(m.attribute.invalidJson); return; }
+    // the host's nesting limit (NB MAX_VALUE_DEPTH, 41-ui-fixes/22 C8)
+    if (jsonDepth(parsed.value) > MAX_VALUE_DEPTH) { setFieldError(fill(m.attribute.valueTooDeep, { max: MAX_VALUE_DEPTH })); return; }
+    // a new key the scope already holds would replace its value (and a shared one goes to the device): ask first
+    if (adding && rows.some((r) => r.key === key)) {
+      const ok = await confirmDialog({
+        title: fill(m.attribute.existsConfirm, { key }), message: writable === 'SHARED' ? m.attribute.existsHintShared : m.attribute.existsHint,
+        tone: 'warning', confirmLabel: m.attribute.replace, cancelLabel: m.common.cancel,
+      });
+      if (!ok) return;
+    }
     setBusy(true);
     try {
       await onSave(writable, key, parsed.value);
       setEditing(null);
     } catch (e) {
-      setFieldError(e instanceof Error ? e.message : String(e));
+      // the host's word for this key when it marks one, else its message, else that the save failed (a request with no answer)
+      const marked = e instanceof IotApiError && e.fieldErrors ? (e.fieldErrors[key] ?? e.fieldErrors.key ?? e.fieldErrors.value) : undefined;
+      setFieldError(marked ?? errorMessage(e, m.attribute.saveFailed));
     } finally {
       setBusy(false);
     }
@@ -154,7 +221,7 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
   const editor = (key: string | null) => (
     <div className="space-y-2">
       {key === null && (
-        <Input id={`attr-${scope}-new-key`} label={m.attribute.newKey} value={draftKey} onChange={(e) => setDraftKey(e.target.value)} />
+        <Input id={`attr-${scope}-new-key`} label={m.attribute.newKey} maxLength={128} spellCheck={false} value={draftKey} onChange={(e) => { setDraftKey(e.target.value); setFieldError(null); }} />
       )}
       <Textarea
         id={`attr-${scope}-${key ?? 'new'}-value`}
@@ -166,12 +233,14 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
         onChange={(e) => { setDraft(e.target.value); setFieldError(null); }}
       />
       <div className="flex gap-2">
-        <Button variant="primary" size="xs" loading={busy} onClick={() => void commit()}>{m.common.save}</Button>
-        <Button variant="ghost" size="xs" onClick={() => setEditing(null)}>{m.common.cancel}</Button>
+        <Button variant="primary" size="xs" loading={busy} disabled={busy} onClick={() => void commit()}>{m.common.save}</Button>
+        <Button variant="ghost" size="xs" onClick={() => setEditing(null)} disabled={busy}>{m.common.cancel}</Button>
       </div>
     </div>
   );
 
+  // the sync column and filter only when the host sends a sync state for some key of the scope
+  const hasSync = scope === 'SHARED' && rows.some((r) => !!r.sync);
   const columns: Column<AttributeEntry>[] = [
     { key: 'key', header: m.attribute.key, sortable: true, render: (e) => <code className="break-all font-mono text-xs">{e.key}</code> },
     {
@@ -187,14 +256,21 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
         <code className="block max-w-xs truncate font-mono text-xs sm:max-w-md" title={valueToText(e.value)}>{valueToText(e.value)}</code>
       )),
     },
-    ...(scope === 'SHARED' ? [{
+    ...(hasSync ? [{
       key: 'sync',
       header: m.attribute.device,
       sortable: true,
       searchable: false,
       render: (e: AttributeEntry) => (e.sync ? <DesiredReportedBadge state={e.sync} reason={e.syncReason} messages={messages} /> : null),
     }] : []),
-    { key: 'updated', header: m.attribute.updated, hideBelow: 'md', sortable: true, searchable: false, sortValue: (e) => (e.updatedAt ? new Date(e.updatedAt).getTime() : null), render: (e) => <span className="text-xs text-text-secondary">{formatRelative(e.updatedAt, { locale: lang, now })}</span> },
+    {
+      key: 'updated', header: m.attribute.updated, hideBelow: 'md', sortable: true, searchable: false, sortValue: (e) => (e.updatedAt ? new Date(e.updatedAt).getTime() : null),
+      render: (e) => (
+        <span className="text-xs text-text-secondary" title={e.updatedAt ? formatDateTime(e.updatedAt, { locale: lang, timeZone }) : undefined}>
+          {formatRelative(e.updatedAt, { locale: lang, now })}
+        </span>
+      ),
+    },
     ...(canWrite ? [{
       key: 'actions',
       header: <span className="sr-only">{m.attribute.actions}</span>,
@@ -215,7 +291,7 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
     }] : []),
   ];
 
-  const filterFields: DataTableFilterField<AttributeEntry>[] = scope === 'SHARED'
+  const filterFields: DataTableFilterField<AttributeEntry>[] = hasSync
     ? [{ id: 'sync', label: m.attribute.device, type: 'checkboxes', options: DESIRED_REPORTED_STATES.map((st) => ({ value: st, label: m.sync[st] })) }]
     : [];
 
@@ -224,6 +300,12 @@ function ScopePanel({ scope, rows, loading, error, canWrite, onSave, onDelete, o
       <p className="text-xs text-text-secondary">
         {scope === 'CLIENT' ? m.attribute.clientReadOnly : scope === 'SHARED' ? m.attribute.sharedHint : m.attribute.serverHint}
       </p>
+      {stale && !error && (
+        <p role="status" className="flex flex-wrap items-center gap-2 text-xs text-warning-fg">
+          {stale}
+          {onRetry && <Button variant="outline" size="xs" onClick={() => onRetry(scope)}>{m.common.retry}</Button>}
+        </p>
+      )}
       <DataTable<AttributeEntry>
         mode="paginated"
         variant="plain"

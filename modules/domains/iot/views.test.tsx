@@ -289,7 +289,7 @@ describe('DeviceListView', () => {
     const { unmount } = wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} now={NOW} />, { adapter, caps: { ...ALL, canViewCredentials: false } });
     await user.click(await screen.findByRole('button', { name: /New device/ }));
     await user.type(screen.getByLabelText(/^Name/), 'New{Enter}');
-    expect(await screen.findByText(/No credential was issued/)).toHaveTextContent('An administrator can set one on its Credentials tab.');
+    expect(await screen.findByText(/No credential was issued/)).toHaveTextContent('Someone who may manage device credentials can give it one on its Credentials tab.');
     expect(screen.queryByTestId('issued-secret')).toBeNull();
     // nothing to store: Close closes at once
     expect(within(screen.getByRole('dialog', { name: 'New device' })).getByRole('link', { name: 'Open device' })).toHaveAttribute('href', '/d/d9');
@@ -297,7 +297,7 @@ describe('DeviceListView', () => {
     wrap(<DeviceListView hrefs={{ device: (id) => `/d/${id}` }} now={NOW} />, { adapter });
     await user.click(await screen.findByRole('button', { name: /New device/ }));
     await user.type(screen.getByLabelText(/^Name/), 'New{Enter}');
-    expect(await screen.findByText(/No credential was issued/)).toHaveTextContent('Set one on its Credentials tab.');
+    expect(await screen.findByText(/No credential was issued/)).toHaveTextContent('Give it one with "Set credential" on its Credentials tab.');
   });
 
   it('offers the host\'s ways to add a device beside "Other device", each in the drawer with "Choose another way" back to the choice', async () => {
@@ -613,7 +613,7 @@ describe('DeviceDetailView', () => {
     await user.click(screen.getByRole('button', { name: 'Edit' }));
     const drawer = await screen.findByRole('dialog');
     expect(within(drawer).queryByLabelText('Status')).toBeNull();
-    expect(within(drawer).getByText(/Approve it with Activate/)).toBeInTheDocument();
+    expect(within(drawer).getByText(/its status changes when it is approved/)).toBeInTheDocument();
   });
 
   it('keeps the edit drawer open with the host\'s field error, refuses an empty name and offers Edit only with the capability', async () => {

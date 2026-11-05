@@ -330,7 +330,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         canCreateDevice: true, canEditDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true,
         canWriteAttributes: true, canActivateDevice: true, canReleaseDevice: false, canReadAlarms: true, canAcknowledge: true,
         canClear: true, canComment: true, canSendRpc: true, canManageProfiles: true, canManageProvisioning: true, canManageAlarmRules: true, canManageRpcCommands: true,
-        canManageAssets: true, canPlaceDevices: true, canReadTelemetry: true,
+        canManageAssets: true, canPlaceDevices: true, canReadTelemetry: true, canAttachCertificates: true,
       };
     },
     profiles: {
@@ -540,6 +540,34 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         audit(id, 'iot_device.credential.rotated', { credentialType: cur.type });
         const secret: IssuedSecret = cur.type === 'MQTT_BASIC' ? { password: randomSecret(24) } : { token: randomSecret() };
         return { credential: next, secret };
+      },
+      async set(id, input) {
+        await wait();
+        device(id);
+        const now = new Date();
+        const credential: DeviceCredential = input.type === 'MQTT_BASIC'
+          ? { type: 'MQTT_BASIC', username: input.username, clientId: input.clientId ?? null, createdAt: now }
+          : input.type === 'X509_CERTIFICATE'
+            ? { type: 'X509_CERTIFICATE', certificateId: input.certificateId, certFingerprint: 'ab'.repeat(32), createdAt: now }
+            : { type: 'ACCESS_TOKEN', createdAt: now };
+        const previous = store.credentials.get(id);
+        store.credentials.set(id, credential);
+        audit(id, 'iot_device.credential.set', { credentialType: credential.type, previousType: previous?.type ?? null });
+        // a chosen password is never echoed; a generated one (and a token) is shown once
+        const secret: IssuedSecret | null = input.type === 'ACCESS_TOKEN' ? { token: randomSecret() }
+          : input.type === 'MQTT_BASIC' && !input.password ? { password: randomSecret(24) } : null;
+        return { credential, secret };
+      },
+      async revoke(id) {
+        await wait();
+        const cur = store.credentials.get(id);
+        if (!cur) throw new IotApiError('not_found', 'No active credential.');
+        store.credentials.set(id, null);
+        audit(id, 'iot_device.credential.revoked', { credentialType: cur.type });
+      },
+      async certificates(d) {
+        await wait();
+        return d.serial ? [{ id: `cert-${d.deviceId}`, subject: d.serial, expiresAt: new Date(Date.now() + 365 * 86_400_000) }] : [];
       },
     },
     attributes: {
