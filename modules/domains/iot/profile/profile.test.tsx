@@ -440,7 +440,7 @@ describe('DeviceProfileEditorView', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
-  it('D210: polled is the case of the value; a host option decides whether devices log in, else only a kit built-in does', () => {
+  it('D435: polled is the case of the value; a host option decides whether devices log in, else only a kit built-in does', () => {
     expect(isPolledTransport('snmp')).toBe(true);
     expect(isPolledTransport('LORAWAN_GATEWAY')).toBe(false);
     expect(isPolledTransport('MQTT')).toBe(false);
