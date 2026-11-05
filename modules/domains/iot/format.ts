@@ -34,17 +34,43 @@ export function formatRelative(v: TimeInput, opts: { locale?: string; now?: numb
   return rtf.format(0, 'second');
 }
 
-/** "24 Oct 2026, 14:05" in `locale`. */
+/**
+ * "24 Oct 2026, 14:05 GMT+3" in `locale`, with its zone named (a time read by people in other zones is never ambiguous); in the
+ * host's `timeZone` when it passes one, else the browser's.
+ */
 export function formatDateTime(v: TimeInput, opts: { locale?: string; timeZone?: string; fallback?: string } = {}): string {
   const d = toDate(v);
   if (!d) return opts.fallback ?? '—';
-  return new Intl.DateTimeFormat(opts.locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: opts.timeZone }).format(d);
+  const parts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' };
+  try {
+    return new Intl.DateTimeFormat(opts.locale, { ...parts, timeZone: opts.timeZone }).format(d);
+  } catch {
+    // an unknown zone name from the host: the browser's zone, still named
+    return new Intl.DateTimeFormat(opts.locale, parts).format(d);
+  }
 }
 
 /** Seconds since `v` (null when unknown). */
 export function ageSeconds(v: TimeInput, now = Date.now()): number | null {
   const d = toDate(v);
   return d ? Math.max(0, Math.round((now - d.getTime()) / 1000)) : null;
+}
+
+/**
+ * A count in words: `forms.one` or `forms.other` by the locale's plural rule ("1 device", "3 devices"), `{n}` filled with the count
+ * in the locale's digits.
+ */
+export function plural(n: number, forms: { one: string; other: string }, locale?: string): string {
+  let rule: Intl.LDMLPluralRule = 'other';
+  try { rule = new Intl.PluralRules(locale).select(n); } catch { /* an unknown locale: the other form */ }
+  let shown = String(n);
+  try { shown = new Intl.NumberFormat(locale).format(n); } catch { /* an unknown locale: plain digits */ }
+  return fill(rule === 'one' ? forms.one : forms.other, { n: shown });
+}
+
+/** A number with at most `digits` decimals in the locale's notation ("1,5" in Turkish). */
+export function formatNumber(n: number, locale?: string, digits = 1): string {
+  try { return new Intl.NumberFormat(locale, { maximumFractionDigits: digits }).format(n); } catch { return String(Math.round(n * 10 ** digits) / 10 ** digits); }
 }
 
 /** Fills `{name}` placeholders of a message template. */

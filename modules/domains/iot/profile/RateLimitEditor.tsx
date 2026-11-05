@@ -130,7 +130,7 @@ function FamilyRow({ id, family, raw, disabled, error, onChange, m }: {
               onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, seconds: e.target.value } : x)))}
               className="w-20 rounded bg-transparent px-1 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <span className="text-xs text-text-secondary">s</span>
+            <span className="text-xs text-text-secondary">{m.units.secondsShort}</span>
             {rows.length > 1 && (
               <button
                 type="button"

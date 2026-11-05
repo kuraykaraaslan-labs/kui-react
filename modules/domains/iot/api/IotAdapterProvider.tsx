@@ -18,9 +18,13 @@ type IotContextValue = {
   live: IotLive | null;
   capabilities: IotCapabilities;
   capabilitiesReady: boolean;
+  /** The adapter's capabilities could not be read: they are unknown (not denied); `retryCapabilities` asks again. */
+  capabilitiesFailed: boolean;
+  retryCapabilities: () => void;
   notify: IotNotify;
   messages: IotMessagesInput | undefined;
   locale: string | undefined;
+  timeZone: string | undefined;
 };
 
 const IotContext = createContext<IotContextValue | null>(null);
@@ -31,29 +35,45 @@ export type IotAdapterProviderProps = {
   adapter: IotAdapter;
   /** The live source; `null`/absent = no live data (views poll every 30 s). An inner provider inherits the outer one's. */
   live?: IotLive | null;
-  /** Known capabilities; otherwise `adapter.capabilities()` is asked once (fail closed until it answers). */
+  /**
+   * Known capabilities; otherwise `adapter.capabilities()` is asked once (fail closed until it answers). A failed answer leaves every
+   * capability off and says so (`useIotCapabilities().failed`, with `retry`): unknown is not the same as denied.
+   */
   capabilities?: Partial<IotCapabilities>;
   notify?: IotNotify;
   /** Translated texts (any subset); an inner provider's win over the outer one's. */
   messages?: IotMessagesInput;
   /** BCP 47 tag for dates and relative times. */
   locale?: string;
+  /** IANA zone the times are shown in (the viewer's setting); absent: the browser's. Every time names its zone either way. */
+  timeZone?: string;
   children: React.ReactNode;
 };
 
-export function IotAdapterProvider({ adapter, live, capabilities, notify, messages, locale, children }: IotAdapterProviderProps) {
+export function IotAdapterProvider({ adapter, live, capabilities, notify, messages, locale, timeZone, children }: IotAdapterProviderProps) {
   const parent = useContext(IotContext);
   const [asked, setAsked] = useState<Partial<IotCapabilities> | null>(null);
+  const [askFailed, setAskFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const needsAsk = capabilities === undefined && typeof adapter.capabilities === 'function';
 
   useEffect(() => {
     if (!needsAsk) return;
     const ctrl = new AbortController();
     adapter.capabilities!(ctrl.signal)
-      .then((c) => { if (!ctrl.signal.aborted) setAsked(c); })
-      .catch(() => { if (!ctrl.signal.aborted) setAsked({}); });
+      .then((c) => { if (!ctrl.signal.aborted) { setAsked(c); setAskFailed(false); } })
+      .catch(() => { if (!ctrl.signal.aborted) { setAsked({}); setAskFailed(true); } });
     return () => ctrl.abort();
-  }, [adapter, needsAsk]);
+  }, [adapter, needsAsk, attempt]);
+
+  const parentRetry = parent?.retryCapabilities;
+  const retryCapabilities = useCallback(() => {
+    parentRetry?.();
+    if (!needsAsk) return;
+    setAsked(null);
+    setAskFailed(false);
+    setAttempt((n) => n + 1);
+  }, [needsAsk, parentRetry]);
 
   const value = useMemo<IotContextValue>(() => {
     const own = capabilities ?? asked ?? {};
@@ -62,11 +82,14 @@ export function IotAdapterProvider({ adapter, live, capabilities, notify, messag
       live: live === undefined ? (parent?.live ?? null) : live,
       capabilities: { ...NO_CAPABILITIES, ...(parent?.capabilities ?? {}), ...own },
       capabilitiesReady: (parent?.capabilitiesReady ?? true) && (!needsAsk || asked !== null),
+      capabilitiesFailed: (parent?.capabilitiesFailed ?? false) || (needsAsk && askFailed),
+      retryCapabilities,
       notify: notify ?? parent?.notify ?? silent,
       messages: messages ? mergeLayers(parent?.messages, messages) : parent?.messages,
       locale: locale ?? parent?.locale,
+      timeZone: timeZone ?? parent?.timeZone,
     };
-  }, [adapter, asked, capabilities, live, locale, messages, needsAsk, notify, parent]);
+  }, [adapter, asked, askFailed, capabilities, live, locale, messages, needsAsk, notify, parent, retryCapabilities, timeZone]);
 
   return <IotContext.Provider value={value}>{children}</IotContext.Provider>;
 }
@@ -84,11 +107,11 @@ function mergeLayers(a: IotMessagesInput | undefined, b: IotMessagesInput): IotM
  * The texts and locale for a component: the provider's (when there is one) under the component's own `messages` prop.
  * Works without a provider, so the leaf components (badges, tables) render anywhere.
  */
-export function useIotText(own?: IotMessagesInput, ownLocale?: string): { m: IotMessages; locale: string | undefined } {
+export function useIotText(own?: IotMessagesInput, ownLocale?: string): { m: IotMessages; locale: string | undefined; timeZone: string | undefined } {
   const ctx = useContext(IotContext);
   const fromCtx = ctx?.messages;
   const m = useMemo(() => mergeIotMessages(fromCtx, own), [fromCtx, own]);
-  return { m, locale: ownLocale ?? ctx?.locale };
+  return { m, locale: ownLocale ?? ctx?.locale, timeZone: ctx?.timeZone };
 }
 
 function useIotContext(): IotContextValue {
@@ -105,9 +128,13 @@ export function useIotLive(): IotLive | null {
   return useIotContext().live;
 }
 
-export function useIotCapabilities(): IotCapabilities & { ready: boolean } {
+/**
+ * The viewer's capabilities, `ready` once answered. `failed`: the answer could not be read, so every capability is off because it is
+ * unknown, not denied; a view says so (with `retry`) instead of "you may not change this".
+ */
+export function useIotCapabilities(): IotCapabilities & { ready: boolean; failed: boolean; retry: () => void } {
   const ctx = useIotContext();
-  return { ...ctx.capabilities, ready: ctx.capabilitiesReady };
+  return { ...ctx.capabilities, ready: ctx.capabilitiesReady, failed: ctx.capabilitiesFailed, retry: ctx.retryCapabilities };
 }
 
 export function useIotNotify(): IotNotify {
