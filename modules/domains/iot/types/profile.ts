@@ -172,7 +172,10 @@ export const PLAINTEXT_RPC_METHOD_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
 export const NEVER_IN_CLEAR_METHODS: readonly string[] = ['sys.factory_reset'];
 export const isPlaintextRpcMethod = (m: string): boolean => PLAINTEXT_RPC_METHOD_RE.test(m) && !NEVER_IN_CLEAR_METHODS.includes(m);
 
-/** One fallback telemetry key (01 §1.1; used when the firmware's `profile.json` is unknown, P-4). */
+/**
+ * One fallback telemetry key (01 §1.1; used when the firmware's `profile.json` is unknown, P-4). A host may store more on a key than
+ * the table edits (`quantity`, or a field a later host adds): an edit keeps every such field as it is.
+ */
 export type TelemetryKeySpec = {
   key: string;
   type?: 'number' | 'integer' | 'boolean' | 'string' | 'json';
@@ -181,6 +184,8 @@ export type TelemetryKeySpec = {
   min?: number;
   max?: number;
   decimals?: number;
+  /** OD-114: a reference into the router-owned quantity vocabulary (`{ id, version }`); kept, never edited here. */
+  quantity?: { id: string; version: string };
 };
 
 /** One fallback `cfg.*` key (FZ-27): integer, boolean or string, optionally an enum, ranges or lengths; `secret` is write-only. */
@@ -246,6 +251,16 @@ export type DeviceProfile = {
   provisionStrategy: ProvisionStrategy;
   /** A copy of a platform template: its key and version (`roltek-m1 v3`); the form tags the template's values. */
   template?: { key: string; version: number } | null;
+  /**
+   * The profile IS a platform template (`roltek-m1 v3`): it cannot be deleted (it is unmarked first) and only a viewer with
+   * `canManageTemplates` edits it. Absent or null for every other profile.
+   */
+  platformTemplate?: { key: string; version: number } | null;
+  /**
+   * The stored row's version, when the host keeps one: an edit sends the version it started from (`expectedVersion`) and a host refuses
+   * it (code `stale`) when someone saved the profile in between, so two editors never overwrite each other's rows.
+   */
+  version?: number;
   /** Where the telemetry and cfg schemas come from: a firmware's `profile.json` makes the tables read-only (P-4). */
   schemaSource?: { kind: 'firmware'; label: string } | null;
   createdAt?: Date | string;
@@ -253,7 +268,7 @@ export type DeviceProfile = {
 };
 
 /** The editable part of a profile. `onlineRule` is null on a blank draft (OD-63: nothing preselected). */
-export type DeviceProfileDraft = Omit<DeviceProfile, 'profileId' | 'isDefault' | 'builtinKey' | 'onlineRule' | 'template' | 'schemaSource' | 'createdAt' | 'updatedAt'> & {
+export type DeviceProfileDraft = Omit<DeviceProfile, 'profileId' | 'isDefault' | 'builtinKey' | 'onlineRule' | 'template' | 'platformTemplate' | 'version' | 'schemaSource' | 'createdAt' | 'updatedAt'> & {
   onlineRule: OnlineRule | null;
 };
 
@@ -369,7 +384,7 @@ export function blankProfileDraft(name = ''): DeviceProfileDraft {
 
 /** The draft of a stored profile (its own values; the stored online rule shown as it is). */
 export function draftOf(p: DeviceProfile): DeviceProfileDraft {
-  const { profileId: _id, isDefault: _d, builtinKey: _b, template: _t, schemaSource: _s, createdAt: _c, updatedAt: _u, ...rest } = p;
+  const { profileId: _id, isDefault: _d, builtinKey: _b, template: _t, platformTemplate: _pt, version: _v, schemaSource: _s, createdAt: _c, updatedAt: _u, ...rest } = p;
   return {
     ...rest,
     allowedAuthModes: [...p.allowedAuthModes],
@@ -466,7 +481,8 @@ export function isNetwork(raw: string): boolean {
 export type ProfileIssue =
   | 'name_required' | 'online_rule_required' | 'online_rule_not_allowed' | 'expected_interval_required' | 'out_of_range'
   | 'auth_mode_required' | 'topic_scheme_required' | 'raw_exceeds_payload' | 'invalid_limit' | 'invalid_network' | 'too_many_networks'
-  | 'duplicate_key' | 'invalid_key' | 'invalid_method' | 'too_many_methods' | 'duplicate_method';
+  | 'duplicate_key' | 'invalid_key' | 'invalid_method' | 'too_many_methods' | 'duplicate_method'
+  | 'invalid_value' | 'whole_number' | 'min_exceeds_max' | 'too_long' | 'invalid_enum' | 'too_many_values' | 'too_many_keys';
 
 const TELEMETRY_KEY = /^[A-Za-z0-9_.-]{1,64}$/;
 const RESERVED_TELEMETRY_KEY = /^(_|fw_|current_fw_|cfg\.)/;
@@ -512,12 +528,92 @@ export function profileDraftIssues(d: DeviceProfileDraft): Partial<Record<string
   else if (d.plaintextRpcMethods.some((x) => !isPlaintextRpcMethod(x))) out.plaintextRpcMethods = 'invalid_method';
   else if (new Set(d.plaintextRpcMethods).size !== d.plaintextRpcMethods.length) out.plaintextRpcMethods = 'duplicate_method';
   const tKeys = d.telemetrySchema.map((k) => k.key);
-  if (tKeys.some((k) => !isTelemetryKey(k))) out.telemetrySchema = 'invalid_key';
+  if (tKeys.length > SCHEMA_MAX_KEYS) out.telemetrySchema = 'too_many_keys';
+  else if (tKeys.some((k) => !isTelemetryKey(k))) out.telemetrySchema = 'invalid_key';
   else if (new Set(tKeys).size !== tKeys.length) out.telemetrySchema = 'duplicate_key';
+  d.telemetrySchema.forEach((k, i) => telemetryKeyIssues(k, `telemetrySchema.${i}.`, out));
   const cKeys = d.cfgSchema.map((k) => k.key);
-  if (cKeys.some((k) => !isCfgKey(k))) out.cfgSchema = 'invalid_key';
+  if (cKeys.length > SCHEMA_MAX_KEYS) out.cfgSchema = 'too_many_keys';
+  else if (cKeys.some((k) => !isCfgKey(k))) out.cfgSchema = 'invalid_key';
   else if (new Set(cKeys).size !== cKeys.length) out.cfgSchema = 'duplicate_key';
+  d.cfgSchema.forEach((k, i) => cfgKeyIssues(k, `cfgSchema.${i}.`, out));
   return out;
+}
+
+/** The most keys one schema table holds (NB's DTO). */
+export const SCHEMA_MAX_KEYS = 500;
+/** The most allowed values one cfg key lists, and the longest text value (NB's DTO). */
+export const CFG_ENUM_MAX = 100;
+export const CFG_ENUM_TEXT_MAX = 256;
+/** The longest unit and label of a key, and the longest cfg string length setting (NB's DTO). */
+export const KEY_UNIT_MAX = 32;
+export const KEY_LABEL_MAX = 128;
+export const CFG_LENGTH_MAX = 4096;
+
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const tooLong = (v: unknown, max: number) => v !== undefined && (typeof v !== 'string' || v.length > max);
+
+/**
+ * What the host refuses in one telemetry key row, keyed by its full path (`telemetrySchema.3.decimals`), so the table marks the cell
+ * and the form blocks Save: unit and label lengths, finite bounds, decimals a whole number 0-10, min not above max.
+ */
+export function telemetryKeyIssues(k: TelemetryKeySpec, at: string, out: Partial<Record<string, ProfileIssue>> = {}): Partial<Record<string, ProfileIssue>> {
+  if (tooLong(k.unit, KEY_UNIT_MAX)) out[`${at}unit`] = 'too_long';
+  if (tooLong(k.label, KEY_LABEL_MAX)) out[`${at}label`] = 'too_long';
+  if (k.min !== undefined && !finite(k.min)) out[`${at}min`] = 'invalid_value';
+  if (k.max !== undefined && !finite(k.max)) out[`${at}max`] = 'invalid_value';
+  if (k.decimals !== undefined) {
+    if (!finite(k.decimals) || !Number.isInteger(k.decimals)) out[`${at}decimals`] = 'whole_number';
+    else if (k.decimals < 0 || k.decimals > 10) out[`${at}decimals`] = 'out_of_range';
+  }
+  if (finite(k.min) && finite(k.max) && k.min > k.max && !out[`${at}min`]) out[`${at}min`] = 'min_exceeds_max';
+  return out;
+}
+
+/** Whether an allowed value fits a cfg key's type (a whole number, true / false, or a text of at most 256 characters). */
+export function isCfgEnumValue(v: unknown, type: CfgKeySpec['type']): boolean {
+  if (type === 'integer') return typeof v === 'number' && Number.isInteger(v);
+  if (type === 'boolean') return typeof v === 'boolean';
+  return typeof v === 'string' && v.length <= CFG_ENUM_TEXT_MAX;
+}
+
+/**
+ * What the host refuses in one cfg key row, by full path (`cfgSchema.2.enum`): the label's length, whole-number bounds and lengths
+ * (0-4096) with min not above max, and allowed values that fit the type (a value list that did not parse is kept as typed and
+ * refused here, never dropped), at most 100 of them.
+ */
+export function cfgKeyIssues(k: CfgKeySpec, at: string, out: Partial<Record<string, ProfileIssue>> = {}): Partial<Record<string, ProfileIssue>> {
+  if (tooLong(k.label, KEY_LABEL_MAX)) out[`${at}label`] = 'too_long';
+  const whole = (f: 'min' | 'max' | 'minLength' | 'maxLength') => {
+    const v = k[f];
+    if (v === undefined) return;
+    if (!finite(v) || !Number.isInteger(v)) out[`${at}${f}`] = 'whole_number';
+    else if ((f === 'minLength' || f === 'maxLength') && (v < 0 || v > CFG_LENGTH_MAX)) out[`${at}${f}`] = 'out_of_range';
+  };
+  (['min', 'max', 'minLength', 'maxLength'] as const).forEach(whole);
+  if (finite(k.min) && finite(k.max) && k.min > k.max && !out[`${at}min`]) out[`${at}min`] = 'min_exceeds_max';
+  if (finite(k.minLength) && finite(k.maxLength) && k.minLength > k.maxLength && !out[`${at}minLength`]) out[`${at}minLength`] = 'min_exceeds_max';
+  if (k.enum !== undefined) {
+    if (!Array.isArray(k.enum) || k.enum.some((v) => !isCfgEnumValue(v, k.type))) out[`${at}enum`] = 'invalid_enum';
+    else if (k.enum.length > CFG_ENUM_MAX) out[`${at}enum`] = 'too_many_values';
+  }
+  return out;
+}
+
+/**
+ * The fields of a profile its devices are admitted by (NB's admission snapshot): transport, plain MQTT, URL tokens, networks, auth
+ * modes, topic schemes and custom-topic limits, payload caps and rate limits. Saving a change to any of them ends the live sessions
+ * that no longer qualify, so the form asks first when devices use the profile.
+ */
+export const PROFILE_ADMISSION_FIELDS = [
+  'transportType', 'mqttTransport', 'allowTokenInUrl', 'allowedNetworks', 'allowedAuthModes', 'topicSchemes', 'anyTopicEnabled',
+  'prefixKeysWithTopic', 'maxTopicDepth', 'maxTopicLength', 'maxDistinctTopicsPerDevice', 'rawMaxBytes', 'payloadMaxBytes',
+  'downlinkMaxBytes', 'maxInflightMessages', 'rateLimits',
+] as const satisfies ReadonlyArray<keyof DeviceProfileDraft>;
+
+/** Whether an edit's patch touches what the profile's devices are admitted by. */
+export function touchesAdmission(patch: DeviceProfileInput): boolean {
+  return PROFILE_ADMISSION_FIELDS.some((f) => patch[f] !== undefined);
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);

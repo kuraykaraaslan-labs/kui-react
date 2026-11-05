@@ -27,8 +27,9 @@ import type {
 
 export type Page<T> = { items: T[]; total: number };
 
+/** `stale`: the record changed since the view read it (an edit sent with an older `expectedVersion`); the view offers to reload. */
 export type IotApiErrorCode =
-  | 'not_found' | 'forbidden' | 'conflict' | 'validation' | 'rate_limited' | 'timeout' | 'unavailable' | 'unknown';
+  | 'not_found' | 'forbidden' | 'conflict' | 'stale' | 'validation' | 'rate_limited' | 'timeout' | 'unavailable' | 'unknown';
 
 /** What an adapter throws; views map the code to an error state, a field error or a toast. */
 export class IotApiError extends Error {
@@ -140,6 +141,12 @@ export type ProfileListQuery = {
   onlineRule?: OnlineRule;
 };
 
+/**
+ * How an edit is sent. `expectedVersion`: the profile's `version` the edit started from; a host that keeps versions refuses the edit
+ * with code `stale` when the stored row has another one.
+ */
+export type ProfileUpdateOptions = { expectedVersion?: number };
+
 export interface IotProfilesApi {
   /** The profiles a filter or a form offers (id and name). */
   options(signal?: AbortSignal): Promise<Array<{ id: string; name: string }>>;
@@ -149,7 +156,7 @@ export interface IotProfilesApi {
   /** A create always carries a name and an explicit online rule (OD-63: the host refuses one without). */
   create?(input: DeviceProfileInput & { name: string; onlineRule: OnlineRule }): Promise<DeviceProfile>;
   /** Only the changed fields; a transport the stored rule cannot serve is refused unless the same edit picks an allowed rule. */
-  update?(profileId: string, patch: DeviceProfileInput): Promise<DeviceProfile>;
+  update?(profileId: string, patch: DeviceProfileInput, opts?: ProfileUpdateOptions): Promise<DeviceProfile>;
   /** Refused (conflict) for the default profile and while anything still references it. */
   remove?(profileId: string): Promise<void>;
   setDefault?(profileId: string): Promise<DeviceProfile>;
@@ -442,6 +449,8 @@ export type IotCapabilities = {
   canSendRpc: boolean;
   /** Create, edit, delete profiles and make one the default. */
   canManageProfiles: boolean;
+  /** Edit a platform template profile (`platformTemplate`): its own permission beside `canManageProfiles`. */
+  canManageTemplates: boolean;
   /** Manage a profile's provisioning: its strategy and keys (rotate, revoke). */
   canManageProvisioning: boolean;
   /** Edit the alarm rules of a profile. */
@@ -472,6 +481,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canComment: false,
   canSendRpc: false,
   canManageProfiles: false,
+  canManageTemplates: false,
   canManageProvisioning: false,
   canManageAlarmRules: false,
   canManageRpcCommands: false,
