@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -95,6 +95,19 @@ describe('Button', () => {
     expect(button).toHaveAttribute('aria-busy', 'true');
     expect(screen.queryByTestId('icon-left')).not.toBeInTheDocument();
     expect(screen.queryByTestId('icon-right')).not.toBeInTheDocument();
+  });
+
+  it('a loading native button is disabled (no second click), a link is not', () => {
+    const onClick = vi.fn();
+    const { rerender } = render(<Button loading onClick={onClick}>Save</Button>);
+    const button = screen.getByRole('button', { name: 'Save' });
+    expect(button).toBeDisabled();
+    fireEvent.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+    rerender(<Button onClick={onClick}>Save</Button>);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    rerender(<Button as="a" href="/x" loading>Open</Button>);
+    expect(screen.getByRole('link', { name: 'Open' })).not.toHaveAttribute('disabled');
   });
 
   it('selected sets aria-pressed and a focus ring', () => {
