@@ -14,7 +14,17 @@ export interface IotLiveSubscription<L = unknown, S = unknown> {
   params: Record<string, unknown>;
   onLive(payload: L): void;
   onSnapshot?(payload: S): void;
+  /**
+   * The source refused this subscription (`forbidden`, `not_found`, `limit`, `unavailable`, …). A view then polls for it, whatever the
+   * connection's state, until the subscription delivers again (`useLiveOrPoll`): a source that retries a passing refusal (`limit`,
+   * `unavailable`) keeps it and sends its snapshot when it is taken; a lasting one ends it (NB 41-ui-fixes/23 1.10).
+   */
   onError?(code: string): void;
+  /**
+   * The source took the subscription (NB: the gateway's `subscribed`). A topic without a snapshot (`deviceState('*')`, `rpc('*')`) sends
+   * nothing else when it is taken again after a refusal, so this is how a view learns it is live again (NB 41-ui-fixes/23 C6).
+   */
+  onSubscribed?(): void;
 }
 
 export interface IotLive {

@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { NO_CAPABILITIES, type IotAdapter, type IotCapabilities } from './adapter';
-import { POLL_FALLBACK_MS, type IotLive, type IotLiveState } from './live';
+import { POLL_FALLBACK_MS, type IotLive, type IotLiveState, type IotLiveSubscription } from './live';
 import { mergeIotMessages, type IotMessages, type IotMessagesInput } from '../messages';
 
 /*
@@ -152,6 +152,12 @@ export function useIotLiveState(live: IotLive | null): IotLiveState | 'none' {
  * Live with a polling fallback (NB 05 §5.4): `subscribe` runs while there is a live source; `poll` runs every
  * `intervalMs` (30 s) whenever the source is absent or not `live` (connecting, reconnecting, refused). The latest
  * callbacks are used without re-subscribing.
+ *
+ * A subscription the source refuses (its `onError`) is polled too, though the connection is live: the view would otherwise sit under
+ * "Live" with nothing arriving. It goes back to live when the subscription delivers again (a snapshot or an event: a source retries a
+ * passing refusal), and a new `key` starts afresh. The answer is then `polling`, so an indicator tells the truth (NB 41-ui-fixes/23 1.10).
+ * The source saying it took the subscription (`onSubscribed`) ends the refusal too, and a subscription that ends forgets its refusal, so
+ * a key subscribed again later (A → B → A) starts live (C6).
  */
 export function useLiveOrPoll(opts: {
   subscribe?: (live: IotLive) => () => void;
@@ -172,13 +178,40 @@ export function useLiveOrPoll(opts: {
   const enabled = opts.enabled ?? true;
   const intervalMs = opts.intervalMs ?? POLL_FALLBACK_MS;
   const hasSubscribe = typeof opts.subscribe === 'function';
+  const key = opts.key ?? '';
+  // the key whose subscription the source refused (null: none); a delivery clears it, another key is not refused
+  const [refusedKey, setRefusedKey] = useState<string | null>(null);
+  // the same, for the callbacks: a delivery re-renders the view only when it ends a refusal
+  const refusedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!enabled || !live || !hasSubscribe) return;
-    return subRef.current!(live);
-  }, [enabled, live, hasSubscribe, opts.key]);
+    let active = true;
+    const refuse = (k: string | null) => { refusedRef.current = k; setRefusedKey(k); };
+    const delivered = () => { if (active && refusedRef.current === key) refuse(null); };
+    // the views' own callbacks, with the refusal and the deliveries noted on the way
+    const watched: IotLive = {
+      get state() { return live.state; },
+      onState: (listener) => live.onState(listener),
+      subscribe: <L, S>(sub: IotLiveSubscription<L, S>) => live.subscribe<L, S>({
+        ...sub,
+        onLive: (payload: L) => { delivered(); sub.onLive(payload); },
+        onSnapshot: (payload: S) => { delivered(); sub.onSnapshot?.(payload); },
+        onSubscribed: () => { delivered(); sub.onSubscribed?.(); },
+        onError: (code: string) => { if (active) refuse(key); sub.onError?.(code); },
+      }),
+    };
+    const off = subRef.current!(watched);
+    return () => {
+      active = false;
+      off();
+      // this subscription's refusal goes with it: the next one of the key starts afresh
+      if (refusedRef.current === key) refuse(null);
+    };
+  }, [enabled, live, hasSubscribe, key]);
 
-  const polling = enabled && (state !== 'live' || !hasSubscribe);
+  const refused = hasSubscribe && refusedKey === key;
+  const polling = enabled && (state !== 'live' || !hasSubscribe || refused);
   const tick = useCallback(() => pollRef.current(), []);
   useEffect(() => {
     if (!polling) return;
@@ -186,5 +219,5 @@ export function useLiveOrPoll(opts: {
     return () => clearInterval(id);
   }, [polling, intervalMs, tick]);
 
-  return state;
+  return refused && state === 'live' ? 'polling' : state;
 }
