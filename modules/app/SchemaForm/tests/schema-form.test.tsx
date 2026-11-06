@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { SchemaForm } from '../SchemaForm';
 import { SchemaFormProvider } from '../schema-form.context';
 import { validateSchemaValues } from '../validate';
-import type { FieldSchema } from '../types';
+import { resolveVariants, variantOf, type FieldSchema } from '../types';
 
 const schema: Record<string, FieldSchema> = {
   title: { label: 'Title', type: 'text', required: true },
@@ -183,5 +183,98 @@ describe('validateSchemaValues', () => {
     expect(onChange).toHaveBeenLastCalledWith({ size: 's' });
     fireEvent.keyDown(sm, { key: 'End' });
     expect(onChange).toHaveBeenLastCalledWith({ size: 'l' });
+  });
+});
+
+/**
+ * next-boilerplate UI test 3 (#85, #199, #200, #213, #214): a device command's params as its catalog declares them. `key` is a required
+ * select (one control on the device), `value` is typed by the control it sets (`variants`): a switch's on / off, a set-point's number in its
+ * range, a button's nothing. The browser showed the only control while the form held none, and the value was a raw "{ }" box.
+ */
+describe('a command form: a required select and a value typed by its control', () => {
+  const command: Record<string, FieldSchema> = {
+    key: { label: 'Control', type: 'select', required: true, options: [{ value: 'calistir', label: 'Hattı çalıştır' }] },
+    value: {
+      label: 'Value', type: 'json',
+      variants: { by: 'key', cases: { calistir: { label: 'Hattı çalıştır', type: 'boolean', required: true } } },
+    },
+  };
+  const three: Record<string, FieldSchema> = {
+    key: {
+      label: 'Control', type: 'select', required: true,
+      options: [{ value: 'calistir', label: 'Run the line' }, { value: 'cikis', label: 'Outlet set-point' }, { value: 'baslat', label: 'Start CIP' }],
+    },
+    value: {
+      label: 'Value', type: 'json',
+      variants: {
+        by: 'key',
+        cases: {
+          calistir: { label: 'Run the line', type: 'boolean', required: true },
+          cikis: { label: 'Outlet set-point', type: 'number', required: true, min: 1, max: 6, step: 0.1 },
+          baslat: null,
+        },
+      },
+    },
+  };
+
+  it('a required select shows an empty choice it cannot go back to until one is picked, so it never shows what it does not hold', () => {
+    const onChange = vi.fn();
+    render(<SchemaForm schema={command} values={{}} onChange={onChange} debounceMs={0} />);
+    const select = screen.getByLabelText(/Control/) as HTMLSelectElement;
+    expect(select.value).toBe('');
+    expect([...select.options].map((o) => [o.value, o.disabled])).toEqual([['', true], ['calistir', false]]);
+    fireEvent.change(select, { target: { value: 'calistir' } });
+    expect(onChange).toHaveBeenLastCalledWith({ key: 'calistir' });
+    expect([...select.options].map((o) => o.value)).toEqual(['calistir']);
+  });
+
+  it('an optional select keeps its "-" for no choice', () => {
+    render(<SchemaForm schema={{ k: { label: 'Kind', type: 'select', options: ['a', 'b'] } }} values={{}} onChange={() => {}} debounceMs={0} />);
+    expect([...(screen.getByLabelText('Kind') as HTMLSelectElement).options].map((o) => [o.value, o.disabled])).toEqual([['', false], ['a', false], ['b', false]]);
+  });
+
+  it('the value waits for its control, then is an On / Off choice with nothing picked; picking Off holds false', () => {
+    const onChange = vi.fn();
+    render(<SchemaForm schema={command} values={{}} onChange={onChange} debounceMs={0} messages={{ on: 'Açık', off: 'Kapalı' }} />);
+    expect(screen.queryByText('Value')).toBeNull();
+    expect(screen.queryByPlaceholderText('{ }')).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Control/), { target: { value: 'calistir' } });
+    expect(screen.getByText('Value')).toBeTruthy();
+    const on = screen.getByRole('radio', { name: 'Açık' });
+    const off = screen.getByRole('radio', { name: 'Kapalı' });
+    expect([on, off].map((r) => r.getAttribute('aria-checked'))).toEqual(['false', 'false']);
+    fireEvent.click(off);
+    expect(onChange).toHaveBeenLastCalledWith({ key: 'calistir', value: false });
+    expect(off.getAttribute('aria-checked')).toBe('true');
+    expect(screen.queryByPlaceholderText('{ }')).toBeNull();
+  });
+
+  it('a set-point is a number in its range, a button takes nothing, and a new control starts its value over', () => {
+    const onChange = vi.fn();
+    render(<SchemaForm schema={three} values={{ key: 'cikis', value: 2.5 }} onChange={onChange} debounceMs={0} />);
+    const number = screen.getByLabelText(/Value/) as HTMLInputElement;
+    expect([number.type, number.min, number.max, number.value]).toEqual(['number', '1', '6', '2.5']);
+    fireEvent.change(screen.getByLabelText(/Control/), { target: { value: 'baslat' } });
+    expect(onChange).toHaveBeenLastCalledWith({ key: 'baslat' });
+    expect(screen.queryByText('Value')).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Control/), { target: { value: 'calistir' } });
+    expect(screen.getAllByRole('radio').map((r) => r.textContent)).toEqual(['On', 'Off']);
+  });
+
+  it('validation reads the case: a switch needs its on / off, a button needs nothing, a set-point stays in its range', () => {
+    expect(validateSchemaValues(command, {})).toEqual({ key: 'Control is required' });
+    expect(validateSchemaValues(command, { key: 'calistir' })).toEqual({ value: 'Value is required' });
+    expect(validateSchemaValues(command, { key: 'calistir', value: false })).toEqual({});
+    expect(validateSchemaValues(three, { key: 'baslat' })).toEqual({});
+    expect(Object.keys(validateSchemaValues(three, { key: 'cikis', value: 9 }))).toEqual(['value']);
+    expect(validateSchemaValues(three, { key: 'cikis', value: 4 })).toEqual({});
+  });
+
+  it('variantOf reads the case as the catalog check does; resolveVariants draws it under the declared label', () => {
+    expect(variantOf(three.value, { key: 'cikis' })?.type).toBe('number');
+    expect(variantOf(three.value, { key: 'baslat' })).toBeNull();
+    expect(variantOf(three.value, { key: 'other' })).toBe(three.value);
+    expect(resolveVariants(three, {})).toEqual({ key: three.key });
+    expect(resolveVariants(three, { key: 'calistir' }).value).toMatchObject({ label: 'Value', type: 'boolean', display: 'segmented', required: true });
   });
 });

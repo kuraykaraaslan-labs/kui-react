@@ -6,7 +6,7 @@ export type { SchemaFormProps } from './SchemaForm';
 export { SchemaFormProvider, useFieldOverrides, useSchemaFormMessages, OptionPreviewProvider, useOptionPreview } from './schema-form.context';
 export type { SchemaFieldOverrideProps, FieldOverrides, OptionPreviewRenderer } from './schema-form.context';
 export { FieldControl, THEME_COLOR_TOKENS } from './fields/FieldControl';
-export { shouldShow } from './types';
+export { shouldShow, variantOf, resolveVariants } from './types';
 export type { FieldSchema, FieldType, FieldOption, FontValue, ResponsiveValue, LinkValue } from './types';
 export { zodFromSchema } from './zod-from-schema';
 export { validateSchemaValues } from './validate';

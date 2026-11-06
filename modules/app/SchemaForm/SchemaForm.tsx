@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
-import { shouldShow, type FieldSchema } from './types';
+import { resolveVariants, shouldShow, type FieldSchema } from './types';
 import { FieldControl, controlCls } from './fields/FieldControl';
 import {
   OptionPreviewProvider, SchemaFormMessagesProvider, useFieldOverrides, useOptionPreview, type FieldOverrides, type OptionPreviewRenderer,
@@ -93,7 +93,10 @@ export function SchemaForm({
 
   const update = (key: string, value: unknown) => {
     if (readOnly) return;
-    const next = { ...localRef.current, [key]: value };
+    const before = localRef.current;
+    const next = { ...before, [key]: value };
+    // a field typed by this one's value (`variants`) starts over when it changes: a set-point's number is no switch's on / off
+    if (before[key] !== value) for (const [k, f] of Object.entries(schema)) if (f.variants?.by === key) delete next[k];
     localRef.current = next;
     setLocal(next);
     if (timer.current) clearTimeout(timer.current);
@@ -103,7 +106,8 @@ export function SchemaForm({
   };
 
   const q = search.trim().toLowerCase();
-  const visible = Object.entries(schema)
+  // a field typed by a sibling's value is drawn as its case for that value, and not at all until the sibling holds one
+  const visible = Object.entries(resolveVariants(schema, local))
     .filter(([, f]) => !f.hidden && shouldShow(f, local))
     .filter(([k, f]) => !fieldFilter || fieldFilter(k, f, local[k], defaults[k] ?? f.value))
     .filter(([k, f]) => !q || f.label.toLowerCase().includes(q) || k.toLowerCase().includes(q));

@@ -123,7 +123,10 @@ export interface FieldSchema {
    * kept as it is: the form hands it back unchanged on save, and validation still reads it. Presentation only, like `advanced`.
    */
   hidden?: boolean
-  /** Renderer hint. select: 'dropdown' (default) | 'segmented' | 'cards'; number: 'input' never shows a slider. */
+  /**
+   * Renderer hint. select: 'dropdown' (default) | 'segmented' | 'cards'; number: 'input' never shows a slider; boolean: 'segmented' draws
+   * an On / Off choice that holds nothing until one is picked (a value someone sends, never a box ticked or not by default).
+   */
   display?: 'dropdown' | 'segmented' | 'cards' | 'input'
   /** number: an empty input is a valid value (absent = automatic / inherit). */
   nullable?: boolean
@@ -133,6 +136,13 @@ export interface FieldSchema {
   slot?: string
   /** 'data-key': store several keys (string[]); `max` caps the count. */
   multiple?: boolean
+  /**
+   * The field's schema follows the value of the sibling field `by` (a device command's value typed by the control it sets):
+   * `cases[<that value>]` is the field for it (a switch's on / off, a set-point's number in its range), `null` when that choice takes no
+   * value (a button). A value with no case keeps the declared field. next-boilerplate's command catalogs declare it, and its params check
+   * (`iot_rpc.catalog.ts` `variantOf`) applies the same rule; a form draws the case (`resolveVariants`).
+   */
+  variants?: { by: string; cases: Record<string, FieldSchema | null> }
 }
 
 /**
@@ -145,4 +155,40 @@ export function shouldShow(field: FieldSchema, values: Record<string, unknown>):
   return Object.entries(field.showIf).every(([k, v]) =>
     Array.isArray(v) ? v.includes(values[k]) : values[k] === v,
   )
+}
+
+/**
+ * The field a value is checked by: the `variants` case for the value its sibling `by` holds, `null` for a case that takes no value,
+ * else the field as declared (no variants, or a sibling value with no case). The same rule as next-boilerplate's RPC params check.
+ */
+export function variantOf(field: FieldSchema, values: Record<string, unknown>): FieldSchema | null {
+  const v = field.variants
+  if (!v) return field
+  const chosen = values[v.by]
+  if (typeof chosen !== 'string' || !Object.prototype.hasOwnProperty.call(v.cases, chosen)) return field
+  return v.cases[chosen] ?? null
+}
+
+/**
+ * The fields a form draws and checks for these values. A field typed by a sibling (`variants`) waits until that sibling holds a value,
+ * then is drawn as its case under its own label (an on / off case as the On / Off choice), and is left out for a case that takes no value.
+ * Every other field is kept as it is (next-boilerplate UI test 3 #200, #214: a control's value was a raw "{ }" box).
+ */
+export function resolveVariants(schema: Record<string, FieldSchema>, values: Record<string, unknown>): Record<string, FieldSchema> {
+  const out: Record<string, FieldSchema> = {}
+  for (const [key, field] of Object.entries(schema)) {
+    if (!field.variants) { out[key] = field; continue }
+    const by = values[field.variants.by]
+    if (by === undefined || by === null || by === '') continue
+    const own = variantOf(field, values)
+    if (own === null) continue
+    if (own === field) { out[key] = field; continue }
+    out[key] = {
+      ...own,
+      label: field.label,
+      ...(own.description === undefined && field.description !== undefined ? { description: field.description } : {}),
+      ...(own.type === 'boolean' && own.display === undefined ? { display: 'segmented' as const } : {}),
+    }
+  }
+  return out
 }
