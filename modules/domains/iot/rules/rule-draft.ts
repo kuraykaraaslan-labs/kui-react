@@ -21,10 +21,16 @@ export function refOrHomeOf(code: DeviceCode): RuleDeviceOrHome {
 
 export type Option = { value: string; label: string };
 
-/** The devices of the scope by name, then every kind of device ("Every Fan") that has more than one device. */
-export function deviceOptions(scope: Pick<RuleScope, 'devices' | 'deviceTypes'>, m: IotMessages['rules']): Option[] {
+/**
+ * The devices of the scope by name, then every kind of device that has more than one device, named with the rule's place ("Every Fan in
+ * Hall 2"): a rule covers its place only, and the option says so (run 3 note 112).
+ */
+export function deviceOptions(scope: Pick<RuleScope, 'devices' | 'deviceTypes'> & { place?: Pick<RuleScope['place'], 'name'> }, m: IotMessages['rules']): Option[] {
   const one = scope.devices.map((d) => ({ value: `d:${d.deviceId}`, label: d.name }));
-  const kinds = scope.deviceTypes.filter((t) => t.deviceCount > 1).map((t) => ({ value: `t:${t.profileId}`, label: m.kindAllOf.replace('{type}', t.name) }));
+  const kinds = scope.deviceTypes.filter((t) => t.deviceCount > 1).map((t) => ({
+    value: `t:${t.profileId}`,
+    label: (scope.place?.name ? m.kindAllOfIn.replace('{place}', scope.place.name) : m.kindAllOf).replace('{type}', t.name),
+  }));
   return [...one, ...kinds];
 }
 

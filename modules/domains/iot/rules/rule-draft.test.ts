@@ -33,10 +33,16 @@ describe('device references', () => {
     expect(refOrHomeOf('home')).toEqual({ home: true });
   });
 
-  it('offers the devices by name, and "Every <kind>" only for a kind with more than one device', () => {
+  it('offers the devices by name, and "Every <kind> in <place>" only for a kind with more than one device', () => {
     expect(deviceOptions(scope, m)).toEqual([
-      { value: 'd:d1', label: 'Room 1' }, { value: 'd:d2', label: 'Room 2' }, { value: 'd:d3', label: 'Fan 1' }, { value: 't:p1', label: 'Every Climate sensor' },
+      { value: 'd:d1', label: 'Room 1' }, { value: 'd:d2', label: 'Room 2' }, { value: 'd:d3', label: 'Fan 1' }, { value: 't:p1', label: 'Every Climate sensor in Station 3' },
     ]);
+  });
+
+  it('names the rule\'s place in "every", which covers that place only; a scope with no place keeps "Every <kind>" (next-boilerplate run 3 note 112)', () => {
+    const { place: _place, ...placeless } = scope;
+    expect(deviceOptions(placeless, m).at(-1)).toEqual({ value: 't:p1', label: 'Every Climate sensor' });
+    expect(deviceOptions({ ...scope, place: { ...scope.place, name: '' } }, m).at(-1)!.label).toBe('Every Climate sensor');
   });
 
   it('the values of a kind are the union of its devices’ values, each once, by name', () => {

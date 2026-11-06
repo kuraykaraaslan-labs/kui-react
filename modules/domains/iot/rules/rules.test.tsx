@@ -11,6 +11,7 @@ import { RuleStatusChip } from './RuleStatusChip';
 import { countdown, ruleState, when } from './rule-format';
 import { READY_KEYS, readyLabel, readyRule } from './rule-ready';
 import { draftProblems } from './rule-draft';
+import { severityLabel } from './RuleRows';
 import { IOT_MESSAGES } from '../messages';
 
 /** The Rules card's components (docs/concepts/iot-rules 05): sentences by name, Manual / Auto, the list, the commands. */
@@ -449,5 +450,34 @@ describe('formula condition', () => {
     await user.click(screen.getByRole('button', { name: 'Save rule' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0]![0].definition.onlyIf).toEqual({ all: [{ kind: 'expr', expr: '[Room 1].[temperature] > 28' }] });
+  });
+});
+
+describe('RuleEditor: next-boilerplate run 3', () => {
+  const m = IOT_MESSAGES;
+  const alarmy: RuleDefinition = {
+    v: 1, options: { overlap: 'ignore' },
+    when: [{ id: 't1', kind: 'alarm', target: { device: 'd1' }, event: 'raised', minSeverity: 'major' }],
+    then: [{ id: 'a1', kind: 'alarm', op: 'raise', target: { device: 'd2' }, alarmType: 'Hot', severity: 'warning' }],
+  };
+  it('note 127: the severities read the kit\'s severity words, the English for a word not given', () => {
+    render(<RuleEditor scope={scope} initial={{ name: 'Escalate', definition: alarmy }} messages={{ severity: { MAJOR: 'Büyük', WARNING: 'Uyarı' } }} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    const from = screen.getByLabelText(m.rules.alarmFrom, { selector: '#trigger-t1-severity' }) as HTMLSelectElement;
+    expect([...from.options].map((o) => o.textContent)).toEqual([m.rules.alarmAnySeverity, 'Critical', 'Büyük', 'Minor', 'Uyarı', 'Info']);
+    const level = screen.getByLabelText(m.rules.alarmSeverityLabel, { selector: '#action-a1-severity' }) as HTMLSelectElement;
+    expect([...level.options].map((o) => o.textContent)).toEqual(['Critical', 'Büyük', 'Minor', 'Uyarı', 'Info']);
+  });
+  it('severityLabel: the kit\'s word, the English when none is given', () => {
+    expect(severityLabel('major', { MAJOR: 'Büyük' })).toBe('Büyük');
+    expect(severityLabel('warning', { MAJOR: 'Büyük' })).toBe('Warning');
+    expect(severityLabel('critical')).toBe('Critical');
+  });
+  it('note 157: reports every state of the draft, the first as it opens, so a host that closes the editor itself can ask first', async () => {
+    const onDraftChange = vi.fn();
+    const user = userEvent.setup();
+    render(<RuleEditor scope={scope} initial={{ name: 'Escalate', definition: alarmy }} onDraftChange={onDraftChange} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(onDraftChange).toHaveBeenCalledWith({ name: 'Escalate', definition: alarmy });
+    await user.type(screen.getByLabelText('Name'), '!');
+    expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Escalate!' }));
   });
 });

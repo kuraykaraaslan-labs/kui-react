@@ -300,3 +300,21 @@ describe('the device address (iot-device 03 §3.6)', () => {
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
   });
 });
+
+describe('DeviceTable: a row with no connection field (next-boilerplate run 3 notes 13 and 75)', () => {
+  it('reads "Not known" with its hint and no last-seen time, never "Never connected"; a row with its fields keeps the dot', () => {
+    render(
+      <DeviceTable
+        now={NOW} locale="en" tickMs={0} columns={['name', 'connection', 'lastSeen']}
+        rows={[{ id: 'd1', name: 'Pump 4', connectionKnown: false }, { id: 'd2', name: 'Probe', online: false }]}
+      />,
+    );
+    const unknown = screen.getByText('Not known');
+    expect(unknown).toHaveAttribute('data-state', 'UNKNOWN');
+    expect(unknown).toHaveAttribute('title', 'These rows carry no connection state: show them from the devices source to see it.');
+    const row = screen.getByText('Pump 4').closest('tr')!;
+    expect(within(row).queryByText(/Never connected/)).toBeNull();
+    expect(within(row).getByText('—')).toBeInTheDocument();
+    expect(within(screen.getByText('Probe').closest('tr')!).getAllByText(/Never connected/).length).toBeGreaterThan(0);
+  });
+});

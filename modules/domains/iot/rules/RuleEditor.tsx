@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/modules/ui/Button';
 import { Checkbox } from '@/modules/ui/Checkbox';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
@@ -37,6 +37,11 @@ export type RuleEditorProps = {
   onSave: (input: { name: string; definition: RuleDefinition; confirmed: boolean }) => Promise<void>;
   onTest: (input: { name: string; definition: RuleDefinition }) => Promise<void>;
   onCancel: () => void;
+  /**
+   * Every state of the draft, the first one as it opens: lets a host that closes the editor on its own (Escape, a click beside its drawer) ask
+   * before it drops changes (run 3 note 157: Escape lost a new rule without a word).
+   */
+  onDraftChange?: (draft: { name: string; definition: RuleDefinition }) => void;
   locale?: string;
   messages?: IotMessagesInput;
   className?: string;
@@ -53,7 +58,7 @@ const Block = ({ title, hint, children, id }: { title: string; hint?: string; ch
 );
 
 export function RuleEditor({
-  scope, initial, problems = [], saving = false, testing = false, testResult, serverNeedsConfirmation, otherRules, onSave, onTest, onCancel, locale, messages, className,
+  scope, initial, problems = [], saving = false, testing = false, testResult, serverNeedsConfirmation, otherRules, onSave, onTest, onCancel, onDraftChange, locale, messages, className,
 }: RuleEditorProps) {
   const { m } = useIotText(messages);
   const [name, setName] = useState(initial?.name ?? '');
@@ -62,12 +67,13 @@ export function RuleEditor({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [readyKey, setReadyKey] = useState('');
+  useEffect(() => { onDraftChange?.({ name, definition: def }); }, [name, def, onDraftChange]);
 
 
   const own = useMemo(() => draftProblems(name, def, m.rules), [name, def, m.rules]);
   const shown = tried ? [...own, ...problems] : [...problems];
   const taken = useMemo(() => collectIds(def), [def]);
-  const ctx: RuleRowsContext = { scope, m: m.rules, problems: shown, locale, otherRules };
+  const ctx: RuleRowsContext = { scope, m: m.rules, problems: shown, locale, otherRules, severity: m.severity };
   const acts = actsOnDevices(def) || (serverNeedsConfirmation?.length ?? 0) > 0;
 
   const input = { name: name.trim(), definition: def };

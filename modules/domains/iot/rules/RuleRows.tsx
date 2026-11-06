@@ -22,7 +22,8 @@ import {
  * the select values. The first problem of a row is shown under it, in the words the editor or the server gave.
  */
 type M = IotMessages['rules'];
-type Ctx = { scope: RuleScope; m: M; problems: readonly RuleProblem[]; locale?: string; otherRules?: ReadonlyArray<{ ruleId: string; name: string }> };
+/** `severity`: the kit's severity words (`IotMessages['severity']`, keyed by the upper-case level); absent, the English. */
+type Ctx = { scope: RuleScope; m: M; problems: readonly RuleProblem[]; locale?: string; otherRules?: ReadonlyArray<{ ruleId: string; name: string }>; severity?: Partial<Record<Uppercase<RuleSeverity>, string>> };
 
 const SEVERITIES: readonly RuleSeverity[] = ['critical', 'major', 'minor', 'warning', 'info'];
 const NUM = 'w-24';
@@ -205,7 +206,7 @@ export function TriggerRow({ t, ctx, onChange }: { t: RuleTrigger; ctx: Ctx; onC
           <Pick id={`${id}-event`} label={m.tAlarm} value={t.event} options={[{ value: 'raised', label: m.alarmRaised }, { value: 'cleared', label: m.alarmCleared }]} onChange={(v) => onChange({ ...t, event: v as typeof t.event })} />
           <Pick
             id={`${id}-severity`} label={m.alarmFrom} value={t.minSeverity ?? ''} onChange={(v) => onChange({ ...t, minSeverity: (v || undefined) as RuleSeverity | undefined })}
-            options={[{ value: '', label: m.alarmAnySeverity }, ...SEVERITIES.map((s) => ({ value: s, label: IOT_SEVERITY_LABEL[s] }))]}
+            options={[{ value: '', label: m.alarmAnySeverity }, ...SEVERITIES.map((s) => ({ value: s, label: severityLabel(s, ctx.severity) }))]}
           />
           <Txt id={`${id}-type`} label={m.alarmTypeLabel} placeholder={m.alarmTypeLabel} value={t.alarmType ?? ''} onChange={(v) => onChange({ ...t, alarmType: v || undefined })} className="w-48" />
         </>
@@ -248,6 +249,9 @@ export function TriggerRow({ t, ctx, onChange }: { t: RuleTrigger; ctx: Ctx; onC
 }
 
 const IOT_SEVERITY_LABEL: Record<RuleSeverity, string> = { critical: 'Critical', major: 'Major', minor: 'Minor', warning: 'Warning', info: 'Info' };
+
+/** A severity in the kit's words (run 3 note 127: "Warning", "Major" were English in a Turkish form), the English when none is given. */
+export const severityLabel = (s: RuleSeverity, words?: Ctx['severity']): string => words?.[s.toUpperCase() as Uppercase<RuleSeverity>] ?? IOT_SEVERITY_LABEL[s];
 
 export function TriggerList({ items, path, ctx, onChange }: { items: RuleTrigger[]; path: Array<string | number>; ctx: Ctx; onChange: (v: RuleTrigger[]) => void }) {
   const { m } = ctx;
@@ -449,7 +453,7 @@ function ActionRow({ a, path, ctx, onChange, takenIds }: { a: RuleAction; path: 
             <Pick id={`${id}-op`} label={m.aAlarm} value={a.op} options={[{ value: 'raise', label: m.alarmRaise }, { value: 'clear', label: m.alarmClear }]} onChange={(v) => onChange({ ...a, op: v as typeof a.op })} />
             <Pick id={`${id}-device`} label={m.device} value={codeOf(a.target)} placeholder={m.pickDevice} options={[...(scope.place.type === 'device' ? [{ value: 'home', label: m.alarmHere }] : []), ...devices]} onChange={(v) => onChange({ ...a, target: refOrHomeOf(v) })} />
             <Txt id={`${id}-type`} label={m.alarmTypeNeeded} placeholder={m.alarmTypeNeeded} value={a.alarmType} onChange={(v) => onChange({ ...a, alarmType: v })} className="w-44" />
-            {a.op === 'raise' ? <Pick id={`${id}-severity`} label={m.alarmSeverityLabel} value={a.severity ?? 'warning'} options={SEVERITIES.map((s) => ({ value: s, label: IOT_SEVERITY_LABEL[s] }))} onChange={(v) => onChange({ ...a, severity: v as RuleSeverity })} /> : null}
+            {a.op === 'raise' ? <Pick id={`${id}-severity`} label={m.alarmSeverityLabel} value={a.severity ?? 'warning'} options={SEVERITIES.map((s) => ({ value: s, label: severityLabel(s, ctx.severity) }))} onChange={(v) => onChange({ ...a, severity: v as RuleSeverity })} /> : null}
           </>
         ) : null}
         {a.kind === 'wait' ? (

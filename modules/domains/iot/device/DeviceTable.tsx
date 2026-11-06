@@ -31,6 +31,11 @@ export type DeviceTableRow = {
   state?: DeviceOnlineState;
   online?: boolean | null;
   lastSeenAt?: string | number | Date | null;
+  /**
+   * False when the row carries no connection field at all (a source of values, not of devices): its connection is not known, which is
+   * never "never connected" (run 3 notes 13 and 75).
+   */
+  connectionKnown?: boolean;
   /** The client address of the newest connect (iot-device 03 §3.6), for the `address` column. */
   remoteIp?: string | null;
   /** Latest telemetry values by key (from a latest-values source), shown in `keyColumns`. */
@@ -114,7 +119,9 @@ export function DeviceTable({
       sortable: true,
       searchable: false,
       sortValue: (r) => ({ ONLINE: 0, LAST_SEEN: 1, OFFLINE: 2 } as Record<string, number>)[stateOf(r)] ?? 3,
-      render: (r) => (r.status && r.status !== 'ACTIVE'
+      render: (r) => (r.connectionKnown === false
+        ? <span className="text-xs text-text-secondary" title={m.device.connectionUnknownHint} data-state="UNKNOWN">{m.device.connectionUnknown}</span>
+        : r.status && r.status !== 'ACTIVE'
         ? <DeviceConnectionBadge online={r.online ?? null} status={r.status} size="sm" locale={lang} messages={messages} />
         : <DeviceOnlineDot state={stateOf(r)} lastSeenAt={r.lastSeenAt} staleAfterSeconds={staleAfterSeconds} locale={lang} now={at} messages={messages} />),
     },
@@ -127,7 +134,7 @@ export function DeviceTable({
       sortable: true,
       searchable: false,
       sortValue: (r) => (r.lastSeenAt ? new Date(r.lastSeenAt).getTime() : null),
-      render: (r) => <span className="text-xs text-text-secondary">{formatRelative(r.lastSeenAt, { locale: lang, now: at })}</span>,
+      render: (r) => <span className="text-xs text-text-secondary">{r.connectionKnown === false ? '—' : formatRelative(r.lastSeenAt, { locale: lang, now: at })}</span>,
     },
     address: { key: 'address', header: m.devices.address, sortable: true, searchValue: (r) => r.remoteIp ?? '', sortValue: (r) => r.remoteIp ?? null, hideBelow: 'md', render: (r) => <DeviceAddress ip={r.remoteIp} compact locale={lang} messages={messages} /> },
   };
