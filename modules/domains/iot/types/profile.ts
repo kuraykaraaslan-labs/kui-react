@@ -76,7 +76,7 @@ export type ProfileAuthMode = (typeof PROFILE_AUTH_MODES)[number];
 export const MQTT_TRANSPORT_POLICIES = ['TLS_REQUIRED', 'PLAINTEXT_ALLOWED'] as const;
 export type MqttTransportPolicy = (typeof MQTT_TRANSPORT_POLICIES)[number];
 
-/** OD-43: `ROLTEK` = the default `v1/` topics; `TB` = the ThingsBoard mapping (telemetry and attributes only, OD-85). */
+/** OD-43: `ROLTEK` = the default `v1/` topics; `TB` = the Legacy mapping (telemetry and attributes only, OD-85). */
 export const TOPIC_SCHEMES = ['ROLTEK', 'TB'] as const;
 export type TopicScheme = (typeof TOPIC_SCHEMES)[number];
 

@@ -188,7 +188,7 @@ describe('RpcCommandCatalogEditor', () => {
     await screen.findByText('Reboot');
     expect(screen.queryByRole('button', { name: 'Add command' })).toBeNull();
     expect(screen.queryByRole('button', { name: /Edit/ })).toBeNull();
-    expect(screen.getByText(/speaks only the ThingsBoard topics/)).toBeInTheDocument();
+    expect(screen.getByText(/speaks only the Legacy topics/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Export' }));
     expect(api.exportAll).toHaveBeenCalledWith('p1');
     expect((await screen.findByRole('textbox', { name: 'Command catalog (JSON)' }) as HTMLTextAreaElement).value).toContain('"sys.reboot"');

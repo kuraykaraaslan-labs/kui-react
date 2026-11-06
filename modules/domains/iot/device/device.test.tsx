@@ -134,7 +134,7 @@ describe('DeviceCredentialPanel', () => {
     expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: { token: '<T>', password: '<P>' } })).toEqual({ mqtt: null, http: null });
   });
 
-  it('UX-23: names the topics of the device\'s profile (a ThingsBoard profile has no command topics)', () => {
+  it('UX-23: names the topics of the device\'s profile (a Legacy profile has no command topics)', () => {
     const info = { mqtt: { host: 'mqtt.example.com', port: 8883, tls: true }, httpBase: null, topics: { telemetry: 'v1/devices/me/telemetry', attributes: 'v1/devices/me/attributes', rpcRequest: null } };
     render(<DeviceCredentialPanel credential={{ type: 'ACCESS_TOKEN' }} connection={info} />);
     const card = screen.getByRole('region', { name: 'Connection details' });

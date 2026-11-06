@@ -9,7 +9,7 @@ import { ProfileSection, RangeNumberField } from './profile-fields';
 
 /**
  * ProtocolMappingCard — the topic schemes and custom topics of a profile (OD-25, OD-26, OD-33, OD-35, OD-43, OD-44, OD-85): "Roltek
- * default" and/or "ThingsBoard compatible" (at least one; unchecking the last is impossible; ThingsBoard carries telemetry and
+ * default" and/or "Legacy compatible" (at least one; unchecking the last is impossible; Legacy carries telemetry and
  * attributes only), and the any-topic settings (accept topics outside `v1/`, prefix keys with the topic, depth, length, distinct topics,
  * the raw cap) with their decided defaults 8 / 128 / 50 / 4 KB.
  */

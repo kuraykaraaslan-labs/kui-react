@@ -229,7 +229,7 @@ describe('credentials (1.1, 2.3, 4.1, N3)', () => {
 });
 
 describe('delete (2.2)', () => {
-  it('names the device, the reading bindings that go and that its history stays; runs once', async () => {
+  it('names the device, the reading bindings that go and what of its history stays; runs once', async () => {
     const user = userEvent.setup();
     const adapter = adapterWith();
     let finish: () => void = () => undefined;
@@ -239,7 +239,7 @@ describe('delete (2.2)', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete device' }));
     const confirm = await screen.findByRole('dialog', { name: 'Delete Pump 4?' });
     expect(confirm).toHaveTextContent('Its 3 reading bindings are removed');
-    expect(confirm).toHaveTextContent('Its telemetry and its log are kept.');
+    expect(confirm).toHaveTextContent("Its readings are removed; its attribute history stays until the workspace's data is purged.");
     await user.click(within(confirm).getByRole('button', { name: 'Delete device' }));
     const button = screen.getByRole('button', { name: /Delete device/ });
     await waitFor(() => expect(button).toBeDisabled());
@@ -292,7 +292,7 @@ describe('a page that stays current (2.1, 4.1, 4.2, 6.3)', () => {
     );
     expect(await screen.findByText(/could not be read, so nothing can be changed yet/)).toBeInTheDocument();
     // unknown capabilities: no link to a page the viewer may not use (C7)
-    expect(screen.queryByRole('link', { name: 'Review in quarantine' })).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Review in Awaiting approval' })).toBeNull();
     // the Overview's disconnect reason in words
     expect(screen.getByText(/No keep-alive in time/)).toBeInTheDocument();
     cleanup();
@@ -302,7 +302,7 @@ describe('a page that stays current (2.1, 4.1, 4.2, 6.3)', () => {
         <DeviceDetailView deviceId="d1" hrefs={{ quarantine: (id) => `/q?device=${id}` }} onOpen={onOpen} />
       </IotAdapterProvider>,
     );
-    const link = await screen.findByRole('link', { name: 'Review in quarantine' });
+    const link = await screen.findByRole('link', { name: 'Review in Awaiting approval' });
     expect(link).toHaveAttribute('href', '/q?device=d1');
     await userEvent.click(link);
     expect(onOpen).toHaveBeenCalledWith('/q?device=d1');
