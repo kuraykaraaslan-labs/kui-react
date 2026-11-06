@@ -197,3 +197,24 @@ describe('AdvancedDataTable (deprecated wrapper)', () => {
     expect(screen.getAllByRole('columnheader')).toHaveLength(1);
   });
 });
+
+describe('DataTable selection line keeps its room (next-boilerplate run 3 note 51)', () => {
+  it('a selectable table holds the line\'s room while nothing is selected, so ticking the first row moves no row', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<DataTable columns={COLUMNS} rows={ROWS} mode="static" searchable={false} selectable />);
+    const slot = container.querySelector('[data-part="selection-summary-slot"]');
+    expect(slot).not.toBeNull();
+    expect(slot).toHaveClass('min-h-7');
+    expect(slot).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('[data-part="selection-summary"]')).toBeNull();
+    await user.click(checkboxOf('Acme'));
+    expect(container.querySelector('[data-part="selection-summary-slot"]')).toBeNull();
+    expect(container.querySelector('[data-part="selection-summary"]')).toHaveClass('min-h-7');
+    await user.click(checkboxOf('Acme'));
+    expect(container.querySelector('[data-part="selection-summary-slot"]')).not.toBeNull();
+  });
+  it('a table that is not selectable keeps no such room', () => {
+    const { container } = render(<DataTable columns={COLUMNS} rows={ROWS} mode="static" searchable={false} />);
+    expect(container.querySelector('[data-part^="selection-summary"]')).toBeNull();
+  });
+});

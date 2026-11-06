@@ -641,9 +641,12 @@ function useRowExtras<T extends Record<string, unknown>>(
   }
 
   const selectedIds = [...selection.selected].filter((rid) => !lockedIds.has(rid));
-  const summary =
-    selectable && selectedIds.length > 0 ? (
-      <div className="flex flex-wrap items-center gap-2" data-part="selection-summary">
+  // a selectable table keeps the line's room while nothing is selected, so ticking the first row moves no row (run 3 note 51: "30 selected" pushed the
+  // table down under the pointer)
+  const summary = !selectable ? null : selectedIds.length === 0 ? (
+    <div className="min-h-7" data-part="selection-summary-slot" aria-hidden="true" />
+  ) : (
+      <div className="flex min-h-7 flex-wrap items-center gap-2" data-part="selection-summary">
         <p className="text-xs text-text-secondary">
           {formatMessage(msgs.selectedCount ?? '{count} selected', { count: selectedIds.length })}
         </p>
@@ -656,7 +659,7 @@ function useRowExtras<T extends Record<string, unknown>>(
           </div>
         )}
       </div>
-    ) : null;
+    );
 
   return {
     header,
