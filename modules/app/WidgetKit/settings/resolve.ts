@@ -4,7 +4,7 @@ import { CORE_CARD, CORE_FORMAT, boardCardLayer, platformCardDefaults } from './
 import { effective, readSettings } from './engine';
 import type { CardSettings, SettingsTemplate, Sparse, TemplateId, WidgetCaps } from './types';
 import type { ValueFormat } from './style';
-import { metaFormat, metaTypeDefaults, type ColumnMeta } from './source-meta';
+import { metaFormat, metaScaleDefaults, metaTypeDefaults, type ColumnMeta } from './source-meta';
 
 export interface ResolvedPlacement {
   caps: WidgetCaps;
@@ -34,7 +34,7 @@ export function resolvePlacement(input: {
   board?: Sparse | null;
   /** A saved preset's or tenant definition's defaults (a settings-shaped object). */
   definitionDefaults?: Sparse | null;
-  /** What the bound source says about its values: its unit, decimals and direction are the defaults. */
+  /** What the bound source says about its values: its unit, decimals, direction and declared range are the defaults. */
   sourceMeta?: ColumnMeta;
 }): ResolvedPlacement {
   const { template, slotCount } = input;
@@ -51,7 +51,11 @@ export function resolvePlacement(input: {
     ...(def['core:card'] ?? {}),
   };
   const formatLayer: Sparse = { ...(template.formatDefaults ?? {}), ...metaFormat(input.sourceMeta), ...(def['core:format'] ?? {}) };
-  const typeLayer: Sparse = { ...metaTypeDefaults(template.directionField, input.sourceMeta), ...(def[template.id] ?? {}) };
+  const typeLayer: Sparse = {
+    ...metaTypeDefaults(template.directionField, input.sourceMeta),
+    ...metaScaleDefaults(template, input.sourceMeta),
+    ...(def[template.id] ?? {}),
+  };
 
   return {
     caps,

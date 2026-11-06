@@ -9,6 +9,9 @@
 // The arc is drawn in SVG; every text (the value, min / max, tick labels, the caption) is HTML laid
 // over it, so text keeps the kit's type sizes instead of growing and shrinking with the drawing.
 // The drawing's box is cropped to the arc, so labels sit right at its ends.
+//
+// A value off the scale is never drawn past an end: the bar and the needle stop there, and a note under
+// the value says which side it left by ("Above the scale"); the meter's text says it too.
 
 import { useMemo } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
@@ -90,6 +93,12 @@ export type GaugeChartProps = {
   /** Dim the arc and show a hint: the value is older than the consumer allows. */
   stale?: boolean;
   staleLabel?: string;
+  /** The note under the value while it is over `max` (the bar stops at the end). Default 'Above the scale'. */
+  aboveScaleLabel?: string;
+  /** The note under the value while it is under `min`. Default 'Below the scale'. */
+  belowScaleLabel?: string;
+  /** A line under that note while the value is off the scale, e.g. where the scale is set. */
+  offScaleHint?: string;
   className?: string;
 };
 
@@ -173,11 +182,14 @@ export function GaugeChart({
   unit, label, format, formatScale, valueContent, needle = false, needleStyle = 'line', needleColor, size = 'md', layout = 'arc',
   color, trackColor, thickness = STROKE, roundedCaps = false, ticks = 0, tickLabels = false, tickColor, showMinMax = true,
   showValue = true, startAngle = -135, endAngle = 135, animate = true, valueStyle, valueColor, scaleStyle, scaleColor,
-  ariaLabel, stale = false, staleLabel = 'stale', className,
+  ariaLabel, stale = false, staleLabel = 'stale', aboveScaleLabel = 'Above the scale', belowScaleLabel = 'Below the scale',
+  offScaleHint, className,
 }: GaugeChartProps) {
   const span = max - min || 1;
   const hasValue = typeof value === 'number' && Number.isFinite(value);
   const clamped = hasValue ? Math.min(max, Math.max(min, value)) : min;
+  const offScale = hasValue ? (value > max ? 'above' : value < min ? 'below' : null) : null;
+  const offScaleText = offScale === 'above' ? aboveScaleLabel : offScale === 'below' ? belowScaleLabel : undefined;
   const fraction = (clamped - min) / span;
   const band = hasValue ? bandFor(value, bands, bandEdges) : null;
   const baseColor = color ?? 'var(--primary)';
@@ -207,8 +219,8 @@ export function GaugeChart({
   const transition = (props: string) => (animMs ? props.split(',').map((p) => `${p.trim()} ${animMs}ms ease-out`).join(', ') : undefined);
   const customSize = !!valueStyle && valueStyle.fontSize !== undefined;
 
-  /** The value block: the number (or the caller's content) and the caption. */
-  const valueBlock = (fontSize: string, align: 'center' | 'start' = 'center') => (showValue || label) ? (
+  /** The value block: the number (or the caller's content), the caption and the off-scale note. */
+  const valueBlock = (fontSize: string, align: 'center' | 'start' = 'center') => (showValue || label || offScaleText) ? (
     <span className={cn('flex flex-col gap-1', align === 'center' ? 'items-center text-center' : 'items-start')}>
       {showValue && (valueContent ? <span className="leading-none" style={{ fontSize }}>{valueContent}</span> : (
         <span className="inline-flex items-baseline gap-[0.25em] font-semibold leading-none tracking-tight tabular-nums"
@@ -218,6 +230,12 @@ export function GaugeChart({
         </span>
       ))}
       {label && <span className="text-[11px] leading-none text-text-secondary" data-part="caption">{label}</span>}
+      {offScaleText && (
+        <span className="rounded-full bg-warning-subtle px-2 py-0.5 text-[10px] font-medium text-warning-fg" data-part="off-scale">{offScaleText}</span>
+      )}
+      {offScaleText && offScaleHint && (
+        <span className="text-[11px] leading-snug text-text-secondary" data-part="off-scale-hint">{offScaleHint}</span>
+      )}
     </span>
   ) : null;
 
@@ -427,7 +445,7 @@ export function GaugeChart({
           {pointer && hasValue && <circle cx={CX} cy={CY} r={6} fill={needleFill} />}
           {marker && hasValue && <path d={markerPath} fill={needleFill} data-part="needle" />}
         </svg>
-        {(showValue || label) && (
+        {(showValue || label || offScaleText) && (
           <div className="absolute" style={valuePos}>{valueBlock(valueFont)}</div>
         )}
         {tickLabels && tickFractions.filter((f) => !showMinMax || full || (f > 0 && f < 1)).map((f) => {
@@ -460,10 +478,11 @@ export function GaugeChart({
       aria-valuemin={min}
       aria-valuemax={max}
       aria-valuenow={hasValue ? clamped : undefined}
-      aria-valuetext={hasValue ? `${text}${unit ? ` ${unit}` : ''}${bandName ? `, ${bandName}` : ''}${stale ? `, ${staleLabel}` : ''}` : 'no value'}
+      aria-valuetext={hasValue ? `${text}${unit ? ` ${unit}` : ''}${bandName ? `, ${bandName}` : ''}${offScaleText ? `, ${offScaleText}` : ''}${stale ? `, ${staleLabel}` : ''}` : 'no value'}
       className={cn('relative flex flex-col items-center justify-center', fill ? 'h-full w-full min-h-0' : 'inline-flex', stale && 'opacity-60', className)}
       style={fill ? { containerType: 'size' } : { maxWidth: '100%' }}
       data-layout={layout}
+      data-off-scale={offScale ?? undefined}
     >
       {body}
       {stale && <div className="text-[10px] uppercase tracking-wide text-text-secondary">{staleLabel}</div>}

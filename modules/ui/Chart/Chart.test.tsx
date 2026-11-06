@@ -64,6 +64,33 @@ describe('GaugeChart', () => {
     expect(container.querySelector('[data-part="bulb"]')).toBeTruthy();
     expect((container.querySelector('[data-part="bar"]') as HTMLElement).style.height).toContain('40%');
   });
+  it('marks a value off the scale on every layout and stops the bar at the end', () => {
+    for (const layout of ['arc', 'donut', 'bar-horizontal', 'bar-vertical', 'level'] as const) {
+      const { container, unmount } = render(<GaugeChart value={250} max={100} layout={layout} offScaleHint="Set the scale." />);
+      const meter = screen.getByRole('meter');
+      expect(meter, layout).toHaveAttribute('data-off-scale', 'above');
+      expect(meter.getAttribute('aria-valuetext'), layout).toBe('250, Above the scale');
+      expect(container.querySelector('[data-part="off-scale"]')?.textContent, layout).toBe('Above the scale');
+      expect(container.querySelector('[data-part="off-scale-hint"]')?.textContent, layout).toBe('Set the scale.');
+      const bar = container.querySelector('[data-part="bar"]') as HTMLElement;
+      if (layout === 'arc' || layout === 'donut') expect(bar.getAttribute('stroke-dasharray'), layout).toBe('1 1');
+      else if (layout === 'bar-horizontal') expect(bar.style.width, layout).toBe('100%');
+      else expect(bar.style.height, layout).toContain('100');
+      unmount();
+    }
+  });
+  it('says below the scale in the caller\'s words, even with the number hidden; no note on the scale or without a value', () => {
+    const { container, rerender } = render(<GaugeChart value={-3} min={0} max={10} showValue={false} belowScaleLabel="Under range" />);
+    expect(screen.getByRole('meter')).toHaveAttribute('data-off-scale', 'below');
+    expect(container.querySelector('[data-part="off-scale"]')?.textContent).toBe('Under range');
+    expect(container.querySelector('[data-part="value"]')).toBeNull();
+    rerender(<GaugeChart value={10} min={0} max={10} offScaleHint="Set the scale." />);
+    expect(screen.getByRole('meter')).not.toHaveAttribute('data-off-scale');
+    expect(container.querySelector('[data-part="off-scale"]')).toBeNull();
+    expect(container.querySelector('[data-part="off-scale-hint"]')).toBeNull();
+    rerender(<GaugeChart value={null} offScaleHint="Set the scale." />);
+    expect(container.querySelector('[data-part="off-scale"]')).toBeNull();
+  });
 });
 
 const day = (n: number) => `2026-10-0${n}T00:00:00Z`;

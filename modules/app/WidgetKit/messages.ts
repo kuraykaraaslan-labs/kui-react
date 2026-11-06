@@ -269,6 +269,12 @@ export interface ChartViewMessages {
   value: string;
   /** The button that leaves a zoomed time range (line and area charts). */
   resetZoom: string;
+  /** A gauge's value is over its scale's maximum (the bar stops at the end). */
+  aboveScale: string;
+  /** A gauge's value is under its scale's minimum. */
+  belowScale: string;
+  /** While the board is edited: a gauge's value is far off its scale, so the scale is likely wrong. */
+  scaleHint: string;
 }
 
 export interface ContentViewMessages {
@@ -538,6 +544,9 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     all: 'All',
     value: 'Value',
     resetZoom: 'Reset zoom',
+    aboveScale: 'Above the scale',
+    belowScale: 'Below the scale',
+    scaleHint: 'Far off the scale: set Minimum and Maximum in the card settings.',
   },
   content: {
     embedEmpty: 'Set a page address in this widget’s settings.',

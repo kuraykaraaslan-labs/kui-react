@@ -14,6 +14,7 @@ import { STAT_ATTRIBUTES_VIEW } from '../views/StatAttributesView';
 import { PROGRESS_VIEW } from '../views/ProgressView';
 import { GAUGE_VIEW, rangesToBands } from '../views/GaugeView';
 import { STATE_VIEW, evaluateState } from '../views/StateView';
+import { WidgetKitProvider } from '../WidgetKitContext';
 
 const KINDS: Array<[BuiltinKindSpec, SettingsTemplate, WidgetKindView]> = [
   [STAT_SPARKLINE_KIND, STAT_SPARKLINE, STAT_SPARKLINE_VIEW],
@@ -68,7 +69,7 @@ describe('rules', () => {
 });
 
 const fmt: ValueFormat = { decimals: 0 };
-function renderKind(view: WidgetKindView, template: SettingsTemplate, data: Record<string, SlotData | undefined>, stored: Sparse = {}, format: ValueFormat = fmt, extra: { stale?: boolean } = {}) {
+function renderKind(view: WidgetKindView, template: SettingsTemplate, data: Record<string, SlotData | undefined>, stored: Sparse = {}, format: ValueFormat = fmt, extra: { stale?: boolean; editing?: boolean } = {}) {
   const View = view.View;
   return render(<View settings={effective(template, stored)} format={format} data={data} locale="en" {...extra} />);
 }
@@ -301,6 +302,48 @@ describe('gauge view', () => {
   it('maps ranges to bands and is empty without a value', () => {
     expect(rangesToBands([{ to: 10, color: 'var(--success)' }, { from: 10, color: 'bad;' }])).toEqual([{ to: 10, color: 'var(--success)' }]);
     expect(GAUGE_VIEW.isEmpty!({}, {})).toBe(true);
+  });
+  it('a value off the scale stops at its end and is marked, never drawn past it (NB run 3, item 110)', () => {
+    const a = renderKind(GAUGE_VIEW, GAUGE, { value: { shape: 'scalar', value: 800 } }, { needle: true });
+    const meter = screen.getByRole('meter');
+    expect(meter).toHaveAttribute('data-off-scale', 'above');
+    expect(meter).toHaveAttribute('aria-valuenow', '100');
+    expect(meter.getAttribute('aria-valuetext')).toContain('Above the scale');
+    expect(a.container.querySelector('[data-part="bar"]')?.getAttribute('stroke-dasharray')).toBe('1 1');
+    expect(a.container.querySelector('[data-part="off-scale"]')?.textContent).toBe('Above the scale');
+    // not while the board is only viewed
+    expect(a.container.querySelector('[data-part="off-scale-hint"]')).toBeNull();
+    a.unmount();
+    const b = renderKind(GAUGE_VIEW, GAUGE, { value: { shape: 'scalar', value: -5 } }, { layout: 'bar-horizontal', showValue: false });
+    expect(screen.getByRole('meter')).toHaveAttribute('data-off-scale', 'below');
+    expect(b.container.querySelector('[data-part="off-scale"]')?.textContent).toBe('Below the scale');
+    expect(b.container.querySelector('[data-part="bar"]')).toBeNull();
+    b.unmount();
+    const c = renderKind(GAUGE_VIEW, GAUGE, { value: { shape: 'scalar', value: 100 } });
+    expect(screen.getByRole('meter')).not.toHaveAttribute('data-off-scale');
+    expect(c.container.querySelector('[data-part="off-scale"]')).toBeNull();
+  });
+  it('while the board is edited, a value far off the scale says where to set it; one just past an end does not', () => {
+    const far = renderKind(GAUGE_VIEW, GAUGE, { value: { shape: 'scalar', value: 800 } }, {}, fmt, { editing: true });
+    expect(far.container.querySelector('[data-part="off-scale-hint"]')?.textContent).toBe('Far off the scale: set Minimum and Maximum in the card settings.');
+    far.unmount();
+    const near = renderKind(GAUGE_VIEW, GAUGE, { value: { shape: 'scalar', value: 150 } }, {}, fmt, { editing: true });
+    expect(near.container.querySelector('[data-part="off-scale"]')).toBeTruthy();
+    expect(near.container.querySelector('[data-part="off-scale-hint"]')).toBeNull();
+    near.unmount();
+    const on = renderKind(GAUGE_VIEW, GAUGE, { value: { shape: 'scalar', value: 800 } }, { max: 1100 }, fmt, { editing: true });
+    expect(on.container.querySelector('[data-part="off-scale"]')).toBeNull();
+    expect(on.container.querySelector('[data-part="off-scale-hint"]')).toBeNull();
+  });
+  it('off-scale words come from the host\'s messages', () => {
+    const View = GAUGE_VIEW.View;
+    const { container } = render(
+      <WidgetKitProvider value={{ messages: { charts: { aboveScale: 'Ölçeğin üstünde', scaleHint: 'Ölçeği ayarlayın.' } } }}>
+        <View settings={effective(GAUGE, {})} format={fmt} data={{ value: { shape: 'scalar', value: 900 } }} locale="tr" editing />
+      </WidgetKitProvider>,
+    );
+    expect(container.querySelector('[data-part="off-scale"]')?.textContent).toBe('Ölçeğin üstünde');
+    expect(container.querySelector('[data-part="off-scale-hint"]')?.textContent).toBe('Ölçeği ayarlayın.');
   });
 });
 

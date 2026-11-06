@@ -104,7 +104,7 @@ export function PlacementCard({
   });
 
   const body = (
-    <view.View {...viewProps} settings={r.settings} format={r.format} data={data} locale={locale} stale={stale} title={title}
+    <view.View {...viewProps} settings={r.settings} format={r.format} data={data} locale={locale} stale={stale} editing={isEditor} title={title}
       titleShown={r.card.showTitle !== false && !!title} onControl={onControl} controlDisabledReason={controlDisabledReason} renderLink={renderLink ?? viewProps?.renderLink} />
   );
   // No value, no command to send, nothing old: the shape only, with a table's declared headers. Drawn by WidgetCard only in its empty and

@@ -14,6 +14,8 @@ export const GAUGE: SettingsTemplate = {
   exportable: false,
   formatDefaults: { decimals: 0 },
   cardDefaults: { staleDisplay: 'dim' },
+  // The value's declared range (its source's `min` / `max`) is the default scale; 0 to 100 without one.
+  scaleFields: { min: 'min', max: 'max' },
   rules: [
     minBelowMax('min', 'max'),
     (v) => typeof v.startAngle === 'number' && typeof v.endAngle === 'number' && v.startAngle >= v.endAngle
@@ -52,8 +54,14 @@ export const GAUGE: SettingsTemplate = {
     labelColor: colorField('Label colour', 'label', 'var(--text-secondary)', { advanced: true }),
     ...iconFields('icon', 'var(--primary)', 20),
     iconBackground: colorField('Icon background', 'icon', undefined, { advanced: true }),
-    min: { label: 'Minimum', type: 'number', display: 'input', value: 0, group: 'scale', description: 'Used when no minimum slot is bound.' },
-    max: { label: 'Maximum', type: 'number', display: 'input', value: 100, group: 'scale', description: 'Used when no maximum slot is bound.' },
+    min: {
+      label: 'Minimum', type: 'number', display: 'input', value: 0, group: 'scale',
+      description: 'Used when no minimum slot is bound. Until set, the value\'s own minimum when its source declares one.',
+    },
+    max: {
+      label: 'Maximum', type: 'number', display: 'input', value: 100, group: 'scale',
+      description: 'Used when no maximum slot is bound. Until set, the value\'s own maximum when its source declares one.',
+    },
     showMinMax: { label: 'Show min and max', type: 'boolean', value: true, group: 'scale' },
     minMaxFont: fontField('Scale font', 'scale', { advanced: true }),
     minMaxColor: colorField('Scale colour', 'scale', 'var(--text-secondary)', { advanced: true }),

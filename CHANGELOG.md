@@ -6,6 +6,17 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- WidgetKit gauge: the value's declared range is its default scale (next-boilerplate e2e run 3, item 110). `ColumnMeta` takes optional
+  `min` / `max` (a device profile's or a schema's range); `metaScale` reads a usable range and `metaScaleDefaults` turns it into the type
+  layer's defaults for a template that names `scaleFields` (the gauge: `min` / `max`). A person's own min / max, a saved definition's and a
+  bound min / max slot still win; a range whose minimum is not below its maximum, or a one-sided one that would empty the scale, is ignored.
+  A value off the scale is never drawn past an end: `GaugeChart` stops the bar and needle there and marks it with a note under the value
+  ("Above the scale" / "Below the scale", `aboveScaleLabel` / `belowScaleLabel`, the "Old data" badge's look), in its `aria-valuetext` and as
+  `data-off-scale`; `offScaleHint` adds a line under the note. `WidgetViewProps.editing` (PlacementCard's `isEditor`) lets the gauge add
+  `messages.charts.scaleHint` while the board is edited and the value is further off the scale than the scale is wide (`farOffScale`). New
+  kit messages `charts.aboveScale`, `charts.belowScale`, `charts.scaleHint`; four parity cases (`gauge.declared-range`, `gauge.off-scale`,
+  `gauge.off-scale-editor`, `gauge.below-scale`).
+
 - `TransportPolicyCard` (IoT kit): with plain MQTT allowed, "Commands allowed without TLS", the profile's `plaintextRpcMethods`
   (next-boilerplate gateway 12 §10, OD-160): exact command names in a tag input, none by default, checked like the host (no wildcard, never
   `sys.factory_reset`, at most 32, no duplicates), with the note that firmware and settings never go in clear (D222). `DeviceProfile` and

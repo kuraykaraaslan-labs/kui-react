@@ -87,6 +87,8 @@ export interface WidgetViewProps {
   locale?: string;
   /** The data is older than the card's `staleAfterSeconds`. */
   stale?: boolean;
+  /** The board is being edited (`PlacementCard`'s `isEditor`): a view may add a hint meant for the person setting it up. */
+  editing?: boolean;
   /** Controls only: perform the request (resolves when the host is done; rejects on failure). */
   onControl?: (request: ControlRequest) => Promise<unknown>;
   /** Controls only: the host cannot act (no command bound, no permission). */

@@ -1,5 +1,5 @@
-// The pure logic of the gauge widget (no React): the scale, the colour ranges as bands and the props the gauge chart
-// is drawn with. `GaugeView.tsx` draws it; kui-ejs and KUInative vendor this file.
+// The pure logic of the gauge widget (no React): the scale, the colour ranges as bands, where the value sits against the
+// scale and the props the gauge chart is drawn with. `GaugeView.tsx` draws it; kui-ejs and KUInative vendor this file.
 
 import type { FontValue } from '../../SchemaForm/types';
 import type { StyleRecord } from '../card-logic';
@@ -70,6 +70,24 @@ export function rangesToBands(ranges: unknown): GaugeBand[] {
   return out;
 }
 
+/** Which side of its scale a value left it by: `null` while it is on the scale (both ends included) or there is no value. */
+export type GaugeOffScale = 'below' | 'above' | null;
+
+export function offScaleOf(value: number | null, min: number, max: number): GaugeOffScale {
+  if (value === null || !Number.isFinite(value)) return null;
+  return value > max ? 'above' : value < min ? 'below' : null;
+}
+
+/**
+ * The value is further off the scale than the scale is wide (800 on 0 to 100): the scale, not the value, is likely wrong,
+ * so a board being edited says where to set it. A value just past an end (105 on 0 to 100) is only marked.
+ */
+export function farOffScale(value: number | null, min: number, max: number): boolean {
+  const side = offScaleOf(value, min, max);
+  const span = max - min;
+  if (!side || !(span > 0)) return false;
+  return side === 'above' ? (value as number) - max > span : min - (value as number) > span;
+}
 
 /** Everything the gauge widget draws, decided once: the chart's props, with the formatting left to the caller. */
 export function gaugeModel(s: GaugeSettings, format: ValueFormat, data: Record<string, SlotData | undefined>) {
@@ -84,6 +102,9 @@ export function gaugeModel(s: GaugeSettings, format: ValueFormat, data: Record<s
   const customFont = !!s.valueFont && Object.keys(s.valueFont).length > 0;
   return {
     value, min, max, scaleFormat, bands, customFont,
+    // A value off the scale is drawn at the scale's end and marked (the chart says which side); far off, an editor is told why.
+    offScale: offScaleOf(value, min, max),
+    farOffScale: farOffScale(value, min, max),
     head: {
       label: s.label ? { text: s.label, font: s.labelFont, color: s.labelColor } : null,
       tile: s.icon ? { name: s.icon, size: Math.round((s.iconSize ?? 20) * 1.8), color: s.iconColor, background: s.iconBackground } : null,
