@@ -139,6 +139,8 @@ export { DevicePlacementPicker } from './asset/DevicePlacementPicker';
 export type { DevicePlacementPickerProps } from './asset/DevicePlacementPicker';
 export { DevicePlacementPanel } from './asset/DevicePlacementPanel';
 export type { DevicePlacementPanelProps } from './asset/DevicePlacementPanel';
+export { RelationsSection } from './asset/RelationsSection';
+export type { RelationsSectionProps } from './asset/RelationsSection';
 
 // ── Deprecated (OD-9): the Alert* names, for one release; removed in the next minor ───────────────────────────────────
 /** @deprecated use AlarmSeverityBadge; removed in the next minor. */

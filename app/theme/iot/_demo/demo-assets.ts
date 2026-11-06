@@ -64,9 +64,10 @@ export function createDemoAssets(
   };
   const placementView = (deviceId: string): DevicePlacement => {
     const at = placementOf(deviceId);
-    if (!at) return { assetId: null, path: [] };
+    const deviceName = devices().find((d) => d.deviceId === deviceId)?.name ?? null;
+    if (!at) return { assetId: null, path: [], deviceName };
     const r = row(at);
-    return { assetId: at, path: [...ancestors(r), r].map(crumb) };
+    return { assetId: at, path: [...ancestors(r), r].map(crumb), deviceName };
   };
   const nameOf = (type: RelationEntityType, id: string) => (type === 'ASSET' ? rows.find((r) => r.assetId === id)?.name : devices().find((d) => d.deviceId === id)?.name) ?? null;
 
@@ -261,8 +262,12 @@ export function createDemoAssets(
       await wait();
       return placementView(deviceId);
     },
-    async setPlacement(deviceId, assetId) {
+    async setPlacement(deviceId, assetId, opts) {
       await wait();
+      // a write against a placement that changed since it was read is refused (NB 41-ui-fixes/26 1.13)
+      if (opts?.expectedAssetId !== undefined && opts.expectedAssetId !== placementOf(deviceId)) {
+        throw new IotApiError('stale', 'The placement changed after you opened it.');
+      }
       if (assetId) row(assetId);
       const i = relations.findIndex((x) => x.type === 'CONTAINS' && x.toType === 'DEVICE' && x.toId === deviceId);
       if (i >= 0) relations.splice(i, 1);

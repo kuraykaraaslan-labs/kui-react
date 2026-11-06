@@ -478,8 +478,12 @@ export interface IotAssetsApi {
   placement(deviceId: string, signal?: AbortSignal): Promise<DevicePlacement>;
   /** Where each of these devices is placed now (a device placed nowhere is absent): the place dialog says so before it moves one. */
   placements?(deviceIds: string[], signal?: AbortSignal): Promise<Record<string, DevicePlacement>>;
-  /** `null` removes the placement. */
-  setPlacement(deviceId: string, assetId: string | null): Promise<DevicePlacement>;
+  /**
+   * `null` removes the placement. `expectedAssetId`: where the device was placed as read (`null`: nowhere); a host refuses the write
+   * when the placement changed since (`stale`), so a stale screen never moves or removes a placement its viewer did not see
+   * (NB 41-ui-fixes/26 1.13).
+   */
+  setPlacement(deviceId: string, assetId: string | null, opts?: { expectedAssetId?: string | null }): Promise<DevicePlacement>;
   /** Relations with the entity at either end. */
   relations?(entity: { type: RelationEntityType; id: string }, signal?: AbortSignal): Promise<AssetRelation[]>;
   /** The same a page at a time with the total, so none is dropped unseen (a host that bounds `relations` gives it; a view prefers it). */

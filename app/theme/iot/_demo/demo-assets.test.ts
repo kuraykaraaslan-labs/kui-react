@@ -38,7 +38,9 @@ describe('demo sites and assets (the rules NB iot_asset enforces)', () => {
     const a = await api.create({ name: 'Hall A', kind: 'building', parentId: 'as-plant' });
     expect((await api.get(a.assetId)).code).toBe('HALL-A-2');
     await expect(api.create({ name: 'X', kind: 'AREA', code: 'zone-c' })).rejects.toMatchObject({ code: 'conflict' });
-    await api.setPlacement('dev-001', null);
+    // a write against a placement that moved since it was read is refused (NB 41-ui-fixes/26 1.13)
+    await expect(api.setPlacement('dev-001', null, { expectedAssetId: 'as-plant' })).rejects.toMatchObject({ code: 'stale' });
+    await api.setPlacement('dev-001', null, { expectedAssetId: 'as-hall-a' });
     expect(api.placementOf('dev-001')).toBeNull();
   });
 
