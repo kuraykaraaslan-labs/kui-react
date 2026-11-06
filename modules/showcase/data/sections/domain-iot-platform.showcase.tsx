@@ -301,7 +301,7 @@ function fixtureAdapter(fail = false): IotAdapter {
       async remove() { await wait(); throw new IotApiError('conflict', 'This asset still has child assets: move or delete them first.'); },
       devices: fail ? failing : async (id, q) => { await wait(); const rows = q.recursive === false ? PLACED.filter((p) => p.placement.assetId === id) : PLACED; return { items: rows, total: rows.length }; },
       async place() { await wait(); },
-      placement: fail ? failing : async () => { await wait(); return { assetId: 'press-3', path: ['plant', 'bldg-a', 'line-3', 'press-3'].map((id) => crumbOf(findAsset(id)!.node)) }; },
+      placement: fail ? failing : async () => { await wait(); return { assetId: 'press-3', path: ['plant', 'bldg-a', 'line-3', 'press-3'].map((id) => crumbOf(findAsset(id)!.node)), deviceName: 'Press 3 vibration' }; },
       async setPlacement(_d, assetId) { await wait(); return assetId ? { assetId, path: [...assetRecord(assetId).ancestors, crumbOf(findAsset(assetId)!.node)] } : { assetId: null, path: [] }; },
       async relations() { await wait(); return RELATIONS; },
       async removeRelation() { await wait(); },
@@ -1222,7 +1222,7 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       id: 'iot-device-placement-panel',
       title: 'DevicePlacementPanel',
       abbr: 'DV',
-      description: 'Where a device is: the path of its asset with links, Change placement (DevicePlacementPicker) and Remove placement; the device page Placement tab.',
+      description: 'Where a device is and what it is related to: the path of its asset with links, Change placement (DevicePlacementPicker, saying where it is now) and Remove placement (asks first, naming the device and the path), then the device\'s relations (RelationsSection); the device page Placement & relations tab.',
       filePath: 'modules/domains/iot/asset/DevicePlacementPanel.tsx',
       usage: `<DevicePlacementPanel deviceId={id} hrefs={{ asset }} />`,
       variants: [

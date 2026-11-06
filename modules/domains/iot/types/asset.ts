@@ -171,8 +171,11 @@ export function assetKindChoices(inUse: readonly string[] = [], current?: string
 /** A device placed under an asset, with the node it sits on (the asset itself or a descendant). */
 export type PlacedDevice = { device: DeviceRecord; placement: AssetCrumb };
 
-/** Where a device is: its node and the node's ancestors, root first; `assetId` null when it is not placed. */
-export type DevicePlacement = { assetId: string | null; path: AssetCrumb[] };
+/**
+ * Where a device is: the asset it is placed on (`null`: nowhere) and that asset's path, root first. `deviceName`: the device's name when
+ * the host gives it (the remove confirm names it, NB 41-ui-fixes/26 1.11).
+ */
+export type DevicePlacement = { assetId: string | null; path: AssetCrumb[]; deviceName?: string | null };
 
 export const RELATION_ENTITY_TYPES = ['ASSET', 'DEVICE'] as const;
 export type RelationEntityType = (typeof RELATION_ENTITY_TYPES)[number];

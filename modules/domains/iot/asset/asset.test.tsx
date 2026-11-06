@@ -702,14 +702,20 @@ describe('PlaceDevicesDialog', () => {
 });
 
 describe('DevicePlacementPanel', () => {
-  it('shows where the device is with links, removes the placement, and says when it is not placed', async () => {
+  it('shows where the device is with links, removes the placement after a confirm, and says when it is not placed', async () => {
     const user = userEvent.setup();
     const assets = fakeAssets();
-    wrap(<DevicePlacementPanel deviceId="d1" hrefs={{ asset: (id) => `/a/${id}` }} />, assets);
+    wrap(<DevicePlacementPanel deviceId="d1" deviceName="Press sensor" hrefs={{ asset: (id) => `/a/${id}` }} />, assets);
     expect(await screen.findByRole('link', { name: 'Open asset' })).toHaveAttribute('href', '/a/press-3');
     expect(within(screen.getByRole('navigation', { name: 'Asset path' })).getByRole('link', { name: /Hall A/ })).toHaveAttribute('href', '/a/hall-a');
     await user.click(screen.getByRole('button', { name: 'Remove placement' }));
-    await waitFor(() => expect(assets.setPlacement).toHaveBeenCalledWith('d1', null));
+    // asks first, naming the device and the asset's path (NB 41-ui-fixes/26 1.11)
+    expect(await screen.findByText('Press sensor will no longer be placed on Berlin plant › Hall A › Press 3.')).toBeInTheDocument();
+    expect(assets.setPlacement).not.toHaveBeenCalled();
+    const sure = screen.getAllByRole('button', { name: 'Remove placement' });
+    await user.click(sure[sure.length - 1]);
+    // against where it was as read (1.13)
+    await waitFor(() => expect(assets.setPlacement).toHaveBeenCalledWith('d1', null, { expectedAssetId: 'press-3' }));
     expect(await screen.findByText('This device is not placed on any site or asset.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Place on an asset' })).toBeInTheDocument();
   });
@@ -720,6 +726,74 @@ describe('DevicePlacementPanel', () => {
     expect(screen.queryByRole('button', { name: 'Change placement' })).toBeNull();
   });
 });
+
+describe('NB 41-ui-fixes/26: the device\'s placement and relations', () => {
+  it('1.3: the device\'s relations are read for the device, through the host\'s pages, and removed after a confirm naming both ends', async () => {
+    const user = userEvent.setup();
+    const relationsPage = vi.fn().mockResolvedValue({ items: [
+      { relationId: 'r9', fromType: 'DEVICE', fromId: 'd1', toType: 'DEVICE', toId: 'd2', type: 'MANAGES', fromName: 'Gateway', toName: 'Press sensor' },
+    ], total: 1 });
+    const assets = fakeAssets({ relationsPage });
+    const { notify } = wrap(<DevicePlacementPanel deviceId="d1" hrefs={{ device: (id) => `/d/${id}` }} />, assets);
+    expect(await screen.findByRole('heading', { name: 'Relations' })).toBeInTheDocument();
+    await waitFor(() => expect(relationsPage).toHaveBeenCalledWith({ type: 'DEVICE', id: 'd1' }, { page: 1, pageSize: 10 }, expect.anything()));
+    expect(await screen.findByRole('link', { name: 'Press sensor' })).toHaveAttribute('href', '/d/d2');
+    await user.click(screen.getByRole('button', { name: 'Remove relation: Gateway Manages Press sensor' }));
+    expect(await screen.findByText('Gateway Manages Press sensor ends.')).toBeInTheDocument();
+    const sure = screen.getAllByRole('button', { name: 'Remove relation' });
+    await user.click(sure[sure.length - 1]);
+    await waitFor(() => expect(assets.removeRelation).toHaveBeenCalledWith('r9'));
+    expect(notify).toHaveBeenCalledWith({ tone: 'success', message: 'Relation removed' });
+    // the placement and the relations are read again (a removed CONTAINS was the placement)
+    await waitFor(() => expect(assets.placement).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(relationsPage).toHaveBeenCalledTimes(2));
+  });
+
+  it('1.12: while the capabilities are read the actions are a skeleton; a failed read says so with a retry', async () => {
+    const pending: IotAdapter = { assets: fakeAssets(), capabilities: () => new Promise(() => undefined) };
+    const { unmount } = render(<IotAdapterProvider adapter={pending}>{<DevicePlacementPanel deviceId="d1" />}</IotAdapterProvider>);
+    await screen.findByText('Press 3');
+    expect(screen.queryByRole('button', { name: 'Change placement' })).toBeNull();
+    expect(screen.getAllByLabelText('Loading…').length).toBeGreaterThan(0);
+    unmount();
+    const capabilities = vi.fn().mockRejectedValueOnce(new Error('down')).mockResolvedValue({ canPlaceDevices: true });
+    const failing: IotAdapter = { assets: fakeAssets(), capabilities };
+    const user = userEvent.setup();
+    render(<IotAdapterProvider adapter={failing}>{<DevicePlacementPanel deviceId="d1" />}</IotAdapterProvider>);
+    expect(await screen.findByText('What you may change here could not be read, so nothing can be changed yet.')).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: 'Retry' })[0]);
+    expect(await screen.findByRole('button', { name: 'Change placement' })).toBeInTheDocument();
+  });
+
+  it('1.13, 1.14: Change says where the device is now, searches a cut tree on the host, and a stale write shows where it is now', async () => {
+    const user = userEvent.setup();
+    const list = vi.fn().mockResolvedValue({ items: [row('far-1', 'Far pump', 'MACHINE', ['Hub'], 0, 0, 0)], total: 1, alarms: false });
+    const moved = { assetId: 'hub', path: [{ assetId: 'hub', code: 'HUB', name: 'Logistics hub', kind: 'SITE' }] };
+    const placement = vi.fn()
+      .mockResolvedValueOnce({ assetId: 'press-3', path: [RECORD.ancestors[0], RECORD.ancestors[1], { assetId: 'press-3', code: 'PRESS-3', name: 'Press 3', kind: 'MACHINE' }] })
+      .mockResolvedValue(moved);
+    const assets = fakeAssets({
+      tree: vi.fn().mockResolvedValue({ nodes: TREE, truncated: true }), list, placement,
+      setPlacement: vi.fn().mockRejectedValue(new IotApiError('stale', 'The placement changed after you opened it.')),
+    });
+    const { notify } = wrap(<DevicePlacementPanel deviceId="d1" />, assets);
+    await user.click(await screen.findByRole('button', { name: 'Change placement' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Now: Berlin plant › Hall A › Press 3')).toBeInTheDocument();
+    expect(within(dialog).getByText(assetsTruncatedText)).toBeInTheDocument();
+    await user.type(within(dialog).getByRole('searchbox'), 'far');
+    await waitFor(() => expect(list).toHaveBeenCalledWith({ page: 1, pageSize: 50, search: 'far' }, expect.anything()));
+    await user.click(await within(dialog).findByText('Far pump · Hub'));
+    await user.click(within(dialog).getByRole('button', { name: 'Place here' }));
+    await waitFor(() => expect(assets.setPlacement).toHaveBeenCalledWith('d1', 'far-1', { expectedAssetId: 'press-3' }));
+    expect(notify).toHaveBeenCalledWith({ tone: 'error', message: 'The placement changed after you opened it.' });
+    // the dialog closes and the tab shows where the device is now
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByText('Logistics hub')).toBeInTheDocument();
+  });
+});
+
+const assetsTruncatedText = IOT_MESSAGES.assets.truncated;
 
 describe('NB 41-ui-fixes/25: the asset screens say what they act on', () => {
   it('1.1: without the device read there is no Devices section and no device link; Delete is not offered while child assets remain (1.2)', async () => {
