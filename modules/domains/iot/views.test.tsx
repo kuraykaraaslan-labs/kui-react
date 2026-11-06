@@ -59,7 +59,10 @@ function createFakeAdapter(over: Partial<IotAdapter> = {}): IotAdapter {
     credentials: { get: vi.fn().mockResolvedValue({ type: 'ACCESS_TOKEN' }), rotate: vi.fn().mockResolvedValue({ credential: { type: 'ACCESS_TOKEN' }, secret: { token: 'NEW-ONE' } }) },
     attributes: { list: vi.fn().mockResolvedValue([]), save: vi.fn(), remove: vi.fn() },
     alarms: {
-      list: vi.fn().mockResolvedValue({ items: [alarm('a1'), alarm('a2', { status: 'ACKNOWLEDGED' })], total: 2 }),
+      // the OPEN list (the scope's count and "Acknowledge all") holds a1 only
+      list: vi.fn().mockImplementation(async (q: { status?: string }) => (q.status === 'OPEN'
+        ? { items: [alarm('a1')], total: 1 }
+        : { items: [alarm('a1'), alarm('a2', { status: 'ACKNOWLEDGED' })], total: 2 })),
       get: vi.fn().mockResolvedValue(alarm('a1', { origin: { kind: 'profileRule', profileId: 'p1', ruleId: 'r1', ruleName: 'Too hot' }, runbook: 'Cool it down.' })),
       events: vi.fn().mockResolvedValue([{ eventId: 'e1', kind: 'opened', by: 'flow', at: ago(60_000) }]),
       acknowledge: vi.fn().mockImplementation(async (ids: string[]) => ids.map((alarmId, i) => ({ alarmId, ok: i === 0 }))),
@@ -665,6 +668,10 @@ describe('DeviceDetailView', () => {
   });
 });
 
+/** The list's own reads, without the read of the scope's OPEN count (`pageSize: 1`). */
+const listReads = (list: unknown) => (list as ReturnType<typeof vi.fn>).mock.calls.filter(([q]) => (q as { pageSize: number }).pageSize !== 1);
+const lastListRead = (list: unknown) => listReads(list).at(-1)?.[0];
+
 describe('AlarmListView', () => {
   it('bulk acknowledges with one note and reports done and skipped', async () => {
     const user = userEvent.setup();
@@ -689,11 +696,11 @@ describe('AlarmListView', () => {
     const panel = screen.getByRole('form', { name: 'Filters' });
     await user.click(within(panel).getByRole('checkbox', { name: 'Critical' }));
     await user.click(within(panel).getByRole('button', { name: 'Apply' }));
-    await waitFor(() => expect(adapter.alarms!.list).toHaveBeenLastCalledWith(expect.objectContaining({ severity: ['CRITICAL'] }), expect.anything()));
+    await waitFor(() => expect(lastListRead(adapter.alarms!.list)).toEqual(expect.objectContaining({ severity: ['CRITICAL'] })));
     // the status is the table's toolbar choice, always set
     expect(screen.getByLabelText('Status')).toHaveValue('active');
     await user.selectOptions(screen.getByLabelText('Status'), 'any');
-    await waitFor(() => expect(adapter.alarms!.list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'any', from: expect.any(String) }), expect.anything()));
+    await waitFor(() => expect(lastListRead(adapter.alarms!.list)).toEqual(expect.objectContaining({ status: 'any', from: expect.any(String) })));
   });
 
   it('keeps a status, a count chip or a severity applied from page 2', async () => {
@@ -706,23 +713,23 @@ describe('AlarmListView', () => {
     await screen.findByText('Alarm a1');
     const toPage2 = async () => {
       await user.click(screen.getByRole('button', { name: 'Page 2' }));
-      await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }), expect.anything()));
+      await waitFor(() => expect(lastListRead(list)).toEqual(expect.objectContaining({ page: 2 })));
     };
     await toPage2();
     await user.selectOptions(screen.getByLabelText('Status'), 'any');
-    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'any', page: 1 }), expect.anything()));
+    await waitFor(() => expect(lastListRead(list)).toEqual(expect.objectContaining({ status: 'any', page: 1 })));
     expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'any', page: 1 }));
     expect(screen.getByLabelText('Status')).toHaveValue('any');
     await toPage2();
     await user.click(screen.getByRole('button', { name: 'Open (1)' }));
-    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'OPEN', page: 1 }), expect.anything()));
+    await waitFor(() => expect(lastListRead(list)).toEqual(expect.objectContaining({ status: 'OPEN', page: 1 })));
     expect(screen.getByLabelText('Status')).toHaveValue('OPEN');
     await toPage2();
     await user.click(screen.getByRole('button', { name: /Filters/ }));
     const panel = screen.getByRole('form', { name: 'Filters' });
     await user.click(within(panel).getByRole('checkbox', { name: 'Critical' }));
     await user.click(within(panel).getByRole('button', { name: 'Apply' }));
-    await waitFor(() => expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'OPEN', severity: ['CRITICAL'], page: 1 }), expect.anything()));
+    await waitFor(() => expect(lastListRead(list)).toEqual(expect.objectContaining({ status: 'OPEN', severity: ['CRITICAL'], page: 1 })));
     expect(onQueryChange).toHaveBeenLastCalledWith(expect.objectContaining({ severity: ['CRITICAL'], page: 1 }));
   });
 
@@ -769,7 +776,7 @@ describe('AlarmListView', () => {
     expect(screen.queryByText('Alarm a8')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Page 2' }));
     act(() => live.publish('alarms', { alarm: alarm('a7'), transition: 'created' }));
-    expect(await screen.findByRole('button', { name: '1 new alarms: show' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '1 new alarm: show' })).toBeInTheDocument();
   });
 
   it('sorts on the server, and a new live alarm in another order only counts toward the pill', async () => {
@@ -780,9 +787,9 @@ describe('AlarmListView', () => {
     wrap(<AlarmListView hrefs={{ alarm: (id) => id }} now={NOW} />, { adapter, live });
     await screen.findByText('Alarm a1');
     await user.click(within(screen.getByRole('columnheader', { name: /Severity/ })).getByRole('button'));
-    await waitFor(() => expect(adapter.alarms!.list).toHaveBeenLastCalledWith(expect.objectContaining({ sort: { key: 'severity', dir: 'asc' }, page: 1 }), expect.anything()));
+    await waitFor(() => expect(lastListRead(adapter.alarms!.list)).toEqual(expect.objectContaining({ sort: { key: 'severity', dir: 'asc' }, page: 1 })));
     act(() => live.publish('alarms', { alarm: alarm('a9', { title: 'Fresh one' }), transition: 'created' }));
-    expect(await screen.findByRole('button', { name: '1 new alarms: show' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: '1 new alarm: show' })).toBeInTheDocument();
     expect(screen.queryByText('Fresh one')).toBeNull();
   });
 
@@ -840,7 +847,7 @@ describe('AlarmBellMenu', () => {
     const user = userEvent.setup();
     const adapter = createFakeAdapter();
     const { unmount } = wrap(<AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => `/a/${id}` }} now={NOW} />, { adapter });
-    await user.click(await screen.findByRole('button', { name: 'Alarms: Open (1)' }));
+    await user.click(await screen.findByRole('button', { name: 'Alarms: Open (1), most severe open: Major' }));
     expect(screen.getByRole('link', { name: 'Alarm a1' })).toHaveAttribute('href', '/a/a1');
     await user.click(screen.getAllByRole('button', { name: 'Acknowledge' })[0]);
     expect(adapter.alarms!.acknowledge).toHaveBeenCalledWith(['a1']);
@@ -858,9 +865,9 @@ describe('AlarmBellMenu', () => {
       : { items: [alarm('a1')], total: 1 }));
     adapter.alarms!.acknowledge = vi.fn().mockImplementation(async (ids: string[]) => ids.map((alarmId) => ({ alarmId, ok: true })));
     wrap(<><ConfirmHost /><AlarmBellMenu hrefs={{ alarms: '/alarms', alarm: (id) => id }} now={NOW} /></>, { adapter });
-    await user.click(await screen.findByRole('button', { name: 'Alarms: Open (1)' }));
+    await user.click(await screen.findByRole('button', { name: 'Alarms: Open (1), most severe open: Major' }));
     await user.click(screen.getByRole('button', { name: 'Acknowledge all (1)' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Acknowledge all (1)' });
+    const dialog = await screen.findByRole('dialog', { name: 'Acknowledge 1 open alarm?' });
     expect(adapter.alarms!.acknowledge).not.toHaveBeenCalled();
     await user.type(within(dialog).getByLabelText('Note (optional)'), 'Shift handover');
     await user.click(within(dialog).getByRole('button', { name: 'Acknowledge all (1)' }));
@@ -950,7 +957,7 @@ describe('useAlarmBellSource: the alarms in the one list of a notification menu'
     await user.click(await screen.findByRole('button', { name: 'Notifications, 1 unread' }));
     const panel = screen.getByRole('dialog', { name: 'Notifications' });
     await user.click(within(panel).getByRole('button', { name: 'Acknowledge all (1)' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Acknowledge all (1)' });
+    const dialog = await screen.findByRole('dialog', { name: 'Acknowledge 1 open alarm?' });
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
     expect(adapter.alarms!.acknowledge).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Notifications, 1 unread' }));

@@ -103,7 +103,32 @@ describe('AlarmDetailHeader', () => {
     const onResolve = vi.fn();
     render(<AlarmDetailHeader title="Hot" severity="INFO" status="OPEN" openedAt={ago(1)} onResolve={onResolve} />);
     await user.click(screen.getByRole('button', { name: 'Clear' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Clear' }));
     expect(onResolve).toHaveBeenCalled();
+  });
+
+  it('1.3: Clear asks first, naming the alarm and the re-open hold; cancelling clears nothing', async () => {
+    const user = userEvent.setup();
+    const onClear = vi.fn();
+    render(<AlarmDetailHeader title="Boiler hot" severity="MAJOR" status="OPEN" openedAt={ago(1)} onClear={onClear} />);
+    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Clear "Boiler hot"?')).toBeInTheDocument();
+    expect(within(dialog).getByText(/the rule does not open it again: a new alarm opens only after the condition has been false once/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(onClear).not.toHaveBeenCalled();
+  });
+
+  it('1.7, 1.16: announces the words the handler answers; a failure without words names the action', async () => {
+    const user = userEvent.setup();
+    const onAcknowledge = vi.fn().mockResolvedValue('Nothing changed: the alarm was already acknowledged.');
+    const { unmount } = render(<AlarmDetailHeader title="Hot" severity="MAJOR" status="OPEN" openedAt={ago(1)} onAcknowledge={onAcknowledge} />);
+    await user.click(screen.getByRole('button', { name: 'Acknowledge' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Nothing changed: the alarm was already acknowledged.'));
+    unmount();
+    render(<AlarmDetailHeader title="Hot" severity="MAJOR" status="OPEN" openedAt={ago(1)} onAcknowledge={vi.fn().mockRejectedValue(new Error(''))} />);
+    await user.click(screen.getByRole('button', { name: 'Acknowledge' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('The action failed: The alarm could not be acknowledged.'));
   });
 });
 
@@ -145,6 +170,28 @@ describe('AlarmEventTimeline', () => {
     await user.click(screen.getByRole('button', { name: 'Add note' }));
     expect(onAddNote).toHaveBeenCalledWith('checked');
     await waitFor(() => expect(screen.getByLabelText('Add a note')).toHaveValue(''));
+  });
+
+  it('1.14, 1.18: says why a clear happened, shows seconds and the zone, and keeps a note the host did not take', async () => {
+    const user = userEvent.setup();
+    const onAddNote = vi.fn().mockRejectedValue(new Error(''));
+    render(
+      <AlarmEventTimeline
+        timeZone="Europe/Istanbul"
+        onAddNote={onAddNote}
+        events={[
+          { eventId: '1', kind: 'resolved', by: 'the platform', at: new Date('2026-10-24T09:05:07Z'), reason: 'rule_disabled' },
+          { eventId: '2', kind: 'resolved', by: 'the platform', at: new Date('2026-10-24T09:06:00Z'), reason: 'something_else' },
+        ]}
+      />,
+    );
+    expect(screen.getByText('Why: its rule was switched off')).toBeInTheDocument();
+    expect(screen.getAllByText(/^Why:/)).toHaveLength(1);
+    expect(screen.getByText(/12:05:07/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Add a note'), 'checked');
+    await user.click(screen.getByRole('button', { name: 'Add note' }));
+    expect(await screen.findByText('The note could not be added.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Add a note')).toHaveValue('checked');
   });
 
   it('has no note box without onAddNote', () => {

@@ -25,8 +25,14 @@ export type AlarmSeverityMeta = {
   icon: IconDefinition;
   /** Classes of the badge (token utilities only). */
   badgeClass: string;
-  /** Classes of a small dot or bar (the bell, chips). */
+  /** Classes of a small dot or bar (chips). */
   accentClass: string;
+  /**
+   * Classes of a count badge with digits on it (the bell): text that reads in both themes. White on the solid amber or cyan is about
+   * 2:1, so MINOR, WARNING and INFO put their dark (light theme) or pale (dark theme) `-fg` text on the subtle fill with a solid edge
+   * (NB 41-ui-fixes/24 1.15).
+   */
+  countClass: string;
   /** Left border of a table row (literal classes, so the stylesheet keeps them). */
   rowBorderClass: string;
   /** 0 = most severe. */
@@ -34,12 +40,23 @@ export type AlarmSeverityMeta = {
 };
 
 export const ALARM_SEVERITY_META: Record<AlarmSeverity, AlarmSeverityMeta> = {
-  CRITICAL: { label: 'Critical', icon: faFire,                badgeClass: 'bg-error text-text-inverse',                                   accentClass: 'bg-error',   rowBorderClass: 'border-l-error',   rank: 0 },
-  MAJOR:    { label: 'Major',    icon: faCircleExclamation,   badgeClass: 'bg-error-subtle text-error-fg ring-1 ring-inset ring-error',   accentClass: 'bg-error',   rowBorderClass: 'border-l-error',   rank: 1 },
-  MINOR:    { label: 'Minor',    icon: faTriangleExclamation, badgeClass: 'bg-warning-subtle text-warning-fg ring-1 ring-inset ring-warning', accentClass: 'bg-warning', rowBorderClass: 'border-l-warning', rank: 2 },
-  WARNING:  { label: 'Warning',  icon: faExclamation,         badgeClass: 'bg-warning-subtle text-warning-fg',                            accentClass: 'bg-warning', rowBorderClass: 'border-l-warning', rank: 3 },
-  INFO:     { label: 'Info',     icon: faCircleInfo,          badgeClass: 'bg-info-subtle text-info-fg',                                  accentClass: 'bg-info',    rowBorderClass: 'border-l-info',    rank: 4 },
+  CRITICAL: { label: 'Critical', icon: faFire,                badgeClass: 'bg-error text-text-inverse',                                   accentClass: 'bg-error',   countClass: 'bg-error text-text-inverse',                        rowBorderClass: 'border-l-error',   rank: 0 },
+  MAJOR:    { label: 'Major',    icon: faCircleExclamation,   badgeClass: 'bg-error-subtle text-error-fg ring-1 ring-inset ring-error',   accentClass: 'bg-error',   countClass: 'bg-error text-text-inverse',                        rowBorderClass: 'border-l-error',   rank: 1 },
+  MINOR:    { label: 'Minor',    icon: faTriangleExclamation, badgeClass: 'bg-warning-subtle text-warning-fg ring-1 ring-inset ring-warning', accentClass: 'bg-warning', countClass: 'border border-warning bg-warning-subtle text-warning-fg', rowBorderClass: 'border-l-warning', rank: 2 },
+  WARNING:  { label: 'Warning',  icon: faExclamation,         badgeClass: 'bg-warning-subtle text-warning-fg',                            accentClass: 'bg-warning', countClass: 'border border-warning bg-warning-subtle text-warning-fg', rowBorderClass: 'border-l-warning', rank: 3 },
+  INFO:     { label: 'Info',     icon: faCircleInfo,          badgeClass: 'bg-info-subtle text-info-fg',                                  accentClass: 'bg-info',    countClass: 'border border-info bg-info-subtle text-info-fg',          rowBorderClass: 'border-l-info',    rank: 4 },
 };
+
+/**
+ * The count badge's classes when no severity is known for the alarms it counts (the counts carry no `openBySeverity` and none of the
+ * listed alarms is OPEN): neutral, never a severity's colour it cannot vouch for (NB 41-ui-fixes/24 1.15).
+ */
+export const NEUTRAL_COUNT_CLASS = 'border border-border bg-surface-sunken text-text-primary';
+
+/** The count badge's classes for the worst severity, neutral when it is not known. */
+export function countClassOf(worst: AlarmSeverity | null): string {
+  return worst ? ALARM_SEVERITY_META[worst].countClass : NEUTRAL_COUNT_CLASS;
+}
 
 /** The five levels, most severe first (the filter chips' and the sort's order). */
 export const SEVERITY_ORDER: readonly AlarmSeverity[] = ALARM_SEVERITIES;

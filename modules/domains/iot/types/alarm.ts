@@ -79,6 +79,11 @@ export type AlarmEvent = {
   to?: AlarmSeverity;
   /** The step was recorded from readings that arrived late (after an outage), dated by the readings. */
   backfilled?: boolean;
+  /**
+   * Why it happened, for a `resolved` step: `manual` (a person), `clear` (its rule or a flow), `originator_deleted` (its device is gone),
+   * `rule_deleted` / `rule_disabled` (its rule was removed or switched off). The timeline names the known ones; another is not shown.
+   */
+  reason?: string;
 };
 
 /** Counts of the alarms that are not resolved, by status and severity (`alarms.counts`). */
@@ -86,6 +91,8 @@ export type AlarmCounts = {
   open: number;
   acknowledged: number;
   bySeverity: Record<AlarmSeverity, number>;
+  /** The OPEN alarms alone by severity (the bell's badge takes its colour from them); absent: the bell reads it from its list. */
+  openBySeverity?: Record<AlarmSeverity, number>;
 };
 
 /** One id of a bulk acknowledge / clear and what happened to it (some may have changed meanwhile). */

@@ -21,9 +21,14 @@ export type AlarmBellState = {
   items: Alarm[];
   /** What the bell last knew of each alarm it has seen (its items and the events), the newest {@link SEEN_MAX}. */
   seen: ReadonlyMap<string, AlarmMark>;
+  /**
+   * The newest answer failed. Before any answer (`counts` null) the bell says it could not read the alarms, with a retry, instead of
+   * "No open alarms" (NB 41-ui-fixes/24 1.11); after one it keeps showing that answer.
+   */
+  failed: boolean;
 };
 
-export const EMPTY_ALARM_BELL: AlarmBellState = { counts: null, items: [], seen: new Map() };
+export const EMPTY_ALARM_BELL: AlarmBellState = { counts: null, items: [], seen: new Map(), failed: false };
 
 /** How many alarms the bell remembers to judge late events (more than any list it shows). */
 export const SEEN_MAX = 500;
@@ -57,7 +62,7 @@ export function alarmBellFrom(counts: AlarmCounts, items: readonly Alarm[], limi
   const listed = items.filter((a) => a.status !== 'RESOLVED').slice(0, limit);
   let seen: Map<string, AlarmMark> = new Map();
   for (const a of listed) seen = remember(seen, a.alarmId, markOf(a));
-  return { counts, items: listed, seen };
+  return { counts, items: listed, seen, failed: false };
 }
 
 type Slot = { status: Exclude<AlarmStatus, 'RESOLVED'>; severity: AlarmSeverity } | null;
@@ -79,7 +84,10 @@ function slotBefore(ev: AlarmLiveEvent): Slot {
 /** Moves one alarm from one slot of the counts to another; `drift` when a count would go below zero (kept at zero). */
 function shift(counts: AlarmCounts, from: Slot, to: Slot): { counts: AlarmCounts; drift: boolean } {
   if (from?.status === to?.status && from?.severity === to?.severity) return { counts, drift: false };
-  const next: AlarmCounts = { open: counts.open, acknowledged: counts.acknowledged, bySeverity: { ...counts.bySeverity } };
+  const next: AlarmCounts = {
+    open: counts.open, acknowledged: counts.acknowledged, bySeverity: { ...counts.bySeverity },
+    ...(counts.openBySeverity ? { openBySeverity: { ...counts.openBySeverity } } : {}),
+  };
   let drift = false;
   const add = (s: Slot, d: 1 | -1) => {
     if (!s) return;
@@ -89,6 +97,11 @@ function shift(counts: AlarmCounts, from: Slot, to: Slot): { counts: AlarmCounts
     if (n < 0 || k < 0) drift = true;
     next[key] = Math.max(0, n);
     next.bySeverity[s.severity] = Math.max(0, k);
+    if (s.status === 'OPEN' && next.openBySeverity) {
+      const o = (next.openBySeverity[s.severity] ?? 0) + d;
+      if (o < 0) drift = true;
+      next.openBySeverity[s.severity] = Math.max(0, o);
+    }
   };
   add(from, -1);
   add(to, 1);
@@ -124,7 +137,7 @@ export function applyAlarmEvent(state: AlarmBellState, ev: AlarmLiveEvent, limit
   const from = held ? slotOf(held.status, held.severity) : slotBefore(ev);
   const moved = state.counts ? shift(state.counts, from, slotOf(a.status, a.severity)) : { counts: null, drift: false };
   return {
-    state: { counts: moved.counts, items: place(state.items, a, limit), seen: remember(state.seen, a.alarmId, mark) },
+    state: { counts: moved.counts, items: place(state.items, a, limit), seen: remember(state.seen, a.alarmId, mark), failed: state.failed },
     applied: true,
     drift: moved.drift,
   };
@@ -290,6 +303,7 @@ export class AlarmBellSync {
       if (unsure || drift || alarmsRunShort(next, limit) || alarmCountsBehind(next)) this.repair();
     } catch (e) {
       // keep the last answer and ask again; a refused one waits its Retry-After
+      if (!this.stopped && !this.state.failed) this.commit({ ...this.state, failed: true });
       if (e instanceof IotApiError && e.code === 'rate_limited') this.holdUntil = this.now() + (e.retryAfterMs ?? RATE_LIMITED_WAIT_MS);
       if (!(e instanceof IotApiError && FINAL_ERRORS.has(e.code))) this.repair();
     } finally {

@@ -11,6 +11,7 @@ import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { Textarea } from '@/modules/ui/Textarea';
 import { Timeline, type TimelineItem } from '@/modules/ui/Timeline';
+import { errorMessage } from '../api/adapter';
 import { useIotText } from '../api/IotAdapterProvider';
 import { fill, toDate } from '../format';
 import type { AlarmEvent } from '../types/alarm';
@@ -21,6 +22,10 @@ import type { IotMessagesInput } from '../messages';
  * acknowledge and clear with their notes, notifications, throttles, mutes, flapping, automation and operator notes. With
  * `onAddNote` a comment box appends a note (the timeline updates when the host re-reads or a live event arrives). Unknown kinds
  * render as a neutral line. Renamed under OD-9 (the old names are deprecated aliases in `index.ts`); events of the old shape still render.
+ *
+ * Times show their seconds and zone, in the host's zone (`timeZone`, else the provider's); a clear says why when the host tells it
+ * (`reason`: by hand, its condition ended, its device or rule gone, its rule switched off). A note box is emptied once the host took
+ * the note; a note the host did not take (or never answered) keeps the text and says so (NB 41-ui-fixes/24 1.14, 1.18).
  */
 export type { AlarmEvent };
 
@@ -49,10 +54,13 @@ const KIND: Record<string, { icon: IconDefinition; tone: TimelineItem['tone'] }>
   flapping: { icon: faShuffle, tone: 'warning' },
 };
 
+/** Texts of the `event` group that are not an event kind (a kind of that name renders as an unknown one). */
+const NOT_KINDS = new Set(['by', 'label', 'addNote', 'notePlaceholder', 'post', 'noteAdded', 'noteFailed', 'noteAddedStale', 'empty', 'other', 'backfilled']);
+
 export function AlarmEventTimeline({
   events, onAddNote, maxNoteLength = 2000, locale, timeZone, messages, className,
 }: AlarmEventTimelineProps) {
-  const { m, locale: lang } = useIotText(messages, locale);
+  const { m, locale: lang, timeZone: hostZone } = useIotText(messages, locale);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,8 +71,11 @@ export function AlarmEventTimeline({
     }
     if (e.kind === 'severity_changed') return fill(m.event.severity_changed, { from: '?', to: '?' });
     const t = (m.event as Record<string, string>)[e.kind];
-    return t && !['by', 'label', 'addNote', 'notePlaceholder', 'post', 'noteAdded', 'empty', 'other', 'backfilled'].includes(e.kind) ? t : m.event.other;
+    return t && !NOT_KINDS.has(e.kind) && !e.kind.startsWith('reason') ? t : m.event.other;
   };
+
+  /** The words of a known reason (an unknown one is not shown: the title already says what happened). */
+  const reasonOf = (e: AlarmEvent): string | undefined => (e.reason ? (m.event as Record<string, string>)[`reason_${e.reason}`] : undefined);
 
   const items: TimelineItem[] = events.map((e) => {
     const meta = KIND[e.kind] ?? { icon: faCircleDot, tone: 'default' as const };
@@ -78,7 +89,12 @@ export function AlarmEventTimeline({
           {e.backfilled && <Badge variant="neutral" size="sm" className="ml-1.5 align-middle">{m.event.backfilled}</Badge>}
         </span>
       ),
-      body: e.note ? <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">{e.note}</p> : undefined,
+      body: reasonOf(e) || e.note ? (
+        <>
+          {reasonOf(e) && <p className="text-xs text-text-secondary">{fill(m.event.reason, { reason: reasonOf(e) as string })}</p>}
+          {e.note && <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-secondary">{e.note}</p>}
+        </>
+      ) : undefined,
       icon: <FontAwesomeIcon icon={meta.icon} className="h-3 w-3" aria-hidden="true" />,
       tone: meta.tone,
     };
@@ -92,7 +108,8 @@ export function AlarmEventTimeline({
       await onAddNote(text.trim());
       setText('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      // the host's words, else this box's own (a note that got no answer)
+      setError(errorMessage(e, m.event.noteFailed));
     } finally {
       setBusy(false);
     }
@@ -100,7 +117,7 @@ export function AlarmEventTimeline({
 
   return (
     <section className={cn('space-y-4 rounded-xl border border-border bg-surface-raised p-4 shadow-sm sm:p-5', className)} aria-label={m.event.label}>
-      <Timeline items={items} locale={lang} timeZone={timeZone} emptyMessage={m.event.empty} surface="raised" />
+      <Timeline items={items} locale={lang} timeZone={timeZone ?? hostZone} timePrecision="seconds" showTimeZone emptyMessage={m.event.empty} surface="raised" />
       {onAddNote && (
         <div className="space-y-2 border-t border-border pt-4">
           <Textarea
