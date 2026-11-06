@@ -89,7 +89,7 @@ export function OtaDevicePanel({ adapter, deviceId, deviceName, can = {}, packag
   if (!view || !settings) {
     return error
       ? <Callout variant="danger" className={className}><p>{error}</p><Button className="mt-2" size="sm" variant="outline" onClick={() => setTick((t) => t + 1)}>{m.common.retry}</Button></Callout>
-      : <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner /></div>;
+      : <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner label={null} /></div>;
   }
 
   const stored = settings.stored.allowMetered;

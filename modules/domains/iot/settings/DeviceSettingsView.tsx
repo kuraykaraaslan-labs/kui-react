@@ -99,7 +99,7 @@ export function DeviceSettingsView({ adapter, deviceId, pollMs = 5000, initialSe
       </Callout>
     );
   }
-  if (!data) return <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner /></div>;
+  if (!data) return <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner label={null} /></div>;
   const { settings, schema } = data;
   if (!settings.supported) {
     const unknown = settings.reason === 'manifest_unknown';
