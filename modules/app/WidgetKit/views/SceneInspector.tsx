@@ -7,11 +7,11 @@ import { useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { FieldControl } from '../../SchemaForm/fields/FieldControl';
-import { useFieldOverrides } from '../../SchemaForm/schema-form.context';
+import { SchemaFormMessagesProvider, useFieldOverrides } from '../../SchemaForm/schema-form.context';
 import type { FieldSchema } from '../../SchemaForm/types';
 import { SCADA_SCENE } from '../templates/scada-scene';
 import { localizeTemplate } from '../localize';
-import { useWidgetKit } from '../WidgetKitContext';
+import { useKitMessages, useWidgetKit } from '../WidgetKitContext';
 import { SCADA_SYMBOL_DEFS, isScadaSymbol, type SymbolDef } from './scada-logic';
 import { renameElement, type EditResult, type Rec } from './scene-edit-logic';
 import { mergeMessages, DEFAULT_INSPECTOR_MESSAGES, type DeepPartial, type InspectorMessages, type RulesMessages } from './scene-editor-messages-panels';
@@ -140,6 +140,8 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
   const base = useId();
   const { templateText } = useWidgetKit();
   const overrides = useFieldOverrides();
+  // the host's texts of the form controls (a checkbox's "Enabled"): the inspector draws them outside a SchemaForm (run 3 note 10)
+  const formMessages = useKitMessages().form;
   const template = useMemo(() => (templateText ? localizeTemplate(SCADA_SCENE, templateText) : SCADA_SCENE), [templateText]);
   const [drafts, setDrafts] = useState<Record<string, unknown>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -248,6 +250,7 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
   };
 
   return (
+    <SchemaFormMessagesProvider value={formMessages}>
     <div className="space-y-4" data-scope={scope}>
       <div>
         <h2 className="text-sm font-semibold text-text-primary">{heading}</h2>
@@ -280,6 +283,7 @@ function Properties({ ctx, m, announce }: { ctx: EditorCtx; m: InspectorMessages
         </details>
       )}
     </div>
+    </SchemaFormMessagesProvider>
   );
 }
 

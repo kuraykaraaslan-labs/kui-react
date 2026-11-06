@@ -176,6 +176,11 @@ export interface SceneSetupMessages {
    * the symbols are connected to values on the drawing itself (next-boilerplate E2E-1.4).
    */
   matchNoElements: string;
+  /**
+   * Said once over the table when values of the main role are listed and no device is the main one (a site of several devices, or symbols renamed off
+   * their roles): what to do, where every such row only says it has no device (run 3 notes 49 and 95).
+   */
+  noMainDeviceHelp: string;
   keyColumn: string;
   kindColumn: string;
   statusColumn: string;
@@ -339,6 +344,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
 
   matchSection: '4. Match',
   matchHint: 'Each key of the scene reads one element of a device. A key that is the element id needs nothing stored; the rest are saved as exceptions.',
+  noMainDeviceHelp: 'No device is the main device of this view, so the values that belong to it cannot be picked here. Leave one device\'s role empty, or save and connect the symbols in the view: Match everything, or one symbol at a time.',
   matchNoElements: 'These devices send no grouped values this table could match, so there is nothing to do here. Save the setup, then connect each symbol where the drawing is shown: click the symbol and pick the value it shows.',
   keyColumn: 'Scene key',
   kindColumn: 'Kind',

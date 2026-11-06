@@ -1106,3 +1106,17 @@ describe('SceneSetupDrawer: the choose mode (next-boilerplate D45-10, e2e round 
     expect(onSave).not.toHaveBeenCalled();
   });
 });
+
+describe('SceneSetupDrawer: no device is the main one (next-boilerplate run 3 notes 49 and 95)', () => {
+  const sites = { kinds: ['diagram'] as const, sceneKeys: [{ key: 'pump', kind: 'diagram' }], elements: [{ element: 'level', deviceId: D1 }], initial: { documentId: DOC_A, slot: 'main', kind: 'diagram' as const } };
+  it('says once, over the table, what to do when values of the main role are listed and no device holds it', () => {
+    render(<SceneSetupDrawer {...props({ ...sites, kinds: [...sites.kinds], devices: [{ id: D1, label: 'Well 1', code: 'W1', role: 'w1' }, { id: D2, label: 'Well 2', code: 'W2', role: 'w2' }] })} />);
+    expect(screen.getAllByTestId('match-no-main-device')).toHaveLength(1);
+    expect(screen.getByTestId('match-no-main-device')).toHaveTextContent('Leave one device\'s role empty');
+  });
+  it('says nothing when a device is the main one', () => {
+    const devices = [{ id: D1, label: 'Well 1', code: 'W1', role: 'w1' }, { id: D2, label: 'Well 2', code: 'W2', role: 'w2' }];
+    render(<SceneSetupDrawer {...props({ ...sites, kinds: [...sites.kinds], devices, initial: { ...sites.initial, devices: { '': D1, w2: D2 } } })} />);
+    expect(screen.queryByTestId('match-no-main-device')).toBeNull();
+  });
+});
