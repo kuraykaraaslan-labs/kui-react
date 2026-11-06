@@ -2,6 +2,7 @@ import type {
   RuleAction, RuleCondition, RuleDefinition, RuleDeviceOrHome, RuleDeviceRef, RuleProblem, RuleScope, RuleTrigger,
 } from '../types/rules';
 import type { IotMessages } from '../messages';
+import { fill } from '../format';
 
 /**
  * The draft of a rule as the editor holds it (docs/concepts/iot-rules 00 §0.2): pure helpers for building rows, naming devices and
@@ -128,6 +129,76 @@ export function emptyDefinition(): RuleDefinition {
 export function actsOnDevices(def: RuleDefinition): boolean {
   const walk = (list: readonly RuleAction[]): boolean => list.some((a) => a.kind === 'command' || a.kind === 'setting' || a.kind === 'notify' || (a.kind === 'choose' && (a.branches.some((b) => walk(b.then)) || (a.else ? walk(a.else) : false))));
   return walk(def.then);
+}
+
+/**
+ * The kinds of action that move equipment: a command, a setting, or another rule that may (the platform's `EQUIPMENT_ACTIONS`). Run now asks
+ * first for a rule that has one (next-boilerplate D580); a rule that only notifies people, raises alarms or waits runs at once.
+ */
+export const EQUIPMENT_ACTION_KINDS: ReadonlySet<ActionKind> = new Set<ActionKind>(['command', 'setting', 'rule']);
+
+/** The first action of a rule that moves equipment, in the order the rule reads (a choice's branches, then its otherwise), or null. */
+export function firstEquipmentAction(def: RuleDefinition): RuleAction | null {
+  const walk = (list: readonly RuleAction[]): RuleAction | null => {
+    for (const a of list) {
+      if (EQUIPMENT_ACTION_KINDS.has(a.kind)) return a;
+      if (a.kind === 'choose') {
+        for (const b of a.branches) { const hit = walk(b.then); if (hit) return hit; }
+        const hit = a.else ? walk(a.else) : null;
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  return walk(def.then);
+}
+
+/** A device reference by name: the device, "Every <kind>", else the word for a device. */
+function refName(scope: Pick<RuleScope, 'devices' | 'deviceTypes'>, ref: RuleDeviceRef, m: IotMessages['rules']): string {
+  if ('device' in ref) return scope.devices.find((d) => d.deviceId === ref.device)?.name ?? m.device;
+  const t = scope.deviceTypes.find((x) => x.profileId === ref.deviceType);
+  return t ? fill(m.kindAllOf, { type: t.name }) : m.device;
+}
+
+/** A value in words: on / off for a yes / no, the option's label for a choice, the number or text as it is. */
+function valueWords(v: unknown, field: { options?: unknown } | undefined, m: IotMessages['rules']): string | null {
+  if (typeof v === 'boolean') return v ? m.on : m.off;
+  if (typeof v === 'number') return String(v);
+  if (typeof v !== 'string' || !v) return null;
+  const options = Array.isArray(field?.options) ? (field.options as Array<string | { value: string; label: string }>) : [];
+  const hit = options.find((o) => (typeof o === 'string' ? o : o.value) === v);
+  return hit === undefined ? v : typeof hit === 'string' ? hit : hit.label;
+}
+
+/**
+ * One step of a rule in words, for the question Run now asks (D580): "Dolum-kapama: Hat kumandası · Hattı çalıştır · Off", "Fan 1: speed
+ * to 3", "Switch off Night mode". Devices, commands, controls and rules by name; never an id or a method.
+ */
+export function stepWords(
+  a: RuleAction, scope: Pick<RuleScope, 'devices' | 'deviceTypes'> | null | undefined, rules: ReadonlyArray<{ ruleId: string; name: string }>, m: IotMessages['rules'],
+): string {
+  const sc = scope ?? { devices: [], deviceTypes: [] };
+  if (a.kind === 'command') {
+    const cmd = commandOptions(sc, a.target).find((c) => c.method === a.command);
+    const schema = (cmd?.paramsSchema ?? {}) as Record<string, { options?: unknown; variants?: { by: string; cases: Record<string, { options?: unknown } | null> } }>;
+    const params = a.params ?? {};
+    const said = Object.keys(schema).flatMap((k) => {
+      const f = schema[k];
+      const chosen = f?.variants ? params[f.variants.by] : undefined;
+      const own = f?.variants && typeof chosen === 'string' ? f.variants.cases[chosen] ?? undefined : f;
+      const w = valueWords(params[k], own, m);
+      return w === null ? [] : [w];
+    });
+    return fill(m.stepCommand, { device: refName(sc, a.target, m), command: [cmd?.label ?? m.aCommand, ...said].join(' · ') });
+  }
+  if (a.kind === 'setting') {
+    return fill(m.stepSetting, { device: refName(sc, a.target, m), setting: a.key, value: valueWords(a.value, undefined, m) ?? '' });
+  }
+  if (a.kind === 'rule') {
+    const name = rules.find((r) => r.ruleId === a.rule)?.name ?? m.ruleWhich;
+    return fill(a.op === 'enable' ? m.stepRuleOn : a.op === 'disable' ? m.stepRuleOff : m.stepRuleStart, { rule: name });
+  }
+  return '';
 }
 
 const picked = (r: RuleDeviceOrHome | undefined): boolean => codeOf(r) !== '';

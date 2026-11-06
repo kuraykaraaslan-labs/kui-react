@@ -10,7 +10,7 @@ import { RuleList } from './RuleList';
 import { RuleStatusChip } from './RuleStatusChip';
 import { countdown, ruleState, when } from './rule-format';
 import { READY_KEYS, readyLabel, readyRule } from './rule-ready';
-import { draftProblems } from './rule-draft';
+import { draftProblems, firstEquipmentAction, stepWords } from './rule-draft';
 import { severityLabel } from './RuleRows';
 import { IOT_MESSAGES } from '../messages';
 
@@ -562,5 +562,84 @@ describe('RuleEditor: a command of one control, its value typed by the control (
     expect(screen.getAllByText('“Control” boş: değerini seçin.')).toHaveLength(1);
     const field = document.querySelector('#action-a1-params [data-field="key"]')!;
     expect(within(field as HTMLElement).getByRole('alert')).toHaveTextContent('“Control” boş: değerini seçin.');
+  });
+});
+
+/**
+ * next-boilerplate D580 and UI test 3 #215: Run now asks first when the rule moves equipment (a command, a setting or another rule), naming
+ * the rule and its first such step; a rule that only notifies people or raises alarms runs at once. A ready rule picked over a draft
+ * whose rows the author changed asks before it replaces them.
+ */
+describe('asking before acting (D580, UI test 3 #215)', () => {
+  const handlers = () => ({ onToggle: vi.fn(), onRun: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(), onHistory: vi.fn(), onDelete: vi.fn(async () => undefined) });
+  const stopFiller: RuleDefinition = {
+    v: 1, options: { overlap: 'ignore' },
+    when: [{ id: 't1', kind: 'value', target: { device: 'd1' }, key: 'temperature', change: 'above', value: 28 }],
+    then: [
+      { id: 'a1', kind: 'notify', recipients: [{ kind: 'role', role: 'ADMIN' }], text: 'Hot' },
+      { id: 'a2', kind: 'choose', branches: [{ if: { kind: 'sun', is: 'day' }, then: [{ id: 'a3', kind: 'command', target: { device: 'd2' }, command: 'fan.set', params: { speed: 3 } }] }] },
+    ],
+  };
+  const notifyOnly: RuleDefinition = { ...stopFiller, then: [{ id: 'a1', kind: 'notify', recipients: [{ kind: 'role', role: 'ADMIN' }], text: 'Hot' }] };
+
+  it('Run now on a rule that sends a command asks first, naming the rule and its first such step, and runs on Run now', async () => {
+    const h = handlers();
+    const user = userEvent.setup();
+    render(<RuleList rules={[rule({ definition: stopFiller })]} scope={scope} now={NOW} canManage canRun {...h} />);
+    await user.click(screen.getByRole('button', { name: 'More for Fan on when hot' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Run now' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Run Fan on when hot now?')).toBeInTheDocument();
+    expect(within(dialog).getByText('It moves equipment at once. Its first step: Fan 1: Fan on · 3.')).toBeInTheDocument();
+    expect(h.onRun).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: 'Run now' }));
+    expect(h.onRun).toHaveBeenCalledWith(expect.objectContaining({ ruleId: 'r1' }));
+  });
+
+  it('Cancel runs nothing; a rule that only tells people runs at once', async () => {
+    const h = handlers();
+    const user = userEvent.setup();
+    const { rerender } = render(<RuleList rules={[rule({ definition: stopFiller })]} scope={scope} now={NOW} canManage canRun {...h} />);
+    await user.click(screen.getByRole('button', { name: 'More for Fan on when hot' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Run now' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+    expect(h.onRun).not.toHaveBeenCalled();
+    rerender(<RuleList rules={[rule({ definition: notifyOnly })]} scope={scope} now={NOW} canManage canRun {...h} />);
+    await user.click(screen.getByRole('button', { name: 'More for Fan on when hot' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Run now' }));
+    expect(h.onRun).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('names a setting, another rule, a kind of device and an on / off value by their words, never an id', () => {
+    const m = IOT_MESSAGES.rules;
+    const others = [{ ruleId: 'r9', name: 'Night mode' }];
+    expect(stepWords({ id: 'a', kind: 'rule', op: 'disable', rule: 'r9' }, scope, others, m)).toBe('Switch off Night mode');
+    expect(stepWords({ id: 'a', kind: 'rule', op: 'run', rule: 'r9' }, scope, others, m)).toBe('Start Night mode');
+    expect(stepWords({ id: 'a', kind: 'setting', target: { device: 'd2' }, key: 'eco', value: true }, scope, others, m)).toBe('Fan 1: eco to On');
+    expect(stepWords({ id: 'a', kind: 'command', target: { deviceType: 'p2' }, command: 'fan.set' }, scope, others, m)).toBe('Every Fan: Fan on');
+    expect(firstEquipmentAction(notifyOnly)).toBeNull();
+    expect(firstEquipmentAction(stopFiller)?.id).toBe('a3');
+  });
+
+  it('a ready rule over changed rows asks first; Cancel keeps the draft, Replace takes the ready rule and keeps the name', async () => {
+    const user = userEvent.setup();
+    render(<RuleEditor scope={scope} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.type(screen.getByLabelText('Name'), 'Mine');
+    await user.selectOptions(screen.getByLabelText('Device', { selector: '#trigger-t1-device' }), 'd:d1');
+    await user.selectOptions(screen.getByLabelText('Start from a ready rule'), 'sunset');
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Start from “Do something at sunset”?')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByLabelText('What', { selector: '#trigger-t1-kind' })).toHaveValue('value');
+    expect(screen.getByLabelText('Device', { selector: '#trigger-t1-device' })).toHaveValue('d:d1');
+    expect(screen.getByLabelText('Start from a ready rule')).toHaveValue('');
+    await user.selectOptions(screen.getByLabelText('Start from a ready rule'), 'sunset');
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Replace' }));
+    expect(screen.getByLabelText('What', { selector: '#trigger-t1-kind' })).toHaveValue('sun');
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Mine');
+    // the ready rule as it was left is no change: another ready rule replaces it without a question
+    await user.selectOptions(screen.getByLabelText('Start from a ready rule'), 'onHigh');
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
