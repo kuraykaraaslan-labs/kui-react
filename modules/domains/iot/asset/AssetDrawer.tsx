@@ -20,7 +20,7 @@ import { AssetBreadcrumb } from './AssetBreadcrumb';
 import { AssetFormDrawer } from './AssetFormDrawer';
 import { AssetKindBadge } from './AssetKindBadge';
 import { assetKindLabel } from './asset-kind';
-import { AssetRelationTable, relationWords } from './AssetRelationTable';
+import { AssetRelationTable, RELATION_SORT_KEYS, relationWords, type RelationSortKey } from './AssetRelationTable';
 import { MoveAssetDialog } from './MoveAssetDialog';
 import { PlaceDevicesDialog } from './PlaceDevicesDialog';
 import { PLACED_DEVICE_SORT_KEYS, PlacedDeviceTable } from './PlacedDeviceTable';
@@ -554,7 +554,8 @@ function RelationsSection({ assetId, hrefs, reloadKey, pageSize, onChanged, onNa
   const notify = useIotNotify();
   const { m } = useIotText();
   const paged = !!api.relationsPage;
-  const [paging, setPaging] = useState({ page: 1, pageSize });
+  // the host's page with its search, sort and type filter (NB-only, 41-ui-fixes/25 1.15)
+  const [paging, setPaging] = useState<{ page: number; pageSize: number; search?: string; sort?: IotListSort<RelationSortKey>; type?: string }>({ page: 1, pageSize });
   const [rows, setRows] = useState<AssetRelation[] | null>(null);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -617,7 +618,17 @@ function RelationsSection({ assetId, hrefs, reloadKey, pageSize, onChanged, onNa
       {...(paged ? {
         total,
         query: { page: paging.page, pageSize: paging.pageSize },
-        onQueryChange: (q: DataTableQuery) => setPaging((prev) => (prev.page === q.page && prev.pageSize === q.pageSize ? prev : { page: q.page, pageSize: q.pageSize })),
+        onQueryChange: (q: DataTableQuery) => {
+          const sort = toIotSort(q.sort, RELATION_SORT_KEYS);
+          const type = typeof q.filterValues.type === 'string' && q.filterValues.type ? q.filterValues.type : undefined;
+          const next = {
+            page: q.page, pageSize: q.pageSize,
+            ...(q.search.trim() ? { search: q.search.trim() } : {}),
+            ...(sort ? { sort } : {}),
+            ...(type ? { type } : {}),
+          };
+          setPaging((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+        },
       } : {})}
       onRemove={caps.canPlaceDevices && api.removeRelation ? (id, r) => void removeRelation(id, r) : undefined}
     />

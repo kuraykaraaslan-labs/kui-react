@@ -65,6 +65,11 @@ export type DeviceListViewProps = {
   moreActions?: readonly DropdownItem[];
   /** Opens a link (a device page, its log) in the host's router on a plain click; without it the links are plain links. */
   onOpen?: (href: string) => void;
+  /**
+   * Opens the "Awaiting approval" drawer (`renderQuarantine`) on mount: the device page's quarantine link lands here (NB 41-ui-fixes/22
+   * C7; the Devices page is where a quarantined device is approved, f23587f01).
+   */
+  quarantineOpen?: boolean;
 };
 
 const MAX_ACTIVATE = 100;
@@ -123,7 +128,7 @@ export function applyStatePatch(d: DeviceRecord, p: DeviceStatePatch): DeviceRec
 }
 
 export function DeviceListView({
-  hrefs, initialQuery, onQueryChange, pageSize = 20, now, className, addChoices = [], renderQuarantine, moreActions = [], onOpen,
+  hrefs, initialQuery, onQueryChange, pageSize = 20, now, className, addChoices = [], renderQuarantine, moreActions = [], onOpen, quarantineOpen = false,
 }: DeviceListViewProps) {
   const adapter = useIotAdapter();
   const api = adapter.devices;
@@ -157,7 +162,7 @@ export function DeviceListView({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<DeviceRecord | null>(null);
   const [creating, setCreating] = useState(false);
-  const [approving, setApproving] = useState(false);
+  const [approving, setApproving] = useState(quarantineOpen);
   const [activating, setActivating] = useState(false);
   const queryRef = useRef(query);
   // a layout effect: the table reports its page for a query the host moved before the passive effects run, and must compare with it

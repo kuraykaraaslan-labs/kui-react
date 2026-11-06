@@ -2,11 +2,24 @@
  * The send panel's checks of a command's parameters, the same as the host's API makes them (NB `iot_rpc` checkParams, 41-ui-fixes/23
  * 1.19, C10), in the viewer's words: a required value, a flag, a number in its `min`..`max`, a text within its `max` length (the host reads
  * `max`, as here; the form's own `maxLength` only limits typing), a choice among the offered ones, any JSON; a field type the host does
- * not send is refused. Pure.
+ * not send is refused. A field with `variants` (NB K2: a `scada.set_value`'s value by the control it sets) is checked by the case for its
+ * sibling's value, a case of `null` takes no value; a sibling value with no case keeps the field as declared. Pure.
  */
 import type { FieldSchema } from '@/modules/app/SchemaForm/types';
 import { fill } from '../format';
 import type { IotMessages } from '../messages';
+
+/** A field whose schema follows a sibling's value (the host's K2 `variants`). */
+type VariantField = FieldSchema & { variants?: { by: string; cases: Record<string, FieldSchema | null> } };
+
+/** The field a param is checked by: its case for the value `by` holds, `null` for a case that takes none, else the field itself. */
+export function rpcVariantOf(f: FieldSchema, values: Record<string, unknown>): FieldSchema | null {
+  const v = (f as VariantField).variants;
+  if (!v) return f;
+  const chosen = values[v.by];
+  if (typeof chosen !== 'string' || !Object.hasOwn(v.cases, chosen)) return f;
+  return v.cases[chosen] ?? null;
+}
 
 const optionValues = (f: FieldSchema): string[] => (f.options ?? []).map((o) => (typeof o === 'string' ? o : o.value));
 const isEmpty = (v: unknown) => v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0);
@@ -34,7 +47,10 @@ export function rpcParamsToSend(schema: Record<string, FieldSchema>, values: Rec
 /** The first problem of each field (`{ key: text }`; empty: none), as the host would refuse it. */
 export function rpcParamProblems(schema: Record<string, FieldSchema>, values: Record<string, unknown>, m: Pick<IotMessages, 'rpc'>): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [k, f] of Object.entries(schema)) {
+  const sent = rpcParamsToSend(schema, values);
+  for (const [k, declared] of Object.entries(schema)) {
+    const f = rpcVariantOf(declared, sent);
+    if (f === null) continue;
     const v = shown(f, values[k]);
     if (isEmpty(v)) {
       if (f.required) out[k] = fill(m.rpc.required, { label: f.label });

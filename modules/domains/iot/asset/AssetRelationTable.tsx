@@ -9,15 +9,15 @@ import { LIST_PAGE_SIZES } from '../api/list-table';
 import { useIotText } from '../api/IotAdapterProvider';
 import { fill } from '../format';
 import type { IotMessages, IotMessagesInput } from '../messages';
-import type { AssetRelation, RelationEntityType } from '../types/asset';
+import { STANDARD_RELATION_TYPES, type AssetRelation, type RelationEntityType } from '../types/asset';
 import { assetKindIcon, relationTypeLabel } from './asset-kind';
 
 /**
  * AssetRelationTable — the typed relations of an asset or a device (phase 08; NB `iot_relations`): from, type, to, each end with its
  * entity badge and a link when the host gives one. `CONTAINS` towards a device is its placement. With `onRemove`, a row can be removed.
  * A full list on the DataTable's own toolbar, in the browser (the host holds the rows): search (both ends' names, the type), sortable
- * columns, the type filter, rows per page and paging. With `onQueryChange` the host serves the pages instead (`total` rows in all; its
- * pages only: no search, sort or filter), so none is dropped unseen.
+ * columns, the type filter, rows per page and paging. With `onQueryChange` the host serves the pages instead (`total` rows in all, so
+ * none is dropped unseen) and the search, the sort (`RELATION_SORT_KEYS`) and the type filter with them (NB-only, 41-ui-fixes/25 1.15).
  *
  * The remove button names the relation (the host asks before it removes one); a standard type is shown in words; an end the host could
  * not name (deleted) says so instead of showing its id; with `onNavigate` the links open through the host's router.
@@ -31,7 +31,7 @@ export type AssetRelationTableProps = {
   onNavigate?: (href: string) => void;
   /** With `onQueryChange`: the rows across every page. */
   total?: number;
-  /** The host serves the pages (page and rows per page). */
+  /** The host serves the pages: page, rows per page, search, sort and the `type` filter (one type). */
   onQueryChange?: (query: DataTableQuery) => void;
   defaultQuery?: Partial<DataTableQuery>;
   /** The page the host shows (controlled; it steps back after the last row of a page went). */
@@ -45,6 +45,10 @@ export type AssetRelationTableProps = {
 };
 
 /** A relation end's words: its name, or that it is gone (an end the host could not name). Pure. */
+/** The columns a host sorts relations by (`onQueryChange`): an end's name, the type, when it was made. */
+export const RELATION_SORT_KEYS = ['from', 'type', 'to', 'createdAt'] as const;
+export type RelationSortKey = (typeof RELATION_SORT_KEYS)[number];
+
 export function relationEndName(type: RelationEntityType, name: string | null | undefined, m: IotMessages): string {
   return name ?? (type === 'ASSET' ? m.asset.deletedAsset : m.asset.deletedDevice);
 }
@@ -97,14 +101,15 @@ export function AssetRelationTable({
     ? [{ id: 'type', label: m.asset.relationType, type: 'checkboxes', options: types.map((t) => ({ value: t, label: relationTypeLabel(t, m) })) }]
     : [];
   if (onQueryChange) {
-    // the host's pages: its rows in its order, no browser search, sort or filter over one page
+    // the host's pages: its search, sort and type filter over every relation, never the browser's over one page
+    const hostTypes = [...new Set([...STANDARD_RELATION_TYPES, ...rows.map((r) => r.type)])];
     return (
       <DataTable<AssetRelation>
         mode="manual"
         variant="plain"
         className={className}
         caption={m.asset.relations}
-        columns={columns.map((c) => ({ ...c, sortable: false }))}
+        columns={columns}
         rows={rows}
         total={total ?? rows.length}
         onQueryChange={onQueryChange}
@@ -116,7 +121,9 @@ export function AssetRelationTable({
         onRetry={onRetry}
         emptyMessage={m.asset.noRelations}
         messages={{ loading: m.common.loading, retry: m.common.retry, selectAllRows: m.common.selectAll }}
-        searchable={false}
+        multiSort={false}
+        searchPlaceholder={m.asset.searchRelations}
+        filterFields={[{ id: 'type', label: m.asset.relationType, type: 'select', options: hostTypes.map((t) => ({ value: t, label: relationTypeLabel(t, m) })) }]}
         pageSize={query?.pageSize ?? defaultQuery?.pageSize ?? 10}
         pageSizeOptions={LIST_PAGE_SIZES}
         keyboardNavigation

@@ -14,7 +14,8 @@ import { IssuedSecretNotice } from './DeviceCredentialPanel';
  * NewDeviceDrawer — "New device" (phase 01 §1.1): name, label, profile (the default one when none is chosen) and the gateway
  * flag. On success the drawer shows the new access token once (`IssuedSecretNotice`, with the "Connection details" card when the
  * host tells where devices connect) and a link to the device; the token lives only in this open drawer's state and is gone when it
- * closes. A profile without access tokens issues none: the drawer says so, and who can set a credential (NB 41-ui-fixes/21 1.2).
+ * closes. A create that issued no credential says so, and who can set one when the device has a Credentials tab (NB 41-ui-fixes/21 1.2,
+ * D437).
  *
  * The token cannot be lost unseen (NB 41-ui-fixes/21 1.1): while it is shown the drawer does not close (Esc, the backdrop, the close
  * button, Close and Open device all wait) until "I have stored it", which drops it; nor while the create runs. Create is the form's
@@ -197,8 +198,11 @@ export function NewDeviceDrawer({ open, profiles, deviceHref, onClose, onCreated
         <div className="space-y-3">
           <p className="text-sm text-text-primary">{created.device.name}</p>
           {!issued ? (
+            // a create issues no credential for several reasons (the tenant's setting, the profile's auth modes, a transport without
+            // device credentials): "set one" is offered only where the Credentials tab is shown (D437)
             <p className="text-sm text-text-secondary">
-              {m.newDevice.noCredential} {caps.canViewCredentials ? m.newDevice.setCredential : m.newDevice.askAdmin}
+              {m.newDevice.noCredential}
+              {created.device.deviceCredentials !== false && <> {caps.canViewCredentials ? m.newDevice.setCredential : m.newDevice.askAdmin}</>}
             </p>
           ) : created.secret ? (
             <IssuedSecretNotice secret={created.secret} onDismiss={storedIt} connection={connection} credentialType={created.credential?.type} />
