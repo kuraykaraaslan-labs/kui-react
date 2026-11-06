@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowsUpDownLeftRight, faChartLine, faEllipsis, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -10,17 +10,17 @@ import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Drawer } from '@/modules/ui/Drawer';
 import { DropdownMenu } from '@/modules/ui/DropdownMenu';
 import { SkeletonText } from '@/modules/ui/Skeleton';
-import { errorMessage } from '../api/adapter';
+import { errorMessage, IotApiError } from '../api/adapter';
 import { ASSET_SORT_KEYS, type AssetSortKey, type IotListSort, type PlacedDeviceQuery } from '../api/adapter';
 import { LIST_PAGE_SIZES, toIotSort } from '../api/list-table';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
-import { fill, formatDateTime } from '../format';
+import { fill, formatDateTime, plural } from '../format';
 import { assetKindChoices, type AssetNode, type AssetRecord, type AssetRelation, type AssetRow, type PlacedDevice } from '../types/asset';
 import { AssetBreadcrumb } from './AssetBreadcrumb';
 import { AssetFormDrawer } from './AssetFormDrawer';
 import { AssetKindBadge } from './AssetKindBadge';
 import { assetKindLabel } from './asset-kind';
-import { AssetRelationTable } from './AssetRelationTable';
+import { AssetRelationTable, relationWords } from './AssetRelationTable';
 import { MoveAssetDialog } from './MoveAssetDialog';
 import { PlaceDevicesDialog } from './PlaceDevicesDialog';
 import { PLACED_DEVICE_SORT_KEYS, PlacedDeviceTable } from './PlacedDeviceTable';
@@ -35,7 +35,14 @@ import { PLACED_DEVICE_SORT_KEYS, PlacedDeviceTable } from './PlacedDeviceTable'
  * counts, created), Attributes, Devices (placed here or below, "Place devices", remove a placement), Child assets (paged, each opens
  * here) and Relations.
  *
- * `onChanged` asks the host to read its table again after a write; `onDeleted` hands it the deleted asset's parent.
+ * Every action says what it acts on (NB 41-ui-fixes/25): Delete is not offered while child assets remain (the reason is shown) and its
+ * confirm names the placements and relations it ends; removing a placement or a relation asks first and names it; an edit is saved
+ * against what was read (a stale one keeps the edits and offers a reload). The Devices section is only for a viewer who may read
+ * devices. After a write the sections read again in place (their page and filters kept) and an answer that arrives after a newer read
+ * is dropped. An asset that no longer exists says so and offers to close. Capabilities that could not be read are said, with a retry.
+ *
+ * `onChanged` asks the host to read its table again after a write; `onDeleted` hands it the deleted asset's parent; `onNavigate` opens
+ * the links (the path without `onOpenAsset`, the devices, the relations' ends) through the host's router.
  */
 export type AssetDrawerProps = {
   assetId: string;
@@ -48,31 +55,45 @@ export type AssetDrawerProps = {
   onOpenAsset?: (assetId: string) => void;
   /** The host's own buttons in the header, after "Open dashboard" (e.g. another module's button that opens a drawer of its own). Shown once the asset has loaded. */
   actions?: React.ReactNode;
+  /** Open a link in the app (the host's router); without it the links are plain. */
+  onNavigate?: (href: string) => void;
   pageSize?: number;
   now?: number;
 };
 
 export function AssetDrawer({
-  assetId, open = true, onClose, hrefs = {}, onChanged, onDeleted, onOpenAsset, actions, pageSize = 10, now,
+  assetId, open = true, onClose, hrefs = {}, onChanged, onDeleted, onOpenAsset, actions, onNavigate, pageSize = 10, now,
 }: AssetDrawerProps) {
   const api = useIotAdapter().assets;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
-  const { m } = useIotText();
+  const { m, locale } = useIotText();
   const [asset, setAsset] = useState<AssetRecord | null>(null);
-  const [error, setError] = useState<{ id: string; message: string } | null>(null);
+  const [error, setError] = useState<{ id: string; message: string; gone: boolean } | null>(null);
   const [editing, setEditing] = useState(false);
   const [addingChild, setAddingChild] = useState(false);
-  const [moving, setMoving] = useState<AssetNode[] | null>(null);
+  const [moving, setMoving] = useState<{ nodes: AssetNode[]; truncated: boolean } | null>(null);
   const [version, setVersion] = useState(0);
+  // the edit drawer is mounted afresh only on an explicit reload (its Reload after a stale refusal), never by a re-read under it
+  const [formNonce, setFormNonce] = useState(0);
+  // a re-read after a write is in flight: Edit waits for it, so the drawer never opens on the updatedAt from before the save
+  const [rereading, setRereading] = useState(false);
+  // the newest read wins: a save on A, then B opened, never shows A's late answer
+  const seq = useRef(0);
 
   const load = useCallback((signal?: AbortSignal) => {
     if (!api) return Promise.resolve();
+    const mine = ++seq.current;
     return api.get(assetId, signal).then(
-      (a) => { if (!signal?.aborted) { setAsset(a); setError(null); } },
-      (e) => { if (!signal?.aborted) setError({ id: assetId, message: errorMessage(e, m.asset.loadError) }); },
+      (a) => { if (!signal?.aborted && mine === seq.current) { setAsset(a); setError(null); setRereading(false); } },
+      (e) => {
+        if (signal?.aborted || mine !== seq.current) return;
+        setRereading(false);
+        const gone = e instanceof IotApiError && e.code === 'not_found';
+        setError({ id: assetId, gone, message: gone ? m.asset.notFound : errorMessage(e, m.asset.loadError) });
+      },
     );
-  }, [api, assetId, m.asset.loadError]);
+  }, [api, assetId, m.asset.loadError, m.asset.notFound]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -82,6 +103,7 @@ export function AssetDrawer({
 
   const changed = useCallback(() => {
     setVersion((v) => v + 1);
+    setRereading(true);
     void load();
     onChanged?.();
   }, [load, onChanged]);
@@ -94,15 +116,37 @@ export function AssetDrawer({
       onChanged?.();
       onDeleted?.(a.parentId);
     } catch (e) {
-      notify({ tone: 'error', message: fill(m.asset.deleteBlocked, { reason: errorMessage(e, m.asset.failed) }) });
+      const code = e instanceof IotApiError ? e.code : 'unknown';
+      if (code === 'not_found') {
+        // someone else deleted it: it is gone, not refused
+        notify({ tone: 'info', message: m.asset.deleteGone });
+        onChanged?.();
+        onDeleted?.(a.parentId);
+      } else if (code === 'conflict' || code === 'validation' || code === 'forbidden' || code === 'stale') {
+        notify({ tone: 'error', message: fill(m.asset.deleteBlocked, { reason: errorMessage(e, m.asset.failed) }) });
+      } else {
+        notify({ tone: 'error', message: errorMessage(e, m.asset.deleteFailed) || m.asset.deleteFailed });
+      }
     }
   }
 
-  /** "Move to…" offers the tree, read when the dialog opens (the table holds pages, not the tree). */
+  function confirmRemove(a: AssetRecord) {
+    const what = a.relationCount === undefined ? m.asset.deleteHint
+      : a.deviceCount + a.relationCount === 0 ? m.asset.deleteNothing
+        : fill(m.asset.deleteEnds, {
+          devices: plural(a.deviceCount, { one: m.asset.deviceEnds_one, other: m.asset.deviceEnds }, locale),
+          relations: plural(a.relationCount, { one: m.asset.relationEnds_one, other: m.asset.relationEnds }, locale),
+        });
+    void confirmDialog({ title: fill(m.asset.deleteConfirm, { name: a.name }), message: what, tone: 'danger', confirmLabel: m.asset.delete, cancelLabel: m.common.cancel })
+      .then((ok) => { if (ok) void remove(a); });
+  }
+
+  /** "Move to…" offers the tree, read when the dialog opens (the table holds pages, not the tree); a cut tree is searched on the host. */
   async function startMove() {
     if (!api) return;
     try {
-      setMoving((await api.tree()).nodes);
+      const t = await api.tree();
+      setMoving({ nodes: t.nodes, truncated: t.truncated });
     } catch (e) {
       notify({ tone: 'error', message: errorMessage(e, m.asset.moveFailed) });
     }
@@ -128,7 +172,7 @@ export function AssetDrawer({
                 iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
                 <span className={actionLabel}>{m.asset.addChild}</span>
               </Button>
-              <Button variant="ghost" size="sm" className={TOUCH} onClick={() => setEditing(true)} aria-label={m.asset.edit} title={m.asset.edit}
+              <Button variant="ghost" size="sm" className={TOUCH} disabled={rereading} onClick={() => setEditing(true)} aria-label={m.asset.edit} title={m.asset.edit}
                 iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>
                 <span className={actionLabel}>{m.asset.edit}</span>
               </Button>
@@ -149,11 +193,9 @@ export function AssetDrawer({
             align="right"
             items={[
               {
-                id: 'delete', label: m.asset.delete, danger: true, icon: <FontAwesomeIcon icon={faTrash} aria-hidden="true" />,
-                onClick: () => {
-                  void confirmDialog({ title: fill(m.asset.deleteConfirm, { name: a.name }), message: m.asset.deleteHint, tone: 'danger', confirmLabel: m.asset.delete, cancelLabel: m.common.cancel })
-                    .then((ok) => { if (ok) void remove(a); });
-                },
+                // not offered while child assets remain: the reason is under the counts
+                id: 'delete', label: m.asset.delete, danger: true, disabled: a.childCount > 0, icon: <FontAwesomeIcon icon={faTrash} aria-hidden="true" />,
+                onClick: () => confirmRemove(a),
               },
             ]}
             trigger={(
@@ -169,10 +211,18 @@ export function AssetDrawer({
 
   return (
     <Drawer open={open} onClose={onClose} title={fill(m.asset.drawerTitle, { name: name || assetId })} closeLabel={m.common.close} className="w-[40rem]" header={header}>
+      {caps.failed && (
+        <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-warning bg-warning-subtle px-3 py-2 text-sm text-warning-fg">
+          <span className="min-w-0 flex-1">{m.common.capabilitiesError}</span>
+          <Button variant="outline" size="xs" onClick={caps.retry}>{m.common.retry}</Button>
+        </div>
+      )}
       {error && error.id === assetId && !a ? (
         <div role="alert" className="flex flex-col items-center gap-3 p-6 text-center text-sm text-error">
           {error.message}
-          <Button variant="outline" size="sm" onClick={() => void load()}>{m.common.retry}</Button>
+          {error.gone
+            ? <Button variant="outline" size="sm" onClick={onClose}>{m.common.close}</Button>
+            : <Button variant="outline" size="sm" onClick={() => void load()}>{m.common.retry}</Button>}
         </div>
       ) : !a ? (
         <SkeletonText lines={6} label={m.common.loading} />
@@ -182,31 +232,44 @@ export function AssetDrawer({
             {onOpenAsset ? (
               <PathButtons path={a.ancestors} onOpen={open_} label={m.asset.breadcrumb} />
             ) : (
-              <AssetBreadcrumb path={[...a.ancestors, { assetId: a.assetId, code: a.code, name: a.name, kind: a.kind }]} href={hrefs.asset} currentLast />
+              <AssetBreadcrumb path={[...a.ancestors, { assetId: a.assetId, code: a.code, name: a.name, kind: a.kind }]} href={hrefs.asset} onNavigate={onNavigate} currentLast />
             )}
             <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-secondary">
               <span>{m.asset.code}: <code className="font-mono text-text-primary">{a.code}</code></span>
-              <span>{fill(m.asset.childCount, { n: a.childCount })}</span>
-              <span>{fill(m.assets.devicesBadge, { n: a.deviceCount })}</span>
+              <span>{plural(a.childCount, { one: m.asset.childCount_one, other: m.asset.childCount }, locale)}</span>
+              <span>{plural(a.deviceCount, { one: m.asset.devicesHere_one, other: m.asset.devicesHere }, locale)}</span>
             </p>
+            {manage && a.childCount > 0 && (
+              <p className="text-xs text-text-secondary">{plural(a.childCount, { one: m.asset.deleteHasChildren_one, other: m.asset.deleteHasChildren }, locale)}</p>
+            )}
           </div>
           <Overview asset={a} />
-          <Section title={m.asset.devices}>
-            <DevicesSection key={`${a.assetId}:${version}`} asset={a} hrefs={hrefs} pageSize={pageSize} now={now} onChanged={changed} />
-          </Section>
+          {/* device rows are device data: only for a viewer who may read devices (NB 41-ui-fixes/25 1.1) */}
+          {caps.canReadDevices && (
+            <Section title={m.asset.devices}>
+              <DevicesSection key={a.assetId} asset={a} hrefs={hrefs} reloadKey={version} pageSize={pageSize} now={now} onChanged={changed} onNavigate={onNavigate} />
+            </Section>
+          )}
           <Section title={fill(m.asset.childrenSection, { n: a.childCount })}>
-            <ChildrenSection key={`${a.assetId}:${version}`} asset={a} hrefs={hrefs} pageSize={pageSize} onOpenAsset={onOpenAsset} />
+            <ChildrenSection key={a.assetId} asset={a} hrefs={hrefs} reloadKey={version} pageSize={pageSize} onOpenAsset={onOpenAsset} onNavigate={onNavigate} />
           </Section>
-          {api.relations && (
+          {(api.relations || api.relationsPage) && (
             <Section title={m.asset.relations}>
-              <RelationsSection key={`${a.assetId}:${version}`} assetId={a.assetId} hrefs={hrefs} />
+              <RelationsSection key={a.assetId} assetId={a.assetId} hrefs={{ asset: hrefs.asset, device: caps.canReadDevices ? hrefs.device : undefined }}
+                reloadKey={version} pageSize={pageSize} onChanged={changed} onNavigate={onNavigate} />
             </Section>
           )}
         </div>
       )}
-      {a && editing && <AssetFormDrawer open asset={a} onClose={() => setEditing(false)} onSaved={changed} />}
-      {a && addingChild && <AssetFormDrawer open parent={{ assetId: a.assetId, name: a.name }} onClose={() => setAddingChild(false)} onSaved={changed} />}
-      {a && moving && <MoveAssetDialog open asset={a} nodes={moving} onClose={() => setMoving(null)} onMoved={changed} />}
+      {a && editing && (
+        <AssetFormDrawer key={formNonce} open asset={a} onClose={() => setEditing(false)} onSaved={changed}
+          onReload={() => { void load().then(() => setFormNonce((n) => n + 1)); }} />
+      )}
+      {a && addingChild && <AssetFormDrawer open parent={{ assetId: a.assetId, name: a.name, kind: a.kind }} onClose={() => setAddingChild(false)} onSaved={changed} />}
+      {a && moving && (
+        <MoveAssetDialog open asset={{ assetId: a.assetId, name: a.name, parentId: a.parentId, childCount: a.childCount, deviceCount: a.deviceCount, timezone: a.timezone ?? null }}
+          nodes={moving.nodes} truncated={moving.truncated} onClose={() => setMoving(null)} onMoved={changed} />
+      )}
     </Drawer>
   );
 }
@@ -242,8 +305,8 @@ function PathButtons({ path, onOpen, label }: { path: AssetRecord['ancestors']; 
 
 function Overview({ asset }: { asset: AssetRecord }) {
   const { m, locale } = useIotText();
-  const inheritedFrom = !asset.timezone && asset.effectiveTimezone
-    ? [...asset.ancestors].reverse()[0]?.name ?? null : null;
+  // the zone is credited to the asset it comes from, when the host names it (never guessed as the parent)
+  const inheritedFrom = !asset.timezone && asset.effectiveTimezone ? asset.timezoneFrom?.name ?? null : null;
   const zone = asset.timezone ?? (asset.effectiveTimezone
     ? (inheritedFrom ? fill(m.asset.timezoneInherited, { zone: asset.effectiveTimezone, name: inheritedFrom }) : asset.effectiveTimezone) : '—');
   const coords = asset.lat != null && asset.lng != null ? `${asset.lat.toFixed(5)}, ${asset.lng.toFixed(5)}` : '—';
@@ -291,8 +354,9 @@ function Overview({ asset }: { asset: AssetRecord }) {
   );
 }
 
-function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged }: {
-  asset: AssetRecord; hrefs: AssetDrawerProps['hrefs'] & object; pageSize: number; now?: number; onChanged: () => void;
+function DevicesSection({ asset, hrefs, reloadKey, pageSize: firstPageSize, now, onChanged, onNavigate }: {
+  asset: AssetRecord; hrefs: AssetDrawerProps['hrefs'] & object; reloadKey: number; pageSize: number; now?: number; onChanged: () => void;
+  onNavigate?: (href: string) => void;
 }) {
   const api = useIotAdapter().assets!;
   const caps = useIotCapabilities();
@@ -306,12 +370,18 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
   const [error, setError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const key = JSON.stringify(query);
+  const key = `${JSON.stringify(query)}:${reloadKey}`;
+  const seq = useRef(0);
 
-  const load = useCallback((signal?: AbortSignal) => api.devices(asset.assetId, query, signal).then(
-    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(key); } },
-    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(key); } },
-  ), [api, asset.assetId, query, key, m.asset.loadError]);
+  // a write elsewhere (reloadKey) reads the same page again: the page, search, sort and filters are kept
+  const load = useCallback((signal?: AbortSignal) => {
+    const mine = ++seq.current;
+    const at = key;
+    return api.devices(asset.assetId, query, signal).then(
+      (p) => { if (!signal?.aborted && mine === seq.current) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(at); } },
+      (e) => { if (!signal?.aborted && mine === seq.current) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(at); } },
+    );
+  }, [api, asset.assetId, query, key, m.asset.loadError]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -319,7 +389,13 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
     return () => ctrl.abort();
   }, [load]);
 
-  async function unplace(deviceId: string) {
+  async function unplace(deviceId: string, row: PlacedDevice) {
+    const ok = await confirmDialog({
+      title: fill(m.asset.unplaceConfirm, { device: row.device.name }),
+      message: fill(m.asset.unplaceHint, { asset: row.placement.name }),
+      tone: 'danger', confirmLabel: m.asset.unplace, cancelLabel: m.common.cancel,
+    });
+    if (!ok) return;
     setBusyId(deviceId);
     try {
       await api.setPlacement(deviceId, null);
@@ -335,7 +411,7 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
   const here = new Set(rows.filter((r) => r.placement.assetId === asset.assetId).map((r) => r.device.deviceId));
   return (
     <div className="space-y-3">
-      {caps.canPlaceDevices && (
+      {caps.canPlaceDevices && caps.canReadDevices && (
         <div className="flex flex-wrap items-center justify-end gap-3">
           <Button variant="primary" size="sm" onClick={() => setPlacing(true)} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>{m.asset.placeDevices}</Button>
         </div>
@@ -345,7 +421,8 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
         assetId={asset.assetId}
         deviceHref={hrefs.device}
         assetHref={hrefs.asset}
-        onUnplace={caps.canPlaceDevices ? (id) => void unplace(id) : undefined}
+        onNavigate={onNavigate}
+        onUnplace={caps.canPlaceDevices ? (id, row) => void unplace(id, row) : undefined}
         busyId={busyId}
         total={total}
         defaultQuery={{ pageSize: firstPageSize }}
@@ -372,8 +449,9 @@ function DevicesSection({ asset, hrefs, pageSize: firstPageSize, now, onChanged 
 }
 
 /** The direct children, read through the table's list (`parentId`) a page at a time, with their own counts; each opens in the drawer. */
-function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }: {
-  asset: AssetRecord; hrefs: AssetDrawerProps['hrefs'] & object; pageSize: number; onOpenAsset?: (id: string) => void;
+function ChildrenSection({ asset, hrefs, reloadKey, pageSize: firstPageSize, onOpenAsset, onNavigate }: {
+  asset: AssetRecord; hrefs: AssetDrawerProps['hrefs'] & object; reloadKey: number; pageSize: number; onOpenAsset?: (id: string) => void;
+  onNavigate?: (href: string) => void;
 }) {
   const api = useIotAdapter().assets!;
   const { m } = useIotText();
@@ -383,14 +461,19 @@ function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }:
   const [total, setTotal] = useState(0);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const key = JSON.stringify(query);
-  const load = useCallback((signal?: AbortSignal) => api.list({
-    page: query.page, pageSize: query.pageSize, parentId: asset.assetId, sort: query.sort ?? { key: 'name', dir: 'asc' },
-    search: query.search || undefined, kind: query.kind,
-  }, signal).then(
-    (p) => { if (!signal?.aborted) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(key); } },
-    (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(key); } },
-  ), [api, asset.assetId, query, key, m.asset.loadError]);
+  const key = `${JSON.stringify(query)}:${reloadKey}`;
+  const seq = useRef(0);
+  const load = useCallback((signal?: AbortSignal) => {
+    const mine = ++seq.current;
+    const at = key;
+    return api.list({
+      page: query.page, pageSize: query.pageSize, parentId: asset.assetId, sort: query.sort ?? { key: 'name', dir: 'asc' },
+      search: query.search || undefined, kind: query.kind,
+    }, signal).then(
+      (p) => { if (!signal?.aborted && mine === seq.current) { setRows(p.items); setTotal(p.total); setError(null); setLoadedKey(at); } },
+      (e) => { if (!signal?.aborted && mine === seq.current) { setError(errorMessage(e, m.asset.loadError)); setLoadedKey(at); } },
+    );
+  }, [api, asset.assetId, query, key, m.asset.loadError]);
   useEffect(() => {
     if (!asset.childCount) return;
     const ctrl = new AbortController();
@@ -413,7 +496,12 @@ function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }:
         );
         return onOpenAsset
           ? <button type="button" className={link} onClick={() => onOpenAsset(c.assetId)}>{body}</button>
-          : hrefs.asset ? <a href={hrefs.asset(c.assetId)} className={link}>{body}</a> : <span className={link}>{body}</span>;
+          : hrefs.asset ? (
+            <a href={hrefs.asset(c.assetId)} className={link}
+              onClick={onNavigate ? (e) => { if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) { e.preventDefault(); onNavigate(hrefs.asset!(c.assetId)); } } : undefined}>
+              {body}
+            </a>
+          ) : <span className={link}>{body}</span>;
       },
     },
     { key: 'childCount', sortKey: 'children', header: m.asset.children, align: 'right', sortable: true, hideBelow: 'sm', render: (c) => String(c.childCount) },
@@ -457,39 +545,81 @@ function ChildrenSection({ asset, hrefs, pageSize: firstPageSize, onOpenAsset }:
   );
 }
 
-function RelationsSection({ assetId, hrefs }: { assetId: string; hrefs: AssetDrawerProps['hrefs'] & object }) {
+function RelationsSection({ assetId, hrefs, reloadKey, pageSize, onChanged, onNavigate }: {
+  assetId: string; hrefs: AssetDrawerProps['hrefs'] & object; reloadKey: number; pageSize: number; onChanged: () => void;
+  onNavigate?: (href: string) => void;
+}) {
   const api = useIotAdapter().assets!;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
   const { m } = useIotText();
+  const paged = !!api.relationsPage;
+  const [paging, setPaging] = useState({ page: 1, pageSize });
   const [rows, setRows] = useState<AssetRelation[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback((signal?: AbortSignal) => api.relations!({ type: 'ASSET', id: assetId }, signal).then(
-    (r) => { if (!signal?.aborted) { setRows(r); setError(null); } },
-    (e) => { if (!signal?.aborted) setError(errorMessage(e, m.asset.loadError)); },
-  ), [api, assetId, m.asset.loadError]);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const seq = useRef(0);
+  // a host that pages relations is read a page at a time (none dropped unseen); a write elsewhere (reloadKey) reads the same page again
+  const load = useCallback((signal?: AbortSignal) => {
+    const mine = ++seq.current;
+    const entity = { type: 'ASSET' as const, id: assetId };
+    const read = api.relationsPage
+      ? api.relationsPage(entity, paging, signal)
+      : api.relations!(entity, signal).then((items) => ({ items, total: items.length }));
+    return read.then(
+      (r) => { if (!signal?.aborted && mine === seq.current) { setRows(r.items); setTotal(r.total); setError(null); } },
+      (e) => { if (!signal?.aborted && mine === seq.current) setError(errorMessage(e, m.asset.loadError)); },
+    );
+  }, [api, assetId, paging, m.asset.loadError]);
   useEffect(() => {
     const ctrl = new AbortController();
     load(ctrl.signal).catch(() => undefined);
     return () => ctrl.abort();
-  }, [load]);
-  async function removeRelation(id: string) {
+  }, [load, reloadKey]);
+  async function removeRelation(id: string, r: AssetRelation) {
+    const words = relationWords(r, m);
+    const placement = r.type === 'CONTAINS' && r.toType === 'DEVICE';
+    const ok = await confirmDialog({
+      title: m.asset.removeRelationConfirm,
+      message: fill(placement ? m.asset.removePlacementHint : m.asset.removeRelationHint, words),
+      tone: 'danger', confirmLabel: m.asset.removeRelation, cancelLabel: m.common.cancel,
+    });
+    if (!ok) return;
+    setBusyId(id);
     try {
       await api.removeRelation!(id);
       notify({ tone: 'success', message: m.asset.relationRemoved });
-      void load();
+      // the last row of a later page gone: step back a page instead of reading an empty one
+      if (paged && (rows?.length ?? 0) <= 1 && paging.page > 1) setPaging((p) => ({ ...p, page: p.page - 1 }));
+      // a placement's end changes the devices and the counts too: everything reads again
+      onChanged();
     } catch (e) {
-      notify({ tone: 'error', message: errorMessage(e, m.asset.failed) });
+      if (e instanceof IotApiError && e.code === 'not_found') {
+        notify({ tone: 'info', message: m.asset.relationGone });
+        onChanged();
+      } else {
+        notify({ tone: 'error', message: errorMessage(e, m.asset.failed) });
+      }
+    } finally {
+      setBusyId(null);
     }
   }
   return (
     <AssetRelationTable
       rows={rows ?? []}
       hrefs={hrefs}
+      onNavigate={onNavigate}
       loading={rows === null && !error}
       error={error}
       onRetry={() => void load()}
-      onRemove={caps.canPlaceDevices && api.removeRelation ? (id) => void removeRelation(id) : undefined}
+      busyId={busyId}
+      {...(paged ? {
+        total,
+        query: { page: paging.page, pageSize: paging.pageSize },
+        onQueryChange: (q: DataTableQuery) => setPaging((prev) => (prev.page === q.page && prev.pageSize === q.pageSize ? prev : { page: q.page, pageSize: q.pageSize })),
+      } : {})}
+      onRemove={caps.canPlaceDevices && api.removeRelation ? (id, r) => void removeRelation(id, r) : undefined}
     />
   );
 }
