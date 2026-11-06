@@ -366,7 +366,7 @@ export type RpcCatalog = {
   commands: RpcCommand[];
   /** The viewer may send methods outside the catalog (raw RPC). */
   canSendRaw: boolean;
-  /** False when the device cannot take RPC at all (OD-85: a ThingsBoard-scheme profile); `reason` says why. */
+  /** False when the device cannot take RPC at all (OD-85: a Legacy-scheme profile); `reason` says why. */
   supported: boolean;
   reason?: string;
   /**
@@ -483,7 +483,7 @@ export interface IotAssetsApi {
   /** Relations with the entity at either end. */
   relations?(entity: { type: RelationEntityType; id: string }, signal?: AbortSignal): Promise<AssetRelation[]>;
   /** The same a page at a time with the total, so none is dropped unseen (a host that bounds `relations` gives it; a view prefers it). */
-  relationsPage?(entity: { type: RelationEntityType; id: string }, query: { page: number; pageSize: number }, signal?: AbortSignal): Promise<Page<AssetRelation>>;
+  relationsPage?(entity: { type: RelationEntityType; id: string }, query: { page: number; pageSize: number; search?: string; sort?: IotListSort<'from' | 'type' | 'to' | 'createdAt'>; type?: string }, signal?: AbortSignal): Promise<Page<AssetRelation>>;
   createRelation?(input: AssetRelationInput): Promise<AssetRelation>;
   removeRelation?(relationId: string): Promise<void>;
 }
