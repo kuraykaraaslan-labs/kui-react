@@ -125,7 +125,7 @@ export type DeviceConnectionInfo = {
 export type DeviceTopics = {
   telemetry: string;
   attributes: string;
-  /** Null when the scheme has no commands (the ThingsBoard mapping: telemetry and attributes only). */
+  /** Null when the scheme has no commands (the Legacy mapping: telemetry and attributes only). */
   rpcRequest?: string | null;
   rpcResponse?: string | null;
 };

@@ -187,7 +187,7 @@ describe('transport and auth pieces', () => {
     expect(onChange).toHaveBeenLastCalledWith(['ACCESS_TOKEN', 'X509_CERTIFICATE']);
   });
 
-  it('OD-43: both topic schemes may be on, the last one cannot be unchecked; ThingsBoard says telemetry and attributes only', async () => {
+  it('OD-43: both topic schemes may be on, the last one cannot be unchecked; Legacy says telemetry and attributes only', async () => {
     const user = userEvent.setup();
     function H() {
       const [v, setV] = useState({ topicSchemes: ['ROLTEK'] as Array<'ROLTEK' | 'TB'>, anyTopicEnabled: true, prefixKeysWithTopic: false, maxTopicDepth: 8, maxTopicLength: 128, maxDistinctTopicsPerDevice: 50, rawMaxBytes: 4096 });
@@ -196,7 +196,7 @@ describe('transport and auth pieces', () => {
     render(<H />);
     expect(screen.getByRole('checkbox', { name: /Roltek default/ })).toBeDisabled();
     expect(screen.getByText(/no RPC, claiming, provisioning or gateway API/)).toBeInTheDocument();
-    await user.click(screen.getByRole('checkbox', { name: /ThingsBoard compatible/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Legacy compatible/ }));
     expect(screen.getByText(/old and new firmware can share this profile/)).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: /Roltek default/ })).toBeEnabled();
     expect((screen.getByLabelText(/Max topic depth/) as HTMLInputElement).value).toBe('8');

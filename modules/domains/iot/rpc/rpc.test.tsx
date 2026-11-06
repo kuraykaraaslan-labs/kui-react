@@ -94,9 +94,9 @@ describe('RpcSendPanel', () => {
     await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'ubus.call', params: { path: 'system' }, persistent: true, requestKey: expect.any(String) }));
   });
 
-  it('is disabled with the reason for a ThingsBoard-scheme device (OD-85)', () => {
+  it('is disabled with the reason for a Legacy-scheme device (OD-85)', () => {
     render(<RpcSendPanel commands={[]} supported={false} onSend={vi.fn()} />);
-    expect(screen.getByRole('region', { name: 'Commands' })).toHaveTextContent(/not available for devices on the ThingsBoard compatible scheme/);
+    expect(screen.getByRole('region', { name: 'Commands' })).toHaveTextContent(/not available for devices on the Legacy compatible scheme/);
     expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
   });
 });
