@@ -15,7 +15,7 @@ import { DEMO_ASSETS, DEMO_PLACEMENTS, type DemoAsset } from '../iot.data';
  * devices and the active alarms of the demo's devices up through the tree, as NB's `iot_asset` table view does.
  */
 
-type Row = DemoAsset & { createdAt: Date };
+type Row = DemoAsset & { createdAt: Date; updatedAt?: Date };
 
 export type DemoAssets = IotAssetsApi & {
   /** The asset a device is placed on (the demo's device delete asks it, like NB's reference check). */
@@ -149,12 +149,18 @@ export function createDemoAssets(
       await wait();
       const r = row(id);
       const up = ancestors(r);
+      const from = r.timezone ? null : [...up].reverse().find((a) => a.timezone) ?? null;
       const record: AssetRecord = {
         assetId: r.assetId, parentId: r.parentId, code: r.code, name: r.name, kind: r.kind, description: r.description ?? null,
         lat: r.lat ?? null, lng: r.lng ?? null, timezone: r.timezone ?? null,
-        effectiveTimezone: r.timezone ?? [...up].reverse().find((a) => a.timezone)?.timezone ?? null,
+        effectiveTimezone: r.timezone ?? from?.timezone ?? null,
+        timezoneFrom: from ? { assetId: from.assetId, name: from.name } : null,
         attributes: { ...(r.attributes ?? {}) }, ancestors: up.map(crumb), childCount: childrenOf(r.assetId).length,
-        deviceCount: subtree(r.assetId).reduce((s, x) => s + deviceCount(x), 0), createdAt: r.createdAt, updatedAt: r.createdAt,
+        // what a delete ends: the placements on it and its other relations
+        deviceCount: deviceCount(r.assetId),
+        relationCount: relations.filter((x) => ((x.fromType === 'ASSET' && x.fromId === id) || (x.toType === 'ASSET' && x.toId === id))
+          && !(x.type === 'CONTAINS' && x.toType === 'DEVICE')).length,
+        createdAt: r.createdAt, updatedAt: r.updatedAt ?? r.createdAt,
       };
       return record;
     },
@@ -171,9 +177,13 @@ export function createDemoAssets(
       rows.push(r);
       return { assetId: r.assetId };
     },
-    async update(id, patch) {
+    async update(id, patch, opts) {
       await wait();
       const r = row(id);
+      if (opts?.expectedUpdatedAt && Date.parse(opts.expectedUpdatedAt) !== (r.updatedAt ?? r.createdAt).getTime()) {
+        throw new IotApiError('stale', 'Someone changed this asset after you opened it.');
+      }
+      r.updatedAt = new Date();
       if (patch.code !== undefined && patch.code.toUpperCase() !== r.code) refuseTakenCode(patch.code.toUpperCase(), id);
       if (patch.name !== undefined) r.name = patch.name;
       if (patch.kind !== undefined) r.kind = patch.kind.toUpperCase();
@@ -192,6 +202,7 @@ export function createDemoAssets(
         if (subtree(id).includes(parentId)) throw new IotApiError('validation', 'An asset cannot be moved under itself or one of its own descendants.');
       }
       r.parentId = parentId;
+      r.updatedAt = new Date();
     },
     async remove(id) {
       await wait();
@@ -227,14 +238,24 @@ export function createDemoAssets(
       await wait();
       row(id);
       if (deviceIds.length > 100) throw new IotApiError('validation', 'At most 100 devices can be placed at once.');
-      for (const deviceId of deviceIds) {
-        if (!devices().some((d) => d.deviceId === deviceId)) throw new IotApiError('not_found', 'Device not found.');
-      }
-      for (const deviceId of deviceIds) {
+      const gone = deviceIds.filter((deviceId) => !devices().some((d) => d.deviceId === deviceId));
+      if (gone.length) throw new IotApiError('not_found', 'Device not found.', { details: { deviceIds: gone } });
+      let placed = 0;
+      let moved = 0;
+      for (const deviceId of new Set(deviceIds)) {
+        const at = placementOf(deviceId);
+        if (at === id) continue;
         const i = relations.findIndex((x) => x.type === 'CONTAINS' && x.toType === 'DEVICE' && x.toId === deviceId);
         if (i >= 0) relations.splice(i, 1);
         relations.push({ relationId: `rel-n${++seq}`, fromType: 'ASSET', fromId: id, toType: 'DEVICE', toId: deviceId, type: 'CONTAINS', createdAt: new Date() });
+        placed += 1;
+        if (at) moved += 1;
       }
+      return { placed, moved, alreadyHere: new Set(deviceIds).size - placed };
+    },
+    async placements(deviceIds) {
+      await wait();
+      return Object.fromEntries(deviceIds.flatMap((d) => (placementOf(d) ? [[d, placementView(d)]] : [])));
     },
     async placement(deviceId) {
       await wait();

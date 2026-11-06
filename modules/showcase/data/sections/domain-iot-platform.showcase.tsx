@@ -276,7 +276,7 @@ function fixtureAdapter(fail = false): IotAdapter {
   return {
     name: 'Showcase fixtures',
     async capabilities() {
-      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true, canManageProfiles: !fail, canManageAlarmRules: !fail, canManageRpcCommands: !fail, canManageAssets: !fail, canPlaceDevices: !fail };
+      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true, canManageProfiles: !fail, canManageAlarmRules: !fail, canManageRpcCommands: !fail, canManageAssets: !fail, canPlaceDevices: !fail, canReadDevices: !fail };
     },
     profiles: {
       transports: ['MQTT', 'HTTP', 'ANY', 'LORAWAN'],

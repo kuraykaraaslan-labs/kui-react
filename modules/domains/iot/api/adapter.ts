@@ -36,12 +36,15 @@ export class IotApiError extends Error {
   readonly code: IotApiErrorCode;
   readonly fieldErrors?: Record<string, string>;
   readonly retryAfterMs?: number;
-  constructor(code: IotApiErrorCode, message: string, extra: { fieldErrors?: Record<string, string>; retryAfterMs?: number } = {}) {
+  /** What the host said about the refusal beyond its words (the records it names: a place refused for devices that no longer exist carries their ids as `deviceIds`). */
+  readonly details?: Record<string, unknown>;
+  constructor(code: IotApiErrorCode, message: string, extra: { fieldErrors?: Record<string, string>; retryAfterMs?: number; details?: Record<string, unknown> } = {}) {
     super(message);
     this.name = 'IotApiError';
     this.code = code;
     this.fieldErrors = extra.fieldErrors;
     this.retryAfterMs = extra.retryAfterMs;
+    this.details = extra.details;
   }
 }
 
@@ -439,13 +442,17 @@ export type AssetListQuery = {
   map?: boolean;
 };
 
+/** What a place did: devices placed (of them `moved` from another asset) and devices that were already on the asset (left alone). */
+export type PlaceDevicesResult = { placed: number; moved: number; alreadyHere: number };
+
 /**
  * The topology (NB `iot_asset`): the tree, one asset, its devices and relations, and a device's placement. A host refuses a move
  * under the asset itself or a descendant (`validation`), a delete while children remain or another module still points at the
- * asset (`conflict`, the message names it), and a second placement of a device is a move, never a second parent.
+ * asset (`conflict`, the message names it), an edit of an asset that changed since it was read (`stale`, with `expectedUpdatedAt`), and
+ * a second placement of a device is a move, never a second parent.
  */
 export interface IotAssetsApi {
-  /** The whole tree (a host may bound it; `truncated` says it did): the Move and placement pickers. */
+  /** The whole tree (a host may bound it; `truncated` says it did: then `list` finds the rest): the Move and placement pickers. */
   tree(signal?: AbortSignal): Promise<{ nodes: AssetNode[]; truncated: boolean }>;
   /** One page of the Sites & assets table, filtered and sorted by the host; `alarms` false when it shows no alarm counts. */
   list(query: AssetListQuery, signal?: AbortSignal): Promise<Page<AssetRow> & { alarms: boolean }>;
@@ -453,20 +460,30 @@ export interface IotAssetsApi {
   summary(signal?: AbortSignal): Promise<AssetSummary>;
   get(assetId: string, signal?: AbortSignal): Promise<AssetRecord>;
   create(input: AssetInput): Promise<{ assetId: string }>;
-  /** Only the changed fields; never the parent (that is `move`). */
-  update(assetId: string, patch: Partial<Omit<AssetInput, 'parentId'>>): Promise<void>;
+  /**
+   * Only the changed fields; never the parent (that is `move`). `expectedUpdatedAt` (ISO): the asset's `updatedAt` as read; a host refuses
+   * the edit when the asset changed since (`stale`).
+   */
+  update(assetId: string, patch: Partial<Omit<AssetInput, 'parentId'>>, opts?: { expectedUpdatedAt?: string }): Promise<void>;
   /** `null` = to the top level. */
   move(assetId: string, parentId: string | null): Promise<void>;
   remove(assetId: string): Promise<void>;
   /** The devices placed on the asset or (recursive) any descendant. */
   devices(assetId: string, query: PlacedDeviceQuery, signal?: AbortSignal): Promise<Page<PlacedDevice>>;
-  /** Places the devices on the asset (each moved from where it was). */
-  place(assetId: string, deviceIds: string[]): Promise<void>;
+  /**
+   * Places the devices on the asset (each moved from where it was) and says what it did (a host that answers nothing: every device
+   * counts as placed). A refusal for devices that no longer exist names them in `details.deviceIds`.
+   */
+  place(assetId: string, deviceIds: string[]): Promise<void | PlaceDevicesResult>;
   placement(deviceId: string, signal?: AbortSignal): Promise<DevicePlacement>;
+  /** Where each of these devices is placed now (a device placed nowhere is absent): the place dialog says so before it moves one. */
+  placements?(deviceIds: string[], signal?: AbortSignal): Promise<Record<string, DevicePlacement>>;
   /** `null` removes the placement. */
   setPlacement(deviceId: string, assetId: string | null): Promise<DevicePlacement>;
   /** Relations with the entity at either end. */
   relations?(entity: { type: RelationEntityType; id: string }, signal?: AbortSignal): Promise<AssetRelation[]>;
+  /** The same a page at a time with the total, so none is dropped unseen (a host that bounds `relations` gives it; a view prefers it). */
+  relationsPage?(entity: { type: RelationEntityType; id: string }, query: { page: number; pageSize: number }, signal?: AbortSignal): Promise<Page<AssetRelation>>;
   createRelation?(input: AssetRelationInput): Promise<AssetRelation>;
   removeRelation?(relationId: string): Promise<void>;
 }
@@ -545,6 +562,8 @@ export type IotCapabilities = {
   canManageAssets: boolean;
   /** Place devices on assets and manage relations. */
   canPlaceDevices: boolean;
+  /** Read devices (the devices placed under an asset, links to a device, the place dialog's device list). */
+  canReadDevices: boolean;
   /** Read a device's telemetry (its latest values and series). */
   canReadTelemetry: boolean;
   /** Pick a certificate of the host's certificate authority for an X.509 credential (the authority is there and the viewer may read it). */
@@ -573,6 +592,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canManageRpcCommands: false,
   canManageAssets: false,
   canPlaceDevices: false,
+  canReadDevices: false,
   canReadTelemetry: false,
   canAttachCertificates: false,
 };
