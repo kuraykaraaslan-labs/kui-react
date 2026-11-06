@@ -13,7 +13,7 @@ import { useIotText } from '../api/IotAdapterProvider';
 import { ALARM_SEVERITIES, type AlarmSeverity } from '../types/alarm';
 import { fill } from '../format';
 import {
-  ALARM_RULE_OPS, alarmRuleIssues, isAlarmRuleKey, isInactivityRule, isLeafCondition, undeclaredRuleKeys,
+  ALARM_RULE_KEY_MAX, ALARM_RULE_OPS, ALARM_RULE_TITLE_MAX, alarmRuleIssues, isAlarmRuleKey, isInactivityRule, isLeafCondition, leafValueIssue, undeclaredRuleKeys,
   type AlarmRuleDefinition, type AlarmRuleLeaf, type AlarmRuleOp, type InactivityAlarmRule, type ThresholdAlarmRule,
 } from '../types/alarm-rule';
 
@@ -27,6 +27,10 @@ import {
  * Laid out for its own width (container queries, never the viewport): each severity is one line of severity, then one of key,
  * operator and value, with the topic filter under "Advanced". The key offers the profile's telemetry keys (`telemetryKeys`) and still
  * takes free text; a value or a spaced word is refused as a key, and a key the profile does not declare is a warning that never blocks.
+ *
+ * It checks what the host checks on write (NB 41-ui-fixes/24 1.6, 1.13): the type pattern, a number for `>`, `>=`, `<`, `<=` (a comma
+ * decimal says to use a point), whole debounce counts from 1, a hysteresis of 0 or more, and the lengths of keys, values and the title.
+ * A saved rule (`typeLocked`) keeps its type: the host would delete it and resolve its open alarms under a new type (1.5).
  */
 export type AlarmRuleDrawerProps = {
   open: boolean;
@@ -39,6 +43,8 @@ export type AlarmRuleDrawerProps = {
   telemetryKeys?: readonly string[];
   /** A rule that is not in the set yet ("Add to list" rather than "Update the list"). */
   isNew?: boolean;
+  /** A saved rule: its type cannot change (in the form or in the JSON). */
+  typeLocked?: boolean;
 };
 
 /** `80` → 80, `true` → true, `attribute:limit` → `{ attribute: 'limit' }`, anything else stays text. */
@@ -58,7 +64,7 @@ export function isFormable(r: AlarmRuleDefinition): boolean {
   return isInactivityRule(r) || r.severities.every((s) => isLeafCondition(s.condition));
 }
 
-export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetryKeys = [], isNew = false }: AlarmRuleDrawerProps) {
+export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetryKeys = [], isNew = false, typeLocked = false }: AlarmRuleDrawerProps) {
   const { m } = useIotText();
   const id = useId();
   const [draft, setDraft] = useState<AlarmRuleDefinition>(() => structuredClone(rule));
@@ -80,6 +86,10 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
     try {
       const parsed = JSON.parse(json) as AlarmRuleDefinition;
       if (!parsed || typeof parsed !== 'object' || typeof parsed.type !== 'string' || typeof parsed.title !== 'string') throw new Error('shape');
+      if (typeLocked && parsed.type !== rule.type) {
+        setJsonError(m.alarmRules.typeLocked);
+        return null;
+      }
       setJsonError(null);
       return parsed;
     } catch {
@@ -109,7 +119,9 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
   });
   const severityOptions = ALARM_SEVERITIES.map((s) => ({ value: s, label: m.severity[s] }));
   const known = new Set(telemetryKeys);
-  const keyError = (k: string) => (k.trim() && !isAlarmRuleKey(k.trim(), telemetryKeys) ? m.alarmRules.issue_key_invalid : undefined);
+  const keyError = (k: string) => (k.trim().length > ALARM_RULE_KEY_MAX ? m.alarmRules.issue_key_too_long
+    : k.trim() && !isAlarmRuleKey(k.trim(), telemetryKeys) ? m.alarmRules.issue_key_invalid : undefined);
+  const valueError = (l: AlarmRuleLeaf) => { const issue = leafValueIssue(l); return issue ? m.alarmRules[`issue_${issue}`] : undefined; };
   const keyHint = (k: string) => (k.trim() && known.size > 0 && !known.has(k.trim()) ? fill(m.alarmRules.keyUndeclared, { key: k.trim() }) : m.alarmRules.keyHint);
   const holdMode = threshold?.debounce?.mode ?? 'count';
 
@@ -151,9 +163,9 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
           </>
         ) : (
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); apply(); }}>
-            <Input id={`${id}-type`} label={m.alarmRules.type} hint={m.alarmRules.typeHint} required maxLength={128} value={draft.type}
-              disabled={!!inactivity} className="font-mono" onChange={(e) => setDraft({ ...draft, type: e.target.value } as AlarmRuleDefinition)} />
-            <Input id={`${id}-title`} label={m.alarmRules.titleField} required maxLength={300} value={draft.title}
+            <Input id={`${id}-type`} label={m.alarmRules.type} hint={typeLocked && !inactivity ? m.alarmRules.typeLocked : m.alarmRules.typeHint} required maxLength={128}
+              value={draft.type} disabled={!!inactivity || typeLocked} className="font-mono" onChange={(e) => setDraft({ ...draft, type: e.target.value } as AlarmRuleDefinition)} />
+            <Input id={`${id}-title`} label={m.alarmRules.titleField} required maxLength={ALARM_RULE_TITLE_MAX} value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
             <Toggle id={`${id}-enabled`} label={m.alarmRules.enabled} checked={draft.enabled} onChange={(v) => setDraft({ ...draft, enabled: v })} />
 
@@ -187,7 +199,7 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
                           onChange={(e) => setLeaf(i, { key: e.target.value })} />
                         <Select id={`${id}-op-${i}`} label={m.alarmRules.op} value={leaf.op} options={ALARM_RULE_OPS.map((o) => ({ value: o, label: o }))}
                           onChange={(e) => setLeaf(i, { op: e.target.value as AlarmRuleOp })} />
-                        <Input id={`${id}-value-${i}`} label={m.alarmRules.value} hint={m.alarmRules.valueHint} value={formatRuleValue(leaf.value)}
+                        <Input id={`${id}-value-${i}`} label={m.alarmRules.value} hint={m.alarmRules.valueHint} value={formatRuleValue(leaf.value)} error={valueError(leaf)}
                           onChange={(e) => setLeaf(i, { value: parseRuleValue(e.target.value) })} />
                       </div>
                       <details open={!!leaf.topic} className="text-sm">

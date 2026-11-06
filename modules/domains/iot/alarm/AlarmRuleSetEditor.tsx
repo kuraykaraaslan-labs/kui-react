@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBolt, faPen, faPlug, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
@@ -13,11 +13,12 @@ import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
 import { LIST_PAGE_SIZES } from '../api/list-table';
 import { Toggle } from '@/modules/ui/Toggle';
-import { errorMessage, IotApiError } from '../api/adapter';
+import { errorMessage, IotApiError, type AlarmRuleSaveResult } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
-import { fill } from '../format';
+import { fill, plural } from '../format';
 import {
   DEVICE_OFFLINE_RULE_TYPE, describeCondition, isInactivityRule, newInactivityRule, newThresholdRule, renameAlarmRuleKeys, undeclaredRuleKeys, type AlarmRuleDefinition,
+  type AlarmRuleRecord,
 } from '../types/alarm-rule';
 import { onProfileKeyRenames } from '../profile/profile-key-events';
 import { AlarmRuleDrawer } from './AlarmRuleDrawer';
@@ -31,9 +32,19 @@ import { AlarmSeverityBadge } from './AlarmSeverityBadge';
  *
  * The profile's telemetry keys (read through `profiles.get` when the host offers it, again when a drawer opens, so keys renamed on the
  * Telemetry keys tab count) are offered in the drawer, and a rule reading a key the profile does not declare is marked "Unknown key".
- * While changes are unsaved the bar says how many rules changed and leaving or reloading the page asks first. When the profile editor
- * renames keys and the host rewrites the rules (`onProfileKeyRenames`), the rules held here, unsaved edits included, take the new keys, so
- * a later save never puts the old keys back. A refusal of one rule names that rule.
+ * While changes are unsaved the bar says how many rules changed; reloading or closing the page asks the browser first, and a link to
+ * another page of the app asks here first (`useLeaveGuard`, N5: a capture listener, so the host's router never sees the click; after
+ * "Leave" the click goes on, through any guard of the host's own). When the profile editor renames keys and the host rewrites the rules
+ * (`onProfileKeyRenames`), the rules held here, unsaved edits included, take the new keys, so a later save never puts the old keys back;
+ * the rules are read again and a rule's new version is taken only when the host's rule is exactly the old one renamed (anything else
+ * moved meanwhile: the set is `stale`). A refusal of one rule names that rule.
+ *
+ * A save sends the rules it was read as (`expectedSet`: their ids and versions): a host that finds the set moved meanwhile refuses it
+ * (`stale`), and the edits stay here with a reload the viewer chooses (NB 41-ui-fixes/24 1.1); Discard then reloads too, so the stale
+ * state never hides behind the old rules. A saved rule keeps its type (a new type would delete it and resolve its alarms, 1.5); the bar
+ * names the rules a save removes or switches off and says their open alarms are resolved (1.4); open alarms a save left to the host's
+ * later clean-up (`resolvePending`) are counted in a notice. Until the viewer's capabilities are read the view says nothing about
+ * editing; a failed read says so, with a retry (1.12).
  */
 /** How many rules differ between the saved set and the edited one (added, removed or changed, by type). */
 export function changedRuleCount(base: readonly AlarmRuleDefinition[], rules: readonly AlarmRuleDefinition[]): number {
@@ -43,6 +54,92 @@ export function changedRuleCount(base: readonly AlarmRuleDefinition[], rules: re
   for (const [type, json] of after) if (before.get(type) !== json) n++;
   for (const type of before.keys()) if (!after.has(type)) n++;
   return n;
+}
+
+/** The types a save removes and the stored rules it switches off (enabled when read, off now). */
+export function pendingRuleChanges(base: readonly AlarmRuleDefinition[], rules: readonly AlarmRuleDefinition[]): { removed: string[]; disabled: string[] } {
+  const now = new Map(rules.map((r) => [r.type, r]));
+  return {
+    removed: base.filter((b) => !now.has(b.type)).map((b) => b.type),
+    disabled: base.filter((b) => b.enabled && now.get(b.type)?.enabled === false).map((b) => b.type),
+  };
+}
+
+/**
+ * The rule a refusal names, from the host's field errors: NB answers each refused field by its full path (`rules.2.severities.0.condition.value`)
+ * with its text, another host one `rules` entry starting with the position (`2.severities…: text`). Null when no rule is named.
+ */
+export function refusedRule(e: unknown, rules: readonly AlarmRuleDefinition[]): { type: string; detail: string } | null {
+  const fields = e instanceof IotApiError ? e.fieldErrors : undefined;
+  if (!fields) return null;
+  for (const [path, text] of Object.entries(fields)) {
+    const at = /^rules\.(\d+)\./.exec(path);
+    const rule = at ? rules[Number(at[1])] : undefined;
+    if (rule) return { type: rule.type, detail: text };
+  }
+  const at = fields.rules ? /^(\d+)(?:\.([\s\S]*))?$/.exec(fields.rules) : null;
+  const rule = at ? rules[Number(at[1])] : undefined;
+  return rule ? { type: rule.type, detail: at?.[2] ?? fields.rules } : null;
+}
+
+/** A save's answer as one shape: a host that answers only the stored rules left nothing pending. */
+export function ruleSaveResult(res: AlarmRuleRecord[] | AlarmRuleSaveResult): { rules: AlarmRuleRecord[]; resolvePending: number } {
+  if (Array.isArray(res)) return { rules: res, resolvePending: 0 };
+  return { rules: res.rules, resolvePending: Math.max(0, res.resolvePending ?? 0) };
+}
+
+/**
+ * The rules re-read after the host renamed keys in them: `listed` when every rule read before is there under its id with exactly its
+ * definition renamed (only the versions moved), else null (a rule added, changed or removed meanwhile: the set is stale).
+ */
+export function adoptRenamed(before: readonly AlarmRuleRecord[], listed: readonly AlarmRuleRecord[], renames: Record<string, string>): AlarmRuleRecord[] | null {
+  if (listed.length !== before.length) return null;
+  const was = new Map(before.map((r) => [r.ruleId, r]));
+  for (const r of listed) {
+    const prev = r.ruleId ? was.get(r.ruleId) : undefined;
+    if (!prev || JSON.stringify(r.definition) !== JSON.stringify(renameAlarmRuleKeys(prev.definition, renames))) return null;
+  }
+  return [...listed];
+}
+
+/**
+ * While `active`, a plain click on a link to another page of the app asks first (`confirm` answers true to leave). A capture listener on
+ * the document runs before the host's router; a click another guard already stopped is left alone. After "Leave" the same link is
+ * clicked again past this guard (a host guard of its own still has its say); a link gone from the page meanwhile is followed by the
+ * browser. Links in the same page (another `?tab=`) and new tabs are never asked about. Answers whether the viewer chose to leave.
+ */
+export function useLeaveGuard(active: boolean, confirm: () => Promise<boolean>): () => boolean {
+  const activeRef = useRef(active);
+  const confirmRef = useRef(confirm);
+  const leavingRef = useRef(false);
+  useEffect(() => { activeRef.current = active; confirmRef.current = confirm; });
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    let replaying: Element | null = null;
+    const onClick = (e: MouseEvent) => {
+      if (!activeRef.current || leavingRef.current || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor || anchor === replaying || (anchor.target && anchor.target !== '_self') || anchor.hasAttribute('download')) return;
+      const to = new URL(anchor.href, window.location.href);
+      if (to.origin !== window.location.origin || to.pathname === window.location.pathname) return;
+      e.preventDefault();
+      e.stopPropagation();
+      void confirmRef.current().then((ok) => {
+        if (!ok) return;
+        if (anchor.isConnected) {
+          replaying = anchor;
+          try { anchor.click(); } finally { replaying = null; }
+        } else {
+          leavingRef.current = true;
+          window.location.assign(to.href);
+        }
+      });
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, []);
+  // whether "Leave" sent the browser away (a reload prompt then would ask twice); stable, so it can sit in an effect's dependencies
+  return useCallback(() => leavingRef.current, []);
 }
 
 /** A row of the rules table: the rule and its position in the set (edits and removals go by position). */
@@ -59,12 +156,18 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
   const profiles = adapter.profiles;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
-  const { m } = useIotText();
+  const { m, locale } = useIotText();
   const [base, setBase] = useState<AlarmRuleDefinition[] | null>(null);
+  /** The rules as read (ids and versions): what a save says it started from. */
+  const [records, setRecords] = useState<AlarmRuleRecord[]>([]);
+  /** The host refused a save because the set moved: the edits stay until the viewer reloads. */
+  const [stale, setStale] = useState(false);
   const [rules, setRules] = useState<AlarmRuleDefinition[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  /** Open alarms of removed or switched-off rules the last save left to the host's later clean-up. */
+  const [resolvePending, setResolvePending] = useState(0);
   const [editing, setEditing] = useState<{ index: number; rule: AlarmRuleDefinition } | null>(null);
   const [telemetryKeys, setTelemetryKeys] = useState<string[]>([]);
 
@@ -76,15 +179,22 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
     );
   }, [profiles, profileId]);
 
+  /** The rules as read, for the rename handler (it runs outside a render). */
+  const recordsRef = useRef<AlarmRuleRecord[]>([]);
   const load = useCallback((signal?: AbortSignal): Promise<void> => {
     if (!api) return Promise.resolve();
     return api.list(profileId, signal).then(
       (records) => {
         if (signal?.aborted) return;
         const defs = records.map((r) => r.definition);
+        setRecords(records);
+        recordsRef.current = records;
         setBase(defs);
         setRules(defs);
         setError(null);
+        setStale(false);
+        setSaveError(null);
+        setResolvePending(0);
       },
       (e) => { if (!signal?.aborted) setError(errorMessage(e, m.alarmRules.loadError)); },
     );
@@ -97,24 +207,43 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
     return () => ctrl.abort();
   }, [load, readKeys]);
 
+  const staleText = m.alarmRules.stale;
   // the host rewrote the rules onto renamed keys: the saved set and the edits take the same names (a save would revert them otherwise)
   useEffect(() => onProfileKeyRenames(profileId, (renames) => {
     setBase((cur) => (cur ? cur.map((r) => renameAlarmRuleKeys(r, renames)) : cur));
     setRules((cur) => cur.map((r) => renameAlarmRuleKeys(r, renames)));
     setEditing((cur) => (cur ? { ...cur, rule: renameAlarmRuleKeys(cur.rule, renames) } : cur));
     readKeys();
-  }), [profileId, readKeys]);
+    // the host's rewrite gave the rules new versions: a later save names those, so it is not refused as stale for the rename alone;
+    // only for rules that are exactly the ones read, renamed: a rule someone added, changed or removed meanwhile makes the set stale
+    const before = recordsRef.current;
+    api?.list(profileId).then((listed) => {
+      if (recordsRef.current !== before) return; // read again meanwhile: that read is the truth
+      const adopted = adoptRenamed(before, listed, renames);
+      if (adopted) {
+        setRecords(adopted);
+        recordsRef.current = adopted;
+      } else {
+        setStale(true);
+        setSaveError(staleText);
+      }
+    }, () => undefined);
+  }), [api, profileId, readKeys, staleText]);
 
   const canEdit = caps.canManageAlarmRules;
+  const capsFailed = caps.ready && caps.failed;
   const dirty = base !== null && JSON.stringify(base) !== JSON.stringify(rules);
 
-  // unsaved rules are lost on a reload or a closed tab: the browser asks first while there are any
+  // unsaved rules are lost on a link to another page, a reload or a closed tab: a link asks here first (N5), the browser asks for the rest
+  const leaving = useLeaveGuard(dirty && !!canEdit, () => confirmDialog({
+    title: m.alarmRules.leaveTitle, message: m.alarmRules.leaveBody, tone: 'warning', confirmLabel: m.alarmRules.leave, cancelLabel: m.alarmRules.stay,
+  }).then((ok) => !!ok));
   useEffect(() => {
     if (!dirty || !canEdit) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => { if (leaving()) return; e.preventDefault(); e.returnValue = ''; };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [dirty, canEdit]);
+  }, [dirty, canEdit, leaving]);
 
   function edit(next: { index: number; rule: AlarmRuleDefinition }) {
     readKeys();
@@ -127,25 +256,30 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
     setSaving(true);
     setSaveError(null);
     try {
-      const saved = await api.replace(profileId, rules);
+      const { rules: saved, resolvePending: left } = ruleSaveResult(
+        await api.replace(profileId, rules, { expectedSet: records.map((r) => ({ ruleId: r.ruleId, version: r.version })) }),
+      );
       const defs = saved.map((r) => r.definition);
+      setRecords(saved);
+      recordsRef.current = saved;
       setBase(defs);
       setRules(defs);
+      setResolvePending(left);
       notify({ tone: 'success', message: m.alarmRules.saved });
     } catch (e) {
+      // someone saved the set meanwhile: nothing was written; the edits stay until the viewer reloads
+      if (e instanceof IotApiError && e.code === 'stale') { setStale(true); setSaveError(m.alarmRules.stale); return; }
       setSaveError(refusalText(e));
     } finally {
       setSaving(false);
     }
   }
 
-  /** The host's refusal; one about a rule (`rules.2.severities.0.condition.key: …`) names the rule instead of its position. */
+  /** The host's refusal; one about a rule names the rule instead of its position. An unanswered save says the save failed. */
   function refusalText(e: unknown): string {
-    const detail = e instanceof IotApiError ? e.fieldErrors?.rules : undefined;
-    const at = detail ? /^(\d+)(?:\.([\s\S]*))?$/.exec(detail) : null;
-    const rule = at ? rules[Number(at[1])] : undefined;
-    if (detail && rule) return fill(m.alarmRules.ruleRefused, { type: rule.type, detail: at?.[2] ?? detail });
-    return errorMessage(e, m.alarmRules.loadError);
+    const named = refusedRule(e, rules);
+    if (named) return fill(m.alarmRules.ruleRefused, named);
+    return errorMessage(e, m.alarmRules.saveFailed);
   }
 
   function add(kind: 'threshold' | 'offline') {
@@ -169,6 +303,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
   if (base === null) return <SkeletonText lines={4} label={m.common.loading} className={className} />;
 
   const words = { and: m.alarmRules.and, or: m.alarmRules.or, attribute: m.alarmRules.attribute, topic: m.alarmRules.onTopic };
+  const pending = pendingRuleChanges(base, rules);
   const columns: Column<RuleRow>[] = [
     {
       key: 'type',
@@ -228,8 +363,10 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
       searchable: false,
       render: ({ i, r }: RuleRow) => (
         <span className="inline-flex items-center justify-end gap-1">
-          <Toggle id={`rule-enabled-${i}`} size="sm" label={m.alarmRules.enabled} checked={r.enabled}
-            onChange={(v) => setRules(rules.map((x, j) => (j === i ? { ...x, enabled: v } : x)))} />
+          <span title={r.enabled ? m.alarmRules.disableHint : undefined}>
+            <Toggle id={`rule-enabled-${i}`} size="sm" label={m.alarmRules.enabled} checked={r.enabled}
+              onChange={(v) => setRules(rules.map((x, j) => (j === i ? { ...x, enabled: v } : x)))} />
+          </span>
           <Button variant="ghost" size="xs" aria-label={`${m.alarmRules.edit} ${r.type}`} onClick={() => edit({ index: i, rule: r })}
             iconLeft={<FontAwesomeIcon icon={faPen} className="h-3 w-3" aria-hidden="true" />}>{m.alarmRules.edit}</Button>
           <Button onClick={() => { void confirmDialog({ title: fill(m.alarmRules.removeConfirm, { type: r.type }), message: m.alarmRules.removeHint, tone: 'danger', confirmLabel: m.alarmRules.remove, cancelLabel: m.common.cancel }).then((ok) => { if (ok) void setRules(rules.filter((_, j) => j !== i)); }); }} variant="ghost" size="xs" aria-label={`${m.alarmRules.remove} ${r.type}`} iconLeft={<FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />}><span className="sr-only">{m.alarmRules.remove}</span></Button>
@@ -268,7 +405,20 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
         )}
       </div>
 
-      {!canEdit && <Callout variant="info" title={null}>{m.alarmRules.readOnly}</Callout>}
+      {capsFailed && (
+        <Callout variant="warning" title={null}>
+          <span className="flex flex-wrap items-center gap-2">
+            {m.common.capabilitiesError}
+            <Button variant="outline" size="xs" onClick={caps.retry}>{m.common.retry}</Button>
+          </span>
+        </Callout>
+      )}
+      {caps.ready && !capsFailed && !canEdit && <Callout variant="info" title={null}>{m.alarmRules.readOnly}</Callout>}
+      {resolvePending > 0 && (
+        <Callout variant="info" title={null}>
+          <span role="status">{plural(resolvePending, { one: m.alarmRules.resolvePending_one, other: m.alarmRules.resolvePending }, locale)}</span>
+        </Callout>
+      )}
 
       {rules.length === 0 ? (
         <EmptyState icon={<FontAwesomeIcon icon={faBolt} aria-hidden="true" />} title={m.alarmRules.title} description={m.alarmRules.empty} />
@@ -294,12 +444,16 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
           className="sticky bottom-0 z-10 flex flex-col gap-2 rounded-xl border border-border bg-surface-base p-3 shadow-lg sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 text-sm">
             <p className="font-medium text-text-primary">{m.alarmRules.unsaved}</p>
-            <p className="text-xs text-text-secondary">{fill(m.alarmRules.unsavedCount, { n: changedRuleCount(base, rules) })}</p>
+            <p className="text-xs text-text-secondary">{plural(changedRuleCount(base, rules), { one: m.alarmRules.unsavedCount_one, other: m.alarmRules.unsavedCount }, locale)}</p>
+            {pending.removed.length > 0 && <p className="text-xs text-text-secondary">{fill(m.alarmRules.removedPending, { types: pending.removed.join(', ') })}</p>}
+            {pending.disabled.length > 0 && <p className="text-xs text-text-secondary">{fill(m.alarmRules.disabledPending, { types: pending.disabled.join(', ') })}</p>}
             {saveError && <p role="alert" className="text-xs text-error">{saveError}</p>}
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" disabled={saving} onClick={() => { setRules(base); setSaveError(null); }}>{m.alarmRules.discard}</Button>
-            <Button variant="primary" size="sm" loading={saving} onClick={() => void save()}>{m.alarmRules.save}</Button>
+            {stale && <Button variant="outline" size="sm" disabled={saving} onClick={() => void load()}>{m.alarmRules.staleReload}</Button>}
+            {/* after a stale refusal the rules read are old: discarding reloads them, so the stale state never hides behind them */}
+            <Button variant="ghost" size="sm" disabled={saving} onClick={() => { if (stale) void load(); else { setRules(base); setSaveError(null); } }}>{m.alarmRules.discard}</Button>
+            <Button variant="primary" size="sm" loading={saving} disabled={stale} onClick={() => void save()}>{m.alarmRules.save}</Button>
           </div>
         </div>
       )}
@@ -309,6 +463,7 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
           open
           rule={editing.rule}
           isNew={editing.index < 0}
+          typeLocked={editing.index >= 0 && base.some((b) => b.type === editing.rule.type)}
           telemetryKeys={telemetryKeys}
           others={rules.filter((_, j) => j !== editing.index)}
           onClose={() => setEditing(null)}

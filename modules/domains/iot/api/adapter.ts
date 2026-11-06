@@ -207,10 +207,21 @@ export interface IotProvisioningApi {
   revoke(profileId: string, input: { provisionKeyId: string; confirmKeyId: string; reason: string }): Promise<ProvisionKey>;
 }
 
+/**
+ * What a rule save answers: the stored rules, and how many open alarms of the rules it removed or switched off it left for the host's
+ * later clean-up (`resolvePending`, absent or 0 when none; NB resolves at most 5,000 per save and the rest daily).
+ */
+export type AlarmRuleSaveResult = { rules: AlarmRuleRecord[]; resolvePending?: number };
+
 /** The alarm rules of a profile (NB `iot_alarm`): read, and replace the whole set (types unique in a profile). */
 export interface IotAlarmRulesApi {
   list(profileId: string, signal?: AbortSignal): Promise<AlarmRuleRecord[]>;
-  replace(profileId: string, rules: AlarmRuleDefinition[]): Promise<AlarmRuleRecord[]>;
+  /**
+   * Replaces the whole set. `expectedSet`: the rules the edit started from, as `list` returned them (their ids and versions): a host
+   * that checks it refuses a set that moved meanwhile with the `stale` code, so a save never overwrites another editor's rules
+   * (NB 41-ui-fixes/24 1.1). Answers the stored rules, or them with `resolvePending` (a host that answers only the list left nothing).
+   */
+  replace(profileId: string, rules: AlarmRuleDefinition[], opts?: { expectedSet?: ReadonlyArray<Pick<AlarmRuleRecord, 'ruleId' | 'version'>> }): Promise<AlarmRuleRecord[] | AlarmRuleSaveResult>;
 }
 
 /** The command catalog of a profile (NB `iot_rpc`): one command at a time, or the whole catalog as JSON (import / export). */
