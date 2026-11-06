@@ -13,8 +13,19 @@ export type AlarmRuleOp = (typeof ALARM_RULE_OPS)[number];
 /** The inactivity rule's fixed type (NB `DEVICE_OFFLINE_TYPE`). */
 export const DEVICE_OFFLINE_RULE_TYPE = 'device_offline';
 
-/** A rule type: letters, digits, `_ . : -`, at most 128 (NB `AlarmTypeSchema`). */
-export const ALARM_RULE_TYPE_RE = /^[A-Za-z0-9_.:-]{1,128}$/;
+/** A rule type: a letter or digit, then letters, digits, `_ . : -`, at most 128 (NB `ALARM_TYPE_PATTERN`, 41-ui-fixes/24 1.13). */
+export const ALARM_RULE_TYPE_RE = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
+
+/** The operators that order values: their value must be a number (NB `iot_alarm` refuses anything else on write). */
+export const ORDERING_OPS: readonly AlarmRuleOp[] = ['>', '>=', '<', '<='];
+/** A number written as text, as the host's evaluator reads one (`80`, `-1.5`, `.5`, `1e3`). */
+export const THRESHOLD_NUMBER_RE = /^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i;
+/** A decimal written with a comma (`80,5`): refused with its own hint. */
+const DECIMAL_COMMA_RE = /^[-+]?\d+,\d+$/;
+/** Longest key, text value and title the host stores (NB `AlarmRuleSchema`). */
+export const ALARM_RULE_KEY_MAX = 128;
+export const ALARM_RULE_VALUE_MAX = 256;
+export const ALARM_RULE_TITLE_MAX = 300;
 
 export type AlarmRuleLeaf = {
   key: string;
@@ -98,7 +109,21 @@ export function newInactivityRule(): InactivityAlarmRule {
 }
 
 /** What the editor checks before it sends a set (the host validates the full schema again). */
-export type AlarmRuleIssue = 'type_invalid' | 'type_duplicate' | 'title_required' | 'severity_required' | 'severity_duplicate' | 'key_required' | 'key_invalid' | 'after_out_of_range';
+export type AlarmRuleIssue = 'type_invalid' | 'type_duplicate' | 'title_required' | 'title_too_long' | 'severity_required' | 'severity_duplicate'
+  | 'key_required' | 'key_invalid' | 'key_too_long' | 'value_not_number' | 'value_comma' | 'value_too_long' | 'debounce_out_of_range'
+  | 'hysteresis_out_of_range' | 'after_out_of_range';
+
+/**
+ * What is wrong with one comparison's value: an ordering operator (`>`, `>=`, `<`, `<=`) needs a number, or a per-device attribute
+ * (`80,5` with a comma has its own hint; `80 °C`, `8O`, `true` are refused), and a text value is at most 256 characters. Null: nothing.
+ */
+export function leafValueIssue(l: AlarmRuleLeaf): 'value_not_number' | 'value_comma' | 'value_too_long' | null {
+  const v = l.value;
+  if (typeof v === 'string' && v.length > ALARM_RULE_VALUE_MAX) return 'value_too_long';
+  if (!ORDERING_OPS.includes(l.op) || typeof v === 'number' || (typeof v === 'object' && v !== null)) return null;
+  if (typeof v === 'string' && THRESHOLD_NUMBER_RE.test(v.trim())) return null;
+  return typeof v === 'string' && DECIMAL_COMMA_RE.test(v.trim()) ? 'value_comma' : 'value_not_number';
+}
 
 /**
  * A condition key names a telemetry key, never a value: no whitespace and not a bare number (`5.3` typed into the key box is refused, NB
@@ -106,7 +131,7 @@ export type AlarmRuleIssue = 'type_invalid' | 'type_duplicate' | 'title_required
  * a profile may list). Anything else passes, so a key a device sends but the profile does not declare stays possible.
  */
 export function isAlarmRuleKey(k: string, declared?: readonly string[] | null): boolean {
-  if (k.length === 0 || k.length > 128) return false;
+  if (k.length === 0 || k.length > ALARM_RULE_KEY_MAX) return false;
   if (Array.isArray(declared) && declared.includes(k)) return true;
   return !/\s/.test(k) && !/^[-+]?(\d+\.?\d*|\.\d+)$/.test(k);
 }
@@ -135,6 +160,7 @@ export function alarmRuleIssues(r: AlarmRuleDefinition, others: readonly AlarmRu
   if (!ALARM_RULE_TYPE_RE.test(r.type)) out.push('type_invalid');
   if (others.some((o) => o.type === r.type)) out.push('type_duplicate');
   if (!r.title.trim()) out.push('title_required');
+  else if (r.title.trim().length > ALARM_RULE_TITLE_MAX) out.push('title_too_long');
   if (isInactivityRule(r)) {
     if (!Number.isInteger(r.inactivity.afterSec) || r.inactivity.afterSec < 10 || r.inactivity.afterSec > 7 * 86_400) out.push('after_out_of_range');
     return out;
@@ -144,7 +170,16 @@ export function alarmRuleIssues(r: AlarmRuleDefinition, others: readonly AlarmRu
   if (new Set(r.severities.map((s) => s.severity)).size !== r.severities.length) out.push('severity_duplicate');
   const all = [...r.severities.flatMap((s) => conditionLeaves(s.condition)), ...(r.clear ? conditionLeaves(r.clear) : [])];
   if (all.some((l) => !l.key.trim())) out.push('key_required');
+  else if (all.some((l) => l.key.trim().length > ALARM_RULE_KEY_MAX)) out.push('key_too_long');
   else if (all.some((l) => !isAlarmRuleKey(l.key.trim(), declared))) out.push('key_invalid');
+  // the value checks the host makes on write (NB 41-ui-fixes/24 1.6, 1.13): each issue once
+  for (const issue of all.map(leafValueIssue)) if (issue && !out.includes(issue)) out.push(issue);
+  const d = r.debounce;
+  const count = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 86_400;
+  if (d && (!count(d.raise) || !count(d.clear))) out.push('debounce_out_of_range');
+  if (r.hysteresis !== undefined && !(typeof r.hysteresis === 'number' && Number.isFinite(r.hysteresis) && r.hysteresis >= 0 && r.hysteresis <= 1e9)) {
+    out.push('hysteresis_out_of_range');
+  }
   return out;
 }
 
