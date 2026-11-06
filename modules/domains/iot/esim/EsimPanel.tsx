@@ -101,7 +101,7 @@ export function EsimPanel({ adapter, deviceId, can = {}, inDrawer = false, pollM
   if (!view) {
     return error
       ? <Callout variant="danger" className={className}><p>{error}</p><Button className="mt-2" size="sm" variant="outline" onClick={reload}>{m.common.retry}</Button></Callout>
-      : <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner /></div>;
+      : <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner label={null} /></div>;
   }
   if (!view.supported) {
     return (
@@ -226,7 +226,7 @@ export function EsimPanel({ adapter, deviceId, can = {}, inDrawer = false, pollM
       {busyOp && (
         <Callout variant="info" role="status">
           <span className="inline-flex flex-wrap items-center gap-2">
-            <Spinner size="sm" />
+            <Spinner size="sm" label={null} />
             {fill(m.op.inFlight, { kind: m.kind[busyOp.kind], state: m.state[esimStateWord(busyOp.kind, busyOp.state)] })}
           </span>
           {(busyOp.kind === 'enable' || busyOp.kind === 'disable' || busyOp.enableAfter) && <p className="mt-1 text-xs">{m.op.switchHint}</p>}

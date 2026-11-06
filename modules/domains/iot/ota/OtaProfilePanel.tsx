@@ -62,7 +62,7 @@ export function OtaProfilePanel({ adapter, profileId, profileName, can = {}, pac
   if (!form || !saved) {
     return error
       ? <Callout variant="danger" className={className}><p>{error}</p><Button className="mt-2" size="sm" variant="outline" onClick={() => setTick((t) => t + 1)}>{m.common.retry}</Button></Callout>
-      : <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner /></div>;
+      : <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner label={null} /></div>;
   }
 
   const ro = !can.assign || busy;

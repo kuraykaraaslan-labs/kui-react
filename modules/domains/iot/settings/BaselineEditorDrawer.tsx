@@ -147,7 +147,7 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
         <fieldset className="rounded-lg border border-border p-3">
           <legend className="px-1 text-xs font-medium uppercase tracking-wide text-text-secondary">{m.fleet.models}</legend>
           <p className="mb-2 text-xs text-text-secondary">{m.fleet.modelsHint}</p>
-          {!models ? <Spinner size="sm" /> : models.length === 0 ? <p className="text-sm text-text-secondary">{m.fleet.noModels}</p> : (
+          {!models ? <Spinner size="sm" label={m.common.loading} /> : models.length === 0 ? <p className="text-sm text-text-secondary">{m.fleet.noModels}</p> : (
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               {models.map((x) => (
                 <label key={x.model} className="inline-flex min-h-11 items-center gap-2 text-sm text-text-primary sm:min-h-0">
