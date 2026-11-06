@@ -1,9 +1,10 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowUp, faCheck, faCheckDouble, faXmark } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
+import { Callout } from '@/modules/ui/Callout';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column, DataTableFilterField, DataTableFilterValues, DataTableQuery, DataTableRowId } from '@/modules/ui/Table/types';
 import { Modal } from '@/modules/ui/Modal';
@@ -13,11 +14,12 @@ import { ALARM_SORT_KEYS, errorMessage, type AlarmListQuery, type AlarmStatusFil
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { LIST_PAGE_SIZES, choiceOf, sameSort, toIotSort, toTableSort } from '../api/list-table';
 import { iotTopics } from '../api/live';
-import { fill, formatDateTime, formatRelative } from '../format';
+import { fill, formatDateTime, formatRelative, plural } from '../format';
 import { ALARM_SEVERITIES, type Alarm, type AlarmCounts } from '../types/alarm';
 import { AlarmSeverityBadge } from './AlarmSeverityBadge';
 import { AlarmStatusPill } from './AlarmStatusPill';
-import { acknowledgeAllOpen } from './acknowledgeAll';
+import { acknowledgeAllOpen, type AcknowledgeAllScope } from './acknowledgeAll';
+import { acknowledgeAllNotice, actionFailedText } from './alarm-results';
 
 /**
  * AlarmListView — the alarm list (phase 03 §3.2), read through the adapter, on the DataTable's own toolbar: search, the status
@@ -28,6 +30,14 @@ import { acknowledgeAllOpen } from './acknowledgeAll';
  * pill brings the viewer back. Without a live source it re-reads every 30 s. A
  * resolved or all-status list always asks for a bounded range (last 7 days, OD-31). With `deviceId` it is a device's
  * Alarms tab.
+ *
+ * Only the newest read is shown, and a page past the end moves to the last page; the host's `initialQuery` is followed by value when
+ * it changes (Back, a menu click). While live, a row whose alarm leaves the filter drops out (the total with it), the list re-reads
+ * about every minute (counts that moved without an event, rows changed elsewhere), and the selection keeps only shown rows.
+ * "Acknowledge all" acts on what the list shows: the OPEN alarms of its scope and filters that were open when it started, counted
+ * by the host for those filters; it is offered on the not-resolved and the OPEN lists, and its confirmation names the scope and says
+ * their reminders stop; a failure says how many were done. Clear says a rule will not open a cleared alarm again while its condition
+ * holds. `onOpen` opens an alarm or device in the host's router (NB 41-ui-fixes/24 1.2, 1.3, 1.9, 1.10, 1.12, 1.17, 1.18).
  */
 export type AlarmListViewProps = {
   hrefs: { alarm: (alarmId: string) => string; device?: (deviceId: string) => string };
@@ -39,10 +49,16 @@ export type AlarmListViewProps = {
   pageSize?: number;
   /** Hide the page title (inside a tab). */
   embedded?: boolean;
+  /** Opens a link (an alarm, a device) in the host's router on a plain click; without it the links are plain links. */
+  onOpen?: (href: string) => void;
   now?: number;
   className?: string;
 };
 
+/** The longest search the host takes (NB `ListAlarmsDTO.search`); a longer one is cut, never refused. */
+export const ALARM_SEARCH_MAX = 128;
+/** While live: the slow re-read beside the events. */
+export const ALARM_LIVE_REREAD_MS = 60_000;
 const WEEK_MS = 7 * 86_400_000;
 const STATUS_FILTERS: readonly AlarmStatusFilter[] = ['active', 'OPEN', 'ACKNOWLEDGED', 'RESOLVED', 'any'];
 const NEW_HIGHLIGHT_MS = 4_000;
@@ -52,7 +68,34 @@ function bounded(q: AlarmListQuery): AlarmListQuery {
   return q;
 }
 
-function matches(a: Alarm, q: AlarmListQuery): boolean {
+/** A list query as a value (the fields one by one; the scope's device is not part of it). */
+function queryKey(q: AlarmListQuery): string {
+  return JSON.stringify([q.page, q.pageSize, q.status ?? 'active', [...(q.severity ?? [])].sort(), q.search || null, q.sort?.key ?? null, q.sort?.dir ?? null]);
+}
+const sameQuery = (a: AlarmListQuery, b: AlarmListQuery) => queryKey(a) === queryKey(b);
+/** The filters "Acknowledge all" acts on, as a value. */
+const scopeKey = (q: AlarmListQuery) => JSON.stringify([[...(q.severity ?? [])].sort(), q.search || null]);
+
+/** What the host's query names, as a value (an absent or undefined field is not named). */
+function hostKey(q: Partial<AlarmListQuery> | undefined): string {
+  return JSON.stringify(Object.entries(q ?? {}).filter(([, v]) => v !== undefined).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
+/** The list's query moved to the host's: page and filters as the host has them, rows per page and sort only when it names them. */
+function followHost(cur: AlarmListQuery, host: Partial<AlarmListQuery> | undefined): AlarmListQuery {
+  const h = host ?? {};
+  const next: AlarmListQuery = { ...cur, page: h.page ?? 1, status: h.status ?? 'active', severity: h.severity ?? [], search: h.search ?? '' };
+  if (h.pageSize !== undefined) next.pageSize = h.pageSize;
+  if (h.sort !== undefined) next.sort = h.sort;
+  return next;
+}
+
+/** A plain left click (no modifier): the host's router opens the link; any other click keeps the link's own behaviour. */
+function plainClick(e: React.MouseEvent): boolean {
+  return !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
+
+export function matches(a: Alarm, q: AlarmListQuery): boolean {
   const status = q.status ?? 'active';
   if (status === 'active' && a.status === 'RESOLVED') return false;
   if (status !== 'active' && status !== 'any' && a.status !== status) return false;
@@ -62,17 +105,19 @@ function matches(a: Alarm, q: AlarmListQuery): boolean {
 }
 
 export function AlarmListView({
-  hrefs, initialQuery, onQueryChange, deviceId, pageSize = 20, embedded = false, now, className,
+  hrefs, initialQuery, onQueryChange, deviceId, pageSize = 20, embedded = false, onOpen, now, className,
 }: AlarmListViewProps) {
   const adapter = useIotAdapter();
   const api = adapter.alarms;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
-  const { m, locale } = useIotText();
+  const { m, locale, timeZone } = useIotText();
 
   const [query, setQuery] = useState<AlarmListQuery>(() => ({
     status: 'active', severity: [], search: '', ...initialQuery, page: initialQuery?.page ?? 1, pageSize: initialQuery?.pageSize ?? pageSize, deviceId,
   }));
+  /** The OPEN alarms of the list's scope and filters, as the host counts them ("Acknowledge all (n)"); null until read. */
+  const [openInScope, setOpenInScope] = useState<number | null>(null);
   const [items, setItems] = useState<Alarm[]>([]);
   const [total, setTotal] = useState(0);
   // the query the shown rows answer; while it differs from the current one the table shows "loading"
@@ -87,9 +132,25 @@ export function AlarmListView({
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const queryRef = useRef(query);
-  useEffect(() => { queryRef.current = query; }, [query]);
+  // a layout effect: the table reports its page for a query the host moved before the passive effects run, and must compare with it
+  useLayoutEffect(() => { queryRef.current = query; }, [query]);
   const itemsRef = useRef(items);
   useEffect(() => { itemsRef.current = items; }, [items]);
+  // the host's query moved under the mounted list (its URL changed): follow it by value (1.17)
+  const initialKey = hostKey(initialQuery);
+  const [seenInitial, setSeenInitial] = useState(initialKey);
+  if (initialKey !== seenInitial) {
+    setSeenInitial(initialKey);
+    const next = followHost(query, initialQuery);
+    if (!sameQuery(next, query)) {
+      setQuery(next);
+      setSelected(new Set());
+      setPendingNew(0);
+    }
+  }
+  // only the newest read is shown: a late answer of an older one is dropped (1.9)
+  const seqRef = useRef(0);
+  const clampRef = useRef<(q: AlarmListQuery, total: number) => void>(() => undefined);
 
   const apply = useCallback((q: AlarmListQuery, page: { items: Alarm[]; total: number } | null, e?: unknown) => {
     if (page) {
@@ -97,34 +158,65 @@ export function AlarmListView({
       itemsRef.current = page.items;
       setTotal(page.total);
       setError(null);
+      // the selection keeps only rows still shown (a selected alarm that left the page is not acted on unseen, 1.10)
+      setSelected((cur) => {
+        const shown = new Set(page.items.filter((a) => a.status !== 'RESOLVED').map((a) => a.alarmId));
+        const kept = [...cur].filter((id) => shown.has(id));
+        return kept.length === cur.size ? cur : new Set(kept);
+      });
     } else {
       setError(errorMessage(e, m.alarms.loadError));
     }
     setLoadedKey(JSON.stringify(q));
   }, [m.alarms.loadError]);
 
-  /** Reads `q` and shows it (also the poll, the retry and the catch-up); an aborted read changes nothing. */
+  /** Reads `q` and shows it (also the poll, the retry and the catch-up); an aborted read, or one a newer read overtook, changes nothing. */
   const load = useCallback((q: AlarmListQuery, signal?: AbortSignal): Promise<void> => {
     if (!api) return Promise.resolve();
+    const seq = ++seqRef.current;
     return api.list(bounded(q), signal).then(
-      (page) => { if (!signal?.aborted) apply(q, page); },
-      (e) => { if (!signal?.aborted) apply(q, null, e); },
+      (page) => {
+        if (signal?.aborted || seq !== seqRef.current) return;
+        // a page past the end (its last alarms cleared, a stale URL): the last page instead of an empty list
+        if (!page.items.length && page.total > 0 && q.page > 1) {
+          clampRef.current(q, page.total);
+          return;
+        }
+        apply(q, page);
+      },
+      (e) => { if (!signal?.aborted && seq === seqRef.current) apply(q, null, e); },
     );
   }, [api, apply]);
 
-  const loadCounts = useCallback((): Promise<void> => (api
-    ? api.counts(deviceId ? { deviceId } : undefined).then(setCounts, () => undefined) // the chips stay as they were
-    : Promise.resolve()), [api, deviceId]);
+  /** The chips' counts and the OPEN alarms of the scope and filters (the "Acknowledge all" count); a failed read keeps what is shown. */
+  const loadCounts = useCallback((): Promise<void> => {
+    if (!api) return Promise.resolve();
+    const q = queryRef.current;
+    const scoped = api.list({
+      page: 1, pageSize: 1, status: 'OPEN', deviceId,
+      ...(q.severity?.length ? { severity: q.severity } : {}), ...(q.search ? { search: q.search } : {}),
+    }).then((p) => { if (scopeKey(q) === scopeKey(queryRef.current)) setOpenInScope(p.total); }, () => undefined);
+    return Promise.all([api.counts(deviceId ? { deviceId } : undefined).then(setCounts, () => undefined), scoped]).then(() => undefined);
+  }, [api, deviceId]);
 
   useEffect(() => {
     const ctrl = new AbortController();
     load(query, ctrl.signal).catch(() => undefined);
     return () => ctrl.abort();
   }, [load, query]);
-  useEffect(() => { loadCounts().catch(() => undefined); }, [loadCounts]);
+  // the scope's OPEN count follows the filters
+  const filterKey = scopeKey(query);
+  const [countedKey, setCountedKey] = useState(filterKey);
+  if (countedKey !== filterKey) {
+    // another scope: its count is not known yet (no button with the old one)
+    setCountedKey(filterKey);
+    setOpenInScope(null);
+  }
+  useEffect(() => { loadCounts().catch(() => undefined); }, [loadCounts, filterKey]);
 
   function change(patch: Partial<AlarmListQuery>) {
     const next = { ...queryRef.current, ...patch, page: patch.page ?? 1 };
+    if (next.search && next.search.length > ALARM_SEARCH_MAX) next.search = next.search.slice(0, ALARM_SEARCH_MAX);
     // at once, not in the effect: the table reports page 1 for a new filter before that effect runs, and must see this query
     queryRef.current = next;
     setQuery(next);
@@ -132,12 +224,19 @@ export function AlarmListView({
     setPendingNew(0);
     onQueryChange?.(next);
   }
+  useEffect(() => {
+    clampRef.current = (q, all) => {
+      if (!sameQuery(q, queryRef.current)) return;
+      change({ page: Math.max(1, Math.ceil(all / q.pageSize)) });
+    };
+  });
   /** The table's page, rows per page, sort or search changed (it reports its query on mount too: nothing then). */
   function tableQuery(t: DataTableQuery) {
     const cur = queryRef.current;
     const sort = toIotSort(t.sort, ALARM_SORT_KEYS);
-    if (t.page === cur.page && t.pageSize === cur.pageSize && t.search === (cur.search ?? '') && sameSort(sort, cur.sort)) return;
-    change({ page: t.page, pageSize: t.pageSize, search: t.search, sort });
+    const search = (t.search ?? '').slice(0, ALARM_SEARCH_MAX);
+    if (t.page === cur.page && t.pageSize === cur.pageSize && search === (cur.search ?? '') && sameSort(sort, cur.sort)) return;
+    change({ page: t.page, pageSize: t.pageSize, search, sort });
   }
   /** The status choice or the Filters panel was applied (back to page 1). */
   function filtersChanged(v: DataTableFilterValues) {
@@ -164,8 +263,12 @@ export function AlarmListView({
     const cur = itemsRef.current;
     const i = cur.findIndex((a) => a.alarmId === alarm.alarmId);
     if (i >= 0) {
-      const next = [...cur];
-      next[i] = alarm;
+      // a row whose alarm left the filter drops out, the total with it (1.10); the slow re-read fills the page again
+      const next = matches(alarm, q) ? cur.map((a, j) => (j === i ? { ...a, ...alarm } : a)) : cur.filter((_, j) => j !== i);
+      if (next.length < cur.length) {
+        setTotal((n) => Math.max(0, n - 1));
+        setSelected((s) => { if (!s.has(alarm.alarmId)) return s; const n = new Set(s); n.delete(alarm.alarmId); return n; });
+      }
       itemsRef.current = next;
       setItems(next);
       return;
@@ -195,19 +298,29 @@ export function AlarmListView({
     }) : undefined,
     poll: () => { void load(queryRef.current); void loadCounts(); },
   });
+  // live: the events keep the rows current, and a slow re-read catches what no event says (a re-trigger's count, a page that thinned)
+  useEffect(() => {
+    if (state !== 'live') return;
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void load(queryRef.current);
+      void loadCounts();
+    }, ALARM_LIVE_REREAD_MS);
+    return () => clearInterval(id);
+  }, [state, load, loadCounts]);
 
   async function runBulk() {
     if (!api || !bulk) return;
     if (bulk === 'acknowledgeAll') {
       setBusy(true);
       try {
-        const n = await acknowledgeAllOpen(api, deviceId ? { deviceId } : undefined, note || undefined);
-        notify({ tone: 'success', message: fill(m.alarms.acknowledgeAllDone, { n }) });
-        setSelected(new Set());
-        setBulk(null);
-        setNote('');
-      } catch (e) {
-        notify({ tone: 'error', message: fill(m.alarm.failed, { message: errorMessage(e, m.alarms.loadError) }) });
+        const r = await acknowledgeAllOpen(api, scopeOf(queryRef.current), note || undefined);
+        notify(acknowledgeAllNotice(m, r, locale));
+        if (r.error === undefined) {
+          setSelected(new Set());
+          setBulk(null);
+          setNote('');
+        }
       } finally {
         setBusy(false);
         await Promise.all([load(queryRef.current), loadCounts()]);
@@ -232,11 +345,20 @@ export function AlarmListView({
       await Promise.all([load(queryRef.current), loadCounts()]);
     } catch (e) {
       setItems(before);
-      notify({ tone: 'error', message: fill(m.alarm.failed, { message: errorMessage(e, m.alarms.loadError) }) });
+      notify({ tone: 'error', message: actionFailedText(m, e, action, true) });
     } finally {
       setBusy(false);
     }
   }
+
+  /** "Acknowledge all" acts on the list's scope and filters. */
+  const scopeOf = (q: AlarmListQuery): AcknowledgeAllScope => ({ deviceId, severity: q.severity, search: q.search });
+  const filtered = !!(query.severity?.length || query.search);
+  const status = query.status ?? 'active';
+  // offered where the list shows OPEN alarms: the not-resolved and the OPEN lists
+  const canAckAll = caps.canAcknowledge && (status === 'active' || status === 'OPEN') && (openInScope ?? 0) > 0;
+  const ackAllHint = filtered ? m.alarms.acknowledgeAllHint_filtered : deviceId ? m.alarms.acknowledgeAllHint_device : m.alarms.acknowledgeAllHint_all;
+  const open = (href: string) => (onOpen ? (e: React.MouseEvent) => { if (plainClick(e)) { e.preventDefault(); onOpen(href); } } : undefined);
 
   const selectable = caps.canAcknowledge || caps.canClear;
   const filterFields = useMemo((): DataTableFilterField<Alarm>[] => [
@@ -265,7 +387,7 @@ export function AlarmListView({
       sortable: true,
       hideable: false,
       render: (a) => (
-        <a href={hrefs.alarm(a.alarmId)} className="block min-w-0 rounded font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
+        <a href={hrefs.alarm(a.alarmId)} onClick={open(hrefs.alarm(a.alarmId))} className="block min-w-0 rounded font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <span className="block truncate">{a.title}</span>
           {a.flapping && <span className="text-xs font-normal text-warning-fg">{m.alarm.flapping}</span>}
         </a>
@@ -277,7 +399,7 @@ export function AlarmListView({
       hideBelow: 'md' as const,
       sortable: true,
       render: (a: Alarm) => (a.deviceId && hrefs.device
-        ? <a href={hrefs.device(a.deviceId)} className="rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">{a.deviceName ?? a.deviceId}</a>
+        ? <a href={hrefs.device(a.deviceId)} onClick={open(hrefs.device(a.deviceId))} className="rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">{a.deviceName ?? a.deviceId}</a>
         : (a.deviceName ?? '—')),
     }]),
     { key: 'status', header: m.alarms.status, hideBelow: 'sm', sortable: true, render: (a) => <AlarmStatusPill status={a.status} size="sm" /> },
@@ -286,7 +408,7 @@ export function AlarmListView({
       header: m.alarms.opened,
       hideBelow: 'sm',
       sortable: true,
-      render: (a) => <time className="text-xs text-text-secondary" title={formatDateTime(a.openedAt, { locale })}>{formatRelative(a.openedAt, { locale, now })}</time>,
+      render: (a) => <time className="text-xs text-text-secondary" title={formatDateTime(a.openedAt, { locale, timeZone })}>{formatRelative(a.openedAt, { locale, now })}</time>,
     },
   ];
 
@@ -307,9 +429,9 @@ export function AlarmListView({
             </ChipButton>
           </>
         )}
-        {caps.canAcknowledge && counts && counts.open > 0 && (
+        {canAckAll && (
           <Button variant="outline" size="xs" onClick={() => setBulk('acknowledgeAll')} iconLeft={<FontAwesomeIcon icon={faCheckDouble} className="h-3 w-3" aria-hidden="true" />}>
-            {fill(m.alarms.acknowledgeAll, { n: counts.open })}
+            {fill(m.alarms.acknowledgeAll, { n: openInScope ?? 0 })}
           </Button>
         )}
         <span className="ml-auto text-xs text-text-secondary" aria-live="polite">{state === 'live' ? m.common.live : m.common.polling}</span>
@@ -318,9 +440,18 @@ export function AlarmListView({
       {pendingNew > 0 && (
         <div className="flex justify-center">
           <Button variant="primary" size="sm" onClick={() => change({ page: 1, search: '' })} iconLeft={<FontAwesomeIcon icon={faArrowUp} className="h-3 w-3" aria-hidden="true" />}>
-            {fill(m.alarms.newPill, { n: pendingNew })}
+            {plural(pendingNew, { one: m.alarms.newPill_one, other: m.alarms.newPill }, locale)}
           </Button>
         </div>
+      )}
+
+      {caps.ready && caps.failed && (
+        <Callout variant="warning" title={null}>
+          <span className="flex flex-wrap items-center gap-2">
+            {m.common.capabilitiesError}
+            <Button variant="outline" size="xs" onClick={caps.retry}>{m.common.retry}</Button>
+          </span>
+        </Callout>
       )}
 
       <DataTable<Alarm>
@@ -372,7 +503,7 @@ export function AlarmListView({
       <Modal
         open={bulk !== null}
         onClose={() => setBulk(null)}
-        title={m.alarm.noteTitle}
+        title={bulk === 'acknowledgeAll' ? plural(openInScope ?? 0, { one: m.alarms.acknowledgeAllTitle_one, other: m.alarms.acknowledgeAllTitle }, locale) : m.alarm.noteTitle}
         closeLabel={m.common.close}
         footer={(
           <div className="flex justify-end gap-2">
@@ -381,12 +512,14 @@ export function AlarmListView({
               {bulk === 'clear'
                 ? fill(m.alarms.bulkClear, { n: selected.size })
                 : bulk === 'acknowledgeAll'
-                  ? fill(m.alarms.acknowledgeAll, { n: counts?.open ?? 0 })
+                  ? fill(m.alarms.acknowledgeAll, { n: openInScope ?? 0 })
                   : fill(m.alarms.bulkAcknowledge, { n: selected.size })}
             </Button>
           </div>
         )}
       >
+        {bulk === 'acknowledgeAll' && <p className="mb-3 text-sm text-text-secondary">{ackAllHint}</p>}
+        {bulk === 'clear' && <p className="mb-3 text-sm text-text-secondary">{m.alarms.bulkClearHint}</p>}
         <Textarea id="alarm-bulk-note" label={m.alarm.noteLabel} rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
       </Modal>
     </div>

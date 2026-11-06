@@ -9,6 +9,7 @@ export function SearchBar({
   placeholder = 'Search…',
   label,
   clearLabel = 'Clear search',
+  maxLength,
   value,
   onChange,
   onClear,
@@ -20,6 +21,8 @@ export function SearchBar({
   label?: string;
   /** Accessible name of the clear button. */
   clearLabel?: string;
+  /** Longest search the input takes (the host's limit), so a longer one is never typed only to be refused. */
+  maxLength?: number;
   value?: string;
   onChange?: (value: string) => void;
   onClear?: () => void;
@@ -53,6 +56,7 @@ export function SearchBar({
         type="text"
         role="searchbox"
         aria-label={label}
+        maxLength={maxLength}
         value={currentValue}
         onChange={handleChange}
         placeholder={placeholder}

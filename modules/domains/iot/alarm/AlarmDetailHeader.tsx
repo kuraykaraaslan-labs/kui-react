@@ -7,11 +7,13 @@ import {
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { DropdownMenu, type DropdownItem } from '@/modules/ui/DropdownMenu';
 import { Modal } from '@/modules/ui/Modal';
 import { Textarea } from '@/modules/ui/Textarea';
+import { errorMessage } from '../api/adapter';
 import { useIotText } from '../api/IotAdapterProvider';
-import { fill, formatDateTime, formatRelative, type TimeInput } from '../format';
+import { fill, formatDateTime, formatRelative, plural, type TimeInput } from '../format';
 import type { AlarmSeverity, AlarmStatus } from '../types/alarm';
 import type { IotMessagesInput } from '../messages';
 import { AlarmSeverityBadge } from './AlarmSeverityBadge';
@@ -24,6 +26,11 @@ import { AlarmStatusPill } from './AlarmStatusPill';
  * note" opens a note dialog first. Acknowledge shows only while OPEN, Clear unless RESOLVED, each only with its handler (pass
  * none for a viewer without the capability). Renamed under OD-9 (the old name is a deprecated alias in `index.ts`); `onResolve` is its old name for
  * `onClear`.
+ *
+ * Clear asks first, naming the alarm and saying that a rule whose condition still holds will not open it again until the condition has
+ * been false once (the note dialog says the same). A handler may answer the words to announce (what the host did, e.g. "Nothing changed:
+ * the alarm was already acknowledged"); a failure is announced with the host's words or the action's own (NB 41-ui-fixes/24 1.3, 1.7).
+ * `onNavigate` opens the device in the host's router on a plain click.
  */
 export type AlarmDetailHeaderProps = {
   title: string;
@@ -39,11 +46,15 @@ export type AlarmDetailHeaderProps = {
   backfilled?: boolean;
   type?: string;
   topic?: string | null;
-  onAcknowledge?: (note?: string) => Promise<void> | void;
-  onClear?: (note?: string) => Promise<void> | void;
+  /** May answer the words to announce (what the host did); without them the action's own success words. */
+  onAcknowledge?: (note?: string) => Promise<void | string> | void;
+  onClear?: (note?: string) => Promise<void | string> | void;
   /** @deprecated the pre-OD-9 name of `onClear`. */
-  onResolve?: (note?: string) => Promise<void> | void;
+  onResolve?: (note?: string) => Promise<void | string> | void;
   onOpenRunbook?: () => void;
+  /** Opens a link (the device) in the host's router on a plain click; without it the link navigates as a link. */
+  onNavigate?: (href: string) => void;
+  timeZone?: string;
   locale?: string;
   now?: number;
   messages?: IotMessagesInput;
@@ -54,9 +65,9 @@ type Action = 'acknowledge' | 'clear';
 
 export function AlarmDetailHeader({
   title, message, severity, status, deviceName, deviceHref, openedAt, occurrences, flapping, backfilled, type, topic,
-  onAcknowledge, onClear, onResolve, onOpenRunbook, locale, now, messages, className,
+  onAcknowledge, onClear, onResolve, onOpenRunbook, onNavigate, timeZone, locale, now, messages, className,
 }: AlarmDetailHeaderProps) {
-  const { m, locale: lang } = useIotText(messages, locale);
+  const { m, locale: lang, timeZone: hostZone } = useIotText(messages, locale);
   const clearFn = onClear ?? onResolve;
   const [pending, setPending] = useState<Action | null>(null);
   const [noteFor, setNoteFor] = useState<Action | null>(null);
@@ -72,10 +83,10 @@ export function AlarmDetailHeader({
     setPending(action);
     setAnnounce('');
     try {
-      await fn(text && text.trim() ? text.trim() : undefined);
-      setAnnounce(action === 'acknowledge' ? m.alarm.acknowledged : m.alarm.cleared);
+      const said = await fn(text && text.trim() ? text.trim() : undefined);
+      setAnnounce(typeof said === 'string' && said ? said : action === 'acknowledge' ? m.alarm.acknowledged : m.alarm.cleared);
     } catch (e) {
-      setAnnounce(fill(m.alarm.failed, { message: e instanceof Error ? e.message : String(e) }));
+      setAnnounce(fill(m.alarm.failed, { message: errorMessage(e, action === 'acknowledge' ? m.alarm.acknowledgeFailed : m.alarm.clearFailed) }));
     } finally {
       setPending(null);
     }
@@ -84,6 +95,18 @@ export function AlarmDetailHeader({
   function openNote(action: Action) {
     setNote('');
     setNoteFor(action);
+  }
+
+  /** Clear asks first: it names the alarm and says the rule will not open it again while its condition holds. */
+  function askClear() {
+    void confirmDialog({
+      title: fill(m.alarm.clearConfirm, { title }),
+      message: m.alarm.clearHint,
+      tone: 'warning',
+      confirmLabel: m.alarm.clear,
+      cancelLabel: m.common.cancel,
+      closeLabel: m.common.close,
+    }).then((ok) => { if (ok) void run('clear'); });
   }
 
   async function submitNote() {
@@ -120,7 +143,8 @@ export function AlarmDetailHeader({
             <dt className="sr-only">{m.alarm.device}</dt>
             <dd>
               {deviceHref ? (
-                <a href={deviceHref} className="rounded font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
+                <a href={deviceHref} onClick={onNavigate ? (e) => { if (plainClick(e)) { e.preventDefault(); onNavigate(deviceHref); } } : undefined}
+                  className="rounded font-medium text-text-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
                   {deviceName}
                 </a>
               ) : <span className="font-medium text-text-primary">{deviceName}</span>}
@@ -130,12 +154,12 @@ export function AlarmDetailHeader({
         <div className="flex items-center gap-1.5">
           <FontAwesomeIcon icon={faClock} className="h-3.5 w-3.5" aria-hidden="true" />
           <dt className="sr-only">{m.alarms.opened}</dt>
-          <dd title={formatDateTime(openedAt, { locale: lang })}>{fill(m.alarm.opened, { time: formatRelative(openedAt, { locale: lang, now }) })}</dd>
+          <dd title={formatDateTime(openedAt, { locale: lang, timeZone: timeZone ?? hostZone })}>{fill(m.alarm.opened, { time: formatRelative(openedAt, { locale: lang, now }) })}</dd>
         </div>
         {occurrences !== undefined && occurrences > 1 && (
           <div className="flex items-center gap-1.5">
             <FontAwesomeIcon icon={faHashtag} className="h-3.5 w-3.5" aria-hidden="true" />
-            <dd>{fill(m.alarm.occurrences, { n: occurrences })}</dd>
+            <dd>{plural(occurrences, { one: m.alarm.occurrences_one, other: m.alarm.occurrences }, lang)}</dd>
           </div>
         )}
         {type && (
@@ -173,7 +197,7 @@ export function AlarmDetailHeader({
               size="sm"
               loading={pending === 'clear'}
               disabled={pending !== null}
-              onClick={() => void run('clear')}
+              onClick={askClear}
               iconLeft={<FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />}
             >
               {m.alarm.clear}
@@ -218,8 +242,14 @@ export function AlarmDetailHeader({
           </div>
         )}
       >
+        {noteFor === 'clear' && <p className="mb-3 text-sm text-text-secondary">{m.alarm.clearHint}</p>}
         <Textarea id="alarm-action-note" label={m.alarm.noteLabel} rows={4} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
       </Modal>
     </section>
   );
+}
+
+/** A plain left click (no modifier): the host's router opens the link; any other click keeps the link's own behaviour. */
+function plainClick(e: React.MouseEvent): boolean {
+  return !e.defaultPrevented && e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
 }
