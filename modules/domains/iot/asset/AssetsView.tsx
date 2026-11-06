@@ -51,11 +51,13 @@ export type AssetsViewProps = {
   /** The host's buttons in an asset drawer's header (e.g. another module's button that opens a drawer of its own), by asset id. */
   drawerActions?: (assetId: string) => React.ReactNode;
   pageSize?: number;
+  /** Open a link in the app (the host's router): the drawer's path, devices and relation ends. Without it the links are plain. */
+  onNavigate?: (href: string) => void;
   now?: number;
   className?: string;
 };
 
-export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreActions = [], drawerActions, pageSize = 20, now, className }: AssetsViewProps) {
+export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreActions = [], drawerActions, onNavigate, pageSize = 20, now, className }: AssetsViewProps) {
   const api = useIotAdapter().assets;
   const caps = useIotCapabilities();
   const { m } = useIotText();
@@ -243,6 +245,13 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
         </div>
       </div>
 
+      {/* capabilities that could not be read: every write is hidden because it is unknown, not denied (NB 41-ui-fixes/25 1.7) */}
+      {caps.failed && (
+        <div role="status" className="flex flex-wrap items-center gap-2 rounded-lg border border-warning bg-warning-subtle px-3 py-2 text-sm text-warning-fg">
+          <span className="min-w-0 flex-1">{m.common.capabilitiesError}</span>
+          <Button variant="outline" size="xs" onClick={caps.retry}>{m.common.retry}</Button>
+        </div>
+      )}
       <Kpis summary={summary} />
       {summary?.alarmsTruncated && (
         <p role="status" className="rounded-lg border border-warning bg-warning-subtle px-3 py-2 text-xs text-text-primary" data-testid="assets-alarms-partial">
@@ -294,6 +303,7 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
           onChanged={reread}
           onDeleted={(parentId) => openAsset(parentId, 'replace')}
           onOpenAsset={(id) => openAsset(id, 'replace')}
+          onNavigate={onNavigate}
           actions={drawerActions?.(openId)}
           now={now}
         />

@@ -18,7 +18,8 @@ import { AssetKindBadge } from './AssetKindBadge';
 /**
  * PlacedDeviceTable — the devices placed under an asset (phase 08 §8.2): the device (a link) with the node it sits on under its name
  * when that is a descendant, and its connection (`DeviceOnlineDot`, OD-57) with the address of its newest connect (`DeviceAddress`)
- * under it. With `onUnplace`, each row can lose its placement.
+ * under it. With `onUnplace`, each row can lose its placement (the host asks first; the row's label names the device and, below the
+ * asset, the node it sits on). With `onNavigate` the links open through the host's router.
  *
  * A full list on the DataTable's own toolbar: search (name, label, the node), the Filters panel (connection, devices placed below),
  * sortable columns (device, connection; one at a time), rows per page and paging. With `onQueryChange` the host serves every page
@@ -35,8 +36,11 @@ export type PlacedDeviceTableProps = {
   assetId?: string;
   deviceHref?: (deviceId: string) => string;
   assetHref?: (assetId: string) => string;
-  onUnplace?: (deviceId: string) => void;
+  /** Remove a row's placement (the row is given so the host can name it). */
+  onUnplace?: (deviceId: string, row: PlacedDevice) => void;
   busyId?: string | null;
+  /** Open a link in the app (the host's router); without it the links are plain. */
+  onNavigate?: (href: string) => void;
   /** With `onQueryChange`: the rows across every page. */
   total?: number;
   /** The host serves the pages: every change of page, rows per page, sort, search or filters, and the first query on mount. */
@@ -52,13 +56,19 @@ export type PlacedDeviceTableProps = {
   className?: string;
 };
 
+/** A plain left click (no modifier): the host navigates; anything else is the browser's. */
+function plainClick(e: React.MouseEvent): boolean {
+  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
+
 /** The columns a placed-device list sorts by on the host. */
 export const PLACED_DEVICE_SORT_KEYS = ['name', 'connection'] as const;
 
 export function PlacedDeviceTable({
-  rows, assetId, deviceHref, assetHref, onUnplace, busyId, total, onQueryChange, defaultQuery, loading, error, onRetry, now, locale, messages, className,
+  rows, assetId, deviceHref, assetHref, onUnplace, busyId, onNavigate, total, onQueryChange, defaultQuery, loading, error, onRetry, now, locale, messages, className,
 }: PlacedDeviceTableProps) {
   const { m } = useIotText(messages, locale);
+  const inApp = (href: string) => (onNavigate ? (e: React.MouseEvent) => { if (plainClick(e)) { e.preventDefault(); onNavigate(href); } } : undefined);
   const link = 'rounded hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus';
   const columns: Column<PlacedDevice>[] = [
     {
@@ -80,14 +90,14 @@ export function PlacedDeviceTable({
         return (
           <span className="flex min-w-0 max-w-[8rem] flex-col sm:max-w-[16rem]">
             {deviceHref
-              ? <a href={deviceHref(d.deviceId)} className={cn('flex min-w-0 flex-col', link)}>{inner}</a>
+              ? <a href={deviceHref(d.deviceId)} onClick={inApp(deviceHref(d.deviceId))} className={cn('flex min-w-0 flex-col', link)}>{inner}</a>
               : <span className="flex min-w-0 flex-col">{inner}</span>}
             {p.assetId !== assetId && (
               <span className="mt-0.5 inline-flex min-w-0 items-center gap-1.5 text-xs text-text-secondary" title={`${m.asset.placedOn}: ${p.name}`}>
                 <span className="sr-only">{m.asset.placedOn}:</span>
                 <AssetKindBadge kind={p.kind} iconOnly />
                 {assetHref
-                  ? <a href={assetHref(p.assetId)} className={cn('truncate', link)}>{p.name}</a>
+                  ? <a href={assetHref(p.assetId)} onClick={inApp(assetHref(p.assetId))} className={cn('truncate', link)}>{p.name}</a>
                   : <span className="truncate">{p.name}</span>}
               </span>
             )}
@@ -115,15 +125,15 @@ export function PlacedDeviceTable({
       header: <span className="sr-only">{m.asset.unplace}</span>,
       align: 'right' as const,
       searchable: false,
-      render: ({ device: d }: PlacedDevice) => (
+      render: (r: PlacedDevice) => (
         <Button
           variant="ghost"
           size="xs"
           iconOnly
-          loading={busyId === d.deviceId}
-          aria-label={`${m.asset.unplace}: ${d.name}`}
+          loading={busyId === r.device.deviceId}
+          aria-label={`${m.asset.unplace}: ${r.device.name}${r.placement.assetId !== assetId ? ` (${r.placement.name})` : ''}`}
           title={m.asset.unplace}
-          onClick={(e: React.MouseEvent) => { e.stopPropagation(); onUnplace(d.deviceId); }}
+          onClick={(e: React.MouseEvent) => { e.stopPropagation(); onUnplace(r.device.deviceId, r); }}
         >
           <FontAwesomeIcon icon={faLinkSlash} className="h-3 w-3" aria-hidden="true" />
         </Button>
