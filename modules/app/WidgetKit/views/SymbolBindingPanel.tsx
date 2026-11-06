@@ -33,7 +33,7 @@ import {
   ageText, applyTemplate, declaredRange, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
   pickableKeys, previewLine, rankKeysForField, rawRangeOf, scaleScript, scriptErrorKind, scriptTemplates, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
   type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type RankedKey, type ScriptOutcome, type ScriptTemplate, type SourceMode,
-  type SymbolFieldSpec, type SymbolSpec } from './symbol-binding-logic';
+  type StateWords, type SymbolFieldSpec, type SymbolSpec } from './symbol-binding-logic';
 import { DEFAULT_SYMBOL_BINDING_MESSAGES, mergeMessages, type DeepPartial, type SymbolBindingMessages } from './symbol-binding-messages';
 
 /** The symbol the panel is about: `SymbolSpec` with the icon the host draws for it. */
@@ -102,9 +102,23 @@ export interface SymbolBindingPanelProps {
   /** The time the ages are counted from (ms); default the clock. */
   now?: number;
   messages?: DeepPartial<SymbolBindingMessages>;
+  /**
+   * Whether the symbol's form holds changes the person made and has not saved (the ones closing the panel asks about). The panel draws one symbol at a
+   * time and starts the next symbol's form over, so a host that picks another symbol while this is true should ask first (run 3 notes 45 and 121: a missed
+   * Save click lost the link silently when the next symbol was picked).
+   */
+  onDirtyChange?: (dirty: boolean) => void;
   /** Where the confirmations mount (a fullscreen element); default the kit's. */
   portalTarget?: Element | string | null;
   className?: string;
+}
+
+/** The panel's words for an on/off value (`formatValue`), one object per messages object. */
+const stateWordsCache = new WeakMap<SymbolBindingMessages, StateWords>();
+function stateWordsOf(m: SymbolBindingMessages): StateWords {
+  let words = stateWordsCache.get(m);
+  if (!words) { words = { on: m.stateOn, off: m.stateOff }; stateWordsCache.set(m, words); }
+  return words;
 }
 
 const SEARCH_ROWS = 100;
@@ -181,6 +195,11 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   // The person changed something themselves (a pick, a device, a text): a preselected suggestion alone is not theirs to lose, so closing an untouched
   // panel never asks, and "Next symbol" says "Save and next" whenever a press would write (the suggestions, or their edits).
   const [touched, setTouched] = useState(false);
+  const unsaved = dirty && touched && !readOnly;
+  const { onDirtyChange } = props;
+  useEffect(() => { onDirtyChange?.(unsaved); }, [unsaved, onDirtyChange]);
+  // a form that goes away (another symbol, the panel closed) holds nothing unsaved any more
+  useEffect(() => () => { onDirtyChange?.(false); }, [onDirtyChange]);
   // Clear has something to clear when the symbol has settings of its own (an automatic source is not a setting).
   const bound = hasOwnEntry(symbol) || Object.keys(baseline.fields).length > 0;
 
@@ -415,6 +434,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   const canWrite = !blocked;
   async function next() {
     if (nextWrites && !(await save())) return;
+    // saved (or nothing to save): the next symbol is picked with nothing unsaved
+    props.onDirtyChange?.(false);
     props.onNext?.();
   }
 
@@ -447,7 +468,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
 
   function close() {
     // only what the person changed themselves is worth a question: a panel that holds no more than its own suggestions closes at once
-    if (dirty && touched && !readOnly) setConfirm('discard');
+    if (unsaved) setConfirm('discard');
     else props.onClose();
   }
 
@@ -513,7 +534,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
       key: k.key,
       name: nameOfKey(k, k.key),
       feeds: usedBy.get(k.key),
-      value: formatValue(k.value, k.unit),
+      value: formatValue(k.value, k.unit, stateWordsOf(m)),
       ts: (typeof k.ts === 'number' ? k.ts : Date.parse(k.ts)) || 0,
       age: ageText(k.ts, now, m.age),
     })),
@@ -729,6 +750,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
         onCancel={() => setConfirm(null)}
         onConfirm={() => {
           setConfirm(null);
+          // discarded here: the host must not ask again
+          props.onDirtyChange?.(false);
           props.onClose();
         }}
       />
@@ -788,9 +811,9 @@ function FieldRow(p: FieldRowProps) {
   // e2e round 4, m-R4-05: "Shows 59 now" beside a list that said 75.9)
   const savedIsPicked = f.mode === 'value' && f.key !== '' && f.key === field.currentSource?.key && !(field.currentScript ?? '').trim();
   // in the FIELD's unit (what the symbol draws), not the list's: the picker line already carries the device's unit
-  const live = savedIsPicked && info?.ts ? formatValue(info.value, field.unit) : field.live !== undefined ? formatValue(field.live, field.unit) : '';
+  const live = savedIsPicked && info?.ts ? formatValue(info.value, field.unit, stateWordsOf(m)) : field.live !== undefined ? formatValue(field.live, field.unit, stateWordsOf(m)) : '';
   // a value picked but not saved yet: the label says what the symbol will show once it is, instead of "Shows nothing yet" (m-R4-05)
-  const pickedUnsaved = f.mode === 'value' && f.key !== '' && f.key !== (field.currentSource?.key ?? '') && !other && info?.ts ? formatValue(info.value, field.unit) : '';
+  const pickedUnsaved = f.mode === 'value' && f.key !== '' && f.key !== (field.currentSource?.key ?? '') && !other && info?.ts ? formatValue(info.value, field.unit, stateWordsOf(m)) : '';
   const automaticClosed = !!f.automatic && !opened && f.mode === 'value';
   const mismatch = f.mode === 'value' && info ? mismatchOf(field, info) : null;
 
@@ -804,7 +827,7 @@ function FieldRow(p: FieldRowProps) {
     const best = field.suggest === false ? undefined : ranked[0]?.key;
     const out = list.map((k): ComboBoxOption => {
       // a key the device's profile declares but the device has not sent yet (no reading, no time) is offered with "No value yet", not "–" (E2E-1.4)
-      const value = k.ts ? m.optionLine(formatValue(k.value, k.unit), ageText(k.ts, now, m.age)) : m.noValueYet;
+      const value = k.ts ? m.optionLine(formatValue(k.value, k.unit, stateWordsOf(m)), ageText(k.ts, now, m.age)) : m.noValueYet;
       // a key the device sent that its profile does not declare says so (next-boilerplate e2e round 4, M-R4-09: nothing told an old name from a real value)
       const line = k.declared === false ? m.notDeclaredOption(value) : value;
       return { value: k.key, label: nameOfKey(k, k.key), description: k.key === best ? m.suggestedOption(line) : line };
@@ -828,7 +851,7 @@ function FieldRow(p: FieldRowProps) {
 
       {automaticClosed ? (
         <p className="flex flex-wrap items-center gap-x-2 text-sm text-text-secondary">
-          <span>{m.automaticLine(nameOfKey(info, f.key), info ? m.valueAndAge(formatValue(info.value, info.unit), ageText(info.ts, now, m.age)) : '')}</span>
+          <span>{m.automaticLine(nameOfKey(info, f.key), info ? m.valueAndAge(formatValue(info.value, info.unit, stateWordsOf(m)), ageText(info.ts, now, m.age)) : '')}</span>
           {!readOnly && <Button variant="ghost" size="xs" onClick={p.onOpen}>{m.change}</Button>}
         </p>
       ) : (
@@ -920,11 +943,11 @@ function valueLineOf(a: {
 }): string {
   const { f, info, other, ready, field, now, m } = a;
   if (!f.key || other) return '';
-  if (info) return info.ts ? m.valueAndAge(formatValue(info.value, info.unit), ageText(info.ts, now, m.age)) : m.noValueYet;
+  if (info) return info.ts ? m.valueAndAge(formatValue(info.value, info.unit, stateWordsOf(m)), ageText(info.ts, now, m.age)) : m.noValueYet;
   if (!ready) {
     // While the values load: what the symbol shows now, when nothing converts it.
     const same = field.currentSource?.key === f.key && !(field.currentScript ?? '').trim() && field.live !== undefined;
-    return same ? formatValue(field.live) : '';
+    return same ? formatValue(field.live, undefined, stateWordsOf(m)) : '';
   }
   return m.noValueYet;
 }
@@ -1031,7 +1054,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
         <div className="flex flex-wrap gap-1">
           <NameChip
             name="value"
-            text={m.nameChip('value', f.key ? formatValue(info?.value, info?.unit) : '')}
+            text={m.nameChip('value', f.key ? formatValue(info?.value, info?.unit, stateWordsOf(m)) : '')}
             title={m.insertName('value')}
             disabled={readOnly || !f.key}
             onInsert={() => p.onInsert('value')}
@@ -1040,7 +1063,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
             <NameChip
               key={i.name}
               name={i.name}
-              text={m.nameChip(i.name, formatValue(keyByName.get(i.key)?.value, keyByName.get(i.key)?.unit))}
+              text={m.nameChip(i.name, formatValue(keyByName.get(i.key)?.value, keyByName.get(i.key)?.unit, stateWordsOf(m)))}
               title={m.insertName(i.name)}
               disabled={readOnly}
               onInsert={() => p.onInsert(i.name)}
@@ -1049,7 +1072,8 @@ function ExpressionBox(p: ExpressionBoxProps) {
             />
           ))}
         </div>
-        {!f.key && (
+        {/* the picker of `value` stays once a value is picked, showing it, so the boxes under it never move up (run 3 note 140: the next click hit "Scale 0-100") */}
+        {(
           <div className="[&_label]:sr-only">
             <ComboBox
               id={`${uid}-field-${field.name}`}

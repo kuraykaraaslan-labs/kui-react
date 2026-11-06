@@ -3,8 +3,8 @@ import {
   ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, fieldKindOf, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty,
   keyKindOf, keyNamesSymbol, mismatchOf, nextUnbound, pickableKeys, previewLine, rankKeysForField, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields,
   templateFor, unitQuantity, applyTemplate, wordsOf, isSetpointWords, scaleScript, rawRangeOf, declaredRange,
-  CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE, staleKeys,
-  type BindingDraft, type DeviceKey, type FieldDraft, type SymbolSpec,
+  CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE, staleKeys, codesOf, matchAllRows,
+  type BindingDraft, type DeviceKey, type FieldDraft, type MatchSymbol, type SymbolSpec,
 } from '../views/symbol-binding-logic';
 
 const blank = (): FieldDraft => ({ deviceId: '', deviceName: '', key: '', label: '', script: '', mode: 'value', inputs: [] });
@@ -794,7 +794,9 @@ describe('keyKindOf: the declared type first (e2e round 5, V1-B19)', () => {
     expect(keyKindOf({ value: 'RUNNING', type: 'string' })).toBe('text');
     expect(keyKindOf({ value: 'on', type: 'string' })).toBe('text');
     expect(keyKindOf({ value: 'on', type: 'boolean' })).toBe('state');
-    expect(keyKindOf({ value: 1, type: 'number' })).toBe('state');
+    // a declared 0 / 1 is a state only when its name says so (next-boilerplate run 3 note 61)
+    expect(keyKindOf({ value: 1, type: 'number' })).toBe('number');
+    expect(keyKindOf({ key: 'pump_running', value: 1, type: 'number' })).toBe('state');
     expect(keyKindOf({ value: 1, unit: '%', type: 'number' })).toBe('number');
     expect(keyKindOf({ value: null, type: 'number' })).toBe('number');
     expect(mismatchOf({ name: 'value' }, { value: 'JAMMED', type: 'string' })).toBe('text-for-number');
@@ -820,5 +822,73 @@ describe('the 0–100 helper asks for the raw range (e2e round 5, E15: a fixed 4
     expect(Math.round(pct)).toBe(49);
     // applied over what was typed, as every chip is
     expect(applyTemplate({ id: 'scale', script: scaleScript({ from: 1500, to: 3300 }) }, '!value', [], true)).toBe('((!value) - 1500) / (3300 - 1500) * 100');
+  });
+});
+
+/** next-boilerplate e2e run 3: a 0 that counts is no on/off (note 61), a shared code decides a match (notes 60 and 131), on/off in the host's words (note 11). */
+describe('run 3: a 0 or 1 is a state only when its name says so (note 61)', () => {
+  const rk = (k: string, value: unknown, o: Partial<DeviceKey> = {}): DeviceKey => ({ key: k, value, ts: 1, ...o });
+  it('a declared number that counts stays a number at 0; one named a state is a state', () => {
+    expect(keyKindOf(rk('bags_per_hour', 0, { type: 'number', label: 'Bags per hour' }))).toBe('number');
+    expect(keyKindOf(rk('pump_running', 1, { type: 'number' }))).toBe('state');
+    expect(mismatchOf({ name: 'value', kind: 'number' }, rk('bags_per_hour', 0, { type: 'number', label: 'Bags per hour' }))).toBeNull();
+  });
+  it('an undeclared 0 / 1 stays a state unless its name counts or measures', () => {
+    expect(keyKindOf(rk('door', 0))).toBe('state');
+    expect(keyKindOf(rk('alarm_count', 1))).toBe('number');
+    expect(keyKindOf(rk('flow_rate', 0))).toBe('number');
+    expect(keyKindOf(rk('flow', 0, { unit: 'L/s' }))).toBe('number');
+  });
+  it('an on/off named by power stays a state, declared or not', () => {
+    expect(keyKindOf(rk('power_on', 1))).toBe('state');
+    expect(keyKindOf(rk('power_on', 1, { type: 'number' }))).toBe('state');
+  });
+});
+
+describe('run 3: a code written in the symbol\'s name decides (notes 60 and 131)', () => {
+  const rk = (k: string, value: unknown, o: Partial<DeviceKey> = {}): DeviceKey => ({ key: k, value, ts: 1, ...o });
+  it('codesOf reads FT-101, B-101, CL1, K1, never a name with a space before its number', () => {
+    expect([...codesOf('FT-101 flow')]).toEqual(['ft101']);
+    expect([...codesOf('B-101 / CL1 / K1')]).toEqual(['b101', 'cl1', 'k1']);
+    expect(codesOf('Pump 1').size).toBe(0);
+  });
+  it('a key or label that writes the symbol\'s tag code ranks first, for this symbol', () => {
+    const keys = [rk('ft_100.value', 3.1, { label: 'FT-100 · value', unit: 'm3/h' }), rk('ft_101.value', 4.2, { label: 'FT-101 · value', unit: 'm3/h' })];
+    const ranked = rankKeysForField({ name: 'value', label: 'Flow' }, keys, undefined, [], ['FT-101', 'Flow transmitter']);
+    expect(ranked[0]!.key).toBe('ft_101.value');
+    expect(ranked[0]!.reasons).toContain('symbol');
+  });
+  it('on a site, the device that writes the symbol\'s code wins over one whose keys fit the kind better', () => {
+    const symbol: MatchSymbol = {
+      id: 's1', label: 'CL1 collector', kindLabel: 'Belt conveyor', deviceId: '', deviceName: '',
+      fields: [{ name: 'running', label: 'Running', kind: 'state' }],
+      candidates: [{ deviceId: 'sorter', deviceName: 'Sorter controller' }, { deviceId: 'cl1', deviceName: 'CL1 controller' }],
+    };
+    const keys = new Map<string, DeviceKey[]>([
+      ['sorter', [rk('belt_conveyor.running', true, { type: 'boolean', label: 'Belt conveyor · running' })]],
+      ['cl1', [rk('line.running', true, { type: 'boolean', label: 'Line running' })]],
+    ]);
+    const rows = matchAllRows([symbol], keys);
+    expect(rows.map((r) => r.deviceId)).toEqual(['cl1']);
+  });
+  it('the one device that writes the symbol\'s code is its own: a clear key there is certain, as on a device the name points at', () => {
+    const symbol: MatchSymbol = {
+      id: 's1', label: 'CL1 collector', kindLabel: 'Belt conveyor', deviceId: '', deviceName: '',
+      fields: [{ name: 'running', label: 'Running', kind: 'state' }],
+      candidates: [{ deviceId: 'sorter', deviceName: 'Sorter controller' }, { deviceId: 'cl1', deviceName: 'CL1 controller' }],
+    };
+    const keys = new Map<string, DeviceKey[]>([
+      ['sorter', [rk('running', true, { type: 'boolean' })]],
+      ['cl1', [rk('running', true, { type: 'boolean' })]],
+    ]);
+    expect(matchAllRows([symbol], keys).map((r) => [r.deviceId, r.confident])).toEqual([['cl1', true]]);
+  });
+});
+
+describe('run 3: formatValue takes the host\'s words for on/off (note 11)', () => {
+  it('Açık / Kapalı instead of On / Off; the English without words', () => {
+    expect(formatValue(true, undefined, { on: 'Açık', off: 'Kapalı' })).toBe('Açık');
+    expect(formatValue(false, undefined, { on: 'Açık', off: 'Kapalı' })).toBe('Kapalı');
+    expect(formatValue(false)).toBe('Off');
   });
 });

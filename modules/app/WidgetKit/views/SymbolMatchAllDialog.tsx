@@ -28,6 +28,8 @@ export interface SymbolMatchAllDialogProps {
    * dialog says that instead of one sentence for all of them (next-boilerplate e2e round 5, E4).
    */
   emptyReason?: MatchEmptyReason;
+  /** How many of the drawing's symbols are connected: said with an `unsure` empty reason (run 3 note 146). */
+  connected?: { connected: number; total: number };
   /** The time the ages are counted from (ms); default the clock. */
   now?: number;
   messages?: DeepPartial<SymbolBindingMessages>;
@@ -39,9 +41,11 @@ export function SymbolMatchAllDialog(props: SymbolMatchAllDialogProps) {
   return props.open ? <MatchForm key="open" {...props} /> : null;
 }
 
-function MatchForm({ rows, onApply, onClose, busy = false, loading = false, emptyReason, messages, portalTarget, ...rest }: SymbolMatchAllDialogProps) {
-  const m = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages).matchAll, [messages]);
-  const age = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages).age, [messages]);
+function MatchForm({ rows, onApply, onClose, busy = false, loading = false, emptyReason, connected, messages, portalTarget, ...rest }: SymbolMatchAllDialogProps) {
+  const all = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages), [messages]);
+  const m = all.matchAll;
+  const age = all.age;
+  const words = useMemo(() => ({ on: all.stateOn, off: all.stateOff }), [all]);
   const tick = useNow(5000);
   const now = rest.now ?? tick;
   const confident = useMemo(() => rows.filter((r) => r.confident && !r.mismatch).map((r) => r.id), [rows]);
@@ -65,7 +69,8 @@ function MatchForm({ rows, onApply, onClose, busy = false, loading = false, empt
       render: (r) => (
         <span className="block min-w-0">
           <span className="block truncate text-sm text-text-primary">{r.keyLabel}</span>
-          <span className="block truncate text-xs text-text-secondary">{`${formatValue(r.value, r.unit)} · ${ageText(r.ts, now, age)} · ${r.deviceName}`}</span>
+          {/* the device first: a narrow window cuts the end of the line, and the device is what tells two alike candidates apart (run 3 note 105) */}
+          <span className="block truncate text-xs text-text-secondary" title={r.deviceName}>{`${r.deviceName} · ${formatValue(r.value, r.unit, words)} · ${ageText(r.ts, now, age)}`}</span>
         </span>
       ),
     },
@@ -75,14 +80,14 @@ function MatchForm({ rows, onApply, onClose, busy = false, loading = false, empt
         ? <Badge size="sm" variant="warning">{m.mismatch}</Badge>
         : r.confident ? <Badge size="sm" variant="success">{m.sure}</Badge> : <Badge size="sm" variant="neutral">{m.maybe}</Badge>),
     },
-  ], [m, age, now]);
+  ], [m, age, now, words]);
 
   return (
     <Modal
       open
       onClose={busy ? () => undefined : onClose}
       title={m.title}
-      description={loading && rows.length === 0 ? m.loading : rows.length === 0 ? (emptyReason ? m.emptyBecause[emptyReason] : m.empty) : m.intro(rows.length, confident.length)}
+      description={loading && rows.length === 0 ? m.loading : rows.length === 0 ? (emptyReason === 'unsure' && connected && connected.connected > 0 ? m.unsureCount(connected.connected, connected.total) : emptyReason ? m.emptyBecause[emptyReason] : m.empty) : m.intro(rows.length, confident.length)}
       size="xl"
       {...(portalTarget ? { portalTarget } : {})}
       footer={(

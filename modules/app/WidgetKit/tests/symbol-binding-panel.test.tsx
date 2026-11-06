@@ -1119,3 +1119,54 @@ describe('SymbolBindingPanel: the "…" menu opens upward', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 });
+
+describe('SymbolBindingPanel: next-boilerplate run 3', () => {
+  it('notes 45 and 121: reports whether the form holds the person\'s unsaved changes, and nothing unsaved once they are discarded or the form goes', async () => {
+    const onDirtyChange = vi.fn();
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    const { unmount } = render(<SymbolBindingPanel {...props({ symbol: BOUND, onClose, onDirtyChange })} />);
+    await rowsReady();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    await pickKey(user, 'Running', 'rssi');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Discard your changes?' })).getByRole('button', { name: 'Discard' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    onDirtyChange.mockClear();
+    unmount();
+    expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+  it('note 45: "Save and next" leaves nothing unsaved before it moves', async () => {
+    const onDirtyChange = vi.fn();
+    const calls: boolean[] = [];
+    const onNext = vi.fn(() => { calls.push(onDirtyChange.mock.lastCall?.[0] as boolean); });
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave: vi.fn(async () => undefined), onNext, onDirtyChange })} />);
+    await rowsReady();
+    await pickKey(user, 'Running', 'rssi');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await user.click(screen.getByRole('button', { name: 'Save and next' }));
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+    expect(calls).toEqual([false]);
+  });
+  it('note 11: an on/off value is said in the host\'s words', async () => {
+    const on: SymbolBindingSymbol = symbol({ fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D2, deviceName: 'Roof unit', key: 'pump_on' }, live: true }] });
+    render(<SymbolBindingPanel {...props({ symbol: on, messages: { stateOn: 'Açık', stateOff: 'Kapalı' } })} />);
+    expect(await screen.findByText('Shows Açık now')).toBeInTheDocument();
+    expect(screen.queryByText('Shows On now')).toBeNull();
+  });
+  it('note 140: the picker of `value` stays drawn once a value is picked, so the boxes under it do not move up', async () => {
+    const tank: SymbolBindingSymbol = symbol({
+      fields: [{ name: 'value', label: 'Level', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'temperature' }, currentScript: 'value * 2' }],
+    });
+    render(<SymbolBindingPanel {...props({ symbol: tank })} />);
+    await screen.findAllByLabelText(/Level/);
+    const pick = document.querySelector('[id$="-field-value-input"]');
+    const adder = document.querySelector('[id$="-input-value-input"]');
+    expect(pick).not.toBeNull();
+    expect(adder).not.toBeNull();
+    expect(pick!.compareDocumentPosition(adder!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});

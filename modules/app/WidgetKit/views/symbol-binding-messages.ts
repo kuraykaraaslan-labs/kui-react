@@ -140,6 +140,9 @@ export interface SymbolBindingMessages {
   discardConfirm: string;
   keepEditing: string;
   readOnlyNote: string;
+  /** An on/off value as the panel shows it ("Shows On now"): the product's words, never true / false (run 3 note 11: "On" stayed English). */
+  stateOn: string;
+  stateOff: string;
   /** The keyboard, said once under the rows. */
   keysHint: string;
 
@@ -151,6 +154,11 @@ export interface SymbolBindingMessages {
     empty: string;
     /** Nothing to propose, and why (e2e round 5, E4: "Nothing to propose" was said while nothing was linked and the devices were live). */
     emptyBecause: Record<MatchEmptyReason, string>;
+    /**
+     * Nothing sure to propose, and how much of the drawing is connected already (run 3 note 146: "No proposal is sure enough" alone read as if nothing
+     * worked, on a drawing with 7 of 9 symbols connected).
+     */
+    unsureCount: (connected: number, total: number) => string;
     /** While the host reads the devices' values: nothing is proposed yet, and Cancel still works. */
     loading: string;
     symbol: string;
@@ -281,6 +289,8 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   discardConfirm: 'Discard',
   keepEditing: 'Keep editing',
   readOnlyNote: 'You can look at this symbol but not change it.',
+  stateOn: 'On',
+  stateOff: 'Off',
   keysHint: 'Arrow keys move between rows, Enter takes the suggestion, Esc closes. Shift+Tab goes back into the drawing, where the arrow keys move between its symbols and Enter opens one.',
 
   matchAll: {
@@ -293,6 +303,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
       noDevices: 'There is no device to read from yet. Place a device here, or connect the symbols one by one.',
       unsure: 'No proposal is sure enough. Click a symbol to pick its device and value by hand.',
     },
+    unsureCount: (connected, total) => `${connected} of ${total} symbols are connected. No proposal for the rest is sure enough: click a symbol to pick its device and value by hand.`,
     loading: 'Reading the values of the devices…',
     symbol: 'Symbol',
     parameter: 'Shows',

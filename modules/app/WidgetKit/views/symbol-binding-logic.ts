@@ -161,6 +161,20 @@ const isMeasure = (v: unknown): boolean => typeof v === 'number' && Number.isFin
 const isWord = (v: unknown): boolean => typeof v === 'string' && !isBooleanish(v) && v.trim() !== '';
 
 const STATE_FIELDS = new Set(['running', 'on', 'enabled', 'active', 'open', 'alarm', 'fault', 'present']);
+
+/** Words of a key's name that make a 0 / 1 a state (`pump_running`, `door_open`, `alarm`, `Çalışıyor`), folded as `textWords` gives them. */
+const STATE_NAME_WORDS = new Set([
+  ...STATE_FIELDS, 'run', 'off', 'enable', 'state', 'status', 'door', 'switch', 'relay', 'trip', 'tripped', 'error', 'closed', 'close', 'stop', 'stopped',
+  'started', 'start', 'onoff', 'ok', 'fail', 'failed', 'leak', 'motion', 'occupied', 'presence', 'calisiyor', 'calisma', 'devrede', 'acik', 'kapali', 'ariza', 'alarm',
+]);
+/** Words of a key's name that make a 0 / 1 a count or a measure (`bags_per_hour`, `flow_rate`, `level`). */
+const MEASURE_NAME_WORDS = new Set([
+  'per', 'rate', 'count', 'counter', 'total', 'hour', 'hours', 'minute', 'second', 'daily', 'level', 'flow', 'speed', 'temperature', 'temp', 'pressure',
+  'humidity', 'voltage', 'rpm', 'load', 'percent', 'pct', 'value', 'reading', 'volume', 'weight', 'sayi', 'adet', 'seviye', 'debi',
+]);
+const nameWordsOf = (k: Partial<Pick<DeviceKey, 'key' | 'label'>>): string[] => [...textWords(k.key ?? ''), ...textWords(k.label ?? '')];
+const nameSaysState = (k: Partial<Pick<DeviceKey, 'key' | 'label'>>): boolean => nameWordsOf(k).some((w) => STATE_NAME_WORDS.has(w));
+const nameSaysMeasure = (k: Partial<Pick<DeviceKey, 'key' | 'label'>>): boolean => nameWordsOf(k).some((w) => MEASURE_NAME_WORDS.has(w));
 const WORD_FIELDS = new Set(['status', 'mode', 'quality', 'state', 'direction']);
 const NUMBER_FIELDS = /^(value\d*|speed|position|level|flow|temperature|pressure|humidity|power|current|voltage|rpm|setpoint)$/;
 
@@ -179,12 +193,16 @@ export function fieldKindOf(field: { name: string; kind?: FieldKind }): FieldKin
  * word is a state only for a boolean key, V1-B19); a declared number is a measure unless it is a 0/1 with no unit. With no declared type it is read off the
  * live value: a state (a boolean, 0/1 with no unit, an on/off word), a number (a measure, or a number with a unit), a text; null when it has no value.
  */
-export function keyKindOf(k: Pick<DeviceKey, 'value' | 'unit' | 'type'>): FieldKind | null {
+export function keyKindOf(k: Pick<DeviceKey, 'value' | 'unit' | 'type'> & Partial<Pick<DeviceKey, 'key' | 'label'>>): FieldKind | null {
   const unit = k.unit !== undefined && k.unit !== '';
+  const zeroOne = typeof k.value === 'number' && Number.isFinite(k.value) && !unit && (k.value === 0 || k.value === 1);
   if (k.type === 'boolean') return 'state';
   if (k.type === 'string') return 'text';
-  if (k.type === 'number') return typeof k.value === 'number' && Number.isFinite(k.value) && !unit && (k.value === 0 || k.value === 1) ? 'state' : 'number';
+  // a declared number that is 0 or 1 now is a state only when its name says so (run 3 note 61: "Bags per hour" at 0 was called on/off)
+  if (k.type === 'number') return zeroOne && nameSaysState(k) && !nameSaysMeasure(k) ? 'state' : 'number';
   if (typeof k.value === 'boolean') return 'state';
+  // an undeclared 0 or 1 is a state unless its name says it counts or measures (`alarm_count` counts, whatever else it names)
+  if (zeroOne) return nameSaysMeasure(k) ? 'number' : 'state';
   if (typeof k.value === 'number') return Number.isFinite(k.value) ? (unit || isMeasure(k.value) ? 'number' : 'state') : null;
   if (typeof k.value === 'string') return isBooleanish(k.value) ? 'state' : isWord(k.value) ? 'text' : null;
   return null;
@@ -331,7 +349,7 @@ export interface RankedKey {
 }
 
 /** The kind problem of feeding `key` to `field`, or null when the kinds agree or one of them is not known. */
-export function mismatchOf(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit' | 'type'>): Mismatch | null {
+export function mismatchOf(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit' | 'type'> & Partial<Pick<DeviceKey, 'key' | 'label'>>): Mismatch | null {
   const want = fieldKindOf(field);
   const got = keyKindOf(key);
   if (!want || !got || want === got) return null;
@@ -346,7 +364,7 @@ export function mismatchOf(field: { name: string; kind?: FieldKind }, key: Pick<
  * a Running field most likely reads, but a kind alone never makes a certainty: a tee's Running is not the device's one door), a mismatch costs (a state
  * for a number only a little: 0/1 may well be a reading at rest).
  */
-function typeScore(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit' | 'type'>, onlyOfKind: boolean): number {
+function typeScore(field: { name: string; kind?: FieldKind }, key: Pick<DeviceKey, 'value' | 'unit' | 'type'> & Partial<Pick<DeviceKey, 'key' | 'label'>>, onlyOfKind: boolean): number {
   const want = fieldKindOf(field);
   const got = keyKindOf(key);
   if (!want || !got) return 0;
@@ -543,6 +561,8 @@ export function rankKeysForField(
   for (const k of list) kinds.set(keyKindOf(k), (kinds.get(keyKindOf(k)) ?? 0) + 1);
   const stale = staleKeys(list);
   const symbolLabel = hints[0] ?? '';
+  // the codes of the symbol's own name (`FT-101`, `CL1`): a key, its label or its element that writes the same code is this symbol's (run 3 note 131)
+  const symbolCodes = codesOf(symbolLabel);
   // a device that names its pieces of equipment in its keys (two element prefixes or more: a plant, a controller): its flat keys may be another
   // piece's too; on a one-purpose device (flat keys only) a pump or a fan in a key's name is a part of the thing the device is
   const prefixes = new Set(list.filter((k) => k.key.includes('.')).map((k) => k.key.slice(0, k.key.lastIndexOf('.')).toLowerCase()));
@@ -580,6 +600,8 @@ export function rankKeysForField(
     const kindHits = new Set(hits.filter((w) => kindWords.has(w) && !ownHits.has(w)));
     const hitCount = ownHits.size + kindHits.size;
     if (hitCount > 0) { score += (reasons.length === 0 ? 65 : 15) + Math.min(2, hitCount - 1) * 15; reasons.push(ownHits.size > 0 ? 'symbol' : 'kind'); }
+    // the symbol's own code, written whole in the key or its label: a match to THIS symbol, as a word of its own name is
+    if (!reasons.includes('symbol') && sharesCode(symbolCodes, `${k.key} ${k.label ?? ''}`)) { score += reasons.length === 0 ? 65 : 15; reasons.push('symbol'); }
     if (reasons.length === 0 && long.some((w) => nlocal.includes(w) || nlabel.includes(w))) { score += 55; reasons.push('contains'); }
     const ruled = reasons.includes('element') || named;
     const foreign = identity.size > 0 && !!equipment && !ruled && (equipment.prefixed ? !sharesIdentity || differentEquipment : differentEquipment || otherThing);
@@ -1078,6 +1100,19 @@ export const DEVICE_NAME_SCORE = 10;
 /** The most devices a tie offers for one symbol (each with its own rows, none ticked): more would bury the table. */
 export const MAX_TIED_DEVICES = 3;
 
+/**
+ * The codes a text writes (run 3 notes 60 and 131): a tag or a code word, one to four letters and a number, written together or with a hyphen (`FT-101`, `B-101`,
+ * `CL1`, `K1`, `F1`, `B01`), folded and joined (`ft101`, `cl1`). A word cut by `wordsOf` loses them (`B-101` is `b` and `101`, neither a word that
+ * matches), so a code is compared whole. A name with a space before its number ("Pump 1") holds no code.
+ */
+export function codesOf(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const m of foldText(text).matchAll(/(?:^|[^\p{L}\p{N}])(\p{L}{1,4})-?(\d{1,5}\p{L}?)(?=$|[^\p{L}\p{N}])/gu)) out.add(`${m[1]}${m[2]}`);
+  return out;
+}
+
+const sharesCode = (a: ReadonlySet<string>, text: string): boolean => a.size > 0 && [...codesOf(text)].some((c) => a.has(c));
+
 /** A name as words and as tags: the numbers and single letters that tell twins apart ("Chiller 1", "Sera 1 A", "T-101"). */
 function nameParts(text: string): { words: Set<string>; tags: Set<string> } {
   const all = wordsOf(text);
@@ -1142,8 +1177,12 @@ export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: Read
       return !named.some((o) => o.id !== s.id && deviceNameRelation(c, o.label) === 'names');
     });
     const naming = mine ? viable.filter((c) => deviceNameRelation(c, s.label) === 'names') : [];
+    // without one, the devices that write the symbol's code (`CL1 collector` and the `CL1 controller`, run 3 note 60): a shared word added only a little, so
+    // a device whose keys fitted the kind better (the sorter) won; a code names the thing
+    const codes = mine ? codesOf(s.label) : new Set<string>();
+    const coded = naming.length === 0 && codes.size > 0 ? viable.filter((c) => sharesCode(codes, `${c.deviceName} ${c.place ?? ''}`)) : [];
     // the device the symbol's name points at decides; only without one is the symbol ranked across the others
-    const pool = naming.length > 0 ? naming : viable;
+    const pool = naming.length > 0 ? naming : coded.length > 0 ? coded : viable;
     const options = pool
       .map((c) => ({ c, keys: keysByDevice.get(c.deviceId) }))
       .filter((o): o is { c: { deviceId: string; deviceName: string; place?: string }; keys: readonly DeviceKey[] } => !!o.keys && o.keys.length > 0)
@@ -1166,7 +1205,7 @@ export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: Read
       continue;
     }
     // certain only on the symbol's own device: the one its name points at, or the one device there is; a guess across devices never is
-    const own = naming.length > 0 || candidates.length === 1;
+    const own = naming.length > 0 || coded.length === 1 || candidates.length === 1;
     const lead = !next || best.total - next.total >= CONFIDENT_LEAD;
     take(best, own && lead, lead);
   }
