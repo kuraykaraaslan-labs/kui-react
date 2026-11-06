@@ -330,7 +330,7 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         canCreateDevice: true, canEditDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true,
         canWriteAttributes: true, canActivateDevice: true, canReleaseDevice: false, canReadAlarms: true, canAcknowledge: true,
         canClear: true, canComment: true, canSendRpc: true, canManageProfiles: true, canManageProvisioning: true, canManageAlarmRules: true, canManageRpcCommands: true,
-        canManageAssets: true, canPlaceDevices: true, canReadTelemetry: true, canAttachCertificates: true,
+        canManageAssets: true, canPlaceDevices: true, canReadDevices: true, canReadTelemetry: true, canAttachCertificates: true,
       };
     },
     profiles: {

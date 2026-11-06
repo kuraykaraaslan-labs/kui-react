@@ -30,6 +30,19 @@ export function isNamedAssetKind(kind: string): kind is NamedAssetKind {
   return (NAMED_ASSET_KINDS as readonly string[]).includes(kind);
 }
 
+/** The kind a new child of `parentKind` starts with (a building under a site, a floor in a building, …); `OTHER` under a kind it does not know. Pure. */
+export function defaultChildKind(parentKind: string | null | undefined): SuggestedAssetKind {
+  switch ((parentKind ?? '').toUpperCase()) {
+    case '': case 'REGION': return 'SITE';
+    case 'SITE': case 'PLANT': return 'BUILDING';
+    case 'BUILDING': return 'FLOOR';
+    case 'FLOOR': return 'ROOM';
+    case 'ROOM': case 'ZONE': case 'DEPOT': return 'AREA';
+    case 'AREA': case 'LINE': return 'MACHINE';
+    default: return 'OTHER';
+  }
+}
+
 /** One node of the tree as the tree view draws it: its counts, and its children (all of them, or none when not loaded yet). */
 export type AssetNode = {
   assetId: string;
@@ -65,8 +78,13 @@ export type AssetRecord = {
   attributes: Record<string, unknown>;
   /** Root first, the asset itself not included. */
   ancestors: AssetCrumb[];
+  /** The ancestor its inherited zone comes from; null: its own zone or none; absent: the host does not say (then the nearest ancestor is not assumed). */
+  timezoneFrom?: { assetId: string; name: string } | null;
   childCount: number;
+  /** Devices placed directly on it (the placements a delete ends). */
   deviceCount: number;
+  /** Its other relations (either end, any type but those placements), which a delete removes too; absent: the host does not count them. */
+  relationCount?: number;
   /** The board that shows this asset ("Open dashboard"); null or absent: none. */
   defaultDashboardId?: string | null;
   createdAt?: Date | null;
