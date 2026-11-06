@@ -481,3 +481,86 @@ describe('RuleEditor: next-boilerplate run 3', () => {
     expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Escalate!' }));
   });
 });
+
+/**
+ * next-boilerplate UI test 3, scenario 25 (#213, #214, #85): a command row over a catalog command whose control is a required select with one
+ * option and whose value is typed by that control. The control showed but was never held ("The params do not match the command."), and the
+ * value was a raw "{ }" box. Now the control is picked like any choice and the value is the control's own: Açık / Kapalı, a number, nothing.
+ */
+describe('RuleEditor: a command of one control, its value typed by the control (UI test 3)', () => {
+  const setValue = (controls: Array<{ key: string; label: string; value: Record<string, unknown> | null }>) => ({
+    key: { label: 'Control', type: 'select', required: true, options: controls.map((c) => ({ value: c.key, label: c.label })) },
+    value: { label: 'Value', type: 'json', variants: { by: 'key', cases: Object.fromEntries(controls.map((c) => [c.key, c.value])) } },
+  });
+  const factory: RuleScope = {
+    place: { type: 'asset', id: 'f1', name: 'Çınaraltı fabrikası', hasLocation: true },
+    devices: [
+      { deviceId: 'co2', name: 'CO2 tankı', profileId: 'co2_tanki', values: [{ key: 'tank.value', label: 'CO2 tankı · value', sample: 24 }] },
+      { deviceId: 'dk', name: 'Dolum-kapama', profileId: 'dolum_kapama', values: [] },
+      { deviceId: 'cip', name: 'CIP istasyonu', profileId: 'cip', values: [] },
+    ],
+    deviceTypes: [
+      { profileId: 'co2_tanki', name: 'CO2 tankı', deviceCount: 1, commands: [] },
+      { profileId: 'dolum_kapama', name: 'Dolum-kapama monobloğu', deviceCount: 1, commands: [
+        { method: 'scada.set_value', label: 'Hat kumandası', tier: 'basic', highImpact: false, cardCanSend: true,
+          paramsSchema: setValue([{ key: 'calistir', label: 'Hattı çalıştır', value: { label: 'Hattı çalıştır', type: 'boolean', required: true } }]) },
+      ] },
+      { profileId: 'cip', name: 'CIP istasyonu', deviceCount: 1, commands: [
+        { method: 'scada.set_value', label: 'CIP kumandası', tier: 'basic', highImpact: false, cardCanSend: true,
+          paramsSchema: setValue([{ key: 'baslat', label: 'CIP başlat', value: null }]) },
+      ] },
+    ],
+    roles: ['OWNER', 'ADMIN', 'USER'],
+  };
+  const tr = { rules: { on: 'Açık', off: 'Kapalı' } };
+  const co2Low: RuleDefinition = {
+    v: 1, options: { overlap: 'ignore' },
+    when: [{ id: 't1', kind: 'value', target: { device: 'co2' }, key: 'tank.value', change: 'below', value: 20 }],
+    then: [{ id: 'a1', kind: 'command', target: { device: 'dk' }, command: 'scada.set_value' }],
+  };
+  const saveConfirmed = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByLabelText('Yes, let this rule act on its own'));
+    await user.click(within(dialog).getByRole('button', { name: 'Save rule' }));
+  };
+
+  it('"CO2 tankı below 20 → Hat kumandası on Dolum-kapama, Hattı çalıştır off" saves { key, value: false }', async () => {
+    const onSave = vi.fn(async (_input: unknown) => undefined);
+    const user = userEvent.setup();
+    render(<RuleEditor scope={factory} initial={{ name: 'CO2 %20 altında dolumu durdur', definition: co2Low }} messages={tr} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    const control = screen.getByLabelText(/Control/) as HTMLSelectElement;
+    expect(control.value).toBe('');
+    expect(screen.queryByPlaceholderText('{ }')).toBeNull();
+    await user.selectOptions(control, 'calistir');
+    await user.click(screen.getByRole('radio', { name: 'Kapalı' }));
+    await saveConfirmed(user);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const saved = onSave.mock.calls[0]![0] as { definition: RuleDefinition };
+    expect(saved.definition.then[0]).toMatchObject({ kind: 'command', target: { device: 'dk' }, command: 'scada.set_value', params: { key: 'calistir', value: false } });
+  });
+
+  it('"every weekday 22:30 → CIP kumandası, CIP başlat" saves the control alone: a button takes no value', async () => {
+    const onSave = vi.fn(async (_input: unknown) => undefined);
+    const user = userEvent.setup();
+    const cip: RuleDefinition = {
+      v: 1, options: { overlap: 'ignore' },
+      when: [{ id: 't1', kind: 'time', at: '22:30', days: [1, 2, 3, 4, 5] }],
+      then: [{ id: 'a1', kind: 'command', target: { device: 'cip' }, command: 'scada.set_value' }],
+    };
+    render(<RuleEditor scope={factory} initial={{ name: 'CIP her iş günü', definition: cip }} messages={tr} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText(/Control/), 'baslat');
+    expect(screen.queryByText('Value')).toBeNull();
+    await saveConfirmed(user);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect((onSave.mock.calls[0]![0] as { definition: RuleDefinition }).definition.then[0]).toMatchObject({ params: { key: 'baslat' } });
+  });
+
+  it('a problem the server found in one value shows under that value, not a second time under the row', () => {
+    const problem = { path: ['then', 0, 'params', 'key'], code: 'bad_param', message: '“Control” boş: değerini seçin.' };
+    render(<RuleEditor scope={factory} initial={{ name: 'x', definition: co2Low }} problems={[problem]} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getAllByText('“Control” boş: değerini seçin.')).toHaveLength(1);
+    const field = document.querySelector('#action-a1-params [data-field="key"]')!;
+    expect(within(field as HTMLElement).getByRole('alert')).toHaveTextContent('“Control” boş: değerini seçin.');
+  });
+});

@@ -80,7 +80,7 @@ export function PlaceCommands({ scope, canSend, onSend, messages, className }: P
           options={[{ value: '', label: m.rules.commandChoose }, ...(entry?.commands ?? []).map((c) => ({ value: c.method, label: c.label }))]}
         />
       </div>
-      {command && Object.keys(schema).length ? <SchemaForm schema={schema} values={values} errors={errors} onChange={setValues} debounceMs={0} /> : null}
+      {command && Object.keys(schema).length ? <SchemaForm schema={schema} values={values} errors={errors} onChange={setValues} debounceMs={0} messages={{ on: m.rules.on, off: m.rules.off }} /> : null}
       <div className="flex items-center gap-3">
         <Button size="sm" disabled={!canSend || !command} loading={busy} onClick={() => void send()}>
           <FontAwesomeIcon icon={faPaperPlane} className="mr-2" />{m.rules.commandSend}

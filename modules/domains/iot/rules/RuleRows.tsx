@@ -470,7 +470,7 @@ function ActionRow({ a, path, ctx, onChange, takenIds }: { a: RuleAction; path: 
           </>
         ) : null}
       </div>
-      {a.kind === 'command' ? <CommandParams a={a} ctx={ctx} onChange={onChange} id={id} /> : null}
+      {a.kind === 'command' ? <CommandParams a={a} path={path} ctx={ctx} onChange={onChange} id={id} /> : null}
       {a.kind === 'wait_until' ? (
         <div className="flex flex-col gap-2">
           <ConditionGroup root value={{ all: [a.condition] }} path={[...path, 'condition']} ctx={ctx} onChange={(c) => onChange({ ...a, condition: (c && 'all' in c ? c.all[0] : c) ?? emptyCondition('value') })} />
@@ -504,16 +504,32 @@ function ActionRow({ a, path, ctx, onChange, takenIds }: { a: RuleAction; path: 
   );
 }
 
-function CommandParams({ a, ctx, onChange, id }: { a: Extract<RuleAction, { kind: 'command' }>; ctx: Ctx; onChange: (a: RuleAction) => void; id: string }) {
+/**
+ * The command's values as its catalog declares them: a control picked by name, its value typed by that control (an on / off choice, a number
+ * in range, nothing for a button). A problem the server found in one value shows under that value (`['then', i, 'params', <param>]`).
+ */
+function CommandParams({ a, path, ctx, onChange, id }: { a: Extract<RuleAction, { kind: 'command' }>; path: Array<string | number>; ctx: Ctx; onChange: (a: RuleAction) => void; id: string }) {
   const cmd = commandOptions(ctx.scope, a.target).find((c) => c.method === a.command);
   const schema = (cmd?.paramsSchema ?? {}) as Record<string, never>;
   if (!cmd || !Object.keys(schema).length) return null;
+  const errors: Record<string, string> = {};
+  for (const p of problemsAt(ctx.problems, [...path, 'params'])) {
+    const key = p.path[path.length + 1];
+    if (typeof key === 'string' && !errors[key]) errors[key] = p.message;
+  }
   return (
     <div id={`${id}-params`} className="rounded-md bg-surface-sunken p-2">
-      <SchemaForm schema={schema} values={a.params ?? {}} onChange={(v) => onChange({ ...a, params: v })} debounceMs={0} />
+      <SchemaForm schema={schema} values={a.params ?? {}} errors={errors} messages={paramWords(ctx.m)} onChange={(v) => onChange({ ...a, params: v })} debounceMs={0} />
     </div>
   );
 }
+
+/** The problems of an action row but those of its command's values, which show under the value itself (`CommandParams`). */
+const beside = (problems: readonly RuleProblem[], row: Array<string | number>): RuleProblem[] =>
+  problems.filter((p) => p.path[row.length] !== 'params' || !row.every((seg, k) => p.path[k] === seg));
+
+/** The words the command's values form says itself: the On / Off of a switch's value. */
+export const paramWords = (m: Pick<IotMessages['rules'], 'on' | 'off'>) => ({ on: m.on, off: m.off });
 
 /** The actions in order; a choice deeper than the server allows (two levels) is turned back into a plain command row. */
 export function ActionList({ items, path, ctx, onChange, takenIds }: { items: RuleAction[]; path: Array<string | number>; ctx: Ctx; onChange: (v: RuleAction[]) => void; takenIds: Set<string>; nested?: boolean }) {
@@ -531,7 +547,7 @@ export function ActionList({ items, path, ctx, onChange, takenIds }: { items: Ru
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1">
               <ActionRow a={a} path={[...path, i]} ctx={ctx} takenIds={takenIds} onChange={(next) => onChange(items.map((x, j) => (j === i ? (depth >= 2 && next.kind === 'choose' ? emptyAction('command', next.id) : next) : x)))} />
-              <Why problems={ctx.problems} path={[...path, i]} />
+              <Why problems={beside(ctx.problems, [...path, i])} path={[...path, i]} />
             </div>
             <RowTools i={i} count={items.length} m={m} name={`${m.then} ${i + 1}`} onMove={(by) => onChange(move(items, i, by))} onRemove={() => onChange(items.filter((_, j) => j !== i))} />
           </div>

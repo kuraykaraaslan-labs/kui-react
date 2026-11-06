@@ -164,7 +164,7 @@ export function RpcSendPanel({
           {command && (Object.keys(command.paramsSchema).length ? (
             <div className="space-y-2">
               <p className="text-sm font-medium text-text-primary">{m.rpc.params}</p>
-              <SchemaForm schema={command.paramsSchema} values={values} onChange={(v) => { setValues(v); setErrors({}); }} errors={errors} debounceMs={0} />
+              <SchemaForm schema={command.paramsSchema} values={values} onChange={(v) => { setValues(v); setErrors({}); }} errors={errors} debounceMs={0} messages={{ on: m.rules.on, off: m.rules.off }} />
             </div>
           ) : <p className="text-xs text-text-secondary">{m.rpc.noParams}</p>)}
           {(command || isRaw) && (
