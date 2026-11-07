@@ -9,7 +9,7 @@ next-boilerplate (NB) vendors these components for its `document_editor` family.
 **Repos:** kui-react, plus kui-ejs for DEK-4 only (`CodeEditor` already exists there at parity, so its plain-text mode is
 mirrored, 12.4). kui-ejs and KUInative get **no mirror** of the new components: they exist nowhere else (owner rule: no
 component is created where it is absent unless asked). Parity exceptions are recorded (12.13).
-**Origin:** NB planning talk of 2026-11-07, owner decisions OD-234…OD-240
+**Origin:** NB planning talk of 2026-11-07, owner decisions OD-234…OD-244
 (`$NEXT_BOILERPLATE_ROOT/docs/concepts/document-editor-platform/README.md`). Item ids `DEK-<n>` are cited by NB's
 `docs/concepts/document-editor*/` folders; never renumber them.
 
@@ -131,6 +131,9 @@ pdf.js loads its worker lazily. Styling is tokens only and icons are Font Awesom
 - Page setup is **per section**: each section carries its own size, orientation, margins, columns and header / footer
   regions (default, first page, even page), as Word does.
 - Print layout and browser **Print / Save as PDF** with the same page breaks (`@page` rules generated from `pageLayout`).
+- **Page display list** (`getPageLayout()`): per page, the positioned glyph runs (text, font, size, colour), images (with
+  crop and clip), vector paths, borders, fills, transforms and header / footer contents, measured from the laid-out pages. NB's host turns it into PDF bytes with
+  `pdf-lib` in the browser (NB DEF-E6, OD-243: no server converter); kui-react itself does not depend on `pdf-lib`.
 - Target, measured on NB's Word corpus: page breaks within one line of Word's own PDF on 90 % of pages (provisional; the
   number is reported, not assumed).
 
@@ -192,7 +195,7 @@ pdf.js loads its worker lazily. Styling is tokens only and icons are Font Awesom
 - Viewer on `pdfjs-dist`: virtualised pages, text layer (selection, search), zoom, fit width / page, rotation view,
   thumbnails component for a host drawer, outline (bookmarks) list.
 - **Annotation tools:** highlight, underline, strikeout, sticky note, free text, ink, rectangle / ellipse / line / arrow,
-  image stamp, signature placement box (the signing itself is the host's).
+  image stamp, signature placement box, placeable in a **read-only** view too, since anyone who can see a PDF may sign it (NB OD-244); the signing itself is the host's.
 - **Forms:** AcroForm text, checkbox, radio, choice fields filled in place; XFA forms shown read-only with a notice.
 - **Pages:** reorder by drag in thumbnails, rotate, delete, insert pages from another PDF (host gives the bytes), extract.
 - **Redaction marks:** the user marks areas or text; the component outputs them; applying redaction is the host's (it must
@@ -214,6 +217,9 @@ pdf.js loads its worker lazily. Styling is tokens only and icons are Font Awesom
 - Slide list (thumbnails, reorder, duplicate, hide), canvas with text boxes (`DocumentEditor` per text box, `plain-rich`
   preset), shapes, images, simple tables, layouts and masters given as data by the host, speaker notes, **Present** mode
   (full screen, keyboard, presenter view with notes and timer).
+- **Slide display list** (`getSlideLayout()`): per slide, measured glyph runs, images with crop and clip, vector paths,
+  fills, borders and transforms, the same shape as DEK-5's page display list, so NB's host writes slides to PDF with the
+  same writer (NB DEF-E6).
 - Output: a slide model for the host to write (NB `document_editor_slides`).
 
 ## 12.12 Showcase, docs and tests
@@ -229,7 +235,7 @@ pdf.js loads its worker lazily. Styling is tokens only and icons are Font Awesom
 
 `parity.exceptions.json` gains records for `DocumentEditor`, `MarkdownEditor`, `CommentThreadPanel`, `PdfEditor`,
 `SlideEditor`: `presentIn: ["kui-react"]`, `absentIn: ["kui-ejs", "KUInative"]`, reason "New in phase 12 for NB's document
-editor family (OD-234…OD-240); no counterpart; created elsewhere only on an owner request".
+editor family (OD-234…OD-244); no counterpart; created elsewhere only on an owner request".
 
 ## Order and releases
 
