@@ -56,11 +56,11 @@ export const GAUGE: SettingsTemplate = {
     iconBackground: colorField('Icon background', 'icon', undefined, { advanced: true }),
     min: {
       label: 'Minimum', type: 'number', display: 'input', value: 0, group: 'scale',
-      description: 'Used when no minimum slot is bound. Until set, the value\'s own minimum when its source declares one.',
+      description: 'Used when no value is chosen for Minimum on the Data tab. Until set, the value\'s own minimum when its source declares one.',
     },
     max: {
       label: 'Maximum', type: 'number', display: 'input', value: 100, group: 'scale',
-      description: 'Used when no maximum slot is bound. Until set, the value\'s own maximum when its source declares one.',
+      description: 'Used when no value is chosen for Maximum on the Data tab. Until set, the value\'s own maximum when its source declares one.',
     },
     showMinMax: { label: 'Show min and max', type: 'boolean', value: true, group: 'scale' },
     minMaxFont: fontField('Scale font', 'scale', { advanced: true }),

@@ -243,6 +243,17 @@ describe('progress view', () => {
   });
 });
 
+describe('gauge scale help', () => {
+  it('next-boilerplate phase 53.2.10 (re-run 4 #28): names the Data tab\'s Minimum and Maximum, never a "slot"', () => {
+    const fields = GAUGE.fields as Record<string, { description?: string }>;
+    expect(fields.min.description).toMatch(/^Used when no value is chosen for Minimum on the Data tab\./);
+    expect(fields.max.description).toMatch(/^Used when no value is chosen for Maximum on the Data tab\./);
+    for (const f of Object.values(fields)) expect(f.description ?? '').not.toMatch(/\bslots?\b/i);
+    // the names it gives are the Data tab's own
+    expect(GAUGE_KIND.slots.filter((s) => s.key !== 'value').map((s) => s.label)).toEqual(['Minimum', 'Maximum']);
+  });
+});
+
 describe('gauge view', () => {
   const value: SlotData = { shape: 'scalar', value: 72 };
   it('renders a meter with defaults: outer range line, rounded arc, the number as a metric', () => {
