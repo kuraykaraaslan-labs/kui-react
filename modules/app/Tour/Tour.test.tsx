@@ -243,6 +243,45 @@ describe('modal hosts', () => {
     expect(b.fake.calls.doms[0].wrapper.parentElement).toBeNull();
   });
 
+  it('brings the layers back to the page when their dialog closes during the step (a drawer kept mounted, inert)', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-modal="true" id="host"><button data-tour="inside">In</button></div>');
+    const { fake, runner } = makeRunner({ steps: modalSteps });
+    await runner.start();
+    const host = document.getElementById('host')!;
+    expect(fake.calls.doms[0].wrapper.parentElement).toBe(host);
+    host.setAttribute('inert', '');
+    host.setAttribute('aria-hidden', 'true');
+    await vi.waitFor(() => expect(fake.calls.doms[0].wrapper.parentElement).toBe(document.body));
+    expect(fake.overlay.parentElement).toBe(document.body);
+    runner.dispose();
+  });
+
+  it('brings the layers back to the page when their dialog is removed during the step (a Radix dialog unmounting)', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" id="radix"><button data-tour="inside">In</button></div>');
+    const { fake, runner } = makeRunner({ steps: modalSteps });
+    await runner.start();
+    document.getElementById('radix')!.remove();
+    await vi.waitFor(() => expect(fake.calls.doms[0].wrapper.parentElement).toBe(document.body));
+    expect(fake.calls.doms[0].wrapper.isConnected).toBe(true);
+    runner.dispose();
+  });
+
+  it('moves the layers into a dialog that opens during a step, and stops watching once the tour ends', async () => {
+    const { fake, runner } = makeRunner({ steps: [{ id: 'pick', text: 'Pick one in the drawer.', interactive: true }] });
+    await runner.start();
+    expect(fake.calls.doms[0].wrapper.parentElement).toBeNull();
+    const drawer = document.createElement('div');
+    drawer.setAttribute('role', 'dialog');
+    drawer.setAttribute('aria-modal', 'true');
+    drawer.getClientRects = () => [{}] as unknown as DOMRectList; // jsdom lays nothing out
+    document.body.appendChild(drawer);
+    await vi.waitFor(() => expect(fake.calls.doms[0].wrapper.parentElement).toBe(drawer));
+    runner.finish('dismissed');
+    drawer.remove();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fake.calls.doms[0].wrapper.parentElement).toBe(drawer); // no longer followed: the tour is over
+  });
+
   it('a host may choose the container itself, or none', async () => {
     document.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-modal="true"><button data-tour="inside">In</button></div><section id="mine"></section>');
     const mine = document.getElementById('mine')!;

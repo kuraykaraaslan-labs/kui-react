@@ -78,8 +78,10 @@ const MODAL = '[aria-modal="true"], [role="dialog"]:not([aria-modal="false"])';
 export function modalHostFor(target: Element | null, doc: Document = document): Element | null {
   if (target?.closest('dialog[open]')) return null;
   const own = target?.closest(MODAL);
-  const open = own
-    ? [own]
+  // a dialog that has closed while staying in the page (a drawer kept mounted, now inert) or has left it hosts nothing
+  const ownOpen = own && own.isConnected && !own.closest('[inert], [aria-hidden="true"]') ? own : null;
+  const open = ownOpen
+    ? [ownOpen]
     : Array.from(doc.querySelectorAll(MODAL))
         .filter((el) => !el.closest('.driver-popover') && !el.closest('[inert], [aria-hidden="true"]') && el.getClientRects().length > 0)
         .reverse();
@@ -147,6 +149,10 @@ export class TourRunner {
     this.clearStep();
     this.doc.removeEventListener('keydown', this.onKey, true);
     this.doc.body.classList.remove('kui-tour-interactive');
+    this.watcher?.disconnect();
+    this.watcher = null;
+    this.recheck?.();
+    this.recheck = null;
     this.driver?.destroy();
     this.driver = undefined;
   }
@@ -187,10 +193,51 @@ export class TourRunner {
         this.overlayMoved = false;
       }
     }
-    if (host && this.popover && this.popover.parentElement !== host) host.appendChild(this.popover);
+    if (this.popover) {
+      if (host) {
+        if (this.popover.parentElement !== host) host.appendChild(this.popover);
+        this.popoverMoved = true;
+      } else if (this.popoverMoved) {
+        this.doc.body.appendChild(this.popover); // the dialog closed while its step showed (a drawer's Save): the popover stays usable
+        this.popoverMoved = false;
+      }
+    }
+    this.watchHosts();
   }
 
   private overlayMoved = false;
+  private popoverMoved = false;
+  private watcher: MutationObserver | null = null;
+  private recheck: (() => void) | null = null;
+
+  /**
+   * A dialog can open or close while a step shows (the reader saves the drawer the step pointed into): the layers follow it,
+   * checked at most once a frame while the tour runs. Only what makes a dialog appear, close or leave is watched.
+   */
+  private watchHosts() {
+    if (this.watcher || this.closed || typeof MutationObserver === 'undefined' || !this.doc.body) return;
+    const view = this.doc.defaultView;
+    this.watcher = new MutationObserver(() => {
+      if (this.recheck || this.closed) return;
+      const run = () => {
+        this.recheck = null;
+        if (!this.closed) this.placeLayers();
+      };
+      if (view?.requestAnimationFrame) {
+        const id = view.requestAnimationFrame(run);
+        this.recheck = () => view.cancelAnimationFrame(id);
+      } else {
+        const id = setTimeout(run, 16);
+        this.recheck = () => clearTimeout(id);
+      }
+    });
+    this.watcher.observe(this.doc.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ['inert', 'aria-hidden', 'aria-modal', 'role', 'open', 'hidden'],
+    });
+  }
 
   private arrowsAreOurs(target: EventTarget | null): boolean {
     if (isTyping(target)) return false;
@@ -272,6 +319,7 @@ export class TourRunner {
     const { labels } = this.opts;
     const wrapper = dom.wrapper;
     this.popover = wrapper;
+    this.popoverMoved = false;
     wrapper.setAttribute('role', 'dialog');
     wrapper.setAttribute('aria-label', this.opts.ariaLabel);
     wrapper.setAttribute('dir', this.opts.dir);
