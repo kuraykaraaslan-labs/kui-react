@@ -8,7 +8,7 @@ import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { Modal } from '@/modules/ui/Modal';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column, DataTableRowId } from '@/modules/ui/Table/types';
+import type { Column, DataTableMessages, DataTableRowId } from '@/modules/ui/Table/types';
 import { useNow } from '../useNow';
 import { ageText, formatValue, type MatchEmptyReason, type MatchRow } from './symbol-binding-logic';
 import { DEFAULT_SYMBOL_BINDING_MESSAGES, mergeMessages, type DeepPartial, type SymbolBindingMessages } from './symbol-binding-messages';
@@ -35,6 +35,11 @@ export interface SymbolMatchAllDialogProps {
   /** The workspace's language: the values' numbers follow it (`formatValue`). */
   locale?: string;
   messages?: DeepPartial<SymbolBindingMessages>;
+  /**
+   * The table's own words in the host's language: its search, "N selected", "Clear selection", the empty and paging lines (next-boilerplate phase 52.6.1,
+   * UI test 3: "Search…" and "2 selected" stayed English in a Turkish workspace), as `SceneSetupDrawer`'s `tableMessages`. The dialog's own words win.
+   */
+  tableMessages?: Partial<DataTableMessages>;
   portalTarget?: Element | string | null;
 }
 
@@ -43,7 +48,7 @@ export function SymbolMatchAllDialog(props: SymbolMatchAllDialogProps) {
   return props.open ? <MatchForm key="open" {...props} /> : null;
 }
 
-function MatchForm({ rows, onApply, onClose, busy = false, loading = false, emptyReason, connected, messages, portalTarget, locale, ...rest }: SymbolMatchAllDialogProps) {
+function MatchForm({ rows, onApply, onClose, busy = false, loading = false, emptyReason, connected, messages, tableMessages, portalTarget, locale, ...rest }: SymbolMatchAllDialogProps) {
   const all = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages), [messages]);
   const m = all.matchAll;
   const age = all.age;
@@ -130,7 +135,7 @@ function MatchForm({ rows, onApply, onClose, busy = false, loading = false, empt
           multiSort={false}
           scrollClassName="max-h-[60vh] overflow-y-auto"
           tableClassName="text-xs"
-          messages={{ tableLabel: m.tableLabel, selectAllRows: m.selectAll, selectRow: m.selectRow }}
+          messages={{ ...tableMessages, tableLabel: m.tableLabel, selectAllRows: m.selectAll, selectRow: m.selectRow }}
         />
       )}
     </Modal>

@@ -305,6 +305,19 @@ describe('SymbolMatchAllDialog: next-boilerplate run 3', () => {
     rerender(<SymbolMatchAllDialog open rows={[]} emptyReason="unsure" onApply={vi.fn()} onClose={vi.fn()} messages={{ matchAll: { unsureCount: (c, t) => `${c} / ${t} bağlı.` } }} connected={{ connected: 2, total: 3 }} />);
     expect(screen.getByText('2 / 3 bağlı.')).toBeInTheDocument();
   });
+  it('next-boilerplate phase 52.6.1: the table\'s own search, "N selected" and "Clear selection" are in the host\'s words; the dialog\'s own stay its', () => {
+    const many: MatchRow[] = Array.from({ length: 9 }, (_, i) => ({ ...row, id: `p${i}.value`, symbolId: `p${i}`, symbolLabel: `Pump ${i}`, confident: i < 2 }));
+    render(<SymbolMatchAllDialog
+      open rows={many} onApply={vi.fn()} onClose={vi.fn()} now={NOW}
+      tableMessages={{ searchPlaceholder: 'Ara…', selectedCount: '{count} seçili', clearSelection: 'Seçimi temizle', tableLabel: 'Veri tablosu' }}
+    />);
+    expect(screen.getByPlaceholderText('Ara…')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Search…')).toBeNull();
+    expect(screen.getByText('2 seçili')).toBeInTheDocument();
+    expect(screen.getByText('Seçimi temizle')).toBeInTheDocument();
+    // the dialog's own name for its table wins over the host's generic one
+    expect(screen.getByRole('table', { name: 'Proposals' })).toBeInTheDocument();
+  });
   it('note 51: ticking the first row moves no row: the selection line keeps its room while nothing is ticked', async () => {
     const user = userEvent.setup();
     render(<SymbolMatchAllDialog open rows={[row]} onApply={vi.fn()} onClose={vi.fn()} now={NOW} />);
