@@ -8,6 +8,13 @@ export type DriverFactory = (config: Config) => Driver;
 
 export type TourRunnerOptions = {
   steps: TourStep[];
+  /**
+   * Where the popover and the overlay live for a step. Default: the open modal dialog (`aria-modal="true"`) the step's target
+   * is in, else the topmost one, so the dialog's focus trap and aria-modal scope include the tour; a dialog that moves its
+   * content with a transform (which would shift Driver.js's fixed positions) and a native <dialog> (Driver.js handles it)
+   * are left alone. Return null to leave them where Driver.js put them.
+   */
+  container?: (target: Element | null) => Element | null;
   labels: TourLabels;
   dir: 'ltr' | 'rtl';
   ariaLabel: string;
@@ -50,6 +57,33 @@ function isTyping(target: EventTarget | null): boolean {
   return Boolean(el && (el.isContentEditable || /^(input|textarea|select)$/i.test(el.tagName)));
 }
 
+const shown = (v: string | null | undefined) => Boolean(v) && v !== 'none' && v !== 'normal' && v !== 'auto';
+
+/** An element that makes `position: fixed` children relative to itself (a transform, a filter, containment…), or one of its ancestors does. */
+export function shiftsFixedChildren(el: Element, doc: Document = document): boolean {
+  const view = doc.defaultView;
+  if (!view) return false;
+  for (let n: Element | null = el; n && n !== doc.documentElement; n = n.parentElement) {
+    const cs = view.getComputedStyle(n);
+    if ([cs.transform, cs.translate, cs.scale, cs.rotate, cs.filter, cs.perspective, cs.getPropertyValue('backdrop-filter')].some(shown)) return true;
+    if (/paint|layout|strict|content/.test(cs.contain ?? '') || /transform|filter|perspective/.test(cs.willChange ?? '')) return true;
+  }
+  return false;
+}
+
+/** The default host of a step's popover and overlay (see TourRunnerOptions.container). */
+export function modalHostFor(target: Element | null, doc: Document = document): Element | null {
+  if (target?.closest('dialog[open]')) return null;
+  const own = target?.closest('[aria-modal="true"]');
+  const open = own
+    ? [own]
+    : Array.from(doc.querySelectorAll('[aria-modal="true"]'))
+        .filter((el) => !el.closest('.driver-popover') && !el.closest('[inert], [aria-hidden="true"]') && el.getClientRects().length > 0)
+        .reverse();
+  for (const el of open) if (!shiftsFixedChildren(el, doc)) return el;
+  return null;
+}
+
 let idSeq = 0;
 
 export class TourRunner {
@@ -61,6 +95,7 @@ export class TourRunner {
   private readonly ids = { title: `kui-tour-title-${++idSeq}`, text: `kui-tour-text-${idSeq}` };
   private returnFocus: HTMLElement | null = null;
   private popover: HTMLElement | null = null;
+  private target: Element | null = null;
 
   constructor(
     private readonly loadDriver: () => Promise<DriverFactory>,
@@ -132,6 +167,27 @@ export class TourRunner {
     }
   };
 
+  /**
+   * A step inside an open modal dialog (an editor in a Radix dialog): the popover and the overlay go into it, so the dialog's
+   * focus trap lets the keyboard reach the popover. A later step outside any modal brings the overlay back to the page.
+   */
+  private placeLayers() {
+    const host = this.opts.container ? this.opts.container(this.target) : modalHostFor(this.target, this.doc);
+    const overlay = (this.driver?.getState?.('__overlaySvg') ?? null) as Element | null;
+    if (overlay) {
+      if (host) {
+        if (overlay.parentElement !== host) host.appendChild(overlay);
+        this.overlayMoved = true;
+      } else if (this.overlayMoved) {
+        this.doc.body.appendChild(overlay); // back to the page (also when the dialog it was in has gone)
+        this.overlayMoved = false;
+      }
+    }
+    if (host && this.popover && this.popover.parentElement !== host) host.appendChild(this.popover);
+  }
+
+  private overlayMoved = false;
+
   private arrowsAreOurs(target: EventTarget | null): boolean {
     if (isTyping(target)) return false;
     const node = target as Node | null;
@@ -194,7 +250,9 @@ export class TourRunner {
         onPopoverRender: (dom) => this.render(dom, step, i),
       },
     };
+    this.target = element;
     driver.highlight(drive);
+    this.placeLayers(); // the overlay may only exist once the first highlight made it
 
     if (element && step.advanceOn === 'click') {
       const onTargetClick = () => void this.next();
@@ -231,6 +289,8 @@ export class TourRunner {
     dom.closeButton.setAttribute('aria-label', labels.close);
     dom.closeButton.setAttribute('title', labels.close);
     if (i === 0) dom.previousButton.setAttribute('aria-disabled', 'true');
+
+    this.placeLayers();
 
     // Keyboard and screen-reader users land on the step: focus its primary action.
     const focus = () => dom.nextButton.focus({ preventScroll: true });

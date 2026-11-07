@@ -15,8 +15,11 @@ function fakeDriver() {
       closeButton: el('button') as HTMLButtonElement, footerButtons: el('span'),
     };
   };
+  const overlay = document.createElement('div');
+  overlay.className = 'driver-overlay';
   const factory: DriverFactory = (config) => {
     calls.config = config;
+    document.body.appendChild(overlay);
     return {
       highlight: (step: DriveStep) => {
         calls.highlights.push(step);
@@ -27,9 +30,10 @@ function fakeDriver() {
       destroy: () => {
         calls.destroyed++;
       },
+      getState: (key: string) => (key === '__overlaySvg' ? overlay : undefined),
     } as unknown as Driver;
   };
-  return { calls, load: async () => factory };
+  return { calls, load: async () => factory, overlay };
 }
 
 const steps: TourStep[] = [
@@ -165,6 +169,52 @@ describe('TourRunner', () => {
     expect(fake.calls.destroyed).toBe(1);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('modal hosts', () => {
+  const modalSteps: TourStep[] = [
+    { id: 'in', target: '[data-tour="inside"]', text: 'In the dialog.' },
+    { id: 'out', target: '[data-tour="one"]', text: 'Back on the page.' },
+  ];
+
+  it('puts the popover and the overlay into the modal dialog the target is in, and the overlay back for a step outside', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-modal="true" id="host"><button data-tour="inside">In</button></div>');
+    const { fake, runner } = makeRunner({ steps: modalSteps });
+    await runner.start();
+    const host = document.getElementById('host')!;
+    expect(fake.calls.doms[0].wrapper.parentElement).toBe(host);
+    expect(fake.overlay.parentElement).toBe(host);
+    // keyboard on the popover inside the dialog moves the tour
+    fake.calls.doms[0].wrapper.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await flush();
+    expect(runner.activeIndex).toBe(1);
+    expect(fake.overlay.parentElement).toBe(document.body);
+  });
+
+  it('leaves a transformed dialog and a native <dialog> alone', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-modal="true" id="moved" style="transform: translate(-50%, -50%)"><button data-tour="inside">In</button></div>');
+    const a = makeRunner({ steps: modalSteps });
+    await a.runner.start();
+    expect(a.fake.calls.doms[0].wrapper.parentElement).toBeNull();
+    expect(a.fake.overlay.parentElement).toBe(document.body);
+    a.runner.dispose();
+    document.getElementById('moved')!.remove();
+    document.body.insertAdjacentHTML('beforeend', '<dialog open aria-modal="true"><button data-tour="inside">In</button></dialog>');
+    const b = makeRunner({ steps: modalSteps });
+    await b.runner.start();
+    expect(b.fake.overlay.parentElement).toBe(document.body);
+  });
+
+  it('a host may choose the container itself, or none', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-modal="true"><button data-tour="inside">In</button></div><section id="mine"></section>');
+    const mine = document.getElementById('mine')!;
+    const { fake, runner } = makeRunner({ steps: modalSteps, container: () => mine });
+    await runner.start();
+    expect(fake.calls.doms[0].wrapper.parentElement).toBe(mine);
+    const none = makeRunner({ steps: modalSteps, container: () => null });
+    await none.runner.start();
+    expect(none.fake.calls.doms[0].wrapper.parentElement).toBeNull();
   });
 });
 

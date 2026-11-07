@@ -553,7 +553,7 @@ const [open, setOpen] = useState(false);
           { keys: '→ / ←', action: 'Next / previous step, on the popover or the bare page (mirrored in RTL); a focused field, list or canvas keeps its own arrows' },
           { keys: 'Escape', action: 'Stop the tour' },
         ],
-        notes: 'Focus moves to the step\'s Next button on every step and returns to where it was when the tour ends.',
+        notes: 'Focus moves to the step\'s Next button on every step and returns to where it was when the tour ends. A step inside an open modal dialog (aria-modal) puts the popover and the overlay into that dialog, so its focus trap lets the keyboard reach the tour; a transformed dialog and a native <dialog> are left to Driver.js (container overrides it).',
       },
     },
   ];

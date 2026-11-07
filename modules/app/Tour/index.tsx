@@ -6,7 +6,7 @@ import './tour.css';
 
 export type { TourStep, TourLabels, TourCloseReason, TourPlacement, TourAlign } from './types';
 export { DEFAULT_TOUR_LABELS } from './types';
-export { TourRunner, waitForElement } from './runner';
+export { TourRunner, waitForElement, modalHostFor, shiftsFixedChildren } from './runner';
 
 export type TourProps = {
   /** The steps, in order. Each step's target is a CSS selector (`[data-tour="…"]`); a step without one is centred. */
@@ -25,6 +25,11 @@ export type TourProps = {
   dir?: 'ltr' | 'rtl';
   /** Accessible name of the step dialog. */
   ariaLabel?: string;
+  /**
+   * Where the popover and the overlay live for a step. Default: the open modal dialog the target is in (or the topmost
+   * one), so a modal host's focus trap lets the keyboard reach the tour. Return null to keep Driver.js's own placement.
+   */
+  container?: (target: Element | null) => Element | null;
 };
 
 const loadDriver = (): Promise<DriverFactory> => import('driver.js').then((m) => m.driver);
@@ -47,15 +52,17 @@ export function Tour({
   labels,
   dir = 'ltr',
   ariaLabel = 'Guided tour',
+  container,
 }: TourProps) {
-  const callbacks = useRef({ onClose, onStepChange, beforeStep });
+  const callbacks = useRef({ onClose, onStepChange, beforeStep, container });
   useEffect(() => {
-    callbacks.current = { onClose, onStepChange, beforeStep };
+    callbacks.current = { onClose, onStepChange, beforeStep, container };
   });
 
   // A new tour only when its content changes, not on every render of the host.
   const stepsKey = JSON.stringify(steps);
   const labelsKey = JSON.stringify({ ...DEFAULT_TOUR_LABELS, ...labels });
+  const hasContainer = Boolean(container);
 
   useEffect(() => {
     if (!open) return;
@@ -67,10 +74,11 @@ export function Tour({
       beforeStep: (step, index) => callbacks.current.beforeStep?.(step, index),
       onStepChange: (index, step) => callbacks.current.onStepChange?.(index, step),
       onClose: (reason, index) => callbacks.current.onClose(reason, index),
+      ...(hasContainer ? { container: (target: Element | null) => callbacks.current.container?.(target) ?? null } : {}),
     });
     void runner.start(startAt);
     return () => runner.dispose();
-  }, [open, stepsKey, labelsKey, startAt, dir, ariaLabel]);
+  }, [open, stepsKey, labelsKey, startAt, dir, ariaLabel, hasContainer]);
 
   return null;
 }

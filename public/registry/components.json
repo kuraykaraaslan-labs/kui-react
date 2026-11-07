@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-07T13:43:36.929Z",
+  "generatedAt": "2026-11-07T14:05:15.735Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -3934,7 +3934,7 @@
             "action": "Stop the tour"
           }
         ],
-        "notes": "Focus moves to the step's Next button on every step and returns to where it was when the tour ends."
+        "notes": "Focus moves to the step's Next button on every step and returns to where it was when the tour ends. A step inside an open modal dialog (aria-modal) puts the popover and the overlay into that dialog, so its focus trap lets the keyboard reach the tour; a transformed dialog and a native <dialog> are left to Driver.js (container overrides it)."
       },
       "designTokens": [
         "--surface-raised",
