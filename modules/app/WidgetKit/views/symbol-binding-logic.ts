@@ -1158,6 +1158,17 @@ export function defaultInputName(text: string, taken: Iterable<string> = []): st
   return name;
 }
 
+/**
+ * The value's own name a chip of an expression shows beside the name the expression uses (next-boilerplate phase 53.3.1, re-run 4 #12: the chip read only
+ * "prim_return_t", a name made from the key on purpose, E2E-2.12, and the value's name was nowhere): the label the device's profile gives the value, when it
+ * says more than that name and the key (the same words in any order say nothing more); '' otherwise.
+ */
+export function chipLabelOf(name: string, key: string, label: string | undefined): string {
+  const text = (label ?? '').trim();
+  if (!text || sameWords(text, name) || (key !== '' && sameWords(text, key))) return '';
+  return text;
+}
+
 export type ScriptErrorKind = 'syntax' | 'name' | 'timeout' | 'other';
 
 /** Sorts the sandbox's own error text into the few cases the panel words in plain language. */

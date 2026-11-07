@@ -560,7 +560,8 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     const add = () => within(r).getByRole('searchbox', { name: 'Add a value' });
     await user.click(add());
     await user.click(within(await screen.findByRole('option', { name: /Supply temperature/ })).getByRole('button'));
-    expect(within(r).getByRole('button', { name: 'Insert supply_temp' })).toHaveTextContent('supply_temp · 60 °C');
+    // the chip names the value by its own name too (phase 53.3.1, re-run 4 #12)
+    expect(within(r).getByRole('button', { name: 'Insert supply_temp' })).toHaveTextContent('supply_temp · Supply temperature · 60 °C');
     await user.click(add());
     await user.click(within(await screen.findByRole('option', { name: /^Return/ })).getByRole('button'));
     // the key "return" is a word of the language: the name is made safe
@@ -575,6 +576,43 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     expect(stubJudge('supply_temp - return_in', ['supply_temp', 'return_in'])).toBeNull();
     await user.click(within(r).getByRole('button', { name: 'Remove return_in' }));
     expect(within(r).queryByRole('button', { name: 'Insert return_in' })).toBeNull();
+  });
+  it('phase 53.3.1 (re-run 4 #7): both value pickers of an expression show their labels, "Main value (value)" over the symbol\'s own value and "Add a value"', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'checked', label: 'Checked bottles', value: 120, ts: NOW }, { key: 'rejected', label: 'Rejected bottles', value: 3, ts: NOW }];
+    const sym = symbol({ fields: [{ name: 'value', label: 'Reject rate', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'checked' }, currentScript: 'value' }] });
+    render(<SymbolBindingPanel {...props({ symbol: sym, loadKeys: vi.fn(async () => keys), previewScript: stub })} />);
+    const r = await screen.findByRole('group', { name: 'Reject rate' });
+    const main = await within(r).findByRole('searchbox', { name: 'Main value (value)' });
+    await waitFor(() => expect(main).toHaveValue('Checked bottles'));
+    const add = within(r).getByRole('searchbox', { name: 'Add a value' });
+    // shown, never for screen readers only: neither the label nor a wrapper hides it
+    for (const text of ['Main value (value)', 'Add a value']) {
+      const label = within(r).getByText(text);
+      expect(label.tagName).toBe('LABEL');
+      expect(label.closest('[class*="sr-only"]')).toBeNull();
+    }
+    await user.click(add);
+    await user.click(within(await screen.findByRole('option', { name: /^Rejected bottles/ })).getByRole('button'));
+    expect(within(r).getByRole('button', { name: 'Insert value' })).toHaveTextContent('value · Checked bottles · 120');
+    expect(within(r).getByRole('button', { name: 'Insert rejected' })).toHaveTextContent('rejected · Rejected bottles · 3');
+  });
+  it('phase 53.3.1 (re-run 4 #12): a chip names the value by its profile label, and says nothing more when the label only repeats the key', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'prim_return_t', label: 'Primary return temperature', unit: '°C', value: 24, ts: NOW }, { key: 'flow_rate', label: 'Flow rate', value: 7, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Delta' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' }, previewScript: stub })} />);
+    const r = await screen.findByRole('group', { name: 'Delta' });
+    await waitFor(() => expect(within(r).getByRole('searchbox', { name: 'Delta' })).toBeEnabled());
+    await user.selectOptions(source('Delta'), 'expression');
+    for (const name of [/^Primary return temperature/, /^Flow rate/]) {
+      await user.click(within(r).getByRole('searchbox', { name: 'Add a value' }));
+      await user.click(within(await screen.findByRole('option', { name })).getByRole('button'));
+    }
+    const chip = within(r).getByRole('button', { name: 'Insert prim_return_t' });
+    expect(chip).toHaveTextContent('prim_return_t · Primary return temperature · 24 °C');
+    // the whole text on hover, the chip being cut at the panel's width
+    expect(chip).toHaveAttribute('title', 'prim_return_t · Primary return temperature · 24 °C');
+    expect(within(r).getByRole('button', { name: 'Insert flow_rate' })).toHaveTextContent(/^flow_rate · 7$/);
   });
   it('previews an expression over inputs with their live values and saves the entry with the inputs, without a key', async () => {
     const user = userEvent.setup();

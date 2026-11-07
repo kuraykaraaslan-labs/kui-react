@@ -3,7 +3,7 @@ import {
   ageText, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, fieldKindOf, formatSample, formatValue, hasOwnEntry, isBooleanish, isBound, isDirty,
   keyKindOf, keyNamesSymbol, mismatchOf, nextUnbound, pickableKeys, previewLine, rankKeysForField, sameEntry, scriptErrorKind, scriptTemplates, suggestKeyForField, suggestKeysForFields,
   templateFor, unitQuantity, applyTemplate, wordsOf, isSetpointWords, scaleScript, rawRangeOf, declaredRange,
-  CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE, staleKeys, codesOf, matchAllRows,
+  CONFIDENT_SCORE, KIND_ALONE_SCORE, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE, staleKeys, codesOf, matchAllRows, chipLabelOf,
   type BindingDraft, type DeviceKey, type FieldDraft, type MatchSymbol, type SymbolSpec,
 } from '../views/symbol-binding-logic';
 
@@ -488,6 +488,20 @@ describe('rankKeysForField: realistic devices (kitchen, HVAC, BMS, water, power)
 });
 
 // ─── Slice 16 (U2b): expressions over named inputs ───────────────────────────────────────────────────────────────────────────────
+
+describe('chipLabelOf (phase 53.3.1, re-run 4 #12)', () => {
+  it('the profile\'s label of the value, when it says more than the expression\'s name and the key', () => {
+    expect(chipLabelOf('prim_return_t', 'prim_return_t', 'Primary return temperature')).toBe('Primary return temperature');
+    expect(chipLabelOf('value', 'checked', '  Kontrol edilen şişe ')).toBe('Kontrol edilen şişe');
+  });
+  it('nothing for no label, or one that only repeats the name or the key in other words', () => {
+    expect(chipLabelOf('flow_rate', 'flow_rate', undefined)).toBe('');
+    expect(chipLabelOf('flow_rate', 'flow_rate', '  ')).toBe('');
+    expect(chipLabelOf('flow_rate', 'flow_rate', 'Flow rate')).toBe('');
+    expect(chipLabelOf('return_in', 'return', 'Return')).toBe('');
+    expect(chipLabelOf('door_open', 'oven.door_open', 'Oven door open')).toBe('');
+  });
+});
 
 describe('defaultInputName', () => {
   it('makes a readable name from a label or key, never a reserved word, never one taken', () => {

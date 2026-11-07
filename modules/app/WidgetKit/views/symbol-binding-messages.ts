@@ -85,9 +85,18 @@ export interface SymbolBindingMessages {
   expressionHint: string;
   /** The chips of the values an expression can use. */
   namesTitle: string;
-  nameChip: (name: string, value: string) => string;
+  /**
+   * A chip: the name the expression uses, the value's own name when the device's profile gives it one that says more (`label`, next-boilerplate phase
+   * 53.3.1, re-run 4 #12: "prim_return_t" alone told nothing), and its reading.
+   */
+  nameChip: (name: string, value: string, label?: string) => string;
   insertName: (name: string) => string;
   removeInput: (name: string) => string;
+  /**
+   * The shown label of an expression's own value (`value`) picker (next-boilerplate phase 53.3.1, re-run 4 #7: both pickers' labels were for screen
+   * readers only, so the box that held the symbol's value had no caption); `addInput` is the other picker's.
+   */
+  expressionValue: string;
   addInput: string;
   addInputPlaceholder: string;
   inputsFull: (max: number) => string;
@@ -240,9 +249,10 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   expressionPlaceholder: 'value / 10',
   expressionHint: 'One line. Use the names below; tap one to insert it.',
   namesTitle: 'Values it can use',
-  nameChip: (name, value) => (value ? `${name} · ${value}` : name),
+  nameChip: (name, value, label) => [name, label, value].filter((part) => !!part).join(' · '),
   insertName: (name) => `Insert ${name}`,
   removeInput: (name) => `Remove ${name}`,
+  expressionValue: 'Main value (value)',
   addInput: 'Add a value',
   addInputPlaceholder: 'Pick another value to use…',
   inputsFull: (max) => `An expression uses at most ${max} other values.`,

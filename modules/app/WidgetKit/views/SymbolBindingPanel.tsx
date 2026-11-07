@@ -30,7 +30,7 @@ import type { Column } from '@/modules/ui/Table/types';
 import { Select } from '@/modules/ui/Select';
 import { useNow } from '../useNow';
 import {
-  ageText, applyPair, applyTemplate, clearBest, declaredRange, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry,
+  ageText, applyPair, applyTemplate, chipLabelOf, clearBest, declaredRange, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry,
   isDirty, mismatchOf, ownPartKeys, pairOperands, partsOf, pickableKeys, previewLine, rankKeysForField, rawRangeOf, scaleOver, scriptErrorKind, scriptTemplates, MAX_INPUTS_PER_FIELD,
   MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
   type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type PairTemplateId, type RankedKey, type RawRange, type ScriptOutcome,
@@ -1083,6 +1083,9 @@ interface ExpressionBoxProps {
   locale?: string;
 }
 
+/** The shown label of an expression's two value pickers: small, as the "Values it can use" title over the chips. */
+const PICKER_CAPTION = '[&_label]:text-xs [&_label]:font-medium [&_label]:text-text-secondary';
+
 /** The column the judge's "at position N" names, for the editor's marker. */
 const columnOf = (problem: string): number | undefined => {
   const at = /position (\d+)/.exec(problem);
@@ -1162,9 +1165,10 @@ function ExpressionBox(p: ExpressionBoxProps) {
       <div className="space-y-1">
         <p className="text-xs font-medium text-text-secondary">{m.namesTitle}</p>
         <div className="flex flex-wrap gap-1">
+          {/* a chip names the value by its own name too (phase 53.3.1, re-run 4 #12), beside the name the expression uses */}
           <NameChip
             name="value"
-            text={m.nameChip('value', f.key ? formatValue(info?.value, info?.unit, stateWordsOf(m), locale) : '')}
+            text={m.nameChip('value', f.key ? formatValue(info?.value, info?.unit, stateWordsOf(m), locale) : '', f.key ? chipLabelOf('value', f.key, info?.label) : '')}
             title={m.insertName('value')}
             disabled={readOnly || !f.key}
             onInsert={() => p.onInsert('value')}
@@ -1173,7 +1177,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
             <NameChip
               key={i.name}
               name={i.name}
-              text={m.nameChip(i.name, formatValue(keyByName.get(i.key)?.value, keyByName.get(i.key)?.unit, stateWordsOf(m), locale))}
+              text={m.nameChip(i.name, formatValue(keyByName.get(i.key)?.value, keyByName.get(i.key)?.unit, stateWordsOf(m), locale), chipLabelOf(i.name, i.key, keyByName.get(i.key)?.label))}
               title={m.insertName(i.name)}
               disabled={readOnly}
               onInsert={() => p.onInsert(i.name)}
@@ -1182,12 +1186,13 @@ function ExpressionBox(p: ExpressionBoxProps) {
             />
           ))}
         </div>
-        {/* the picker of `value` stays once a value is picked, showing it, so the boxes under it never move up (run 3 note 140: the next click hit "Scale 0-100") */}
+        {/* the picker of `value` stays once a value is picked, showing it, so the boxes under it never move up (run 3 note 140: the next click hit "Scale 0-100");
+            both pickers show their labels (phase 53.3.1, re-run 4 #7: the box that held the symbol's value had no caption, and "Add a value" was never seen) */}
         {(
-          <div className="[&_label]:sr-only">
+          <div className={PICKER_CAPTION}>
             <ComboBox
               id={`${uid}-field-${field.name}`}
-              label={m.fieldPicker(field.label)}
+              label={m.expressionValue}
               options={p.options}
               value={f.key}
               onChange={(v) => p.onPickKey(v)}
@@ -1200,7 +1205,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
         )}
         {!readOnly && (f.inputs.length < MAX_INPUTS_PER_FIELD
           ? (
-            <div className="[&_label]:sr-only">
+            <div className={PICKER_CAPTION}>
               <ComboBox
                 key={f.inputs.length}
                 id={`${uid}-input-${field.name}`}
@@ -1295,12 +1300,12 @@ function ScaleForm(p: { uid: string; start: { from: number; to: number } | null;
 
 function NameChip(p: { name: string; text: string; title: string; disabled: boolean; onInsert: () => void; onRemove?: () => void; removeLabel?: string }) {
   return (
-    <span className="inline-flex items-center overflow-hidden rounded-full border border-border bg-surface-sunken text-xs">
-      <button type="button" aria-label={p.title} disabled={p.disabled} onClick={p.onInsert} className="px-2 py-0.5 font-mono text-text-primary hover:bg-surface-raised disabled:opacity-50">
+    <span className="inline-flex max-w-full items-center overflow-hidden rounded-full border border-border bg-surface-sunken text-xs">
+      <button type="button" aria-label={p.title} title={p.text} disabled={p.disabled} onClick={p.onInsert} className="min-w-0 truncate px-2 py-0.5 font-mono text-text-primary hover:bg-surface-raised disabled:opacity-50">
         {p.text}
       </button>
       {p.onRemove && (
-        <button type="button" aria-label={p.removeLabel} onClick={p.onRemove} className="border-l border-border px-1.5 py-0.5 text-text-secondary hover:bg-surface-raised">
+        <button type="button" aria-label={p.removeLabel} onClick={p.onRemove} className="shrink-0 border-l border-border px-1.5 py-0.5 text-text-secondary hover:bg-surface-raised">
           <FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />
         </button>
       )}
