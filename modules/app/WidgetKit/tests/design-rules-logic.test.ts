@@ -21,6 +21,11 @@ describe('design rules: evaluation', () => {
     expect(r.overrides).toEqual({ tm: { color: '#f87171', pulse: true, highlight: true, label: 'Hot 91' } });
     expect(r.hidden).toEqual([]);
   });
+  it('a label\'s `{condition}` prints an on / off reading in the host\'s words (next-boilerplate phase 52.6.1)', () => {
+    const rules = [{ target: 'fan', of: 'pump', key: 'running', op: 'true', label: 'Pump {condition}' }];
+    expect(designRules(rules, { rows, keys, onOff: { on: 'Açık', off: 'Kapalı' } }).overrides).toEqual({ fan: { label: 'Pump Açık' } });
+    expect(designRules(rules, { rows, keys }).overrides).toEqual({ fan: { label: 'Pump On' } });
+  });
   it('a condition reads the row of another key with `of`, or a board parameter', () => {
     const r1 = designRules([{ target: 'fan', of: 'tm', key: 'value', op: 'gt', value: 80, pulse: true }], { rows, keys });
     expect(Object.keys(r1.overrides)).toEqual(['fan']);

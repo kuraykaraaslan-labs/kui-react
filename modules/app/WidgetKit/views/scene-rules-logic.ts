@@ -190,6 +190,11 @@ export interface RuleContext {
   thingIds?: Iterable<string>;
   /** A number as text for `{value}` and `{value2}` (the host's words, unit included); default: the number itself. */
   format?: (targetId: string, n: number) => string;
+  /**
+   * The words an on / off reading prints in `{condition}`: the host's, as its state card words one (`stat.on` / `stat.off`; "Açık" / "Kapalı" in a
+   * Turkish workspace). Default "On" / "Off", never the data's `true` / `false` (next-boilerplate phase 52.6.1).
+   */
+  onOff?: { on: string; off: string };
   /** The effect fields this kind of rules reads. Default: the process scene's (`SCENE_RULE_EFFECTS`). */
   effects?: EffectSpec;
 }
@@ -273,7 +278,8 @@ export const CONDITION_TOKENS = ['{condition}', '{koşul}'] as const;
 
 /**
  * Fills `{value}`, `{value2}`, `{label}`, `{id}`, `{param:name}` and, given the rule, `{condition}` (`{koşul}`: what its first condition reads, of the
- * symbol it names or a board parameter, worded as `{value}` is; "—" when it is not there); control characters go, the length is capped.
+ * symbol it names or a board parameter, worded as `{value}` is, an on / off reading in the host's words (`onOff`); "—" when it is not there); control
+ * characters go, the length is capped.
  */
 export function expandLabel(template: string, target: string, ctx: RuleContext, rule?: SceneRule): string {
   const row = ctx.rows.get(target);
@@ -289,7 +295,8 @@ export function expandLabel(template: string, target: string, ctx: RuleContext, 
     const of = text(rule.of);
     const v = scalar(reading(rule.source, text(rule.key), of, target, ctx));
     if (v === undefined) return DASH;
-    const n = typeof v === 'boolean' ? null : asNumber(v);
+    if (typeof v === 'boolean') return v ? (ctx.onOff?.on || 'On') : (ctx.onOff?.off || 'Off');
+    const n = asNumber(v);
     return n !== null && rule.source !== 'param' ? fmt(n, of || target) : String(v);
   };
   const out = template.replace(/\{(value2?|label|id|condition|koşul|param:[^{}]{1,64})\}/g, (_m, token: string) => {

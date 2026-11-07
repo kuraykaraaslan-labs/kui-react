@@ -112,6 +112,13 @@ describe('SceneRulesEditor: editing', () => {
     expect(rulesOf(probe)[0]).toMatchObject({ key2: '' });
     expect(document.querySelector('[data-condition="2"]')).toBeNull();
   });
+  it('names every value of the scene in "Which value", the states layer\'s acknowledged, pending and failed too (next-boilerplate phase 52.6.1, UI test 3 #219)', () => {
+    mount([{ target: 'pump1', key: '', op: 'gt', value: '1' }]);
+    fireEvent.click(screen.getByRole('button', { name: /When/ }));
+    const names = [...(screen.getByLabelText('Which value') as HTMLSelectElement).options].filter((o) => !o.disabled).map((o) => o.textContent);
+    expect(names).toEqual(expect.arrayContaining(['Alarm acknowledged', 'Command pending', 'Command failed']));
+    for (const raw of ['ack', 'pending', 'failed']) expect(names).not.toContain(raw);
+  });
   it('offers the host\'s columns and parameters, with free text under "Another value", and reads another symbol\'s row', () => {
     const { probe } = mount([{ target: 'pump1', key: '', op: 'gt', value: '1' }], {
       host: { columns: [{ key: 'temp', label: 'Temperature' }], params: [{ key: 'mode', label: 'Mode', values: ['day', 'night'] }] },

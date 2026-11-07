@@ -184,6 +184,8 @@ export interface DesignRuleContext {
   params?: Record<string, unknown>;
   /** A number as text for `{value}` and `{value2}`. */
   format?: (key: string, n: number) => string;
+  /** The host's words of an on / off reading in `{condition}`; default On / Off. */
+  onOff?: { on: string; off: string };
 }
 
 /**
@@ -204,7 +206,7 @@ export function designRuleEffects(rules: unknown, ctx: DesignRuleContext): Map<s
   }
   if (targets.length === 0) return new Map();
   return evaluateRules<DesignEffects>(rules, {
-    rows, params: ctx.params ?? {}, targets, effects: DESIGN_RULE_EFFECTS, ...(ctx.format ? { format: ctx.format } : {}),
+    rows, params: ctx.params ?? {}, targets, effects: DESIGN_RULE_EFFECTS, ...(ctx.format ? { format: ctx.format } : {}), ...(ctx.onOff ? { onOff: ctx.onOff } : {}),
   });
 }
 
