@@ -110,6 +110,22 @@ describe('TourRunner', () => {
     expect(onClose).toHaveBeenCalledWith('dismissed', 1);
   });
 
+  it('leaves the arrows to a focused element of the page (an editor nudging a symbol), but takes them on its popover', async () => {
+    const { fake, runner } = makeRunner();
+    await runner.start();
+    const pageButton = document.querySelector('[data-tour="two"]') as HTMLButtonElement;
+    pageButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await flush();
+    expect(runner.activeIndex).toBe(0);
+    const wrapper = fake.calls.doms[0].wrapper;
+    document.body.appendChild(wrapper);
+    wrapper.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    await flush();
+    expect(runner.activeIndex).toBe(1);
+    pageButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(runner.activeIndex).toBe(1);
+  });
+
   it('mirrors placement and arrow keys in RTL', async () => {
     const { fake, runner } = makeRunner({ dir: 'rtl' });
     await runner.start(1);

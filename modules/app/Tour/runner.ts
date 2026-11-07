@@ -60,6 +60,7 @@ export class TourRunner {
   private stepCleanup: Array<() => void> = [];
   private readonly ids = { title: `kui-tour-title-${++idSeq}`, text: `kui-tour-text-${idSeq}` };
   private returnFocus: HTMLElement | null = null;
+  private popover: HTMLElement | null = null;
 
   constructor(
     private readonly loadDriver: () => Promise<DriverFactory>,
@@ -115,17 +116,28 @@ export class TourRunner {
     for (const fn of this.stepCleanup.splice(0)) fn();
   }
 
+  /**
+   * Escape always stops the tour. The arrows move it only when the keyboard is on the tour's popover or on nothing at all:
+   * a focused field, list or canvas keeps its own arrow keys (an editor nudges the selected item; the tour must not move too).
+   */
   private onKey = (e: KeyboardEvent) => {
     if (this.closed) return;
     if (e.key === 'Escape') {
       e.preventDefault();
       this.finish('dismissed');
-    } else if (!isTyping(e.target) && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+    } else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && this.arrowsAreOurs(e.target)) {
       const forward = (e.key === 'ArrowRight') !== (this.opts.dir === 'rtl');
       e.preventDefault();
       void (forward ? this.next() : this.previous());
     }
   };
+
+  private arrowsAreOurs(target: EventTarget | null): boolean {
+    if (isTyping(target)) return false;
+    const node = target as Node | null;
+    if (!node || node === this.doc || node === this.doc.body || node === this.doc.documentElement) return true;
+    return Boolean(this.popover?.contains(node));
+  }
 
   private async ensureDriver(): Promise<Driver> {
     if (this.driver) return this.driver;
@@ -196,6 +208,7 @@ export class TourRunner {
     const total = this.opts.steps.length;
     const { labels } = this.opts;
     const wrapper = dom.wrapper;
+    this.popover = wrapper;
     wrapper.setAttribute('role', 'dialog');
     wrapper.setAttribute('aria-label', this.opts.ariaLabel);
     wrapper.setAttribute('dir', this.opts.dir);

@@ -34,7 +34,8 @@ const loadDriver = (): Promise<DriverFactory> => import('driver.js').then((m) =>
  * (Driver.js draws; the runner owns the steps, the text and the keyboard). The popover's content is plain text, never
  * HTML. Driver.js is loaded only when a tour opens. Renders nothing itself.
  *
- * Keyboard: Next / Previous / Close buttons (focus starts on Next), → and ← (mirrored in RTL), Escape stops.
+ * Keyboard: Next / Previous / Close buttons (focus starts on Next), → and ← on the popover or the bare page (mirrored in RTL;
+ * a focused field, list or canvas keeps its own arrows), Escape stops.
  */
 export function Tour({
   steps,

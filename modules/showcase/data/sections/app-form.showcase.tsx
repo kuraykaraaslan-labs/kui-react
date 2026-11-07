@@ -550,7 +550,7 @@ const [open, setOpen] = useState(false);
         ariaPatterns: ['role="dialog"', 'aria-describedby'],
         keyboardInteractions: [
           { keys: 'Enter / Click', action: 'Next / Previous / Close' },
-          { keys: '→ / ←', action: 'Next / previous step (mirrored in RTL)' },
+          { keys: '→ / ←', action: 'Next / previous step, on the popover or the bare page (mirrored in RTL); a focused field, list or canvas keeps its own arrows' },
           { keys: 'Escape', action: 'Stop the tour' },
         ],
         notes: 'Focus moves to the step\'s Next button on every step and returns to where it was when the tour ends.',

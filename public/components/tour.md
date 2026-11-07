@@ -19,7 +19,7 @@ Guided tour over the live page: each step dims the page, cuts out its target and
 - ARIA patterns: role="dialog", aria-describedby
 - Keyboard:
   - `Enter / Click` — Next / Previous / Close
-  - `→ / ←` — Next / previous step (mirrored in RTL)
+  - `→ / ←` — Next / previous step, on the popover or the bare page (mirrored in RTL); a focused field, list or canvas keeps its own arrows
   - `Escape` — Stop the tour
 
 Focus moves to the step's Next button on every step and returns to where it was when the tour ends.
