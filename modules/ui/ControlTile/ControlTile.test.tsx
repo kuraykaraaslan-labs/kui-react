@@ -220,3 +220,32 @@ describe('layouts and parts', () => {
     expect(plain.parentElement!.className).not.toContain('flex-1');
   });
 });
+
+// next-boilerplate UI test 3 #71, #150, #227: a control's question named only the command, with an empty body.
+describe('the question names what is sent where', () => {
+  const body = { confirmPrompt: 'Send a command to a device', confirmMessage: 'Intake gate controller: Set the spillway gate → {value}' };
+  it('a switch fills the value it is about to write, as it shows it', async () => {
+    const user = userEvent.setup();
+    render(<ControlSwitch label="Gate" value={false} confirm="confirm" onLabel="Open" offLabel="Shut" messages={body} onCommit={vi.fn().mockResolvedValue(undefined)} />);
+    await user.click(screen.getByRole('switch', { name: 'Gate' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Send a command to a device');
+    expect(dialog).toHaveTextContent('Intake gate controller: Set the spillway gate → Open');
+  });
+  it('a set-point names the number with its unit', async () => {
+    const user = userEvent.setup();
+    render(<ControlSetpoint title="Gate" value={8} min={0} max={100} unit="%" confirm="confirm" messages={body} onCommit={vi.fn().mockResolvedValue(undefined)} />);
+    await user.clear(screen.getByRole('textbox', { name: 'Gate' }));
+    await user.type(screen.getByRole('textbox', { name: 'Gate' }), '40');
+    await user.click(screen.getByRole('button', { name: 'Apply' }));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Intake gate controller: Set the spillway gate → 40 %');
+  });
+  it('without a body the question is its title alone, as before', async () => {
+    const user = userEvent.setup();
+    render(<ControlButton label="Reboot" confirm="confirm" onCommit={vi.fn().mockResolvedValue(undefined)} />);
+    await user.click(screen.getByRole('button', { name: 'Reboot' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('Are you sure?');
+    expect(dialog.textContent).not.toContain('{value}');
+  });
+});

@@ -270,6 +270,7 @@ export function ControlSlider({
         <ControlConfirmPrompt
           mode={confirm}
           confirmText={confirmText}
+          value={fmt(ask.asking.value)}
           onConfirm={(typed) => write(ask.accept(typed))}
           onCancel={() => { ask.cancel(); setDraft(null); }}
           messages={messages}

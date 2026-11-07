@@ -93,16 +93,19 @@ export function requestControl(
 
 /**
  * The command's confirmation policy as kui control props: `confirm` asks (its `text`, when given,
- * is the question); `typed` requires its `text` to be typed exactly.
+ * is the question); `typed` requires its `text` to be typed exactly. The host's `message` is the
+ * question's body either way (`confirmMessage`, its `{value}` filled by the control).
  */
 export function confirmProps(confirm: ControlConfirm | undefined): {
   confirm: 'none' | 'confirm' | 'typed';
   confirmText?: string;
-  messages?: { confirmPrompt: string };
+  messages?: { confirmPrompt?: string; confirmMessage?: string };
 } {
   if (!confirm || confirm.mode === 'none') return { confirm: 'none' };
-  if (confirm.mode === 'typed') return { confirm: 'typed', confirmText: confirm.text ?? '' };
-  return { confirm: 'confirm', ...(confirm.text ? { messages: { confirmPrompt: confirm.text } } : {}) };
+  const body = confirm.message ? { confirmMessage: confirm.message } : {};
+  if (confirm.mode === 'typed') return { confirm: 'typed', confirmText: confirm.text ?? '', ...(confirm.message ? { messages: body } : {}) };
+  const messages = { ...(confirm.text ? { confirmPrompt: confirm.text } : {}), ...body };
+  return { confirm: 'confirm', ...(Object.keys(messages).length > 0 ? { messages } : {}) };
 }
 
 /** A text setting, or `undefined` when it is empty (so the control's own default applies). */
@@ -128,7 +131,7 @@ export type FeedbackSettings = {
  */
 export function controlMessages(
   s: FeedbackSettings,
-  policyMessages?: { confirmPrompt: string },
+  policyMessages?: { confirmPrompt?: string; confirmMessage?: string },
   host?: Partial<WidgetControlMessages>,
 ): Record<string, string> | undefined {
   const out: Record<string, string> = {};
