@@ -278,3 +278,18 @@ describe('a command form: a required select and a value typed by its control', (
     expect(resolveVariants(three, { key: 'calistir' }).value).toMatchObject({ label: 'Value', type: 'boolean', display: 'segmented', required: true });
   });
 });
+
+// next-boilerplate UI test 3 #22 (y 150 became 149), #73 (a step of 5 became 6): the wheel over a focused number field scrolled it.
+describe('a number field and the mouse wheel', () => {
+  it('lets go of the focus on a wheel turn, so the wheel scrolls the panel and the number stays', () => {
+    const onChange = vi.fn();
+    render(<SchemaForm schema={{ y: { label: 'Y', type: 'number' } }} values={{ y: 150 }} onChange={onChange} />);
+    const field = screen.getByLabelText('Y') as HTMLInputElement;
+    field.focus();
+    expect(document.activeElement).toBe(field);
+    fireEvent.wheel(field, { deltaY: 100 });
+    expect(document.activeElement).not.toBe(field);
+    expect(field.value).toBe('150');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});

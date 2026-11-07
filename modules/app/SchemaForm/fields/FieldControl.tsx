@@ -11,6 +11,15 @@ export const controlCls =
   'disabled:opacity-50';
 
 const optVal = (o: FieldOption): string => (typeof o === 'string' ? o : o.value);
+
+/**
+ * The mouse wheel never changes a focused number field: the browser steps it while the pointer is over it, so scrolling a settings
+ * panel past a field just typed in changed it (next-boilerplate UI test 3 #22: y 150 became 149; #73: a step of 5 became 6). The field
+ * lets go of the focus, and the wheel scrolls the panel as it does over any other field.
+ */
+export function blurOnWheel(e: { currentTarget: HTMLInputElement }): void {
+  if (typeof document !== 'undefined' && document.activeElement === e.currentTarget) e.currentTarget.blur();
+}
 const optLabel = (o: FieldOption): string => (typeof o === 'string' ? o : o.label);
 
 export interface FieldControlProps {
@@ -69,6 +78,7 @@ export function FieldControl(props: FieldControlProps) {
           value={typeof value === 'number' ? value : typeof field.value === 'number' && value === undefined ? field.value : ''}
           placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+          onWheel={blurOnWheel}
           className={controlCls} {...aria} />
       );
     case 'boolean':
