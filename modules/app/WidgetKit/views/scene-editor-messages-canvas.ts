@@ -70,7 +70,7 @@ export const SCENE_EDITOR_MESSAGES: SceneEditorMessages = {
   apply: 'Save', applying: 'Saving', close: 'Close', more: 'More actions',
   dirtyTitle: 'Discard your changes?', dirtyBody: 'The drawing has changes that are not saved.', dirtyDiscard: 'Discard changes', dirtyKeep: 'Keep editing',
   applyFailed: 'The diagram could not be applied.', applied: 'Applied',
-  pasteTitle: 'Paste a diagram piece', pasteBody: 'This browser did not let the editor read the clipboard. Paste the copied text here.',
+  pasteTitle: 'Paste a diagram piece', pasteBody: 'Nothing to paste from the clipboard: it holds no diagram piece the editor can read. Copy symbols in a drawing first, or paste a copied piece here.',
   pasteInsert: 'Insert', pasteCancel: 'Cancel', pasteLabel: 'Copied diagram piece',
   rename: 'Rename', renameLabel: 'New name', minimap: 'Overview', actionDot: 'Has actions', hiddenByRule: 'Hidden by a rule', elementLabel: '{name}, {symbol}, at {x}, {y}',
   thingLayer: '{name}: placed by data', thingInspected: '{name} is placed by data and moves with its row',

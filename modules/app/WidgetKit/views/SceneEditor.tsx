@@ -17,7 +17,7 @@ import { sceneModel, type SceneSettings } from './scada-scene-logic';
 import { elementIds, elementsOf } from './scene-edit-core';
 import {
   addElement, align, apply as historyApply, canRedo, canUndo, captureAssembly, createHistory, deleteSelection, distribute, duplicate, insertAssembly,
-  moveSelection, parseClipboard, problems as findProblems, redo as historyRedo, renameElement, reorder, resizeShape, serialize, setOwnSize, setShapeProps, snapPoint,
+  moveSelection, parseClipboard, problems as findProblems, redo as historyRedo, reorder, resizeShape, serialize, setElementProps, setOwnSize, setShapeProps, snapPoint,
   undo as historyUndo, type AlignMode, type DistributeAxis, type EditResult, type ReorderMode, type Selection,
 } from './scene-edit-logic';
 import { elementBoxes, shapeBounds, shapesOf, type Pt } from './scene-edit-geometry';
@@ -29,7 +29,7 @@ import {
 } from './scene-editor-state';
 import type { EditorCtx, InspectedThing, SceneEditorProps, WhatIfState } from './scene-editor-types';
 import { patchId } from './scene-patch';
-import { SceneEditorCanvas, type CanvasHandle, type Renaming } from './SceneEditorCanvas';
+import { renameText, SceneEditorCanvas, type CanvasHandle, type Renaming } from './SceneEditorCanvas';
 import { SceneEditorToolbar, type LayerItem } from './SceneEditorToolbar';
 import { SceneInspector } from './SceneInspector';
 import { SceneMinimap } from './SceneMinimap';
@@ -369,12 +369,16 @@ export function SceneEditor(props: SceneEditorProps): ReactNode {
   const commitRename = (to: string): string | null => {
     if (!renaming) return null;
     if (renaming.kind === 'element') {
-      const from = renaming.id;
-      const next = to.trim();
-      const r = apply((s) => renameElement(s, from, next));
-      if (r.refused) return r.refused;
-      setSelection(only({ kind: 'element', id: next }));
-      if (next !== from) { say(fill(m.renamed, { from, to: next })); host.onRename?.(from, next); }
+      // the box holds the symbol's name, never its id (next-boilerplate phase 52.6.1): Enter writes the name (empty: none); the inspector's Id renames the id
+      const id = renaming.id;
+      const was = renameText(settings, renaming);
+      const name = to.trim();
+      if (name !== was) {
+        const r = apply((s) => setElementProps(s, id, { label: name || undefined }));
+        if (r.refused) return r.refused;
+        say(fill(m.renamed, { from: was || id, to: name || id }));
+      }
+      setSelection(only({ kind: 'element', id }));
     } else {
       const index = renaming.index;
       const r = apply((s) => setShapeProps(s, index, { text: to }));

@@ -103,29 +103,42 @@ describe('the keyboard', () => {
     expect(elements(await applied())).toHaveLength(2);
   });
 
-  it('renames in place with F2 (the links follow), refuses a name that is taken and closes with Escape', async () => {
-    const { svg, canvas, applied } = mount();
+  it('renames in place with F2: the box holds the symbol\'s name, never its id, and Enter writes the name (next-boilerplate phase 52.6.1); Escape closes', async () => {
+    const { svg, canvas, applied, said } = mount();
     click(svg, { x: B.pump1.cx, y: B.pump1.cy });
     key(canvas, 'F2');
     const box = screen.getByLabelText('New name') as HTMLInputElement;
-    expect(box.value).toBe('pump1');
+    // pump1 has no name of its own: the box is empty, never its id
+    expect(box.value).toBe('');
     expect(box).toHaveFocus();
-    fireEvent.change(box, { target: { value: 'tank1' } });
+    // a refusal (a name longer than a symbol's name may be) stays on screen
+    fireEvent.change(box, { target: { value: 'x'.repeat(201) } });
     key(box, 'Enter');
-    expect(screen.getByRole('alert')).toHaveTextContent('Another symbol already has this id');
+    expect(screen.getByRole('alert')).toHaveTextContent('label is too long');
     expect(screen.getByLabelText('New name')).toBeInTheDocument();
-    fireEvent.change(box, { target: { value: 'pump9' } });
+    fireEvent.change(box, { target: { value: '  Duty pump ' } });
     key(box, 'Enter');
     expect(screen.queryByLabelText('New name')).toBeNull();
-    expect(selected(document.body)).toEqual(['pump9']);
+    expect(said()).toBe('Renamed pump1 to Duty pump');
+    expect(selected(document.body)).toEqual(['pump1']);
+    // a named symbol's box holds its name
+    click(svg, { x: B.tank1.cx, y: B.tank1.cy });
+    key(canvas, 'F2');
+    const named = screen.getByLabelText('New name') as HTMLInputElement;
+    expect(named.value).toBe('Feed');
+    fireEvent.change(named, { target: { value: 'Feed tank' } });
+    key(named, 'Enter');
     const s = await applied();
-    expect(element(s, 'pump9')).toBeDefined();
-    expect(links(s).map((l) => [l.from, l.to])).toEqual([['tank1.r', 'pump9.l'], ['pump9.r', 'valve1.l:0.5']]);
+    expect(element(s, 'pump1')).toMatchObject({ label: 'Duty pump' });
+    expect(element(s, 'tank1')).toMatchObject({ label: 'Feed tank' });
+    // the ids, and so the links and the rules that name them, stay as they were
+    expect(elements(s).map((e) => e.id)).toEqual(['tank1', 'pump1', 'valve1']);
+    expect(links(s).map((l) => [l.from, l.to])).toEqual([['tank1.r', 'pump1.l'], ['pump1.r', 'valve1.l:0.5']]);
     // Escape closes the box without renaming.
     key(canvas, 'F2');
     key(screen.getByLabelText('New name'), 'Escape');
     expect(screen.queryByLabelText('New name')).toBeNull();
-    expect(selected(document.body)).toEqual(['pump9']);
+    expect(selected(document.body)).toEqual(['tank1']);
   });
 
   it('renames a title in place with a double click', async () => {
@@ -238,6 +251,8 @@ describe('the clipboard', () => {
     const text = api.writeText.mock.calls[0][0] as string;
     await act(async () => { fireEvent.click(screen.getByTestId('paste')); });
     const dialog = await screen.findByRole('dialog', { name: 'Paste a diagram piece' });
+    // it says there is nothing it can paste from the clipboard, never only that the browser refused (next-boilerplate phase 52.6.1)
+    expect(dialog).toHaveTextContent('Nothing to paste from the clipboard: it holds no diagram piece the editor can read.');
     const box = within(dialog).getByLabelText('Copied diagram piece') as HTMLTextAreaElement;
     // What was copied in this editor is offered, since the browser would not let it be read back.
     expect(box.value).toBe(text);
