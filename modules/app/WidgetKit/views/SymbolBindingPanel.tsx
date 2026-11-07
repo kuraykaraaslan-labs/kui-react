@@ -30,10 +30,11 @@ import type { Column } from '@/modules/ui/Table/types';
 import { Select } from '@/modules/ui/Select';
 import { useNow } from '../useNow';
 import {
-  ageText, applyTemplate, declaredRange, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry, isDirty, mismatchOf,
-  pickableKeys, previewLine, rankKeysForField, rawRangeOf, scaleScript, scriptErrorKind, scriptTemplates, MAX_INPUTS_PER_FIELD, MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
-  type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type RankedKey, type ScriptOutcome, type ScriptTemplate, type SourceMode,
-  type StateWords, type SymbolFieldSpec, type SymbolSpec } from './symbol-binding-logic';
+  ageText, applyPair, applyTemplate, clearBest, declaredRange, defaultInputName, draftFromSymbol, entryFromDraft, entryFromSymbol, expressionNames, formatSample, formatValue, hasOwnEntry,
+  isDirty, mismatchOf, ownPartKeys, pairOperands, partsOf, pickableKeys, previewLine, rankKeysForField, rawRangeOf, scaleOver, scriptErrorKind, scriptTemplates, MAX_INPUTS_PER_FIELD,
+  MAX_SCRIPT_LENGTH, MIN_PROPOSAL_SCORE,
+  type BindingDraft, type BindingEntry, type DeviceKey, type DeviceOption, type FieldDraft, type InputDraft, type PairTemplateId, type RankedKey, type RawRange, type ScriptOutcome,
+  type ScriptTemplate, type SourceMode, type StateWords, type SymbolFieldSpec, type SymbolSpec } from './symbol-binding-logic';
 import { DEFAULT_SYMBOL_BINDING_MESSAGES, mergeMessages, type DeepPartial, type SymbolBindingMessages } from './symbol-binding-messages';
 
 /** The symbol the panel is about: `SymbolSpec` with the icon the host draws for it. */
@@ -110,6 +111,16 @@ export interface SymbolBindingPanelProps {
   onDirtyChange?: (dirty: boolean) => void;
   /** Where the confirmations mount (a fullscreen element); default the kit's. */
   portalTarget?: Element | string | null;
+  /**
+   * The workspace's language (`tr`, `en-GB`): the numbers the panel shows follow it ("Şu an 46,222 gösteriyor"; next-boilerplate phase 52.2.4, test 3
+   * #28). Without it a number is written as JavaScript writes it.
+   */
+  locale?: string;
+  /**
+   * The name of the symbol "Next symbol" goes to, when the host knows it: the button says it ("Save and next: K6"; next-boilerplate phase 52.2.4, D594,
+   * test 3 #183: typing meant for K6 linked the reservoir the button went to).
+   */
+  nextLabel?: string;
   className?: string;
 }
 
@@ -120,6 +131,9 @@ function stateWordsOf(m: SymbolBindingMessages): StateWords {
   if (!words) { words = { on: m.stateOn, off: m.stateOff }; stateWordsCache.set(m, words); }
   return words;
 }
+
+/** The chips over two values, after the five over one (D589). */
+const PAIR_TEMPLATES: readonly PairTemplateId[] = ['difference', 'ratio'];
 
 const SEARCH_ROWS = 100;
 const KEY_ROWS = 100;
@@ -151,7 +165,7 @@ const nameOfKey = (k: DeviceKey | undefined, key: string): string => (k?.label &
 const EMPTY_FIELD: Omit<FieldDraft, 'mode' | 'inputs'> = { deviceId: '', deviceName: '', key: '', label: '', script: '' };
 
 function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name: string } | null; onRemember: (d: { id: string; name: string }) => void }) {
-  const { symbol, readOnly = false, saving = false, refreshMs = 5000, last, onRemember } = props;
+  const { symbol, readOnly = false, saving = false, refreshMs = 5000, last, onRemember, locale } = props;
   const m = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, props.messages), [props.messages]);
   const uid = useId();
   const tick = useNow(5000);
@@ -288,18 +302,31 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   const keys = useMemo<DeviceKey[]>(() => (onThisDevice ? keysState.keys : []), [onThisDevice, keysState]);
   const keyByName = useMemo(() => new Map(keys.map((k) => [k.key, k])), [keys]);
 
+  // the picked device's name and place, for a code the symbol's name writes (`rankKeysForField`'s `device`)
+  const deviceText = draft.deviceId ? `${draft.deviceName} ${known.current.get(draft.deviceId)?.hint ?? ''}` : '';
+  // the keys the symbol's rows read on that device: their parts are the symbol's own
+  const readKeysSig = Object.values(draft.fields).filter((f) => f.key !== '' && (f.deviceId === '' || f.deviceId === draft.deviceId)).map((f) => f.key).join('\n');
+  const readKeys = useMemo(() => (readKeysSig ? readKeysSig.split('\n') : []), [readKeysSig]);
+
   // ─── Proposing a key for each empty field, once per device (adjusted while rendering, not in an effect) ───
   const [suggestedFor, setSuggestedFor] = useState('');
   if (!readOnly && keysStatus === 'ready' && suggestedFor !== draft.deviceId) {
     setSuggestedFor(draft.deviceId);
-    // a row the drawing offers but never fills by itself (`suggest: false`: a measuring symbol's Running and Status) is left for the person
-    const empty = symbol.fields.filter((f) => f.suggest !== false && draft.fields[f.name] && draft.fields[f.name].key === '' && draft.fields[f.name].mode === 'value');
+    // a row the drawing offers but never fills by itself (`suggest: false`: a measuring symbol's Running) is left for the person; a row proposed only from
+    // the symbol's own part (`'own'`: its Status) comes last, from the part the others read (next-boilerplate phase 52.2.6)
+    const open = (f: SymbolFieldSpec) => f.suggest !== false && draft.fields[f.name] && draft.fields[f.name].key === '' && draft.fields[f.name].mode === 'value';
+    const empty = [...symbol.fields.filter((f) => open(f) && f.suggest !== 'own'), ...symbol.fields.filter((f) => open(f) && f.suggest === 'own')];
     const taken = new Set(Object.values(draft.fields).filter((f) => f.key !== '' && (f.deviceId === '' || f.deviceId === draft.deviceId)).map((f) => f.key));
+    // the parts the symbol reads already are its own; the parts proposed here are its own only for a row proposed from its own part
+    const stored = partsOf(taken);
     const fields = { ...draft.fields };
     const sure = new Set<string>();
     const maybe: Record<string, RankedKey> = {};
     for (const f of empty) {
-      const [top, second] = rankKeysForField(f, keys, symbol.id, [...taken], [symbol.label, symbol.kindLabel]);
+      const own = f.suggest === 'own';
+      const read = [...taken, ...Object.values(maybe).map((r) => r.key)];
+      const pool = own ? ownPartKeys(keys, read, { element: symbol.id, label: symbol.label }) : keys;
+      const [top, second] = rankKeysForField(f, pool, symbol.id, [...taken], [symbol.label, symbol.kindLabel], { device: deviceText, parts: own ? partsOf(read) : stored });
       if (!top) continue;
       if (top.confident) {
         fields[f.name] = { ...fields[f.name], deviceId: draft.deviceId, deviceName: draft.deviceName, key: top.key, label: labelOfKey(keyByName.get(top.key)), automatic: false };
@@ -367,6 +394,20 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     });
   }
 
+  /** "Scale 0–100" writes its expression over the RAW value, in place of what was typed (next-boilerplate phase 52.2.4, test 3 #27: its form says so). */
+  function writeScale(name: string, range: RawRange) {
+    setField(name, (f) => ({ ...f, mode: 'expression', script: scaleOver(range, f.inputs, f.key !== '') }));
+  }
+
+  /** "Difference" and "Ratio (%)" over the two values the row reads (D589); typed work takes A's place. */
+  function writePair(name: string, id: PairTemplateId) {
+    setField(name, (f) => {
+      const pair = pairOperands(f.key !== '', f.inputs);
+      const script = pair ? applyPair(id, f.script, pair) : null;
+      return script === null ? f : { ...f, mode: 'expression', script };
+    });
+  }
+
   function addInput(name: string, key: string) {
     const info = keyByName.get(key);
     setField(name, (f) => {
@@ -429,8 +470,12 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   if (!props.error && errorFor) setErrorFor(null);
   const shownError = props.error && errorFor && errorFor.sig === draftSig ? props.error : undefined;
 
-  // "Next symbol" writes first when something is filled in that is not saved yet; its label says so then ("Save and next")
+  // "Next symbol" writes first when something is filled in that is not saved yet; its label says so then ("Save and next"), and names the symbol it goes to
+  // when the host knows it ("Save and next: K6", D594)
   const nextWrites = dirty && !readOnly;
+  const nextText = props.nextLabel
+    ? (nextWrites ? m.saveAndNextTo(props.nextLabel) : m.nextTo(props.nextLabel))
+    : (nextWrites ? m.saveAndNext : m.next);
   const canWrite = !blocked;
   async function next() {
     if (nextWrites && !(await save())) return;
@@ -534,11 +579,11 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
       key: k.key,
       name: nameOfKey(k, k.key),
       feeds: usedBy.get(k.key),
-      value: formatValue(k.value, k.unit, stateWordsOf(m)),
+      value: formatValue(k.value, k.unit, stateWordsOf(m), locale),
       ts: (typeof k.ts === 'number' ? k.ts : Date.parse(k.ts)) || 0,
       age: ageText(k.ts, now, m.age),
     })),
-    [keys, usedBy, now, m],
+    [keys, usedBy, now, m, locale],
   );
   const valueColumns = useMemo<Column<ValueRow>[]>(() => [
     {
@@ -653,6 +698,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
                 onMode={(mode) => setMode(field.name, mode)}
                 onScript={(s) => setScript(field.name, s)}
                 onTemplate={(tpl) => writeTemplate(field.name, tpl)}
+                onScale={(range) => writeScale(field.name, range)}
+                onPair={(id) => writePair(field.name, id)}
                 onAddInput={(key) => addInput(field.name, key)}
                 onRemoveInput={(n) => removeInput(field.name, n)}
                 onInsert={(w) => insertName(field.name, w)}
@@ -662,6 +709,11 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
                 judgeScript={props.judgeScript}
                 now={now}
                 m={m}
+                locale={locale}
+                deviceText={deviceText}
+                readKeys={readKeys}
+                symbolId={symbol.id}
+                symbolLabel={symbol.label}
               />
             );
           })}
@@ -721,8 +773,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
             </Button>
           )}
           {props.onNext && (
-            <Button variant="secondary" size="sm" className="flex-1" disabled={busy || (nextWrites && !canWrite)} onClick={() => void next()}>
-              {nextWrites ? m.saveAndNext : m.next}
+            <Button variant="secondary" size="sm" className="min-w-0 flex-1" disabled={busy || (nextWrites && !canWrite)} onClick={() => void next()} title={nextText}>
+              <span className="truncate">{nextText}</span>
             </Button>
           )}
           {!readOnly && (
@@ -791,6 +843,10 @@ interface FieldRowProps {
   onMode: (mode: SourceMode) => void;
   onScript: (script: string) => void;
   onTemplate: (template: ScriptTemplate) => void;
+  /** "Scale 0–100" with the raw range the person gave: written over the raw value. */
+  onScale: (range: RawRange) => void;
+  /** "Difference" or "Ratio (%)" over the row's two values. */
+  onPair: (id: PairTemplateId) => void;
   onAddInput: (key: string) => void;
   onRemoveInput: (name: string) => void;
   onInsert: (word: string) => void;
@@ -801,42 +857,52 @@ interface FieldRowProps {
   judgeScript?: (script: string, names: string[]) => string | null;
   now: number;
   m: SymbolBindingMessages;
+  locale?: string;
+  /** The picked device's name and place: a symbol's code the device writes is the symbol's (`rankKeysForField`'s `device`). */
+  deviceText?: string;
+  /** The keys the symbol's rows read on this device: their parts are its own (`rankKeysForField`'s `parts`; `ownPartKeys` for a row proposed from its own part). */
+  readKeys?: readonly string[];
+  symbolId?: string;
+  symbolLabel?: string;
 }
 
 function FieldRow(p: FieldRowProps) {
-  const { uid, field, f, draftDeviceId, keys, keyByName, hints, ready, readOnly, suggested, proposal, opened, m, now } = p;
+  const { uid, field, f, draftDeviceId, keys, keyByName, hints, ready, readOnly, suggested, proposal, opened, m, now, locale, deviceText, readKeys } = p;
   const info = keyByName.get(f.key);
   const other = f.key !== '' && f.deviceId !== '' && f.deviceId !== draftDeviceId;
   // what the symbol shows now: the card's row, or the fresher list value when the saved source is the picked key and nothing converts it (next-boilerplate
   // e2e round 4, m-R4-05: "Shows 59 now" beside a list that said 75.9)
   const savedIsPicked = f.mode === 'value' && f.key !== '' && f.key === field.currentSource?.key && !(field.currentScript ?? '').trim();
   // in the FIELD's unit (what the symbol draws), not the list's: the picker line already carries the device's unit
-  const live = savedIsPicked && info?.ts ? formatValue(info.value, field.unit, stateWordsOf(m)) : field.live !== undefined ? formatValue(field.live, field.unit, stateWordsOf(m)) : '';
+  const live = savedIsPicked && info?.ts ? formatValue(info.value, field.unit, stateWordsOf(m), locale) : field.live !== undefined ? formatValue(field.live, field.unit, stateWordsOf(m), locale) : '';
   // a value picked but not saved yet: the label says what the symbol will show once it is, instead of "Shows nothing yet" (m-R4-05)
-  const pickedUnsaved = f.mode === 'value' && f.key !== '' && f.key !== (field.currentSource?.key ?? '') && !other && info?.ts ? formatValue(info.value, field.unit, stateWordsOf(m)) : '';
+  const pickedUnsaved = f.mode === 'value' && f.key !== '' && f.key !== (field.currentSource?.key ?? '') && !other && info?.ts ? formatValue(info.value, field.unit, stateWordsOf(m), locale) : '';
   const automaticClosed = !!f.automatic && !opened && f.mode === 'value';
   const mismatch = f.mode === 'value' && info ? mismatchOf(field, info) : null;
 
   // the picker's choices: every key of the device, the ranked ones first (the best says "Suggested"), each with its live value and age; a key the host
   // marked internal (a connection of the drawing) is never ranked and comes last, but is never out of reach
   const options = useMemo<ComboBoxOption[]>(() => {
-    const ranked = rankKeysForField(field, keys, undefined, [], hints);
+    const others = (readKeys ?? []).filter((k) => k !== f.key);
+    const ranked = rankKeysForField(field, keys, undefined, [], hints, { device: deviceText, parts: partsOf(others) });
     const order = new Map(ranked.map((r, i) => [r.key, i]));
     const list = [...pickableKeys(keys).sort((a, b) => (order.get(a.key) ?? Infinity) - (order.get(b.key) ?? Infinity)), ...keys.filter((k) => k.internal)];
-    // a row nothing is proposed for (`suggest: false`) lists the best first all the same, but calls none of them "Suggested"
-    const best = field.suggest === false ? undefined : ranked[0]?.key;
+    // a row nothing is proposed for (`suggest: false`) lists the best first all the same, but calls none of them "Suggested"; nor is a tie at the top, a
+    // weak best or one of the wrong kind "Suggested" (next-boilerplate phase 52.2.4, test 3 #157: every belt was "Suggested: Conveyor 1")
+    const ownKeys = field.suggest === 'own' ? new Set(ownPartKeys(keys, others, { element: p.symbolId, label: p.symbolLabel ?? '' }).map((k) => k.key)) : null;
+    const best = field.suggest === false ? undefined : clearBest(ownKeys ? ranked.filter((r) => ownKeys.has(r.key)) : ranked)?.key;
     const out = list.map((k): ComboBoxOption => {
       // a key the device's profile declares but the device has not sent yet (no reading, no time) is offered with "No value yet", not "–" (E2E-1.4)
-      const value = k.ts ? m.optionLine(formatValue(k.value, k.unit, stateWordsOf(m)), ageText(k.ts, now, m.age)) : m.noValueYet;
+      const value = k.ts ? m.optionLine(formatValue(k.value, k.unit, stateWordsOf(m), locale), ageText(k.ts, now, m.age)) : m.noValueYet;
       // a key the device sent that its profile does not declare says so (next-boilerplate e2e round 4, M-R4-09: nothing told an old name from a real value)
       const line = k.declared === false ? m.notDeclaredOption(value) : value;
       return { value: k.key, label: nameOfKey(k, k.key), description: k.key === best ? m.suggestedOption(line) : line };
     });
     if (f.key && !out.some((o) => o.value === f.key)) out.unshift({ value: f.key, label: f.key });
     return out;
-  }, [field, keys, f.key, hints, m, now]);
+  }, [field, keys, f.key, hints, m, now, locale, deviceText, readKeys, p.symbolId, p.symbolLabel]);
 
-  const valueLine = valueLineOf({ f, info, other, ready, field, now, m });
+  const valueLine = valueLineOf({ f, info, other, ready, field, now, m, locale });
   const rowId = `${uid}-row-${field.name}`;
 
   return (
@@ -851,7 +917,7 @@ function FieldRow(p: FieldRowProps) {
 
       {automaticClosed ? (
         <p className="flex flex-wrap items-center gap-x-2 text-sm text-text-secondary">
-          <span>{m.automaticLine(nameOfKey(info, f.key), info ? m.valueAndAge(formatValue(info.value, info.unit, stateWordsOf(m)), ageText(info.ts, now, m.age)) : '')}</span>
+          <span>{m.automaticLine(nameOfKey(info, f.key), info ? m.valueAndAge(formatValue(info.value, info.unit, stateWordsOf(m), locale), ageText(info.ts, now, m.age)) : '')}</span>
           {!readOnly && <Button variant="ghost" size="xs" onClick={p.onOpen}>{m.change}</Button>}
         </p>
       ) : (
@@ -915,6 +981,8 @@ function FieldRow(p: FieldRowProps) {
               readOnly={readOnly}
               onScript={p.onScript}
               onTemplate={p.onTemplate}
+              onScale={p.onScale}
+              onPair={p.onPair}
               onAddInput={p.onAddInput}
               onRemoveInput={p.onRemoveInput}
               onInsert={p.onInsert}
@@ -924,6 +992,7 @@ function FieldRow(p: FieldRowProps) {
               previewScript={p.previewScript}
               judgeScript={p.judgeScript}
               m={m}
+              locale={locale}
             />
           )}
         </>
@@ -940,14 +1009,15 @@ function valueLineOf(a: {
   field: { live?: unknown; currentSource?: { key: string }; currentScript?: string };
   now: number;
   m: SymbolBindingMessages;
+  locale?: string;
 }): string {
-  const { f, info, other, ready, field, now, m } = a;
+  const { f, info, other, ready, field, now, m, locale } = a;
   if (!f.key || other) return '';
-  if (info) return info.ts ? m.valueAndAge(formatValue(info.value, info.unit, stateWordsOf(m)), ageText(info.ts, now, m.age)) : m.noValueYet;
+  if (info) return info.ts ? m.valueAndAge(formatValue(info.value, info.unit, stateWordsOf(m), locale), ageText(info.ts, now, m.age)) : m.noValueYet;
   if (!ready) {
     // While the values load: what the symbol shows now, when nothing converts it.
     const same = field.currentSource?.key === f.key && !(field.currentScript ?? '').trim() && field.live !== undefined;
-    return same ? formatValue(field.live, undefined, stateWordsOf(m)) : '';
+    return same ? formatValue(field.live, undefined, stateWordsOf(m), locale) : '';
   }
   return m.noValueYet;
 }
@@ -964,6 +1034,10 @@ interface ExpressionBoxProps {
   readOnly: boolean;
   onScript: (script: string) => void;
   onTemplate: (template: ScriptTemplate) => void;
+  /** "Scale 0–100" with the raw range the person gave: written over the raw value. */
+  onScale: (range: RawRange) => void;
+  /** "Difference" or "Ratio (%)" over the row's two values. */
+  onPair: (id: PairTemplateId) => void;
   onAddInput: (key: string) => void;
   onRemoveInput: (name: string) => void;
   onInsert: (word: string) => void;
@@ -973,6 +1047,7 @@ interface ExpressionBoxProps {
   previewScript?: (script: string, sample: unknown) => ScriptOutcome;
   judgeScript?: (script: string, names: string[]) => string | null;
   m: SymbolBindingMessages;
+  locale?: string;
 }
 
 /** The column the judge's "at position N" names, for the editor's marker. */
@@ -982,7 +1057,7 @@ const columnOf = (problem: string): number | undefined => {
 };
 
 function ExpressionBox(p: ExpressionBoxProps) {
-  const { uid, field, f, info, keys, keyByName, readOnly, m } = p;
+  const { uid, field, f, info, keys, keyByName, readOnly, m, locale } = p;
   const editorId = `${uid}-script-${field.name}`;
   const names = useMemo(() => expressionNames(f.inputs), [f.inputs]);
   const inputNames = useMemo(() => f.inputs.map((i) => i.name), [f.inputs]);
@@ -1031,6 +1106,8 @@ function ExpressionBox(p: ExpressionBoxProps) {
   const needsSomething = f.script.trim() === '' && !f.key && f.inputs.length === 0;
   // "Scale 0–100" asks for the raw range first (E15): the form under the chips
   const [scaling, setScaling] = useState(false);
+  // the two values a pair chip reads, once there are two (D589)
+  const pair = pairOperands(f.key !== '', f.inputs);
 
   return (
     <div className="space-y-2">
@@ -1054,7 +1131,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
         <div className="flex flex-wrap gap-1">
           <NameChip
             name="value"
-            text={m.nameChip('value', f.key ? formatValue(info?.value, info?.unit, stateWordsOf(m)) : '')}
+            text={m.nameChip('value', f.key ? formatValue(info?.value, info?.unit, stateWordsOf(m), locale) : '')}
             title={m.insertName('value')}
             disabled={readOnly || !f.key}
             onInsert={() => p.onInsert('value')}
@@ -1063,7 +1140,7 @@ function ExpressionBox(p: ExpressionBoxProps) {
             <NameChip
               key={i.name}
               name={i.name}
-              text={m.nameChip(i.name, formatValue(keyByName.get(i.key)?.value, keyByName.get(i.key)?.unit, stateWordsOf(m)))}
+              text={m.nameChip(i.name, formatValue(keyByName.get(i.key)?.value, keyByName.get(i.key)?.unit, stateWordsOf(m), locale))}
               title={m.insertName(i.name)}
               disabled={readOnly}
               onInsert={() => p.onInsert(i.name)}
@@ -1117,6 +1194,16 @@ function ExpressionBox(p: ExpressionBoxProps) {
             {m.templates[t.id]}
           </Button>
         ))}
+        {/* two values: their difference and the first as a percent of the second (D589); they wait for a second value, and say so */}
+        {PAIR_TEMPLATES.map((id) => (
+          <Button
+            key={id} variant="outline" size="xs" disabled={readOnly || !pair}
+            title={pair ? m.pairTitle[id](pair.a, pair.b) : m.pairNeedsTwo}
+            onClick={() => p.onPair(id)}
+          >
+            {m.templates[id]}
+          </Button>
+        ))}
       </div>
       {scaling && !readOnly && (
         <ScaleForm
@@ -1124,12 +1211,12 @@ function ExpressionBox(p: ExpressionBoxProps) {
           start={declaredRange(info) ?? declaredRange(keyByName.get(f.inputs[0]?.key ?? ''))}
           m={m}
           onCancel={() => setScaling(false)}
-          onApply={(range) => { setScaling(false); p.onTemplate({ id: 'scale', script: scaleScript(range) }); }}
+          onApply={(range) => { setScaling(false); p.onScale(range); }}
         />
       )}
       {needsSomething
         ? <p className="text-xs text-text-secondary">{m.expressionNeedsSomething}</p>
-        : <ScriptPreview script={settled} sample={sample} wrapped={wrapped} hasSample={hasAnySample} problem={problem} marked={marked} previewScript={p.previewScript} m={m} />}
+        : <ScriptPreview script={settled} sample={sample} wrapped={wrapped} hasSample={hasAnySample} problem={problem} marked={marked} previewScript={p.previewScript} m={m} locale={locale} />}
     </div>
   );
 }
@@ -1199,8 +1286,9 @@ function ScriptPreview(props: {
   marked?: boolean;
   previewScript?: (script: string, sample: unknown) => ScriptOutcome;
   m: SymbolBindingMessages;
+  locale?: string;
 }) {
-  const { script, sample, wrapped, hasSample, problem, marked = false, previewScript, m } = props;
+  const { script, sample, wrapped, hasSample, problem, marked = false, previewScript, m, locale } = props;
   const outcome = useMemo<ScriptOutcome | null>(() => {
     if (problem || !previewScript || script.trim() === '' || !hasSample) return null;
     try {
@@ -1218,7 +1306,7 @@ function ScriptPreview(props: {
     text = m.previewErrors[kind](marked ? '' : problem);
     bad = true;
   } else if (previewScript) {
-    const line = previewLine(script, hasSample ? sample : undefined, outcome);
+    const line = previewLine(script, hasSample ? sample : undefined, outcome, locale);
     if (line.kind === 'wait') text = m.previewWait;
     else if (line.kind === 'ok') text = wrapped ? m.resultNow(line.to) : m.previewResult(line.from, line.to);
     else if (line.kind === 'error') {

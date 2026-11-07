@@ -4,7 +4,7 @@
 // a role or a match: the panel speaks of the symbol, the device and its values.
 
 import { mergeMessages, type DeepPartial } from './scene-editor-messages-panels';
-import { DEFAULT_AGE_WORDS, type AgeWords, type MatchEmptyReason, type Mismatch, type ScriptErrorKind, type ScriptTemplateId } from './symbol-binding-logic';
+import { DEFAULT_AGE_WORDS, type AgeWords, type MatchEmptyReason, type Mismatch, type PairTemplateId, type ScriptErrorKind, type ScriptTemplateId } from './symbol-binding-logic';
 
 export type { DeepPartial };
 export { mergeMessages };
@@ -93,6 +93,10 @@ export interface SymbolBindingMessages {
   inputsFull: (max: number) => string;
   expressionNeedsSomething: string;
   templates: Record<ScriptTemplateId, string>;
+  /** The title of a pair chip ("Difference", "Ratio (%)", D589): what it writes over the row's two values. */
+  pairTitle: Record<PairTemplateId, (a: string, b: string) => string>;
+  /** The title of a pair chip while the row reads fewer than two values. */
+  pairNeedsTwo: string;
   /** "Scale 0–100" asks for the raw range first (e2e round 5, E15): the two numbers, a hint, and the button that writes the expression. */
   scaleTitle: string;
   scaleFrom: string;
@@ -130,6 +134,9 @@ export interface SymbolBindingMessages {
   next: string;
   /** "Next symbol" when it will write first (something is filled in that is not saved yet): the person is told that a press saves. */
   saveAndNext: string;
+  /** "Next symbol" and "Save and next" with the symbol they go to, when the host knows it (next-boilerplate phase 52.2.4, D594). */
+  nextTo: (symbol: string) => string;
+  saveAndNextTo: (symbol: string) => string;
   more: string;
   clear: string;
   clearTitle: string;
@@ -224,6 +231,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
     'text-for-state': 'This value is text; the drawing expects on/off.',
     'number-for-text': 'This value is a number; the drawing shows a status here.',
     quantity: 'This value measures something else than the drawing shows here.',
+    inverted: 'This value says closed or stopped; the drawing shows open or running here. Invert it with an expression.',
   },
   convertInstead: 'Convert it with an expression',
   age: DEFAULT_AGE_WORDS,
@@ -245,7 +253,14 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
     round: 'Round',
     threshold: 'Threshold',
     words: 'Words',
+    difference: 'Difference',
+    ratio: 'Ratio (%)',
   },
+  pairTitle: {
+    difference: (a, b) => `${a} - ${b}`,
+    ratio: (a, b) => `${a} / ${b} * 100`,
+  },
+  pairNeedsTwo: 'Add a second value to use this.',
   scaleTitle: 'Make 0–100 from the raw value',
   scaleFrom: 'Raw value at 0 %',
   scaleTo: 'Raw value at 100 %',
@@ -279,6 +294,8 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   save: 'Save',
   next: 'Next symbol',
   saveAndNext: 'Save and next',
+  nextTo: (symbol) => `Next: ${symbol}`,
+  saveAndNextTo: (symbol) => `Save and next: ${symbol}`,
   more: 'More',
   clear: 'Clear what this symbol reads',
   clearTitle: 'Clear this symbol',

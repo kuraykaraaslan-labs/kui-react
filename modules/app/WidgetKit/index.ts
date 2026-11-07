@@ -56,12 +56,12 @@ export type { SymbolBindingMessages } from './views/symbol-binding-messages';
 export {
   suggestKeyForField, suggestKeysForFields, ageText, formatValue as formatSymbolValue, formatSample, scriptTemplates, scriptErrorKind, previewLine,
   entryFromDraft, entryFromSymbol, draftFromSymbol, isDirty as isSymbolBindingDirty, sameEntry as sameSymbolEntry, isBound as isSymbolBound,
-  nextUnbound, isBooleanish, DEFAULT_AGE_WORDS, MAX_SCRIPT_LENGTH,
+  nextUnbound, isBooleanish, DEFAULT_AGE_WORDS, MAX_SCRIPT_LENGTH, WORD_TABLE, canonicalWords, deviceNameRelation, sharedNameWords,
 } from './views/symbol-binding-logic';
 export type {
   SymbolSpec, SymbolFieldSpec, FieldSource, DeviceOption as SymbolDeviceOption, DeviceKey as SymbolDeviceKey, BindingEntry as SymbolBindingEntry,
   BindingEntryField as SymbolBindingEntryField, BindingDraft as SymbolBindingDraft, FieldDraft as SymbolFieldDraft, AgeWords, ScriptOutcome,
-  ScriptTemplate, ScriptTemplateId, ScriptErrorKind, PreviewLine,
+  ScriptTemplate, ScriptTemplateId, PairTemplateId, SuggestMode, RankContext, ScriptErrorKind, PreviewLine,
 } from './views/symbol-binding-logic';
 // The rules of a 3D design (phase 42.6): the Rules step of the drawer, and the pure part the card evaluates them with.
 export { SceneSetupRules } from './views/SceneSetupRules';

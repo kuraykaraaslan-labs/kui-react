@@ -32,6 +32,8 @@ export interface SymbolMatchAllDialogProps {
   connected?: { connected: number; total: number };
   /** The time the ages are counted from (ms); default the clock. */
   now?: number;
+  /** The workspace's language: the values' numbers follow it (`formatValue`). */
+  locale?: string;
   messages?: DeepPartial<SymbolBindingMessages>;
   portalTarget?: Element | string | null;
 }
@@ -41,7 +43,7 @@ export function SymbolMatchAllDialog(props: SymbolMatchAllDialogProps) {
   return props.open ? <MatchForm key="open" {...props} /> : null;
 }
 
-function MatchForm({ rows, onApply, onClose, busy = false, loading = false, emptyReason, connected, messages, portalTarget, ...rest }: SymbolMatchAllDialogProps) {
+function MatchForm({ rows, onApply, onClose, busy = false, loading = false, emptyReason, connected, messages, portalTarget, locale, ...rest }: SymbolMatchAllDialogProps) {
   const all = useMemo(() => mergeMessages<SymbolBindingMessages>(DEFAULT_SYMBOL_BINDING_MESSAGES, messages), [messages]);
   const m = all.matchAll;
   const age = all.age;
@@ -53,34 +55,41 @@ function MatchForm({ rows, onApply, onClose, busy = false, loading = false, empt
   const [touched, setTouched] = useState<DataTableRowId[] | null>(null);
   const chosen = touched ?? confident;
   const setChosen = (ids: DataTableRowId[]) => setTouched(ids);
+  // the names wrap instead of being cut (next-boilerplate phase 52.2.5, test 3 #31: "Greenho…", "Soil moistu…" at 1280 px), in a dialog wide enough for four
+  // columns; a row that reads "Check the kind" says why, in the panel's own sentence (D587, test 3 #80)
   const columns = useMemo<Column<MatchRow>[]>(() => [
     {
-      key: 'symbol', header: m.symbol, sortable: true, tdClass: 'max-w-0',
+      key: 'symbol', header: m.symbol, sortable: true, tdClass: 'min-w-[9rem]',
       render: (r) => (
-        <span className="block min-w-0">
-          <span className="block truncate text-sm text-text-primary">{r.symbolLabel}</span>
-          <span className="block truncate text-xs text-text-secondary">{r.kindLabel}</span>
+        <span className="block min-w-0 break-words">
+          <span className="block text-sm text-text-primary">{r.symbolLabel}</span>
+          <span className="block text-xs text-text-secondary">{r.kindLabel}</span>
         </span>
       ),
     },
     { key: 'fieldLabel', header: m.parameter, sortable: true, tdClass: 'whitespace-nowrap' },
     {
-      key: 'key', header: m.proposed, sortable: true, tdClass: 'max-w-0',
+      key: 'key', header: m.proposed, sortable: true, tdClass: 'min-w-[12rem]',
       render: (r) => (
-        <span className="block min-w-0">
-          <span className="block truncate text-sm text-text-primary">{r.keyLabel}</span>
-          {/* the device first: a narrow window cuts the end of the line, and the device is what tells two alike candidates apart (run 3 note 105) */}
-          <span className="block truncate text-xs text-text-secondary" title={r.deviceName}>{`${r.deviceName} · ${formatValue(r.value, r.unit, words)} · ${ageText(r.ts, now, age)}`}</span>
+        <span className="block min-w-0 break-words">
+          <span className="block text-sm text-text-primary">{r.keyLabel}</span>
+          {/* the device first: it is what tells two alike candidates apart (run 3 note 105) */}
+          <span className="block text-xs text-text-secondary" title={r.deviceName}>{`${r.deviceName} · ${formatValue(r.value, r.unit, words, locale)} · ${ageText(r.ts, now, age)}`}</span>
         </span>
       ),
     },
     {
-      key: 'confident', header: m.confidence, sortable: true, searchable: false, tdClass: 'whitespace-nowrap',
+      key: 'confident', header: m.confidence, sortable: true, searchable: false, tdClass: 'min-w-[8rem] max-w-[14rem]',
       render: (r) => (r.mismatch
-        ? <Badge size="sm" variant="warning">{m.mismatch}</Badge>
+        ? (
+          <span className="block min-w-0">
+            <Badge size="sm" variant="warning">{m.mismatch}</Badge>
+            <span className="mt-0.5 block whitespace-normal break-words text-xs text-warning-fg" data-testid="match-mismatch-reason">{all.mismatch[r.mismatch]}</span>
+          </span>
+        )
         : r.confident ? <Badge size="sm" variant="success">{m.sure}</Badge> : <Badge size="sm" variant="neutral">{m.maybe}</Badge>),
     },
-  ], [m, age, now, words]);
+  ], [m, all, age, now, words, locale]);
 
   return (
     <Modal
@@ -88,7 +97,8 @@ function MatchForm({ rows, onApply, onClose, busy = false, loading = false, empt
       onClose={busy ? () => undefined : onClose}
       title={m.title}
       description={loading && rows.length === 0 ? m.loading : rows.length === 0 ? (emptyReason === 'unsure' && connected && connected.connected > 0 ? m.unsureCount(connected.connected, connected.total) : emptyReason ? m.emptyBecause[emptyReason] : m.empty) : m.intro(rows.length, confident.length)}
-      size="xl"
+      size="full"
+      className="max-w-5xl"
       {...(portalTarget ? { portalTarget } : {})}
       footer={(
         <div className="flex justify-end gap-2">

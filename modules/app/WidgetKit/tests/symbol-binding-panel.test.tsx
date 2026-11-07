@@ -297,8 +297,8 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     await user.click(within(r).getByRole('searchbox', { name: 'Reading' }));
     const options = within(await screen.findByRole('listbox')).getAllByRole('option');
     expect(options[0]).toHaveTextContent('reading');
-    expect(options[0]).toHaveTextContent('Suggested · high · just now');
-    expect(options.map((o) => o.textContent)).toEqual(['readingSuggested · high · just now', 'rssi-60 · just now', 'x2 · just now']);
+    // listed first, but never "Suggested": a value of the wrong kind is no suggestion in the picker either (next-boilerplate phase 52.2.4, test 3 #157)
+    expect(options.map((o) => o.textContent)).toEqual(['readinghigh · just now', 'rssi-60 · just now', 'x2 · just now']);
     await user.click(within(options[0]).getByRole('button'));
     expect(within(r).getByRole('searchbox', { name: 'Reading' })).toHaveValue('reading');
     // the picked value is text where a number is expected: said in words, with the way out
@@ -464,7 +464,8 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     await user.click(within(r).getByRole('button', { name: 'Invert' }));
     expect(expression('Running')).toHaveValue('!value');
     await waitFor(() => expect(within(r).getByText('1 → Off')).toBeInTheDocument());
-    // a second chip is applied to what the box holds (next-boilerplate AD-15), never written over it; "Scale 0–100" asks for the raw range first (E15)
+    // "Scale 0–100" asks for the raw range first (E15) and scales the RAW value, in place of what the box holds: its form says "from the raw value"
+    // (next-boilerplate phase 52.2.4, test 3 #27: a second scale wrapped the first and showed −80.7)
     await user.click(within(r).getByRole('button', { name: 'Scale 0–100' }));
     const form = within(r).getByTestId('scale-form');
     const use = within(form).getByRole('button', { name: 'Use these numbers' });
@@ -472,7 +473,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     await user.type(within(form).getByLabelText('Raw value at 0 %'), '1500');
     await user.type(within(form).getByLabelText('Raw value at 100 %'), '3300');
     await user.click(use);
-    expect(expression('Running')).toHaveValue('((!value) - 1500) / (3300 - 1500) * 100');
+    expect(expression('Running')).toHaveValue('(value - 1500) / (3300 - 1500) * 100');
     expect(within(r).queryByTestId('scale-form')).toBeNull();
   });
   it('"Scale 0–100" starts from the scale the key\'s profile declares, and refuses two equal numbers', async () => {
@@ -1168,5 +1169,77 @@ describe('SymbolBindingPanel: next-boilerplate run 3', () => {
     expect(pick).not.toBeNull();
     expect(adder).not.toBeNull();
     expect(pick!.compareDocumentPosition(adder!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('next-boilerplate phase 52.2.4 and 52.2.6: the panel\'s helpers', () => {
+  it('#28: "Shows … now" and the values list follow the workspace\'s language', async () => {
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Temperature', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'temperature' }, live: 46.2222 }] }), locale: 'tr' })} />);
+    expect(await screen.findByText('Shows 46,222 now')).toBeInTheDocument();
+  });
+  it('D589: "Difference" and "Ratio (%)" wait for a second value, then write A − B and A ÷ B × 100 over the picked value and the other one', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [
+      { key: 'depo.value', label: 'Depo · value', value: 78, ts: NOW - 2000 }, { key: 'cikis_debisi.value', label: 'Çıkış debisi · value', value: 142, ts: NOW - 2000 },
+    ];
+    render(<SymbolBindingPanel {...props({
+      symbol: symbol({ fields: [{ name: 'value', label: 'Reading', currentSource: { deviceId: D1, deviceName: 'Hisartepe deposu RTU', key: 'depo.value' } }] }),
+      loadKeys: vi.fn(async () => keys),
+    })} />);
+    await waitFor(() => expect(picker('Reading')).toBeEnabled());
+    await user.selectOptions(source('Reading'), 'expression');
+    const r = row('Reading');
+    expect(within(r).getByRole('button', { name: 'Difference' })).toBeDisabled();
+    expect(within(r).getByRole('button', { name: 'Ratio (%)' })).toHaveAttribute('title', 'Add a second value to use this.');
+    await user.click(within(r).getByRole('searchbox', { name: 'Add a value' }));
+    await user.click(within(await screen.findByRole('option', { name: /^Çıkış debisi/ })).getByRole('button'));
+    await user.click(within(r).getByRole('button', { name: 'Ratio (%)' }));
+    expect(expression('Reading')).toHaveValue('value / debisi_value * 100');
+    await user.clear(expression('Reading'));
+    await user.click(within(r).getByRole('button', { name: 'Difference' }));
+    expect(expression('Reading')).toHaveValue('value - debisi_value');
+  });
+  it('D594: "Save and next" names the symbol it goes to', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, onNext: vi.fn(), nextLabel: 'K6' })} />);
+    await rowsReady();
+    expect(screen.getByRole('button', { name: 'Next: K6' })).toBeInTheDocument();
+    await pickKey(user, 'Running', 'rssi');
+    expect(screen.getByRole('button', { name: 'Save and next: K6' })).toBeInTheDocument();
+  });
+  it('#157: two values that score the same: neither is "Suggested" in the picker', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'b1.running', label: 'Conveyor 1 · running', value: true, ts: NOW }, { key: 'b2.running', label: 'Conveyor 2 · running', value: true, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ label: 'Belt 3', kindLabel: 'Belt conveyor', fields: [{ name: 'running', label: 'Running' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Line PLC' } })} />);
+    await rowsReady();
+    await user.click(picker('Running'));
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option');
+    expect(options.some((o) => /Suggested/.test(o.textContent ?? ''))).toBe(false);
+  });
+  it('52.2.6: a measuring symbol\'s Status is proposed from the part its Reading reads, never from another part', async () => {
+    const keys: DeviceKey[] = [
+      { key: 'h2s.value', label: 'H2S · value', unit: 'ppm', value: 3, ts: NOW }, { key: 'h2s.status', label: 'H2S · status', value: 'alarm', ts: NOW },
+      { key: 'pompa_1.status', label: 'Pompa 1 · status', value: 'ok', ts: NOW },
+    ];
+    render(<SymbolBindingPanel {...props({
+      symbol: symbol({ label: 'Islak kuyu gazı', kindLabel: 'Gas detector', fields: [
+        { name: 'value', label: 'Reading', currentSource: { deviceId: D1, deviceName: 'Köprübaşı PLC', key: 'h2s.value' } }, { name: 'status', label: 'Status', suggest: 'own' },
+      ] }),
+      loadKeys: vi.fn(async () => keys),
+    })} />);
+    await waitFor(() => expect(picker('Status')).toHaveValue('H2S · status'));
+  });
+});
+
+describe('next-boilerplate phase 52.2.5: the match-all dialog', () => {
+  it('#31, #80: a dialog wide enough for its names, which wrap; a row that reads "Check the kind" says why', async () => {
+    const { SymbolMatchAllDialog } = await import('../views/SymbolMatchAllDialog');
+    const rows = [{
+      id: 'gen.running', symbolId: 'gen', symbolLabel: 'Jeneratör', kindLabel: 'Diesel generator', field: 'running', fieldLabel: 'Running', deviceId: D1, deviceName: 'Köprübaşı PLC',
+      key: 'yakit', keyLabel: 'Jeneratör yakıtı', value: 64, unit: '%', ts: NOW, confident: false, mismatch: 'number-for-state' as const,
+    }];
+    render(<SymbolMatchAllDialog open rows={rows} onApply={vi.fn()} onClose={vi.fn()} now={NOW} />);
+    expect(screen.getByRole('dialog').querySelector('.max-w-5xl')).not.toBeNull();
+    expect(screen.getByTestId('match-mismatch-reason')).toHaveTextContent('This value is a number; the drawing expects on/off.');
   });
 });
