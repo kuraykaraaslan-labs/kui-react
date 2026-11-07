@@ -190,7 +190,9 @@ describe('interactive steps', () => {
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const css = readFileSync(join(process.cwd(), 'modules/app/Tour/tour.css'), 'utf8');
-    expect(css).toContain('.driver-active:not(.kui-tour-interactive) * { pointer-events: none; }');
+    // :where() so the rule stays at (0,1,0) and `.driver-popover` / `.driver-active-element` (later, same weight) keep the popover usable
+    expect(css).toContain('.driver-active:where(:not(.kui-tour-interactive)) * { pointer-events: none; }');
+    expect(css).not.toContain('.driver-active:not(');
     expect(css).toMatch(/\.kui-tour-interactive \.driver-overlay[\s\S]*pointer-events: none !important/);
   });
 });
