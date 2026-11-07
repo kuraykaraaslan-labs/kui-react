@@ -72,12 +72,15 @@ export function shiftsFixedChildren(el: Element, doc: Document = document): bool
 }
 
 /** The default host of a step's popover and overlay (see TourRunnerOptions.container). */
+/** A modal dialog: `aria-modal="true"`, or a `role="dialog"` that does not say it is non-modal (Radix sets no aria-modal). */
+const MODAL = '[aria-modal="true"], [role="dialog"]:not([aria-modal="false"])';
+
 export function modalHostFor(target: Element | null, doc: Document = document): Element | null {
   if (target?.closest('dialog[open]')) return null;
-  const own = target?.closest('[aria-modal="true"]');
+  const own = target?.closest(MODAL);
   const open = own
     ? [own]
-    : Array.from(doc.querySelectorAll('[aria-modal="true"]'))
+    : Array.from(doc.querySelectorAll(MODAL))
         .filter((el) => !el.closest('.driver-popover') && !el.closest('[inert], [aria-hidden="true"]') && el.getClientRects().length > 0)
         .reverse();
   for (const el of open) if (!shiftsFixedChildren(el, doc)) return el;
@@ -143,6 +146,7 @@ export class TourRunner {
     this.token++;
     this.clearStep();
     this.doc.removeEventListener('keydown', this.onKey, true);
+    this.doc.body.classList.remove('kui-tour-interactive');
     this.driver?.destroy();
     this.driver = undefined;
   }
@@ -251,6 +255,7 @@ export class TourRunner {
       },
     };
     this.target = element;
+    this.doc.body.classList.toggle('kui-tour-interactive', Boolean(step.interactive));
     driver.highlight(drive);
     this.placeLayers(); // the overlay may only exist once the first highlight made it
 

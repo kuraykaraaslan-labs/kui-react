@@ -85,7 +85,10 @@
 
 .driver-active .driver-overlay { pointer-events: none; }
 .driver-active.driver-no-scroll { overflow: hidden; }
-.driver-active * { pointer-events: none; }
+.driver-active:not(.kui-tour-interactive) * { pointer-events: none; }
+/* An interactive step (TourStep.interactive): the page stays usable; the overlay only dims and lets every click through. */
+.kui-tour-interactive .driver-overlay,
+.kui-tour-interactive .driver-overlay * { pointer-events: none !important; }
 .driver-active .driver-active-element,
 .driver-active .driver-active-element *,
 .driver-popover,

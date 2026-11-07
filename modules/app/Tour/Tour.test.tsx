@@ -172,6 +172,29 @@ describe('TourRunner', () => {
   });
 });
 
+describe('interactive steps', () => {
+  it('leave the page usable only while such a step shows, and never after the tour', async () => {
+    const { runner } = makeRunner({ steps: [{ id: 'a', text: 'Look.' }, { id: 'b', text: 'Work in the drawer.', interactive: true }, { id: 'c', text: 'Done.' }] });
+    await runner.start();
+    expect(document.body.classList.contains('kui-tour-interactive')).toBe(false);
+    await runner.next();
+    expect(document.body.classList.contains('kui-tour-interactive')).toBe(true);
+    await runner.next();
+    expect(document.body.classList.contains('kui-tour-interactive')).toBe(false);
+    await runner.previous();
+    runner.finish('dismissed');
+    expect(document.body.classList.contains('kui-tour-interactive')).toBe(false);
+  });
+
+  it('the stylesheet keeps the page usable on an interactive step', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const css = readFileSync(join(process.cwd(), 'modules/app/Tour/tour.css'), 'utf8');
+    expect(css).toContain('.driver-active:not(.kui-tour-interactive) * { pointer-events: none; }');
+    expect(css).toMatch(/\.kui-tour-interactive \.driver-overlay[\s\S]*pointer-events: none !important/);
+  });
+});
+
 describe('modal hosts', () => {
   const modalSteps: TourStep[] = [
     { id: 'in', target: '[data-tour="inside"]', text: 'In the dialog.' },
@@ -204,6 +227,18 @@ describe('modal hosts', () => {
     const b = makeRunner({ steps: modalSteps });
     await b.runner.start();
     expect(b.fake.overlay.parentElement).toBe(document.body);
+  });
+
+  it('a Radix dialog (role="dialog", no aria-modal) is a host; one that says aria-modal="false" is not', async () => {
+    document.body.insertAdjacentHTML('beforeend', '<div role="dialog" id="radix"><button data-tour="inside">In</button></div>');
+    const a = makeRunner({ steps: modalSteps });
+    await a.runner.start();
+    expect(a.fake.calls.doms[0].wrapper.parentElement).toBe(document.getElementById('radix'));
+    a.runner.dispose();
+    document.getElementById('radix')!.setAttribute('aria-modal', 'false');
+    const b = makeRunner({ steps: modalSteps });
+    await b.runner.start();
+    expect(b.fake.calls.doms[0].wrapper.parentElement).toBeNull();
   });
 
   it('a host may choose the container itself, or none', async () => {

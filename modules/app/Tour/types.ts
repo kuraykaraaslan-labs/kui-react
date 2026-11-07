@@ -20,6 +20,12 @@ export type TourStep = {
   advanceOn?: 'next' | 'click';
   /** Milliseconds to wait for the target to appear (content that loads late). Default 3000; then the step is centred. */
   waitFor?: number;
+  /**
+   * The page stays usable while this step shows: the overlay only dims, every click goes through. For a step the reader
+   * works through in a drawer, a dialog or the canvas the step only points at (drawing lines, picking from a list).
+   * Default false: only the highlighted element can be used.
+   */
+  interactive?: boolean;
 };
 
 export type TourCloseReason = 'completed' | 'dismissed';
