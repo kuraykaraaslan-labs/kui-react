@@ -337,6 +337,20 @@ describe('AssetDrawer', () => {
     expect(screen.queryByRole('button', { name: 'Host action' })).toBeNull();
   });
 
+  it('keeps the name readable beside many buttons: the name holds a minimum width and the actions wrap under it (next-boilerplate phase 52.6.1, UI test 3 #178)', async () => {
+    wrap(<AssetDrawer assetId="press-line" onClose={() => undefined} actions={<><button type="button">Views</button><button type="button">Devices</button></>} />, fakeAssets());
+    const heading = await screen.findByRole('heading', { name: 'Press line' });
+    const header = screen.getByTestId('asset-drawer-header');
+    // the header wraps instead of squeezing the name to one letter ("F…" beside the buttons, which do not shrink)
+    expect(header).toHaveClass('flex-wrap');
+    expect(heading).toHaveClass('min-w-[10rem]', 'flex-1', 'truncate');
+    expect(heading).not.toHaveClass('min-w-0');
+    expect(heading).toHaveAttribute('title', 'Press line');
+    const actions = within(header).getByRole('group', { name: 'Actions' });
+    expect(actions).toHaveClass('shrink-0', 'flex-wrap', 'max-w-full');
+    expect(within(actions).getByRole('button', { name: 'Views' })).toBeInTheDocument();
+  });
+
   it('keeps the actions in the header (labels fold to icons on a phone), moves with the tree read on demand, and says why a delete was refused', async () => {
     const user = userEvent.setup();
     const assets = fakeAssets({ remove: vi.fn().mockRejectedValue(new IotApiError('conflict', 'This asset still has child assets: move or delete them first.')) });

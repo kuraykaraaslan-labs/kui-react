@@ -116,12 +116,14 @@ export function AssetDrawer({
   const dashboardHref = a?.defaultDashboardId && hrefs.dashboard ? hrefs.dashboard(a.defaultDashboardId) : null;
   const manage = !!a && caps.canManageAssets;
 
+  // The name keeps a readable width; the actions go to their own line under it when both do not fit (next-boilerplate phase 52.6.1, UI test 3 #178:
+  // with the host's buttons beside them, the 40rem drawer cut "Floor 5" to "F…").
   const header = (
-    <div className="flex min-w-0 items-center gap-2" data-testid="asset-drawer-header">
-      <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-text-primary" title={name}>{name}</h2>
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-testid="asset-drawer-header">
+      <h2 className="min-w-[10rem] flex-1 truncate text-base font-semibold text-text-primary" title={name}>{name}</h2>
       {a && <AssetKindBadge kind={a.kind} className="hidden shrink-0 sm:inline-flex" />}
       {a && (manage || dashboardHref || actions) && (
-        <div className="flex shrink-0 items-center gap-1" role="group" aria-label={m.asset.actions}>
+        <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1" role="group" aria-label={m.asset.actions} data-part="asset-actions">
           {manage && (
             <>
               <Button variant="outline" size="sm" className={TOUCH} onClick={() => setAddingChild(true)} aria-label={m.asset.addChild} title={m.asset.addChild}
