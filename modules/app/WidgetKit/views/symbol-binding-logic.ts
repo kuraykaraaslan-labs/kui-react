@@ -1119,13 +1119,13 @@ export function pairScript(id: PairTemplateId, a: string, b: string): string {
 }
 
 /**
- * What a pair chip writes into a row's expression box: over an empty box `pairScript` over the two values; over what the person typed, the typed expression
- * takes A's place (in brackets unless it is one plain name), so typed work is kept (AD-15). Null when the result would pass `MAX_SCRIPT_LENGTH`.
+ * What a pair chip writes into a row's expression box: `pairScript` over the two picked values, what its tooltip names (`A - B`, `A / B * 100`), in place of
+ * whatever the box held. Never the typed expression in A's place (next-boilerplate phase 53.2.5, re-run 4 #6: "Ratio (%)" over a reject-rate formula
+ * divided that formula by the first value and showed 66,667); the box's earlier text is the person's to put back (the panel's unsaved changes, the save's
+ * Undo). Null when the result would pass `MAX_SCRIPT_LENGTH`.
  */
-export function applyPair(id: PairTemplateId, current: string, pair: { a: string; b: string }): string | null {
-  const typed = current.trim();
-  const a = typed === '' ? pair.a : /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(typed) ? typed : `(${typed})`;
-  const out = pairScript(id, a, pair.b);
+export function applyPair(id: PairTemplateId, pair: { a: string; b: string }): string | null {
+  const out = pairScript(id, pair.a, pair.b);
   return out.length <= MAX_SCRIPT_LENGTH ? out : null;
 }
 

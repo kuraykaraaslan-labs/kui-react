@@ -246,13 +246,12 @@ describe('52.2.4 the panel\'s helpers (logic)', () => {
     expect(clearBest([r('a', 20)])).toBeNull();
     expect(clearBest([r('a', 80, { mismatch: 'quantity' })])).toBeNull();
   });
-  it('D589: "Difference" and "Ratio (%)" over two picked values, typed work kept', () => {
+  it('D589: "Difference" and "Ratio (%)" over two picked values (a typed formula is replaced: phase 53.2.5, symbol-match-p53)', () => {
     expect(pairOperands(true, [])).toBeNull();
     expect(pairOperands(true, [{ name: 'debisi_value' }])).toEqual({ a: 'value', b: 'debisi_value' });
     expect(pairOperands(false, [{ name: 'giris' }, { name: 'cikis' }])).toEqual({ a: 'giris', b: 'cikis' });
-    expect(applyPair('difference', '', { a: 'value', b: 'debisi_value' })).toBe('value - debisi_value');
-    expect(applyPair('ratio', '', { a: 'value', b: 'debisi_value' })).toBe('value / debisi_value * 100');
-    expect(applyPair('ratio', 'value * 50', { a: 'value', b: 'b' })).toBe('(value * 50) / b * 100');
+    expect(applyPair('difference', { a: 'value', b: 'debisi_value' })).toBe('value - debisi_value');
+    expect(applyPair('ratio', { a: 'value', b: 'debisi_value' })).toBe('value / debisi_value * 100');
   });
 });
 

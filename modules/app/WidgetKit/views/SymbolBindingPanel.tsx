@@ -399,11 +399,14 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     setField(name, (f) => ({ ...f, mode: 'expression', script: scaleOver(range, f.inputs, f.key !== '') }));
   }
 
-  /** "Difference" and "Ratio (%)" over the two values the row reads (D589); typed work takes A's place. */
+  /**
+   * "Difference" and "Ratio (%)" over the two values the row reads (D589): what their tooltip says, in place of what the box held (next-boilerplate phase
+   * 53.2.5, re-run 4 #6: a typed formula took A's place and the ratio meant nothing).
+   */
   function writePair(name: string, id: PairTemplateId) {
     setField(name, (f) => {
       const pair = pairOperands(f.key !== '', f.inputs);
-      const script = pair ? applyPair(id, f.script, pair) : null;
+      const script = pair ? applyPair(id, pair) : null;
       return script === null ? f : { ...f, mode: 'expression', script };
     });
   }

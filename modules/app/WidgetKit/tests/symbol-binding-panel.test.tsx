@@ -1195,9 +1195,34 @@ describe('next-boilerplate phase 52.2.4 and 52.2.6: the panel\'s helpers', () =>
     await user.click(within(await screen.findByRole('option', { name: /^Çıkış debisi/ })).getByRole('button'));
     await user.click(within(r).getByRole('button', { name: 'Ratio (%)' }));
     expect(expression('Reading')).toHaveValue('value / debisi_value * 100');
-    await user.clear(expression('Reading'));
+    // the second chip writes its own formula, never the first one's wrapped (next-boilerplate phase 53.2.5)
     await user.click(within(r).getByRole('button', { name: 'Difference' }));
     expect(expression('Reading')).toHaveValue('value - debisi_value');
+  });
+  it('next-boilerplate phase 53.2.5 (re-run 4 #6): "Ratio (%)" over a typed formula writes A ÷ B × 100 of the two picked values, as its tooltip says', async () => {
+    const user = userEvent.setup();
+    // the filler's vision camera (S25): the checked bottles are the symbol's value, the rejected ones a second value, the box holds test 3's formula
+    const keys: DeviceKey[] = [
+      { key: 'kontrol', label: 'Kontrol edilen şişe', value: 149, unit: 'şişe/dk', ts: NOW - 2000 },
+      { key: 'reddedilen', label: 'Reddedilen şişe', value: 2.4, unit: 'şişe/dk', ts: NOW - 2000 },
+    ];
+    const typed = 'Math.round((reddedilen / value * 100) * 10) / 10';
+    render(<SymbolBindingPanel {...props({
+      symbol: symbol({ label: 'Doluluk kontrol', kindLabel: 'Vision camera', fields: [{
+        name: 'value', label: 'Reading',
+        currentSource: { deviceId: D1, deviceName: 'Dolum-kapama', key: 'kontrol', inputs: [{ name: 'reddedilen', deviceId: D1, deviceName: 'Dolum-kapama', key: 'reddedilen' }] },
+        currentScript: typed,
+      }] }),
+      loadKeys: vi.fn(async () => keys),
+    })} />);
+    await waitFor(() => expect(expression('Reading')).toHaveValue(typed));
+    const r = row('Reading');
+    await waitFor(() => expect(within(r).getByRole('button', { name: 'Ratio (%)' })).toBeEnabled());
+    expect(within(r).getByRole('button', { name: 'Ratio (%)' })).toHaveAttribute('title', 'value / reddedilen * 100');
+    await user.click(within(r).getByRole('button', { name: 'Ratio (%)' }));
+    expect(expression('Reading')).toHaveValue('value / reddedilen * 100');
+    await user.click(within(r).getByRole('button', { name: 'Difference' }));
+    expect(expression('Reading')).toHaveValue('value - reddedilen');
   });
   it('D594: "Save and next" names the symbol it goes to', async () => {
     const user = userEvent.setup();
