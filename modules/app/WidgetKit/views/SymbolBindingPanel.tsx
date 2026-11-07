@@ -302,8 +302,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
   const keys = useMemo<DeviceKey[]>(() => (onThisDevice ? keysState.keys : []), [onThisDevice, keysState]);
   const keyByName = useMemo(() => new Map(keys.map((k) => [k.key, k])), [keys]);
 
-  // the picked device's name and place, for a code the symbol's name writes (`rankKeysForField`'s `device`)
-  const deviceText = draft.deviceId ? `${draft.deviceName} ${known.current.get(draft.deviceId)?.hint ?? ''}` : '';
+  // the picked device's name, for a code the symbol's name writes (`rankKeysForField`'s `device`)
+  const deviceText = draft.deviceId ? draft.deviceName : '';
   // the keys the symbol's rows read on that device: their parts are the symbol's own
   const readKeysSig = Object.values(draft.fields).filter((f) => f.key !== '' && (f.deviceId === '' || f.deviceId === draft.deviceId)).map((f) => f.key).join('\n');
   const readKeys = useMemo(() => (readKeysSig ? readKeysSig.split('\n') : []), [readKeysSig]);
@@ -858,7 +858,7 @@ interface FieldRowProps {
   now: number;
   m: SymbolBindingMessages;
   locale?: string;
-  /** The picked device's name and place: a symbol's code the device writes is the symbol's (`rankKeysForField`'s `device`). */
+  /** The picked device's name: a symbol's code the device writes is the symbol's (`rankKeysForField`'s `device`). */
   deviceText?: string;
   /** The keys the symbol's rows read on this device: their parts are its own (`rankKeysForField`'s `parts`; `ownPartKeys` for a row proposed from its own part). */
   readKeys?: readonly string[];
