@@ -842,6 +842,23 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     expect(deviceBox()).toHaveValue('Boiler room');
     expect(screen.queryByTestId('device-suggestion')).toBeNull();
   });
+  it('next-boilerplate phase 53.2.7 (re-run 4 #11): with a suggestion the panel opens on its "Use", the device list stays shut over it, and the list puts the suggested device first, marked', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ suggestedDevice: { id: D2, name: 'Roof unit', why: 'name' } })} />);
+    expect(within(screen.getByTestId('device-suggestion')).getByRole('button', { name: 'Use' })).toHaveFocus();
+    expect(deviceBox()).not.toHaveFocus();
+    expect(screen.queryByRole('option')).toBeNull();
+    await user.click(deviceBox());
+    const options = await screen.findAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([expect.stringMatching(/^Roof unit.*Suggested/), expect.stringMatching(/^Boiler room/)]);
+    expect(options[1]).not.toHaveTextContent('Suggested');
+  });
+  it('a suggestion found after the panel opened takes the focus from the untouched search', async () => {
+    const { rerender } = render(<SymbolBindingPanel {...props()} />);
+    expect(deviceBox()).toHaveFocus();
+    rerender(<SymbolBindingPanel {...props({ suggestedDevice: { id: D2, name: 'Roof unit', why: 'place' } })} />);
+    await waitFor(() => expect(within(screen.getByTestId('device-suggestion')).getByRole('button', { name: 'Use' })).toHaveFocus());
+  });
   it('an empty value list says the device sent nothing, never "nothing matches what you typed" (e2e round 5, V1-B18)', async () => {
     const user = userEvent.setup();
     render(<SymbolBindingPanel {...props({ loadKeys: vi.fn(async () => []) })} />);

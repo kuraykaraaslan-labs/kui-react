@@ -223,16 +223,25 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     () => (draft.deviceId ? [{ value: draft.deviceId, label: draft.deviceName || draft.deviceId }] : []),
     [draft.deviceId, draft.deviceName],
   );
+  // the suggested device and the words, read by the search below without restarting it
+  const suggestedIdRef = useRef('');
+  const wordsRef = useRef(m);
   const searchDevices = useCallback(async (query: string): Promise<ComboBoxOption[]> => {
     try {
       const found = (await searchRef.current(query)).slice(0, SEARCH_ROWS);
       for (const d of found) known.current.set(d.id, d);
-      // the host's order is kept (the page's own devices first); the place of a device is its description, so devices of one room read as a group
-      return found.map((d) => ({
-        value: d.id,
-        label: d.name,
-        description: [d.code, d.hint].filter((s): s is string => !!s).join(' · ') || undefined,
-      }));
+      // the host's order is kept (the page's own devices first); the place of a device is its description, so devices of one room read as a group. The
+      // suggested device comes first and says so (next-boilerplate phase 53.2.7, re-run 4 #11: it was last in the list, unmarked)
+      const suggestedId = suggestedIdRef.current;
+      const ordered = suggestedId ? [...found.filter((d) => d.id === suggestedId), ...found.filter((d) => d.id !== suggestedId)] : found;
+      return ordered.map((d) => {
+        const line = [d.code, d.hint].filter((s): s is string => !!s).join(' · ');
+        return {
+          value: d.id,
+          label: d.name,
+          description: d.id === suggestedId ? (line ? wordsRef.current.suggestedOption(line) : wordsRef.current.suggested) : line || undefined,
+        };
+      });
     } catch {
       return [];
     }
@@ -260,6 +269,11 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
 
   // the device proposed for a symbol with none: the host's, else the panel's own last save; taken with one click, never by itself
   const deviceSuggestion = props.suggestedDevice !== undefined ? props.suggestedDevice : last ? { ...last, why: 'last' as const } : null;
+  const suggestedId = !draft.deviceId && deviceSuggestion ? deviceSuggestion.id : '';
+  useEffect(() => {
+    suggestedIdRef.current = suggestedId;
+    wordsRef.current = m;
+  });
   function takeSuggestedDevice() {
     if (!deviceSuggestion) return;
     known.current.set(deviceSuggestion.id, { id: deviceSuggestion.id, name: deviceSuggestion.name });
@@ -520,17 +534,31 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
     else props.onClose();
   }
 
-  // ─── Focus: the device search when there is no device yet, else the first row ───
+  // ─── Focus: the suggested device's "Use" when there is one, else the device search when there is no device yet, else the first row ───
+  // (next-boilerplate phase 53.2.7, re-run 4 #11: the search opens its list on focus, and the list covered the "Suggested" line under it)
   const rootRef = useRef<HTMLDivElement>(null);
+  const openFocus = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (readOnly) return;
     const root = rootRef.current;
     if (!root) return;
-    const target = draft.deviceId ? root.querySelector<HTMLElement>('[data-row]') : root.querySelector<HTMLElement>('input[role="searchbox"]');
+    const target = draft.deviceId
+      ? root.querySelector<HTMLElement>('[data-row]')
+      : root.querySelector<HTMLElement>('[data-use-suggestion]') ?? root.querySelector<HTMLElement>('input[role="searchbox"]');
     target?.focus();
+    openFocus.current = target;
     // On open of this symbol only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // a suggestion the host finds after the panel opened takes the focus from the search the panel gave it, while nothing is typed there yet
+  const suggestionShown = !draft.deviceId && !readOnly && !!deviceSuggestion;
+  useEffect(() => {
+    const search = openFocus.current;
+    if (!suggestionShown || !search || search !== document.activeElement || !(search instanceof HTMLInputElement) || search.value !== '') return;
+    const use = rootRef.current?.querySelector<HTMLElement>('[data-use-suggestion]') ?? null;
+    use?.focus();
+    openFocus.current = use;
+  }, [suggestionShown]);
 
   // ─── Keyboard (U5): Esc closes, the arrows move between rows, Enter takes a row's suggestion ───
   function onRootKeyDown(e: KeyboardEvent<HTMLDivElement>) {
@@ -661,7 +689,7 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
           {!draft.deviceId && !readOnly && deviceSuggestion && (
             <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary" data-testid="device-suggestion">
               <span>{m.suggestedDevice(deviceSuggestion.name, deviceSuggestion.why ?? 'last')}</span>
-              <Button variant="outline" size="xs" onClick={takeSuggestedDevice}>{m.useSuggestion}</Button>
+              <Button data-use-suggestion="" variant="outline" size="xs" onClick={takeSuggestedDevice}>{m.useSuggestion}</Button>
             </p>
           )}
         </div>
