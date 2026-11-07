@@ -45,6 +45,13 @@ export interface WidgetCardMessages {
   zoomFit: string;
   zoomLevel: (percent: number) => string;
   zoomHint: string;
+  /**
+   * What a card that threw while it drew leaves in its cell (`FailedPlacementCard`): the heading when the card has no title of its own, the
+   * reason's badge and the one-line why.
+   */
+  failedTitle: string;
+  failedLabel: string;
+  failedDetail: string;
 }
 
 /** WidgetBoard: the toolbar, the edit buttons, the drawers, import and its errors. */
@@ -381,6 +388,9 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     zoomFit: 'Fit to view',
     zoomLevel: (percent) => `Zoom ${percent}%`,
     zoomHint: 'Ctrl + wheel or pinch to zoom; scroll or drag to move.',
+    failedTitle: 'This card',
+    failedLabel: 'Failed to load',
+    failedDetail: 'Something went wrong while this card was drawn. Reload the page to try again.',
   },
   board: {
     export: 'Export',

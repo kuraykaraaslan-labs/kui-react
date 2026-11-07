@@ -103,7 +103,9 @@ tests/parity/         the reference rendering: cases.ts (49+ widget cases as JSO
                       model-golden.test.ts (fails when a model's decisions change)
 kind.ts               SlotData, SlotSpec, WidgetViewProps, WidgetKindView, BuiltinKindSpec
 WidgetCard.tsx        the frame: title row, buttons, body states, stale, footer
-PlacementCard.tsx     one placement: resolved settings + WidgetCard + view, full screen, CSV
+PlacementCard.tsx     one placement: resolved settings + WidgetCard + view, full screen, CSV; a card that throws while it
+                      draws keeps its cell as FailedPlacementCard (its title, "Failed to load", why: `messages.card.failed*`);
+                      `isolate={false}` for a host whose own boundary draws FailedPlacementCard
 ZoomPane.tsx          the full screen of a view marked `zoomable` (scada.scene): opens fitted; Ctrl/Cmd + wheel, pinch,
                       + - 0 and its toolbar zoom about the pointer; the wheel, the scroll bars or a drag move it
 zoom-logic.ts         its steps (1-8x, 1.25 a step, a mouse notch = a step), limits and the scroll that keeps the point (pure)

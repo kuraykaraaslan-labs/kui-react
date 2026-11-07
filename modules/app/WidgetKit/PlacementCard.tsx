@@ -1,7 +1,9 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { Modal } from '@/modules/ui/Modal';
-import type { ReactNode } from 'react';
+import { ContributionBoundary } from '@/modules/ui/ContributionBoundary';
+import { UnavailableContribution } from '@/modules/ui/UnavailableContribution';
+import type { HTMLAttributes, ReactNode } from 'react';
 import { WidgetCard, type CardTimeWindow } from './WidgetCard';
 import { ZoomPane } from './ZoomPane';
 import { FitBox } from './FitBox';
@@ -54,6 +56,12 @@ export interface PlacementCardProps {
   exportData?: () => Promise<Record<string, SlotData | undefined>>;
   /** Host props for the view beyond the common ones (params, resolveUrl, confirm, a table's paging and row actions, …). */
   viewProps?: Partial<WidgetViewProps> & Record<string, unknown>;
+  /**
+   * Isolate the card (default): when it throws while it draws, `FailedPlacementCard` takes its place (its title, "Failed to load" and why) and the
+   * rest of the board keeps working; a change of its view or its settings draws it again. A host that already isolates each card in a boundary of
+   * its own (to report the failure, say) passes `false` and draws `FailedPlacementCard` as that boundary's fallback.
+   */
+  isolate?: boolean;
 }
 
 /** What a view's empty shape is drawn from: no slot at all. */
@@ -83,12 +91,51 @@ function download(name: string, text: string | Uint8Array, type = 'text/csv;char
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** One placement: resolved settings → `WidgetCard` + the type's view, with full screen and CSV. */
-export function PlacementCard({
+export type FailedPlacementCardProps = {
+  /** The card's own title; without one the kit's "This card" (`messages.card.failedTitle`). */
+  title?: string;
+  className?: string;
+} & Omit<HTMLAttributes<HTMLDivElement>, 'title' | 'children'>;
+
+/**
+ * What a card that threw while it drew leaves in its cell: its title, the "Failed to load" badge and a one-line why, in the dashed frame of an
+ * unavailable contribution, so the board keeps the card's place and says which card failed instead of drawing nothing. Nothing of the kind or its
+ * code is shown: the card's own title, else the kit's words. The texts are the host's `messages.card` (`failedTitle`, `failedLabel`,
+ * `failedDetail`). `PlacementCard` draws it by itself (`isolate`); a host with a boundary of its own draws it as that boundary's fallback.
+ */
+export function FailedPlacementCard({ title, className, ...rest }: FailedPlacementCardProps) {
+  const m = useKitMessages().card;
+  return (
+    <UnavailableContribution
+      size="card"
+      reason="failed"
+      title={title?.trim() || m.failedTitle}
+      label={m.failedLabel}
+      detail={m.failedDetail}
+      className={className}
+      {...rest}
+    />
+  );
+}
+
+/**
+ * One placement: resolved settings → `WidgetCard` + the type's view, with full screen and CSV. A card that throws while it draws is replaced by
+ * `FailedPlacementCard` (see `isolate`).
+ */
+export function PlacementCard({ isolate = true, ...props }: PlacementCardProps) {
+  if (!isolate) return <PlacementCardBody {...props} />;
+  return (
+    <ContributionBoundary fallback={<FailedPlacementCard title={props.title} />} resetKeys={[props.view, props.settings]}>
+      <PlacementCardBody {...props} />
+    </ContributionBoundary>
+  );
+}
+
+function PlacementCardBody({
   title, template, slots, view, settings, board, definitionDefaults, data, boundSlots, loading = false, error,
   onRetry, onRefresh, refreshing, onControl, controlDisabledReason, isEditor = false, headerRight, badges, timeWindow, renderLink,
   className, now: nowProp, viewProps, fixedHeight = false, exportData,
-}: PlacementCardProps) {
+}: Omit<PlacementCardProps, 'isolate'>) {
   const { locale } = useWidgetKit();
   const m = useKitMessages();
   const ticking = useNow();

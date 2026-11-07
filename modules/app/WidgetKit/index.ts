@@ -24,8 +24,8 @@ export { renderWidgetPreview, renderWidgetTypePreview, WIDGET_PREVIEW_IDS, WIDGE
 export type { WidgetSettingsEditorProps } from './WidgetSettingsEditor';
 export { resolvePlacement, capsOf, toCsvText } from './settings/resolve';
 export type { ResolvedPlacement } from './settings/resolve';
-export { PlacementCard } from './PlacementCard';
-export type { PlacementCardProps } from './PlacementCard';
+export { PlacementCard, FailedPlacementCard } from './PlacementCard';
+export type { PlacementCardProps, FailedPlacementCardProps } from './PlacementCard';
 export { exportBoard, importBoard, nextFreeRow, BOARD_DOCUMENT_FORMAT, BOARD_DOCUMENT_VERSION, GRID_COLUMNS } from './settings/board';
 export type { BoardDocument, BoardPlacement, ImportResult, ImportRefusal } from './settings/board';
 export { GRID_COL_OPTIONS, DEFAULT_GRID_COLS, MAX_GRID_COLS, normalizeGridCols, scaleWidth, scaleLayout, resolveOverlaps, fitRect } from './settings/grid';
