@@ -125,7 +125,7 @@ const presetFields = (preset: SeriesPreset): Pack => {
         label: 'Bars', type: 'select', display: 'segmented', value: 'vertical', group: 'bars', required: true,
         options: [opt('vertical', 'Columns'), opt('horizontal', 'Horizontal bars')],
       },
-      barWidth: { label: 'Bar width (% of the slot)', type: 'number', min: 10, max: 100, step: 5, value: 70, group: 'bars' },
+      barWidth: { label: 'Bar width (% of the room for each bar)', type: 'number', min: 10, max: 100, step: 5, value: 70, group: 'bars' },
       barGap: { label: 'Gap between grouped bars (px)', type: 'number', min: 0, max: 16, value: 2, group: 'bars', advanced: true },
       barRadius: { label: 'Corner radius (px)', type: 'number', min: 0, max: 16, value: 4, group: 'bars', advanced: true },
     };
