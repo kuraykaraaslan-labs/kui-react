@@ -52,6 +52,8 @@ export interface SceneSetupRulesMessages extends ConditionMessages {
   label: string;
   tokens: string;
   insertToken: (token: string) => string;
+  /** The token for the value the rule's condition reads, as the host's language writes it (default `{condition}`; `{koşul}` in Turkish). */
+  conditionToken?: string;
   noChange: string;
   hide: string;
   show: string;
@@ -472,6 +474,7 @@ export const DEFAULT_SCENE_SETUP_MESSAGES: SceneSetupMessages = {
     label: 'Label',
     tokens: 'Insert a value into the label',
     insertToken: (token) => `Insert ${token}`,
+    conditionToken: '{condition}',
     noChange: 'No change',
     hide: 'Hide the item',
     show: 'Show the item',

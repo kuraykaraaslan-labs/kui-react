@@ -29,7 +29,8 @@ export interface SceneRulesEditorProps {
 const STATES = ['idle', 'running', 'warning', 'critical', 'off'] as const;
 const MODES = ['auto', 'manual', 'local', 'maintenance', 'lockout', 'simulation'] as const;
 const QUALITIES = ['good', 'stale', 'bad', 'offline'] as const;
-const TOKENS = ['{value}', '{value2}', '{label}', '{id}'] as const;
+/** The label's tokens; the condition's reading (`{condition}`, D584) sits after the symbol's own two, in the host's word for it. */
+const tokensOf = (condition: string): string[] => ['{value}', '{value2}', condition, '{label}', '{id}'];
 
 const MEDIUMS = MEDIUM_OPTIONS.map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
 
@@ -357,7 +358,7 @@ function RuleForm({ env, index, rule }: { env: Env; index: number; rule: Rec }) 
             aria-describedby={`${id('label')}-tokens`} onChange={(e) => set({ label: e.target.value }, `rule:${index}:label`)}
           />
           <div id={`${id('label')}-tokens`} role="group" aria-label={m.tokens} className="mt-1.5 flex flex-wrap gap-1">
-            {[...TOKENS, ...paramTokens].map((t) => (
+            {[...tokensOf(m.conditionToken), ...paramTokens].map((t) => (
               <button key={t} type="button" aria-label={m.insertToken(t)} onClick={() => insertToken(t)}
                 className="rounded-full border border-border px-2 py-0.5 font-mono text-[11px] text-text-secondary hover:border-border-strong hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
                 {t}

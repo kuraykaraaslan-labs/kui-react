@@ -264,18 +264,37 @@ export function ruleMatches(rule: SceneRule, target: string, ctx: RuleContext): 
 
 const DASH = '—';
 
-/** Fills `{value}`, `{value2}`, `{label}`, `{id}` and `{param:name}`; control characters go, the length is capped. */
-export function expandLabel(template: string, target: string, ctx: RuleContext): string {
+/**
+ * The token for the value the rule's own condition reads (next-boilerplate D584, UI test 3 #32: a valve's label "{value}" printed the valve's own
+ * reading, "—", where the author wanted the hold temperature the rule tests): `{condition}`, or `{koşul}` as a Turkish workspace writes it. `{value}`
+ * stays the target's own reading.
+ */
+export const CONDITION_TOKENS = ['{condition}', '{koşul}'] as const;
+
+/**
+ * Fills `{value}`, `{value2}`, `{label}`, `{id}`, `{param:name}` and, given the rule, `{condition}` (`{koşul}`: what its first condition reads, of the
+ * symbol it names or a board parameter, worded as `{value}` is; "—" when it is not there); control characters go, the length is capped.
+ */
+export function expandLabel(template: string, target: string, ctx: RuleContext, rule?: SceneRule): string {
   const row = ctx.rows.get(target);
-  const fmt = (n: number) => (ctx.format ? ctx.format(target, n) : String(Math.round(n * 100) / 100));
+  const fmt = (n: number, of = target) => (ctx.format ? ctx.format(of, n) : String(Math.round(n * 100) / 100));
   const num = (key: string) => {
     const v = row && Object.hasOwn(row, key) ? row[key] : undefined;
     const n = asNumber(v);
     if (n !== null) return fmt(n);
     return typeof v === 'string' && v ? v : DASH;
   };
-  const out = template.replace(/\{(value2?|label|id|param:[^{}]{1,64})\}/g, (_m, token: string) => {
+  const condition = () => {
+    if (!rule) return DASH;
+    const of = text(rule.of);
+    const v = scalar(reading(rule.source, text(rule.key), of, target, ctx));
+    if (v === undefined) return DASH;
+    const n = typeof v === 'boolean' ? null : asNumber(v);
+    return n !== null && rule.source !== 'param' ? fmt(n, of || target) : String(v);
+  };
+  const out = template.replace(/\{(value2?|label|id|condition|koşul|param:[^{}]{1,64})\}/g, (_m, token: string) => {
     if (token === 'value' || token === 'value2') return num(token);
+    if (token === 'condition' || token === 'koşul') return condition();
     if (token === 'id') return target;
     if (token === 'label') return row && typeof row.label === 'string' ? row.label : '';
     const name = token.slice(6).trim();
@@ -341,7 +360,7 @@ export function evaluateRules<T extends object = SceneEffects>(rules: unknown, c
   const known = new Set(all);
   const onlyThings = all.filter((id) => things.has(id));
   const parsed = list.map((r) => ({ r, ...readEffects(r, spec) }));
-  const templates = new Map<string, string>();
+  const templates = new Map<string, { tpl: string; rule: SceneRule }>();
   const stopped = new Set<string>();
   for (const { r, fx, labelTemplate } of parsed) {
     if (r.enabled === false) continue;
@@ -351,12 +370,12 @@ export function evaluateRules<T extends object = SceneEffects>(rules: unknown, c
     for (const id of ids) {
       if (stopped.has(id) || !ruleMatches(r, id, ctx)) continue;
       if (Object.keys(fx).length) out.set(id, { ...out.get(id), ...fx } as T);
-      if (labelTemplate !== undefined) templates.set(id, labelTemplate);
+      if (labelTemplate !== undefined) templates.set(id, { tpl: labelTemplate, rule: r });
       if (r.stop === true) stopped.add(id);
     }
   }
-  for (const [id, tpl] of templates) {
-    const label = expandLabel(tpl, id, ctx);
+  for (const [id, { tpl, rule }] of templates) {
+    const label = expandLabel(tpl, id, ctx, rule);
     if (label) out.set(id, { ...out.get(id), [labelKey]: label } as T);
   }
   return out;

@@ -234,6 +234,8 @@ export interface RulesMessages {
   label: string;
   tokens: string;
   insertToken: (token: string) => string;
+  /** The token for the value the rule's condition reads, as the host's language writes it (`{condition}`; `{koşul}` in Turkish). */
+  conditionToken: string;
   medium: string;
   motion: string;
   motionStop: string;
@@ -336,6 +338,7 @@ export const DEFAULT_RULES_MESSAGES: RulesMessages = {
   label: 'Name',
   tokens: 'Insert a reading into the name',
   insertToken: (t) => `Insert ${t}`,
+  conditionToken: '{condition}',
   medium: 'Medium',
   motion: 'Motion',
   motionStop: 'Stop it',

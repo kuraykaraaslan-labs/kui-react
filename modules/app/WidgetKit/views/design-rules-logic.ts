@@ -5,7 +5,7 @@
 //
 // A rule is one flat row, as in every other kind: `target` (a scene key of the document, or `*` for every one), `enabled`, `stop`,
 // up to two conditions (`source`, `key`, `of`, `op`, `value`, `to`, then `join` and the same with a `2` suffix) and the effects
-// `color`, `hidden`, `label` (with the tokens `{value}`, `{value2}`, `{label}`, `{id}`, `{param:name}`), `pulse` and `highlight`.
+// `color`, `hidden`, `label` (with the tokens `{value}`, `{value2}`, `{condition}`, `{label}`, `{id}`, `{param:name}`), `pulse` and `highlight`.
 // A condition reads a column of a row (the row of the target's own scene key, or of the key `of` names) or a board parameter.
 
 import { asBoolean } from '@/modules/ui/ControlTile/control-logic';

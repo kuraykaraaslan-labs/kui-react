@@ -155,6 +155,15 @@ describe('SceneRulesEditor: editing', () => {
     fireEvent.change(screen.getByLabelText('State'), { target: { value: '' } });
     expect('state' in rulesOf(probe)[0]).toBe(false);
   });
+  it('offers the condition\'s reading as a token beside {value} (next-boilerplate D584), in the host\'s word for it', () => {
+    const { probe } = mount([{ target: 'pump1', key: 'value', op: 'gt', value: '1' }]);
+    fireEvent.click(screen.getByRole('button', { name: /When/ }));
+    const name = screen.getByLabelText('Name') as HTMLInputElement;
+    fireEvent.change(name, { target: { value: 'Hold ' } });
+    name.setSelectionRange(5, 5);
+    fireEvent.click(screen.getByRole('button', { name: 'Insert {condition}' }));
+    expect(rulesOf(probe)[0]).toMatchObject({ label: 'Hold {condition}' });
+  });
   it('sets the state effects: mode, data quality, speed, direction, acknowledgement, opening, command badges', () => {
     const { probe } = mount([{ target: 'pump1', key: 'value', op: 'gt', value: '1' }]);
     fireEvent.click(screen.getByRole('button', { name: /When/ }));
