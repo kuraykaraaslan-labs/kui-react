@@ -241,6 +241,19 @@ describe('localizeTemplate and localizeKind', () => {
     expect(new Set(labels).size).toBe(labels.length);
   });
 
+  it('localizes a remote-select\'s empty choice (next-boilerplate phase 52.6.1, UI test 3 #5), and keeps it English without an answer', () => {
+    const tpl: SettingsTemplate = {
+      ...DEMO,
+      fields: { drawing: { label: 'Drawing', type: 'remote-select', since: 1, group: 'main', endpoint: '/api/drawings', emptyLabel: 'The symbols drawn inside this card' } },
+    };
+    const fn = vi.fn<TemplateTextFn>(({ path, prop }) => (path === 'drawing' && prop === 'emptyLabel' ? 'Bu kartın içinde çizilen semboller' : undefined));
+    expect(localizeTemplate(tpl, fn).fields.drawing.emptyLabel).toBe('Bu kartın içinde çizilen semboller');
+    expect(fn).toHaveBeenCalledWith({ templateId: 'tenant:demo', path: 'drawing', prop: 'emptyLabel', english: 'The symbols drawn inside this card' });
+    expect(localizeTemplate(tpl, () => undefined).fields.drawing.emptyLabel).toBe('The symbols drawn inside this card');
+    // a field without one gets none
+    expect('emptyLabel' in localizeTemplate(DEMO, TR_TEXT).fields.heading).toBe(false);
+  });
+
   it('localizes a kind\'s label, description, category and slots by type', () => {
     const out = localizeKind(STAT_VALUE_KIND, ({ type, prop, key }) => `${type}:${prop}${key ? `:${key}` : ''}`);
     expect([out.label, out.description, out.category]).toEqual(['stat.value:label', 'stat.value:description', 'stat.value:category']);

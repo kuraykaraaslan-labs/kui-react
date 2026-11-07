@@ -660,7 +660,8 @@ export interface TemplateTextRef {
   templateId: string;
   /** A field key, `<repeater>.<sub-field>` for a repeater's field, a group id for `group`, '' for the template. */
   path: string;
-  prop: 'label' | 'description' | 'placeholder' | 'group' | 'option';
+  /** `emptyLabel`: a remote-select's empty choice ("The symbols drawn inside this card"). */
+  prop: 'label' | 'description' | 'placeholder' | 'emptyLabel' | 'group' | 'option';
   /** The option's stored value, when `prop` is `option`. */
   value?: string;
   /** The English text that shows when the host returns nothing. */
