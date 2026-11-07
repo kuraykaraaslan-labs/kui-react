@@ -1249,6 +1249,21 @@ describe('next-boilerplate phase 52.2.4 and 52.2.6: the panel\'s helpers', () =>
     await pickKey(user, 'Running', 'rssi');
     expect(screen.getByRole('button', { name: 'Save and next: K6' })).toBeInTheDocument();
   });
+  it('next-boilerplate phase 53.2.8 (re-run 4 #14): "Save and next" is a row of its own above Save, and its name is never cut', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, onNext: vi.fn(), nextLabel: 'Cable 3 · point 4 thermometer' })} />);
+    await rowsReady();
+    await pickKey(user, 'Running', 'rssi');
+    const next = screen.getByRole('button', { name: 'Save and next: Cable 3 · point 4 thermometer' });
+    const save = screen.getByRole('button', { name: 'Save' });
+    // the whole text, with nothing that cuts it, on the full width; Save and the menu on the row under it
+    expect(next).toHaveTextContent(/^Save and next: Cable 3 · point 4 thermometer$/);
+    expect(next.className).not.toMatch(/truncate|flex-1/);
+    expect(next.querySelector('.truncate')).toBeNull();
+    expect(next).toHaveClass('w-full', 'whitespace-normal');
+    expect(next.parentElement).not.toBe(save.parentElement);
+    expect(next.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
   it('#157: two values that score the same: neither is "Suggested" in the picker', async () => {
     const user = userEvent.setup();
     const keys: DeviceKey[] = [{ key: 'b1.running', label: 'Conveyor 1 · running', value: true, ts: NOW }, { key: 'b2.running', label: 'Conveyor 2 · running', value: true, ts: NOW }];

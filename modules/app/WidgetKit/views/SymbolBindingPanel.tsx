@@ -794,21 +794,23 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
         )}
       </div>
 
-      {/* Footer */}
+      {/* Footer: "Next" on its own full-width row above Save, so the symbol it names is read whole ("Save and next: K6", D594) and a long name that
+          wraps grows the footer upwards: Save and the menu never move (next-boilerplate phase 53.2.8, re-run 4 #14: half a row cut it to "Save and nex…") */}
       <div className="space-y-2 border-t border-border px-4 py-3">
         {shownError && <AlertBanner variant="error" message={shownError} />}
-        <div className="flex items-center gap-2">
-          {!readOnly && (
+        {props.onNext && (
+          <Button
+            variant="secondary" size="sm" className="w-full whitespace-normal break-words text-center" data-testid="symbol-next"
+            disabled={busy || (nextWrites && !canWrite)} onClick={() => void next()}
+          >
+            {nextText}
+          </Button>
+        )}
+        {!readOnly && (
+          <div className="flex items-center gap-2">
             <Button variant="primary" size="sm" className="flex-1" loading={saving} disabled={!dirty || busy || !canWrite} onClick={() => void save()}>
               {m.save}
             </Button>
-          )}
-          {props.onNext && (
-            <Button variant="secondary" size="sm" className="min-w-0 flex-1" disabled={busy || (nextWrites && !canWrite)} onClick={() => void next()} title={nextText}>
-              <span className="truncate">{nextText}</span>
-            </Button>
-          )}
-          {!readOnly && (
             <DropdownMenu
               align="right"
               placement="top"
@@ -818,8 +820,8 @@ function SymbolForm(props: SymbolBindingPanelProps & { last: { id: string; name:
                 <Button variant="ghost" size="sm" iconOnly aria-label={m.more} disabled={busy} iconLeft={<FontAwesomeIcon icon={faEllipsis} className="h-4 w-4" />} />
               }
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
