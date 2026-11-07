@@ -260,6 +260,7 @@ Full page-section components that combine multiple UI molecules into usable work
 | Component | File | What it does |
 |-----------|------|-------------|
 | OnboardingWizard | `OnboardingWizard.tsx` | Multi-step onboarding flow (dots/bar progress, page/modal mode, skip) |
+| Tour | `Tour/` | Guided tour over the live page (Driver.js draws the overlay and cut-out; text only, never HTML; keyboard, RTL, steps across pages, waits for late targets) |
 
 ---
 

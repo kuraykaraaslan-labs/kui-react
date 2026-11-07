@@ -11,6 +11,7 @@ import { Textarea } from '@/modules/ui/Textarea';
 import { FilterBar, type FilterField, type FilterValues } from '@/modules/app/FilterBar';
 import { FileUploadSection } from '@/modules/app/FileUploadSection';
 import { OnboardingWizard, type OnboardingStep } from '@/modules/app/OnboardingWizard';
+import { Tour, type TourStep } from '@/modules/app/Tour';
 import { Button } from '@/modules/ui/Button';
 import { useState } from 'react';
 import type { ShowcaseComponent } from '../showcase.types';
@@ -505,7 +506,75 @@ const steps: OnboardingStep[] = [
         notes: 'Progress is announced via role="progressbar" with aria-valuenow updating on step change.',
       },
     },
+    {
+      id: 'tour',
+      title: 'Tour',
+      category: 'App',
+      abbr: 'GT',
+      since: '2026-11',
+      description: 'Guided tour over the live page: each step dims the page, cuts out its target and explains it. Driver.js draws; the runner owns the steps, the text (plain text, never HTML) and the keyboard. Steps can wait for late content, run on other pages (beforeStep) and move on when the target is clicked. RTL mirrors placement and arrow keys.',
+      filePath: 'modules/app/Tour/index.tsx',
+      sourceCode: `'use client';
+import { useState } from 'react';
+import { Tour, type TourStep } from '@/modules/app/Tour';
+
+const steps: TourStep[] = [
+  { id: 'new', target: '[data-tour="demo.new"]', title: 'New rule', text: 'Start a rule here.', placement: 'bottom', advanceOn: 'click' },
+  { id: 'filter', target: '[data-tour="demo.filter"]', text: 'Narrow the list.', placement: 'bottom' },
+  { id: 'done', text: 'That is all. Open the tour again from the top bar.' },
+];
+
+const [open, setOpen] = useState(false);
+<Button data-tour="demo.new">New rule</Button>
+<Button onClick={() => setOpen(true)}>Take the tour</Button>
+<Tour steps={steps} open={open} onClose={() => setOpen(false)} />`,
+      variants: [
+        {
+          title: 'Three steps: click to advance, a plain step, a centred step',
+          layout: 'stack' as const,
+          preview: <TourDemo />,
+          code: `<Tour steps={steps} open={open} onClose={(reason, index) => setOpen(false)} />`,
+        },
+        {
+          title: 'Right-to-left: placement and arrow keys mirrored',
+          layout: 'stack' as const,
+          preview: <TourDemo dir="rtl" />,
+          code: `<Tour steps={steps} open={open} dir="rtl" labels={{ next: 'التالي', previous: 'السابق', done: 'تم', close: 'إغلاق', progress: '{current} / {total}' }} onClose={() => setOpen(false)} />`,
+        },
+      ],
+      composes: ['button'],
+      relatedTo: ['onboarding-wizard'],
+      designTokens: ['--surface-raised', '--text-primary', '--text-secondary', '--primary', '--border', '--border-focus'],
+      a11y: {
+        wcagLevel: 'AA',
+        ariaPatterns: ['role="dialog"', 'aria-describedby'],
+        keyboardInteractions: [
+          { keys: 'Enter / Click', action: 'Next / Previous / Close' },
+          { keys: '→ / ←', action: 'Next / previous step (mirrored in RTL)' },
+          { keys: 'Escape', action: 'Stop the tour' },
+        ],
+        notes: 'Focus moves to the step\'s Next button on every step and returns to where it was when the tour ends.',
+      },
+    },
   ];
+}
+
+function TourDemo({ dir = 'ltr' }: { dir?: 'ltr' | 'rtl' }) {
+  const [open, setOpen] = useState(false);
+  const scope = dir === 'rtl' ? 'demo-rtl' : 'demo';
+  const steps: TourStep[] = [
+    { id: 'new', target: `[data-tour="${scope}.new"]`, title: 'New rule', text: 'Start a rule here. Clicking it also moves the tour on.', placement: 'right', advanceOn: 'click' },
+    { id: 'filter', target: `[data-tour="${scope}.filter"]`, title: 'Filter', text: 'Narrow the list to what you need.', placement: 'bottom' },
+    { id: 'done', title: 'All set', text: 'Open the tour again whenever you like.' },
+  ];
+  return (
+    <div dir={dir} className="flex flex-wrap items-center gap-2">
+      <Button data-tour={`${scope}.new`} variant="secondary">New rule</Button>
+      <Button data-tour={`${scope}.filter`} variant="outline">Filter</Button>
+      <Button onClick={() => setOpen(true)}>Take the tour</Button>
+      <Tour steps={steps} open={open} dir={dir} onClose={() => setOpen(false)} />
+    </div>
+  );
 }
 
 function OnboardingDotsDemo() {

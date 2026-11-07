@@ -587,6 +587,12 @@
     "category": "App",
     "file": "onboarding-wizard.md"
   },
+  "tour": {
+    "name": "Tour",
+    "layer": "app",
+    "category": "App",
+    "file": "tour.md"
+  },
   "detail-header": {
     "name": "DetailHeader",
     "layer": "app",
@@ -724,6 +730,12 @@
     "layer": "app",
     "category": "App",
     "file": "entity-aliases.md"
+  },
+  "common-auth-layout": {
+    "name": "AuthLayout",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "common-auth-layout.md"
   },
   "common-login-form": {
     "name": "LoginForm",

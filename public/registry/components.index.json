@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-04T13:41:53.702Z",
+  "generatedAt": "2026-11-07T04:32:55.422Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -201,6 +201,7 @@
         "reviews-review-submit-form",
         "rich-text-editor",
         "share-dialog",
+        "tour",
         "translatable-field"
       ],
       "variantCount": 13
@@ -2271,6 +2272,54 @@
       "variantCount": 2
     },
     {
+      "id": "tour",
+      "name": "Tour",
+      "layer": "app",
+      "category": "App",
+      "filePath": "modules/app/Tour/index.tsx",
+      "abbr": "GT",
+      "description": "Guided tour over the live page: each step dims the page, cuts out its target and explains it. Driver.js draws; the runner owns the steps, the text (plain text, never HTML) and the keyboard. Steps can wait for late content, run on other pages (beforeStep) and move on when the target is clicked. RTL mirrors placement and arrow keys.",
+      "status": "stable",
+      "since": "2026-11",
+      "composes": [
+        "button"
+      ],
+      "relatedTo": [
+        "onboarding-wizard"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "role=\"dialog\"",
+          "aria-describedby"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Enter / Click",
+            "action": "Next / Previous / Close"
+          },
+          {
+            "keys": "→ / ←",
+            "action": "Next / previous step (mirrored in RTL)"
+          },
+          {
+            "keys": "Escape",
+            "action": "Stop the tour"
+          }
+        ],
+        "notes": "Focus moves to the step's Next button on every step and returns to where it was when the tour ends."
+      },
+      "designTokens": [
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary",
+        "--primary",
+        "--border",
+        "--border-focus"
+      ],
+      "variantCount": 2
+    },
+    {
       "id": "detail-header",
       "name": "DetailHeader",
       "layer": "app",
@@ -3160,6 +3209,18 @@
         "--error-subtle"
       ],
       "variantCount": 7
+    },
+    {
+      "id": "common-auth-layout",
+      "name": "AuthLayout",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/auth/AuthLayout.tsx",
+      "abbr": "AL",
+      "description": "The frame of every authentication page, from the kit's own pieces: BrandLogo above a Card, the page title in PageHeader type with one line of real information (the workspace address), the form, an optional footer below.",
+      "status": "stable",
+      "designTokens": [],
+      "variantCount": 2
     },
     {
       "id": "common-login-form",
