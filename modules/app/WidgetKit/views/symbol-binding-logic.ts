@@ -1373,7 +1373,12 @@ interface DeviceProposals {
   rows: MatchRow[];
   reasons: Map<string, readonly RankReason[]>;
   scores: Map<string, number>;
-  /** The best row's score: how well the device fits the symbol (a sum would let a device that answers more fields lead, test 3 #144). */
+  /**
+   * The best row's score: how well the device fits the symbol (a sum would let a device that answers more fields lead, test 3 #144). A row proposed only
+   * from the part another row picked (`suggest: 'own'`) follows that row and proves nothing of its own: it counts only on a device with no other row
+   * (next-boilerplate phase 53.2.6, re-run 4 #10: the fan's Status, following the fan's current guessed for a grain bin's Reading, tied the fan with the
+   * logger's Grain level).
+   */
   best: number;
   /** The sum of the rows' scores: only the order of devices that fit alike. */
   total: number;
@@ -1386,6 +1391,7 @@ function proposalsOn(s: MatchSymbol, deviceId: string, deviceName: string, keys:
   const scores = new Map<string, number>();
   let total = 0;
   let best = 0;
+  let bestOwn = 0;
   const taken: string[] = [...(s.taken ?? [])];
   const device = `${deviceName} ${place ?? ''}`;
   // the parts the symbol reads already (its own entries): its own; a part proposed in this pass is its own only for a field proposed from its own part
@@ -1404,14 +1410,14 @@ function proposalsOn(s: MatchSymbol, deviceId: string, deviceName: string, keys:
     reasons.set(id, top.reasons);
     scores.set(id, top.score);
     total += top.score;
-    best = Math.max(best, top.score);
+    if (own) bestOwn = Math.max(bestOwn, top.score); else best = Math.max(best, top.score);
     rows.push({
       id, symbolId: s.id, symbolLabel: s.label, kindLabel: s.kindLabel, field: f.name, fieldLabel: f.label,
       deviceId, deviceName, key: k.key, keyLabel: k.label && k.label.trim() ? k.label : k.key, value: k.value,
       ...(k.unit ? { unit: k.unit } : {}), ts: k.ts, confident: top.confident, ...(top.mismatch ? { mismatch: top.mismatch } : {}),
     });
   }
-  return { rows, reasons, scores, best, total };
+  return { rows, reasons, scores, best: best > 0 ? best : bestOwn, total };
 }
 
 /**
@@ -1545,6 +1551,11 @@ export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: Read
   };
   // the devices each symbol's own name claims: such a device is that symbol's, never another named symbol's
   const named = symbols.filter(ownName);
+  // a name every device of the place holds (the place's own name: "Silo" on the site "Silo 1", whose logger and fan are both placed there) picks no device
+  // out: it claims none of them, and the symbol it names is ranked across them by its kind (next-boilerplate phase 53.2.6, re-run 4 #9, #10: the bin
+  // "Silo" claimed both devices, so the twelve "Cable N · point M" thermometers had none left)
+  const placeWide = (o: Pick<MatchSymbol, 'label' | 'kindLabel'>, devices: ReadonlyArray<{ deviceName: string; place?: string }>): boolean =>
+    devices.length > 0 && devices.every((c) => deviceNameRelation(c, o.label, o.kindLabel) === 'names');
   for (const s of symbols) {
     if (s.deviceId) {
       const keys = keysByDevice.get(s.deviceId);
@@ -1553,6 +1564,8 @@ export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: Read
     }
     const candidates = s.candidates ?? [];
     const mine = ownName(s);
+    // the named symbols whose name picks devices out of these (never one that names them all)
+    const claimants = named.filter((o) => o.id !== s.id && !placeWide(o, candidates));
     // a twin (another number or letter of the same thing) is never this symbol's; nor is a device another symbol's name claims and this one's does not,
     // unless this one's name shares a word of its own with it ("Hisartepe klor" may read the RTU that "Hisartepe deposu" names)
     const viable = candidates.filter((c) => {
@@ -1560,9 +1573,9 @@ export function matchAllRows(symbols: readonly MatchSymbol[], keysByDevice: Read
       if (rel === 'twin') return false;
       if (rel === 'names') return true;
       if (mine && [...sharedNameWords(c, s.label)].some((w) => matchable(w) && !optionalNameWords(s.kindLabel).has(w))) return true;
-      return !named.some((o) => o.id !== s.id && deviceNameRelation(c, o.label, o.kindLabel) === 'names');
+      return !claimants.some((o) => deviceNameRelation(c, o.label, o.kindLabel) === 'names');
     });
-    const naming = mine ? viable.filter((c) => deviceNameRelation(c, s.label, s.kindLabel) === 'names') : [];
+    const naming = mine && !placeWide(s, candidates) ? viable.filter((c) => deviceNameRelation(c, s.label, s.kindLabel) === 'names') : [];
     // without one, the devices that write the symbol's code (`CL1 collector` and the `CL1 controller`, run 3 note 60): a shared word added only a little, so
     // a device whose keys fitted the kind better (the sorter) won; a code names the thing
     const codes = mine ? codesOf(s.label) : new Set<string>();
