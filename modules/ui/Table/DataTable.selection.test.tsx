@@ -218,3 +218,58 @@ describe('DataTable selection line keeps its room (next-boilerplate run 3 note 5
     expect(container.querySelector('[data-part^="selection-summary"]')).toBeNull();
   });
 });
+
+describe('DataTable card layout select-all (next-boilerplate 53.6.1, D609)', () => {
+  const cardsOf = (props: Partial<Parameters<typeof DataTable<Row>>[0]> = {}) => (
+    <DataTable columns={COLUMNS} rows={ROWS} pageSize={2} searchable={false} layout="cards" selectable
+      renderCard={(r, ctx) => (
+        <article>
+          <input type="checkbox" aria-label={`Select ${r.name}`} checked={ctx.selected} disabled={ctx.selectable !== true}
+            onChange={ctx.toggleSelected} />
+          {r.name}
+        </article>
+      )}
+      {...props} />
+  );
+  const cardsSelectAll = () => screen.getByRole('checkbox', { name: 'Select all shown rows' });
+
+  it('a selectable card grid has a named select-all box on its selection line, which selects the cards shown', async () => {
+    const user = userEvent.setup();
+    const onSelectionChange = vi.fn();
+    const { container } = render(cardsOf({ onSelectionChange }));
+    const line = container.querySelector('[data-part="selection-summary"]');
+    expect(line).toHaveClass('min-h-7');
+    expect(within(line as HTMLElement).getByText('Select all shown rows')).toBeInTheDocument();
+    expect(container.querySelector('[data-part="selection-summary-slot"]')).toBeNull();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Select Acme' }));
+    expect((cardsSelectAll() as HTMLInputElement).indeterminate).toBe(true);
+    expect(screen.getByText('1 selected')).toBeInTheDocument();
+
+    await user.click(cardsSelectAll());
+    expect(onSelectionChange).toHaveBeenLastCalledWith(['a', 'g']);
+    expect(cardsSelectAll()).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select Globex' })).toBeChecked();
+
+    await user.click(cardsSelectAll());
+    expect(onSelectionChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it('skips the cards that cannot be selected, and names the box by selectAllCards', async () => {
+    const user = userEvent.setup();
+    const onSelectionChange = vi.fn();
+    render(cardsOf({
+      pageSize: 10, onSelectionChange, messages: { selectAllCards: 'Gösterilenlerin tümünü seç' },
+      isRowSelectable: (r) => (r.status === 'archived' ? 'Archived' : true),
+    }));
+    await user.click(screen.getByRole('checkbox', { name: 'Gösterilenlerin tümünü seç' }));
+    expect(onSelectionChange).toHaveBeenLastCalledWith(['a', 'i']);
+    expect(screen.getByRole('checkbox', { name: 'Select Globex' })).not.toBeChecked();
+  });
+
+  it('a card grid that is not selectable has no selection line', () => {
+    const { container } = render(cardsOf({ selectable: false }));
+    expect(container.querySelector('[data-part^="selection-summary"]')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Select all shown rows' })).toBeNull();
+  });
+});

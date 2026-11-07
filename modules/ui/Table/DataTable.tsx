@@ -14,6 +14,7 @@ import { FilterChips, type FilterChip } from './parts/FilterChips';
 import {
   ExpandCell,
   ExpandHeaderCell,
+  SelectAllControl,
   SelectAllHeaderCell,
   SelectCell,
 } from './parts/RowExtras';
@@ -546,6 +547,7 @@ function useRowExtras<T extends Record<string, unknown>>(
   msgs: DataTableMessages,
   tableId: string,
   shown: ShownRow<T>[],
+  cards = false,
 ) {
   const { selectable = false, renderExpanded, isRowSelectable, isRowSelectionLocked, rowSelectLabel } = props;
   const selection = useRowSelection({
@@ -641,12 +643,9 @@ function useRowExtras<T extends Record<string, unknown>>(
   }
 
   const selectedIds = [...selection.selected].filter((rid) => !lockedIds.has(rid));
-  // a selectable table keeps the line's room while nothing is selected, so ticking the first row moves no row (run 3 note 51: "30 selected" pushed the
-  // table down under the pointer)
-  const summary = !selectable ? null : selectedIds.length === 0 ? (
-    <div className="min-h-7" data-part="selection-summary-slot" aria-hidden="true" />
-  ) : (
-      <div className="flex min-h-7 flex-wrap items-center gap-2" data-part="selection-summary">
+  const selectedParts =
+    selectedIds.length > 0 ? (
+      <>
         <p className="text-xs text-text-secondary">
           {formatMessage(msgs.selectedCount ?? '{count} selected', { count: selectedIds.length })}
         </p>
@@ -658,8 +657,29 @@ function useRowExtras<T extends Record<string, unknown>>(
             {props.bulkActions(selectedIds, selection.clear)}
           </div>
         )}
-      </div>
-    );
+      </>
+    ) : null;
+  // a selectable table keeps the line's room while nothing is selected, so ticking the first row moves no row (run 3 note 51: "30 selected" pushed the
+  // table down under the pointer). The card layout has no header row: its line is always there and starts with the select-all
+  // box, so the cards select all shown as the table does (next-boilerplate 53.6.1, D609).
+  const summary = !selectable ? null : cards ? (
+    <div className="flex min-h-7 flex-wrap items-center gap-2" data-part="selection-summary">
+      <SelectAllControl
+        checked={allShownSelected}
+        indeterminate={shownSelected > 0 && !allShownSelected}
+        disabled={selectableIds.length === 0}
+        label={msgs.selectAllCards ?? msgs.selectAllRows ?? 'Select all shown rows'}
+        onChange={() => selection.toggleShown(selectableIds)}
+      />
+      {selectedParts}
+    </div>
+  ) : selectedIds.length === 0 ? (
+    <div className="min-h-7" data-part="selection-summary-slot" aria-hidden="true" />
+  ) : (
+    <div className="flex min-h-7 flex-wrap items-center gap-2" data-part="selection-summary">
+      {selectedParts}
+    </div>
+  );
 
   return {
     header,
@@ -753,7 +773,7 @@ function TableFrame<T extends Record<string, unknown>>({
   const groupHeader = (key: string, rows: ShownRow<T>[]) =>
     props.renderGroupHeader ? props.renderGroupHeader(key, rows.map((r) => r.row)) : key;
   const actions = rowActionsParts(props, msgs);
-  const extras = useRowExtras(props, msgs, id, model.shown);
+  const extras = useRowExtras(props, msgs, id, model.shown, cards);
   const filterParts = filterUi.parts(onFiltersApplied);
   const totalCols = extras.leadingCount + columns.length + (actions.enabled ? 1 : 0);
 
