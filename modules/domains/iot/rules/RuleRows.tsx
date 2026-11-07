@@ -79,9 +79,13 @@ function ValueInput({ id, label, sample, value, onChange }: { id: string; label:
   return <Txt id={id} label={label} value={String(value ?? '')} onChange={onChange} className="w-32" />;
 }
 
-/** A set of numbered chips, all lit when nothing is chosen: the weekdays, months and days of the month share it. Choosing all or none = no filter. */
+/**
+ * A set of numbered chips, all lit when nothing is chosen: the weekdays, months and days of the month share it. Choosing all or none = no filter. A lit chip
+ * is a chosen one, so a click on it turns it off, also while all are lit (next-boilerplate phase 53.2.4, re-run 4 #5: with every day lit, a click on Saturday
+ * chose Saturday alone instead of turning it off).
+ */
 function Chips({ id, label, all, items, value, onChange, allLabel }: { id: string; label: string; all: number; items: Array<{ n: number; label: string }>; value: number[] | undefined; onChange: (v: number[] | undefined) => void; allLabel: string }) {
-  const on = new Set(value ?? []);
+  const on = new Set(value ?? items.map((it) => it.n));
   const toggle = (d: number) => {
     const next = new Set(on);
     if (next.has(d)) next.delete(d); else next.add(d);

@@ -367,15 +367,49 @@ describe('calendar rows in the editor', () => {
   it('a date trigger picks days of the month and months; choosing a day of the month drops the weekdays', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);
-    render(<RuleEditor scope={scope} initial={{ name: 'Monthly', definition: base({ when: [{ id: 't1', kind: 'date', at: '09:00', days: [1, 2] }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    render(<RuleEditor scope={scope} initial={{ name: 'Monthly', definition: base({ when: [{ id: 't1', kind: 'date', at: '09:00', days: [1, 2], daysOfMonth: [1], months: [1] }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText('What', { selector: '#trigger-t1-kind' })).toHaveValue('date');
     await user.click(document.querySelector('#trigger-t1-dom-15')!);
     await user.click(document.querySelector('#trigger-t1-months-6')!);
+    await user.click(document.querySelector('#trigger-t1-months-1')!);
     await user.click(screen.getByRole('button', { name: 'Save rule' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const t = onSave.mock.calls[0]![0].definition.when[0];
-    expect(t).toMatchObject({ kind: 'date', at: '09:00', daysOfMonth: [15], months: [6] });
+    expect(t).toMatchObject({ kind: 'date', at: '09:00', daysOfMonth: [1, 15], months: [6] });
     expect(t.days).toBeUndefined();
+  });
+
+  it('next-boilerplate phase 53.2.4 (re-run 4 #5): with every day lit, a click on one day turns that day off and the other six stay', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<RuleEditor scope={scope} initial={{ name: 'Weekdays', definition: base({ when: [{ id: 't1', kind: 'time', at: '22:30' }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    const sat = document.querySelector('#trigger-t1-days-6')!;
+    const sun = document.querySelector('#trigger-t1-days-7')!;
+    // every day lit, "Every day" said
+    expect(sat).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Every day')).toBeInTheDocument();
+    await user.click(sat);
+    expect(sat).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('#trigger-t1-days-1')).toHaveAttribute('aria-pressed', 'true');
+    expect(sun).toHaveAttribute('aria-pressed', 'true');
+    await user.click(sun);
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]![0].definition.when[0]).toMatchObject({ kind: 'time', at: '22:30', days: [1, 2, 3, 4, 5] });
+  });
+
+  it('turning the one day off again lights every day: no filter, never an empty set', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<RuleEditor scope={scope} initial={{ name: 'Weekdays', definition: base({ when: [{ id: 't1', kind: 'time', at: '22:30' }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    const sat = document.querySelector('#trigger-t1-days-6')!;
+    await user.click(sat);
+    await user.click(sat);
+    expect(sat).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Every day')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]![0].definition.when[0].days).toBeUndefined();
   });
 
   it('a date condition holds a window of two dates; a holiday condition says working day or holiday', async () => {
