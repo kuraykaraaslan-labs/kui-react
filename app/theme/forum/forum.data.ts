@@ -114,6 +114,8 @@ export type TopicData = {
   createdAt: string;
   isPinned?: boolean;
   isLocked?: boolean;
+  /** The accepted solution: set = the topic is solved. */
+  solutionPostId?: string;
 };
 
 export const TOPICS: TopicData[] = [
@@ -151,6 +153,7 @@ export const TOPICS: TopicData[] = [
     replyCount: 17,
     viewCount: 2340,
     createdAt: '2026-04-20T14:32:00Z',
+    solutionPostId: 'post-33',
   },
   {
     topicId: 'topic-04',
@@ -247,7 +250,20 @@ export type PostData = {
   status: ForumPostStatus;
   createdAt: string;
   likeCount: number;
+  /** Verified employee of an organisation (StaffBadge in the author column). */
+  staff?: StaffData;
+  /** Written in another language: `content` is the AI translation, `original` what the author wrote. */
+  translation?: { sourceLanguage: string; sourceLang: string; original: string };
 };
+
+/* =========================================================
+   STAFF (verified employees, shown with a StaffBadge)
+========================================================= */
+
+export type StaffData = { org: string; colour: string };
+
+/** Demo organisation: the badge takes any CSS colour, a token keeps the demo in both themes. */
+export const NORTHWIND_STAFF: StaffData = { org: 'Northwind', colour: 'var(--secondary-active)' };
 
 /* =========================================================
    USERS (for /users/[username])
@@ -266,6 +282,7 @@ export type ForumUserData = {
   reputation: number;
   role: 'member' | 'moderator' | 'admin';
   online: boolean;
+  staff?: StaffData;
   badges: ForumBadge[];
   activity: {
     kind: UserActivityKind;
@@ -287,6 +304,7 @@ export const FORUM_USERS: ForumUserData[] = [
     reputation: 4280,
     role: 'moderator',
     online: true,
+    staff: NORTHWIND_STAFF,
     badges: [
       { badgeId: 'b-01', name: 'First post',     tier: 'bronze', icon: 'medal' },
       { badgeId: 'b-02', name: 'Helpful',        tier: 'silver', icon: 'handshake', count: 12 },
@@ -417,5 +435,55 @@ export const POSTS: PostData[] = [
     status: 'PUBLISHED',
     createdAt: '2025-01-10T18:30:00Z',
     likeCount: 37,
+  },
+  {
+    postId: 'post-31',
+    topicId: 'topic-03',
+    authorName: 'dev_sarah',
+    authorPostCount: 48,
+    content:
+      'I have a small VPS (2 vCPU, 4 GB) and want to run a Next.js app on it without Docker. It should restart on its own after a crash or a reboot. What do people use?',
+    status: 'PUBLISHED',
+    createdAt: '2026-04-20T14:32:00Z',
+    likeCount: 9,
+  },
+  {
+    postId: 'post-32',
+    topicId: 'topic-03',
+    authorName: 'kerem_yilmaz',
+    authorPostCount: 214,
+    content:
+      'The simplest way without Docker: install Node with nvm, run next build, then run next start as a systemd service. Put Nginx in front of it as a reverse proxy and let it handle TLS.',
+    translation: {
+      sourceLanguage: 'Turkish',
+      sourceLang: 'tr',
+      original:
+        "Docker'sız en kolay yol: Node'u nvm ile kurun, next build alın, sonra next start'ı bir systemd servisi olarak çalıştırın. Önüne ters vekil olarak Nginx koyun, TLS'i de o halletsin.",
+    },
+    status: 'PUBLISHED',
+    createdAt: '2026-04-20T16:05:00Z',
+    likeCount: 12,
+  },
+  {
+    postId: 'post-33',
+    topicId: 'topic-03',
+    authorName: 'mod_jane',
+    authorPostCount: 892,
+    staff: NORTHWIND_STAFF,
+    content:
+      'Use output: "standalone" in next.config, copy .next/standalone, .next/static and public to the server, and run node server.js from a systemd unit with Restart=always. No PM2 needed, and the folder is a fraction of node_modules.',
+    status: 'PUBLISHED',
+    createdAt: '2026-04-21T09:40:00Z',
+    likeCount: 31,
+  },
+  {
+    postId: 'post-34',
+    topicId: 'topic-03',
+    authorName: 'dev_sarah',
+    authorPostCount: 48,
+    content: 'The standalone build did it: 60 MB instead of 400, and it came back on its own after a reboot. Marked it as the solution, thanks both!',
+    status: 'PUBLISHED',
+    createdAt: '2026-04-21T12:15:00Z',
+    likeCount: 4,
   },
 ];

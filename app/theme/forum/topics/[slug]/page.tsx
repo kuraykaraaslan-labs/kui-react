@@ -7,6 +7,11 @@ import { Button } from '@/modules/ui/Button';
 import { Breadcrumb } from '@/modules/ui/Breadcrumb';
 import { TopicStatusBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';
 import { ReactionTypeBadge } from '@/modules/domains/forum/reaction/ReactionTypeBadge';
+import { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';
+import { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from '@/modules/domains/forum/post/AcceptedSolution';
+import { TranslatedContent } from '@/modules/domains/forum/post/TranslatedContent';
+import { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';
+import { cn } from '@/libs/utils/cn';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faThumbtack,
@@ -122,6 +127,7 @@ export default async function TopicDetailPage({ params }: { params: Promise<{ sl
           <h1 className="font-bold text-sm leading-snug flex-1">{topic.title}</h1>
           <div className="flex items-center gap-3 text-xs text-primary-fg/70 shrink-0">
             <TopicStatusBadge status={topic.status} size="sm" />
+            {topic.solutionPostId && <TopicSolvedBadge size="sm" />}
             <span className="flex items-center gap-1">
               <FontAwesomeIcon icon={faReply} className="w-3 h-3" aria-hidden="true" />
               {topic.replyCount}
@@ -140,12 +146,23 @@ export default async function TopicDetailPage({ params }: { params: Promise<{ sl
           posts.map((post, index) => {
             const stars = userRankStars(post.authorPostCount);
             const rank  = userRank(post.authorPostCount);
+            const isSolution = topic.solutionPostId === post.postId;
+            // Demo viewer: the topic's author, who may mark any reply (not their own opening post) as the solution.
+            const canMarkSolution = index > 0 && post.authorName !== topic.authorName;
 
             return (
-              <article key={post.postId} className="border border-border rounded overflow-hidden">
+              <article
+                key={post.postId}
+                className={cn('border border-border rounded overflow-hidden', isSolution && acceptedSolutionClasses.card)}
+              >
                 <div className="flex">
                   {/* User sidebar */}
-                  <div className="w-32 sm:w-40 shrink-0 bg-surface-raised border-r border-border px-3 py-3 flex flex-col items-center gap-2 text-center">
+                  <div
+                    className={cn(
+                      'w-32 sm:w-40 shrink-0 bg-surface-raised border-r border-border px-3 py-3 flex flex-col items-center gap-2 text-center',
+                      isSolution && acceptedSolutionClasses.author,
+                    )}
+                  >
                     <Avatar name={post.authorName} size="lg" />
 
                     <div>
@@ -156,6 +173,9 @@ export default async function TopicDetailPage({ params }: { params: Promise<{ sl
                         {post.authorName}
                       </Link>
                       <span className="text-xs text-text-disabled block">{rank}</span>
+                      {post.staff && (
+                        <StaffBadge org={post.staff.org} colour={post.staff.colour} className="mt-1" />
+                      )}
 
                       {/* Rank stars */}
                       <div className="flex justify-center gap-0.5 mt-1" aria-label={`${stars} of 5 stars`}>
@@ -184,24 +204,42 @@ export default async function TopicDetailPage({ params }: { params: Promise<{ sl
                   </div>
 
                   {/* Post content */}
-                  <div className="flex-1 min-w-0 bg-surface-base flex flex-col">
+                  <div className={cn('flex-1 min-w-0 bg-surface-base flex flex-col', isSolution && 'bg-transparent')}>
                     {/* Post meta row */}
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-surface-raised/50 text-xs">
-                      <span className="text-text-disabled">
-                        Posted: <span className="text-text-secondary font-medium">{formatPostDate(post.createdAt)}</span>
+                    <div
+                      className={cn(
+                        'flex items-center justify-between gap-2 px-4 py-2 border-b border-border bg-surface-raised/50 text-xs',
+                        isSolution && acceptedSolutionClasses.meta,
+                      )}
+                    >
+                      <span className={cn('text-text-disabled', isSolution && 'text-current')}>
+                        Posted: <span className={cn('text-text-secondary font-medium', isSolution && 'text-current')}>{formatPostDate(post.createdAt)}</span>
                       </span>
-                      <span className="text-text-disabled">#{index + 1}</span>
+                      <span className="flex items-center gap-2">
+                        {isSolution && <AcceptedSolutionBadge />}
+                        <span className={cn('text-text-disabled', isSolution && 'text-current')}>#{index + 1}</span>
+                      </span>
                     </div>
 
                     {/* Post body */}
                     <div className="px-4 py-4 flex-1">
-                      <p className="text-text-primary leading-relaxed text-sm">{post.content}</p>
+                      {post.translation ? (
+                        <TranslatedContent
+                          sourceLanguage={post.translation.sourceLanguage}
+                          sourceLang={post.translation.sourceLang}
+                          translated={<p className="text-text-primary leading-relaxed text-sm">{post.content}</p>}
+                          original={<p className="text-text-primary leading-relaxed text-sm">{post.translation.original}</p>}
+                        />
+                      ) : (
+                        <p className="text-text-primary leading-relaxed text-sm">{post.content}</p>
+                      )}
                     </div>
 
                     {/* Reactions + actions */}
                     <div className="px-4 py-2.5 border-t border-border flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-2">
                         <ReactionTypeBadge type="LIKE" count={post.likeCount} size="sm" />
+                        {canMarkSolution && <MarkSolutionButton isSolution={isSolution} />}
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="outline" size="xs"
@@ -302,6 +340,7 @@ export default async function TopicDetailPage({ params }: { params: Promise<{ sl
                 </div>
                 <div className="flex items-center gap-3 text-text-disabled ml-4 shrink-0">
                   <TopicStatusBadge status={t.status} size="sm" />
+                  {t.solutionPostId && <TopicSolvedBadge size="sm" />}
                   <span className="hidden sm:inline">{t.replyCount} replies</span>
                 </div>
               </div>

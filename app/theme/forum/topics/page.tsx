@@ -4,7 +4,7 @@ import { buildPageTitle, THEME_TITLES } from '@/libs/config/showcase.config';
 import { Button } from '@/modules/ui/Button';
 import { Badge } from '@/modules/ui/Badge';
 import { Breadcrumb } from '@/modules/ui/Breadcrumb';
-import { TopicStatusBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';
+import { TopicStatusBadge, TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';
 
 export const metadata: Metadata = {
   title: buildPageTitle('Topics', THEME_TITLES.forum),
@@ -121,6 +121,7 @@ export default function TopicsPage() {
               <div className="px-2 py-2.5">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <TopicStatusBadge status={topic.status} size="sm" />
+                  {topic.solutionPostId && <TopicSolvedBadge size="sm" />}
                   <Link
                     href={`/theme/forum/topics/${topic.slug}`}
                     className="font-semibold text-text-primary hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded"
@@ -175,6 +176,7 @@ export default function TopicsPage() {
                   {(topic.status === 'LOCKED' || topic.status === 'ARCHIVED') && (
                     <TopicStatusBadge status={topic.status} size="sm" />
                   )}
+                  {topic.solutionPostId && <TopicSolvedBadge size="sm" />}
                   <Link
                     href={`/theme/forum/topics/${topic.slug}`}
                     className="font-semibold text-text-primary hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus rounded"
