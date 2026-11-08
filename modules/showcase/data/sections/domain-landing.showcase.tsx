@@ -421,6 +421,16 @@ function AnnouncementBarNoDismissDemo() {
   );
 }
 
+function AnnouncementBarDarkDemo() {
+  return (
+    <AnnouncementBar
+      variant="dark"
+      message="New release: faster dashboards and smarter rules."
+      cta={{ label: 'See what is new', href: '#' }}
+    />
+  );
+}
+
 /* ─── MegaMenu demos ─── */
 
 const DEMO_PRODUCT_ITEMS = [
@@ -776,6 +786,7 @@ import { faBullhorn } from '@fortawesome/free-solid-svg-icons';
 />`,
       variants: [
         { title: 'Default (dismissible)', layout: 'stack', preview: <AnnouncementBarDefaultDemo />, code: `<AnnouncementBar icon={faBullhorn} message={<><span className="font-semibold">Velox 2.0 is here</span> — faster builds, smarter previews.</>} cta={{ label: 'Read the announcement', href: '#' }} />` },
+        { title: 'Dark (black bar)', layout: 'stack', preview: <AnnouncementBarDarkDemo />, code: `<AnnouncementBar variant="dark" message="New release: faster dashboards and smarter rules." cta={{ label: 'See what is new', href: '#' }} />` },
         { title: 'Non-dismissible promo', layout: 'stack', preview: <AnnouncementBarNoDismissDemo />, code: `<AnnouncementBar message="Black Friday — 40% off all plans." cta={{ label: 'Claim offer', href: '#' }} dismissible={false} />` },
       ],
     },
