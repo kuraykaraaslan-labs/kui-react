@@ -196,6 +196,13 @@ pdf.js loads its worker lazily. Styling is tokens only and icons are Font Awesom
   thumbnails component for a host drawer, outline (bookmarks) list.
 - **Annotation tools:** highlight, underline, strikeout, sticky note, free text, ink, rectangle / ellipse / line / arrow,
   image stamp, signature placement box, placeable in a **read-only** view too, since anyone who can see a PDF may sign it (NB OD-244); the signing itself is the host's.
+- **Several signature boxes at once** (NB signature requests, need N-R6): the host gives a list of recipients (`{ key, label,
+  colour }`) and how many boxes each may have (NB: exactly one); the person places the boxes, each labelled with its recipient's
+  name and drawn in its colour, movable, resizable and deletable, kept inside the page; output `{ id, recipientKey, pageIndex,
+  rect }[]` in page user units (the page's `/MediaBox` coordinates after its `/Rotate`, as the edit model documents).
+- **"Sign here" highlight** (N-R6): in a read-only view the host names one empty signature field (the current signer's); the
+  component outlines it, scrolls to it on request ("Go to my box") and shows a "Sign here" marker beside it; other fields stay
+  plain. Nothing is written by the component.
 - **Forms:** AcroForm text, checkbox, radio, choice fields filled in place; XFA forms shown read-only with a notice.
 - **Pages:** reorder by drag in thumbnails, rotate, delete, insert pages from another PDF (host gives the bytes), extract.
 - **Redaction marks:** the user marks areas or text; the component outputs them; applying redaction is the host's (it must
@@ -222,6 +229,30 @@ pdf.js loads its worker lazily. Styling is tokens only and icons are Font Awesom
   same writer (NB DEF-E6).
 - Output: a slide model for the host to write (NB `document_editor_slides`).
 
+## 12.11a DEK-12 — Mentions, fill-in fields and the AI panel
+
+- **Mention node** (inline atom chip) in every `DocumentEditor` preset: typing `@` opens a suggestion popup fed by a host
+  callback `searchMentions(query) => Promise<{ type, id, label, href }[]>` (people and platform records, NB host 11); the
+  chip stores `{ type, id, label }`, renders as a link, and shows "no access" without a label when the host says so on
+  load. In Markdown it is written as a normal link; in Word as a hyperlink with the label.
+- **Fill-in field node** (inline atom chip) for templates (NB `document_editor_template`): `{ key, label, type, required }`,
+  a **Fields** panel component listing them, a "fill" mode that replaces each chip with a value the host gives and reports
+  missing required fields.
+- **The chip shows its kind** (NB need N-T8): a mention chip and a field chip look different (icon and style), and a field chip
+  shows its kind (text, check, choice) with its key on hover, so a person never mistakes a template place for a link to a record.
+- **The fill mode is optional:** NB fills templates on the file's bytes with each format's own filler (NB DET-E6), not in the
+  component, so NB does not use the fill mode; it stays a component feature for other hosts and is not a release blocker for NB.
+- **AI panel**: hooks to send the selection or the document to a host callback and show the answer as a proposed change
+  with accept / reject (reusing `AiHumanDraftEditor`'s draft-versus-human view), never applied without a click.
+
+## 12.11b DEK-13 — Watermark and restricted mode
+
+- A **watermark** overlay prop on `DocumentEditor`, `PdfEditor` and `SlideEditor` (text such as the viewer's name, e-mail,
+  date and label; tiled, semi-transparent, not selectable), also drawn into the browser print.
+- A **restricted** mode prop: copy, cut, drag-out, print and the component's own export actions are disabled and the
+  context menu is reduced; the component says this is a deterrent, not protection (the real protection is the host not
+  handing out bytes, NB host 10).
+
 ## 12.12 Showcase, docs and tests
 
 - Showcase sections: `app-document-editor.showcase.tsx` (Markdown, Word-like with page canvas, read-only, review marks,
@@ -246,8 +277,10 @@ editor family (OD-234…OD-244); no counterpart; created elsewhere only on an ow
 | 3 | DEK-4 (+ kui-ejs `CodeEditor` parity) | NB `document_editor` 04 |
 | 4 | DEK-5, DEK-6, DEK-8 | NB `document_editor_word` 01–04 |
 | 5 | DEK-7, DEK-9 | NB `document_editor` 06, `document_editor_word` 05 |
-| 6 | DEK-10 | NB `document_editor_pdf` |
+| 6 | DEK-10 | NB `document_editor_pdf`; its several boxes and "Sign here" highlight: NB `document_editor_sign_request` |
 | 7 | DEK-11 | NB `document_editor_slides` |
+| 8 | DEK-12 | NB `document_editor` 08 (AI help), 11 (mentions), `document_editor_template` |
+| 9 | DEK-13 | NB `document_editor` 10 (labels, watermarks) |
 
 Each step is tagged and released by the owner before NB vendors it (NB anchor Q3). Not before NB's IoT release (OD-236).
 
@@ -256,3 +289,4 @@ Each step is tagged and released by the owner before NB vendors it (NB anchor Q3
 | Date | Event |
 |---|---|
 | 2026-11-07 | Phase written from the NB planning talk; nothing built. |
+| 2026-11-08 | DEK-10 gains several labelled signature boxes and a "Sign here" highlight (NB need N-R6); DEK-12's chip shows its kind and the fill mode is optional for NB (NB need N-T8); nothing built. |
