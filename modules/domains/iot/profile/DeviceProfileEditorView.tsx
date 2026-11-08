@@ -77,6 +77,11 @@ export type DeviceProfileEditorViewProps = {
   provisioningKeys?: React.ReactNode;
   /** Called whenever the form gains or loses unsaved changes (a host guards its own navigation with it). */
   onDirtyChange?: (dirty: boolean) => void;
+  /**
+   * The profile's version after a save the editor did not make (a host tab that saves part of the profile itself, NB 41-ui-fixes/28
+   * G1.7): a newer one moves the version the next edit starts from, without touching the draft or the form's other state.
+   */
+  profileVersion?: number | null;
   /** Settings the host stores but does not apply yet: their fields say "stored, not enforced yet". */
   notEnforced?: { strictKeys?: boolean; cfgDriftPolicy?: boolean };
   className?: string;
@@ -108,7 +113,7 @@ export function childProfileOptions(
 
 export function DeviceProfileEditorView({
   profileId, extraTabs = [], tab, onTabChange, onDeleted, onDuplicated, transports, availableStrategies, provisioningKeys, onDirtyChange,
-  notEnforced, className,
+  profileVersion, notEnforced, className,
 }: DeviceProfileEditorViewProps) {
   const adapter = useIotAdapter();
   const api = adapter.profiles;
@@ -137,6 +142,10 @@ export function DeviceProfileEditorView({
   // the host refused the save because the profile changed since it was read (NB 41-ui-fixes/20 1.7)
   const [stale, setStale] = useState(false);
 
+  // a save made beside the editor (a host tab) moved the stored version: the next edit starts from it, the draft stays (NB 41-ui-fixes/28 G1.7)
+  if (profile && typeof profileVersion === 'number' && typeof profile.version === 'number' && profileVersion > profile.version) {
+    setProfile({ ...profile, version: profileVersion });
+  }
   const base = useMemo(() => (profile ? draftOf(profile) : null), [profile]);
   /** A draft read from the host or put back to it: its key rows are the saved rows. */
   const setDraft = useCallback((d: DeviceProfileDraft | null) => {

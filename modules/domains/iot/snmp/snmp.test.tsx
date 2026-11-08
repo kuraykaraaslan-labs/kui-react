@@ -6,6 +6,7 @@ import {
   rowFromVarbind, snmpMappingIssues, suggestKey, tableKeyPreview,
 } from '.';
 import type { SnmpMapping, SnmpTestPollResult } from '.';
+import { failureText, mergeSnmpMessages } from './messages';
 
 afterEach(() => { cancelAllConfirms(); cleanup(); });
 
@@ -154,7 +155,57 @@ describe('SnmpTestPollPanel (kui-react iot 11.4)', () => {
   });
 });
 
+describe('SnmpTestPollPanel device choice (NB 41-ui-fixes/28 G1.28)', () => {
+  it('takes the first ready device once the list arrives, clears the answer on another device and locks the choice while polling', async () => {
+    let finish: (r: typeof ANSWER) => void = () => undefined;
+    const onPoll = vi.fn(() => new Promise<typeof ANSWER>((res) => { finish = res; }));
+    const devices = [{ deviceId: 'd0', name: 'Off', blocked: 'endpoint_disabled' }, { deviceId: 'd1', name: 'UPS 1' }, { deviceId: 'd2', name: 'UPS 2' }];
+    const { rerender } = render(<SnmpTestPollPanel devices={[]} loading onPoll={onPoll} />);
+    rerender(<SnmpTestPollPanel devices={devices} onPoll={onPoll} />);
+    const combo = document.getElementById('snmp-test-device') as HTMLSelectElement;
+    expect(combo.value).toBe('d1');
+    await act(async () => { fireEvent.click(screen.getByText('Run test poll')); });
+    expect(onPoll).toHaveBeenCalledWith('d1', expect.any(Array));
+    expect(combo.disabled).toBe(true);
+    await act(async () => { finish(ANSWER); });
+    expect(await screen.findByTestId('snmp-duration')).toBeTruthy();
+    expect(combo.disabled).toBe(false);
+    fireEvent.change(combo, { target: { value: 'd2' } });
+    expect(screen.queryByTestId('snmp-duration')).toBeNull();
+  });
+  it('words the server\'s codes, and the old names of two of them', () => {
+    const m = mergeSnmpMessages();
+    expect(failureText(m, 'decrypt_failed')).toMatch(/could not decrypt/);
+    expect(failureText(m, 'decryption_error')).toBe(failureText(m, 'decrypt_failed'));
+    expect(failureText(m, 'port_not_allowed')).toBe(failureText(m, 'port_denied'));
+    expect(failureText(m, 'priv_not_configured')).toMatch(/no encryption/);
+    expect(failureText(m, 'zzz')).toBe('Failed (zzz).');
+  });
+});
+
 describe('SnmpMappingView', () => {
+  it('reports unsaved changes to the host and guards closing the page (NB 41-ui-fixes/28 G1.8)', async () => {
+    const onDirtyChange = vi.fn();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<SnmpMappingView value={UPS} onSave={onSave} devices={[{ deviceId: 'd1', name: 'UPS 1' }]} onPoll={async () => ANSWER} onDirtyChange={onDirtyChange} />);
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    fireEvent.click(screen.getByText('Test poll'));
+    await act(async () => { fireEvent.click(screen.getByText('Run test poll')); });
+    const row = (await screen.findByText('ups1')).closest('tr')!;
+    fireEvent.click(within(row).getByRole('button', { name: /actions|Add to mapping/i }));
+    fireEvent.click(await screen.findByText('Add to mapping'));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    const ev = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /Close/ }));
+    fireEvent.click(screen.getByText('Discard'));
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    const after = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(after);
+    expect(after.defaultPrevented).toBe(false);
+  });
+
   it('adds a test-poll row to the draft and saves it; a refusal marks the named row', async () => {
     const onSave = vi.fn().mockRejectedValueOnce(new SnmpMappingRefused([{ path: 'mapping.3.key', message: 'duplicate_key' }])).mockResolvedValue(undefined);
     render(<SnmpMappingView value={UPS} onSave={onSave} devices={[{ deviceId: 'd1', name: 'UPS 1' }]} onPoll={async () => ANSWER} />);
