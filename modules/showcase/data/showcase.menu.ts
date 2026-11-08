@@ -98,6 +98,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'callout',             title: 'Callout',           category: 'Organism', abbr: 'Ad', since: '2026-10' },
       { id: 'table-of-contents',   title: 'TableOfContents',   category: 'Organism', abbr: 'Toc', since: '2026-10' },
       { id: 'doc-pager',           title: 'DocPager',          category: 'Organism', abbr: 'Pv', since: '2026-10' },
+      { id: 'share-bar',           title: 'ShareBar',          category: 'Molecule', abbr: 'Sh', since: '2026-11' },
       { id: 'data-table',          title: 'DataTable',         category: 'Organism', abbr: 'Dt', since: '2025-03' },
       { id: 'advanced-data-table', title: 'AdvancedDataTable', category: 'Organism', abbr: 'At', since: '2025-03', status: 'deprecated' },
       { id: 'bulk-action-table',   title: 'BulkActionTable',   category: 'Organism', abbr: 'Bt', since: '2026-08' },

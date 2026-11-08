@@ -78,6 +78,8 @@ export { DateRangePicker, TimePicker } from './DateRangePicker';
 export type { DateRange } from './DateRangePicker';
 export { DocPager } from './DocPager';
 export type { DocPagerLink } from './DocPager';
+export { ShareBar } from './ShareBar';
+export type { ShareNetwork } from './ShareBar';
 export { Drawer } from './Drawer';
 export { DropdownMenu, arrangeMenuItems, mergeMenuItems } from './DropdownMenu';
 export type { DropdownItem, DropdownMenuItem, DropdownSeparator, DropdownHeading, DropdownMenuSearch, ArrangeMenuOptions } from './DropdownMenu';

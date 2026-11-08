@@ -389,6 +389,12 @@
     "category": "Organism",
     "file": "doc-pager.md"
   },
+  "share-bar": {
+    "name": "ShareBar",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "share-bar.md"
+  },
   "modal": {
     "name": "Modal",
     "layer": "ui",

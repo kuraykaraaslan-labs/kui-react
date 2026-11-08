@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-08T18:37:04.543Z",
+  "generatedAt": "2026-11-08T23:11:20.735Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2868,6 +2868,39 @@
         "--primary",
         "--secondary",
         "--surface-raised",
+        "--text-primary",
+        "--text-secondary"
+      ]
+    },
+    {
+      "id": "share-bar",
+      "name": "ShareBar",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/ShareBar.tsx",
+      "abbr": "Sh",
+      "description": "Share the current page: networks inline and a … button that opens a window with every network, e-mail, copy link and the device share sheet. Plain links, no third-party scripts.",
+      "source": "'use client';\nimport { useEffect, useId, useState } from 'react';\nimport { cn } from '@/libs/utils/cn';\nimport { FontAwesomeIcon } from '@fortawesome/react-fontawesome';\nimport type { IconDefinition } from '@fortawesome/fontawesome-svg-core';\nimport { faEllipsis, faEnvelope, faLink } from '@fortawesome/free-solid-svg-icons';\nimport { faFacebookF, faLinkedinIn, faRedditAlien, faTelegram, faWhatsapp, faXTwitter } from '@fortawesome/free-brands-svg-icons';\nimport { Modal } from './Modal';\n\n// Share the current page: a few networks inline and a \"…\" button that opens a\n// window with every network, e-mail, copy link and the device's own share sheet.\n// Plain links to each network's share address: no third-party scripts, no tracking.\n\nexport type ShareNetwork = 'linkedin' | 'x' | 'whatsapp' | 'facebook' | 'telegram' | 'reddit' | 'email';\n\ntype ShareBarLabels = {\n  share?: string;\n  more?: string;\n  dialogTitle?: string;\n  address?: string;\n  copy?: string;\n  copied?: string;\n  moreApps?: string;\n  /** \"Share on %s\"; %s is the network name. */\n  shareOn?: string;\n  email?: string;\n};\n\ntype ShareBarProps = {\n  /** Address to share. */\n  url: string;\n  /** Page title, sent where the network takes one. */\n  title?: string;\n  /** Networks shown as buttons in the bar. Default LinkedIn, X, WhatsApp. */\n  inline?: ShareNetwork[];\n  /** Networks in the window. Default all seven. */\n  networks?: ShareNetwork[];\n  /** Hide the \"Share\" label before the buttons. */\n  hideLabel?: boolean;\n  labels?: ShareBarLabels;\n  onShare?: (network: ShareNetwork | 'copy' | 'native') => void;\n  className?: string;\n} & Omit<React.HTMLAttributes<HTMLDivElement>, 'title'>;\n\nconst NETWORKS: Record<ShareNetwork, { name: string; icon: IconDefinition; href: (u: string, t: string) => string }> = {\n  linkedin: { name: 'LinkedIn', icon: faLinkedinIn, href: (u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },\n  x: { name: 'X', icon: faXTwitter, href: (u, t) => `https://x.com/intent/post?url=${u}&text=${t}` },\n  whatsapp: { name: 'WhatsApp', icon: faWhatsapp, href: (u, t) => `https://wa.me/?text=${t}%20${u}` },\n  facebook: { name: 'Facebook', icon: faFacebookF, href: (u) => `https://www.facebook.com/sharer/sharer.php?u=${u}` },\n  telegram: { name: 'Telegram', icon: faTelegram, href: (u, t) => `https://t.me/share/url?url=${u}&text=${t}` },\n  reddit: { name: 'Reddit', icon: faRedditAlien, href: (u, t) => `https://www.reddit.com/submit?url=${u}&title=${t}` },\n  email: { name: 'E-mail', icon: faEnvelope, href: (u, t) => `mailto:?subject=${t}&body=${u}` },\n};\n\nconst ALL: ShareNetwork[] = ['linkedin', 'x', 'whatsapp', 'facebook', 'telegram', 'reddit', 'email'];\n\nconst buttonClass = cn(\n  'inline-grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface-base text-text-secondary transition-colors',\n  'hover:bg-surface-overlay hover:text-text-primary',\n  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus'\n);\n\nconst tileClass = cn(\n  'grid justify-items-center gap-1.5 rounded-[0.625rem] border border-border bg-surface-base px-1 py-3 text-xs text-text-primary transition-colors',\n  'hover:border-primary hover:text-primary',\n  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus'\n);\n\nexport function ShareBar({\n  url,\n  title = '',\n  inline = ['linkedin', 'x', 'whatsapp'],\n  networks = ALL,\n  hideLabel = false,\n  labels,\n  onShare,\n  className,\n  ...rest\n}: ShareBarProps) {\n  const [open, setOpen] = useState(false);\n  const [copied, setCopied] = useState(false);\n  const inputId = useId();\n  const l = {\n    share: 'Share',\n    more: 'More ways to share',\n    dialogTitle: 'Share this page',\n    address: 'Page address',\n    copy: 'Copy',\n    copied: 'Copied',\n    moreApps: 'More apps',\n    shareOn: 'Share on %s',\n    email: 'E-mail',\n    ...labels,\n  };\n  const u = encodeURIComponent(url);\n  const t = encodeURIComponent(title);\n  // The window only renders after a click, on the client, so the device share sheet can be checked here.\n  const canNative = open && typeof navigator !== 'undefined' && typeof navigator.share === 'function';\n  const name = (n: ShareNetwork) => (n === 'email' ? l.email : NETWORKS[n].name);\n\n  useEffect(() => {\n    if (!copied) return;\n    const id = window.setTimeout(() => setCopied(false), 1500);\n    return () => window.clearTimeout(id);\n  }, [copied]);\n\n  const link = (n: ShareNetwork, cls: string, withName: boolean) => {\n    const external = n !== 'email';\n    return (\n      <a\n        key={n}\n        href={NETWORKS[n].href(u, t)}\n        className={cls}\n        aria-label={l.shareOn.replace('%s', name(n))}\n        onClick={() => onShare?.(n)}\n        {...(external ? { target: '_blank', rel: 'noopener nofollow' } : {})}\n      >\n        <FontAwesomeIcon icon={NETWORKS[n].icon} className=\"h-[1.125rem] w-[1.125rem]\" aria-hidden=\"true\" />\n        {withName ? <span>{name(n)}</span> : <span className=\"sr-only\">{name(n)}</span>}\n      </a>\n    );\n  };\n\n  const copy = async () => {\n    try {\n      await navigator.clipboard.writeText(url);\n      setCopied(true);\n      onShare?.('copy');\n    } catch {\n      (document.getElementById(inputId) as HTMLInputElement | null)?.select();\n    }\n  };\n\n  const native = () => {\n    navigator.share?.({ title, url }).then(() => onShare?.('native')).catch(() => {});\n  };\n\n  return (\n    <div className={cn('flex flex-wrap items-center gap-2.5', className)} {...rest}>\n      {!hideLabel && <span className=\"text-xs font-bold uppercase tracking-[0.06em] text-text-secondary\">{l.share}</span>}\n      <div className=\"flex gap-1.5\">\n        {inline.map((n) => link(n, buttonClass, false))}\n        <button type=\"button\" className={buttonClass} aria-haspopup=\"dialog\" aria-expanded={open} aria-label={l.more} onClick={() => setOpen(true)}>\n          <FontAwesomeIcon icon={faEllipsis} className=\"h-[1.125rem] w-[1.125rem]\" aria-hidden=\"true\" />\n        </button>\n      </div>\n\n      <Modal open={open} onClose={() => setOpen(false)} title={l.dialogTitle} size=\"sm\">\n        <div className=\"mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface-base py-1.5 pl-3 pr-1.5 text-text-secondary\">\n          <FontAwesomeIcon icon={faLink} className=\"h-4 w-4 shrink-0\" aria-hidden=\"true\" />\n          <input\n            id={inputId}\n            type=\"text\"\n            readOnly\n            value={url}\n            aria-label={l.address}\n            onFocus={(e) => e.currentTarget.select()}\n            className=\"min-w-0 flex-1 border-0 bg-transparent text-sm text-text-primary outline-none\"\n          />\n          <button\n            type=\"button\"\n            onClick={copy}\n            className=\"rounded-md bg-primary px-3 py-1.5 text-[0.8125rem] font-semibold text-primary-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus\"\n          >\n            {copied ? l.copied : l.copy}\n          </button>\n        </div>\n        <div className=\"grid grid-cols-4 gap-2\">\n          {networks.map((n) => link(n, tileClass, true))}\n          {canNative && (\n            <button type=\"button\" className={tileClass} onClick={native}>\n              <FontAwesomeIcon icon={faEllipsis} className=\"h-[1.125rem] w-[1.125rem]\" aria-hidden=\"true\" />\n              <span>{l.moreApps}</span>\n            </button>\n          )}\n        </div>\n      </Modal>\n    </div>\n  );\n}\n",
+      "variants": [
+        {
+          "title": "Default: LinkedIn, X, WhatsApp and more",
+          "code": "<ShareBar url={pageUrl} title={pageTitle} />"
+        },
+        {
+          "title": "Without label, custom inline networks, translated labels",
+          "code": "<ShareBar url={pageUrl} title={pageTitle} hideLabel inline={['linkedin', 'email']} labels={{ copy: 'Kopieren', copied: 'Kopiert' }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--primary-fg",
+        "--secondary",
+        "--surface-base",
+        "--surface-overlay",
         "--text-primary",
         "--text-secondary"
       ]
