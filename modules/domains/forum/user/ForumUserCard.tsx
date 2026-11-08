@@ -3,6 +3,7 @@ import { cn } from '@/libs/utils/cn';
 import { Avatar } from '@/modules/ui/Avatar';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
+import { StaffBadge } from './StaffBadge';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCalendarPlus,
@@ -21,6 +22,8 @@ type ForumUserCardUser = {
   reputation?: number;
   role?: 'member' | 'moderator' | 'admin';
   online?: boolean;
+  /** Verified employee of an organisation: a StaffBadge beside the role. */
+  staff?: { org: string; colour?: string };
 };
 
 type ForumUserCardProps = {
@@ -70,6 +73,7 @@ export function ForumUserCard({ user, onMessage, onFollow, className }: ForumUse
               />
               {role.label}
             </Badge>
+            {user.staff && <StaffBadge org={user.staff.org} colour={user.staff.colour} />}
           </div>
           <p className="text-sm text-text-secondary">@{user.username}</p>
 

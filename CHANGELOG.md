@@ -6,6 +6,19 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- Forum community patterns (owner 2026-11-08), first built for the kui-community WordPress forum (kui-wordpress-saas) and owned by
+  kui-react from now on. Accepted solution: `AcceptedSolutionBadge` (the "Accepted solution" chip), `MarkSolutionButton` ("Mark as solution" /
+  "Unmark solution", `aria-pressed`, for the topic author or a moderator) and `acceptedSolutionClasses` (`card` / `author` / `meta`: the
+  post card turns green from the success token); `ForumTopic.solutionPostId`, `TopicSolvedBadge` and `TopicRow`'s `topic.isSolved` ("Solved"
+  beside the status, not a new `TopicStatus`). `StaffBadge` (`{ org, colour?, label? }`: "<Org> staff" in white on the organisation's colour,
+  default `var(--primary-active)`), also on `ForumUserCard` from `user.staff`. `TranslatedContent` (`{ sourceLanguage, sourceLang?, translated,
+  original, defaultShowOriginal?, labels? }`: "Translated from <Language> by AI · Show original" toggling to the original with its `lang`).
+  Composer assistant: `SimilarTopics` + `SuggestedCategoryHint`, and `PostComposer`'s optional `onTitleChange`, `similarTopics`,
+  `suggestedCategoryValue` (pre-selects the category until the user picks one) and `assistLabels`. The forum theme shows all four (topic
+  "Deploy Next.js to a VPS": a solved topic with a green answer by a staff member and a reply translated from Turkish; the new-topic page
+  matches the sample topics as the title is typed). Showcase entries `forum-accepted-solution`, `forum-staff-badge`,
+  `forum-translated-content`, `forum-similar-topics`.
+
 - WidgetKit gauge: the value's declared range is its default scale (next-boilerplate e2e run 3, item 110). `ColumnMeta` takes optional
   `min` / `max` (a device profile's or a schema's range); `metaScale` reads a usable range and `metaScaleDefaults` turns it into the type
   layer's defaults for a template that names `scaleFields` (the gauge: `min` / `max`). A person's own min / max, a saved definition's and a

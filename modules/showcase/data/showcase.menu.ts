@@ -426,6 +426,10 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'forum-badge-shelf',         title: 'BadgeShelf',        category: 'Domain', abbr: 'BS', since: '2026-05' },
       { id: 'forum-user-activity-row',   title: 'UserActivityRow',   category: 'Domain', abbr: 'UA', since: '2026-05' },
       { id: 'forum-post-composer',       title: 'PostComposer',      category: 'Domain', abbr: 'PC', since: '2026-05' },
+      { id: 'forum-accepted-solution',   title: 'AcceptedSolution',  category: 'Domain', abbr: 'Qa', since: '2026-11' },
+      { id: 'forum-staff-badge',         title: 'StaffBadge',        category: 'Domain', abbr: 'Sf', since: '2026-11' },
+      { id: 'forum-translated-content',  title: 'TranslatedContent', category: 'Domain', abbr: 'Tx', since: '2026-11' },
+      { id: 'forum-similar-topics',      title: 'SimilarTopics',     category: 'Domain', abbr: 'Sy', since: '2026-11' },
     ],
   },
   {

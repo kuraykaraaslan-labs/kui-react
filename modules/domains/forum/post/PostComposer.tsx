@@ -7,6 +7,7 @@ import { Select } from '@/modules/ui/Select';
 import { TagInput } from '@/modules/ui/TagInput';
 import { TabGroup } from '@/modules/ui/TabGroup';
 import { Button } from '@/modules/ui/Button';
+import { SimilarTopics, SuggestedCategoryHint, type SimilarTopic } from '../topic/SimilarTopics';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faPaperPlane,
@@ -25,6 +26,22 @@ type PostComposerProps = {
   initialTags?: string[];
   onSubmit?: (data: { title: string; body: string; tags: string[]; categoryValue: string }) => void;
   onCancel?: () => void;
+  /** Called on every title change, e.g. to look up `similarTopics` and `suggestedCategoryValue` (debounce it on the host). */
+  onTitleChange?: (title: string) => void;
+  /** Earlier topics that look like this one, listed under the title. Empty or absent = no list. */
+  similarTopics?: SimilarTopic[];
+  /**
+   * A category suggested for the title (e.g. by AI). Shown as a hint under the title and pre-selected in the category
+   * field until the user picks a category themselves. Ignored when it is not one of `categories`.
+   */
+  suggestedCategoryValue?: string;
+  /** Words of the assistant panel. */
+  assistLabels?: {
+    similarHeading?: string;
+    solved?: string;
+    replies?: (count: number) => string;
+    suggestedCategory?: string;
+  };
   className?: string;
 };
 
@@ -36,14 +53,26 @@ export function PostComposer({
   initialTags = [],
   onSubmit,
   onCancel,
+  onTitleChange,
+  similarTopics,
+  suggestedCategoryValue,
+  assistLabels,
   className,
 }: PostComposerProps) {
   const [title, setTitle] = useState(initialTitle);
   const [body, setBody] = useState(initialBody);
   const [tags, setTags] = useState<string[]>(initialTags);
-  const [categoryValue, setCategoryValue] = useState(
+  const [pickedCategoryValue, setPickedCategoryValue] = useState(
     initialCategoryValue ?? categories[0]?.value ?? '',
   );
+  const [userPickedCategory, setUserPickedCategory] = useState(false);
+
+  // The suggestion pre-selects the category until the user picks one; derived, so a later suggestion follows the title.
+  const suggestedCategory = suggestedCategoryValue
+    ? categories.find((c) => c.value === suggestedCategoryValue)
+    : undefined;
+  const categoryValue = !userPickedCategory && suggestedCategory ? suggestedCategory.value : pickedCategoryValue;
+  const hasSimilar = (similarTopics?.length ?? 0) > 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -67,17 +96,44 @@ export function PostComposer({
           label="Topic title"
           placeholder="Be specific and concise — at least 3 characters"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            onTitleChange?.(e.target.value);
+          }}
           required
           maxLength={150}
           showCount
         />
 
+        {(similarTopics !== undefined || suggestedCategoryValue !== undefined) && (
+          <div aria-live="polite" className={cn('grid gap-2', !hasSimilar && !suggestedCategory && 'hidden')}>
+            {hasSimilar && (
+              <SimilarTopics
+                topics={similarTopics ?? []}
+                labels={{
+                  heading: assistLabels?.similarHeading,
+                  solved: assistLabels?.solved,
+                  replies: assistLabels?.replies,
+                }}
+              />
+            )}
+            {suggestedCategory && (
+              <SuggestedCategoryHint
+                categoryName={suggestedCategory.label}
+                label={assistLabels?.suggestedCategory}
+              />
+            )}
+          </div>
+        )}
+
         <Select
           id="post-composer-category"
           label="Category"
           value={categoryValue}
-          onChange={(e) => setCategoryValue(e.target.value)}
+          onChange={(e) => {
+            setPickedCategoryValue(e.target.value);
+            setUserPickedCategory(true);
+          }}
           options={categories}
           required
         />

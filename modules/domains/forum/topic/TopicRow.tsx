@@ -8,7 +8,7 @@ import {
   faReply,
   faClock,
 } from '@fortawesome/free-solid-svg-icons';
-import { TopicStatusBadge } from './TopicStatusBadge';
+import { TopicStatusBadge, TopicSolvedBadge } from './TopicStatusBadge';
 import type { TopicStatus } from '../types';
 
 type TopicRowProps = {
@@ -23,6 +23,8 @@ type TopicRowProps = {
     createdAt?: Date | string;
     isPinned?: boolean;
     isLocked?: boolean;
+    /** The topic has an accepted solution: a "Solved" badge beside the status. */
+    isSolved?: boolean;
   };
   href?: string;
   className?: string;
@@ -65,6 +67,7 @@ export function TopicRow({ topic, href, className }: TopicRowProps) {
             {topic.title}
           </span>
           <TopicStatusBadge status={topic.status} size="sm" />
+          {topic.isSolved && <TopicSolvedBadge size="sm" />}
         </div>
         <p className="text-xs text-text-secondary">
           by{' '}
