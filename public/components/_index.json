@@ -1745,6 +1745,30 @@
     "category": "Domain",
     "file": "forum-post-composer.md"
   },
+  "forum-accepted-solution": {
+    "name": "AcceptedSolution",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-accepted-solution.md"
+  },
+  "forum-staff-badge": {
+    "name": "StaffBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-staff-badge.md"
+  },
+  "forum-translated-content": {
+    "name": "TranslatedContent",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-translated-content.md"
+  },
+  "forum-similar-topics": {
+    "name": "SimilarTopics",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-similar-topics.md"
+  },
   "real-estate-property-status-badge": {
     "name": "PropertyStatusBadge",
     "layer": "domain",

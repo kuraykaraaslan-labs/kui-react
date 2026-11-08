@@ -218,11 +218,6 @@ const [selected, setSelected] = useState<DataTableRowId[]>([]);
 />
 ```
 
-With `selectable`, a card draws its own box from `selected` / `toggleSelected` (and `selectable`, the reason when it cannot be
-selected). The cards have no header row, so the grid's selection line is always there and starts with a named select-all box
-(`messages.selectAllCards`, else `selectAllRows`) that selects the cards shown, as the table's header box selects the rows shown;
-the count, Clear selection and `bulkActions` follow it once something is selected.
-
 ### Groups, locked selection, search beyond columns (groupBy, isRowSelectionLocked, searchText)
 
 ```tsx

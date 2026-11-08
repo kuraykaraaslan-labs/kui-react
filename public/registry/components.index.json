@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-07T14:05:15.735Z",
+  "generatedAt": "2026-11-08T18:37:04.543Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -4576,7 +4576,7 @@
       "status": "stable",
       "since": "2026-05",
       "designTokens": [],
-      "variantCount": 2
+      "variantCount": 3
     },
     {
       "id": "landing-mega-menu",
@@ -5418,6 +5418,60 @@
       "description": "Topic creation form: title + category + write/preview tabs + tag input. Composes UI primitives.",
       "status": "stable",
       "since": "2026-05",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "forum-accepted-solution",
+      "name": "AcceptedSolution",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/post/AcceptedSolution.tsx",
+      "abbr": "Qa",
+      "description": "Accepted solution: the \"Accepted solution\" chip, the \"Mark as solution\" / \"Unmark solution\" toggle for the topic author or a moderator, acceptedSolutionClasses that turn the post card green, and the \"Solved\" topic badge.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "forum-staff-badge",
+      "name": "StaffBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/user/StaffBadge.tsx",
+      "abbr": "Sf",
+      "description": "Verified-employee pill: check icon and \"<Org> staff\" in white on the organisation colour, with a soft ring. Shown in the post author column and on ForumUserCard.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--secondary"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "forum-translated-content",
+      "name": "TranslatedContent",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/post/TranslatedContent.tsx",
+      "abbr": "Tx",
+      "description": "Machine-translated post: the translation with \"Translated from <Language> by AI · Show original\", and a button that toggles to the original (with its lang) and back.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "forum-similar-topics",
+      "name": "SimilarTopics",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/topic/SimilarTopics.tsx",
+      "abbr": "Sy",
+      "description": "Composer assistant: earlier topics that look like the title being typed (Solved chip, forum, replies) and the AI-suggested forum hint. PostComposer shows both from similarTopics / suggestedCategoryValue.",
+      "status": "stable",
+      "since": "2026-11",
       "designTokens": [],
       "variantCount": 2
     },

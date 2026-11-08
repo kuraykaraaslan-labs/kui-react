@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-07T14:05:15.735Z",
+  "generatedAt": "2026-11-08T18:37:04.543Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -7618,6 +7618,10 @@
           "code": "<AnnouncementBar icon={faBullhorn} message={<><span className=\"font-semibold\">Velox 2.0 is here</span> — faster builds, smarter previews.</>} cta={{ label: 'Read the announcement', href: '#' }} />"
         },
         {
+          "title": "Dark (black bar)",
+          "code": "<AnnouncementBar variant=\"dark\" message=\"New release: faster dashboards and smarter rules.\" cta={{ label: 'See what is new', href: '#' }} />"
+        },
+        {
           "title": "Non-dismissible promo",
           "code": "<AnnouncementBar message=\"Black Friday — 40% off all plans.\" cta={{ label: 'Claim offer', href: '#' }} dismissible={false} />"
         }
@@ -9060,7 +9064,7 @@
       "filePath": "modules/domains/forum/post/PostComposer.tsx",
       "abbr": "PC",
       "description": "Topic creation form: title + category + write/preview tabs + tag input. Composes UI primitives.",
-      "source": "import { PostComposer } from '@/modules/domains/forum/post/PostComposer';\n<PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />",
+      "source": "import { PostComposer } from '@/modules/domains/forum/post/PostComposer';\nimport { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from '@/modules/domains/forum/post/AcceptedSolution';\nimport { TranslatedContent } from '@/modules/domains/forum/post/TranslatedContent';\nimport { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';\nimport { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';\nimport { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';\nimport { cn } from '@/libs/utils/cn';\n<PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />",
       "variants": [
         {
           "title": "Default composer",
@@ -9073,6 +9077,100 @@
       ],
       "status": "stable",
       "since": "2026-05",
+      "designTokens": []
+    },
+    {
+      "id": "forum-accepted-solution",
+      "name": "AcceptedSolution",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/post/AcceptedSolution.tsx",
+      "abbr": "Qa",
+      "description": "Accepted solution: the \"Accepted solution\" chip, the \"Mark as solution\" / \"Unmark solution\" toggle for the topic author or a moderator, acceptedSolutionClasses that turn the post card green, and the \"Solved\" topic badge.",
+      "source": "import { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from '@/modules/domains/forum/post/AcceptedSolution';\n<MarkSolutionButton isSolution={isSolution} onToggle={setSolution} />",
+      "variants": [
+        {
+          "title": "Chip, toggle and Solved badge",
+          "code": "<AcceptedSolutionBadge />\n<MarkSolutionButton isSolution={false} onToggle={(next) => save(next)} />\n<TopicSolvedBadge size=\"sm\" />"
+        },
+        {
+          "title": "Green post card",
+          "code": "<article className={cn('rounded border border-border', isSolution && acceptedSolutionClasses.card)}>\n  <aside className={cn('bg-surface-raised', isSolution && acceptedSolutionClasses.author)}>…</aside>\n  <header className={cn('bg-surface-raised/50', isSolution && acceptedSolutionClasses.meta)}>\n    {isSolution && <AcceptedSolutionBadge />}\n  </header>\n</article>"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "forum-staff-badge",
+      "name": "StaffBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/user/StaffBadge.tsx",
+      "abbr": "Sf",
+      "description": "Verified-employee pill: check icon and \"<Org> staff\" in white on the organisation colour, with a soft ring. Shown in the post author column and on ForumUserCard.",
+      "source": "import { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';\n<StaffBadge org=\"Northwind\" colour=\"var(--secondary-active)\" />",
+      "variants": [
+        {
+          "title": "Organisations",
+          "code": "<StaffBadge org=\"Northwind\" colour=\"var(--secondary-active)\" />\n<StaffBadge org=\"Acme\" />"
+        },
+        {
+          "title": "On ForumUserCard",
+          "code": "<ForumUserCard user={{ username: 'mod_jane', staff: { org: 'Northwind', colour: 'var(--secondary-active)' } }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--secondary"
+      ]
+    },
+    {
+      "id": "forum-translated-content",
+      "name": "TranslatedContent",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/post/TranslatedContent.tsx",
+      "abbr": "Tx",
+      "description": "Machine-translated post: the translation with \"Translated from <Language> by AI · Show original\", and a button that toggles to the original (with its lang) and back.",
+      "source": "import { TranslatedContent } from '@/modules/domains/forum/post/TranslatedContent';\n<TranslatedContent sourceLanguage=\"Turkish\" sourceLang=\"tr\" translated={translation} original={original} />",
+      "variants": [
+        {
+          "title": "Translated from Turkish",
+          "code": "<TranslatedContent sourceLanguage=\"Turkish\" sourceLang=\"tr\" translated={<p>…</p>} original={<p>…</p>} />"
+        },
+        {
+          "title": "Other words, opened on the original",
+          "code": "<TranslatedContent sourceLanguage=\"German\" sourceLang=\"de\" defaultShowOriginal labels={{ showOriginal: 'Original' }} … />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "forum-similar-topics",
+      "name": "SimilarTopics",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/topic/SimilarTopics.tsx",
+      "abbr": "Sy",
+      "description": "Composer assistant: earlier topics that look like the title being typed (Solved chip, forum, replies) and the AI-suggested forum hint. PostComposer shows both from similarTopics / suggestedCategoryValue.",
+      "source": "import { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';\n<SimilarTopics topics={similar} />",
+      "variants": [
+        {
+          "title": "Similar topics and suggested forum",
+          "code": "<SimilarTopics topics={[{ title, href, solved: true, forumName: 'Tech Help', replyCount: 17 }]} />\n<SuggestedCategoryHint categoryName=\"Tech Help\" />"
+        },
+        {
+          "title": "In PostComposer",
+          "code": "<PostComposer\n  categories={categories}\n  onTitleChange={lookUp}          // debounced on the host\n  similarTopics={similar}\n  suggestedCategoryValue={suggested}\n/>"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
       "designTokens": []
     },
     {

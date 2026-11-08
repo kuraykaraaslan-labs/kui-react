@@ -27,5 +27,11 @@ Topic creation form: title + category + write/preview tabs + tag input. Composes
 
 ```tsx
 import { PostComposer } from '@/modules/domains/forum/post/PostComposer';
+import { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from '@/modules/domains/forum/post/AcceptedSolution';
+import { TranslatedContent } from '@/modules/domains/forum/post/TranslatedContent';
+import { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';
+import { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';
+import { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';
+import { cn } from '@/libs/utils/cn';
 <PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />
 ```
