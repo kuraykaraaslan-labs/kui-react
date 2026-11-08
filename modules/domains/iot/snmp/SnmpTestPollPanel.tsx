@@ -21,6 +21,7 @@ import {
  * mapping's values), run. The answer is a kit DataTable: OID, SNMP type, raw value, the key and scaled value the mapping would store
  * (a rate needs two samples), per-OID errors, and the poll's duration. "Add to mapping" puts an unmapped OID in the mapping with a
  * suggested key and the detected type (`onAdd`; the editor's Save sends it). A refusal for too many test polls shows the retry time.
+ * The device cannot be changed while a poll runs, and another device clears the answer shown.
  */
 export type SnmpTestPollPanelProps = {
   devices: readonly SnmpTestPollDevice[];
@@ -55,7 +56,15 @@ export function SnmpTestPollPanel({ devices, onPoll, mapping, onAdd, onResult, l
   const [result, setResult] = useState<SnmpTestPollResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // the list arrived after the panel opened (or lost the chosen device): the first device that can be polled is picked (NB 41-ui-fixes/28 G1.28)
+  const fallbackId = ready[0]?.deviceId ?? devices[0]?.deviceId ?? '';
+  if (fallbackId && !devices.some((d) => d.deviceId === deviceId)) setDeviceId(fallbackId);
   const device = devices.find((d) => d.deviceId === deviceId);
+  /** Another device: the answer of the one before is not shown under its name. */
+  function pickDevice(id: string) {
+    setDeviceId(id);
+    setResult(null); setError(null); setNotice(null);
+  }
   const parsed = parseOidList(text);
   const rows = mapping?.mapping ?? [];
   const byOid = new Map(rows.map((r) => [normaliseOid(r.oid), r]));
@@ -111,7 +120,7 @@ export function SnmpTestPollPanel({ devices, onPoll, mapping, onAdd, onResult, l
       <p className="text-xs text-text-secondary" data-testid="snmp-no-mib">{m.test.noMib}</p>
       {!devices.length && !loading ? <Callout variant="note" title={null}>{m.test.noDevices}</Callout> : (
         <>
-          <Select id="snmp-test-device" label={m.test.device} value={deviceId} onChange={(e) => setDeviceId(e.target.value)}
+          <Select id="snmp-test-device" label={m.test.device} value={deviceId} disabled={busy} onChange={(e) => pickDevice(e.target.value)}
             options={devices.map((d) => ({ value: d.deviceId, label: [d.name, d.endpointName, d.version].filter(Boolean).join(' · ') }))} />
           {device?.blocked && <Callout variant="warning" title={null}>{fillSnmp(m.test.blocked, { reason: failureText(m, device.blocked) })}</Callout>}
           <Textarea id="snmp-test-oids" label={m.test.oids} hint={fillSnmp(m.test.oidsHint, { max: SNMP_TEST_POLL_MAX_OIDS })} rows={4} value={text} className="font-mono"

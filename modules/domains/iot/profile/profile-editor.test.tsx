@@ -218,6 +218,20 @@ describe('saving (1.3, 1.7, 1.9)', () => {
     expect(after.defaultPrevented).toBe(false);
   });
 
+  it('a version the host learnt from a save beside the editor moves the next edit\'s version and keeps the draft (NB 41-ui-fixes/28 G1.7)', async () => {
+    const user = userEvent.setup();
+    const adapter = adapterOf([profile()]);
+    const { rerender } = renderEditor(adapter);
+    await screen.findByRole('heading', { name: /Pumps/ });
+    await user.type(screen.getByRole('textbox', { name: /Name/ }), 'x');
+    rerender(<IotAdapterProvider adapter={adapter} capabilities={ALL} locale="en-GB"><DeviceProfileEditorView profileId="p1" profileVersion={7} /></IotAdapterProvider>);
+    expect(screen.getByRole('textbox', { name: /Name/ })).toHaveValue('Pumpsx');
+    // an older version than the one held changes nothing
+    rerender(<IotAdapterProvider adapter={adapter} capabilities={ALL} locale="en-GB"><DeviceProfileEditorView profileId="p1" profileVersion={3} /></IotAdapterProvider>);
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(adapter.profiles!.update).toHaveBeenCalledWith('p1', { name: 'Pumpsx' }, { expectedVersion: 7 }));
+  });
+
   it('Make default keeps the version the next edit starts from', async () => {
     const user = userEvent.setup();
     const adapter = adapterOf([profile()]);

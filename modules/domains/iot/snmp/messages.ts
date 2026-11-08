@@ -217,9 +217,13 @@ export const SNMP_MESSAGES = {
     unknown_user: 'The agent does not know this SNMPv3 user.',
     not_in_time_window: 'The agent refused the request as out of its time window.',
     unknown_engine_id: 'The agent refused its engine ID; try again.',
-    decryption_error: 'The agent could not decrypt the request (check the encryption password).',
+    decrypt_failed: 'The agent could not decrypt the request (check the encryption password).',
+    unsupported_security_model: 'The agent answered with a security model the platform does not speak (SNMPv3 USM only).',
+    auth_not_configured: 'The agent has no authentication set up for this user.',
+    priv_not_configured: 'The agent has no encryption set up for this user.',
+    malformed: 'The agent\'s answer could not be read.',
     host_not_public: 'The address is not a public one; the platform polls public addresses only.',
-    port_not_allowed: 'The port is not allowed.',
+    port_denied: 'The port is not allowed.',
     credentials_incomplete: 'The endpoint\'s credentials are incomplete.',
     secret_unreadable: 'The endpoint\'s stored credentials cannot be read; enter them again.',
     snmp_v2c_disabled_for_tenant: 'SNMPv2c from the cloud is off for this account. A workspace admin can switch it on.',
@@ -247,5 +251,11 @@ export const fillSnmp = (t: string, v: Record<string, string | number>): string 
 
 /** An issue code in words (`other` with the code for one the texts do not know). */
 export const issueText = (m: SnmpMessages, code: string): string => (m.issue as Record<string, string>)[code] ?? fillSnmp(m.issue.other, { code });
+/**
+ * The failure codes the texts once named differently, by the code the host sends now (NB 41-ui-fixes/28 G1.13: the keys follow the
+ * server's codes; the old names still read for a host that sends them).
+ */
+export const SNMP_FAILURE_ALIASES: Readonly<Record<string, keyof SnmpMessages['failure']>> = { decryption_error: 'decrypt_failed', port_not_allowed: 'port_denied' };
 /** A failure code in words. */
-export const failureText = (m: SnmpMessages, code: string): string => (m.failure as Record<string, string>)[code] ?? fillSnmp(m.failure.other, { code });
+export const failureText = (m: SnmpMessages, code: string): string =>
+  (m.failure as Record<string, string>)[SNMP_FAILURE_ALIASES[code] ?? code] ?? fillSnmp(m.failure.other, { code });
