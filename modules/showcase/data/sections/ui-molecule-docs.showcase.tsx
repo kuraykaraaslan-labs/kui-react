@@ -514,7 +514,7 @@ export function ShareBar({
       id: 'cookie-consent',
       title: 'CookieConsent',
       category: 'Molecule',
-      abbr: 'Ck',
+      abbr: 'Cn',
       description: 'Cookie consent for KVKK and GDPR: a banner until the visitor decides, with Reject all as prominent as Accept all, and a settings window with one switch per category. The choice is kept per policy version in a first-party cookie; other code checks hasConsent() or listens for the kui:consent event before loading analytics.',
       filePath: 'modules/ui/CookieConsent.tsx',
       sourceCode: `'use client';
