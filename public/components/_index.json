@@ -395,6 +395,12 @@
     "category": "Molecule",
     "file": "share-bar.md"
   },
+  "cookie-consent": {
+    "name": "CookieConsent",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "cookie-consent.md"
+  },
   "modal": {
     "name": "Modal",
     "layer": "ui",
