@@ -90,7 +90,7 @@ export type DeviceProfileEditorViewProps = {
 /** Which own tab shows the field an issue is about (for the tab's error badge). */
 const TAB_OF: Array<[RegExp, string]> = [
   [/^(name|description)$/, 'general'],
-  [/^(transportType|mqttTransport|allowTokenInUrl|allowedNetworks|plaintextRpcMethods|allowedAuthModes|topicSchemes|anyTopicEnabled|prefixKeysWithTopic|maxTopicDepth|maxTopicLength|maxDistinctTopicsPerDevice|rawMaxBytes)$/, 'transport'],
+  [/^(transportType|mqttTransport|allowTokenInUrl|allowedNetworks|plaintextRpcMethods|plaintextAllCommands|allowedAuthModes|topicSchemes|anyTopicEnabled|prefixKeysWithTopic|maxTopicDepth|maxTopicLength|maxDistinctTopicsPerDevice|rawMaxBytes)$/, 'transport'],
   [/^(onlineRule|expectedIntervalS|onlineWindowFactor)$/, 'online'],
   [/^(rateLimits\..*|replayMsgsPerS|payloadMaxBytes|downlinkMaxBytes|maxInflightMessages|inactivityTimeoutSec|maxGatewayChildren|rpcTimeoutDefaultSec)$/, 'limits'],
   [/^(telemetrySchema(\..*)?|strictKeys)$/, 'telemetry'],

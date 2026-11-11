@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
 import {
-  allowedOnlineRules, blankProfileDraft, isNetwork, isPolledTransport, transportLogsIn, nextKeyOrigins, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, DEFAULT_RATE_LIMITS,
+  allowedOnlineRules, blankProfileDraft, isNetwork, isPolledTransport, transportLogsIn, nextKeyOrigins, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, touchesAdmission, DEFAULT_RATE_LIMITS,
   type DeviceProfile, type DeviceProfileDraft, type ProfileAuthMode, type ProfileRateLimits, type ProfileTransport,
 } from '../types/profile';
 import { OnlineRuleField, formatSeconds, type OnlineRuleValue } from './OnlineRuleField';
@@ -114,6 +114,49 @@ describe('plaintext commands (OD-160, gateway 12 §10)', () => {
     await user.type(input, 'fan.set{Enter}');
     expect(screen.getByText('fan.set')).toBeTruthy();
     expect(screen.getByText(/Firmware updates and device settings are never sent in clear/)).toBeTruthy();
+  });
+
+  it('every command without TLS (NB LD-2): shown with plain MQTT only, turned on only through the confirmation, off at once', async () => {
+    const user = userEvent.setup();
+    const seen: Array<Partial<TransportPolicyValue>> = [];
+    function Host({ start }: { start: TransportPolicyValue }) {
+      const [v, setV] = useState(start);
+      return <TransportPolicyCard value={v} onChange={(p) => { seen.push(p); setV((x) => ({ ...x, ...p })); }} />;
+    }
+    const base: TransportPolicyValue = { transportType: 'MQTT', mqttTransport: 'TLS_REQUIRED', allowTokenInUrl: false, allowedNetworks: [], plaintextRpcMethods: [] };
+    const { unmount } = render(<Host start={base} />);
+    expect(screen.queryByRole('switch', { name: 'Allow every command without TLS' })).toBeNull();
+    unmount();
+    render(<Host start={{ ...base, mqttTransport: 'PLAINTEXT_ALLOWED' }} />);
+    const toggle = () => screen.getByRole('switch', { name: 'Allow every command without TLS' });
+    expect(toggle()).not.toBeChecked();
+    // cancelled: nothing changes
+    await user.click(toggle());
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(seen).toEqual([]);
+    expect(toggle()).not.toBeChecked();
+    // confirmed: on, with the warning, and the list now asks only for the secret-carrying families
+    await user.click(toggle());
+    await user.click(screen.getByRole('button', { name: 'Allow every command' }));
+    expect(seen).toEqual([{ plaintextAllCommands: true }]);
+    expect(toggle()).toBeChecked();
+    expect(screen.getByText(/can be read and changed by anyone on the network/)).toBeInTheDocument();
+    expect(screen.getByText(/Name here only the certificate \(cert\.\*\)/)).toBeInTheDocument();
+    // off: at once, no question
+    await user.click(toggle());
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(seen).toEqual([{ plaintextAllCommands: true }, { plaintextAllCommands: false }]);
+    expect(screen.queryByText(/can be read and changed by anyone on the network/)).toBeNull();
+  });
+
+  it('draftOf reads the switch as off unless the host says exactly true; a change to it is an admission field', () => {
+    const d = blankProfileDraft('x');
+    expect(d.plaintextAllCommands).toBe(false);
+    const p = { ...d, profileId: 'p1', isDefault: false, createdAt: '', updatedAt: '' } as unknown as DeviceProfile;
+    expect(draftOf({ ...p, plaintextAllCommands: true }).plaintextAllCommands).toBe(true);
+    for (const v of [undefined, 'true', 1]) expect(draftOf({ ...p, plaintextAllCommands: v as unknown as boolean }).plaintextAllCommands, String(v)).toBe(false);
+    expect(touchesAdmission(profilePatch(d, { ...d, plaintextAllCommands: true }))).toBe(true);
   });
 
   it('draftOf copies the list (a profile from an older host without it gets none)', () => {
