@@ -7,7 +7,7 @@ import type {
 } from '../types/device';
 import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcCommandTemplate, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
 import type {
-  DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTransport, ProfileTransportOption, ProvisionKey, ProvisioningInfo,
+  DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTemplate, ProfileTransport, ProfileTransportOption, ProvisionKey, ProvisioningInfo,
   ProvisionStrategy,
 } from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
@@ -147,6 +147,12 @@ export interface IotDevicesApi {
 export const PROFILE_SORT_KEYS = ['name', 'transport', 'online', 'updated'] as const;
 export type ProfileSortKey = (typeof PROFILE_SORT_KEYS)[number];
 
+/** NB 63-licensed-devices LD-3: the licensed device profiles' sort keys (name, last update). */
+export const PROFILE_TEMPLATE_SORT_KEYS = ['name', 'updated'] as const;
+export type ProfileTemplateSortKey = (typeof PROFILE_TEMPLATE_SORT_KEYS)[number];
+/** A page of licensed device profiles; `page` is 1-based like every kit list query. */
+export type ProfileTemplateQuery = { page: number; pageSize: number; search?: string; sort?: IotListSort<ProfileTemplateSortKey> };
+
 export type ProfileListQuery = {
   page: number;
   pageSize: number;
@@ -194,6 +200,15 @@ export interface IotProfilesApi {
   keyUsage?(profileId: string, keys: string[], signal?: AbortSignal): Promise<ProfileKeyUsage[]>;
   /** Rewrites what reads the old keys to the new names (`{ old: new }`) where the viewer may; answers what each module changed. */
   renameKeys?(profileId: string, renames: Record<string, string>): Promise<ProfileKeyUsage[]>;
+  /**
+   * NB 63-licensed-devices LD-3: the profiles the platform publishes ("Licensed device profiles"), and `adopt`, which gives the workspace
+   * its own copy of one (made once: a second adopt answers the copy it has, `created: false`). Without it the new profile drawer offers
+   * only an empty profile.
+   */
+  templates?: {
+    list(query: ProfileTemplateQuery, signal?: AbortSignal): Promise<Page<ProfileTemplate>>;
+    adopt(templateKey: string): Promise<{ profileId: string; created: boolean }>;
+  };
 }
 
 /**

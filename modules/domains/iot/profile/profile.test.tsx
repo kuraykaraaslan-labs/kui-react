@@ -3,10 +3,10 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
-import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
+import { IotApiError, type IotAdapter, type IotCapabilities, type ProfileTemplateQuery } from '../api/adapter';
 import {
   allowedOnlineRules, blankProfileDraft, isNetwork, isPolledTransport, transportLogsIn, nextKeyOrigins, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, touchesAdmission, DEFAULT_RATE_LIMITS,
-  type DeviceProfile, type DeviceProfileDraft, type ProfileAuthMode, type ProfileRateLimits, type ProfileTransport,
+  type DeviceProfile, type DeviceProfileDraft, type ProfileAuthMode, type ProfileRateLimits, type ProfileTemplate, type ProfileTransport,
 } from '../types/profile';
 import { OnlineRuleField, formatSeconds, type OnlineRuleValue } from './OnlineRuleField';
 import { AuthModeSelector } from './AuthModeSelector';
@@ -407,6 +407,79 @@ describe('NewDeviceProfileDrawer (OD-63)', () => {
     expect((screen.getByRole('radio', { name: /Last seen only/ }) as HTMLInputElement).checked).toBe(true);
     await user.click(screen.getByRole('button', { name: 'Create profile' }));
     await waitFor(() => expect(adapter.profiles!.create).toHaveBeenCalledWith({ name: 'Boilers', description: null, transportType: 'ANY', onlineRule: 'LAST_SEEN_ONLY' }));
+  });
+});
+
+describe('Licensed device profiles in the new profile drawer (NB 63-licensed-devices LD-3)', () => {
+  const tpl = (over: Partial<ProfileTemplate> = {}): ProfileTemplate => ({
+    templateKey: 'dc620-dual', templateVersion: 3, name: 'DC620 Dual', description: 'Roltek I/O controller', transportType: 'MQTT',
+    topicSchemes: ['ROLTEK'], allowedAuthModes: ['ACCESS_TOKEN', 'MQTT_BASIC'], mqttTransport: 'PLAINTEXT_ALLOWED', plaintextAllCommands: true,
+    updatedAt: '2026-11-11T00:00:00Z', copyProfileId: null, ...over,
+  });
+  const STORE = [tpl(), tpl({ templateKey: 'acme-meter', templateVersion: 1, name: 'Acme meter', description: null, mqttTransport: 'TLS_REQUIRED', plaintextAllCommands: false, copyProfileId: 'p2' })];
+  function withTemplates(list = vi.fn(async (q: ProfileTemplateQuery) => {
+    const hit = STORE.filter((t) => !q.search || t.name.toLowerCase().includes(q.search.toLowerCase()));
+    return { items: hit, total: hit.length };
+  }), adopt = vi.fn(async () => ({ profileId: 'p9', created: true }))) {
+    const get = vi.fn(async (id: string) => profile({ profileId: id, name: id === 'p9' ? 'DC620 Dual' : 'Meters' }));
+    return { adapter: profilesAdapter({ templates: { list, adopt }, get }), list, adopt, get };
+  }
+
+  it('without the host\'s templates API the drawer offers only the empty profile, untitled', () => {
+    render(<Wrap adapter={profilesAdapter()}><NewDeviceProfileDrawer open onClose={() => undefined} /></Wrap>);
+    expect(screen.queryByText('Licensed device profiles')).toBeNull();
+    expect(screen.queryByText('Or start an empty profile')).toBeNull();
+  });
+
+  it('shows each template as a card; Use makes the copy and opens it, Open your copy opens the one the workspace has', async () => {
+    const user = userEvent.setup();
+    const { adapter, adopt, get } = withTemplates();
+    const created = vi.fn();
+    render(<Wrap adapter={adapter}><NewDeviceProfileDrawer open onClose={() => undefined} onCreated={created} /></Wrap>);
+    expect(await screen.findByText('DC620 Dual')).toBeInTheDocument();
+    expect(screen.getByText('Licensed device profiles')).toBeInTheDocument();
+    expect(screen.getByText('Or start an empty profile')).toBeInTheDocument();
+    expect(screen.getByText('Version 3')).toBeInTheDocument();
+    expect(screen.getByText('Every command without TLS')).toBeInTheDocument();
+    expect(screen.getByText('TLS only')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Use' }));
+    await waitFor(() => expect(created).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'p9' })));
+    expect(adopt).toHaveBeenCalledWith('dc620-dual');
+    created.mockClear();
+    adopt.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Open your copy' }));
+    await waitFor(() => expect(created).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'p2' })));
+    expect(adopt).not.toHaveBeenCalled();
+    expect(get).toHaveBeenCalledWith('p2');
+  });
+
+  it('a platform that publishes none: no section and no title over the form; a search with no match keeps the section', async () => {
+    const empty = withTemplates(vi.fn(async () => ({ items: [], total: 0 })));
+    const { unmount } = render(<Wrap adapter={empty.adapter}><NewDeviceProfileDrawer open onClose={() => undefined} /></Wrap>);
+    await waitFor(() => expect(empty.list).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('Licensed device profiles')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Or start an empty profile')).toBeNull());
+    unmount();
+    const user = userEvent.setup();
+    const some = withTemplates();
+    render(<Wrap adapter={some.adapter}><NewDeviceProfileDrawer open onClose={() => undefined} /></Wrap>);
+    await screen.findByText('DC620 Dual');
+    await user.type(screen.getByPlaceholderText('Search licensed profiles'), 'zzz');
+    await waitFor(() => expect(some.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'zzz', page: 1 }), expect.anything()));
+    // during a search the table says it found nothing for the words typed; the section stays
+    expect(await screen.findByText(/No results for/)).toBeInTheDocument();
+    expect(screen.getByText('Licensed device profiles')).toBeInTheDocument();
+  });
+
+  it('a refused use is said in a toast and opens nothing', async () => {
+    const user = userEvent.setup();
+    const notify = vi.fn();
+    const { adapter } = withTemplates(undefined, vi.fn(async () => { throw new IotApiError('conflict', 'The platform tenant owns these templates.'); }));
+    const created = vi.fn();
+    render(<IotAdapterProvider adapter={adapter} capabilities={ALL} notify={notify}><NewDeviceProfileDrawer open onClose={() => undefined} onCreated={created} /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'Use' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith(expect.objectContaining({ tone: 'error' })));
+    expect(created).not.toHaveBeenCalled();
   });
 });
 

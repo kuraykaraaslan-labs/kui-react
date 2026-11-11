@@ -163,6 +163,25 @@ export const PROFILE_RANGES = {
 } as const;
 export type ProfileRangeKey = keyof typeof PROFILE_RANGES;
 
+/**
+ * A device profile the platform publishes for Roltek's own devices and licensed ones (NB 63-licensed-devices LD-3, "Licensed device
+ * profiles"): what a profile made from it will be, never a provisioning setting or key. `copyProfileId` is the workspace's own copy of
+ * it when it has one (open that instead of making another).
+ */
+export type ProfileTemplate = {
+  templateKey: string;
+  templateVersion: number;
+  name: string;
+  description: string | null;
+  transportType: ProfileTransport;
+  topicSchemes: string[];
+  allowedAuthModes: ProfileAuthMode[];
+  mqttTransport: MqttTransportPolicy;
+  plaintextAllCommands: boolean;
+  updatedAt: string;
+  copyProfileId: string | null;
+};
+
 /** The most networks one profile may pin (NB `maxAllowedNetworks`). */
 export const MAX_ALLOWED_NETWORKS = 64;
 /** OD-160 (gateway 12 §10): at most this many methods in `plaintextRpcMethods`, each an exact wire name (the host's pattern). */
