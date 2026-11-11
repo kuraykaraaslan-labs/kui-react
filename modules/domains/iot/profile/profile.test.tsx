@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { ConfirmHost } from '@/modules/ui/ConfirmDialog';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotCapabilities, type ProfileTemplateQuery } from '../api/adapter';
 import {
@@ -721,6 +722,39 @@ describe('DeviceProfileEditorView', () => {
     render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
     expect(await screen.findByRole('button', { name: /Delete profile/ })).toBeDisabled();
     expect(screen.getAllByText('12 devices').length).toBeGreaterThan(0);
+  });
+
+  it('NB LD-3: the platform admin publishes a profile under a template key it types, and unpublishes it; nobody else sees either', async () => {
+    const user = userEvent.setup();
+    const setTemplate = vi.fn(async (id: string, key: string | null) => profile({ profileId: id, platformTemplate: key ? { key, version: 1 } : null }));
+    const notify = vi.fn();
+    const adapter = profilesAdapter({ setTemplate });
+    const { unmount } = render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
+    await screen.findByLabelText(/^Name/);
+    expect(screen.queryByRole('button', { name: 'Publish as licensed profile' })).toBeNull();
+    unmount();
+    render(
+      <IotAdapterProvider adapter={adapter} capabilities={{ ...ALL, canManageTemplates: true, canPublishTemplates: true }} notify={notify}>
+        <ConfirmHost /><DeviceProfileEditorView profileId="p1" />
+      </IotAdapterProvider>,
+    );
+    // a key that is not one is refused before the host is asked
+    await user.click(await screen.findByRole('button', { name: 'Publish as licensed profile' }));
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/Template key/), 'DC620_Dual');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith(expect.objectContaining({ tone: 'error', message: expect.stringMatching(/A template key is/) })));
+    expect(setTemplate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Publish as licensed profile' }));
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/Template key/), 'dc620-dual');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish' }));
+    await waitFor(() => expect(setTemplate).toHaveBeenCalledWith('p1', 'dc620-dual'));
+    expect(await screen.findByText('Platform template dc620-dual v1')).toBeInTheDocument();
+    // published: Unpublish, asked first
+    await user.click(screen.getByRole('button', { name: 'Unpublish' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Unpublish' }));
+    await waitFor(() => expect(setTemplate).toHaveBeenLastCalledWith('p1', null));
+    await waitFor(() => expect(screen.queryByText('Platform template dc620-dual v1')).toBeNull());
+    expect(screen.getByRole('button', { name: 'Publish as licensed profile' })).toBeInTheDocument();
   });
 });
 

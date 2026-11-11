@@ -17,7 +17,7 @@ import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { fill, formatDateTime, plural } from '../format';
 import {
-  CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isTelemetryKey, nextKeyOrigins, profileDraftIssues, profilePatch,
+  CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isTelemetryKey, isTemplateKey, nextKeyOrigins, profileDraftIssues, profilePatch,
   telemetryKeyChanges, touchesAdmission, transportLabel, transportLogsIn,
   type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileKeyUsage, type ProfileTransport, type ProvisionStrategy,
 } from '../types/profile';
@@ -363,6 +363,43 @@ export function DeviceProfileEditorView({
     }
   }
 
+  /** NB 63-licensed-devices LD-3: publish under a template key the person types, or unpublish (each asked first). */
+  async function publish() {
+    if (!api?.setTemplate || !profile) return;
+    const answer = await confirmDialog({
+      title: fill(m.profile.publishTitle, { name: profile.name }), message: m.profile.publishMessage, tone: 'warning',
+      confirmLabel: m.profile.publishConfirm, cancelLabel: m.common.cancel,
+      input: { kind: 'text', label: m.profile.publishKey, hint: m.profile.publishKeyHint, required: true, minLength: 2, maxLength: 32 },
+    });
+    if (!answer) return;
+    const key = answer.value.trim();
+    if (!isTemplateKey(key)) { notify({ tone: 'error', message: m.profile.publishBadKey }); return; }
+    await setTemplate(key);
+  }
+
+  async function unpublish() {
+    if (!api?.setTemplate || !profile) return;
+    const answer = await confirmDialog({
+      title: fill(m.profile.unpublishTitle, { name: profile.name }), message: m.profile.unpublishMessage, tone: 'warning',
+      confirmLabel: m.profile.unpublish, cancelLabel: m.common.cancel,
+    });
+    if (answer) await setTemplate(null);
+  }
+
+  async function setTemplate(key: string | null) {
+    if (!api?.setTemplate || !profile) return;
+    setBusy(true);
+    try {
+      const p = await api.setTemplate(profileId, key);
+      setProfile((cur) => (cur ? { ...cur, platformTemplate: p.platformTemplate ?? null, version: p.version ?? cur.version } : cur));
+      notify({ tone: 'success', message: key ? fill(m.profile.published, { name: profile.name, key }) : fill(m.profile.unpublished, { name: profile.name }) });
+    } catch (e) {
+      notify({ tone: 'error', message: errorMessage(e, m.profile.publishFailed) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function duplicate() {
     if (!api?.duplicate) return;
     setBusy(true);
@@ -584,6 +621,11 @@ export function DeviceProfileEditorView({
             <Button variant="outline" size="sm" loading={busy} onClick={() => void makeDefault()}
               iconLeft={<FontAwesomeIcon icon={faStar} className="h-3 w-3" aria-hidden="true" />}>{m.profile.setDefault}</Button>
           )}
+          {caps.canPublishTemplates && api.setTemplate && !profile.builtinKey && !profile.template && (profile.platformTemplate ? (
+            <Button variant="outline" size="sm" loading={busy} onClick={() => void unpublish()}>{m.profile.unpublish}</Button>
+          ) : (
+            <Button variant="outline" size="sm" loading={busy} onClick={() => void publish()}>{m.profile.publish}</Button>
+          ))}
           {caps.canManageProfiles && api.duplicate && (
             <Button variant="outline" size="sm" loading={busy} onClick={() => void duplicate()} title={m.profile.duplicateHint}
               iconLeft={<FontAwesomeIcon icon={faClone} className="h-3 w-3" aria-hidden="true" />}>{m.profile.duplicate}</Button>

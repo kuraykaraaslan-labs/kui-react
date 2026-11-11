@@ -209,6 +209,11 @@ export interface IotProfilesApi {
     list(query: ProfileTemplateQuery, signal?: AbortSignal): Promise<Page<ProfileTemplate>>;
     adopt(templateKey: string): Promise<{ profileId: string; created: boolean }>;
   };
+  /**
+   * NB 63-licensed-devices LD-3: publishes the profile as the licensed device profile `templateKey` (`isTemplateKey`), or unpublishes it
+   * (`null`; refused while the host still uses it as a factory profile). Answers the profile with its `platformTemplate` mark.
+   */
+  setTemplate?(profileId: string, templateKey: string | null): Promise<DeviceProfile>;
 }
 
 /**
@@ -571,6 +576,11 @@ export type IotCapabilities = {
   canManageProfiles: boolean;
   /** Edit a platform template profile (`platformTemplate`): its own permission beside `canManageProfiles`. */
   canManageTemplates: boolean;
+  /**
+   * NB 63-licensed-devices LD-3: publish a profile as a licensed device profile (a platform template every workspace may copy) and
+   * unpublish it. Only the platform's own workspace with the template permission.
+   */
+  canPublishTemplates: boolean;
   /** Manage a profile's provisioning: its strategy and keys (rotate, revoke). */
   canManageProvisioning: boolean;
   /** Edit the alarm rules of a profile. */
@@ -606,6 +616,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canSendRpc: false,
   canManageProfiles: false,
   canManageTemplates: false,
+  canPublishTemplates: false,
   canManageProvisioning: false,
   canManageAlarmRules: false,
   canManageRpcCommands: false,

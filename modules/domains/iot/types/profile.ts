@@ -182,6 +182,10 @@ export type ProfileTemplate = {
   copyProfileId: string | null;
 };
 
+/** A licensed device profile's key (NB's OD-20 cloud model id): lower-case letters, digits and hyphens, 2 to 32, not starting with a hyphen. */
+export const TEMPLATE_KEY_RE = /^[a-z0-9][a-z0-9-]{1,31}$/;
+export const isTemplateKey = (k: string): boolean => TEMPLATE_KEY_RE.test(k);
+
 /** The most networks one profile may pin (NB `maxAllowedNetworks`). */
 export const MAX_ALLOWED_NETWORKS = 64;
 /** OD-160 (gateway 12 §10): at most this many methods in `plaintextRpcMethods`, each an exact wire name (the host's pattern). */
