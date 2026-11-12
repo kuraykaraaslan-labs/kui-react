@@ -31,14 +31,14 @@ jobs:
       # failure message itself only summarizes one line per rule.
       - name: Upload Playwright report on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
       - name: Upload test results (traces, axe JSON) on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-results
           path: test-results/
