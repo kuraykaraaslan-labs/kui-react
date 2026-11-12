@@ -39,6 +39,11 @@ export type RpcCommand = {
    * again" (NB 41-ui-fixes/23 1.1, 1.2).
    */
   maskedParams?: string[];
+  /**
+   * The whole payload the device receives, as a JSON template with `{{param}}`, `{{requestId}}` and `{{expirationTime}}` placeholders
+   * (NB 63-licensed-devices LD-8), for a device that does not take the `{"method", "params"}` envelope; null or absent = the envelope.
+   */
+  payloadTemplate?: unknown;
 };
 
 /**
@@ -73,6 +78,11 @@ export type RpcRequest = {
   method: string;
   /** Masked where the catalog says so. */
   params?: unknown;
+  /**
+   * What the device was sent for a command with a payload template (NB 63-licensed-devices LD-8), masked like `params`; null or absent =
+   * the `{"method", "params"}` envelope.
+   */
+  payload?: unknown;
   oneway: boolean;
   persistent: boolean;
   status: RpcStatus;

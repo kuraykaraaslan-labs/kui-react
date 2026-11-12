@@ -21,6 +21,7 @@ import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../
 import { fill, plural } from '../format';
 import { isRefusedRpcMethod, type RpcCatalogCommand, type RpcCommandInput } from '../types/rpc';
 import { paramRowIssues, paramRowsOf, paramsSchemaOf, RpcParamsBuilder, type RpcParamRow } from './RpcParamsBuilder';
+import { RPC_RESERVED_PLACEHOLDERS, renderRpcPayload, rpcEnvelopeTemplate, rpcSampleParams, rpcTemplateOf } from './rpc-payload';
 
 /**
  * RpcCommandCatalogEditor — the command catalog of one device profile (NB iot_rpc 00 §0.3, the profile's "Commands" tab contributed by
@@ -38,6 +39,11 @@ import { paramRowIssues, paramRowsOf, paramsSchemaOf, RpcParamsBuilder, type Rpc
  * The parameters are built row by row (`RpcParamsBuilder`); JSON stays behind "Advanced (JSON)" with an example, and a schema the rows
  * cannot draw opens there. "New command" can start from a host template (`rpcCatalog.templates`). A refusal of the host about one
  * parameter is shown on the parameters, in the kit's words with the host's detail, never as a bare "Validation error".
+ *
+ * NB 63-licensed-devices LD-8: "Send my own JSON payload" replaces the `{"method", "params"}` envelope with a JSON template the device
+ * receives as it is (`{{param}}`, `{{requestId}}`, `{{expirationTime}}`); it is checked as typed by the host's rules (`rpc-payload.ts`),
+ * the placeholders it may use are listed and a preview is rendered with sample values. Off by default; turning it on starts from the
+ * envelope written out.
  */
 export type RpcCommandCatalogEditorProps = {
   profileId: string;
@@ -46,20 +52,20 @@ export type RpcCommandCatalogEditorProps = {
 
 const METHOD_RE = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$/;
 const TIERS = ['basic', 'privileged', 'critical'] as const;
-const blank = (): RpcCommandInput => ({ method: '', label: '', description: null, paramsSchema: {}, tier: 'basic', highImpact: false, oneway: false, long: false, persistentDefault: false, confirmText: null, maskedParams: [] });
+const blank = (): RpcCommandInput => ({ method: '', label: '', description: null, paramsSchema: {}, tier: 'basic', highImpact: false, oneway: false, long: false, persistentDefault: false, confirmText: null, maskedParams: [], payloadTemplate: null });
 const inputOf = (c: RpcCatalogCommand): RpcCommandInput => ({
   method: c.method, label: c.label, description: c.description ?? null, paramsSchema: c.paramsSchema ?? {}, tier: c.tier, highImpact: c.highImpact,
   oneway: c.oneway, long: !!c.long, defaultTimeoutMs: c.defaultTimeoutMs ?? null, persistentDefault: !!c.persistentDefault, confirmText: c.confirmText ?? null,
-  maskedParams: c.maskedParams ?? [],
+  maskedParams: c.maskedParams ?? [], payloadTemplate: c.payloadTemplate ?? null,
 });
 
 const PARAM_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
-const EDITABLE = ['label', 'description', 'paramsSchema', 'maskedParams', 'tier', 'highImpact', 'oneway', 'long', 'defaultTimeoutMs', 'persistentDefault', 'confirmText'] as const;
+const EDITABLE = ['label', 'description', 'paramsSchema', 'maskedParams', 'tier', 'highImpact', 'oneway', 'long', 'defaultTimeoutMs', 'persistentDefault', 'confirmText', 'payloadTemplate'] as const;
 /** A command input with every optional field filled the way the host stores it, so two can be compared. */
 const normal = (c: RpcCommandInput): RpcCommandInput => ({
   method: c.method, label: c.label, description: c.description ?? null, paramsSchema: c.paramsSchema ?? {}, tier: c.tier, highImpact: !!c.highImpact,
   oneway: !!c.oneway, long: !!c.long, defaultTimeoutMs: c.defaultTimeoutMs ?? null, persistentDefault: !!c.persistentDefault, confirmText: c.confirmText ?? null,
-  maskedParams: c.maskedParams ?? [],
+  maskedParams: c.maskedParams ?? [], payloadTemplate: c.payloadTemplate ?? null,
 });
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -196,6 +202,7 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
           {c.highImpact && <Badge variant="warning" size="sm">{c.confirmText ? `${m.rpcCatalog.confirmText}: ${c.confirmText}` : m.rpcCatalog.highImpact}</Badge>}
           {c.oneway && <Badge variant="neutral" size="sm">{m.rpcCatalog.oneway}</Badge>}
           {c.long && <Badge variant="neutral" size="sm">{m.rpcCatalog.long}</Badge>}
+          {c.payloadTemplate !== null && c.payloadTemplate !== undefined && <Badge variant="info" size="sm">{m.rpcCatalog.payloadFlag}</Badge>}
         </span>
       ),
     },
@@ -286,7 +293,8 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
 }
 
 /** The command fields the drawer shows a host's refusal under; a refusal of any other field is named in the summary. */
-const SHOWN_FIELDS = new Set(['method', 'label', 'description', 'tier', 'confirmText', 'defaultTimeoutMs', 'paramsSchema', 'maskedParams']);
+const SHOWN_FIELDS = new Set(['method', 'label', 'description', 'tier', 'confirmText', 'defaultTimeoutMs', 'paramsSchema', 'maskedParams', 'payloadTemplate']);
+const hasTemplate = (t: unknown) => t !== null && t !== undefined;
 const PARAMS_EXAMPLE = '{\n  "value": { "label": "Set-point", "type": "number", "min": 0, "max": 100, "required": true },\n  "mode": { "label": "Mode", "type": "select", "options": ["auto", "manual"] }\n}';
 
 function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
@@ -301,6 +309,8 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
   const [paramsMode, setParamsMode] = useState<'builder' | 'json'>(() => (paramRowsOf(draft.paramsSchema) ? 'builder' : 'json'));
   const [params, setParams] = useState(() => JSON.stringify(draft.paramsSchema ?? {}, null, 2));
   const [masked, setMasked] = useState(() => (draft.maskedParams ?? []).join(', '));
+  const [payloadOn, setPayloadOn] = useState(() => hasTemplate(draft.payloadTemplate));
+  const [payloadText, setPayloadText] = useState(() => (hasTemplate(draft.payloadTemplate) ? JSON.stringify(draft.payloadTemplate, null, 2) : ''));
   const [templateId, setTemplateId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -321,8 +331,30 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
     const r = paramRowsOf(next.paramsSchema);
     setRows(r ?? []);
     setParamsMode(r ? 'builder' : 'json');
+    setPayloadOn(hasTemplate(next.payloadTemplate));
+    setPayloadText(hasTemplate(next.payloadTemplate) ? JSON.stringify(next.payloadTemplate, null, 2) : '');
     setFieldErrors({});
   }
+
+  /** The parameters as the form holds them now (for the placeholders and the preview); null while the JSON does not read. */
+  function currentSchema(): RpcCommandInput['paramsSchema'] | null {
+    if (paramsMode === 'builder') return paramsSchemaOf(rows.filter((r) => r.name.trim()));
+    try {
+      const parsed = JSON.parse(params || '{}') as unknown;
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as RpcCommandInput['paramsSchema']) : null;
+    } catch {
+      return null;
+    }
+  }
+  function togglePayload(on: boolean) {
+    setPayloadOn(on);
+    if (on && !payloadText.trim()) setPayloadText(rpcEnvelopeTemplate(draft.method, Object.keys(currentSchema() ?? {})));
+  }
+  const liveSchema = payloadOn ? currentSchema() : null;
+  const liveTemplate = payloadOn && liveSchema && payloadText.trim() ? rpcTemplateOf(payloadText, Object.keys(liveSchema), m) : null;
+  const preview = liveTemplate && 'template' in liveTemplate && liveSchema
+    ? JSON.stringify(renderRpcPayload(liveTemplate.template, rpcSampleParams(liveSchema), { requestId: 1, expirationTime: Date.UTC(2030, 0, 1) }), null, 2)
+    : null;
   function toJson() {
     setParams(JSON.stringify(paramsSchemaOf(rows), null, 2));
     setParamsMode('json');
@@ -368,6 +400,13 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
     const unknown = maskedList.filter((k) => PARAM_NAME.test(k) && !(k in paramsSchema));
     if (badNames.length) errs.maskedParams = m.rpcCatalog.maskedInvalid;
     else if (unknown.length && !errs.paramsSchema) errs.maskedParams = fill(m.rpcCatalog.maskedUnknown, { names: unknown.join(', ') });
+    // LD-8: the payload template, checked against the parameters it will be sent with
+    let payloadTemplate: unknown = null;
+    if (payloadOn) {
+      const t = rpcTemplateOf(payloadText, Object.keys(paramsSchema), m);
+      if ('problem' in t) errs.payloadTemplate = t.problem;
+      else payloadTemplate = t.template;
+    }
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
     const body: RpcCommandInput = {
@@ -378,6 +417,7 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
       maskedParams: maskedList,
       confirmText: draft.highImpact ? (draft.confirmText?.trim() || null) : null,
       defaultTimeoutMs: draft.defaultTimeoutMs ?? null,
+      payloadTemplate,
     };
     // an edit sends what changed, after saying what a new tier or a lost board breaks (1.9, 1.17)
     const patch = command ? changedCommandFields(inputOf(command), body) : null;
@@ -489,6 +529,27 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
           )}
         </div>
         <Input id={`${id}-masked`} label={m.rpcCatalog.masked} hint={m.rpcCatalog.maskedHint} value={masked} error={fieldErrors.maskedParams} onChange={(e) => setMasked(e.target.value)} />
+        <div className="space-y-2" role="group" aria-labelledby={`${id}-payload-title`}>
+          <p id={`${id}-payload-title`} className="text-sm font-medium text-text-primary">{m.rpcCatalog.payload}</p>
+          <Checkbox id={`${id}-payload-on`} label={m.rpcCatalog.payloadCustom} hint={m.rpcCatalog.payloadCustomHint} checked={payloadOn}
+            onChange={(e) => togglePayload(e.target.checked)} />
+          {payloadOn && (
+            <>
+              <Textarea id={`${id}-payload`} label={m.rpcCatalog.payloadJson} rows={8} className="font-mono" value={payloadText}
+                error={fieldErrors.payloadTemplate ?? (liveTemplate && 'problem' in liveTemplate ? liveTemplate.problem : undefined)}
+                hint={fill(m.rpcCatalog.payloadPlaceholders, {
+                  list: [...Object.keys(liveSchema ?? {}), ...RPC_RESERVED_PLACEHOLDERS].map((p) => `{{${p}}}`).join(', '),
+                })}
+                onChange={(e) => { setPayloadText(e.target.value); setFieldErrors((f) => Object.fromEntries(Object.entries(f).filter(([k]) => k !== 'payloadTemplate'))); }} />
+              {preview !== null && (
+                <section aria-label={m.rpcCatalog.payloadPreview}>
+                  <h4 className="mb-1 text-xs font-medium text-text-secondary">{m.rpcCatalog.payloadPreview}</h4>
+                  <pre className="max-h-48 overflow-auto rounded-md bg-surface-sunken p-2 font-mono text-xs">{preview}</pre>
+                </section>
+              )}
+            </>
+          )}
+        </div>
       </form>
     </Drawer>
   );

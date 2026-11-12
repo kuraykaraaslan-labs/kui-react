@@ -79,6 +79,12 @@ export function RpcRequestDetail({ request, open, onClose, onCancel, onRerun, re
           <section aria-label={m.rpc.request}>
             <h3 className="mb-1 text-xs font-semibold uppercase text-text-secondary">{m.rpc.request}</h3>
             <pre className="max-h-48 overflow-auto rounded-md bg-surface-sunken p-2 font-mono text-xs">{json({ method: r.method, params: r.params ?? {} })}</pre>
+            {r.payload !== undefined && r.payload !== null && (
+              <>
+                <h4 className="mb-1 mt-2 text-xs font-medium text-text-secondary">{m.rpc.payloadSent}</h4>
+                <pre className="max-h-48 overflow-auto rounded-md bg-surface-sunken p-2 font-mono text-xs">{json(r.payload)}</pre>
+              </>
+            )}
           </section>
           <section aria-label={errorText ? m.rpc.error : m.rpc.response}>
             <h3 className="mb-1 text-xs font-semibold uppercase text-text-secondary">{errorText ? m.rpc.error : m.rpc.response}</h3>
