@@ -318,7 +318,7 @@ export function RpcSendPanel({
               <p className="text-sm font-medium text-text-primary">{m.rpc.params}</p>
               {errors.__params && <p role="alert" className="text-xs text-error">{errors.__params}</p>}
               <SecretFields.Provider value={secret}>
-                <SchemaForm schema={command.paramsSchema} values={values} fieldOverrides={FIELD_OVERRIDES} errors={errors} debounceMs={0} messages={{ on: m.rules.on, off: m.rules.off }}
+                <SchemaForm schema={command.paramsSchema} values={values} fieldOverrides={FIELD_OVERRIDES} errors={errors} debounceMs={0}
                   onChange={(v) => { setValues(v); setErrors({}); edited(); }} />
               </SecretFields.Provider>
             </div>
