@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-10T06:11:55.888Z",
+  "generatedAt": "2026-11-12T19:25:49.521Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2078,6 +2078,19 @@
       "since": "2026-10",
       "designTokens": [],
       "variantCount": 2
+    },
+    {
+      "id": "assistant-launcher",
+      "name": "AssistantLauncher",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/AssistantLauncher/index.tsx",
+      "abbr": "Ai",
+      "description": "A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 4
     },
     {
       "id": "app-shell",
@@ -6801,7 +6814,7 @@
       "category": "Domain",
       "filePath": "modules/domains/iot/asset/DevicePlacementPanel.tsx",
       "abbr": "DV",
-      "description": "Where a device is: the path of its asset with links, Change placement (DevicePlacementPicker) and Remove placement; the device page Placement tab.",
+      "description": "Where a device is and what it is related to: the path of its asset with links, Change placement (DevicePlacementPicker, saying where it is now) and Remove placement (asks first, naming the device and the path), then the device's relations (RelationsSection); the device page Placement & relations tab.",
       "status": "beta",
       "since": "2026-10",
       "designTokens": [],

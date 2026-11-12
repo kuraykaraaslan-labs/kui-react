@@ -515,6 +515,12 @@
     "category": "Organism",
     "file": "chat-thread.md"
   },
+  "assistant-launcher": {
+    "name": "AssistantLauncher",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "assistant-launcher.md"
+  },
   "app-shell": {
     "name": "AppShell",
     "layer": "app",

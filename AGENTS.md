@@ -158,7 +158,8 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | StatCard | `StatCard.tsx` | `label`, `value`, `accent` |
 | TabButton | `TabButton.tsx` | `active`, `onClick`, `count` |
 | Timeline | `Timeline.tsx` | `items` (per item `status`: done\|current\|upcoming; no or invalid `at` = undated, last), `order` (newest\|oldest), `groupByDay`, `undatedLabel`, `timeZone`, `locale` |
-| ChatThread | `ChatThread/` | Controlled chat thread: `items` (`author`, `side` own\|other\|system, `body`, `at`, `status`, `attachments`, `actions`), oldest first, sticks to the bottom + "New messages" jump, `hasOlder`/`loadingOlder`/`onLoadOlder` (keeps position), `pending` (streamed last message), `typing`, `daySeparators`, `composer` slot, `messages`. Parts: `ChatBubble`, `ChatTypingIndicator` |
+| ChatThread | `ChatThread/` | Controlled chat thread: `items` (`author`, `side` own\|other\|system, `body`, `at`, `status`, `attachments`, `actions`, `extras` under the bubble), oldest first, sticks to the bottom + "New messages" jump, `hasOlder`/`loadingOlder`/`onLoadOlder` (keeps position), `pending` (streamed last message), `typing`, `daySeparators`, `showOtherAuthor`, `composer` slot, `messages`. Parts: `ChatBubble`, `ChatTypingIndicator` |
+| AssistantLauncher | `AssistantLauncher/` | Floating AI-assistant chat for marketing sites (launcher fixed bottom right, teaser, 380px panel; full screen under 640px), controlled: `open`/`onOpenChange`, `title`, `subtitle`, `greeting`, `items` (ChatThread messages), `pending`, `onSend`, `maxLength`, `consent` gate, `teaser`, `offline`, `renderAfter`, `showTimes`, `messages`, `threadMessages`. Parts: `AssistantSources`, `AssistantCard` |
 | ViewToggle | `ViewToggle.tsx` | `value` (horizontal\|vertical), `onChange`, `labels` |
 
 ---

@@ -6,6 +6,15 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `AssistantLauncher` (owner 2026-11-12): a floating AI-assistant chat for marketing sites, first built for the kui-ai-chatbot WordPress
+  plugin (kui-wordpress-saas), which ports it pixel for pixel. A 56px launcher fixed bottom right, an optional `teaser` bubble and a 380px
+  chat panel (full screen under 640px, where the launcher hides while it is open). Controlled: `open` / `onOpenChange`, `items`, `pending`
+  (a typing row, or a streamed last reply), `onSend`; `greeting` is the first assistant bubble, `consent` replaces the composer with a notice
+  and "Start chat" until accepted, `offline` replaces it outright, `renderAfter` adds cards under a message with the new `AssistantSources`
+  and `AssistantCard`. Enter sends, Shift+Enter breaks the line, the box grows to four lines, a counter shows past 80 % of `maxLength`;
+  Escape closes and returns focus to the launcher. `ChatThread` gains `ChatThreadMessage.extras` (rendered under the bubble), `showOtherAuthor`
+  and `data-side` / `data-part` hooks on its parts (`content`, `extras`, `typing-bubble`). Showcase entry `assistant-launcher`.
+
 - Forum community patterns (owner 2026-11-08), first built for the kui-community WordPress forum (kui-wordpress-saas) and owned by
   kui-react from now on. Accepted solution: `AcceptedSolutionBadge` (the "Accepted solution" chip), `MarkSolutionButton` ("Mark as solution" /
   "Unmark solution", `aria-pressed`, for the topic author or a moderator) and `acceptedSolutionClasses` (`card` / `author` / `meta`: the
