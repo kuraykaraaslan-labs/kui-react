@@ -48,7 +48,7 @@ export const IOT_MESSAGES = {
     neverConnected: 'Never connected',
     connectionUnknown: 'Not known',
     connectionUnknownHint: 'These rows carry no connection state: show them from the devices source to see it.',
-    stale: 'Stale: no data for {time}',
+    stale: 'Stale: last data {time}',
     lastDisconnect: 'Last disconnect: {reason}',
     quarantined: 'Quarantined',
     quarantinedHint: 'Waiting for activation: data is not stored. Counts toward your device limit.',
