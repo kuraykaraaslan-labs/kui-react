@@ -18,7 +18,7 @@ jobs:
     name: typecheck, lint (report-only), conventions, build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -89,7 +89,7 @@ jobs:
     name: no stale internal paths
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Grep for stale absolute-path references
         run: |
           ! grep -rn '02_EJS_Components\|01_NextJS_Components\|00_Config_and_AI_Rules\|next_js_components' \
@@ -100,7 +100,7 @@ jobs:
     name: registry snapshot is up to date
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
