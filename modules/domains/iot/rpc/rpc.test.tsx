@@ -157,7 +157,7 @@ describe('RpcConsoleView', () => {
   it('sends from the catalog, shows the request at once and follows it live', async () => {
     const user = userEvent.setup();
     const { live, adapter, subs } = fakes();
-    render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" now={T0.getTime()} /></IotAdapterProvider>);
+    render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" history="inline" now={T0.getTime()} /></IotAdapterProvider>);
     await screen.findByText('net.status');
     expect([...subs][0].params).toEqual({ deviceId: 'd1' });
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.info');
@@ -171,16 +171,61 @@ describe('RpcConsoleView', () => {
     expect(await screen.findByText(/"ok": 1/)).toBeInTheDocument();
   });
 
+  it('keeps a device\'s history behind its button: read only while open, a request opens inside it, and back to the list', async () => {
+    const user = userEvent.setup();
+    const { live, adapter } = fakes();
+    render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" actions={<button type="button">Command settings</button>} /></IotAdapterProvider>);
+    expect(await screen.findByLabelText('Command')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Command settings' })).toBeInTheDocument();
+    expect(screen.queryByText('net.status')).toBeNull();
+    expect(adapter.rpc!.list).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'History' }));
+    const modal = await screen.findByRole('dialog', { name: 'History' });
+    await user.type(within(modal).getByRole('searchbox'), 'net');
+    await waitFor(() => expect(adapter.rpc!.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'net' }), expect.anything()));
+    await user.click(await within(modal).findByText('net.status'));
+    expect(await within(modal).findByText(/"ok": 1/)).toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.getByRole('dialog', { name: /^Command / })).toBe(modal);
+    await user.click(within(modal).getByRole('button', { name: 'Back to history' }));
+    expect(within(modal).getByRole('searchbox')).toHaveValue('net');
+    expect(within(modal).getByText('net.status')).toBeVisible();
+    await user.click(within(modal).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('follows the last command under the form, with its answer, and opens it in the history', async () => {
+    const user = userEvent.setup();
+    const { live, adapter } = fakes();
+    render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    expect(screen.queryByRole('status', { name: 'Last command' })).toBeNull();
+    await user.selectOptions(await screen.findByLabelText('Command'), 'sys.info');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    const line = await screen.findByRole('status', { name: 'Last command' });
+    expect(within(line).getByText('sys.info')).toBeInTheDocument();
+    expect(within(line).getByText('Queued')).toBeInTheDocument();
+    act(() => live.emit({ request: req('new', { status: 'SUCCESSFUL', completedAt: new Date(T0.getTime() + 900) }) }));
+    expect(await within(line).findByText('Successful')).toBeInTheDocument();
+    // a live event carries no answer: the line reads the request again for it
+    expect(await within(line).findByText('{"ok":1}')).toBeInTheDocument();
+    await user.click(within(line).getByRole('button', { name: 'Details' }));
+    const modal = await screen.findByRole('dialog', { name: 'Command sys.info' });
+    expect(within(modal).getByText(/"ok": 1/)).toBeInTheDocument();
+    await user.click(within(modal).getByRole('button', { name: 'Back to history' }));
+    expect(await within(modal).findByText('net.status')).toBeInTheDocument();
+  });
+
   it('hides the send panel for a viewer who may send nothing, and is the fleet log without a device', async () => {
     const { live, adapter, subs } = fakes({ commands: COMMANDS.slice(2, 3) });
     const { unmount } = render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
-    await screen.findByText('net.status');
     await waitFor(() => expect(adapter.rpc!.methods).toHaveBeenCalled());
+    expect(screen.getByRole('button', { name: 'History' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Command')).toBeNull();
     unmount();
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView /></IotAdapterProvider>);
     await screen.findByText('net.status');
     expect([...subs][0].params).toEqual({ deviceId: '*' });
+    expect(screen.queryByRole('button', { name: 'History' })).toBeNull();
     expect(adapter.rpc!.list).toHaveBeenLastCalledWith(
       { deviceId: undefined, page: 1, pageSize: 25, limit: 25, search: undefined, sort: undefined, statuses: undefined, sources: undefined },
       expect.anything(),
@@ -192,6 +237,7 @@ describe('RpcConsoleView', () => {
     const { live, adapter } = fakes();
     (adapter.rpc!.list as ReturnType<typeof vi.fn>).mockResolvedValue({ items: [req('old', { status: 'SUCCESSFUL', method: 'net.status' })], nextCursor: null, total: 60 });
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'History' }));
     await screen.findByText('net.status');
     expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
     await user.click(screen.getByRole('button', { name: /Method/ }));

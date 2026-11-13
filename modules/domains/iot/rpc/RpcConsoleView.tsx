@@ -1,8 +1,11 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faArrowLeft, faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
+import { Modal } from '@/modules/ui/Modal';
 import { errorMessage, RPC_SORT_KEYS, type RpcCatalog, type RpcListQuery } from '../api/adapter';
 import { toIotSort } from '../api/list-table';
 import type { DataTableQuery } from '@/modules/ui/Table/types';
@@ -13,9 +16,10 @@ import type { IotMessages } from '../messages';
 import {
   isRefusedRpcMethod, RPC_STATUSES, rpcPresetOf, rpcStatusRank, type RpcPreset, type RpcRequest, type RpcSendInput, type RpcStatus, type RpcTier,
 } from '../types/rpc';
-import { rpcErrorText, RpcRequestDetail } from './RpcRequestDetail';
+import { rpcErrorText, RpcRequestDetail, RpcRequestDetailBody } from './RpcRequestDetail';
 import { RpcRequestList } from './RpcRequestList';
 import { RpcSendPanel } from './RpcSendPanel';
+import { RpcStatusBadge } from './RpcStatusBadge';
 
 /**
  * RpcConsoleView — a device's command console (phase 04; NB `iot_rpc` 03), read through the adapter: the send panel over the
@@ -31,6 +35,12 @@ import { RpcSendPanel } from './RpcSendPanel';
  * settings without its masked values (1.1, 1.7, N1); the snapshot sent on every (re)subscribe is merged and a row never moves back to an
  * earlier status (1.12, 1.13); the open request is re-read on every poll and a late answer never shows another one (1.14); the history
  * says whether it is live or polling (1.21).
+ *
+ * NB 63-licensed-devices, the History modal: on a device the history is no longer a table under the form (a form that grows and
+ * shrinks moved it). A "History" button above the form opens it in a wide modal, the same full list, read only while it is open; a row
+ * opens the request inside the modal ("Back to history" returns to the list as it was left, never a drawer over the modal). Under the
+ * form, the last command sent from this console is followed live (status, a short answer or the reason it failed), and "Details"
+ * opens the modal on it. `history="inline"` keeps the table under the form; the fleet log (no `deviceId`) is always inline.
  */
 export type RpcConsoleViewProps = {
   deviceId?: string;
@@ -40,6 +50,10 @@ export type RpcConsoleViewProps = {
   deviceName?: string | null;
   pageSize?: number;
   now?: number;
+  /** Where a device's history is: behind a "History" button, in a modal (the default), or under the form. */
+  history?: 'modal' | 'inline';
+  /** The host's own controls, beside the "History" button (a link to the command settings). */
+  actions?: ReactNode;
   className?: string;
 };
 
@@ -64,7 +78,18 @@ function sentNotice(r: RpcRequest, m: IotMessages): IotNotice {
   return { tone: 'success', message: m.rpc.sent };
 }
 
-export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 25, now, className }: RpcConsoleViewProps) {
+const SUMMARY_MAX = 80;
+
+/** A request's outcome in a line: why it did not succeed, else its answer as compact JSON, cut to fit. */
+function shortOutcome(r: RpcRequest, m: IotMessages): string | null {
+  const err = rpcErrorText(r, m);
+  if (err) return err;
+  if (r.response === undefined || r.response === null) return null;
+  const text = typeof r.response === 'string' ? r.response : JSON.stringify(r.response);
+  return text.length > SUMMARY_MAX ? `${text.slice(0, SUMMARY_MAX - 1)}…` : text;
+}
+
+export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 25, now, history = 'modal', actions, className }: RpcConsoleViewProps) {
   const api = useIotAdapter().rpc;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
@@ -85,6 +110,11 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
   const [fullFor, setFullFor] = useState<string | null>(null);
   const openRef = useRef<string | null>(null);
   useEffect(() => { openRef.current = openId; }, [openId]);
+  const inModal = !!deviceId && history === 'modal';
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // the last request sent from this console, followed live under the form
+  const [last, setLast] = useState<RpcRequest | null>(null);
+  const lastRef = useRef<string | null>(null);
 
   /** The table's query as the adapter's: a 1-based page, the method search, one sort, the status and source lists. */
   const listQuery = useCallback((q: DataTableQuery | null): RpcListQuery => {
@@ -99,8 +129,9 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
   }, [deviceId, pageSize]);
 
   // The table reports its first query on mount; nothing is read before it.
+  // Behind the History button the list is read only while it is open.
   const first = useCallback((signal?: AbortSignal): Promise<void> => {
-    if (!api || !query) return Promise.resolve();
+    if (!api || !query || (inModal && !historyOpen)) return Promise.resolve();
     return api.list(listQuery(query), signal).then(
       (page) => {
         if (signal?.aborted) return;
@@ -115,7 +146,7 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
       },
       (e) => { if (!signal?.aborted) { setError(errorMessage(e, m.rpc.loadError)); setLoaded(true); } },
     );
-  }, [api, listQuery, query, m.rpc.loadError]);
+  }, [api, listQuery, query, inModal, historyOpen, m.rpc.loadError]);
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -150,6 +181,7 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
       next[i] = merged(cur[i], r);
       return next;
     });
+    if (lastRef.current === r.rpcId) setLast((cur) => (cur ? merged(cur, r) : r));
     if (highlight) {
       setFresh((f) => new Set([...f, r.rpcId]));
       setTimeout(() => setFresh((f) => { const n = new Set(f); n.delete(r.rpcId); return n; }), 4_000);
@@ -167,6 +199,15 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
     }).catch(() => undefined);
   }, [api]);
 
+  /** The last sent request read again (a live event carries no answer); a late answer for an earlier one is dropped. */
+  const refreshLast = useCallback(() => {
+    const id = lastRef.current;
+    if (!api || !id) return;
+    api.get(id).then((full) => {
+      if (lastRef.current === full.rpcId) setLast((cur) => (cur ? merged(cur, full) : full));
+    }).catch(() => undefined);
+  }, [api]);
+
   const liveState = useLiveOrPoll({
     key: deviceId ?? '*',
     subscribe: api ? (live) => live.subscribe({
@@ -176,6 +217,7 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
         if (!ev) return;
         upsert(ev.request);
         if (openRef.current === ev.request.rpcId) refreshOpen(ev.request.rpcId);
+        if (lastRef.current === ev.request.rpcId) refreshLast();
       },
       // every (re)subscribe sends the requests as they stand: what changed while the connection was down (1.12)
       onSnapshot: (payload) => {
@@ -183,15 +225,18 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
         if (!rows) return;
         for (const r of rows) upsert(r);
         if (openRef.current && rows.some((r) => r.rpcId === openRef.current)) refreshOpen();
+        if (lastRef.current && rows.some((r) => r.rpcId === lastRef.current)) refreshLast();
       },
     }) : undefined,
-    poll: () => { first().catch(() => undefined); refreshOpen(); },
+    poll: () => { first().catch(() => undefined); refreshOpen(); refreshLast(); },
   });
 
   async function send(input: RpcSendInput) {
     if (!api || !deviceId) return;
     try {
       const r = await api.send(deviceId, input);
+      lastRef.current = r.rpcId;
+      setLast(r);
       upsert(r, true);
       notify(sentNotice(r, m));
     } catch (e) {
@@ -199,6 +244,17 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
       first().catch(() => undefined);
       throw e;
     }
+  }
+
+  function closeDetail() {
+    setOpenId(null);
+    openRef.current = null;
+    setDetail(null);
+  }
+
+  function closeHistory() {
+    closeDetail();
+    setHistoryOpen(false);
   }
 
   function open(r: RpcRequest) {
@@ -242,9 +298,46 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
   const canCancel = (r: RpcRequest) => (deviceId ? tierSendable(r.tier, r.method) : caps.canSendRpc);
   const canRerun = (r: RpcRequest) => !!deviceId && methodSendable(r.method);
   const live = liveState === 'live';
+  const liveBadge = liveState !== 'none' && (
+    <Badge variant={live ? 'success' : 'neutral'} size="sm" dot data-live={live ? 'live' : 'polling'}>{live ? m.common.live : m.common.polling}</Badge>
+  );
+  const rerun = (r: RpcRequest) => {
+    setPreset(rpcPresetOf(r, catalog?.commands.find((c) => c.method === r.method), catalog?.isSecretParam));
+    closeHistory();
+  };
+  const cancelOpen = !!detail && canCancel(detail);
+  const rerunOpen = !!detail && canRerun(detail);
+  const rerunReady = !!detail && fullFor === detail.rpcId;
+  const list = (
+    <RpcRequestList
+      requests={items}
+      showDevice={!deviceId}
+      fresh={fresh}
+      onOpen={open}
+      loading={!loaded}
+      error={error}
+      onRetry={() => { first().catch(() => undefined); }}
+      total={total}
+      onQueryChange={(q) => setQuery((prev) => (prev && JSON.stringify(prev) === JSON.stringify(q) ? prev : q))}
+      defaultQuery={{ pageSize }}
+      now={now}
+    />
+  );
+  const lastOutcome = last ? shortOutcome(last, m) : null;
 
   return (
     <div className={cn('space-y-4', className)}>
+      {(inModal || actions) && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {actions}
+          {inModal && (
+            <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}
+              iconLeft={<FontAwesomeIcon icon={faClockRotateLeft} className="h-3 w-3" aria-hidden="true" />}>
+              {m.rpc.history}
+            </Button>
+          )}
+        </div>
+      )}
       {deviceId && catalogError && !catalog && (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-surface-raised p-4 text-sm text-error">
           <span>{catalogError}</span>
@@ -264,40 +357,59 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
           onSend={send}
         />
       )}
-      <section aria-label={m.rpc.history} className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-text-primary">{m.rpc.history}</h2>
-          {liveState !== 'none' && (
-            <Badge variant={live ? 'success' : 'neutral'} size="sm" dot data-live={live ? 'live' : 'polling'}>{live ? m.common.live : m.common.polling}</Badge>
-          )}
+      {inModal && last && (
+        <div role="status" aria-label={m.rpc.lastSent} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border bg-surface-raised px-4 py-2 text-sm">
+          <span className="text-text-secondary">{m.rpc.lastSent}</span>
+          <code className="font-mono text-xs text-text-primary">{last.method}</code>
+          <RpcStatusBadge status={last.status} outcome={last.outcome} />
+          {lastOutcome && <span className="min-w-0 flex-1 truncate text-xs text-text-secondary" title={lastOutcome}>{lastOutcome}</span>}
+          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => { setHistoryOpen(true); open(last); }}>{m.rpc.lastSentDetail}</Button>
         </div>
-        <RpcRequestList
-          requests={items}
-          showDevice={!deviceId}
-          fresh={fresh}
-          onOpen={open}
-          loading={!loaded}
-          error={error}
-          onRetry={() => { first().catch(() => undefined); }}
-          total={total}
-          onQueryChange={(q) => setQuery((prev) => (prev && JSON.stringify(prev) === JSON.stringify(q) ? prev : q))}
-          defaultQuery={{ pageSize }}
-          now={now}
-        />
-      </section>
-      <RpcRequestDetail
-        open={openId !== null}
-        request={detail}
-        onClose={() => { setOpenId(null); openRef.current = null; setDetail(null); }}
-        onCancel={detail && canCancel(detail) ? cancel : undefined}
-        rerunReady={!!detail && fullFor === detail.rpcId}
-        onRerun={detail && canRerun(detail) ? (r) => {
-          setPreset(rpcPresetOf(r, catalog?.commands.find((c) => c.method === r.method), catalog?.isSecretParam));
-          setOpenId(null);
-          openRef.current = null;
-          setDetail(null);
-        } : undefined}
-      />
+      )}
+      {inModal ? (
+        <Modal
+          open={historyOpen}
+          onClose={closeHistory}
+          title={detail ? fill(m.rpc.detail, { method: detail.method }) : m.rpc.history}
+          closeLabel={m.common.close}
+          size="full"
+          scrollable
+          className="max-h-[calc(100vh-2rem)] max-w-5xl"
+        >
+          {detail && (
+            <div className="space-y-3">
+              <Button variant="ghost" size="sm" onClick={closeDetail}
+                iconLeft={<FontAwesomeIcon icon={faArrowLeft} className="h-3 w-3" aria-hidden="true" />}>
+                {m.rpc.backToHistory}
+              </Button>
+              <RpcRequestDetailBody key={detail.rpcId} request={detail} onCancel={cancelOpen ? cancel : undefined} rerunReady={rerunReady} onRerun={rerunOpen ? rerun : undefined} />
+            </div>
+          )}
+          {/* kept while a request is open, so "Back to history" finds the page, search and filters as they were */}
+          <section aria-label={m.rpc.history} hidden={!!detail} className="space-y-2">
+            {liveBadge && <div className="flex justify-end">{liveBadge}</div>}
+            {list}
+          </section>
+        </Modal>
+      ) : (
+        <>
+          <section aria-label={m.rpc.history} className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-text-primary">{m.rpc.history}</h2>
+              {liveBadge}
+            </div>
+            {list}
+          </section>
+          <RpcRequestDetail
+            open={openId !== null}
+            request={detail}
+            onClose={closeDetail}
+            onCancel={cancelOpen ? cancel : undefined}
+            rerunReady={rerunReady}
+            onRerun={rerunOpen ? rerun : undefined}
+          />
+        </>
+      )}
     </div>
   );
 }

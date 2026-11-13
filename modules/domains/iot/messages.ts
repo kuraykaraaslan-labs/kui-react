@@ -872,6 +872,9 @@ export const IOT_MESSAGES = {
     deviceSaid: 'The device said: {detail}',
     paramUnsupported: 'This kind of parameter cannot be sent.',
     reenterField: 'A hidden value: enter it again.',
+    backToHistory: 'Back to history',
+    lastSent: 'Last command',
+    lastSentDetail: 'Details',
   },
   rpcError: {
     device_offline: 'The device is offline, so the command was not sent.',

@@ -229,13 +229,17 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
     await user.type(screen.getByLabelText(/Host/), 'h');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'error', message: 'The device is offline, so the command was not sent.' }));
+    // and the line under the form keeps saying it
+    const line = screen.getByRole('status', { name: 'Last command' });
+    expect(within(line).getByText('The device is offline, so the command was not sent.')).toBeInTheDocument();
   });
 
   it('reads the history again at once when a send got no answer', async () => {
     const user = userEvent.setup();
     const { live, adapter } = fakes();
     (adapter.rpc!.send as ReturnType<typeof vi.fn>).mockRejectedValue(new IotApiError('unavailable', ''));
-    render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    // the history under the form; behind its button it is read when opened
+    render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" history="inline" /></IotAdapterProvider>);
     await screen.findByText('net.status');
     const reads = (adapter.rpc!.list as ReturnType<typeof vi.fn>).mock.calls.length;
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.ping');
@@ -266,21 +270,26 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
       ? req('p', { status: 'QUEUED', method: 'sys.ping', tier: 'basic' })
       : req('w', { status: 'SUCCESSFUL', method: 'net.wifi.set', tier: 'privileged', completedAt: T0, params: { ssid: 'Home', psk: '***' }, maskedPaths: ['psk'] })));
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'History' }));
     await user.click(await screen.findByText('sys.ping'));
-    const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).queryByRole('button', { name: 'Send again' })).toBeNull();
-    expect(within(drawer).queryByRole('button', { name: 'Cancel command' })).toBeNull();
-    await user.click(within(drawer).getByRole('button', { name: 'Close' }));
-    await user.click(await screen.findByText('net.wifi.set'));
+    const modal = await screen.findByRole('dialog', { name: 'Command sys.ping' });
+    expect(within(modal).queryByRole('button', { name: 'Send again' })).toBeNull();
+    expect(within(modal).queryByRole('button', { name: 'Cancel command' })).toBeNull();
+    await user.click(within(modal).getByRole('button', { name: 'Back to history' }));
+    await user.click(await within(modal).findByText('net.wifi.set'));
     await waitFor(() => expect(screen.getByText(/"ssid": "Home"/)).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Send again' }));
+    // "Send again" closes the history and fills the form
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(await screen.findByLabelText(/Network/)).toHaveValue('Home');
     expect(screen.getByLabelText(/Password/)).toHaveValue('');
   });
 
   it('merges the snapshot, never moves a row back, and polls a refused subscription', async () => {
+    const user = userEvent.setup();
     const { live, adapter } = fakes();
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'History' }));
     await screen.findByText('net.status');
     expect(screen.getByText('Live')).toBeInTheDocument();
     act(() => live.snapshot({ requests: [req('late', { status: 'SENT', method: 'sys.reboot', createdAt: new Date(T0.getTime() + 1000) })] }));
@@ -290,8 +299,10 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
   });
 
   it('a refused subscription reads as polling', async () => {
+    const user = userEvent.setup();
     const { live, adapter } = fakes({}, { refuse: true });
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'History' }));
     await screen.findByText('net.status');
     expect(await screen.findByText('Updates every 30 s')).toBeInTheDocument();
   });
@@ -357,6 +368,7 @@ describe('review fixes (41-ui-fixes/23 C1, C7, C9, C10, C12)', () => {
     };
     const user = userEvent.setup();
     render(<IotAdapterProvider adapter={adapter}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'History' }));
     await user.click(await screen.findByText('net.wifi.set'));
     await waitFor(() => expect(adapter.rpc!.get).toHaveBeenCalled());
     expect(await screen.findByRole('button', { name: 'Send again' })).toBeDisabled();
