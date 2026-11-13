@@ -10,9 +10,18 @@ import {
   type HTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
+  type TextareaHTMLAttributes,
 } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCommentDots, faPaperPlane, faWandMagicSparkles, faXmark } from '@fortawesome/free-solid-svg-icons';
+import {
+  faCommentDots,
+  faPaperPlane,
+  faRotateLeft,
+  faVolumeHigh,
+  faVolumeXmark,
+  faWandMagicSparkles,
+  faXmark,
+} from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
 import { ChatThread, type ChatThreadMessage, type ChatThreadMessages } from '@/modules/ui/ChatThread';
@@ -39,12 +48,16 @@ export type AssistantLauncherMessages = {
   sources: string;
   /** Read after a source link that opens in a new tab. */
   opensInNewTab: string;
+  /** Header button that starts the conversation over (shown with `onRestart`). */
+  restart: string;
+  /** Header toggle for the reply chime (shown with `onSoundChange`); `aria-pressed` says whether it is on. */
+  sound: string;
 };
 
 export const DEFAULT_ASSISTANT_LAUNCHER_MESSAGES: AssistantLauncherMessages = {
   open: 'Open chat',
   close: 'Close chat',
-  subtitle: 'AI assistant · answers can be wrong',
+  subtitle: 'AI assistant',
   send: 'Send',
   startChat: 'Start chat',
   inputLabel: 'Message',
@@ -53,6 +66,8 @@ export const DEFAULT_ASSISTANT_LAUNCHER_MESSAGES: AssistantLauncherMessages = {
   dismissTeaser: 'Dismiss',
   sources: 'Sources',
   opensInNewTab: '(opens in a new tab)',
+  restart: 'Restart conversation',
+  sound: 'Sound',
 };
 
 const AssistantMessagesContext = createContext<AssistantLauncherMessages | null>(null);
@@ -101,6 +116,20 @@ export type AssistantLauncherProps = {
   renderAfter?: (item: ChatThreadMessage) => ReactNode;
   /** Show each message's time (default false). */
   showTimes?: boolean;
+  /** Starts the conversation over; a header button shows while there are `items`. The host clears its state. */
+  onRestart?: () => void;
+  /** A short two-note chime when a new assistant message arrives (default false). */
+  sound?: boolean;
+  /** Shows a header toggle for `sound`; keep the choice where the visitor's other preferences live. */
+  onSoundChange?: (on: boolean) => void;
+  /**
+   * Hints for the message box while the host asks for one detail (an interview step):
+   * `autoComplete="email"`, `inputMode="tel"`, a step's own `placeholder` …
+   */
+  inputProps?: Pick<
+    TextareaHTMLAttributes<HTMLTextAreaElement>,
+    'autoComplete' | 'inputMode' | 'enterKeyHint' | 'spellCheck' | 'autoCapitalize' | 'placeholder'
+  >;
   messages?: Partial<AssistantLauncherMessages>;
   /** Strings of the inner ChatThread (typing row, "Writing…", log name …). */
   threadMessages?: Partial<ChatThreadMessages>;
@@ -108,6 +137,54 @@ export type AssistantLauncherProps = {
 
 const GREETING_ID = '__assistant-greeting';
 const SHADOW_FLOAT = 'shadow-[0_8px_24px_rgb(0_0_0/0.18)]';
+
+type AudioContextCtor = new () => AudioContext;
+
+/**
+ * The reply chime: two sine notes (G5, then D6 110 ms later), made with Web Audio so
+ * there is no file to load. Browsers only let a page start audio after a gesture, so
+ * `unlock` runs on the visitor's clicks and key presses and `play` stays silent until then.
+ */
+function useChime() {
+  const ctx = useRef<AudioContext | null>(null);
+  const unlock = () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const w = window as unknown as { AudioContext?: AudioContextCtor; webkitAudioContext?: AudioContextCtor };
+      const Ctor = w.AudioContext ?? w.webkitAudioContext;
+      if (Ctor && !ctx.current) ctx.current = new Ctor();
+      if (ctx.current?.state === 'suspended') void ctx.current.resume();
+    } catch {
+      // No audio on this browser: the chat works without it.
+    }
+  };
+  const play = () => {
+    const ac = ctx.current;
+    if (!ac) return;
+    try {
+      const t = ac.currentTime;
+      for (const [freq, delay] of [
+        [784, 0],
+        [1175, 0.11],
+      ] as const) {
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, t + delay);
+        gain.gain.exponentialRampToValueAtTime(0.07, t + delay + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.32);
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.start(t + delay);
+        osc.stop(t + delay + 0.34);
+      }
+    } catch {
+      // As above.
+    }
+  };
+  return { unlock, play };
+}
 
 /**
  * A floating AI-assistant chat for marketing sites: a round launcher fixed
@@ -136,10 +213,15 @@ export function AssistantLauncher({
   offline,
   renderAfter,
   showTimes = false,
+  onRestart,
+  sound = false,
+  onSoundChange,
+  inputProps,
   messages,
   threadMessages,
   className,
   onKeyDown,
+  onPointerDown,
   ...rest
 }: AssistantLauncherProps) {
   const msgs = { ...DEFAULT_ASSISTANT_LAUNCHER_MESSAGES, ...messages };
@@ -156,6 +238,17 @@ export function AssistantLauncher({
   const startRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState('');
+
+  const chime = useChime();
+
+  // A new assistant message chimes; the ones already there on the first render do not.
+  const otherCount = items.filter((item) => item.side === 'other').length;
+  const seenOther = useRef(otherCount);
+  useEffect(() => {
+    if (otherCount > seenOther.current && sound) chime.play();
+    seenOther.current = otherCount;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `play` reads the latest context; only the count matters
+  }, [otherCount]);
 
   const consentPending = !!consent && !consent.accepted;
   const mode: 'offline' | 'consent' | 'composer' = offline ? 'offline' : consentPending ? 'consent' : 'composer';
@@ -197,8 +290,25 @@ export function AssistantLauncher({
     onOpenChange(false);
   }
 
+  function restart() {
+    onRestart?.();
+    setDraft('');
+    (textareaRef.current ?? startRef.current ?? closeRef.current)?.focus();
+  }
+
+  function toggleSound() {
+    const next = !sound;
+    onSoundChange?.(next);
+    // Turning it on plays the chime once, so the visitor hears what they chose.
+    if (next) {
+      chime.unlock();
+      chime.play();
+    }
+  }
+
   function handleRootKeyDown(e: KeyboardEvent<HTMLDivElement>) {
     onKeyDown?.(e);
+    if (sound) chime.unlock();
     if (e.key === 'Escape' && open && !e.defaultPrevented) {
       e.preventDefault();
       close();
@@ -247,7 +357,16 @@ export function AssistantLauncher({
 
   return (
     <AssistantMessagesContext.Provider value={msgs}>
-      <div {...rest} data-part="assistant-launcher" className={cn(className)} onKeyDown={handleRootKeyDown}>
+      <div
+        {...rest}
+        data-part="assistant-launcher"
+        className={cn(className)}
+        onKeyDown={handleRootKeyDown}
+        onPointerDown={(e) => {
+          onPointerDown?.(e);
+          if (sound) chime.unlock();
+        }}
+      >
         {teaser && !open && (
           <div
             data-part="assistant-teaser"
@@ -296,7 +415,7 @@ export function AssistantLauncher({
               'transition duration-200 ease-out starting:translate-y-3 starting:opacity-0 motion-reduce:transition-none',
             )}
           >
-            <div data-part="assistant-header" className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
+            <div data-part="assistant-header" className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
               <span
                 aria-hidden="true"
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-subtle text-primary"
@@ -313,6 +432,33 @@ export function AssistantLauncher({
                   </p>
                 )}
               </div>
+              {onRestart && items.length > 0 && (
+                <Button
+                  variant="ghost"
+                  iconOnly
+                  aria-label={msgs.restart}
+                  title={msgs.restart}
+                  onClick={restart}
+                  data-part="assistant-restart"
+                  className="h-8 w-8 shrink-0 rounded-full p-0 text-text-secondary"
+                >
+                  <FontAwesomeIcon icon={faRotateLeft} className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+              )}
+              {onSoundChange && (
+                <Button
+                  variant="ghost"
+                  iconOnly
+                  aria-label={msgs.sound}
+                  title={msgs.sound}
+                  aria-pressed={sound}
+                  onClick={toggleSound}
+                  data-part="assistant-sound"
+                  className="h-8 w-8 shrink-0 rounded-full p-0 text-text-secondary"
+                >
+                  <FontAwesomeIcon icon={sound ? faVolumeHigh : faVolumeXmark} className="h-3.5 w-3.5" aria-hidden="true" />
+                </Button>
+              )}
               <Button
                 ref={closeRef}
                 variant="ghost"
@@ -374,7 +520,8 @@ export function AssistantLauncher({
                       rows={1}
                       value={draft}
                       maxLength={maxLength}
-                      placeholder={msgs.placeholder}
+                      {...inputProps}
+                      placeholder={inputProps?.placeholder ?? msgs.placeholder}
                       aria-describedby={showCounter ? counterId : undefined}
                       onChange={(e) => setDraft(e.target.value)}
                       onKeyDown={handleTextareaKeyDown}
@@ -490,5 +637,68 @@ export function AssistantCard({ title, children, actions, className, ...rest }: 
       {children}
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
     </div>
+  );
+}
+
+export type AssistantQuickReply = {
+  /** Handed back to `onSelect`. */
+  value: string;
+  label: ReactNode;
+  /** The step's main answer (Send, Confirm): drawn filled. */
+  primary?: boolean;
+};
+
+export type AssistantQuickRepliesProps = {
+  replies: AssistantQuickReply[];
+  onSelect: (value: string) => void;
+  /** While a step is being sent, or once it is answered. */
+  disabled?: boolean;
+} & Omit<HTMLAttributes<HTMLDivElement>, 'children' | 'onSelect'>;
+
+/**
+ * Answer chips under the assistant's question (Skip, Confirm, Send, Cancel …), for a
+ * host that asks for details as chat messages instead of a form. Typed answers still
+ * go through `onSend`; render this through `renderAfter` on the newest question only.
+ */
+export function AssistantQuickReplies({ replies, onSelect, disabled = false, className, ...rest }: AssistantQuickRepliesProps) {
+  if (replies.length === 0) return null;
+  return (
+    <div {...rest} role="group" data-part="assistant-quick-replies" className={cn('flex flex-wrap gap-1.5', className)}>
+      {replies.map((reply) => (
+        <button
+          key={reply.value}
+          type="button"
+          disabled={disabled}
+          onClick={() => onSelect(reply.value)}
+          data-primary={reply.primary ? '' : undefined}
+          className={cn(
+            'min-h-8 rounded-full border px-3 text-[13px] font-medium',
+            reply.primary
+              ? 'border-primary bg-primary text-primary-fg hover:border-primary-hover hover:bg-primary-hover'
+              : 'border-border-strong bg-surface-base text-text-primary hover:bg-surface-raised',
+            'disabled:cursor-not-allowed disabled:opacity-60',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus focus-visible:ring-offset-2',
+          )}
+        >
+          {reply.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export type AssistantQuoteProps = HTMLAttributes<HTMLQuoteElement>;
+
+/** Text read back to the visitor inside a message (the summary they are asked to confirm). */
+export function AssistantQuote({ className, ...rest }: AssistantQuoteProps) {
+  return (
+    <blockquote
+      {...rest}
+      data-part="assistant-quote"
+      className={cn(
+        'my-2 whitespace-pre-wrap rounded border-s-3 border-primary bg-surface-overlay px-2.5 py-1.5 text-text-primary',
+        className,
+      )}
+    />
   );
 }

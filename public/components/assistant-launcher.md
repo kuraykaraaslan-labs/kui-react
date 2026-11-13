@@ -7,7 +7,7 @@
 - **status:** stable
 - **since:** 2026-11
 
-A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.
+A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, details asked as chat messages with `AssistantQuickReplies`, `AssistantQuote` and per-step `inputProps`, a header Restart (`onRestart`) and a Sound toggle (`sound`/`onSoundChange`, a two-note Web Audio chime for each new reply), a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.
 
 ## Variants
 
@@ -32,6 +32,16 @@ A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom r
     <AssistantCard title="Get a quote" actions={<Button size="sm">Request a quote</Button>}>…</AssistantCard>
   </>
 )} />
+```
+
+### A request asked as chat messages, with Restart and Sound
+
+```tsx
+<AssistantLauncher … onSend={answerStep} inputProps={step.input /* autoComplete="email" … */}
+  renderAfter={(item) => item.id === lastId && (
+    <AssistantQuickReplies replies={[{ value: 'confirm', label: 'Confirm', primary: true }, { value: 'cancel', label: 'Cancel' }]} onSelect={choose} />
+  )}
+  onRestart={clearConversation} sound={sound} onSoundChange={saveSoundChoice} />
 ```
 
 ### Offline

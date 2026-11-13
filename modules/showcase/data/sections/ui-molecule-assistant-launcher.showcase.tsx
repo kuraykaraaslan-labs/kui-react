@@ -2,7 +2,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { Button } from '@/modules/ui/Button';
-import { AssistantCard, AssistantLauncher, AssistantSources } from '@/modules/ui/AssistantLauncher';
+import {
+  AssistantCard,
+  AssistantLauncher,
+  AssistantQuickReplies,
+  AssistantQuote,
+  AssistantSources,
+  type AssistantLauncherProps,
+  type AssistantQuickReply,
+} from '@/modules/ui/AssistantLauncher';
 import type { ChatThreadMessage } from '@/modules/ui/ChatThread';
 import type { ShowcaseComponent } from '../showcase.types';
 
@@ -154,6 +162,141 @@ function ConversationDemo() {
   );
 }
 
+// A request taken as chat messages instead of a form: the assistant asks one detail at a time, the
+// answers never go to the model, and the visitor confirms the summary before it is sent.
+type Step = {
+  key: 'name' | 'email' | 'company' | 'need' | 'consent';
+  ask: (answers: Record<string, string>) => ReactNode;
+  check?: (text: string) => string | null;
+  replies?: AssistantQuickReply[];
+  input?: AssistantLauncherProps['inputProps'];
+};
+const SKIP = { value: 'skip', label: 'Skip' };
+const CANCEL = { value: 'cancel', label: 'Cancel' };
+const NEED = 'Wants 120 Modbus devices on the cloud plan.';
+const STEPS: Step[] = [
+  { key: 'name', ask: () => 'What is your name?', check: (t) => (t.length < 2 ? 'Please write your name.' : null), replies: [CANCEL], input: { autoComplete: 'name' } },
+  {
+    key: 'email',
+    ask: (a) => `Thanks ${a.name.split(' ')[0]}. Which e-mail address should we reply to?`,
+    check: (t) => (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(t) ? null : 'That does not look like an e-mail address. Could you check it?'),
+    replies: [CANCEL],
+    input: { autoComplete: 'email', inputMode: 'email' },
+  },
+  { key: 'company', ask: () => 'Which company are you with?', replies: [SKIP, CANCEL], input: { autoComplete: 'organization' } },
+  {
+    key: 'need',
+    ask: () => (
+      <>
+        Is this what you need? Confirm, or write it in your own words.
+        <AssistantQuote>{NEED}</AssistantQuote>
+      </>
+    ),
+    replies: [{ value: 'confirm', label: 'Confirm', primary: true }, CANCEL],
+  },
+  {
+    key: 'consent',
+    ask: () => (
+      <>
+        We will use these details only to answer this request (<a href="#privacy" className="text-primary underline">privacy policy</a>). Send it?
+      </>
+    ),
+    replies: [{ value: 'send', label: 'Send request', primary: true }, CANCEL],
+  },
+];
+
+function InterviewDemo() {
+  const [open, setOpen] = useState(true);
+  const [sound, setSound] = useState(false);
+  const [items, setItems] = useState<ChatThreadMessage[]>([
+    { id: 'u1', side: 'own', author: YOU, body: 'Can I get an offer for 120 devices?', at: at(1) },
+    {
+      id: 'a1',
+      side: 'other',
+      author: ASSISTANT,
+      body: 'Gladly: the team prepares offers for fleets that size. I will take a few details so they can get back to you.',
+      at: at(2),
+    },
+  ]);
+  const [step, setStep] = useState<number | null>(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const asked = useRef(false);
+
+  const say = (body: ReactNode, side: 'own' | 'other' = 'other') =>
+    setItems((prev) => [...prev, { id: `${side}${prev.length}`, side, author: side === 'own' ? YOU : ASSISTANT, body, at: new Date() }]);
+
+  useEffect(() => {
+    if (asked.current) return;
+    asked.current = true;
+    say(STEPS[0].ask({}));
+  }, []);
+
+  function advance(next: Record<string, string>, from: number) {
+    setAnswers(next);
+    if (from + 1 < STEPS.length) {
+      setStep(from + 1);
+      say(STEPS[from + 1].ask(next));
+    } else {
+      setStep(null);
+      say('Thanks! Your request is with the team; they usually reply within one working day.');
+    }
+  }
+
+  function answer(text: string) {
+    if (step === null) {
+      say(text, 'own');
+      return;
+    }
+    const s = STEPS[step];
+    say(text, 'own');
+    const problem = s.check?.(text) ?? null;
+    if (problem) say(problem);
+    else advance({ ...answers, [s.key]: text }, step);
+  }
+
+  function choose(value: string) {
+    if (step === null) return;
+    if (value === 'cancel') {
+      say('Cancel', 'own');
+      setStep(null);
+      say('No problem, nothing was sent. Ask me anything else.');
+      return;
+    }
+    const s = STEPS[step];
+    say(s.replies?.find((r) => r.value === value)?.label ?? value, 'own');
+    advance({ ...answers, [s.key]: value === 'confirm' ? NEED : value === 'skip' ? '' : 'yes' }, step);
+  }
+
+  const lastId = items[items.length - 1]?.id;
+  const current = step === null ? undefined : STEPS[step];
+
+  return (
+    <Frame>
+      <AssistantLauncher
+        open={open}
+        onOpenChange={setOpen}
+        title={TITLE}
+        greeting={GREETING}
+        items={items}
+        onSend={answer}
+        inputProps={current?.input}
+        renderAfter={(item) =>
+          item.id === lastId && item.side === 'other' && current?.replies ? (
+            <AssistantQuickReplies replies={current.replies} onSelect={choose} />
+          ) : null
+        }
+        onRestart={() => {
+          setItems([]);
+          setStep(null);
+          setAnswers({});
+        }}
+        sound={sound}
+        onSoundChange={setSound}
+      />
+    </Frame>
+  );
+}
+
 function OfflineDemo() {
   const [open, setOpen] = useState(true);
   return (
@@ -184,7 +327,7 @@ export function buildAssistantLauncherData(): ShowcaseComponent[] {
       category: 'Organism',
       abbr: 'Ai',
       description:
-        'A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.',
+        'A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, details asked as chat messages with `AssistantQuickReplies`, `AssistantQuote` and per-step `inputProps`, a header Restart (`onRestart`) and a Sound toggle (`sound`/`onSoundChange`, a two-note Web Audio chime for each new reply), a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.',
       filePath: 'modules/ui/AssistantLauncher/index.tsx',
       sourceCode: `<AssistantLauncher
   open={open}
@@ -225,6 +368,16 @@ export function buildAssistantLauncherData(): ShowcaseComponent[] {
     <AssistantCard title="Get a quote" actions={<Button size="sm">Request a quote</Button>}>…</AssistantCard>
   </>
 )} />`,
+        },
+        {
+          title: 'A request asked as chat messages, with Restart and Sound',
+          layout: 'stack' as const,
+          preview: <InterviewDemo />,
+          code: `<AssistantLauncher … onSend={answerStep} inputProps={step.input /* autoComplete="email" … */}
+  renderAfter={(item) => item.id === lastId && (
+    <AssistantQuickReplies replies={[{ value: 'confirm', label: 'Confirm', primary: true }, { value: 'cancel', label: 'Cancel' }]} onSelect={choose} />
+  )}
+  onRestart={clearConversation} sound={sound} onSoundChange={saveSoundChoice} />`,
         },
         {
           title: 'Offline',

@@ -2,7 +2,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import type { ChatThreadMessage } from '@/modules/ui/ChatThread';
-import { AssistantCard, AssistantLauncher, AssistantSources, type AssistantLauncherProps } from './index';
+import {
+  AssistantCard,
+  AssistantLauncher,
+  AssistantQuickReplies,
+  AssistantQuote,
+  AssistantSources,
+  type AssistantLauncherProps,
+} from './index';
 
 type HarnessProps = Partial<AssistantLauncherProps> & { initialOpen?: boolean };
 
@@ -32,7 +39,7 @@ describe('AssistantLauncher: launcher and panel', () => {
     fireEvent.click(launcher);
     const dialog = screen.getByRole('dialog', { name: 'Hermetry assistant' });
     expect(dialog).toHaveAttribute('aria-modal', 'false');
-    expect(within(dialog).getByText('AI assistant · answers can be wrong')).toBeInTheDocument();
+    expect(within(dialog).getByText('AI assistant')).toBeInTheDocument();
     expect(within(dialog).getByText('Hi! Ask me anything about Hermetry.')).toBeInTheDocument();
     expect(textbox()).toHaveFocus();
     expect(screen.getAllByRole('button', { name: 'Close chat' }).length).toBeGreaterThan(0);
@@ -163,5 +170,106 @@ describe('AssistantLauncher: extras', () => {
     expect(link).toHaveAttribute('target', '_blank');
     expect(within(article).getByText('Get a quote')).toBeInTheDocument();
     expect(within(article).getByRole('button', { name: 'Request' })).toBeInTheDocument();
+  });
+});
+
+describe('AssistantLauncher: restart, sound, interview parts', () => {
+  const reply = (id: string, body = 'An answer.'): ChatThreadMessage => ({
+    id,
+    side: 'other',
+    author: { name: 'Hermetry assistant' },
+    body,
+    at: '2026-11-13T10:00:00Z',
+  });
+
+  it('shows Restart only with onRestart and messages; it calls the host, clears the draft and keeps focus in the panel', () => {
+    const onRestart = vi.fn();
+    const { rerender } = render(<Harness initialOpen onRestart={onRestart} />);
+    expect(screen.queryByRole('button', { name: 'Restart conversation' })).not.toBeInTheDocument();
+    rerender(<Harness initialOpen onRestart={onRestart} items={[reply('a1')]} />);
+    fireEvent.change(textbox(), { target: { value: 'half a question' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Restart conversation' }));
+    expect(onRestart).toHaveBeenCalledTimes(1);
+    expect(textbox()).toHaveValue('');
+    expect(textbox()).toHaveFocus();
+  });
+
+  it('the sound toggle reports its state and chimes for each new assistant message only while on', () => {
+    let tones = 0;
+    class FakeAudioContext {
+      state = 'running';
+      currentTime = 0;
+      destination = {};
+      resume() {
+        return Promise.resolve();
+      }
+      createOscillator() {
+        return { frequency: {}, connect() {}, start() { tones++; }, stop() {} };
+      }
+      createGain() {
+        return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} };
+      }
+    }
+    vi.stubGlobal('AudioContext', FakeAudioContext);
+    try {
+      const onSoundChange = vi.fn();
+      const props = { initialOpen: true, onSoundChange };
+      const { rerender } = render(<Harness {...props} sound items={[reply('a1')]} />);
+      const toggle = screen.getByRole('button', { name: 'Sound' });
+      expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      expect(tones).toBe(0); // messages already there on the first render are quiet
+      fireEvent.pointerDown(textbox()); // a gesture lets the page start audio
+      rerender(<Harness {...props} sound items={[reply('a1'), reply('a2')]} />);
+      expect(tones).toBe(2); // two notes
+      fireEvent.click(toggle);
+      expect(onSoundChange).toHaveBeenCalledWith(false);
+      rerender(<Harness {...props} sound={false} items={[reply('a1'), reply('a2'), reply('a3')]} />);
+      expect(tones).toBe(2);
+      expect(screen.getByRole('button', { name: 'Sound' })).toHaveAttribute('aria-pressed', 'false');
+      fireEvent.click(screen.getByRole('button', { name: 'Sound' }));
+      expect(onSoundChange).toHaveBeenLastCalledWith(true);
+      expect(tones).toBe(4); // turning it on plays it once
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('inputProps give the message box a step\'s hints', () => {
+    render(<Harness initialOpen inputProps={{ autoComplete: 'email', inputMode: 'email', placeholder: 'Your e-mail' }} />);
+    expect(textbox()).toHaveAttribute('autocomplete', 'email');
+    expect(textbox()).toHaveAttribute('inputmode', 'email');
+    expect(textbox()).toHaveAttribute('placeholder', 'Your e-mail');
+  });
+
+  it('quick replies hand back their value; a quote reads text back', () => {
+    const onSelect = vi.fn();
+    render(
+      <Harness
+        initialOpen
+        items={[reply('q1', 'Is this what you need?')]}
+        renderAfter={() => (
+          <>
+            <AssistantQuote>120 Modbus devices in the cloud by March.</AssistantQuote>
+            <AssistantQuickReplies
+              onSelect={onSelect}
+              replies={[
+                { value: 'confirm', label: 'Yes, send it', primary: true },
+                { value: 'cancel', label: 'Cancel' },
+              ]}
+            />
+          </>
+        )}
+      />,
+    );
+    expect(screen.getByText('120 Modbus devices in the cloud by March.').tagName).toBe('BLOCKQUOTE');
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, send it' }));
+    expect(onSelect).toHaveBeenCalledWith('confirm');
+  });
+
+  it('disabled quick replies cannot be chosen', () => {
+    const onSelect = vi.fn();
+    render(<AssistantQuickReplies disabled onSelect={onSelect} replies={[{ value: 'skip', label: 'Skip' }]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });

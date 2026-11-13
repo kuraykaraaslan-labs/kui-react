@@ -174,7 +174,7 @@ export { TranslatableField, DEFAULT_TRANSLATABLE_FIELD_MESSAGES } from './Transl
 export type { TranslatableFieldProps, TranslatableFieldMessages, TranslatableLanguage, TranslatableSuggestion } from './TranslatableField';
 export { ChatThread, ChatBubble, ChatTypingIndicator, TypingDots, formatAttachmentSize, DEFAULT_CHAT_THREAD_MESSAGES } from './ChatThread';
 export type { ChatThreadProps, ChatThreadMessages, ChatThreadMessage, ChatThreadAuthor, ChatThreadTyper, ChatBubbleProps, ChatTypingIndicatorProps, ChatAttachment, ChatDeliveryStatus, ChatMessageAction, ChatSide } from './ChatThread';
-export { AssistantLauncher, AssistantSources, AssistantCard, DEFAULT_ASSISTANT_LAUNCHER_MESSAGES } from './AssistantLauncher';
-export type { AssistantLauncherProps, AssistantLauncherMessages, AssistantConsent, AssistantTeaser, AssistantSource, AssistantSourcesProps, AssistantCardProps } from './AssistantLauncher';
+export { AssistantLauncher, AssistantSources, AssistantCard, AssistantQuickReplies, AssistantQuote, DEFAULT_ASSISTANT_LAUNCHER_MESSAGES } from './AssistantLauncher';
+export type { AssistantLauncherProps, AssistantLauncherMessages, AssistantConsent, AssistantTeaser, AssistantSource, AssistantSourcesProps, AssistantCardProps, AssistantQuickReply, AssistantQuickRepliesProps, AssistantQuoteProps } from './AssistantLauncher';
 export { ImportWizard } from './ImportWizard';
 export type { ImportWizardProps, ImportAdapter, ImportTarget, ImportJob, ImportField, ImportFollowUp, ImportRowProblem, ImportStrategy } from './ImportWizard';

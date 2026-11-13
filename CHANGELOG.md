@@ -6,6 +6,15 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `AssistantLauncher` asks for details as chat messages (owner 2026-11-13, from the kui-ai-chatbot WordPress plugin): the new
+  `AssistantQuickReplies` (answer chips under the newest question: Skip, Confirm, Send, Cancel; `primary` draws one filled) and
+  `AssistantQuote` (text read back for the visitor to confirm), and `inputProps` for a step's `autoComplete` / `inputMode` / `placeholder`.
+  A header Restart button (`onRestart`, shown while there are items; clears the draft and keeps focus in the panel) and a Sound toggle
+  (`sound` / `onSoundChange`, `aria-pressed`): a two-note Web Audio chime (784 Hz, then 1175 Hz) for each new assistant message, unlocked
+  on the visitor's first click or key press, played once when turned on, quiet for messages already there on the first render. The default
+  subtitle is just "AI assistant" (owner: no "answers can be wrong"); the header gap is 8px for the extra buttons. New strings
+  `messages.restart`, `messages.sound`. Showcase variant "A request asked as chat messages, with Restart and Sound".
+
 - `AssistantLauncher` (owner 2026-11-12): a floating AI-assistant chat for marketing sites, first built for the kui-ai-chatbot WordPress
   plugin (kui-wordpress-saas), which ports it pixel for pixel. A 56px launcher fixed bottom right, an optional `teaser` bubble and a 380px
   chat panel (full screen under 640px, where the launcher hides while it is open). Controlled: `open` / `onOpenChange`, `items`, `pending`

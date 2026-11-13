@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-12T19:25:49.521Z",
+  "generatedAt": "2026-11-13T06:50:55.317Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2086,11 +2086,11 @@
       "category": "Organism",
       "filePath": "modules/ui/AssistantLauncher/index.tsx",
       "abbr": "Ai",
-      "description": "A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.",
+      "description": "A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, details asked as chat messages with `AssistantQuickReplies`, `AssistantQuote` and per-step `inputProps`, a header Restart (`onRestart`) and a Sound toggle (`sound`/`onSoundChange`, a two-note Web Audio chime for each new reply), a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.",
       "status": "stable",
       "since": "2026-11",
       "designTokens": [],
-      "variantCount": 4
+      "variantCount": 5
     },
     {
       "id": "app-shell",
