@@ -134,7 +134,13 @@ export function useIotLive(): IotLive | null {
  */
 export function useIotCapabilities(): IotCapabilities & { ready: boolean; failed: boolean; retry: () => void } {
   const ctx = useIotContext();
-  return { ...ctx.capabilities, ready: ctx.capabilitiesReady, failed: ctx.capabilitiesFailed, retry: ctx.retryCapabilities };
+  const { capabilities, capabilitiesReady, capabilitiesFailed, retryCapabilities } = ctx;
+  // One object while the context holds the same answer: callers put it in hook dependency lists (the alarm bell's `retry`), and a
+  // fresh object per render made every such hook new on every render, which looped through a host that stores what it is handed.
+  return useMemo(
+    () => ({ ...capabilities, ready: capabilitiesReady, failed: capabilitiesFailed, retry: retryCapabilities }),
+    [capabilities, capabilitiesReady, capabilitiesFailed, retryCapabilities],
+  );
 }
 
 export function useIotNotify(): IotNotify {
