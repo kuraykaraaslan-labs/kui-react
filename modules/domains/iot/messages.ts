@@ -1711,6 +1711,8 @@ export const IOT_MESSAGES = {
     typeFlag: 'On / off',
     typeText: 'Text',
     typeJson: 'JSON',
+    view: 'View',
+    viewKey: 'View {key}',
     search: 'Search keys',
     empty: 'This device has not sent any telemetry yet.',
     emptyHint: 'Values show up here as soon as the device sends them.',

@@ -1,13 +1,15 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChartLine } from '@fortawesome/free-solid-svg-icons';
+import { faChartLine, faCheck, faCopy, faEye } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column } from '@/modules/ui/Table/types';
 import { EmptyState } from '@/modules/ui/EmptyState';
 import { Callout } from '@/modules/ui/Callout';
 import { Select } from '@/modules/ui/Select';
+import { Button } from '@/modules/ui/Button';
+import { Modal } from '@/modules/ui/Modal';
 import { useIotAdapter, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { seriesPageOf, type IotAdapter, type TelemetryLatest, type TelemetrySeriesPage, type TelemetryValue } from '../api/adapter';
 import { iotTopics } from '../api/live';
@@ -24,7 +26,8 @@ import type { Series } from '@/modules/ui/Chart/types';
  * so many points per key, the oldest kept), the trend says the newest are missing; ticking more keys than `maxCharted` says the
  * extra ones are not drawn (NB 41-ui-fixes/22 1.2, 6.5). While live, every key is read again every minute (a hidden tab skipped): a
  * value too large for the live channel (NB: over 8 KiB) never arrives live, and a read never puts back a value older than a live one
- * (NB 41-ui-fixes/23 1.18).
+ * (NB 41-ui-fixes/23 1.18). Every row has a "View" button that opens the key's whole value in a dialog (JSON indented, nothing cut), with Copy:
+ * the table shows a long value cut at 120 characters.
  */
 export type DeviceTelemetryViewProps = {
   deviceId: string;
@@ -59,6 +62,66 @@ export function showValue(v: TelemetryValue, m: { on: string; off: string }, loc
   if (typeof v === 'string') return v;
   const text = JSON.stringify(v);
   return text.length > 120 ? `${text.slice(0, 117)}…` : text;
+}
+
+/** A value whole, as the View dialog shows and copies it: JSON indented, a number in full precision, a flag as On / Off. */
+export function fullValue(v: TelemetryValue, m: { on: string; off: string }): string {
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'boolean') return v ? m.on : m.off;
+  if (typeof v === 'string') return v;
+  return JSON.stringify(v, null, 2);
+}
+
+/** The value in a dialog: the key, its kind and when it came, the whole value, and Copy. It follows the live row while open. */
+function TelemetryValueDialog({ row, kindLabel, onClose, t, common, locale, now }: {
+  row: Row | null; kindLabel: Record<Kind, string>; onClose: () => void;
+  t: { on: string; off: string; key: string; type: string; updated: string; value: string };
+  common: { copy: string; copied: string; close: string }; locale?: string; now?: number;
+}) {
+  const [copied, setCopied] = useState(false);
+  const text = row ? fullValue(row.value, t) : '';
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // no clipboard: the value stays selectable in the dialog
+    }
+  }
+  return (
+    <Modal
+      open={row !== null}
+      onClose={() => { setCopied(false); onClose(); }}
+      title={row?.name ?? ''}
+      closeLabel={common.close}
+      size="xl"
+      footer={(
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => void copy()}
+            iconLeft={<FontAwesomeIcon icon={copied ? faCheck : faCopy} className="h-3 w-3" aria-hidden="true" />}>
+            {copied ? common.copied : common.copy}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => { setCopied(false); onClose(); }}>{common.close}</Button>
+        </div>
+      )}
+    >
+      {row && (
+        <div className="space-y-3">
+          <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+            {row.label && (<><dt className="text-text-secondary">{t.key}</dt><dd className="min-w-0 break-all font-mono text-xs text-text-primary">{row.key}</dd></>)}
+            <dt className="text-text-secondary">{t.type}</dt><dd className="text-text-primary">{kindLabel[row.kind]}</dd>
+            <dt className="text-text-secondary">{t.updated}</dt>
+            <dd className="text-text-primary"><time dateTime={new Date(row.ts).toISOString()}>{formatDateTime(row.ts, { locale })}</time> · {formatRelative(row.ts, { locale, now })}</dd>
+          </dl>
+          <pre data-testid="telemetry-full-value" aria-label={t.value}
+            className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-surface-base p-3 font-mono text-xs text-text-primary">
+            {text}{row.unit && row.kind === 'number' ? ` ${row.unit}` : ''}
+          </pre>
+        </div>
+      )}
+    </Modal>
+  );
 }
 
 /** The series of `want` (`<window>|<key,key>`) up to now. */
@@ -155,6 +218,9 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
   const [tooMany, setTooMany] = useState(false);
   const charted = (ticked ?? numeric.slice(0, 1)).filter((k) => numeric.includes(k)).slice(0, maxCharted);
   const [win, setWin] = useState<WindowKey>('6h');
+  // the key whose whole value the View dialog shows (the live row, so it follows new values while open)
+  const [viewing, setViewing] = useState<string | null>(null);
+  const viewed = viewing ? (rows ?? []).find((r) => r.key === viewing) ?? null : null;
   // a read's answer is kept with what it was asked for, so a chart never draws another window's or other keys' lines
   const want = `${win}|${charted.join(',')}`;
   const [answer, setAnswer] = useState<{ for: string; page: TelemetrySeriesPage | null; error: string | null } | null>(null);
@@ -196,6 +262,14 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
     {
       key: 'ts', header: t.updated, sortable: true, align: 'right',
       render: (r) => <time dateTime={new Date(r.ts).toISOString()} title={formatDateTime(r.ts, { locale: lc })} className="text-xs text-text-secondary">{formatRelative(r.ts, { locale: lc, now })}</time>,
+    },
+    {
+      key: 'view', header: <span className="sr-only">{t.view}</span>, align: 'right', searchable: false,
+      render: (r) => (
+        <Button variant="ghost" size="xs" iconOnly aria-label={fill(t.viewKey, { key: r.name })} onClick={() => setViewing(r.key)}>
+          <FontAwesomeIcon icon={faEye} className="h-3 w-3" aria-hidden="true" />
+        </Button>
+      ),
     },
   ];
 
@@ -263,6 +337,8 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
             keyboardNavigation
           />
           {tooMany && <p role="status" className="text-xs text-text-secondary">{fill(t.chartTooMany, { max: maxCharted })}</p>}
+          <TelemetryValueDialog row={viewed} kindLabel={kindLabel} onClose={() => setViewing(null)} t={t}
+            common={{ copy: m.common.copy, copied: m.common.copied, close: m.common.close }} locale={lc} now={now} />
         </>
       )}
     </div>
