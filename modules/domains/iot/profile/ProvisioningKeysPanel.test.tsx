@@ -81,6 +81,7 @@ describe('ProvisioningKeysPanel', () => {
     expect(secret.textContent).not.toContain(SECRET);
     await user.click(within(notice).getByRole('button', { name: 'Show' }));
     expect(secret.textContent).toBe(SECRET);
+    expect(secret).toHaveClass('select-all');
     await user.click(within(notice).getByRole('button', { name: 'Copy Secret' }));
     expect(writeText).toHaveBeenCalledWith(SECRET);
     expect(p.get).toHaveBeenCalledTimes(2); // the list is read again after the rotation

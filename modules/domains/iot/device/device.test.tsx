@@ -97,6 +97,9 @@ describe('DeviceCredentialPanel', () => {
     expect(screen.getByTestId('issued-secret')).not.toHaveTextContent('SECRET-TOKEN-123');
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect(screen.getByTestId('issued-secret')).toHaveTextContent('SECRET-TOKEN-123');
+    // selected as one unit, the secret alone: a double-click never takes the space after it
+    expect(screen.getByTestId('issued-secret').textContent).toBe('SECRET-TOKEN-123');
+    expect(screen.getByTestId('issued-secret')).toHaveClass('select-all');
     await user.click(screen.getByRole('button', { name: 'Copy' }));
     expect(writeText).toHaveBeenCalledWith('SECRET-TOKEN-123');
     await user.click(screen.getByRole('button', { name: 'I have stored it' }));
