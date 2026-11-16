@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChartLine, faCheck, faCopy, faEye } from '@fortawesome/free-solid-svg-icons';
+import { faChartLine, faCheck, faCopy, faEye, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column } from '@/modules/ui/Table/types';
@@ -10,7 +10,8 @@ import { Callout } from '@/modules/ui/Callout';
 import { Select } from '@/modules/ui/Select';
 import { Button } from '@/modules/ui/Button';
 import { Modal } from '@/modules/ui/Modal';
-import { useIotAdapter, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
+import { confirmDialog } from '@/modules/ui/ConfirmDialog';
+import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { seriesPageOf, type IotAdapter, type TelemetryLatest, type TelemetrySeriesPage, type TelemetryValue } from '../api/adapter';
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime, formatRelative } from '../format';
@@ -27,7 +28,8 @@ import type { Series } from '@/modules/ui/Chart/types';
  * extra ones are not drawn (NB 41-ui-fixes/22 1.2, 6.5). While live, every key is read again every minute (a hidden tab skipped): a
  * value too large for the live channel (NB: over 8 KiB) never arrives live, and a read never puts back a value older than a live one
  * (NB 41-ui-fixes/23 1.18). Every row has a "View" button that opens the key's whole value in a dialog (JSON indented, nothing cut), with Copy:
- * the table shows a long value cut at 120 characters.
+ * the table shows a long value cut at 120 characters. With the adapter's `deleteKeys` and `canDeleteTelemetry`, a row also has Delete: the key
+ * and its whole history go, behind a confirmation that says it cannot be undone.
  */
 export type DeviceTelemetryViewProps = {
   deviceId: string;
@@ -144,6 +146,9 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
   const { m, locale: lc } = useIotText(messages, locale);
   const t = m.telemetry;
   const api = adapter.telemetry;
+  const caps = useIotCapabilities();
+  const notify = useIotNotify();
+  const canDelete = !!api?.deleteKeys && caps.canDeleteTelemetry;
 
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -221,6 +226,27 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
   // the key whose whole value the View dialog shows (the live row, so it follows new values while open)
   const [viewing, setViewing] = useState<string | null>(null);
   const viewed = viewing ? (rows ?? []).find((r) => r.key === viewing) ?? null : null;
+
+  // a key with its whole history, behind a confirmation; the dialog runs the delete (a failure stays in it) and the row goes after
+  function askDelete(r: Row) {
+    if (!api?.deleteKeys) return;
+    const del = api.deleteKeys;
+    void confirmDialog({
+      title: fill(t.deleteConfirm, { key: r.name }),
+      message: t.deleteBody,
+      tone: 'danger',
+      confirmLabel: t.delete,
+      cancelLabel: m.common.cancel,
+      action: () => del(deviceId, [r.key]),
+      errorMessage: () => t.deleteError,
+    }).then((done) => {
+      if (!done) return;
+      setRows((prev) => (prev ? prev.filter((x) => x.key !== r.key) : prev));
+      setTicked((prev) => (prev ? prev.filter((k) => k !== r.key) : prev));
+      setViewing((v) => (v === r.key ? null : v));
+      notify({ tone: 'success', message: fill(t.deleted, { key: r.name }) });
+    });
+  }
   // a read's answer is kept with what it was asked for, so a chart never draws another window's or other keys' lines
   const want = `${win}|${charted.join(',')}`;
   const [answer, setAnswer] = useState<{ for: string; page: TelemetrySeriesPage | null; error: string | null } | null>(null);
@@ -266,9 +292,16 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
     {
       key: 'view', header: <span className="sr-only">{t.view}</span>, align: 'right', searchable: false,
       render: (r) => (
-        <Button variant="ghost" size="xs" iconOnly aria-label={fill(t.viewKey, { key: r.name })} onClick={() => setViewing(r.key)}>
-          <FontAwesomeIcon icon={faEye} className="h-3 w-3" aria-hidden="true" />
-        </Button>
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="xs" iconOnly aria-label={fill(t.viewKey, { key: r.name })} onClick={() => setViewing(r.key)}>
+            <FontAwesomeIcon icon={faEye} className="h-3 w-3" aria-hidden="true" />
+          </Button>
+          {canDelete && (
+            <Button variant="ghost" size="xs" iconOnly aria-label={fill(t.deleteKey, { key: r.name })} onClick={() => askDelete(r)}>
+              <FontAwesomeIcon icon={faTrash} className="h-3 w-3" aria-hidden="true" />
+            </Button>
+          )}
+        </div>
       ),
     },
   ];

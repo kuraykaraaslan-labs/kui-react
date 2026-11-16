@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
+import { ConfirmHost } from '@/modules/ui/ConfirmDialog';
 import type { IotAdapter, IotTelemetryApi, TelemetryLatest, TelemetryPoint } from '../api/adapter';
 import type { IotLive, IotLiveSubscription } from '../api/live';
 import { DeviceTelemetryView, fullValue, kindOf, showValue } from './DeviceTelemetryView';
@@ -253,5 +254,66 @@ describe('the View dialog: a value whole (JSON is cut in the table)', () => {
     expect(within(dialog).getByTestId('telemetry-full-value').textContent).toBe('101325.125 Pa');
     // a labelled key names its raw key too
     expect(within(dialog).getByText('pressure')).toBeInTheDocument();
+  });
+});
+
+describe('deleting a key with its data', () => {
+  function mountWith(o: { deleteKeys?: (id: string, keys: string[]) => Promise<{ deleted: string[] }>; canDelete: boolean }) {
+    const { api } = telemetryApi();
+    const notify = vi.fn();
+    const telemetry = o.deleteKeys ? { ...api, deleteKeys: vi.fn(o.deleteKeys) } : api;
+    render(
+      <IotAdapterProvider adapter={{ telemetry }} capabilities={{ canReadTelemetry: true, canDeleteTelemetry: o.canDelete }} notify={notify}>
+        <ConfirmHost />
+        <DeviceTelemetryView deviceId="d1" now={NOW} locale="en" />
+      </IotAdapterProvider>,
+    );
+    return { telemetry, notify };
+  }
+
+  it('no Delete without the capability, or without the adapter\'s deleteKeys', async () => {
+    mountWith({ canDelete: false, deleteKeys: async () => ({ deleted: [] }) });
+    await screen.findByText('temperature');
+    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
+  });
+
+  it('no Delete when the host has no deleteKeys, even with the capability', async () => {
+    mountWith({ canDelete: true });
+    await screen.findByText('temperature');
+    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
+  });
+
+  it('asks first; Cancel deletes nothing; Delete removes the key and its row and says so', async () => {
+    const user = userEvent.setup();
+    const { telemetry, notify } = mountWith({ canDelete: true, deleteKeys: async (_id, keys) => ({ deleted: keys }) });
+    await screen.findByText('temperature');
+    expect(screen.getAllByRole('button', { name: /^Delete / })).toHaveLength(LATEST.length);
+    await user.click(screen.getByRole('button', { name: 'Delete mode' }));
+    let dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Delete "mode" and all its data?')).toBeInTheDocument();
+    expect(within(dialog).getByText(/cannot be undone/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(telemetry.deleteKeys).not.toHaveBeenCalled();
+    expect(screen.getByText('mode')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Delete mode' }));
+    dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByText('mode')).not.toBeInTheDocument());
+    expect(telemetry.deleteKeys).toHaveBeenCalledWith('d1', ['mode']);
+    expect(notify).toHaveBeenCalledWith({ tone: 'success', message: '"mode" and its data were deleted.' });
+    expect(screen.getByText('temperature')).toBeInTheDocument();
+  });
+
+  it('a failed delete keeps the dialog open with the error, and the row stays', async () => {
+    const user = userEvent.setup();
+    mountWith({ canDelete: true, deleteKeys: async () => { throw new Error('boom'); } });
+    await screen.findByText('temperature');
+    await user.click(screen.getByRole('button', { name: 'Delete mode' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    expect(await within(dialog).findByText('Could not delete the key.')).toBeInTheDocument();
+    expect(screen.getAllByText('mode').length).toBeGreaterThan(0);
   });
 });

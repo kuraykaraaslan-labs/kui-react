@@ -549,6 +549,11 @@ export interface IotTelemetryApi {
   latest(deviceId: string, signal?: AbortSignal): Promise<TelemetryLatest[]>;
   /** One series per key over `[from, to)`, oldest first; a `TelemetrySeriesPage` says when the host cut it. */
   series(deviceId: string, query: TelemetrySeriesQuery, signal?: AbortSignal): Promise<TelemetrySeriesAnswer>;
+  /**
+   * Delete keys of the device with their whole history (latest value, readings, rollups); answers the keys it found. A key the device
+   * sends again starts afresh. Absent: the Telemetry tab offers no delete (and it also needs `canDeleteTelemetry`).
+   */
+  deleteKeys?(deviceId: string, keys: string[]): Promise<{ deleted: string[] }>;
 }
 
 // ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -595,6 +600,8 @@ export type IotCapabilities = {
   canReadDevices: boolean;
   /** Read a device's telemetry (its latest values and series). */
   canReadTelemetry: boolean;
+  /** Delete a device's telemetry keys with their data (the Telemetry tab's delete; destructive, so its own capability). */
+  canDeleteTelemetry: boolean;
   /** Pick a certificate of the host's certificate authority for an X.509 credential (the authority is there and the viewer may read it). */
   canAttachCertificates: boolean;
 };
@@ -624,6 +631,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canPlaceDevices: false,
   canReadDevices: false,
   canReadTelemetry: false,
+  canDeleteTelemetry: false,
   canAttachCertificates: false,
 };
 
