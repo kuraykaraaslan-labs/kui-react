@@ -113,6 +113,11 @@ export type IssuedSecret = { token: string } | { password: string };
 export type DeviceConnectionInfo = {
   /** Absent or null when the device cannot use MQTT here (no public broker, a profile that is HTTP-only or needs TLS on a plain port). */
   mqtt?: { host: string; port: number; tls: boolean } | null;
+  /**
+   * The plain MQTT listener beside a TLS `mqtt` (no TLS, e.g. port 1883), when the host offers it and the device's profile may log in
+   * there. Absent or null: TLS only. Never used for a certificate login (that needs TLS).
+   */
+  plain?: { host: string; port: number } | null;
   httpBase?: string | null;
   /**
    * The MQTT topics of the device's profile: telemetry, attributes and, when the profile's topic scheme has them, the command topics.

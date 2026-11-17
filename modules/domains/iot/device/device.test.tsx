@@ -132,9 +132,28 @@ describe('DeviceCredentialPanel', () => {
     expect(screen.getAllByRole('region', { name: 'Connection details' })).toHaveLength(1);
     expect(examplePayload([])).toBe('{"temperature":21.5}');
     const basic = connectionCommands({ info, credentialType: 'MQTT_BASIC', username: 'pump-4', clientId: 'c-1', placeholders: { token: '<T>', password: '<P>' } });
-    expect(basic.mqtt).toContain("-i 'c-1' -u 'pump-4' -P '<P>'");
+    // any client ID logs in (the server assigns the device's own): the line sends none, even for a credential that pinned one
+    expect(basic.mqtt).toContain("-u 'pump-4' -P '<P>'");
+    expect(basic.mqtt).not.toContain('-i ');
     expect(basic.http).toBeNull();
-    expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: { token: '<T>', password: '<P>' } })).toEqual({ mqtt: null, http: null });
+    expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: { token: '<T>', password: '<P>' } })).toEqual({ mqtt: null, mqttPlain: null, http: null });
+  });
+
+  it('the plain MQTT listener beside TLS: its own row and line; never for a certificate, never without TLS beside it', () => {
+    const info = { mqtt: { host: 'acme.example.com', port: 8883, tls: true }, plain: { host: 'acme.example.com', port: 1883 }, httpBase: null };
+    const p = { token: '<T>', password: '<P>' };
+    const token = connectionCommands({ info, credentialType: 'ACCESS_TOKEN', secret: 'SECRET', placeholders: p });
+    expect(token.mqtt).toBe(`mosquitto_pub -h acme.example.com -p 8883 --capath /etc/ssl/certs -u 'SECRET' -t v1/telemetry -m '{"temperature":21.5}'`);
+    expect(token.mqttPlain).toBe(`mosquitto_pub -h acme.example.com -p 1883 -u 'SECRET' -t v1/telemetry -m '{"temperature":21.5}'`);
+    expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: p }).mqttPlain).toBeNull();
+    expect(connectionCommands({ info: { ...info, plain: null }, credentialType: 'ACCESS_TOKEN', placeholders: p }).mqttPlain).toBeNull();
+
+    render(<DeviceCredentialPanel credential={{ type: 'ACCESS_TOKEN' }} connection={info} />);
+    const card = screen.getByRole('region', { name: 'Connection details' });
+    expect(card).toHaveTextContent('MQTT without TLS');
+    expect(card).toHaveTextContent('acme.example.com:1883');
+    expect(card).toHaveTextContent('Or without TLS (port 1883)');
+    expect(card).toHaveTextContent("mosquitto_pub -h acme.example.com -p 1883 -u '<ACCESS_TOKEN>'");
   });
 
   it('UX-23: names the topics of the device\'s profile (a Legacy profile has no command topics)', () => {
