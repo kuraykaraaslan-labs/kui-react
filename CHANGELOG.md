@@ -9,7 +9,7 @@ All notable changes to this project will be documented here. Format follows [Kee
 - Payment methods and consent for recurring subscriptions (next-boilerplate phase 68 step 06 §3, D68-54). `PaymentMethodList`
   (`modules/domains/common/payment/`): a subscriber's saved methods in a DataTable: cards, direct-debit mandates, billing agreements,
   SEPA mandates and bank tokens (`SavedPaymentMethod.kind`) with the card brand chip, last four, expiry, status (`active`, `expiring`,
-  `requires_reauth`, `revoked`) and the default marker; sort, search and filters by status and type; row actions "Make default" (at
+  `requires_reauth`, `expired`, `revoked`) and the default marker; sort, search and filters by status and type; row actions "Make default" (at
   once, hidden on the default and on unusable methods) and "Remove" through the ConfirmDialog (a rejected promise keeps the dialog open
   with the error); `inUse` keeps the default until another one is chosen (disabled with its reason) and warns that removing the last
   method turns renewals into payment requests; "Add payment method" header button (`onAdd`) and `headerActions` slot; empty, loading,
@@ -19,6 +19,12 @@ All notable changes to this project will be documented here. Format follows [Kee
   `aria-required`, `aria-invalid` and the error tied by `aria-describedby`. `CardBrandBadge` (+ `cardBrandName()`): the brand chip
   `SavedCardSelector` drew inline, now shared, named for screen readers ("Visa"). Showcase entries `common-payment-method-list`,
   `common-consent-checkbox`, `common-card-brand-badge`.
+
+- `PaymentMethodList` status `expired` (next-boilerplate 68/06c, lead decision): a card past its expiry date reads "Expired" (an error
+  badge, its date in the error colour, the row dimmed like a revoked one), sorts after `requires_reauth`, has no "Make default", is a
+  status filter option and, like `revoked`, does not count as a method the subscription could still be charged on (a default beside
+  only expired cards is the last one: removable, with the payment-request warning). New string `messages.statusExpired`. Before it an
+  expired card had to be shown as "Revoked". Showcase: an expired Amex in "Methods of every kind".
 
 - `AssistantLauncher` asks for details as chat messages (owner 2026-11-13, from the kui-ai-chatbot WordPress plugin): the new
   `AssistantQuickReplies` (answer chips under the newest question: Skip, Confirm, Send, Cancel; `primary` draws one filled) and

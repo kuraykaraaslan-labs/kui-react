@@ -1936,6 +1936,7 @@ const DEMO_METHODS: SavedPaymentMethod[] = [
   { methodId: 'pm3', kind: 'sepa', last4: '3000', holderName: 'Acme GmbH', provider: 'Mollie', status: 'requires_reauth' },
   { methodId: 'pm4', kind: 'agreement', label: 'PayPal billing agreement', provider: 'PayPal', status: 'active' },
   { methodId: 'pm5', kind: 'mandate', label: 'Razorpay e-mandate', last4: '0042', provider: 'Razorpay', status: 'revoked' },
+  { methodId: 'pm6', kind: 'card', brand: 'AMEX', last4: '1005', expiryMonth: '03', expiryYear: '25', holderName: 'Jane Doe', provider: 'Stripe', status: 'expired' },
 ];
 
 function PaymentMethodListDemo() {

@@ -97,6 +97,37 @@ describe('PaymentMethodList', () => {
     );
   });
 
+  it('expired: shown as Expired with its date marked, sorted after the usable ones, never offered as the default, and not counted as a method left to charge', async () => {
+    const user = userEvent.setup();
+    const old: SavedPaymentMethod = {
+      methodId: 'pm_old', kind: 'card', brand: 'VISA', last4: '1111', expiryMonth: '01', expiryYear: '24', status: 'expired',
+    };
+    const onRemove = vi.fn();
+    render(<PaymentMethodList methods={[old, visa]} onMakeDefault={vi.fn()} onRemove={onRemove} inUse />);
+    const row = rowOf('•••• 1111');
+    expect(within(row).getByText('Expired')).toBeInTheDocument();
+    expect(within(row).getByText('01/24')).toHaveClass('text-error');
+    expect(row).toHaveClass('opacity-60');
+    // the default first, then by status: the expired card last
+    expect(within(table()).getAllByRole('row')[2]).toHaveTextContent('•••• 1111');
+    await openActions(user, 'Visa •••• 1111');
+    expect(screen.queryByRole('menuitem', { name: 'Make default' })).toBeNull();
+    await user.keyboard('{Escape}');
+    // with only an expired card beside it, the default is the last method that can be charged: removable, with the warning
+    await openActions(user, 'Visa •••• 4242');
+    const item = screen.getByRole('menuitem', { name: 'Remove' });
+    expect(item).not.toBeDisabled();
+    await user.click(item);
+    expect(screen.getByRole('dialog', { name: 'Remove payment method' })).toHaveTextContent('is your last payment method');
+  });
+
+  it('filters by the expired status', async () => {
+    const user = userEvent.setup();
+    render(<PaymentMethodList methods={[visa, { ...mc, status: 'expired' }]} />);
+    await user.click(screen.getByRole('button', { name: /Filters/ }));
+    expect(screen.getAllByRole('option', { name: 'Expired' }).length).toBeGreaterThan(0);
+  });
+
   it('has the "Add payment method" header action and an empty state that offers it too', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();

@@ -17,9 +17,11 @@ export type PaymentMethodKind = 'card' | 'mandate' | 'agreement' | 'sepa' | 'ban
 
 /**
  * `active`: usable. `expiring`: a card whose expiry falls before the next renewal. `requires_reauth`: the provider wants
- * the subscriber back (3-D Secure, a lapsed mandate) before it can be charged again. `revoked`: no longer usable.
+ * the subscriber back (3-D Secure, a lapsed mandate) before it can be charged again. `expired`: a card past its expiry
+ * date; it cannot be charged and is replaced by adding a new method. `revoked`: no longer usable (removed, cancelled at
+ * the provider). Neither `expired` nor `revoked` counts as a method the subscription could still be charged on.
  */
-export type PaymentMethodStatus = 'active' | 'expiring' | 'requires_reauth' | 'revoked';
+export type PaymentMethodStatus = 'active' | 'expiring' | 'requires_reauth' | 'expired' | 'revoked';
 
 export type SavedPaymentMethod = {
   methodId: string;
@@ -57,6 +59,7 @@ export type PaymentMethodListMessages = {
   statusActive: string;
   statusExpiring: string;
   statusRequiresReauth: string;
+  statusExpired: string;
   statusRevoked: string;
   /** The masked number: `{last4}`. */
   endingIn: string;
@@ -94,6 +97,7 @@ export const PAYMENT_METHOD_LIST_MESSAGES: PaymentMethodListMessages = {
   statusActive: 'Active',
   statusExpiring: 'Expiring',
   statusRequiresReauth: 'Needs re-authorisation',
+  statusExpired: 'Expired',
   statusRevoked: 'Revoked',
   endingIn: '•••• {last4}',
   add: 'Add payment method',
@@ -145,9 +149,10 @@ const STATUS_BADGE: Record<PaymentMethodStatus, 'success' | 'warning' | 'error' 
   active: 'success',
   expiring: 'warning',
   requires_reauth: 'error',
+  expired: 'error',
   revoked: 'neutral',
 };
-const STATUS_RANK: Record<PaymentMethodStatus, number> = { active: 0, expiring: 1, requires_reauth: 2, revoked: 3 };
+const STATUS_RANK: Record<PaymentMethodStatus, number> = { active: 0, expiring: 1, requires_reauth: 2, expired: 3, revoked: 4 };
 const KIND_ICON = { mandate: faFileSignature, agreement: faFileSignature, sepa: faBuildingColumns, bank_token: faBuildingColumns, card: faCreditCard } as const;
 
 const usable = (s: PaymentMethodStatus) => s === 'active' || s === 'expiring';
@@ -167,6 +172,7 @@ function statusLabel(status: PaymentMethodStatus, m: PaymentMethodListMessages):
     case 'active': return m.statusActive;
     case 'expiring': return m.statusExpiring;
     case 'requires_reauth': return m.statusRequiresReauth;
+    case 'expired': return m.statusExpired;
     case 'revoked': return m.statusRevoked;
   }
 }
@@ -216,7 +222,8 @@ export function PaymentMethodList({
   const [actionError, setActionError] = useState<string | null>(null);
 
   const rows = methods as Row[];
-  const live = methods.filter((x) => x.status !== 'revoked');
+  // The methods the subscription could still be charged on (now or after a re-authorisation): an expired or revoked one is not.
+  const live = methods.filter((x) => x.status !== 'revoked' && x.status !== 'expired');
   const kinds = useMemo(() => Array.from(new Set(methods.map((x) => x.kind))), [methods]);
 
   async function makeDefault(method: SavedPaymentMethod) {
@@ -286,7 +293,7 @@ export function PaymentMethodList({
       render: (r) => {
         const e = expiryOf(r);
         return e ? (
-          <span className={cn('font-mono text-sm tabular-nums', r.status === 'expiring' ? 'text-warning' : 'text-text-primary')}>{e.text}</span>
+          <span className={cn('font-mono text-sm tabular-nums', r.status === 'expiring' ? 'text-warning' : r.status === 'expired' ? 'text-error' : 'text-text-primary')}>{e.text}</span>
         ) : (
           <span className="text-sm text-text-secondary">{m.noExpiry}</span>
         );
@@ -323,7 +330,7 @@ export function PaymentMethodList({
       id: 'status',
       label: m.status,
       type: 'select',
-      options: (['active', 'expiring', 'requires_reauth', 'revoked'] as const).map((s) => ({ value: s, label: statusLabel(s, m) })),
+      options: (['active', 'expiring', 'requires_reauth', 'expired', 'revoked'] as const).map((s) => ({ value: s, label: statusLabel(s, m) })),
     },
     ...(kinds.length > 1
       ? [{
@@ -400,7 +407,7 @@ export function PaymentMethodList({
         defaultSort={[{ key: 'isDefault', dir: 'asc' }]}
         rowActions={rowActions.length > 0 ? rowActions : undefined}
         rowActionsLabel={(r) => fill(m.rowActions, { method: paymentMethodName(r, m) })}
-        rowClassName={(r) => (r.status === 'revoked' ? 'opacity-60' : undefined)}
+        rowClassName={(r) => (r.status === 'revoked' || r.status === 'expired' ? 'opacity-60' : undefined)}
       />
       {onRemove && !readOnly && (
         <ConfirmDialog
