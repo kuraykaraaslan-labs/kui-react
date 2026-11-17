@@ -15,9 +15,21 @@ export type RpcTier = 'basic' | 'privileged' | 'critical' | 'raw';
 /** Who sent it: the console, an API caller, a flow, OTA, an alarm action or a dashboard control (OD-80). */
 export type RpcSource = 'console' | 'api' | 'automation' | 'ota' | 'alarm_action' | 'dashboard_control' | (string & {});
 
+/** The method a command sends when its catalog names none (NB rpc-wire-method). */
+export const RPC_DEFAULT_WIRE_METHOD = 'setValue';
+
 /** One command of the device profile's catalog. */
 export type RpcCommand = {
+  /**
+   * The command's key in its profile's catalog: unique there, what boards, flows, rules and the history name it by, and what its tier and
+   * the plaintext rule are judged on. Not what the device receives: that is `wireMethod`.
+   */
   method: string;
+  /**
+   * The `method` of the `{"method", "params"}` envelope the device receives (NB rpc-wire-method): free text, no namespace needed, and
+   * the same for many commands (`setValue`). Null or absent: the command's key, as before the split.
+   */
+  wireMethod?: string | null;
   label: string;
   description?: string | null;
   /** Declared parameters in the `FieldSchema` vocabulary (OD-16). */
@@ -117,8 +129,14 @@ export type RpcRequest = {
 };
 
 export type RpcSendInput = {
+  /** A catalog command's key; with `payload`, the method the payload names (`rpcCustomMethodOf`), for the history. */
   method: string;
   params?: Record<string, unknown>;
+  /**
+   * A one-time custom payload (NB rpc-wire-method): the JSON the device receives exactly as it is, never saved to the catalog. Raw RPC
+   * (the raw permission, always audited); it carries no `params`.
+   */
+  payload?: unknown;
   oneway?: boolean;
   timeoutMs?: number;
   persistent?: boolean;
@@ -143,6 +161,8 @@ export type RpcSendInput = {
 export type RpcPreset = {
   method: string;
   params?: Record<string, unknown>;
+  /** The custom payload a one-time request sent (NB rpc-wire-method): "Send again" opens it in the custom payload box. */
+  payload?: unknown;
   maskedPaths?: readonly string[];
   oneway?: boolean;
   persistent?: boolean;
@@ -216,15 +236,66 @@ export function rpcPresetOf(
   const created = r.createdAt ? new Date(r.createdAt).getTime() : NaN;
   const expires = r.expiresAt ? new Date(r.expiresAt).getTime() : NaN;
   const expiresInS = r.persistent && Number.isFinite(created) && Number.isFinite(expires) && expires > created ? Math.round((expires - created) / 1000) : undefined;
+  // a one-time custom payload (no catalog command) comes back as the payload it sent; its masked values are asked for again
+  const custom = !command && r.payload !== undefined && r.payload !== null;
   return {
     method: r.method,
     ...(params ? { params: withoutRpcPaths(params, masked) } : {}),
-    maskedPaths: masked,
+    ...(custom ? { payload: r.payload } : {}),
+    maskedPaths: custom ? rpcMaskPathsIn(r.payload) : masked,
     oneway: r.oneway,
     persistent: r.persistent,
     ...(typeof r.timeoutMs === 'number' ? { timeoutMs: r.timeoutMs } : {}),
     ...(expiresInS ? { expiresInS } : {}),
   };
+}
+
+/** The dot paths inside `v` whose value is exactly the mask (a custom payload the history masked). */
+export function rpcMaskPathsIn(v: unknown): string[] {
+  const out: string[] = [];
+  const walk = (x: unknown, at: string, depth: number) => {
+    if (x === MASK && at) { out.push(at); return; }
+    if (depth > 8 || !x || typeof x !== 'object') return;
+    for (const [k, y] of Object.entries(x as Record<string, unknown>)) walk(y, at ? `${at}.${k}` : k, depth + 1);
+  };
+  walk(v, '', 0);
+  return out;
+}
+
+/** What a command puts in the envelope's `method` (NB rpc-wire-method): its wire method, else its key. */
+export function rpcWireMethodOf(c: Pick<RpcCommand, 'method' | 'wireMethod'>): string {
+  const w = c.wireMethod?.trim();
+  return w ? w : c.method;
+}
+
+/** A command key a host takes: letters, digits and _, starting with a letter; dots allowed between parts, none needed (NB RPC_METHOD_RE). */
+export const RPC_COMMAND_KEY_RE = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)*$/;
+
+/**
+ * The key a one-time custom payload is recorded under (NB rpc-wire-method; the host works it out the same way): the payload's own
+ * `method` when it is a usable key, else `custom`.
+ */
+export function rpcCustomMethodOf(payload: unknown): string {
+  const m = payload && typeof payload === 'object' && !Array.isArray(payload) ? (payload as Record<string, unknown>).method : undefined;
+  return typeof m === 'string' && m.length <= 64 && RPC_COMMAND_KEY_RE.test(m) ? m : 'custom';
+}
+
+const TR_ASCII: Record<string, string> = { ç: 'c', ğ: 'g', ı: 'i', İ: 'i', ö: 'o', ş: 's', ü: 'u', Ç: 'c', Ğ: 'g', Ö: 'o', Ş: 's', Ü: 'u' };
+
+/**
+ * A command key made from its label (NB rpc-wire-method): lower case ASCII words joined by `_`, starting with a letter, at most 64
+ * characters, and not one of `taken` (a `_2`, `_3`, … suffix when it is).
+ */
+export function rpcCommandKeyOf(label: string, taken: Iterable<string> = []): string {
+  const used = new Set([...taken].map((t) => t.toLowerCase()));
+  let base = label.replace(/[çğıİöşüÇĞÖŞÜ]/g, (c) => TR_ASCII[c] ?? c).normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (!base) base = 'command';
+  if (!/^[a-z]/.test(base)) base = `cmd_${base}`;
+  base = base.slice(0, 60);
+  let key = base;
+  for (let n = 2; used.has(key.toLowerCase()); n++) key = `${base}_${n}`;
+  return key;
 }
 
 /** Method names that are never sendable from a console (OD-8: no remote factory reset; NB refuses them too). */

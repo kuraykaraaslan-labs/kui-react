@@ -19,7 +19,9 @@ import { Textarea } from '@/modules/ui/Textarea';
 import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill, plural } from '../format';
-import { isRefusedRpcMethod, type RpcCatalogCommand, type RpcCommandInput } from '../types/rpc';
+import {
+  isRefusedRpcMethod, RPC_COMMAND_KEY_RE, RPC_DEFAULT_WIRE_METHOD, rpcCommandKeyOf, rpcWireMethodOf, type RpcCatalogCommand, type RpcCommandInput,
+} from '../types/rpc';
 import { paramRowIssues, paramRowsOf, paramsSchemaOf, RpcParamsBuilder, type RpcParamRow } from './RpcParamsBuilder';
 import { RPC_RESERVED_PLACEHOLDERS, renderRpcPayload, rpcEnvelopeTemplate, rpcSampleParams, rpcTemplateOf } from './rpc-payload';
 
@@ -44,26 +46,30 @@ import { RPC_RESERVED_PLACEHOLDERS, renderRpcPayload, rpcEnvelopeTemplate, rpcSa
  * receives as it is (`{{param}}`, `{{requestId}}`, `{{expirationTime}}`); it is checked as typed by the host's rules (`rpc-payload.ts`),
  * the placeholders it may use are listed and a preview is rendered with sample values. Off by default; turning it on starts from the
  * envelope written out.
+ *
+ * NB rpc-wire-method: a command's **Method** is what the device receives in the envelope (`wireMethod`): free text, `setValue` to begin
+ * with, changeable at any time, and an emptied one is sent as `setValue`. The command's key (`method`: what boards, flows, rules and the
+ * history name it by, unique in the profile) is made from the label as it is typed, may be changed until the command is saved and is
+ * fixed after. Each parameter carries the value the device page sends for it (`RpcParamsBuilder`).
  */
 export type RpcCommandCatalogEditorProps = {
   profileId: string;
   className?: string;
 };
 
-const METHOD_RE = /^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$/;
 const TIERS = ['basic', 'privileged', 'critical'] as const;
-const blank = (): RpcCommandInput => ({ method: '', label: '', description: null, paramsSchema: {}, tier: 'basic', highImpact: false, oneway: false, long: false, persistentDefault: false, confirmText: null, maskedParams: [], payloadTemplate: null });
+const blank = (): RpcCommandInput => ({ method: '', wireMethod: RPC_DEFAULT_WIRE_METHOD, label: '', description: null, paramsSchema: {}, tier: 'basic', highImpact: false, oneway: false, long: false, persistentDefault: false, confirmText: null, maskedParams: [], payloadTemplate: null });
 const inputOf = (c: RpcCatalogCommand): RpcCommandInput => ({
-  method: c.method, label: c.label, description: c.description ?? null, paramsSchema: c.paramsSchema ?? {}, tier: c.tier, highImpact: c.highImpact,
+  method: c.method, wireMethod: rpcWireMethodOf(c), label: c.label, description: c.description ?? null, paramsSchema: c.paramsSchema ?? {}, tier: c.tier, highImpact: c.highImpact,
   oneway: c.oneway, long: !!c.long, defaultTimeoutMs: c.defaultTimeoutMs ?? null, persistentDefault: !!c.persistentDefault, confirmText: c.confirmText ?? null,
   maskedParams: c.maskedParams ?? [], payloadTemplate: c.payloadTemplate ?? null,
 });
 
 const PARAM_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
-const EDITABLE = ['label', 'description', 'paramsSchema', 'maskedParams', 'tier', 'highImpact', 'oneway', 'long', 'defaultTimeoutMs', 'persistentDefault', 'confirmText', 'payloadTemplate'] as const;
+const EDITABLE = ['wireMethod', 'label', 'description', 'paramsSchema', 'maskedParams', 'tier', 'highImpact', 'oneway', 'long', 'defaultTimeoutMs', 'persistentDefault', 'confirmText', 'payloadTemplate'] as const;
 /** A command input with every optional field filled the way the host stores it, so two can be compared. */
 const normal = (c: RpcCommandInput): RpcCommandInput => ({
-  method: c.method, label: c.label, description: c.description ?? null, paramsSchema: c.paramsSchema ?? {}, tier: c.tier, highImpact: !!c.highImpact,
+  method: c.method, wireMethod: rpcWireMethodOf(c), label: c.label, description: c.description ?? null, paramsSchema: c.paramsSchema ?? {}, tier: c.tier, highImpact: !!c.highImpact,
   oneway: !!c.oneway, long: !!c.long, defaultTimeoutMs: c.defaultTimeoutMs ?? null, persistentDefault: !!c.persistentDefault, confirmText: c.confirmText ?? null,
   maskedParams: c.maskedParams ?? [], payloadTemplate: c.payloadTemplate ?? null,
 });
@@ -124,7 +130,7 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
     if (!api) return;
     // what goes with it (1.9): sending it becomes raw RPC, board controls refuse it, flows no longer check its parameters
     const ok = await confirmDialog({
-      title: fill(m.rpcCatalog.removeConfirm, { method: c.method }), message: fill(m.rpcCatalog.removeEffects, { method: c.method }),
+      title: fill(m.rpcCatalog.removeConfirm, { method: c.label || c.method }), message: fill(m.rpcCatalog.removeEffects, { method: c.method }),
       tone: 'danger', confirmLabel: m.rpcCatalog.remove, cancelLabel: m.common.cancel,
     });
     if (!ok) return;
@@ -176,11 +182,11 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
       header: m.rpcCatalog.method,
       sortable: true,
       sortValue: (c) => c.label || c.method,
-      searchValue: (c) => `${c.label} ${c.method}`,
+      searchValue: (c) => `${c.label} ${c.method} ${rpcWireMethodOf(c)}`,
       render: (c) => (
         <span className="flex min-w-0 flex-col">
           <span className="truncate font-medium text-text-primary">{c.label}</span>
-          <code className="truncate font-mono text-xs text-text-secondary">{c.method}</code>
+          <code className="truncate font-mono text-xs text-text-secondary" title={`${m.rpcCatalog.key}: ${c.method}`}>{rpcWireMethodOf(c)}</code>
         </span>
       ),
     },
@@ -277,6 +283,7 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
           key={editKey}
           profileId={profileId}
           command={editing.command}
+          takenKeys={(commands ?? []).map((c) => c.method)}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); void load(); }}
           onStale={() => { if (editing.command) void reloadAndEdit(editing.command.commandId); }}
@@ -293,12 +300,12 @@ export function RpcCommandCatalogEditor({ profileId, className }: RpcCommandCata
 }
 
 /** The command fields the drawer shows a host's refusal under; a refusal of any other field is named in the summary. */
-const SHOWN_FIELDS = new Set(['method', 'label', 'description', 'tier', 'confirmText', 'defaultTimeoutMs', 'paramsSchema', 'maskedParams', 'payloadTemplate']);
+const SHOWN_FIELDS = new Set(['method', 'wireMethod', 'label', 'description', 'tier', 'confirmText', 'defaultTimeoutMs', 'paramsSchema', 'maskedParams', 'payloadTemplate']);
 const hasTemplate = (t: unknown) => t !== null && t !== undefined;
 const PARAMS_EXAMPLE = '{\n  "value": { "label": "Set-point", "type": "number", "min": 0, "max": 100, "required": true },\n  "mode": { "label": "Mode", "type": "select", "options": ["auto", "manual"] }\n}';
 
-function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
-  profileId: string; command: RpcCatalogCommand | null; onClose: () => void; onSaved: () => void; onStale: () => void;
+function CommandDrawer({ profileId, command, takenKeys = [], onClose, onSaved, onStale }: {
+  profileId: string; command: RpcCatalogCommand | null; takenKeys?: readonly string[]; onClose: () => void; onSaved: () => void; onStale: () => void;
 }) {
   const api = useIotAdapter().rpcCatalog!;
   const notify = useIotNotify();
@@ -317,15 +324,20 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [stale, setStale] = useState(false);
   const [pressed, setPressed] = useState(false);
+  // a new command's key follows its label until it is typed in by hand
+  const [keyTyped, setKeyTyped] = useState(false);
   const set = (patch: Partial<RpcCommandInput>) => setDraft((d) => ({ ...d, ...patch }));
+  const setLabel = (label: string) => setDraft((d) => ({ ...d, label, ...(!command && !keyTyped ? { method: label.trim() ? rpcCommandKeyOf(label, takenKeys) : '' } : {}) }));
   const templates = !command ? (api.templates ?? []) : [];
 
   function startFrom(tid: string) {
     setTemplateId(tid);
     const t = templates.find((x) => x.id === tid);
     if (!t) return;
-    const next: RpcCommandInput = { ...blank(), ...structuredClone(t.command) };
+    // a template is a command the platform already sends by its own name: that name is what the device receives, unless it says otherwise
+    const next: RpcCommandInput = { ...blank(), ...structuredClone(t.command), wireMethod: t.command.wireMethod ?? t.command.method };
     setDraft(next);
+    setKeyTyped(true);
     setMasked((next.maskedParams ?? []).join(', '));
     setParams(JSON.stringify(next.paramsSchema ?? {}, null, 2));
     const r = paramRowsOf(next.paramsSchema);
@@ -348,7 +360,7 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
   }
   function togglePayload(on: boolean) {
     setPayloadOn(on);
-    if (on && !payloadText.trim()) setPayloadText(rpcEnvelopeTemplate(draft.method, Object.keys(currentSchema() ?? {})));
+    if (on && !payloadText.trim()) setPayloadText(rpcEnvelopeTemplate(draft.wireMethod?.trim() || RPC_DEFAULT_WIRE_METHOD, Object.keys(currentSchema() ?? {})));
   }
   const liveSchema = payloadOn ? currentSchema() : null;
   const liveTemplate = payloadOn && liveSchema && payloadText.trim() ? rpcTemplateOf(payloadText, Object.keys(liveSchema), m) : null;
@@ -375,8 +387,12 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
   async function submit() {
     setPressed(true);
     const errs: Record<string, string> = {};
-    if (!command && !METHOD_RE.test(draft.method)) errs.method = m.rpcCatalog.methodInvalid;
+    if (!command && !(draft.method.length <= 64 && RPC_COMMAND_KEY_RE.test(draft.method))) errs.method = m.rpcCatalog.keyInvalid;
     if (!command && isRefusedRpcMethod(draft.method)) errs.method = m.rpcCatalog.refused;
+    // the method the device receives: free text without line breaks, at most 64 characters; empty is `setValue`
+    const wireMethod = draft.wireMethod?.trim() || RPC_DEFAULT_WIRE_METHOD;
+    if (wireMethod.length > 64 || [...wireMethod].some((ch) => ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127)) errs.wireMethod = m.rpcCatalog.wireMethodInvalid;
+    else if (isRefusedRpcMethod(wireMethod)) errs.wireMethod = m.rpcCatalog.refused;
     if (!draft.label.trim()) errs.label = m.rpcCatalog.labelRequired;
     // the host takes a whole number of milliseconds from 1 s to 10 min (1.19)
     const t = draft.defaultTimeoutMs;
@@ -411,6 +427,7 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
     if (Object.keys(errs).length) return;
     const body: RpcCommandInput = {
       ...draft,
+      wireMethod,
       label: draft.label.trim(),
       description: draft.description?.trim() || null,
       paramsSchema,
@@ -430,8 +447,8 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
       if (effects.length) {
         const ok = await confirmDialog({
           title: body.tier !== command.tier
-            ? fill(m.rpcCatalog.tierChangeTitle, { method: command.method, from: m.rpcCatalog[command.tier], to: m.rpcCatalog[body.tier] })
-            : fill(m.rpcCatalog.changeConfirm, { method: command.method }),
+            ? fill(m.rpcCatalog.tierChangeTitle, { method: command.label || command.method, from: m.rpcCatalog[command.tier], to: m.rpcCatalog[body.tier] })
+            : fill(m.rpcCatalog.changeConfirm, { method: command.label || command.method }),
           message: effects.join(' '), tone: 'warning', confirmLabel: m.rpcCatalog.save, cancelLabel: m.common.cancel,
         });
         if (!ok) return;
@@ -492,11 +509,15 @@ function CommandDrawer({ profileId, command, onClose, onSaved, onStale }: {
             options={[{ value: '', label: m.rpcCatalog.templateNone }, ...templates.map((t) => ({ value: t.id, label: t.label }))]}
             onChange={(e) => startFrom(e.target.value)} />
         )}
-        <Input id={`${id}-method`} label={m.rpcCatalog.method} hint={m.rpcCatalog.methodHint} required readOnly={!!command} maxLength={64} className="font-mono"
-          value={draft.method} error={fieldErrors.method} onChange={(e) => set({ method: e.target.value })} />
-        <Input id={`${id}-label`} label={m.rpcCatalog.label} required maxLength={120} value={draft.label} error={fieldErrors.label} onChange={(e) => set({ label: e.target.value })} />
+        <Input id={`${id}-label`} label={m.rpcCatalog.label} required maxLength={120} value={draft.label} error={fieldErrors.label} onChange={(e) => setLabel(e.target.value)} />
+        {!payloadOn && (
+          <Input id={`${id}-wire-method`} label={m.rpcCatalog.method} hint={m.rpcCatalog.methodHint} maxLength={64} className="font-mono"
+            placeholder={RPC_DEFAULT_WIRE_METHOD} value={draft.wireMethod ?? ''} error={fieldErrors.wireMethod} onChange={(e) => set({ wireMethod: e.target.value })} />
+        )}
         <Textarea id={`${id}-description`} label={m.rpcCatalog.description} rows={2} maxLength={500} value={draft.description ?? ''} error={fieldErrors.description}
           onChange={(e) => set({ description: e.target.value })} />
+        <Input id={`${id}-key`} label={m.rpcCatalog.key} hint={command ? m.rpcCatalog.keyFixedHint : m.rpcCatalog.keyHint} required readOnly={!!command} maxLength={64}
+          className="font-mono" value={draft.method} error={fieldErrors.method} onChange={(e) => { setKeyTyped(true); set({ method: e.target.value }); }} />
         <Select id={`${id}-tier`} label={m.rpcCatalog.tier} value={draft.tier} error={fieldErrors.tier} onChange={(e) => set({ tier: e.target.value as RpcCommandInput['tier'] })}
           options={TIERS.map((t) => ({ value: t, label: m.rpcCatalog[t] }))} />
         <Checkbox id={`${id}-high`} label={m.rpcCatalog.highImpact} checked={draft.highImpact} onChange={(e) => set({ highImpact: e.target.checked })} />

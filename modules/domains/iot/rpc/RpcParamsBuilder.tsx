@@ -14,8 +14,11 @@ import type { RpcCommandInput } from '../types/rpc';
  * RpcParamsBuilder — a command's parameters as rows (name, label, type, required; the range of a number, the choices of a select)
  * instead of a JSON box (NB phase 39 UX-19). It writes the same `paramsSchema` (`FieldSchema` by name) the JSON did; a schema the
  * rows cannot draw (another field type, choices with commas or `=`) stays in JSON. A text parameter's longest length (`max`, which the
- * host checks on every send) is drawn too. Fields a row does not draw for its type (description, step, placeholder, default, group, a
- * text's `min`) are kept as they were. The checks run before anything is sent and are shown on the field they are about.
+ * host checks on every send) is drawn too. Fields a row does not draw for its type (description, step, placeholder, group, a text's
+ * `min`) are kept as they were. The checks run before anything is sent and are shown on the field they are about.
+ *
+ * NB rpc-wire-method: each row has its **Value** (the field's `value`), what the command sends for it from the device page, where a
+ * catalog command is sent with one button; a required parameter without a value is the only thing the device page asks for.
  */
 export const RPC_PARAM_TYPES = ['text', 'number', 'boolean', 'select', 'json'] as const;
 export type RpcParamType = (typeof RPC_PARAM_TYPES)[number];
@@ -31,24 +34,46 @@ export type RpcParamRow = {
   max: string;
   /** Choices, comma separated: `value` or `value=Label`. */
   options: string;
+  /** The value the command sends (`FieldSchema.value`) as typed: a number's digits, `true` / `false`, a choice's value, JSON; empty = none. */
+  value: string;
   rest: Partial<FieldSchema>;
 };
 
-export type RpcParamIssue = 'name_invalid' | 'name_duplicate' | 'label_required' | 'options_required' | 'range_invalid' | 'length_invalid';
+export type RpcParamIssue = 'name_invalid' | 'name_duplicate' | 'label_required' | 'options_required' | 'range_invalid' | 'length_invalid' | 'value_invalid';
 
 /** A parameter name the host takes (NB `iot_rpc` PARAM_KEY). */
 export const RPC_PARAM_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
 
 /** The schema fields a row draws for a type (the rest of the field is kept in `rest` as it was). */
 const DRAWN: Record<RpcParamType, readonly string[]> = {
-  text: ['label', 'type', 'required', 'max'],
-  number: ['label', 'type', 'required', 'min', 'max'],
-  boolean: ['label', 'type', 'required'],
-  select: ['label', 'type', 'required', 'options'],
-  json: ['label', 'type', 'required'],
+  text: ['label', 'type', 'required', 'max', 'value'],
+  number: ['label', 'type', 'required', 'min', 'max', 'value'],
+  boolean: ['label', 'type', 'required', 'value'],
+  select: ['label', 'type', 'required', 'options', 'value'],
+  json: ['label', 'type', 'required', 'value'],
 };
 
-export const blankParamRow = (): RpcParamRow => ({ name: '', label: '', type: 'text', required: false, min: '', max: '', options: '', rest: {} });
+export const blankParamRow = (): RpcParamRow => ({ name: '', label: '', type: 'text', required: false, min: '', max: '', options: '', value: '', rest: {} });
+
+/** A stored value as the row's text (`valueOf` reads it back). */
+function valueText(type: RpcParamType, v: unknown): string {
+  if (v === undefined || v === null) return '';
+  if (type === 'json') return JSON.stringify(v);
+  if (type === 'boolean') return v === true ? 'true' : v === false ? 'false' : '';
+  return typeof v === 'string' || typeof v === 'number' ? String(v) : JSON.stringify(v);
+}
+
+/** The value a row's text stands for: `undefined` when empty, `null` when it does not read for the row's type. */
+function valueOf(r: Pick<RpcParamRow, 'type' | 'value'>): unknown {
+  const raw = r.value;
+  if (raw.trim() === '') return undefined;
+  switch (r.type) {
+    case 'number': return Number.isFinite(Number(raw)) ? Number(raw) : null;
+    case 'boolean': return raw === 'true' ? true : raw === 'false' ? false : null;
+    case 'json': try { return JSON.parse(raw) as unknown; } catch { return null; }
+    default: return raw;
+  }
+}
 
 function optionText(o: FieldOption): string | null {
   const value = typeof o === 'string' ? o : o.value;
@@ -71,7 +96,7 @@ export function paramRowsOf(schema: RpcCommandInput['paramsSchema'] | null | und
       name, label: f.label ?? '', type, required: !!f.required,
       min: drawn.includes('min') && typeof f.min === 'number' ? String(f.min) : '',
       max: drawn.includes('max') && typeof f.max === 'number' ? String(f.max) : '',
-      options: (options as string[]).join(', '), rest,
+      options: (options as string[]).join(', '), value: valueText(type, f.value), rest,
     });
   }
   return rows;
@@ -105,17 +130,19 @@ export function paramsSchemaOf(rows: readonly RpcParamRow[]): RpcCommandInput['p
       if (max !== undefined) f.max = max;
     }
     if (r.type === 'select') f.options = parseOptions(r.options);
+    const value = valueOf(r);
+    if (value !== undefined && value !== null) f.value = value as FieldSchema['value'];
     out[r.name.trim()] = f;
   }
   return out;
 }
 
 /** What is wrong with each row, by field (`name`, `label`, `options`, `range`); an empty object = every row is fine. */
-export function paramRowIssues(rows: readonly RpcParamRow[]): Record<number, Partial<Record<'name' | 'label' | 'options' | 'range', RpcParamIssue>>> {
-  const out: Record<number, Partial<Record<'name' | 'label' | 'options' | 'range', RpcParamIssue>>> = {};
+export function paramRowIssues(rows: readonly RpcParamRow[]): Record<number, Partial<Record<'name' | 'label' | 'options' | 'range' | 'value', RpcParamIssue>>> {
+  const out: Record<number, Partial<Record<'name' | 'label' | 'options' | 'range' | 'value', RpcParamIssue>>> = {};
   const names = rows.map((r) => r.name.trim());
   rows.forEach((r, i) => {
-    const issues: Partial<Record<'name' | 'label' | 'options' | 'range', RpcParamIssue>> = {};
+    const issues: Partial<Record<'name' | 'label' | 'options' | 'range' | 'value', RpcParamIssue>> = {};
     if (!RPC_PARAM_NAME_RE.test(names[i])) issues.name = 'name_invalid';
     else if (names.indexOf(names[i]) !== i) issues.name = 'name_duplicate';
     if (!r.label.trim()) issues.label = 'label_required';
@@ -128,6 +155,16 @@ export function paramRowIssues(rows: readonly RpcParamRow[]): Record<number, Par
     if (r.type === 'text' && r.max.trim()) {
       const max = numberOf(r.max);
       if (max === undefined || !Number.isInteger(max) || max < 1) issues.range = 'length_invalid';
+    }
+    // the value reads for the type and fits what the host checks on a send (the range, the length, the choices)
+    const value = valueOf(r);
+    if (value === null) issues.value = 'value_invalid';
+    else if (value !== undefined) {
+      const min = numberOf(r.min);
+      const max = numberOf(r.max);
+      if (r.type === 'number' && ((min !== undefined && (value as number) < min) || (max !== undefined && (value as number) > max))) issues.value = 'value_invalid';
+      if (r.type === 'text' && max !== undefined && (value as string).length > max) issues.value = 'value_invalid';
+      if (r.type === 'select' && !parseOptions(r.options).some((o) => (typeof o === 'string' ? o : o.value) === value)) issues.value = 'value_invalid';
     }
     if (Object.keys(issues).length) out[i] = issues;
   });
@@ -186,6 +223,7 @@ export function RpcParamsBuilder({ rows, onChange, showIssues = false, disabled 
               <Input id={`${id}-options-${i}`} label={m.rpcCatalog.paramOptions} hint={m.rpcCatalog.paramOptionsHint} className="@md:col-span-2"
                 value={r.options} error={word(issues[i]?.options)} disabled={disabled} onChange={(e) => set(i, { options: e.target.value })} />
             )}
+            <ParamValueField id={`${id}-value-${i}`} row={r} error={word(issues[i]?.value)} disabled={disabled} onChange={(value) => set(i, { value })} />
           </div>
         </div>
       ))}
@@ -194,5 +232,21 @@ export function RpcParamsBuilder({ rows, onChange, showIssues = false, disabled 
         {m.rpcCatalog.paramAdd}
       </Button>
     </div>
+  );
+}
+
+/** A row's Value, drawn for its type: a yes / no and a choice are picked, the others typed. */
+function ParamValueField({ id, row, error, disabled, onChange }: { id: string; row: RpcParamRow; error?: string; disabled?: boolean; onChange: (value: string) => void }) {
+  const { m } = useIotText();
+  const common = { id, label: m.rpcCatalog.paramValue, hint: m.rpcCatalog.paramValueHint, error, disabled, className: '@md:col-span-2' };
+  if (row.type === 'boolean' || row.type === 'select') {
+    const options = row.type === 'boolean'
+      ? [{ value: 'true', label: m.rpcCatalog.paramValueOn }, { value: 'false', label: m.rpcCatalog.paramValueOff }]
+      : parseOptions(row.options).map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
+    return <Select {...common} value={row.value} options={[{ value: '', label: m.rpcCatalog.paramValueNone }, ...options]} onChange={(e) => onChange(e.target.value)} />;
+  }
+  return (
+    <Input {...common} type={row.type === 'number' ? 'number' : 'text'} step={row.type === 'number' ? 'any' : undefined}
+      className={row.type === 'json' ? '@md:col-span-2 font-mono' : '@md:col-span-2'} value={row.value} onChange={(e) => onChange(e.target.value)} />
   );
 }

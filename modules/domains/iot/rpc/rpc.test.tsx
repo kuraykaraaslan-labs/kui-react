@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import type { IotAdapter, RpcCatalog } from '../api/adapter';
 import type { IotLive, IotLiveSubscription } from '../api/live';
-import { isRefusedRpcMethod, type RpcCommand, type RpcRequest } from '../types/rpc';
+import { isRefusedRpcMethod, rpcCommandKeyOf, rpcCustomMethodOf, rpcPresetOf, rpcWireMethodOf, type RpcCommand, type RpcRequest } from '../types/rpc';
+import { paramRowIssues, paramRowsOf, paramsSchemaOf } from './RpcParamsBuilder';
 import { RpcStatusBadge } from './RpcStatusBadge';
 import { RpcSendPanel } from './RpcSendPanel';
 import { RpcRequestList, rpcDurationMs } from './RpcRequestList';
@@ -37,6 +38,42 @@ describe('OD-8 and status', () => {
   });
 });
 
+describe('the method a device receives and the command key (rpc-wire-method)', () => {
+  it('sends the wire method, else the key; makes a key from a label; records a custom payload under its own method', () => {
+    expect(rpcWireMethodOf({ method: 'relay_on', wireMethod: 'setValue' })).toBe('setValue');
+    expect(rpcWireMethodOf({ method: 'sys.info', wireMethod: null })).toBe('sys.info');
+    expect(rpcWireMethodOf({ method: 'sys.info', wireMethod: '  ' })).toBe('sys.info');
+    expect(rpcCommandKeyOf('Röle 1 aç')).toBe('role_1_ac');
+    expect(rpcCommandKeyOf('Röle 1 aç', ['role_1_ac', 'role_1_ac_2'])).toBe('role_1_ac_3');
+    expect(rpcCommandKeyOf('42 volts')).toBe('cmd_42_volts');
+    expect(rpcCommandKeyOf('!!!')).toBe('command');
+    expect(rpcCustomMethodOf({ method: 'setValue', params: {} })).toBe('setValue');
+    expect(rpcCustomMethodOf({ method: 'set value' })).toBe('custom');
+    expect(rpcCustomMethodOf([1, 2])).toBe('custom');
+  });
+
+  it('"Send again" of a custom payload brings the payload back with its masked values to type again', () => {
+    const r = req('c', { method: 'setValue', tier: 'raw', payload: { method: 'setValue', params: { psk: '***', ch: 1 } } });
+    expect(rpcPresetOf(r, null)).toEqual(expect.objectContaining({ method: 'setValue', payload: { method: 'setValue', params: { psk: '***', ch: 1 } }, maskedPaths: ['params.psk'] }));
+  });
+
+  it('keeps a parameter\'s value through the rows and checks it against the type, range and choices', () => {
+    const schema = {
+      ch: { label: 'Channel', type: 'number' as const, min: 1, max: 4, value: 2 },
+      on: { label: 'On', type: 'boolean' as const, value: false },
+      mode: { label: 'Mode', type: 'select' as const, options: ['auto', 'manual'], value: 'auto' },
+      extra: { label: 'Extra', type: 'json' as const, value: { a: 1 } },
+    };
+    const rows = paramRowsOf(schema)!;
+    expect(rows.map((r) => r.value)).toEqual(['2', 'false', 'auto', '{"a":1}']);
+    expect(paramsSchemaOf(rows)).toEqual(schema);
+    expect(paramRowIssues([{ ...rows[0]!, value: '9' }, { ...rows[2]!, value: 'other' }, { ...rows[3]!, value: '{' }])).toEqual({
+      0: { value: 'value_invalid' }, 1: { value: 'value_invalid' }, 2: { value: 'value_invalid' },
+    });
+    expect(paramsSchemaOf([{ ...rows[0]!, value: '' }])).toEqual({ ch: { label: 'Channel', type: 'number', min: 1, max: 4 } });
+  });
+});
+
 describe('RpcSendPanel', () => {
   it('never offers a factory reset, greys a tier the viewer may not send, validates declared params', async () => {
     const user = userEvent.setup();
@@ -62,36 +99,68 @@ describe('RpcSendPanel', () => {
     render(<RpcSendPanel commands={COMMANDS} onSend={onSend} />);
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.reboot');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Send Reboot (sys.reboot)?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Send Reboot?' });
     await user.type(within(dialog).getByLabelText('Type REBOOT to confirm'), 'REBOOT');
     await user.click(within(dialog).getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ method: 'sys.reboot', confirm: true, confirmText: 'REBOOT' })));
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.restart');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    await user.click(within(await screen.findByRole('dialog', { name: 'Send Restart (sys.restart)?' })).getByRole('button', { name: 'Send' }));
+    await user.click(within(await screen.findByRole('dialog', { name: 'Send Restart?' })).getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(onSend).toHaveBeenLastCalledWith({ method: 'sys.restart', confirm: true, requestKey: expect.any(String) }));
   });
 
-  it('sends raw RPC only with the capability, refuses a non-object, and warns about an offline device', async () => {
+  it('sends a one-time custom payload only with the raw capability, refuses invalid JSON, and warns about an offline device', async () => {
     const user = userEvent.setup();
     const onSend = vi.fn().mockResolvedValue(undefined);
     const { rerender } = render(<RpcSendPanel commands={COMMANDS} onSend={onSend} />);
-    expect([...(screen.getByLabelText('Command') as HTMLSelectElement).options].map((o) => o.value)).not.toContain('__raw__');
+    expect([...(screen.getByLabelText('Command') as HTMLSelectElement).options].map((o) => o.value)).not.toContain('__custom__');
     rerender(<RpcSendPanel commands={COMMANDS} onSend={onSend} canSendRaw deviceOnline={false} />);
-    await user.selectOptions(screen.getByLabelText('Command'), '__raw__');
-    await user.type(screen.getByLabelText('Method name'), 'ubus.call');
-    const params = screen.getByLabelText('Parameters (JSON object)');
-    await user.clear(params);
-    await user.type(params, '[[1]');
-    await user.click(screen.getByRole('button', { name: 'Send' }));
-    expect(screen.getByText('Not a JSON object.')).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Command'), '__custom__');
+    const box = screen.getByLabelText('Payload (JSON)') as HTMLTextAreaElement;
+    // it starts from the envelope with the default method
+    expect(JSON.parse(box.value)).toEqual({ method: 'setValue', params: {} });
     expect(screen.getByText(/The device is offline/)).toBeInTheDocument();
-    await user.click(screen.getByLabelText(/persistent/));
-    expect(screen.queryByText(/The device is offline/)).toBeNull();
-    await user.clear(params);
-    await user.type(params, '{{"path":"system"}');
+    await user.clear(box);
+    await user.click(box);
+    await user.paste('{"method": ');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'ubus.call', params: { path: 'system' }, persistent: true, requestKey: expect.any(String) }));
+    expect(screen.getByText('Not valid JSON.')).toBeInTheDocument();
+    expect(onSend).not.toHaveBeenCalled();
+    await user.clear(box);
+    await user.click(box);
+    await user.paste('{"cmd": "relay", "on": true}');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'custom', payload: { cmd: 'relay', on: true }, requestKey: expect.any(String) }));
+    await user.clear(box);
+    await user.click(box);
+    await user.paste('{"method": "ubus.call", "params": {"path": "system"}}');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenLastCalledWith({ method: 'ubus.call', payload: { method: 'ubus.call', params: { path: 'system' } }, requestKey: expect.any(String) }));
+    // a factory reset is refused there too (OD-8)
+    await user.clear(box);
+    await user.click(box);
+    await user.paste('{"method": "sys.factory_reset"}');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(screen.getByText(/never a command/)).toBeInTheDocument();
+    expect(onSend).toHaveBeenCalledTimes(2);
+  });
+
+  it('sends a ready command with one button: the catalog gives the values, only a required one without a value is asked for', async () => {
+    const user = userEvent.setup();
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const relay: RpcCommand = {
+      method: 'relay_on', wireMethod: 'setValue', label: 'Relay on', tier: 'basic', highImpact: false, oneway: false, sendable: true,
+      paramsSchema: { ch: { label: 'Channel', type: 'number', value: 2 }, on: { label: 'On', type: 'boolean', value: true }, note: { label: 'Note', type: 'text' } },
+    };
+    render(<RpcSendPanel commands={[relay]} onSend={onSend} />);
+    await user.selectOptions(screen.getByLabelText('Command'), 'relay_on');
+    // nothing to fill in: no parameter fields, no timeout, no persistence
+    expect(screen.queryByLabelText(/Channel/)).toBeNull();
+    expect(screen.queryByLabelText(/Note/)).toBeNull();
+    expect(screen.queryByLabelText(/timeout/i)).toBeNull();
+    expect(screen.queryByLabelText(/persistent/i)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'relay_on', params: { ch: 2, on: true }, requestKey: expect.any(String) }));
   });
 
   it('is disabled with the reason for a Legacy-scheme device (OD-85)', () => {
@@ -171,13 +240,18 @@ describe('RpcConsoleView', () => {
     expect(await screen.findByText(/"ok": 1/)).toBeInTheDocument();
   });
 
-  it('hides the send panel for a viewer who may send nothing, and is the fleet log without a device', async () => {
+  it('shows a viewer who may send nothing the commands greyed, says when there are none, and is the fleet log without a device', async () => {
+    const user = userEvent.setup();
     const { live, adapter, subs } = fakes({ commands: COMMANDS.slice(2, 3) });
-    const { unmount } = render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    const first = render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
     await screen.findByText('net.status');
-    await waitFor(() => expect(adapter.rpc!.methods).toHaveBeenCalled());
-    expect(screen.queryByLabelText('Command')).toBeNull();
-    unmount();
+    await user.selectOptions(await screen.findByLabelText('Command'), 'cfg.sync');
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    first.unmount();
+    const empty = fakes({ commands: [] });
+    const second = render(<IotAdapterProvider adapter={empty.adapter} live={empty.live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    expect(await screen.findByText('The device profile declares no commands.')).toBeInTheDocument();
+    second.unmount();
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView /></IotAdapterProvider>);
     await screen.findByText('net.status');
     expect([...subs][0].params).toEqual({ deviceId: '*' });

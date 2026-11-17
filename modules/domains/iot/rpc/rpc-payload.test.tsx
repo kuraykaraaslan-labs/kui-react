@@ -54,8 +54,14 @@ describe('the catalog editor\'s payload section', () => {
     const user = userEvent.setup();
     const api = setup();
     await user.click(await screen.findByRole('button', { name: 'Add command' }));
-    await user.type(screen.getByLabelText(/^Method/), 'relay.set');
     await user.type(screen.getByLabelText(/^Label/), 'Relay 1');
+    // the key follows the label until it is typed in; the method starts as setValue
+    expect(screen.getByLabelText(/^Command key/)).toHaveValue('relay_1');
+    expect(screen.getByLabelText(/^Method/)).toHaveValue('setValue');
+    await user.clear(screen.getByLabelText(/^Command key/));
+    await user.type(screen.getByLabelText(/^Command key/), 'relay.set');
+    await user.clear(screen.getByLabelText(/^Method/));
+    await user.type(screen.getByLabelText(/^Method/), 'relay.set');
     await user.click(screen.getByRole('button', { name: 'Add a parameter' }));
     await user.type(screen.getAllByLabelText(/^Name/)[0], 'state');
     await user.type(screen.getAllByLabelText(/^Label/)[1], 'State');

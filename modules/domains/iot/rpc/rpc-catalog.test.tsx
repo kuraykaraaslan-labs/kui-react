@@ -75,6 +75,7 @@ describe('RpcCommandCatalogEditor', () => {
     await screen.findByText('System information');
     await user.click(screen.getByRole('button', { name: 'Add command' }));
     await user.selectOptions(screen.getByLabelText(/^From a template/), 'set_value');
+    expect(screen.getByLabelText(/^Command key/)).toHaveValue('scada.set_value');
     expect(screen.getByLabelText(/^Method/)).toHaveValue('scada.set_value');
     expect(screen.getAllByLabelText(/^Name/).map((e) => (e as HTMLInputElement).value)).toEqual(['key', 'value']);
     await user.click(screen.getByRole('button', { name: 'Add a parameter' }));
@@ -128,16 +129,26 @@ describe('RpcCommandCatalogEditor', () => {
     await screen.findByText('System information');
     expect(screen.getByText('Typed confirmation phrase: REBOOT')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Add command' }));
-    await user.type(screen.getByLabelText(/^Method/), 'sys.factory_reset');
     await user.type(screen.getByLabelText(/^Label/), 'Reset');
+    await user.clear(screen.getByLabelText(/^Command key/));
+    await user.type(screen.getByLabelText(/^Command key/), 'sys.factory_reset');
     await user.click(screen.getByRole('button', { name: 'Save command' }));
     expect(screen.getByText('A factory reset is never a command (no remote factory reset).')).toBeInTheDocument();
     expect(api.create).not.toHaveBeenCalled();
+    // neither as what the device receives
+    await user.clear(screen.getByLabelText(/^Command key/));
+    await user.type(screen.getByLabelText(/^Command key/), 'net.status');
     await user.clear(screen.getByLabelText(/^Method/));
-    await user.type(screen.getByLabelText(/^Method/), 'net.status');
+    await user.type(screen.getByLabelText(/^Method/), 'factoryReset');
+    await user.click(screen.getByRole('button', { name: 'Save command' }));
+    expect(api.create).not.toHaveBeenCalled();
+    // an emptied method is sent as setValue; a key needs no dot
+    await user.clear(screen.getByLabelText(/^Method/));
+    await user.clear(screen.getByLabelText(/^Command key/));
+    await user.type(screen.getByLabelText(/^Command key/), 'netstatus');
     await user.selectOptions(screen.getByLabelText('Tier'), 'privileged');
     await user.click(screen.getByRole('button', { name: 'Save command' }));
-    await waitFor(() => expect(api.create).toHaveBeenCalledWith('p1', expect.objectContaining({ method: 'net.status', label: 'Reset', tier: 'privileged', confirmText: null, maskedParams: [] })));
+    await waitFor(() => expect(api.create).toHaveBeenCalledWith('p1', expect.objectContaining({ method: 'netstatus', wireMethod: 'setValue', label: 'Reset', tier: 'privileged', confirmText: null, maskedParams: [] })));
   });
 
   it('edits without ever sending the method, and removes', async () => {
@@ -145,7 +156,9 @@ describe('RpcCommandCatalogEditor', () => {
     const api = setup();
     await screen.findByText('Reboot');
     await user.click(screen.getByRole('button', { name: 'Edit sys.reboot' }));
-    expect(screen.getByLabelText(/^Method/)).toHaveAttribute('readonly');
+    expect(screen.getByLabelText(/^Command key/)).toHaveAttribute('readonly');
+    // the method the device receives stays editable
+    expect(screen.getByLabelText(/^Method/)).not.toHaveAttribute('readonly');
     await user.clear(screen.getByLabelText(/^Label/));
     await user.type(screen.getByLabelText(/^Label/), 'Restart the router');
     await user.click(screen.getByRole('button', { name: 'Save command' }));

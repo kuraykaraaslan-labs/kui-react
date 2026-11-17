@@ -224,7 +224,6 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
   }
 
   if (!api) return null;
-  const canSendAny = !!catalog && (catalog.canSendRaw || catalog.commands.some((c) => c.sendable !== false));
 
   /** The viewer may send `method` now (its catalog entry's tier, or raw outside the catalog). */
   const methodSendable = (method: string): boolean => {
@@ -240,7 +239,9 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
     return catalog.commands.some((c) => c.tier === tier && c.sendable !== false);
   };
   const canCancel = (r: RpcRequest) => (deviceId ? tierSendable(r.tier, r.method) : caps.canSendRpc);
-  const canRerun = (r: RpcRequest) => !!deviceId && methodSendable(r.method);
+  // a raw request (a custom payload) is sent again as raw, whatever catalog command shares its method (NB rpc-wire-method)
+  const canRerun = (r: RpcRequest) => !!deviceId && (r.tier === 'raw' ? !!catalog?.supported && catalog.canSendRaw && !isRefusedRpcMethod(r.method) : methodSendable(r.method));
+  const commandOf = (r: RpcRequest) => (r.tier === 'raw' ? null : catalog?.commands.find((c) => c.method === r.method));
   const live = liveState === 'live';
 
   return (
@@ -251,7 +252,8 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
           <Button variant="outline" size="sm" onClick={() => { setCatalogError(null); setCatalogAttempt((n) => n + 1); }}>{m.common.retry}</Button>
         </div>
       )}
-      {deviceId && catalog && (canSendAny || !catalog.supported) && (
+      {/* an empty catalog says so (the panel's "no commands"), rather than showing nothing */}
+      {deviceId && catalog && (
         <RpcSendPanel
           commands={catalog.commands}
           canSendRaw={catalog.canSendRaw}
@@ -292,7 +294,7 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
         onCancel={detail && canCancel(detail) ? cancel : undefined}
         rerunReady={!!detail && fullFor === detail.rpcId}
         onRerun={detail && canRerun(detail) ? (r) => {
-          setPreset(rpcPresetOf(r, catalog?.commands.find((c) => c.method === r.method), catalog?.isSecretParam));
+          setPreset(rpcPresetOf(r, commandOf(r), catalog?.isSecretParam));
           setOpenId(null);
           openRef.current = null;
           setDetail(null);

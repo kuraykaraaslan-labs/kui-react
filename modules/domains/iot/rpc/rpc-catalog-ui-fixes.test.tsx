@@ -57,7 +57,7 @@ describe('the catalog editor', () => {
     await user.click(screen.getByRole('button', { name: 'Edit scada.set_value' }));
     await user.selectOptions(screen.getByLabelText('Tier'), 'privileged');
     await user.click(screen.getByRole('button', { name: 'Save command' }));
-    const ask = await screen.findByRole('dialog', { name: 'Move scada.set_value from Basic to Privileged?' });
+    const ask = await screen.findByRole('dialog', { name: 'Move Set a value from Basic to Privileged?' });
     expect(ask).toHaveTextContent(/those that send scada.set_value will be refused/);
     await user.click(within(ask).getByRole('button', { name: 'Save command' }));
     await waitFor(() => expect(api.update).toHaveBeenCalledWith('p1', 'c2', { tier: 'privileged' }, { expectedVersion: 1 }));
