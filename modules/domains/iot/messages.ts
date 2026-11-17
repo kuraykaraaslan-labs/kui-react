@@ -798,6 +798,7 @@ export const IOT_MESSAGES = {
     chooseCommand: 'Choose a command',
     rawMethod: 'Other method (raw)',
     rawMethodLabel: 'Method name',
+    sendCommand: 'Send a command',
     customPayload: 'Custom payload (one time)',
     customPayloadLabel: 'Payload (JSON)',
     customPayloadHint: 'The device receives exactly this JSON, once; it is not saved to the profile\'s commands.',

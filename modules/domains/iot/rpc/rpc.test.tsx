@@ -229,9 +229,14 @@ describe('RpcConsoleView', () => {
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" now={T0.getTime()} /></IotAdapterProvider>);
     await screen.findByText('net.status');
     expect([...subs][0].params).toEqual({ deviceId: 'd1' });
-    await user.selectOptions(screen.getByLabelText('Command'), 'sys.info');
-    await user.click(screen.getByRole('button', { name: 'Send' }));
+    // the send panel is a modal; a sent command closes it
+    expect(screen.queryByLabelText('Command')).toBeNull();
+    await user.click(await screen.findByRole('button', { name: 'Send a command' }));
+    const modal = await screen.findByRole('dialog', { name: 'Send a command' });
+    await user.selectOptions(within(modal).getByLabelText('Command'), 'sys.info');
+    await user.click(within(modal).getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(adapter.rpc!.send).toHaveBeenCalledWith('d1', { method: 'sys.info', requestKey: expect.any(String) }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Send a command' })).toBeNull());
     const row = (await screen.findByText('Queued')).closest('tr')!;
     expect(row).toHaveAttribute('data-state', 'new');
     act(() => live.emit({ request: req('new', { status: 'SUCCESSFUL', completedAt: new Date(T0.getTime() + 900) }) }));
@@ -245,11 +250,16 @@ describe('RpcConsoleView', () => {
     const { live, adapter, subs } = fakes({ commands: COMMANDS.slice(2, 3) });
     const first = render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
     await screen.findByText('net.status');
+await user.click(await screen.findByRole('button', { name: 'Send a command' }));
     await user.selectOptions(await screen.findByLabelText('Command'), 'cfg.sync');
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
     first.unmount();
     const empty = fakes({ commands: [] });
-    const second = render(<IotAdapterProvider adapter={empty.adapter} live={empty.live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
+    const second = render(<IotAdapterProvider adapter={empty.adapter} live={empty.live}><RpcConsoleView deviceId="d1" actions={<a href="/settings">Command settings</a>} /></IotAdapterProvider>);
+    // the host's own link sits beside "Send a command", after it
+    const button = await screen.findByRole('button', { name: 'Send a command' });
+    expect(button.compareDocumentPosition(screen.getByRole('link', { name: 'Command settings' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await user.click(button);
     expect(await screen.findByText('The device profile declares no commands.')).toBeInTheDocument();
     second.unmount();
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView /></IotAdapterProvider>);

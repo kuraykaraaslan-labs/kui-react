@@ -1,8 +1,11 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
+import { Modal } from '@/modules/ui/Modal';
 import { errorMessage, RPC_SORT_KEYS, type RpcCatalog, type RpcListQuery } from '../api/adapter';
 import { toIotSort } from '../api/list-table';
 import type { DataTableQuery } from '@/modules/ui/Table/types';
@@ -31,6 +34,9 @@ import { RpcSendPanel } from './RpcSendPanel';
  * settings without its masked values (1.1, 1.7, N1); the snapshot sent on every (re)subscribe is merged and a row never moves back to an
  * earlier status (1.12, 1.13); the open request is re-read on every poll and a late answer never shows another one (1.14); the history
  * says whether it is live or polling (1.21).
+ *
+ * NB rpc-send-modal: the send panel is a modal opened by "Send a command" at the top right, beside the host's own `actions` (NB: the
+ * "Command settings" link); a sent command closes it, a refused one keeps it open with the reason, and "Send again" opens it filled.
  */
 export type RpcConsoleViewProps = {
   deviceId?: string;
@@ -38,6 +44,8 @@ export type RpcConsoleViewProps = {
   deviceOnline?: boolean | null;
   /** The device's name: the confirmation of a high-impact command names it. */
   deviceName?: string | null;
+  /** The host's own buttons or links, at the right of "Send a command" (NB: "Command settings"). */
+  actions?: ReactNode;
   pageSize?: number;
   now?: number;
   className?: string;
@@ -64,7 +72,7 @@ function sentNotice(r: RpcRequest, m: IotMessages): IotNotice {
   return { tone: 'success', message: m.rpc.sent };
 }
 
-export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 25, now, className }: RpcConsoleViewProps) {
+export function RpcConsoleView({ deviceId, deviceOnline, deviceName, actions, pageSize = 25, now, className }: RpcConsoleViewProps) {
   const api = useIotAdapter().rpc;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
@@ -81,6 +89,9 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RpcRequest | null>(null);
   const [preset, setPreset] = useState<RpcPreset | null>(null);
+  // the send modal; closing it forgets a "Send again" preset, so the next opening starts empty
+  const [sending, setSending] = useState(false);
+  const closeSend = () => { setSending(false); setPreset(null); };
   // the request whose full read (params, answer) arrived: "Send again" waits for it (C12)
   const [fullFor, setFullFor] = useState<string | null>(null);
   const openRef = useRef<string | null>(null);
@@ -194,6 +205,8 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
       const r = await api.send(deviceId, input);
       upsert(r, true);
       notify(sentNotice(r, m));
+      // the host answered: the modal closes and the history shows the request (a refusal throws below and keeps it open)
+      closeSend();
     } catch (e) {
       // the panel says what went wrong; a send that got no answer may have been sent, so the history is read again at once (1.4)
       first().catch(() => undefined);
@@ -252,19 +265,33 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
           <Button variant="outline" size="sm" onClick={() => { setCatalogError(null); setCatalogAttempt((n) => n + 1); }}>{m.common.retry}</Button>
         </div>
       )}
-      {/* an empty catalog says so (the panel's "no commands"), rather than showing nothing */}
+      {((deviceId && catalog) || actions) && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {deviceId && catalog && (
+            <Button variant="primary" size="sm" onClick={() => setSending(true)}
+              iconLeft={<FontAwesomeIcon icon={faPaperPlane} className="h-3 w-3" aria-hidden="true" />}>
+              {m.rpc.sendCommand}
+            </Button>
+          )}
+          {actions}
+        </div>
+      )}
+      {/* an empty catalog says so in the modal (the panel's "no commands"), rather than showing nothing */}
       {deviceId && catalog && (
-        <RpcSendPanel
-          commands={catalog.commands}
-          canSendRaw={catalog.canSendRaw}
-          supported={catalog.supported}
-          unsupportedReason={catalog.reason}
-          deviceOnline={deviceOnline}
-          deviceName={deviceName}
-          isSecretParam={catalog.isSecretParam}
-          preset={preset}
-          onSend={send}
-        />
+        <Modal open={sending} onClose={closeSend} title={m.rpc.sendCommand} size="lg" closeLabel={m.common.close}>
+          <RpcSendPanel
+            commands={catalog.commands}
+            canSendRaw={catalog.canSendRaw}
+            supported={catalog.supported}
+            unsupportedReason={catalog.reason}
+            deviceOnline={deviceOnline}
+            deviceName={deviceName}
+            isSecretParam={catalog.isSecretParam}
+            preset={preset}
+            onSend={send}
+            className="rounded-none border-0 bg-transparent p-0 sm:p-0"
+          />
+        </Modal>
       )}
       <section aria-label={m.rpc.history} className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -298,6 +325,7 @@ export function RpcConsoleView({ deviceId, deviceOnline, deviceName, pageSize = 
           setOpenId(null);
           openRef.current = null;
           setDetail(null);
+          setSending(true);
         } : undefined}
       />
     </div>

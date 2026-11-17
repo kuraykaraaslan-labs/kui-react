@@ -218,6 +218,7 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
     const notify = vi.fn();
     const { live, adapter } = fakes();
     render(<IotAdapterProvider adapter={adapter} live={live} notify={notify}><RpcConsoleView deviceId="d1" deviceOnline={false} /></IotAdapterProvider>);
+await user.click(await screen.findByRole('button', { name: 'Send a command' }));
     await user.selectOptions(await screen.findByLabelText('Command'), 'sys.ping');
     expect(screen.getByText(/The device is offline/)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Host/), 'h');
@@ -232,10 +233,13 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
     await screen.findByText('net.status');
     const reads = (adapter.rpc!.list as ReturnType<typeof vi.fn>).mock.calls.length;
+    await user.click(await screen.findByRole('button', { name: 'Send a command' }));
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.ping');
     await user.type(screen.getByLabelText(/Host/), 'h');
     await user.click(screen.getByRole('button', { name: 'Send' }));
+    // no answer: the modal stays open with what happened
     expect(await screen.findByText(/the command may have been sent/)).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Send a command' })).toBeInTheDocument();
     await waitFor(() => expect((adapter.rpc!.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(reads + 1));
   });
 
@@ -246,7 +250,7 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
     expect(await screen.findByText('The commands of this device could not be read, so nothing can be sent yet.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByLabelText('Command')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Send a command' })).toBeInTheDocument();
   });
 
   it('offers Send again and Cancel only for what the viewer may send; Send again leaves the masked values out', async () => {
