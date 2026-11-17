@@ -6,6 +6,20 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- Payment methods and consent for recurring subscriptions (next-boilerplate phase 68 step 06 §3, D68-54). `PaymentMethodList`
+  (`modules/domains/common/payment/`): a subscriber's saved methods in a DataTable: cards, direct-debit mandates, billing agreements,
+  SEPA mandates and bank tokens (`SavedPaymentMethod.kind`) with the card brand chip, last four, expiry, status (`active`, `expiring`,
+  `requires_reauth`, `revoked`) and the default marker; sort, search and filters by status and type; row actions "Make default" (at
+  once, hidden on the default and on unusable methods) and "Remove" through the ConfirmDialog (a rejected promise keeps the dialog open
+  with the error); `inUse` keeps the default until another one is chosen (disabled with its reason) and warns that removing the last
+  method turns renewals into payment requests; "Add payment method" header button (`onAdd`) and `headerActions` slot; empty, loading,
+  error and `readOnly` (an operator's view) states; `paymentMethodName()`; every string from `messages`. `ConsentCheckbox`
+  (`modules/domains/common/consent/`): an explicit consent, unticked by default, with "Read the text" opening the versioned text in a
+  Drawer (`text`, `textTitle`, `version`, `textLoading`, `onOpenText`) without ticking the box; `required` and `invalid` with
+  `aria-required`, `aria-invalid` and the error tied by `aria-describedby`. `CardBrandBadge` (+ `cardBrandName()`): the brand chip
+  `SavedCardSelector` drew inline, now shared, named for screen readers ("Visa"). Showcase entries `common-payment-method-list`,
+  `common-consent-checkbox`, `common-card-brand-badge`.
+
 - `AssistantLauncher` asks for details as chat messages (owner 2026-11-13, from the kui-ai-chatbot WordPress plugin): the new
   `AssistantQuickReplies` (answer chips under the newest question: Skip, Confirm, Send, Cancel; `primary` draws one filled) and
   `AssistantQuote` (text read back for the visitor to confirm), and `inputProps` for a step's `autoComplete` / `inputMode` / `placeholder`.
@@ -77,6 +91,28 @@ All notable changes to this project will be documented here. Format follows [Kee
   baselines, a job) on `settings/demo-settings.ts`.
 
 ### Changed
+
+- `SubscriptionPlanCard` (next-boilerplate phase 68 step 06 §3, compared with next-boilerplate's own plan card, which it now
+  replaces): the renewal line `renewal` ("Renews on <date> for <amount>", "Renews on <date>", or "Ends on <date>" when `ends`; a bare
+  `YYYY-MM-DD` is that calendar day in every time zone), the
+  trial line `trial` ("Trial ends on <date>; then <amount>"), the "Assigned by the operator" badge `assignedByOperator` (an operator's
+  gift: never charged, ends at its term, so neither cancel nor resume), "Cancel renewal" (`onCancelRenewal`) confirmed in a
+  ConfirmDialog that says "Cancelling stops the next renewal. You keep access until <date>. Payments already made are not refunded."
+  (the owner's no-refund rule, 2026-11-17) and "Resume renewal" (`onResumeRenewal`). Taken from next-boilerplate's card: `locale` for
+  prices and dates (was fixed `en-US`), the currency's own minor unit (`price` 1000 in JPY is ¥1,000, was ¥10), "Free" at a zero price with no unit, a struck list price beside `discount` with its note,
+  `priceNote` (a tax-inclusive view, a monthly equivalent), an interval switch (`intervalOptions`, `onIntervalChange`, "Billing
+  interval" group, `aria-pressed`, a saving badge), `actionLabel` (Upgrade / Downgrade / Switch), `actionNote` in place of the button,
+  `isSelected` reading "Selected" with `aria-pressed`, `disabled` while another checkout runs, `intervalLabel` for a host's own unit and
+  any interval string; every string from `messages`. Behaviour change: no button without `onSelect` and none on the current plan (the
+  badge already says it; it was a dead disabled button).
+- `CreditCardVisual`: next-boilerplate's fork is the better card and becomes this one (D68-54, decided on design quality): a 17–19
+  digit number (Maestro, UnionPay, some TROY) keeps every digit, grouped by four and set one size smaller, where the old card cut it at
+  16; the chip is drawn from the `warning` token and the CVV panel from `surface-raised` / `text-secondary` / `text-primary` (the old
+  `bg-yellow-*`, `bg-white/90`, `text-gray-*` broke the token rule and ignored dark mode); the labels come from `messages`
+  (`cardHolder`, `expires`, `cvv`). `maskCardNumber()` is exported.
+- `SavedCardSelector`: "Remove" asks through the ConfirmDialog first ("Remove card", "The card ending in <last4> is removed from your
+  saved cards.", as kui-ejs already did) and `onRemove` may return a promise; the brand chip is `CardBrandBadge`; every string from
+  `messages`.
 
 - `SceneSetupDrawer` (next-boilerplate phase 47, views by name): the slot leaves the drawer. The `slots`, `allowNewSlot`, `slotLocked` and
   `onSlotChange` props, the slot select, "New slot…" and the "Switch slot" confirmation are gone (Advanced included); section 1 is the type

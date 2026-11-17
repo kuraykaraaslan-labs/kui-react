@@ -40,6 +40,9 @@ import { PaymentSummaryCard } from '@/modules/domains/common/payment/PaymentSumm
 import { CreditCardVisual } from '@/modules/domains/common/payment/CreditCardVisual';
 import { CreditCardForm } from '@/modules/domains/common/payment/CreditCardForm';
 import { SavedCardSelector } from '@/modules/domains/common/payment/SavedCardSelector';
+import { CardBrandBadge } from '@/modules/domains/common/payment/CardBrandBadge';
+import { PaymentMethodList, type SavedPaymentMethod } from '@/modules/domains/common/payment/PaymentMethodList';
+import { ConsentCheckbox } from '@/modules/domains/common/consent/ConsentCheckbox';
 import { CheckoutSuccessState } from '@/modules/domains/common/payment/CheckoutSuccessState';
 import { NotFoundPage } from '@/modules/app/NotFoundPage';
 import { ChatBox } from '@/modules/domains/common/chat/ChatBox';
@@ -1307,6 +1310,61 @@ import { PaymentSummaryCard } from '@/modules/domains/common/payment/PaymentSumm
       variants: [
         { title: 'Brands', preview: <CreditCardVisualBrandsDemo />, code: `<CreditCardVisual brand="VISA" cardNumber="4111111111111111" cardholderName="JANE DOE" expiryMonth="08" expiryYear="28" />\n<CreditCardVisual brand="MASTERCARD" cardNumber="5500005555555559" cardholderName="JOHN SMITH" expiryMonth="12" expiryYear="27" />` },
         { title: 'Flipped (CVV)', preview: <CreditCardVisualFlippedDemo />, code: `<CreditCardVisual brand="AMEX" cardNumber="378282246310005" cardholderName="JANE DOE" expiryMonth="03" expiryYear="26" cvv="1234" flipped />` },
+        { title: '19 digits and translated labels', preview: <CreditCardVisualLongNumberDemo />, code: `<CreditCardVisual brand="UNIONPAY" cardNumber="6200000000000000005" cardholderName="LI WEI" expiryMonth="05" expiryYear="30" />\n<CreditCardVisual brand="TROY" cardNumber="9792" messages={{ cardHolder: 'Kart sahibi', expires: 'Son kullanma' }} />` },
+      ],
+    },
+    {
+      id: 'common-card-brand-badge',
+      title: 'CardBrandBadge',
+      category: 'Domain',
+      abbr: 'Bd',
+      description: 'The small scheme chip of a saved card (VISA, MC, AMEX, TROY, MIR, UnionPay …) in the scheme colour, named for screen readers ("Visa"). Shared by SavedCardSelector and PaymentMethodList; an unknown brand is the grey •• chip.',
+      filePath: 'modules/domains/common/payment/CardBrandBadge.tsx',
+      sourceCode: `<CardBrandBadge brand="VISA" />`,
+      variants: [
+        { title: 'Every brand', preview: <CardBrandBadgeAllDemo />, code: `{brands.map((b) => <CardBrandBadge key={b} brand={b} />)}` },
+        { title: 'Inline with a card number', preview: <CardBrandBadgeInlineDemo />, code: `<CardBrandBadge brand="TROY" /> <span className="font-mono">•••• 9792</span>` },
+      ],
+    },
+    {
+      id: 'common-payment-method-list',
+      title: 'PaymentMethodList',
+      category: 'Domain',
+      abbr: 'Pw',
+      description: 'A subscriber\'s saved payment methods in a DataTable: cards (with the CardBrandBadge), direct-debit mandates, billing agreements, SEPA mandates and bank tokens with last four digits, expiry, status (active, expiring, needs re-authorisation, revoked) and the default marker. Sort, search and filter by status and type. Row actions "Make default" and "Remove" (ConfirmDialog; `inUse` keeps the default until another one is chosen and warns that removing the last method turns renewals into payment requests); "Add payment method" in the header; empty, loading and read-only states. Never shows or takes card numbers: the host\'s provider page adds a method.',
+      filePath: 'modules/domains/common/payment/PaymentMethodList.tsx',
+      sourceCode: `<PaymentMethodList
+  methods={methods}
+  inUse
+  onAdd={() => startSetupSession()}
+  onMakeDefault={(pm) => api.makeDefault(pm.methodId)}
+  onRemove={(pm) => api.remove(pm.methodId)}
+/>`,
+      variants: [
+        { title: 'Methods of every kind', layout: 'stack' as const, preview: <PaymentMethodListDemo />, code: `<PaymentMethodList methods={methods} inUse onAdd={add} onMakeDefault={makeDefault} onRemove={remove} />` },
+        { title: 'Empty, loading and read-only', layout: 'stack' as const, preview: <PaymentMethodListStatesDemo />, code: `<PaymentMethodList methods={[]} onAdd={add} />\n<PaymentMethodList methods={[]} loading />\n<PaymentMethodList methods={methods} readOnly />` },
+      ],
+    },
+    {
+      id: 'common-consent-checkbox',
+      title: 'ConsentCheckbox',
+      category: 'Domain',
+      abbr: 'Ck',
+      description: 'An explicit consent, unticked by default (automatic renewal, terms, distance-selling pre-information): the box, the statement as its label and a "Read the text" link that opens the full versioned text in a Drawer without ticking the box. Required and invalid states with aria-required, aria-invalid and the error tied by aria-describedby; every string from `messages`.',
+      filePath: 'modules/domains/common/consent/ConsentCheckbox.tsx',
+      sourceCode: `<ConsentCheckbox
+  checked={consent}
+  onChange={setConsent}
+  required
+  invalid={submitted && !consent}
+  label="I agree that my subscription renews automatically …"
+  textTitle="Automatic renewal terms"
+  version={text.version}
+  text={text.body}
+/>`,
+      variants: [
+        { title: 'Required, with the text', layout: 'stack' as const, preview: <ConsentCheckboxDemo />, code: `<ConsentCheckbox checked={consent} onChange={setConsent} required label="I agree …" textTitle="Automatic renewal terms" version="v3" text={body} />` },
+        { title: 'Invalid after submit', layout: 'stack' as const, preview: <ConsentCheckboxInvalidDemo />, code: `<ConsentCheckbox checked={false} onChange={setConsent} required invalid label="I have read the pre-information." text={body} />` },
       ],
     },
     {
@@ -1330,7 +1388,7 @@ import { PaymentSummaryCard } from '@/modules/domains/common/payment/PaymentSumm
       title: 'SavedCardSelector',
       category: 'Domain',
       abbr: 'SC',
-      description: 'Radio-group list of saved payment cards. Shows brand badge, masked number, expiry, and default indicator. Supports remove and add-new callbacks.',
+      description: 'Radio-group list of saved payment cards. Shows the CardBrandBadge, masked number, expiry, and default indicator. Remove asks through the ConfirmDialog first; add-new callback; every string from `messages`.',
       filePath: 'modules/domains/common/payment/SavedCardSelector.tsx',
       sourceCode: `<SavedCardSelector
   cards={savedCards}
@@ -1468,7 +1526,7 @@ const [items, setItems] = useState(initialNotifications);
       title: 'SubscriptionPlanCard',
       category: 'Domain',
       abbr: 'SP',
-      description: 'Subscription plan card displaying name, price with currency formatting, billing interval, and feature list with checkmarks. Highlights the popular and current plans. Accepts onSelect callback for plan switching.',
+      description: 'Subscription plan card: name, locale-aware price ("Free" at zero, a struck list price beside a discount), an optional interval switch, a price note, the renewal line ("Renews on <date> for <amount>" / "Ends on <date>"), the trial line ("Trial ends on <date>; then <amount>"), the "Assigned by the operator" badge, features and one action (none without onSelect or on the current plan; "Selected" with aria-pressed; actionNote in its place). "Cancel renewal" confirms in a ConfirmDialog with the no-refund sentence; "Resume renewal" on a plan that ends.',
       filePath: 'modules/domains/common/subscription/SubscriptionPlanCard.tsx',
       sourceCode: `'use client';
 import { SubscriptionPlanCard } from '@/modules/domains/common/subscription/SubscriptionPlanCard';
@@ -1502,6 +1560,23 @@ import { SubscriptionPlanCard } from '@/modules/domains/common/subscription/Subs
           preview: <SubscriptionPlanStatesDemo />,
           code: `<SubscriptionPlanCard plan={plan} isCurrent />
 <SubscriptionPlanCard plan={{ ...plan, isPopular: true }} onSelect={handleSelect} />`,
+        },
+        {
+          title: 'Renewal, trial and operator assignment',
+          layout: 'stack' as const,
+          preview: <SubscriptionPlanRenewalDemo />,
+          code: `<SubscriptionPlanCard plan={pro} isCurrent renewal={{ date: periodEnd, amount: pro.price, ends: cancelAtPeriodEnd }}
+  onCancelRenewal={cancelRenewal} onResumeRenewal={resumeRenewal} />
+<SubscriptionPlanCard plan={team} isCurrent trial={{ endsOn: trialEnd, thenAmount: team.price }} />
+<SubscriptionPlanCard plan={pro} isCurrent assignedByOperator renewal={{ date: termEnd, ends: true }} />`,
+        },
+        {
+          title: 'Interval switch, discount and a free plan',
+          layout: 'stack' as const,
+          preview: <SubscriptionPlanIntervalDemo />,
+          code: `<SubscriptionPlanCard plan={plan} intervalOptions={[{ value: 'MONTHLY', label: 'Monthly' }, { value: 'YEARLY', label: 'Yearly', badge: '-17%' }]}
+  onIntervalChange={setTerm} discount={{ amount: 24000, note: 'LAUNCH: first year' }} actionLabel="Upgrade to Pro" onSelect={choose} />
+<SubscriptionPlanCard plan={free} onSelect={choose} actionNote="Assigned by your workspace plan" />`,
         },
       ],
     },
@@ -1822,6 +1897,114 @@ function CreditCardVisualFlippedDemo() {
   );
 }
 
+function CreditCardVisualLongNumberDemo() {
+  return (
+    <div className="flex flex-wrap gap-4 justify-center p-4">
+      <CreditCardVisual brand="UNIONPAY" cardNumber="6200000000000000005" cardholderName="LI WEI" expiryMonth="05" expiryYear="30" />
+      <CreditCardVisual brand="TROY" cardNumber="9792" cardholderName="AYŞE YILMAZ" expiryMonth="11" expiryYear="29" messages={{ cardHolder: 'Kart sahibi', expires: 'Son kullanma' }} />
+    </div>
+  );
+}
+
+/* ─── CardBrandBadge demos ─── */
+
+function CardBrandBadgeAllDemo() {
+  return (
+    <div className="flex flex-wrap items-center gap-2 p-4">
+      {(['VISA', 'MASTERCARD', 'AMEX', 'DISCOVER', 'JCB', 'TROY', 'MIR', 'UNIONPAY', 'UNKNOWN'] as const).map((b) => (
+        <CardBrandBadge key={b} brand={b} />
+      ))}
+    </div>
+  );
+}
+
+function CardBrandBadgeInlineDemo() {
+  return (
+    <p className="flex items-center gap-2 p-4 text-sm text-text-primary">
+      <CardBrandBadge brand="TROY" />
+      <span className="font-mono">•••• 9792</span>
+      <span className="text-text-secondary">expires 11/29</span>
+    </p>
+  );
+}
+
+/* ─── PaymentMethodList demos ─── */
+
+const DEMO_METHODS: SavedPaymentMethod[] = [
+  { methodId: 'pm1', kind: 'card', brand: 'VISA', last4: '4242', expiryMonth: '08', expiryYear: '28', holderName: 'Jane Doe', provider: 'iyzico', status: 'active', isDefault: true },
+  { methodId: 'pm2', kind: 'card', brand: 'MASTERCARD', last4: '5559', expiryMonth: '12', expiryYear: '26', holderName: 'Jane Doe', provider: 'Stripe', status: 'expiring' },
+  { methodId: 'pm3', kind: 'sepa', last4: '3000', holderName: 'Acme GmbH', provider: 'Mollie', status: 'requires_reauth' },
+  { methodId: 'pm4', kind: 'agreement', label: 'PayPal billing agreement', provider: 'PayPal', status: 'active' },
+  { methodId: 'pm5', kind: 'mandate', label: 'Razorpay e-mandate', last4: '0042', provider: 'Razorpay', status: 'revoked' },
+];
+
+function PaymentMethodListDemo() {
+  const [methods, setMethods] = useState(DEMO_METHODS);
+  return (
+    <div className="w-full p-4">
+      <PaymentMethodList
+        methods={methods}
+        inUse
+        onAdd={() => {}}
+        onMakeDefault={(pm) => setMethods((all) => all.map((x) => ({ ...x, isDefault: x.methodId === pm.methodId })))}
+        onRemove={(pm) => setMethods((all) => all.filter((x) => x.methodId !== pm.methodId))}
+      />
+    </div>
+  );
+}
+
+function PaymentMethodListStatesDemo() {
+  return (
+    <div className="grid w-full gap-6 p-4">
+      <PaymentMethodList methods={[]} onAdd={() => {}} />
+      <PaymentMethodList methods={[]} loading title="Loading" />
+      <PaymentMethodList methods={DEMO_METHODS.slice(0, 2)} readOnly title="Customer's methods (read-only)" />
+    </div>
+  );
+}
+
+/* ─── ConsentCheckbox demos ─── */
+
+const DEMO_CONSENT_TEXT = `1. Term. Your subscription runs for the term you chose and renews automatically for the same term.
+2. Price. Each renewal is charged at the price then in effect; we tell you about a price change 30 days ahead.
+3. Payment. The renewal is charged to the payment method you saved.
+4. Cancelling. Cancel any time before the renewal date from Plan & Billing. Cancelling stops the next renewal. You keep access until the end of the paid period. Payments already made are not refunded.`;
+
+function ConsentCheckboxDemo() {
+  const [checked, setChecked] = useState(false);
+  return (
+    <div className="w-full max-w-md p-4">
+      <ConsentCheckbox
+        checked={checked}
+        onChange={setChecked}
+        required
+        label="I agree that my subscription renews automatically and is charged to my saved payment method until I cancel it."
+        textTitle="Automatic renewal terms"
+        version="v3 · 17 Nov 2026"
+        text={DEMO_CONSENT_TEXT}
+      />
+    </div>
+  );
+}
+
+function ConsentCheckboxInvalidDemo() {
+  const [checked, setChecked] = useState(false);
+  return (
+    <div className="w-full max-w-md p-4">
+      <ConsentCheckbox
+        checked={checked}
+        onChange={setChecked}
+        required
+        invalid
+        label="I have read the distance-selling pre-information."
+        textTitle="Pre-information form"
+        version="v1"
+        text="The seller, the service, the total price including taxes and the right of withdrawal …"
+      />
+    </div>
+  );
+}
+
 /* ─── CreditCardForm demos ─── */
 
 function CreditCardFormDemo() {
@@ -2053,6 +2236,47 @@ function SubscriptionPlanGridDemo() {
           onSelect={() => {}}
         />
       ))}
+    </div>
+  );
+}
+
+function SubscriptionPlanRenewalDemo() {
+  const [cancelled, setCancelled] = useState(false);
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 p-6">
+      <SubscriptionPlanCard
+        plan={DEMO_PLANS[1]}
+        isCurrent
+        renewal={{ date: '2026-12-17', amount: DEMO_PLANS[1].price, ends: cancelled }}
+        onCancelRenewal={() => setCancelled(true)}
+        onResumeRenewal={() => setCancelled(false)}
+      />
+      <SubscriptionPlanCard
+        plan={{ ...DEMO_PLANS[2], isPopular: false }}
+        isCurrent
+        trial={{ endsOn: '2026-12-01', thenAmount: DEMO_PLANS[2].price }}
+        renewal={{ date: '2026-12-01', amount: DEMO_PLANS[2].price }}
+      />
+      <SubscriptionPlanCard plan={DEMO_PLANS[1]} isCurrent assignedByOperator renewal={{ date: '2027-01-31', ends: true }} />
+    </div>
+  );
+}
+
+function SubscriptionPlanIntervalDemo() {
+  const [interval, setTerm] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+  const plan = { ...DEMO_PLANS[1], isPopular: false, interval, price: interval === 'MONTHLY' ? 2900 : 29000 };
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-6">
+      <SubscriptionPlanCard
+        plan={plan}
+        intervalOptions={[{ value: 'MONTHLY', label: 'Monthly' }, { value: 'YEARLY', label: 'Yearly', badge: '-17%' }]}
+        onIntervalChange={(v) => setTerm(v as 'MONTHLY' | 'YEARLY')}
+        discount={interval === 'YEARLY' ? { amount: 24000, note: 'LAUNCH: first year' } : undefined}
+        priceNote={interval === 'YEARLY' ? '$20 per month' : undefined}
+        actionLabel="Upgrade to Pro"
+        onSelect={() => {}}
+      />
+      <SubscriptionPlanCard plan={{ ...DEMO_PLANS[0], price: 0 }} onSelect={() => {}} actionNote="Assigned by your workspace plan" />
     </div>
   );
 }

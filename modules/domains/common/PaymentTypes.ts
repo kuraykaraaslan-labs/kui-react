@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { IdSchema } from './BaseTypes'
 import { CurrencySchema } from './MoneyTypes'
+import { CARD_BRANDS } from './payment/cardBrand'
 
 /* =========================================================
    ENUMS
@@ -38,15 +39,7 @@ export const PaymentBaseSchema = z.object({
   currency: CurrencySchema,
 })
 
-export const CardBrandEnum = z.enum(['VISA', 
-  'MASTERCARD', 
-  'AMEX', 
-  'DISCOVER', 
-  'TROY', 
-  'MIR',
-  'UNIONPAY',
-  'JCB',
-  'UNKNOWN']);
+export const CardBrandEnum = z.enum(CARD_BRANDS);
 
 export const CreditCardInputSchema = z.object({
   cardholderName: z.string().min(1),
