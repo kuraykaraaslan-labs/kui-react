@@ -677,3 +677,81 @@ describe('asking before acting (D580, UI test 3 #215)', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
+
+describe('the device that triggered it (RL-E13)', () => {
+  const opts = (sel: string) => [...(screen.getByLabelText('Device', { selector: sel }) as HTMLSelectElement).options].map((o) => o.value);
+  const startedByFan: RuleDefinition = {
+    v: 1, options: { overlap: 'ignore' },
+    when: [{ id: 't1', kind: 'status', target: { device: 'd2' }, to: 'online' }],
+    then: [{ id: 'a1', kind: 'wait', sec: 60 }],
+  };
+
+  it('a rule a device starts offers it to a command, a setting and an alarm, and saves { trigger: true } with the commands of the triggering device', async () => {
+    const onSave = vi.fn(async (_input: unknown) => undefined);
+    const user = userEvent.setup();
+    render(<RuleEditor scope={scope} initial={{ name: 'Fan 1 acts on itself', definition: startedByFan }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#action-a1-kind' }), 'command');
+    expect(opts('#action-a1-device')).toEqual(['', 'trigger', 'd:d1', 'd:d2']);
+    expect(screen.getByRole('option', { name: 'The device that triggered it' })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Device', { selector: '#action-a1-device' }), 'trigger');
+    expect([...(screen.getByLabelText('Command', { selector: '#action-a1-command' }) as HTMLSelectElement).options].map((o) => o.value)).toEqual(['', 'fan.set', 'sys.reboot']);
+    await user.selectOptions(screen.getByLabelText('Command', { selector: '#action-a1-command' }), 'fan.set');
+    await user.type(await screen.findByLabelText(/Speed/), '2');
+    await user.click(screen.getByRole('button', { name: 'Add an action' }));
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#action-a2-kind' }), 'alarm');
+    expect(opts('#action-a2-device')).toEqual(['', 'trigger', 'd:d1', 'd:d2']);
+    await user.selectOptions(screen.getByLabelText('Device', { selector: '#action-a2-device' }), 'trigger');
+    await user.type(screen.getByLabelText('Alarm type', { selector: '#action-a2-type' }), 'Overheat');
+    await user.click(screen.getByRole('button', { name: 'Add an action' }));
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#action-a3-kind' }), 'setting');
+    expect(opts('#action-a3-device')).toContain('trigger');
+    await user.selectOptions(screen.getByLabelText('Device', { selector: '#action-a3-device' }), 'trigger');
+    await user.type(screen.getByLabelText('Setting', { selector: '#action-a3-key' }), 'eco');
+    await user.type(screen.getByLabelText('to', { selector: '#action-a3-value' }), '1');
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByLabelText('Yes, let this rule act on its own'));
+    await user.click(within(dialog).getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const saved = (onSave.mock.calls[0]![0] as { definition: RuleDefinition }).definition;
+    expect(saved.then).toEqual([
+      { id: 'a1', kind: 'command', target: { trigger: true }, command: 'fan.set', params: { speed: 2 } },
+      { id: 'a2', kind: 'alarm', op: 'raise', target: { trigger: true }, alarmType: 'Overheat' },
+      { id: 'a3', kind: 'setting', target: { trigger: true }, key: 'eco', value: 1 },
+    ]);
+  });
+
+  it('a rule no device starts does not offer it; triggers and conditions never do', async () => {
+    const user = userEvent.setup();
+    const timed: RuleDefinition = { ...startedByFan, when: [{ id: 't1', kind: 'time', at: '08:00' }], then: [{ id: 'a1', kind: 'command', target: { device: '' }, command: '' }] };
+    render(<RuleEditor scope={scope} initial={{ name: 'Morning', definition: timed }} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(opts('#action-a1-device')).not.toContain('trigger');
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#trigger-t1-kind' }), 'value');
+    expect(opts('#action-a1-device')).toContain('trigger');
+    expect(opts('#trigger-t1-device')).not.toContain('trigger');
+    await user.click(screen.getByRole('button', { name: 'Add a condition' }));
+    expect(screen.getAllByLabelText('Device').flatMap((s) => [...(s as HTMLSelectElement).options].map((o) => o.value)).filter((v) => v === 'trigger')).toHaveLength(1);
+  });
+
+  it('a row that names it keeps it when the last device trigger goes; Save and Test now say why and ask nothing of the host', async () => {
+    const onSave = vi.fn(async () => undefined);
+    const onTest = vi.fn(async () => undefined);
+    const user = userEvent.setup();
+    const aimed: RuleDefinition = { ...startedByFan, then: [{ id: 'a1', kind: 'command', target: { trigger: true }, command: 'fan.set', params: { speed: 1 } }] };
+    render(<RuleEditor scope={scope} initial={{ name: 'Fan 1 acts on itself', definition: aimed }} onSave={onSave} onTest={onTest} onCancel={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#trigger-t1-kind' }), 'every');
+    expect(screen.getByLabelText('Device', { selector: '#action-a1-device' })).toHaveValue('trigger');
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getAllByText(IOT_MESSAGES.rules.targetTriggerNone)).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Test now' }));
+    expect(onTest).not.toHaveBeenCalled();
+  });
+
+  it('Run now’s question names it in words', () => {
+    const m = IOT_MESSAGES.rules;
+    const step = { id: 'a', kind: 'command' as const, target: { trigger: true as const }, command: 'fan.set' };
+    expect(stepWords(step, scope, [], m, [{ id: 't1', kind: 'status', target: { device: 'd2' }, to: 'offline' }])).toBe('The device that triggered it: Fan on');
+    expect(stepWords({ id: 'a', kind: 'setting', target: { trigger: true }, key: 'eco', value: false }, scope, [], m)).toBe('The device that triggered it: eco to Off');
+  });
+});

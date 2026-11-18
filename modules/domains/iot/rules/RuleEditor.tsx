@@ -78,7 +78,7 @@ export function RuleEditor({
   const own = useMemo(() => draftProblems(name, def, m.rules), [name, def, m.rules]);
   const shown = tried ? [...own, ...problems] : [...problems];
   const taken = useMemo(() => collectIds(def), [def]);
-  const ctx: RuleRowsContext = { scope, m: m.rules, problems: shown, locale, otherRules, severity: m.severity };
+  const ctx: RuleRowsContext = { scope, m: m.rules, problems: shown, locale, otherRules, severity: m.severity, when: def.when };
   const acts = actsOnDevices(def) || (serverNeedsConfirmation?.length ?? 0) > 0;
 
   const input = { name: name.trim(), definition: def };

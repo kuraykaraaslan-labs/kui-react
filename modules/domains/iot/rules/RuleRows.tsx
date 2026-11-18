@@ -12,8 +12,8 @@ import type {
   RuleAction, RuleCondition, RuleDeviceOrHome, RuleProblem, RuleScope, RuleSeverity, RuleTrigger, RuleValue,
 } from '../types/rules';
 import {
-  ACTION_KINDS, CONDITION_KINDS, TRIGGER_KINDS, codeOf, commandOptions, deviceOptions, emptyAction, emptyCondition, emptyTrigger, freshId, problemsAt,
-  refOf, refOrHomeOf, valueOptions, type ActionKind, type ConditionKind, type TriggerKind,
+  ACTION_KINDS, CONDITION_KINDS, TRIGGER_CODE, TRIGGER_KINDS, actionTargetOf, alarmTargetOf, codeOf, commandOptions, deviceOptions, emptyAction, emptyCondition, emptyTrigger,
+  freshId, hasDeviceTrigger, problemsAt, refOf, refOrHomeOf, valueOptions, type ActionKind, type ConditionKind, type TriggerKind,
 } from './rule-draft';
 
 /**
@@ -22,8 +22,14 @@ import {
  * the select values. The first problem of a row is shown under it, in the words the editor or the server gave.
  */
 type M = IotMessages['rules'];
-/** `severity`: the kit's severity words (`IotMessages['severity']`, keyed by the upper-case level); absent, the English. */
-type Ctx = { scope: RuleScope; m: M; problems: readonly RuleProblem[]; locale?: string; otherRules?: ReadonlyArray<{ ruleId: string; name: string }>; severity?: Partial<Record<Uppercase<RuleSeverity>, string>> };
+/**
+ * `severity`: the kit's severity words (`IotMessages['severity']`, keyed by the upper-case level); absent, the English. `when`: the rule's
+ * triggers; with a value, status or alarm trigger among them, a command, a setting or an alarm may act on "the device that triggered it".
+ */
+type Ctx = {
+  scope: RuleScope; m: M; problems: readonly RuleProblem[]; locale?: string; otherRules?: ReadonlyArray<{ ruleId: string; name: string }>;
+  severity?: Partial<Record<Uppercase<RuleSeverity>, string>>; when?: readonly RuleTrigger[];
+};
 
 const SEVERITIES: readonly RuleSeverity[] = ['critical', 'major', 'minor', 'warning', 'info'];
 const NUM = 'w-24';
@@ -418,19 +424,23 @@ function ActionRow({ a, path, ctx, onChange, takenIds }: { a: RuleAction; path: 
   const id = `action-${a.id}`;
   const roles = scope.roles;
   const kinds = ACTION_KINDS.filter((k) => k !== 'rule' || (ctx.otherRules?.length ?? 0) > 0);
+  // "the device that triggered it" is offered to a rule a device starts; a row that names it keeps it after the last such trigger is gone,
+  // and its problem says why it no longer fits (`no_device_trigger`)
+  const triggered = hasDeviceTrigger(ctx.when);
+  const targets = (code: string) => [...(triggered || code === TRIGGER_CODE ? [{ value: TRIGGER_CODE, label: m.targetTrigger }] : []), ...devices];
   return (
     <div className="flex flex-col gap-2" data-row={`action-${a.kind}`}>
       <div className="flex flex-wrap items-start gap-2">
         <Pick id={`${id}-kind`} label={m.pickKind} value={a.kind} className="min-w-[12rem]" options={kinds.map((k) => ({ value: k, label: actionKindLabel(m, k) }))} onChange={(k) => onChange(emptyAction(k as ActionKind, a.id))} />
         {a.kind === 'command' ? (
           <>
-            <Pick id={`${id}-device`} label={m.device} value={codeOf(a.target)} placeholder={m.pickDevice} options={devices} onChange={(v) => onChange({ ...a, target: refOf(v), command: '', params: undefined })} />
-            <Pick id={`${id}-command`} label={m.command} value={a.command} placeholder={m.pickCommand} options={commandOptions(scope, a.target).map((c) => ({ value: c.method, label: c.label }))} onChange={(v) => onChange({ ...a, command: v, params: undefined })} />
+            <Pick id={`${id}-device`} label={m.device} value={codeOf(a.target)} placeholder={m.pickDevice} options={targets(codeOf(a.target))} onChange={(v) => onChange({ ...a, target: actionTargetOf(v), command: '', params: undefined })} />
+            <Pick id={`${id}-command`} label={m.command} value={a.command} placeholder={m.pickCommand} options={commandOptions(scope, a.target, ctx.when).map((c) => ({ value: c.method, label: c.label }))} onChange={(v) => onChange({ ...a, command: v, params: undefined })} />
           </>
         ) : null}
         {a.kind === 'setting' ? (
           <>
-            <Pick id={`${id}-device`} label={m.device} value={codeOf(a.target)} placeholder={m.pickDevice} options={devices} onChange={(v) => onChange({ ...a, target: refOf(v) })} />
+            <Pick id={`${id}-device`} label={m.device} value={codeOf(a.target)} placeholder={m.pickDevice} options={targets(codeOf(a.target))} onChange={(v) => onChange({ ...a, target: actionTargetOf(v) })} />
             <Txt id={`${id}-key`} label={m.settingKey} placeholder={m.settingKey} value={a.key} onChange={(v) => onChange({ ...a, key: v })} className="w-40" />
             <span className="self-center text-sm text-text-secondary">{m.settingValue}</span>
             <Txt id={`${id}-value`} label={m.settingValue} value={String(a.value)} onChange={(v) => onChange({ ...a, value: v !== '' && /^[-+]?\d+(\.\d+)?$/.test(v) ? Number(v) : v })} className="w-32" />
@@ -455,7 +465,7 @@ function ActionRow({ a, path, ctx, onChange, takenIds }: { a: RuleAction; path: 
         {a.kind === 'alarm' ? (
           <>
             <Pick id={`${id}-op`} label={m.aAlarm} value={a.op} options={[{ value: 'raise', label: m.alarmRaise }, { value: 'clear', label: m.alarmClear }]} onChange={(v) => onChange({ ...a, op: v as typeof a.op })} />
-            <Pick id={`${id}-device`} label={m.device} value={codeOf(a.target)} placeholder={m.pickDevice} options={[...(scope.place.type === 'device' ? [{ value: 'home', label: m.alarmHere }] : []), ...devices]} onChange={(v) => onChange({ ...a, target: refOrHomeOf(v) })} />
+            <Pick id={`${id}-device`} label={m.device} value={codeOf(a.target)} placeholder={m.pickDevice} options={[...(scope.place.type === 'device' ? [{ value: 'home', label: m.alarmHere }] : []), ...targets(codeOf(a.target))]} onChange={(v) => onChange({ ...a, target: alarmTargetOf(v) })} />
             <Txt id={`${id}-type`} label={m.alarmTypeNeeded} placeholder={m.alarmTypeNeeded} value={a.alarmType} onChange={(v) => onChange({ ...a, alarmType: v })} className="w-44" />
             {a.op === 'raise' ? <Pick id={`${id}-severity`} label={m.alarmSeverityLabel} value={a.severity ?? 'warning'} options={SEVERITIES.map((s) => ({ value: s, label: severityLabel(s, ctx.severity) }))} onChange={(v) => onChange({ ...a, severity: v as RuleSeverity })} /> : null}
           </>
@@ -513,7 +523,7 @@ function ActionRow({ a, path, ctx, onChange, takenIds }: { a: RuleAction; path: 
  * in range, nothing for a button). A problem the server found in one value shows under that value (`['then', i, 'params', <param>]`).
  */
 function CommandParams({ a, path, ctx, onChange, id }: { a: Extract<RuleAction, { kind: 'command' }>; path: Array<string | number>; ctx: Ctx; onChange: (a: RuleAction) => void; id: string }) {
-  const cmd = commandOptions(ctx.scope, a.target).find((c) => c.method === a.command);
+  const cmd = commandOptions(ctx.scope, a.target, ctx.when).find((c) => c.method === a.command);
   const schema = (cmd?.paramsSchema ?? {}) as Record<string, never>;
   if (!cmd || !Object.keys(schema).length) return null;
   const errors: Record<string, string> = {};

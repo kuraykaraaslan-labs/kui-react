@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { IOT_MESSAGES } from '../messages';
 import type { RuleDefinition, RuleScope } from '../types/rules';
 import {
-  actsOnDevices, codeOf, collectIds, commandOptions, deviceOptions, draftProblems, emptyAction, emptyCondition, emptyDefinition, emptyTrigger, freshId, problemsAt, refOf, refOrHomeOf, valueOptions,
+  actionTargetOf, actsOnDevices, alarmTargetOf, codeOf, collectIds, commandOptions, deviceOptions, draftProblems, emptyAction, emptyCondition, emptyDefinition, emptyTrigger, freshId,
+  hasDeviceTrigger, problemsAt, refOf, refOrHomeOf, triggerDevices, valueOptions,
 } from './rule-draft';
 
 const m = IOT_MESSAGES.rules;
@@ -132,5 +133,66 @@ describe('calendar rows', () => {
     expect(codes).toContain('date_days_conflict');
     expect(codes.filter((c) => c === 'date_empty')).toHaveLength(1);
     expect(codes.filter((c) => c === 'date_window_half')).toHaveLength(1);
+  });
+});
+
+describe('the device that triggered it (RL-E13)', () => {
+  const valueOn = (target: { device: string } | { deviceType: string }): RuleDefinition['when'][number] => ({ id: 't1', kind: 'value', target, key: 'temperature', change: 'above', value: 28 });
+  const two: RuleScope = {
+    ...scope,
+    devices: [...scope.devices, { deviceId: 'd4', name: 'Fan 2', profileId: 'p3', values: [] }],
+    deviceTypes: [...scope.deviceTypes, { profileId: 'p3', name: 'Big fan', deviceCount: 1, commands: [
+      { method: 'fan.set', label: 'Fan on', tier: 'basic', highImpact: false, cardCanSend: true, paramsSchema: {} },
+      { method: 'fan.boost', label: 'Boost', tier: 'basic', highImpact: false, cardCanSend: true, paramsSchema: {} },
+    ] }],
+  };
+
+  it('is the select value `trigger` and back, for a command, a setting and an alarm; the other references read as before', () => {
+    expect(codeOf({ trigger: true })).toBe('trigger');
+    expect(actionTargetOf('trigger')).toEqual({ trigger: true });
+    expect(alarmTargetOf('trigger')).toEqual({ trigger: true });
+    expect(actionTargetOf('d:d3')).toEqual({ device: 'd3' });
+    expect(actionTargetOf('t:p1')).toEqual({ deviceType: 'p1' });
+    expect(alarmTargetOf('home')).toEqual({ home: true });
+    expect(alarmTargetOf('d:d1')).toEqual({ device: 'd1' });
+    expect(refOf('trigger')).toEqual({ device: '' });
+  });
+
+  it('only a value, status or alarm trigger is started by a device', () => {
+    expect(hasDeviceTrigger([emptyTrigger('value', 't1')])).toBe(true);
+    expect(hasDeviceTrigger([emptyTrigger('status', 't1')])).toBe(true);
+    expect(hasDeviceTrigger([emptyTrigger('alarm', 't1')])).toBe(true);
+    expect(hasDeviceTrigger([emptyTrigger('time', 't1'), emptyTrigger('every', 't2'), emptyTrigger('sun', 't3'), emptyTrigger('date', 't4'), emptyTrigger('manual', 't5')])).toBe(false);
+    expect(hasDeviceTrigger(undefined)).toBe(false);
+  });
+
+  it('the devices that may start a run are those the device triggers watch, each once; an alarm "on this place" of a device place is that device', () => {
+    expect(triggerDevices(scope, [valueOn({ deviceType: 'p1' }), valueOn({ device: 'd1' }), emptyTrigger('time', 't2')]).map((d) => d.deviceId)).toEqual(['d1', 'd2']);
+    const devicePlace = { ...scope, place: { type: 'device' as const, id: 'd3', name: 'Fan 1', hasLocation: false } };
+    expect(triggerDevices(devicePlace, [{ id: 't1', kind: 'alarm', target: { home: true }, event: 'raised' }]).map((d) => d.deviceId)).toEqual(['d3']);
+    expect(triggerDevices(scope, [{ id: 't1', kind: 'alarm', target: { home: true }, event: 'raised' }])).toEqual([]);
+  });
+
+  it('its commands are those every kind of device the triggers watch has; none before a trigger names a device', () => {
+    const when = [valueOn({ device: 'd3' }), { id: 't2', kind: 'status' as const, target: { device: 'd4' }, to: 'offline' as const }];
+    expect(commandOptions(two, { trigger: true }, when).map((c) => c.method)).toEqual(['fan.set']);
+    expect(commandOptions(two, { trigger: true }, [when[1]!]).map((c) => c.method)).toEqual(['fan.set', 'fan.boost']);
+    expect(commandOptions(two, { trigger: true }, [emptyTrigger('value', 't1')])).toEqual([]);
+    expect(commandOptions(two, { trigger: true })).toEqual([]);
+  });
+
+  it('a rule no device starts cannot name it: the row says so with the server’s code, nested rows too; a device trigger makes it fit', () => {
+    const def: RuleDefinition = {
+      v: 1, options: { overlap: 'ignore' }, when: [{ id: 't1', kind: 'every', minutes: 5 }],
+      then: [
+        { id: 'a1', kind: 'command', target: { trigger: true }, command: 'fan.set' },
+        { id: 'a2', kind: 'setting', target: { trigger: true }, key: 'eco', value: true },
+        { id: 'a3', kind: 'choose', branches: [{ if: { kind: 'sun', is: 'day' }, then: [{ id: 'a4', kind: 'alarm', op: 'raise', target: { trigger: true }, alarmType: 'Frost' }] }] },
+      ],
+    };
+    const p = draftProblems('x', def, m);
+    expect(p.filter((x) => x.code === 'no_device_trigger').map((x) => x.path.join('.'))).toEqual(['then.0.target', 'then.1.target', 'then.2.branches.0.then.0.target']);
+    expect(p[0]!.message).toBe(m.targetTriggerNone);
+    expect(draftProblems('x', { ...def, when: [valueOn({ device: 'd1' })] }, m)).toEqual([]);
   });
 });

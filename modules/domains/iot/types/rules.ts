@@ -9,6 +9,13 @@ export type RulePlace = { type: 'asset' | 'device'; id: string };
 /** One device, or every device of a device type, of the place's scope. */
 export type RuleDeviceRef = { device: string } | { deviceType: string };
 export type RuleDeviceOrHome = RuleDeviceRef | { home: true };
+/**
+ * The device whose value, status or alarm trigger started the run (the platform's RL-E13): one device, the one whose message fired the
+ * trigger. Only a command, a setting or an alarm action may aim at it, and only in a rule with such a trigger; triggers and conditions never.
+ */
+export type RuleTriggerRef = { trigger: true };
+/** What a command or a setting acts on: devices of the place's scope, or the device that triggered the run. */
+export type RuleActionTarget = RuleDeviceRef | RuleTriggerRef;
 
 export type RuleSeverity = 'critical' | 'major' | 'minor' | 'warning' | 'info';
 export type RuleValue = string | number | boolean;
@@ -40,10 +47,10 @@ export type RuleCondition =
 export type RuleRecipient = { kind: 'user'; userId: string } | { kind: 'role'; role: 'OWNER' | 'ADMIN' | 'USER' } | { kind: 'team'; teamId: string };
 
 export type RuleAction = { id: string } & (
-  | { kind: 'command'; target: RuleDeviceRef; command: string; params?: Record<string, unknown> }
-  | { kind: 'setting'; target: RuleDeviceRef; key: string; value: RuleValue }
+  | { kind: 'command'; target: RuleActionTarget; command: string; params?: Record<string, unknown> }
+  | { kind: 'setting'; target: RuleActionTarget; key: string; value: RuleValue }
   | { kind: 'notify'; recipients: RuleRecipient[]; channels?: string[]; text: string }
-  | { kind: 'alarm'; op: 'raise' | 'clear'; target: RuleDeviceOrHome; alarmType: string; severity?: RuleSeverity }
+  | { kind: 'alarm'; op: 'raise' | 'clear'; target: RuleDeviceOrHome | RuleTriggerRef; alarmType: string; severity?: RuleSeverity }
   | { kind: 'wait'; sec: number }
   | { kind: 'wait_until'; condition: RuleCondition; timeoutSec: number; onTimeout: 'continue' | 'stop' }
   | { kind: 'choose'; branches: Array<{ if: RuleCondition; then: RuleAction[] }>; else?: RuleAction[] }

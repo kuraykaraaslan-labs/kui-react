@@ -675,6 +675,9 @@ export const IOT_MESSAGES = {
     alarmAnySeverity: 'any severity',
     alarmTypeLabel: 'Alarm type (optional)',
     alarmHere: 'on this place',
+    /* "the device that triggered it" (RL-E13): a command, a setting or an alarm on the device whose value, status or alarm trigger started the run */
+    targetTrigger: 'The device that triggered it',
+    targetTriggerNone: 'No device starts this rule (it starts on a time, a schedule or Run now), so there is no device that triggered it. Add a value, connection or alarm trigger, or pick a device.',
     atTime: 'At',
     onDays: 'On',
     everyLabel: 'Every',

@@ -1,5 +1,5 @@
 import type {
-  RuleAction, RuleCondition, RuleDefinition, RuleDeviceOrHome, RuleDeviceRef, RuleProblem, RuleScope, RuleTrigger,
+  RuleAction, RuleActionTarget, RuleCondition, RuleDefinition, RuleDeviceOrHome, RuleDeviceRef, RuleProblem, RuleScope, RuleTrigger, RuleTriggerRef,
 } from '../types/rules';
 import type { IotMessages } from '../messages';
 import { fill } from '../format';
@@ -11,13 +11,24 @@ import { fill } from '../format';
  */
 export type DeviceCode = string;
 
-/** A device reference as a select value: `d:<id>` or `t:<profileId>`; empty for nothing picked. */
-export const codeOf = (ref: RuleDeviceOrHome | undefined): DeviceCode => (!ref ? '' : 'home' in ref ? 'home' : 'device' in ref ? (ref.device ? `d:${ref.device}` : '') : ref.deviceType ? `t:${ref.deviceType}` : '');
+/** The select value of "the device that triggered it" (an action's target only, RL-E13 of the platform). */
+export const TRIGGER_CODE: DeviceCode = 'trigger';
+
+/** A device reference as a select value: `d:<id>`, `t:<profileId>`, `home` or `trigger`; empty for nothing picked. */
+export const codeOf = (ref: RuleDeviceOrHome | RuleTriggerRef | undefined): DeviceCode => (!ref ? '' : 'trigger' in ref ? TRIGGER_CODE : 'home' in ref ? 'home' : 'device' in ref ? (ref.device ? `d:${ref.device}` : '') : ref.deviceType ? `t:${ref.deviceType}` : '');
 export function refOf(code: DeviceCode): RuleDeviceRef {
   return code.startsWith('t:') ? { deviceType: code.slice(2) } : { device: code.startsWith('d:') ? code.slice(2) : '' };
 }
 export function refOrHomeOf(code: DeviceCode): RuleDeviceOrHome {
   return code === 'home' ? { home: true } : refOf(code);
+}
+/** A command's or a setting's target from its select value: the device that triggered the run, else a device reference. */
+export function actionTargetOf(code: DeviceCode): RuleActionTarget {
+  return code === TRIGGER_CODE ? { trigger: true } : refOf(code);
+}
+/** An alarm action's target from its select value: the device that triggered the run, the place itself, else a device reference. */
+export function alarmTargetOf(code: DeviceCode): RuleDeviceOrHome | RuleTriggerRef {
+  return code === TRIGGER_CODE ? { trigger: true } : refOrHomeOf(code);
 }
 
 export type Option = { value: string; label: string };
@@ -35,9 +46,9 @@ export function deviceOptions(scope: Pick<RuleScope, 'devices' | 'deviceTypes'> 
   return [...one, ...kinds];
 }
 
-/** The devices a reference stands for. */
-export function devicesOfRef(scope: Pick<RuleScope, 'devices'>, ref: RuleDeviceOrHome | undefined) {
-  if (!ref || 'home' in ref) return [];
+/** The devices a reference stands for; the device that triggered the run is none of its own (see `triggerDevices`). */
+export function devicesOfRef(scope: Pick<RuleScope, 'devices'>, ref: RuleDeviceOrHome | RuleTriggerRef | undefined) {
+  if (!ref || 'home' in ref || 'trigger' in ref) return [];
   return 'device' in ref ? scope.devices.filter((d) => d.deviceId === ref.device) : scope.devices.filter((d) => d.profileId === ref.deviceType);
 }
 
@@ -48,8 +59,34 @@ export function valueOptions(scope: Pick<RuleScope, 'devices'>, ref: RuleDeviceO
   return [...seen].map(([key, v]) => ({ value: key, label: v.label, sample: v.sample })).sort((a, b) => a.label.localeCompare(b.label));
 }
 
-/** The commands the devices of a reference share: those of the kind of the first device (a kind's devices share its list). */
-export function commandOptions(scope: Pick<RuleScope, 'devices' | 'deviceTypes'>, ref: RuleDeviceOrHome | undefined) {
+/** A scope with its place's type and id: an alarm trigger "on this place" of a device place watches that device. */
+type ScopeWithPlace = Pick<RuleScope, 'devices'> & { place?: Pick<RuleScope['place'], 'type' | 'id'> };
+
+/**
+ * The devices that may start a run of the rule: those its value, status and alarm triggers watch, each once. "The device that triggered it" is
+ * one of them at run time (RL-E13).
+ */
+export function triggerDevices(scope: ScopeWithPlace, when: readonly RuleTrigger[] | undefined): RuleScope['devices'] {
+  const seen = new Map<string, RuleScope['devices'][number]>();
+  for (const t of when ?? []) {
+    if (t.kind !== 'value' && t.kind !== 'status' && t.kind !== 'alarm') continue;
+    const place = scope.place;
+    const list = 'home' in t.target ? (place?.type === 'device' ? scope.devices.filter((d) => d.deviceId === place.id) : []) : devicesOfRef(scope, t.target);
+    for (const d of list) seen.set(d.deviceId, d);
+  }
+  return [...seen.values()];
+}
+
+/**
+ * The commands the devices of a reference share: those of the kind of the first device (a kind's devices share its list). For "the device that
+ * triggered it" (pass the rule's triggers), the commands every kind of device the device triggers watch has: any of them may start the run, and
+ * the server checks the command against each kind.
+ */
+export function commandOptions(scope: Pick<RuleScope, 'devices' | 'deviceTypes'> & Pick<ScopeWithPlace, 'place'>, ref: RuleDeviceOrHome | RuleTriggerRef | undefined, when?: readonly RuleTrigger[]) {
+  if (ref && 'trigger' in ref) {
+    const lists = [...new Set(triggerDevices(scope, when).map((d) => d.profileId))].map((p) => scope.deviceTypes.find((t) => t.profileId === p)?.commands ?? []);
+    return (lists[0] ?? []).filter((c) => lists.every((l) => l.some((x) => x.method === c.method)));
+  }
   const d = devicesOfRef(scope, ref)[0];
   return scope.deviceTypes.find((t) => t.profileId === d?.profileId)?.commands ?? [];
 }
@@ -78,6 +115,10 @@ export type ActionKind = RuleAction['kind'];
 export const TRIGGER_KINDS: readonly TriggerKind[] = ['value', 'status', 'alarm', 'time', 'date', 'every', 'sun', 'manual'];
 export const CONDITION_KINDS: readonly ConditionKind[] = ['value', 'status', 'alarm', 'time', 'date', 'holiday', 'sun', 'expr'];
 export const ACTION_KINDS: readonly ActionKind[] = ['command', 'setting', 'notify', 'alarm', 'wait', 'wait_until', 'choose', 'rule'];
+
+/** The triggers a device fires: a rule with one of them may act on "the device that triggered it" (RL-E13); a time, a schedule or Run now has no such device. */
+export const DEVICE_TRIGGER_KINDS: ReadonlySet<TriggerKind> = new Set<TriggerKind>(['value', 'status', 'alarm']);
+export const hasDeviceTrigger = (when: readonly RuleTrigger[] | undefined): boolean => (when ?? []).some((t) => DEVICE_TRIGGER_KINDS.has(t.kind));
 
 const none: RuleDeviceRef = { device: '' };
 
@@ -153,8 +194,9 @@ export function firstEquipmentAction(def: RuleDefinition): RuleAction | null {
   return walk(def.then);
 }
 
-/** A device reference by name: the device, "Every <kind>", else the word for a device. */
-function refName(scope: Pick<RuleScope, 'devices' | 'deviceTypes'>, ref: RuleDeviceRef, m: IotMessages['rules']): string {
+/** A device reference by name: the device, "Every <kind>", "The device that triggered it", else the word for a device. */
+function refName(scope: Pick<RuleScope, 'devices' | 'deviceTypes'>, ref: RuleActionTarget, m: IotMessages['rules']): string {
+  if ('trigger' in ref) return m.targetTrigger;
   if ('device' in ref) return scope.devices.find((d) => d.deviceId === ref.device)?.name ?? m.device;
   const t = scope.deviceTypes.find((x) => x.profileId === ref.deviceType);
   return t ? fill(m.kindAllOf, { type: t.name }) : m.device;
@@ -176,10 +218,11 @@ function valueWords(v: unknown, field: { options?: unknown } | undefined, m: Iot
  */
 export function stepWords(
   a: RuleAction, scope: Pick<RuleScope, 'devices' | 'deviceTypes'> | null | undefined, rules: ReadonlyArray<{ ruleId: string; name: string }>, m: IotMessages['rules'],
+  when?: readonly RuleTrigger[],
 ): string {
   const sc = scope ?? { devices: [], deviceTypes: [] };
   if (a.kind === 'command') {
-    const cmd = commandOptions(sc, a.target).find((c) => c.method === a.command);
+    const cmd = commandOptions(sc, a.target, when).find((c) => c.method === a.command);
     const schema = (cmd?.paramsSchema ?? {}) as Record<string, { options?: unknown; variants?: { by: string; cases: Record<string, { options?: unknown } | null> } }>;
     const params = a.params ?? {};
     const said = Object.keys(schema).flatMap((k) => {
@@ -201,7 +244,9 @@ export function stepWords(
   return '';
 }
 
-const picked = (r: RuleDeviceOrHome | undefined): boolean => codeOf(r) !== '';
+const picked = (r: RuleDeviceOrHome | RuleTriggerRef | undefined): boolean => codeOf(r) !== '';
+/** A row aimed at "the device that triggered it" in a rule no device starts (the server's `no_device_trigger`). */
+const orphanTrigger = (r: RuleDeviceOrHome | RuleTriggerRef | undefined, deviceTriggered: boolean): boolean => !!r && 'trigger' in r && !deviceTriggered;
 
 function conditionProblems(c: RuleCondition, path: Array<string | number>, m: IotMessages['rules'], out: RuleProblem[]): void {
   if ('all' in c || 'any' in c) {
@@ -226,16 +271,19 @@ function conditionProblems(c: RuleCondition, path: Array<string | number>, m: Io
   }
 }
 
-function actionProblems(list: readonly RuleAction[], path: Array<string | number>, m: IotMessages['rules'], out: RuleProblem[]): void {
+function actionProblems(list: readonly RuleAction[], path: Array<string | number>, m: IotMessages['rules'], out: RuleProblem[], deviceTriggered: boolean): void {
+  const orphan = (p: Array<string | number>) => out.push({ path: [...p, 'target'], code: 'no_device_trigger', message: m.targetTriggerNone });
   list.forEach((a, i) => {
     const p = [...path, i];
     switch (a.kind) {
       case 'command':
         if (!picked(a.target)) out.push({ path: [...p, 'target'], code: 'device', message: m.pickDevice });
+        else if (orphanTrigger(a.target, deviceTriggered)) orphan(p);
         else if (!a.command) out.push({ path: [...p, 'command'], code: 'command', message: m.pickCommand });
         break;
       case 'setting':
         if (!picked(a.target)) out.push({ path: [...p, 'target'], code: 'device', message: m.pickDevice });
+        else if (orphanTrigger(a.target, deviceTriggered)) orphan(p);
         if (!a.key.trim()) out.push({ path: [...p, 'key'], code: 'key', message: m.settingKey });
         if (a.value === '') out.push({ path: [...p, 'value'], code: 'value', message: m.settingValue });
         break;
@@ -245,6 +293,7 @@ function actionProblems(list: readonly RuleAction[], path: Array<string | number
         break;
       case 'alarm':
         if (a.target && !picked(a.target)) out.push({ path: [...p, 'target'], code: 'device', message: m.pickDevice });
+        else if (orphanTrigger(a.target, deviceTriggered)) orphan(p);
         if (!a.alarmType.trim()) out.push({ path: [...p, 'alarmType'], code: 'alarmType', message: m.alarmTypeNeeded });
         break;
       case 'wait':
@@ -255,8 +304,8 @@ function actionProblems(list: readonly RuleAction[], path: Array<string | number
         if (!(a.timeoutSec >= 1)) out.push({ path: [...p, 'timeoutSec'], code: 'timeoutSec', message: m.waitUntilTimeout });
         break;
       case 'choose':
-        a.branches.forEach((b, j) => { conditionProblems(b.if, [...p, 'branches', j, 'if'], m, out); actionProblems(b.then, [...p, 'branches', j, 'then'], m, out); });
-        if (a.else) actionProblems(a.else, [...p, 'else'], m, out);
+        a.branches.forEach((b, j) => { conditionProblems(b.if, [...p, 'branches', j, 'if'], m, out); actionProblems(b.then, [...p, 'branches', j, 'then'], m, out, deviceTriggered); });
+        if (a.else) actionProblems(a.else, [...p, 'else'], m, out, deviceTriggered);
         break;
       case 'rule':
         if (!a.rule) out.push({ path: [...p, 'rule'], code: 'rule', message: m.ruleWhich });
@@ -281,7 +330,7 @@ export function draftProblems(name: string, def: RuleDefinition, m: IotMessages[
     if (t.kind === 'every' && !(t.minutes >= 1)) out.push({ path: [...p, 'minutes'], code: 'minutes', message: m.everyLabel });
   });
   if (def.onlyIf) conditionProblems(def.onlyIf, ['onlyIf'], m, out);
-  actionProblems(def.then, ['then'], m, out);
+  actionProblems(def.then, ['then'], m, out, hasDeviceTrigger(def.when));
   return out;
 }
 

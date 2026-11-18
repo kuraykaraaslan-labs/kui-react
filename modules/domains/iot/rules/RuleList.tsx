@@ -73,7 +73,7 @@ export function RuleList({
   // a rule that moves equipment asks first, naming its first such step; one that only notifies or raises alarms runs at once (D580)
   const runNow = (r: RuleItem) => {
     const step = firstEquipmentAction(r.definition);
-    if (step) setRunning({ rule: r, step: stepWords(step, scope, rules, m.rules) });
+    if (step) setRunning({ rule: r, step: stepWords(step, scope, rules, m.rules, r.definition.when) });
     else onRun(r);
   };
   const menu = (r: RuleItem) => [
