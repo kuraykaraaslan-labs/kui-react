@@ -6,7 +6,7 @@ import type { IotAdapter, IotCapabilities, IotDevicesApi, DeviceListQuery } from
 import type { IotLive, IotLiveSubscription } from '../api/live';
 import type { DeviceLogEntry, DeviceRecord } from '../types/device';
 import { IOT_MESSAGES } from '../messages';
-import { DeviceLogTimeline, auditSummary } from './DeviceLogTimeline';
+import { DeviceLogTimeline, auditSummary, loginRefusalText } from './DeviceLogTimeline';
 import { DeviceDetailView } from './DeviceDetailView';
 import { DeviceListView } from './DeviceListView';
 import { useDeviceLog } from './useDeviceLog';
@@ -116,6 +116,33 @@ describe('DeviceLogTimeline', () => {
     expect(screen.getByText('No changes yet.')).toBeInTheDocument();
     rerender(<DeviceLogTimeline entries={[]} sources={['connection']} onFilterChange={onFilterChange} locale="en" />);
     expect(screen.queryByRole('group', { name: 'Show' })).toBeNull();
+  });
+
+  it('a refused login: "Login refused", its reason in words, "(N times)" only past one, never the stored count as a code', () => {
+    const refused: DeviceLogEntry[] = [
+      { id: 'r1', at: ago(MIN), source: 'connection', kind: 'login_refused', reason: 'device_disabled', count: 3, detail: '3', transport: 'mqtt', remoteIp: '203.0.113.7' },
+      { id: 'r2', at: ago(2 * MIN), source: 'connection', kind: 'login_refused', reason: 'tls_required', count: 1, detail: '1', transport: 'mqtt' },
+      { id: 'r3', at: ago(3 * MIN), source: 'connection', kind: 'login_refused', reason: 'connected_limit', transport: 'http' },
+      { id: 'r4', at: ago(4 * MIN), source: 'connection', kind: 'login_refused', reason: 'something_new', count: 1200 },
+      { id: 'r5', at: ago(5 * MIN), source: 'connection', kind: 'login_refused', reason: 'wrong_password', count: 12, transport: 'mqtt' },
+    ];
+    render(<DeviceLogTimeline entries={refused} filter="connection" onFilterChange={() => undefined} locale="en" />);
+    expect(screen.getAllByText('Login refused')).toHaveLength(5);
+    expect(screen.getByText('Reason: Wrong password')).toBeInTheDocument();
+    expect(screen.getByText('(12 times)')).toBeInTheDocument();
+    expect(screen.getByText('Reason: Device is disabled')).toBeInTheDocument();
+    expect(screen.getByText('(3 times)')).toBeInTheDocument();
+    expect(screen.getByText('Reason: Encrypted connection required')).toBeInTheDocument();
+    expect(screen.getByText("Reason: Plan's connected-device limit reached")).toBeInTheDocument();
+    // an unknown reason as it is; the count grouped in the locale
+    expect(screen.getByText('Reason: something_new')).toBeInTheDocument();
+    expect(screen.getByText('(1,200 times)')).toBeInTheDocument();
+    expect(screen.queryByText('(1 times)')).toBeNull();
+    expect(screen.queryByText('3')).toBeNull();
+    expect(screen.queryByText('1')).toBeNull();
+    // every reason the gateway sends has its words
+    for (const r of ['device_disabled', 'profile_missing', 'credential_type_not_allowed', 'certificate_name_mismatch', 'tls_required', 'http_only_profile',
+      'network_not_allowed', 'connected_limit', 'takeover_backoff', 'wrong_password']) expect(loginRefusalText(IOT_MESSAGES as never, r)).not.toBe(r);
   });
 
   it('compact: no chips, no day headings, no paging', () => {

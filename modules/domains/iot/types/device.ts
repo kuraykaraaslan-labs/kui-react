@@ -160,12 +160,14 @@ export type AttributeEntry = {
 export type DeviceConnectionEvent = {
   id: string;
   at: Date | string | number;
-  /** `connected`, `disconnected`, `taken_over`, `last_seen_only`, or a newer kind (drawn neutral). */
+  /** `connected`, `disconnected`, `taken_over`, `last_seen_only`, `login_refused`, or a newer kind (drawn neutral). */
   kind: string;
   reason?: string | null;
   detail?: string | null;
   transport?: string | null;
   remoteIp?: string | null;
+  /** `login_refused`: how many refused logins the line stands for (the gateway coalesces them). */
+  count?: number | null;
 };
 
 // ── device log (NB iot_device 05 §5.3: the Log tab) ──────────────────────────────────────────────────────────────────
@@ -186,7 +188,7 @@ export type DeviceLogEntry = {
   id: string;
   at: Date | string | number;
   source: DeviceLogSource;
-  /** `connected`, `disconnected`, … for a connection entry; the audit action for an audit entry. */
+  /** `connected`, `disconnected`, `login_refused`, … for a connection entry; the audit action for an audit entry. */
   kind: string;
   /** Absent or null: the system (a flow, a sweep, provisioning). */
   actor?: DeviceLogActor | null;
@@ -194,6 +196,8 @@ export type DeviceLogEntry = {
   transport?: string | null;
   reason?: string | null;
   detail?: string | null;
+  /** A `login_refused` connection entry: how many refused logins it stands for (the gateway coalesces them; absent: one). */
+  count?: number | null;
   metadata?: Record<string, unknown> | null;
 };
 

@@ -18,8 +18,8 @@ import { disconnectReasonText } from './DeviceConnectionBadge';
 
 /**
  * DeviceLogTimeline — everything that happened to one device, newest first (NB iot_device 05 §5.3, the Log tab): its connection log
- * (connects, disconnects with their protocol reason, takeovers, rule switches, with the client address and transport through
- * `DeviceAddress`) and its audited changes (created, edited, status, credential, attribute writes, commands, alarm handling) with who
+ * (connects, disconnects with their protocol reason, takeovers, rule switches, refused logins with their reason in words and "(N times)"
+ * when the gateway coalesced several, with the client address and transport through `DeviceAddress`) and its audited changes (created, edited, status, credential, attribute writes, commands, alarm handling) with who
  * made them ("by Ada Lovelace"). A chip row filters All / Connections / Changes; paging is the host's (`onLoadMore`). `compact`
  * draws a short list without day headings, filter or paging (the quick view's recent lines). Times carry seconds and the zone (the
  * host's `timeZone`, else the viewer's); an audit line names fields, statuses, credential types and scopes in words, a code it does
@@ -55,7 +55,13 @@ const CONNECTION: Record<string, Look> = {
   disconnected: { icon: faPlugCircleXmark, tone: 'default' },
   taken_over: { icon: faArrowRightArrowLeft, tone: 'warning' },
   last_seen_only: { icon: faClock, tone: 'info' },
+  login_refused: { icon: faBan, tone: 'error' },
 };
+
+/** Why the gateway refused a login, in words (`m.loginRefusal`); an unknown code as it is. */
+export function loginRefusalText(m: IotMessages, reason: string): string {
+  return (m.loginRefusal as Record<string, string | undefined>)[reason] ?? reason;
+}
 
 /** The audit actions the hosts write (NB: iot_device, iot_rpc, iot_alarm), their title and marker. Any other action is drawn neutral. */
 export const DEVICE_LOG_ACTIONS: Readonly<Record<string, Look & { title: LogKey }>> = {
@@ -129,6 +135,7 @@ export function DeviceLogTimeline({
     disconnected: m.connection.disconnected,
     taken_over: m.connection.taken_over,
     last_seen_only: m.connection.last_seen_only,
+    login_refused: m.connection.login_refused,
   };
   const actorLine = (e: DeviceLogEntry) => {
     if (!e.actor) return m.log.bySystem;
@@ -139,16 +146,21 @@ export function DeviceLogTimeline({
     const at = toDate(e.at) ?? new Date(0);
     if (e.source === 'connection') {
       const look = CONNECTION[e.kind] ?? { icon: faCircleDot, tone: 'default' as const };
+      // a refused login: its reason in its own words, the count instead of the stored detail
+      const refused = e.kind === 'login_refused';
+      const times = refused && typeof e.count === 'number' && e.count > 1 ? e.count : null;
+      const detail = refused ? null : e.detail;
       return {
         id: e.id,
         at,
         title: connectionTitles[e.kind] ?? m.connection.other,
-        body: e.remoteIp || e.reason || e.detail ? (
+        body: e.remoteIp || e.reason || detail || times ? (
           <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs text-text-secondary" data-source="connection">
             {e.remoteIp && <DeviceAddress ip={e.remoteIp} transport={e.transport} messages={messages} locale={locale} />}
             {!e.remoteIp && e.transport && <span>{fill(m.connection.via, { transport: e.transport })}</span>}
-            {e.reason && <span>{fill(m.connection.reason, { reason: disconnectReasonText(m, e.reason) })}</span>}
-            {e.detail && <code className="rounded bg-surface-sunken px-1">{e.detail}</code>}
+            {e.reason && <span>{fill(m.connection.reason, { reason: refused ? loginRefusalText(m, e.reason) : disconnectReasonText(m, e.reason) })}</span>}
+            {times !== null && <span data-count={times}>{fill(m.connection.times, { n: formatNumber(times, lang, 0) })}</span>}
+            {detail && <code className="rounded bg-surface-sunken px-1">{detail}</code>}
           </span>
         ) : undefined,
         icon: <FontAwesomeIcon icon={look.icon} className="h-3 w-3" aria-hidden="true" />,
