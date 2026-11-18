@@ -24,6 +24,9 @@ export type TourRunnerOptions = {
 };
 
 const DEFAULT_WAIT_MS = 3000;
+/** Everything Tab can reach (Driver.js's own list leaves out number, search, email … inputs and tabindex elements). */
+const FOCUSABLE =
+  'a[href], area[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [contenteditable=""], [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 const MIRROR: Partial<Record<Side, Side>> = { left: 'right', right: 'left' };
 
 /** The element a selector names, once it is in the page and laid out; null after `timeoutMs`. */
@@ -115,6 +118,7 @@ export class TourRunner {
   async start(at = 0): Promise<void> {
     this.returnFocus = this.doc.activeElement instanceof HTMLElement ? this.doc.activeElement : null;
     this.doc.addEventListener('keydown', this.onKey, true);
+    this.doc.addEventListener('keydown', this.onTab);
     await this.show(Math.min(Math.max(at, 0), this.opts.steps.length - 1));
   }
 
@@ -148,6 +152,7 @@ export class TourRunner {
     this.token++;
     this.clearStep();
     this.doc.removeEventListener('keydown', this.onKey, true);
+    this.doc.removeEventListener('keydown', this.onTab);
     this.doc.body.classList.remove('kui-tour-interactive');
     this.watcher?.disconnect();
     this.watcher = null;
@@ -246,6 +251,25 @@ export class TourRunner {
     return Boolean(this.popover?.contains(node));
   }
 
+  /**
+   * Tab on a plain step stays between the popover and the highlighted element; on an `interactive` step the page is the
+   * reader's, so Tab is left alone (NB 41-ui-fixes/38 T5.1). Driver.js's own window trap ignores `interactive` and knows
+   * only some inputs, so it is taken off and this one, on the document, replaces it.
+   */
+  private onTab = (e: KeyboardEvent) => {
+    if (this.closed || e.key !== 'Tab' || this.interactive) return;
+    const scopes = [this.popover, this.target].filter((el): el is HTMLElement => el instanceof HTMLElement);
+    const focusable = scopes.flatMap((el) => [...(el.matches(FOCUSABLE) ? [el] : []), ...Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE))])
+      .filter((el) => !el.closest('[inert]') && el.getClientRects().length > 0);
+    if (focusable.length === 0) return;
+    e.preventDefault();
+    const at = focusable.indexOf(this.doc.activeElement as HTMLElement);
+    const next = e.shiftKey ? focusable[at - 1] ?? focusable[focusable.length - 1] : focusable[at + 1] ?? focusable[0];
+    next.focus();
+  };
+
+  private interactive = false;
+
   private async ensureDriver(): Promise<Driver> {
     if (this.driver) return this.driver;
     const create = await this.loadDriver();
@@ -302,8 +326,12 @@ export class TourRunner {
       },
     };
     this.target = element;
-    this.doc.body.classList.toggle('kui-tour-interactive', Boolean(step.interactive));
+    this.interactive = Boolean(step.interactive);
+    this.doc.body.classList.toggle('kui-tour-interactive', this.interactive);
     driver.highlight(drive);
+    // Driver.js registers its window Tab trap when a highlight first initialises it: off, onTab decides (T5.1).
+    const events = driver.getState('__events') as { onKeydown?: (e: KeyboardEvent) => void } | undefined;
+    if (events?.onKeydown) this.doc.defaultView?.removeEventListener('keydown', events.onKeydown);
     this.placeLayers(); // the overlay may only exist once the first highlight made it
 
     if (element && step.advanceOn === 'click') {

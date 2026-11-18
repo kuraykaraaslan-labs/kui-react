@@ -1,12 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { Config, Driver, DriveStep, PopoverDOM } from 'driver.js';
 import { TourRunner, waitForElement, type DriverFactory } from './runner';
 import { DEFAULT_TOUR_LABELS, type TourStep } from './types';
 
 /** A stand-in for Driver.js: records what the runner asks for and renders the popover hook into real elements. */
 function fakeDriver() {
-  const calls: { config?: Config; highlights: DriveStep[]; doms: PopoverDOM[]; destroyed: number } = { highlights: [], doms: [], destroyed: 0 };
+  const calls: { config?: Config; highlights: DriveStep[]; doms: PopoverDOM[]; destroyed: number; driverTabs: number } = {
+    highlights: [], doms: [], destroyed: 0, driverTabs: 0,
+  };
+  // Like Driver.js: its first highlight puts a Tab trap on the window, kept in its state as `__events.onKeydown`.
+  let events: { onKeydown: (e: KeyboardEvent) => void } | undefined;
   const make = (): PopoverDOM => {
     const el = (tag: string) => document.createElement(tag);
     return {
@@ -22,6 +27,10 @@ function fakeDriver() {
     document.body.appendChild(overlay);
     return {
       highlight: (step: DriveStep) => {
+        if (!events) {
+          events = { onKeydown: (e) => { if (e.key === 'Tab') { calls.driverTabs++; e.preventDefault(); } } };
+          window.addEventListener('keydown', events.onKeydown);
+        }
         calls.highlights.push(step);
         const dom = make();
         step.popover?.onPopoverRender?.(dom, {} as never);
@@ -29,8 +38,10 @@ function fakeDriver() {
       },
       destroy: () => {
         calls.destroyed++;
+        if (events) window.removeEventListener('keydown', events.onKeydown);
+        events = undefined;
       },
-      getState: (key: string) => (key === '__overlaySvg' ? overlay : undefined),
+      getState: (key: string) => (key === '__overlaySvg' ? overlay : key === '__events' ? events : undefined),
     } as unknown as Driver;
   };
   return { calls, load: async () => factory, overlay };
@@ -194,6 +205,67 @@ describe('interactive steps', () => {
     expect(css).toContain('.driver-active:where(:not(.kui-tour-interactive)) * { pointer-events: none; }');
     expect(css).not.toContain('.driver-active:not(');
     expect(css).toMatch(/\.kui-tour-interactive \.driver-overlay[\s\S]*pointer-events: none !important/);
+  });
+});
+
+describe('the keyboard on a step (NB 41-ui-fixes/38 T5.1)', () => {
+  // jsdom lays nothing out: every element counts as drawn
+  beforeEach(() => {
+    vi.spyOn(Element.prototype, 'getClientRects').mockReturnValue([{}] as unknown as DOMRectList);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Puts the popover's buttons in its wrapper and the wrapper on the page, as Driver.js does; waits out the runner's focus frame. */
+  async function popoverOnPage(dom: PopoverDOM) {
+    dom.wrapper.classList.add('driver-popover');
+    dom.wrapper.append(dom.previousButton, dom.nextButton, dom.closeButton);
+    document.body.prepend(dom.wrapper);
+    await new Promise((r) => requestAnimationFrame(() => r(null)));
+  }
+
+  it('on an interactive step Tab goes from the popover on to the page', async () => {
+    const { fake, runner } = makeRunner({ steps: [{ id: 'work', target: '[data-tour="one"]', text: 'Fill it in.', interactive: true }] });
+    await runner.start();
+    const dom = fake.calls.doms[0];
+    await popoverOnPage(dom);
+    const user = userEvent.setup();
+    dom.closeButton.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(document.querySelector('[data-tour="one"]'));
+    await user.tab();
+    expect(document.activeElement).toBe(document.querySelector('[data-tour="two"]'));
+    await user.tab();
+    expect(document.activeElement).toBe(document.getElementById('field'));
+    expect(fake.calls.driverTabs).toBe(0); // Driver.js's own trap is off
+    runner.finish('dismissed');
+  });
+
+  it('on a plain step Tab stays between the popover and the highlighted element, both ways', async () => {
+    const { fake, runner } = makeRunner({ steps: [{ id: 'look', target: '[data-tour="one"]', text: 'Look.' }] });
+    await runner.start();
+    const dom = fake.calls.doms[0];
+    await popoverOnPage(dom);
+    const user = userEvent.setup();
+    const target = document.querySelector('[data-tour="one"]');
+    dom.closeButton.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(target);
+    await user.tab();
+    expect(document.activeElement).toBe(dom.previousButton);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(target);
+    await user.tab({ shift: true });
+    expect(document.activeElement).toBe(dom.closeButton);
+    expect(fake.calls.driverTabs).toBe(0);
+    runner.finish('dismissed');
+    // after the tour Tab is the page's again
+    dom.closeButton.focus();
+    await user.tab();
+    expect(document.activeElement).toBe(target);
+    await user.tab();
+    expect(document.activeElement).toBe(document.querySelector('[data-tour="two"]'));
   });
 });
 
