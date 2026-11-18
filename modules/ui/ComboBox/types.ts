@@ -12,8 +12,12 @@ export type ComboBoxOption = {
 // M1: async search signature used by useAsync hook.
 export type SearchFn = (query: string, signal?: AbortSignal) => Promise<ComboBoxOption[]>;
 
-// M1: cursor-style pagination — host owns the cursor in closure.
-export type LoadMoreFn = () => Promise<ComboBoxOption[]>;
+/**
+ * M1: cursor-style pagination — the host owns the cursor in a closure. `query` is the search whose list is on screen (trimmed,
+ * as `onSearch` gets it): a search served from the cache does not call `onSearch`, so a host that pages a server search keeps
+ * its cursor per query and reads it from this argument (NB 41-ui-fixes/38 A4.5). A `() => …` host still fits.
+ */
+export type LoadMoreFn = (query: string) => Promise<ComboBoxOption[]>;
 
 /** Built-in strings, overridable per instance through `messages` (to translate them). */
 export type ComboBoxMessages = {

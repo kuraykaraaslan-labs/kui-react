@@ -49,7 +49,8 @@ type MultiSelectProps = {
   // M1 — async search; signature mirrors ComboBox.
   onSearch?: (q: string, signal?: AbortSignal) => MultiSelectOption[] | Promise<MultiSelectOption[]>;
   // M1 — cursor pagination.
-  onLoadMore?: () => Promise<MultiSelectOption[]>;
+  /** Cursor pagination; `query` is the search whose list is on screen (see ComboBox `LoadMoreFn`). */
+  onLoadMore?: (query: string) => Promise<MultiSelectOption[]>;
   debounceMs?: number;
   /** Overrides for the built-in English strings. */
   messages?: Partial<MultiSelectMessages>;
@@ -91,7 +92,6 @@ export function MultiSelect({
     onSearch,
     debounceMs
   );
-  const loadingMore = useLoadMore(open, sentinelRef, onLoadMore, appendResults);
 
   const sourceOptions = asyncResults ?? options;
 
@@ -102,6 +102,9 @@ export function MultiSelect({
     : searchable
       ? localFiltered
       : sourceOptions;
+  // The list draws the load-more sentinel under a non-empty, loaded list; it is watched from when it is drawn, and a page
+  // is read for the search on screen (NB 41-ui-fixes/38 A4.5).
+  const loadingMore = useLoadMore(open, sentinelRef, onLoadMore, appendResults, search, !loading && filtered.length > 0);
 
   function toggle(v: string) {
     const next = selected.includes(v)

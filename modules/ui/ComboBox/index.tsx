@@ -65,9 +65,6 @@ export function ComboBox({
     debounceMs
   );
 
-  // IntersectionObserver-backed cursor pagination (M1).
-  const loadingMore = useLoadMore(open, sentinelRef, onLoadMore, appendResults);
-
   const sourceOptions = asyncResults ?? options;
 
   const selectedOption = useMemo(
@@ -79,6 +76,10 @@ export function ComboBox({
   // Local fuzzy filter only when async is NOT in play.
   const localFiltered = useFilter(sourceOptions, searchQuery);
   const filteredOptions = onSearch ? sourceOptions : localFiltered;
+
+  // IntersectionObserver-backed cursor pagination (M1). The list draws the sentinel under a non-empty, loaded list; it is
+  // watched from when it is drawn, and a page is read for the search on screen (NB 41-ui-fixes/38 A4.5).
+  const loadingMore = useLoadMore(open, sentinelRef, onLoadMore, appendResults, searchQuery, !loading && filteredOptions.length > 0);
 
   // While the person types, the first match is highlighted, so Enter takes it (next-boilerplate e2e round 5, V1-B16: typing reset the highlight and
   // Enter picked nothing). An arrow key moves from there; a list still loading highlights nothing yet.
