@@ -401,7 +401,7 @@ export function GaugeChart({
     const valuePos: CSSProperties = donut
       ? { left: '50%', top: pointer ? Y(CY + R * 0.42) : Y(CY), transform: 'translate(-50%, -50%)' }
       : pointer
-        ? { left: '50%', top: Y(CY + 8) }
+        ? { left: '50%', top: Y(CY + 8), transform: 'translateX(-50%)' } // centred under the pivot, clear of the max label
         : { left: '50%', bottom: pctOf(box.y + box.h - CY - 1, box.h), transform: 'translateX(-50%)' };
     const arrow = (() => {
       const base = 4.5;
