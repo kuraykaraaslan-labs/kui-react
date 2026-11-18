@@ -135,6 +135,10 @@ export function WidgetSettingsEditor({
           )}
           {Object.keys(schema).length > 0 && (
             <SchemaForm
+              // The host's defaults that arrive after the form opened (the bound value's own range or unit, read from its answer:
+              // next-boilerplate UI test 3 #66) are shown: the form is seeded again on them, writing a pending edit as it goes. The
+              // person's own values never re-seed it.
+              key={JSON.stringify(base)}
               schema={schema}
               values={values}
               defaults={base}

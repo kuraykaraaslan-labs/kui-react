@@ -4,7 +4,7 @@
 // a role or a match: the panel speaks of the symbol, the device and its values.
 
 import { mergeMessages, type DeepPartial } from './scene-editor-messages-panels';
-import { DEFAULT_AGE_WORDS, type AgeWords, type MatchEmptyReason, type Mismatch, type ScriptErrorKind, type ScriptTemplateId } from './symbol-binding-logic';
+import { DEFAULT_AGE_WORDS, type AgeWords, type MatchEmptyReason, type Mismatch, type PairTemplateId, type ScriptErrorKind, type ScriptTemplateId } from './symbol-binding-logic';
 
 export type { DeepPartial };
 export { mergeMessages };
@@ -85,14 +85,27 @@ export interface SymbolBindingMessages {
   expressionHint: string;
   /** The chips of the values an expression can use. */
   namesTitle: string;
-  nameChip: (name: string, value: string) => string;
+  /**
+   * A chip: the name the expression uses, the value's own name when the device's profile gives it one that says more (`label`, next-boilerplate phase
+   * 53.3.1, re-run 4 #12: "prim_return_t" alone told nothing), and its reading.
+   */
+  nameChip: (name: string, value: string, label?: string) => string;
   insertName: (name: string) => string;
   removeInput: (name: string) => string;
+  /**
+   * The shown label of an expression's own value (`value`) picker (next-boilerplate phase 53.3.1, re-run 4 #7: both pickers' labels were for screen
+   * readers only, so the box that held the symbol's value had no caption); `addInput` is the other picker's.
+   */
+  expressionValue: string;
   addInput: string;
   addInputPlaceholder: string;
   inputsFull: (max: number) => string;
   expressionNeedsSomething: string;
   templates: Record<ScriptTemplateId, string>;
+  /** The title of a pair chip ("Difference", "Ratio (%)", D589): what it writes over the row's two values. */
+  pairTitle: Record<PairTemplateId, (a: string, b: string) => string>;
+  /** The title of a pair chip while the row reads fewer than two values. */
+  pairNeedsTwo: string;
   /** "Scale 0–100" asks for the raw range first (e2e round 5, E15): the two numbers, a hint, and the button that writes the expression. */
   scaleTitle: string;
   scaleFrom: string;
@@ -130,6 +143,9 @@ export interface SymbolBindingMessages {
   next: string;
   /** "Next symbol" when it will write first (something is filled in that is not saved yet): the person is told that a press saves. */
   saveAndNext: string;
+  /** "Next symbol" and "Save and next" with the symbol they go to, when the host knows it (next-boilerplate phase 52.2.4, D594). */
+  nextTo: (symbol: string) => string;
+  saveAndNextTo: (symbol: string) => string;
   more: string;
   clear: string;
   clearTitle: string;
@@ -140,6 +156,9 @@ export interface SymbolBindingMessages {
   discardConfirm: string;
   keepEditing: string;
   readOnlyNote: string;
+  /** An on/off value as the panel shows it ("Shows On now"): the product's words, never true / false (run 3 note 11: "On" stayed English). */
+  stateOn: string;
+  stateOff: string;
   /** The keyboard, said once under the rows. */
   keysHint: string;
 
@@ -151,6 +170,11 @@ export interface SymbolBindingMessages {
     empty: string;
     /** Nothing to propose, and why (e2e round 5, E4: "Nothing to propose" was said while nothing was linked and the devices were live). */
     emptyBecause: Record<MatchEmptyReason, string>;
+    /**
+     * Nothing sure to propose, and how much of the drawing is connected already (run 3 note 146: "No proposal is sure enough" alone read as if nothing
+     * worked, on a drawing with 7 of 9 symbols connected).
+     */
+    unsureCount: (connected: number, total: number) => string;
     /** While the host reads the devices' values: nothing is proposed yet, and Cancel still works. */
     loading: string;
     symbol: string;
@@ -216,6 +240,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
     'text-for-state': 'This value is text; the drawing expects on/off.',
     'number-for-text': 'This value is a number; the drawing shows a status here.',
     quantity: 'This value measures something else than the drawing shows here.',
+    inverted: 'This value says closed or stopped; the drawing shows open or running here. Invert it with an expression.',
   },
   convertInstead: 'Convert it with an expression',
   age: DEFAULT_AGE_WORDS,
@@ -224,9 +249,10 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   expressionPlaceholder: 'value / 10',
   expressionHint: 'One line. Use the names below; tap one to insert it.',
   namesTitle: 'Values it can use',
-  nameChip: (name, value) => (value ? `${name} · ${value}` : name),
+  nameChip: (name, value, label) => [name, label, value].filter((part) => !!part).join(' · '),
   insertName: (name) => `Insert ${name}`,
   removeInput: (name) => `Remove ${name}`,
+  expressionValue: 'Main value (value)',
   addInput: 'Add a value',
   addInputPlaceholder: 'Pick another value to use…',
   inputsFull: (max) => `An expression uses at most ${max} other values.`,
@@ -237,7 +263,14 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
     round: 'Round',
     threshold: 'Threshold',
     words: 'Words',
+    difference: 'Difference',
+    ratio: 'Ratio (%)',
   },
+  pairTitle: {
+    difference: (a, b) => `${a} - ${b}`,
+    ratio: (a, b) => `${a} / ${b} * 100`,
+  },
+  pairNeedsTwo: 'Add a second value to use this.',
   scaleTitle: 'Make 0–100 from the raw value',
   scaleFrom: 'Raw value at 0 %',
   scaleTo: 'Raw value at 100 %',
@@ -271,6 +304,8 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   save: 'Save',
   next: 'Next symbol',
   saveAndNext: 'Save and next',
+  nextTo: (symbol) => `Next: ${symbol}`,
+  saveAndNextTo: (symbol) => `Save and next: ${symbol}`,
   more: 'More',
   clear: 'Clear what this symbol reads',
   clearTitle: 'Clear this symbol',
@@ -281,6 +316,8 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
   discardConfirm: 'Discard',
   keepEditing: 'Keep editing',
   readOnlyNote: 'You can look at this symbol but not change it.',
+  stateOn: 'On',
+  stateOff: 'Off',
   keysHint: 'Arrow keys move between rows, Enter takes the suggestion, Esc closes. Shift+Tab goes back into the drawing, where the arrow keys move between its symbols and Enter opens one.',
 
   matchAll: {
@@ -293,6 +330,7 @@ export const DEFAULT_SYMBOL_BINDING_MESSAGES: SymbolBindingMessages = {
       noDevices: 'There is no device to read from yet. Place a device here, or connect the symbols one by one.',
       unsure: 'No proposal is sure enough. Click a symbol to pick its device and value by hand.',
     },
+    unsureCount: (connected, total) => `${connected} of ${total} symbols are connected. No proposal for the rest is sure enough: click a symbol to pick its device and value by hand.`,
     loading: 'Reading the values of the devices…',
     symbol: 'Symbol',
     parameter: 'Shows',

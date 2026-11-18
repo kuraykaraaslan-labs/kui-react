@@ -370,9 +370,13 @@ export function autoMatch(
 
 // ─── Proposed roles ──────────────────────────────────────────────────────────
 
-/** A role name from a device code: the code with every character the grammar refuses turned into `_`. */
+/**
+ * A role name from a device code: its accented letters folded to their base letter, case kept (`Çıkış Ağzı K1` → `Cikis_Agzi_K1`; in run 3 note 50 every
+ * Turkish letter became `_`), then every character the grammar refuses turned into `_`.
+ */
 export function roleFromCode(code: string): string {
-  let r = code.trim().replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+(?=.)|_+$/g, '');
+  const folded = code.trim().replace(/ı/g, 'i').normalize('NFD').replace(/\p{M}+/gu, '');
+  let r = folded.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/^_+(?=.)|_+$/g, '');
   if (!r) return 'device';
   if (!/^[A-Za-z_]/.test(r)) r = `_${r}`;
   r = r.slice(0, 48);

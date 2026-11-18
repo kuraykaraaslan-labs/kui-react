@@ -11,6 +11,15 @@ export const controlCls =
   'disabled:opacity-50';
 
 const optVal = (o: FieldOption): string => (typeof o === 'string' ? o : o.value);
+
+/**
+ * The mouse wheel never changes a focused number field: the browser steps it while the pointer is over it, so scrolling a settings
+ * panel past a field just typed in changed it (next-boilerplate UI test 3 #22: y 150 became 149; #73: a step of 5 became 6). The field
+ * lets go of the focus, and the wheel scrolls the panel as it does over any other field.
+ */
+export function blurOnWheel(e: { currentTarget: HTMLInputElement }): void {
+  if (typeof document !== 'undefined' && document.activeElement === e.currentTarget) e.currentTarget.blur();
+}
 const optLabel = (o: FieldOption): string => (typeof o === 'string' ? o : o.label);
 
 export interface FieldControlProps {
@@ -69,9 +78,11 @@ export function FieldControl(props: FieldControlProps) {
           value={typeof value === 'number' ? value : typeof field.value === 'number' && value === undefined ? field.value : ''}
           placeholder={field.placeholder}
           onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+          onWheel={blurOnWheel}
           className={controlCls} {...aria} />
       );
     case 'boolean':
+      if (field.display === 'segmented') return <OnOffControl {...props} />;
       return (
         <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-text-secondary">
           <input id={id} type="checkbox" checked={Boolean(value ?? field.value ?? false)}
@@ -80,14 +91,20 @@ export function FieldControl(props: FieldControlProps) {
           {field.placeholder || m.enabled}
         </label>
       );
-    case 'select':
+    case 'select': {
       if (field.display === 'segmented' || field.display === 'cards') return <ChoiceControl {...props} />;
+      const options = field.options ?? [];
+      // A required select that holds none of its options shows an empty first option it cannot be set back to, so the list never shows an
+      // option the form does not hold: with one option the browser showed it while the value stayed empty, and picking it changed nothing
+      // (next-boilerplate UI test 3 #85, #199, #213: "Control is required" under a list showing the only control).
+      const held = options.some((o) => optVal(o) === str);
       return (
         <select id={id} value={str} onChange={(e) => onChange(e.target.value)} className={controlCls} {...aria}>
-          {!field.required && <option value="">-</option>}
-          {(field.options ?? []).map((o) => <option key={optVal(o)} value={optVal(o)}>{optLabel(o)}</option>)}
+          {!field.required ? <option value="">-</option> : !held ? <option value="" disabled>{field.placeholder || '-'}</option> : null}
+          {options.map((o) => <option key={optVal(o)} value={optVal(o)}>{optLabel(o)}</option>)}
         </select>
       );
+    }
     case 'multi-select':
       return <MultiSelectControl {...props} />;
     case 'color':
@@ -265,6 +282,22 @@ function ChoiceControl({ id, field, value, onChange, invalid, describedBy }: Fie
         );
       })}
     </div>
+  );
+}
+
+/**
+ * An on / off value drawn as the segmented On / Off choice (`display: 'segmented'` on a boolean): nothing is picked until the person
+ * picks, so a value someone sends (a switch a command sets) is never sent as the unticked box's `false` by default.
+ */
+function OnOffControl(props: FieldControlProps) {
+  const m = useSchemaFormMessages();
+  const { field, value, onChange } = props;
+  const own = typeof field.value === 'boolean' ? String(field.value) : undefined;
+  return (
+    <ChoiceControl {...props}
+      field={{ ...field, type: 'select', value: own, options: [{ value: 'true', label: m.on }, { value: 'false', label: m.off }] }}
+      value={typeof value === 'boolean' ? String(value) : undefined}
+      onChange={(v) => onChange(v === 'true')} />
   );
 }
 

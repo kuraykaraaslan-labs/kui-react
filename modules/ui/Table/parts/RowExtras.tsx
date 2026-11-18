@@ -39,6 +39,41 @@ export function SelectAllHeaderCell({
   );
 }
 
+/**
+ * The card layout's select-all: no header row to hold it, so a named checkbox at the start of the selection line. It
+ * selects the cards shown (the page), as the table's header checkbox selects the rows shown.
+ */
+export function SelectAllControl({
+  checked,
+  indeterminate,
+  disabled,
+  label,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  disabled: boolean;
+  label: string;
+  onChange: () => void;
+}) {
+  return (
+    <label className="inline-flex items-center gap-2 text-xs text-text-secondary" data-part="select-all">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        // `indeterminate` is a DOM property, not an attribute.
+        ref={(el) => {
+          if (el) el.indeterminate = indeterminate;
+        }}
+        onChange={onChange}
+        className={checkboxClass}
+      />
+      {label}
+    </label>
+  );
+}
+
 export function SelectCell({
   checked,
   label,

@@ -154,6 +154,35 @@ describe('label tokens', () => {
   });
 });
 
+describe('the condition\'s reading as a label token (next-boilerplate D584, UI test 3 #32)', () => {
+  const rows = [{ id: 'fv101', value: null }, { id: 'tt101', value: 71.84, value2: 3 }, { id: 'pump', running: true }];
+  it('`{condition}` and `{koşul}` print what the rule\'s condition reads; `{value}` stays the target\'s own reading', () => {
+    const rule = { target: 'fv101', source: 'row', of: 'tt101', key: 'value', op: 'lt', value: 72, label: 'Hold {condition} · own {value} · {koşul}' } as SceneRule;
+    const fx = fxOf([rule], rows);
+    expect(fx.get('fv101')?.label).toBe('Hold 71.84 · own — · 71.84');
+  });
+  it('is worded by the host\'s formatter for the symbol the condition reads (its unit), a parameter as it is, a missing reading as "—"', () => {
+    const ctx = ctxOf(rows, { mode: 'eco' }, { format: (id: string, n: number) => `${n.toFixed(1)} ${id === 'tt101' ? '°C' : 'x'}` });
+    expect(evaluateRules([{ target: 'fv101', of: 'tt101', key: 'value', op: 'set', label: '{condition}' } as SceneRule], ctx).get('fv101')?.label).toBe('71.8 °C');
+    expect(evaluateRules([{ target: 'fv101', source: 'param', key: 'mode', op: 'set', label: 'Mode {condition}' } as SceneRule], ctx).get('fv101')?.label).toBe('Mode eco');
+    expect(evaluateRules([{ target: 'fv101', key: 'value2', op: 'unset', label: '{condition}' } as SceneRule], ctx).get('fv101')?.label).toBe('—');
+    expect(evaluateRules([{ target: 'pump', key: 'running', op: 'true', label: '{condition}' } as SceneRule], ctx).get('pump')?.label).toBe('On');
+  });
+  it('prints an on / off reading in the host\'s words, never the data\'s true / false (next-boilerplate phase 52.6.1)', () => {
+    const words = { on: 'Açık', off: 'Kapalı' };
+    const running = { target: 'pump', key: 'running', op: 'set', label: 'Pompa {koşul}' } as SceneRule;
+    expect(evaluateRules([running], ctxOf(rows, {}, { onOff: words })).get('pump')?.label).toBe('Pompa Açık');
+    expect(evaluateRules([running], ctxOf([{ id: 'pump', running: false }], {}, { onOff: words })).get('pump')?.label).toBe('Pompa Kapalı');
+    expect(evaluateRules([running], ctxOf([{ id: 'pump', running: false }])).get('pump')?.label).toBe('Pompa Off');
+    // a board parameter that is on / off too; a text "true" from a device stays the device's word
+    expect(evaluateRules([{ target: 'pump', source: 'param', key: 'auto', op: 'set', label: '{condition}' } as SceneRule], ctxOf(rows, { auto: true }, { onOff: words })).get('pump')?.label).toBe('Açık');
+    expect(evaluateRules([running], ctxOf([{ id: 'pump', running: 'true' }], {}, { onOff: words })).get('pump')?.label).toBe('Pompa true');
+  });
+  it('without the rule (a caller of the filler alone) it prints "—"', () => {
+    expect(expandLabel('{condition}', 'tt101', ctxOf(rows))).toBe('—');
+  });
+});
+
 describe('another kind\'s effects (the spec is data)', () => {
   const spec: EffectSpec = {
     color: { kind: 'color' },
@@ -466,6 +495,11 @@ describe('rules in the scene model', () => {
     expect(html).not.toContain('>Tank<');
     expect(html).toContain('>lt · North<');
     expect(m.hits.find((h) => h.id === 'tank')?.name).toBe('Level 55');
+  });
+  it('a label\'s `{condition}` prints an on / off reading in the host\'s words (next-boilerplate phase 52.6.1)', () => {
+    const s = scene({ rules: [{ target: 'tank', of: 'pump', key: 'running', op: 'set', label: 'Pump {condition}' }] });
+    expect(draw(s, ROWS, { onOff: { on: 'Açık', off: 'Kapalı' } }).hits.find((h) => h.id === 'tank')?.name).toBe('Pump Açık');
+    expect(draw(s).hits.find((h) => h.id === 'tank')?.name).toBe('Pump On');
   });
   it('a label shows even on a symbol with no name of its own', () => {
     const s = scene({ elements: [{ id: 'pump', symbol: 'home.router', x: 100, y: 100 }], links: [], rules: [{ target: 'pump', label: 'Duty pump' }] });

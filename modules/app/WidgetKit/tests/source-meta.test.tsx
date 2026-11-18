@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { effective } from '../settings/engine';
 import { resolvePlacement } from '../settings/resolve';
-import { metaFormat, metaLabel, metaValue, primaryMeta, valueMapList, directionOption } from '../settings/source-meta';
+import { metaFormat, metaLabel, metaScale, metaScaleDefaults, metaValue, primaryMeta, valueMapList, directionOption } from '../settings/source-meta';
 import type { SlotData } from '../kind';
 import { STAT_VALUE, STAT_VALUE_KIND } from '../templates/stat-value';
 import { DATA_TABLE, DATA_TABLE_KIND } from '../templates/data-table';
@@ -12,6 +12,8 @@ import { evaluateState } from '../views/StateView';
 import { STATE } from '../templates/state';
 import { buildMarkers, effectiveValueColors, mapLegend } from '../views/MapView';
 import { MAP } from '../templates/map';
+import { GAUGE } from '../templates/gauge';
+import { gaugeModel } from '../views/gauge-logic';
 
 const doorMap = { '0': { label: 'Closed', color: '#00aa00' }, '1': { label: 'Open', color: '#cc0000', icon: 'fas fa-door-open' } };
 
@@ -178,3 +180,53 @@ describe('a stat over a scalar with meta', () => {
     expect(container.textContent).toContain('°C');
   });
 });
+
+describe('a gauge over a value with a declared range (NB run 3, item 110)', () => {
+  const input = { template: GAUGE, slotCount: 3 };
+  const declared = { unit: 'W/m²', min: 0, max: 1100 };
+  it('reads a usable range: finite ends, the minimum below the maximum', () => {
+    expect(metaScale({ min: 0, max: 1100 })).toEqual({ min: 0, max: 1100 });
+    expect(metaScale({ max: 1100 })).toEqual({ max: 1100 });
+    expect(metaScale({ min: 5, max: 5 })).toEqual({});
+    expect(metaScale({ min: 10, max: 1 })).toEqual({});
+    expect(metaScale({ min: Number.NaN, max: Number.POSITIVE_INFINITY })).toEqual({});
+    expect(metaScale({ min: '0' as unknown as number, max: 10 })).toEqual({ max: 10 });
+    expect(metaScale(undefined)).toEqual({});
+  });
+  it('defaults only the scale fields a template names, never an empty scale', () => {
+    expect(metaScaleDefaults(GAUGE, declared)).toEqual({ min: 0, max: 1100 });
+    expect(metaScaleDefaults(STAT_VALUE, declared)).toEqual({});
+    // one end declared: the other is the template's own (0 to 100)
+    expect(metaScaleDefaults(GAUGE, { max: 1100 })).toEqual({ max: 1100 });
+    expect(metaScaleDefaults(GAUGE, { min: -40 })).toEqual({ min: -40 });
+    // a declared end that meets or passes the template's other end gives nothing
+    expect(metaScaleDefaults(GAUGE, { max: -10 })).toEqual({});
+    expect(metaScaleDefaults(GAUGE, { min: 100 })).toEqual({});
+  });
+  it('the declared range is the default scale; without one the scale stays 0 to 100', () => {
+    const r = resolvePlacement({ ...input, settings: {}, sourceMeta: declared });
+    expect(r.settings).toMatchObject({ min: 0, max: 1100 });
+    expect(r.layers['builtin:gauge']).toMatchObject({ min: 0, max: 1100 });
+    expect(resolvePlacement({ ...input, settings: {} }).settings).toMatchObject({ min: 0, max: 100 });
+    expect(resolvePlacement({ ...input, settings: {}, sourceMeta: { unit: 'W/m²' } }).settings).toMatchObject({ min: 0, max: 100 });
+  });
+  it('a person\'s own min / max and a saved definition still win', () => {
+    expect(resolvePlacement({ ...input, settings: { min: 100, max: 900 }, sourceMeta: declared }).settings).toMatchObject({ min: 100, max: 900 });
+    expect(resolvePlacement({ ...input, settings: { max: 50 }, sourceMeta: declared }).settings).toMatchObject({ min: 0, max: 50 });
+    const preset = resolvePlacement({ ...input, settings: {}, definitionDefaults: { max: 1000 }, sourceMeta: declared });
+    expect(preset.settings).toMatchObject({ min: 0, max: 1000 });
+  });
+  it('a bound min / max slot still wins over the declared range', () => {
+    const r = resolvePlacement({ ...input, settings: {}, sourceMeta: declared });
+    const g = gaugeModel(r.settings, r.format, { value: { shape: 'scalar', value: 800 }, max: { shape: 'scalar', value: 2000 } });
+    expect([g.min, g.max]).toEqual([0, 2000]);
+  });
+  it('800 W/m² sits on a 0 to 1100 scale, and far off a 0 to 100 one', () => {
+    const value = { value: { shape: 'scalar' as const, value: 800 } };
+    const on = resolvePlacement({ ...input, settings: {}, sourceMeta: declared });
+    expect(gaugeModel(on.settings, on.format, value)).toMatchObject({ min: 0, max: 1100, offScale: null, farOffScale: false });
+    const off = resolvePlacement({ ...input, settings: {} });
+    expect(gaugeModel(off.settings, off.format, value)).toMatchObject({ min: 0, max: 100, offScale: 'above', farOffScale: true });
+  });
+});
+

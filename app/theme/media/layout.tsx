@@ -226,9 +226,9 @@ export default function MediaThemeLayout({ children }: { children: React.ReactNo
             {/* Link columns */}
             {FOOTER_COLUMNS.map((col) => (
               <div key={col.heading} className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-text-secondary">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-text-secondary">
                   {col.heading}
-                </h3>
+                </h2>
                 <ul className="space-y-2">
                   {col.links.map((link) => (
                     <li key={link.label}>

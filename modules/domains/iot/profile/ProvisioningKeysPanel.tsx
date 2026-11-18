@@ -279,7 +279,7 @@ export function IssuedProvisionKeyNotice({ issued, onDismiss, messages, classNam
         </dd>
         <dt className="text-xs text-warning-fg sm:self-center">{p.secret}</dt>
         <dd className="flex min-w-0 flex-wrap items-center gap-2">
-          <code data-testid="issued-provision-secret" className="min-w-0 flex-1 break-all rounded border border-border bg-surface-base px-2 py-1 font-mono text-xs text-text-primary">
+          <code data-testid="issued-provision-secret" className="min-w-0 flex-1 select-all break-all rounded border border-border bg-surface-base px-2 py-1 font-mono text-xs text-text-primary">
             {shown ? secret : '•'.repeat(Math.min(32, secret.length))}
           </code>
           <Button variant="ghost" size="xs" onClick={() => setShown((s) => !s)}

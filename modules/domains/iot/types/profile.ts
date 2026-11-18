@@ -163,6 +163,29 @@ export const PROFILE_RANGES = {
 } as const;
 export type ProfileRangeKey = keyof typeof PROFILE_RANGES;
 
+/**
+ * A device profile the platform publishes for Roltek's own devices and licensed ones (NB 63-licensed-devices LD-3, "Licensed device
+ * profiles"): what a profile made from it will be, never a provisioning setting or key. `copyProfileId` is the workspace's own copy of
+ * it when it has one (open that instead of making another).
+ */
+export type ProfileTemplate = {
+  templateKey: string;
+  templateVersion: number;
+  name: string;
+  description: string | null;
+  transportType: ProfileTransport;
+  topicSchemes: string[];
+  allowedAuthModes: ProfileAuthMode[];
+  mqttTransport: MqttTransportPolicy;
+  plaintextAllCommands: boolean;
+  updatedAt: string;
+  copyProfileId: string | null;
+};
+
+/** A licensed device profile's key (NB's OD-20 cloud model id): lower-case letters, digits and hyphens, 2 to 32, not starting with a hyphen. */
+export const TEMPLATE_KEY_RE = /^[a-z0-9][a-z0-9-]{1,31}$/;
+export const isTemplateKey = (k: string): boolean => TEMPLATE_KEY_RE.test(k);
+
 /** The most networks one profile may pin (NB `maxAllowedNetworks`). */
 export const MAX_ALLOWED_NETWORKS = 64;
 /** OD-160 (gateway 12 §10): at most this many methods in `plaintextRpcMethods`, each an exact wire name (the host's pattern). */
@@ -221,6 +244,12 @@ export type DeviceProfile = {
    * other command waits for TLS. Empty = none. `sys.factory_reset` never (OD-8). Shared `fw_*` and `cfg.*` never go in clear (D222).
    */
   plaintextRpcMethods: string[];
+  /**
+   * NB 63-licensed-devices LD-2 / LD-7: every command may go to a device in clear, except certificate (`cert.*`), remote access
+   * (`tunnel.*`) and eSIM (`esim.*`) commands, which still have to be named in `plaintextRpcMethods`. Off by default. A host without
+   * the field reads as off.
+   */
+  plaintextAllCommands: boolean;
   rateLimits: ProfileRateLimits;
   replayMsgsPerS: number | null;
   downlinkMaxBytes: number;
@@ -356,6 +385,7 @@ export function blankProfileDraft(name = ''): DeviceProfileDraft {
     allowTokenInUrl: false,
     allowedNetworks: [],
     plaintextRpcMethods: [],
+    plaintextAllCommands: false,
     rateLimits: { ...DEFAULT_RATE_LIMITS },
     replayMsgsPerS: null,
     downlinkMaxBytes: 65536,
@@ -390,6 +420,7 @@ export function draftOf(p: DeviceProfile): DeviceProfileDraft {
     allowedAuthModes: [...p.allowedAuthModes],
     allowedNetworks: [...p.allowedNetworks],
     plaintextRpcMethods: [...(p.plaintextRpcMethods ?? [])],
+    plaintextAllCommands: p.plaintextAllCommands === true,
     rateLimits: { ...DEFAULT_RATE_LIMITS, ...p.rateLimits },
     topicSchemes: [...p.topicSchemes],
     telemetrySchema: p.telemetrySchema.map((k) => ({ ...k })),
@@ -608,7 +639,7 @@ export function cfgKeyIssues(k: CfgKeySpec, at: string, out: Partial<Record<stri
 export const PROFILE_ADMISSION_FIELDS = [
   'transportType', 'mqttTransport', 'allowTokenInUrl', 'allowedNetworks', 'allowedAuthModes', 'topicSchemes', 'anyTopicEnabled',
   'prefixKeysWithTopic', 'maxTopicDepth', 'maxTopicLength', 'maxDistinctTopicsPerDevice', 'rawMaxBytes', 'payloadMaxBytes',
-  'downlinkMaxBytes', 'maxInflightMessages', 'rateLimits',
+  'downlinkMaxBytes', 'maxInflightMessages', 'rateLimits', 'plaintextRpcMethods', 'replayMsgsPerS', 'plaintextAllCommands',
 ] as const satisfies ReadonlyArray<keyof DeviceProfileDraft>;
 
 /** Whether an edit's patch touches what the profile's devices are admitted by. */

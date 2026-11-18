@@ -1,7 +1,8 @@
 'use client';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 import { Callout } from '@/modules/ui/Callout';
+import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Select } from '@/modules/ui/Select';
 import { TagInput } from '@/modules/ui/TagInput';
 import { Toggle } from '@/modules/ui/Toggle';
@@ -18,13 +19,16 @@ import { ProfileSection } from './profile-fields';
  * that cannot do TLS, with the risk said), tokens in the URL for devices that cannot send headers (OD-161: such a profile is HTTP-only,
  * so the card warns when the transport still names MQTT), and the networks a device may connect from (empty = any; invalid entries are
  * named before any request). With plain MQTT allowed, the commands that may still go to a device in clear (gateway 12 §10: exact method
- * names, none by default; firmware and settings attributes never go in clear). Changing the transport never touches the online rule (OD-63).
+ * names, none by default; firmware and settings attributes never go in clear), and the switch that lets every command go in clear but the
+ * certificate, remote access and eSIM ones (NB 63-licensed-devices LD-2 / LD-7: off by default, turned on only through a confirmation, a
+ * warning while on). Changing the transport never touches the online rule (OD-63).
  * The transports are the host's (built-ins and the protocols it polls, `useProfileTransports`); the select always shows the profile's
  * current value with its label, offered or not. A polled transport (NB iot-gateway 13.3: the platform asks the device) has no MQTT, token
  * or network settings: the card says so instead of showing them. Neither has a transport whose devices do not log in themselves (the host's
  * option says `deviceCredentials: false`, NB's LoRaWAN radios and gateways; `transportLogsIn`): the card says that instead.
  */
-export type TransportPolicyValue = Pick<DeviceProfileDraft, 'transportType' | 'mqttTransport' | 'allowTokenInUrl' | 'allowedNetworks' | 'plaintextRpcMethods'>;
+export type TransportPolicyValue = Pick<DeviceProfileDraft, 'transportType' | 'mqttTransport' | 'allowTokenInUrl' | 'allowedNetworks' | 'plaintextRpcMethods'>
+  & Partial<Pick<DeviceProfileDraft, 'plaintextAllCommands'>>;
 
 export type TransportPolicyCardProps = {
   value: TransportPolicyValue;
@@ -47,6 +51,8 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
   const plainMethods = value.plaintextRpcMethods ?? [];
   const badMethods = plainMethods.filter((x) => !isPlaintextRpcMethod(x));
   const showPlainMethods = usesMqtt && value.mqttTransport === 'PLAINTEXT_ALLOWED';
+  const plainAll = value.plaintextAllCommands === true;
+  const [confirmPlainAll, setConfirmPlainAll] = useState(false);
   const polled = isPolledTransport(value.transportType);
   const known = transports.filter((t): t is ProfileTransportOption => typeof t !== 'string');
   const logsIn = transportLogsIn(value.transportType, known);
@@ -102,7 +108,30 @@ export function TransportPolicyCard({ value, onChange, transports = ['MQTT', 'HT
       )}
 
       {showPlainMethods && (
-        <ProfileSection title={m.transport.plainCommands} hint={m.transport.plainCommandsHint}>
+        <ProfileSection title={m.transport.plainAll} hint={m.transport.plainAllHint}>
+          <Toggle
+            id={`${id}-plain-all`}
+            label={m.transport.plainAll}
+            checked={plainAll}
+            disabled={disabled}
+            // turning it on asks first (anyone on the path can read and change the commands); turning it off is the safe way and does not
+            onChange={(v) => (v ? setConfirmPlainAll(true) : onChange?.({ plaintextAllCommands: false }))}
+          />
+          {plainAll && <Callout variant="warning" title={null}>{m.transport.plainAllOn}</Callout>}
+          <ConfirmDialog
+            open={confirmPlainAll}
+            tone="warning"
+            title={m.transport.plainAllConfirmTitle}
+            message={m.transport.plainAllConfirm}
+            confirmLabel={m.transport.plainAllConfirmLabel}
+            onConfirm={() => { setConfirmPlainAll(false); onChange?.({ plaintextAllCommands: true }); }}
+            onCancel={() => setConfirmPlainAll(false)}
+          />
+        </ProfileSection>
+      )}
+
+      {showPlainMethods && (
+        <ProfileSection title={m.transport.plainCommands} hint={plainAll ? m.transport.plainAllListHint : m.transport.plainCommandsHint}>
           <TagInput
             id={`${id}-plain-commands`}
             label={m.transport.plainCommands}

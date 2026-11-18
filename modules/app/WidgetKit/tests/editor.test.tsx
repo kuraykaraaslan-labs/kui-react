@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { WidgetSettingsEditor } from '../WidgetSettingsEditor';
 import { CORE_CARD, CORE_FORMAT, CORE_BOARD } from '../settings/core';
 import { STAT_VALUE } from '../templates/stat-value';
+import { GAUGE } from '../templates/gauge';
 import type { SettingsTemplate } from '../settings/types';
 
 const caps = { hasData: true, exportable: false, formatsNumbers: true };
@@ -64,6 +65,18 @@ describe('WidgetSettingsEditor', () => {
     fireEvent.change(caption, { target: { value: 'New' } });
     act(() => { vi.runAllTimers(); });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // next-boilerplate UI test 3 #66: a gauge's Scale kept 0 / 100 when the bound value's range (0–1100) arrived after the form opened
+  it('shows the host\'s defaults that arrive after the form opened; the person\'s own value stays theirs', () => {
+    const scale = (max: number) => ({ [GAUGE.id]: { min: 0, max } });
+    const { rerender } = render(<WidgetSettingsEditor templates={[GAUGE, CORE_CARD, CORE_FORMAT]} settings={{}} onChange={() => {}} caps={caps} layers={scale(100)} />);
+    expect(screen.getByRole('spinbutton', { name: /^Maximum/ })).toHaveValue(100);
+    rerender(<WidgetSettingsEditor templates={[GAUGE, CORE_CARD, CORE_FORMAT]} settings={{}} onChange={() => {}} caps={caps} layers={scale(1100)} />);
+    expect(screen.getByRole('spinbutton', { name: /^Maximum/ })).toHaveValue(1100);
+    const own = { max: 250 };
+    rerender(<WidgetSettingsEditor templates={[GAUGE, CORE_CARD, CORE_FORMAT]} settings={own} onChange={() => {}} caps={caps} layers={scale(900)} />);
+    expect(screen.getByRole('spinbutton', { name: /^Maximum/ })).toHaveValue(250);
   });
 
   it('edits board settings with the board template alone', () => {

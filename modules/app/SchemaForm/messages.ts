@@ -16,6 +16,9 @@ export interface SchemaFormMessages {
   commaSeparated: string;
   /** A checkbox without its own caption. */
   enabled: string;
+  /** The two choices of an on / off value (`display: 'segmented'` on a boolean, a switch a command sets). */
+  on: string;
+  off: string;
   themeColours: (label: string) => string;
   pickColour: (label: string) => string;
   /** The free colour box when it is empty. */
@@ -70,6 +73,8 @@ export const DEFAULT_SCHEMA_FORM_MESSAGES: SchemaFormMessages = {
   searchPlaceholder: 'Search settings...',
   commaSeparated: 'Comma separated',
   enabled: 'Enabled',
+  on: 'On',
+  off: 'Off',
   themeColours: (label) => `${label}: theme colours`,
   pickColour: (label) => `${label}: pick a colour`,
   colourDefault: 'Default',

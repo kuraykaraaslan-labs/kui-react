@@ -45,6 +45,12 @@ export interface ControlConfirm {
   mode: 'none' | 'confirm' | 'typed';
   /** The text to type for 'typed', or the question for 'confirm'. */
   text?: string;
+  /**
+   * The question's body, worded by the host: what is sent where (the device and the value; next-boilerplate UI test 3 #71: a question
+   * with only the command's name told nobody what was about to change). `{value}` is replaced by the value about to be written, as the
+   * control shows it (On / Off, the number). Empty: no body.
+   */
+  message?: string;
 }
 
 /** A data slot a widget type declares. */
@@ -87,6 +93,8 @@ export interface WidgetViewProps {
   locale?: string;
   /** The data is older than the card's `staleAfterSeconds`. */
   stale?: boolean;
+  /** The board is being edited (`PlacementCard`'s `isEditor`): a view may add a hint meant for the person setting it up. */
+  editing?: boolean;
   /** Controls only: perform the request (resolves when the host is done; rejects on failure). */
   onControl?: (request: ControlRequest) => Promise<unknown>;
   /** Controls only: the host cannot act (no command bound, no permission). */

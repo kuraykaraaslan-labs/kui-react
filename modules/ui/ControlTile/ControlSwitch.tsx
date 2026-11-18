@@ -215,7 +215,8 @@ export function ControlSwitch({
       </label>
       )}
       {ask.asking && confirm !== 'none' && (
-        <ControlConfirmPrompt mode={confirm} confirmText={confirmText} onConfirm={(typed) => write(ask.accept(typed))} onCancel={ask.cancel} messages={messages} />
+        <ControlConfirmPrompt mode={confirm} confirmText={confirmText} value={ask.asking.value ? onLabel : offLabel}
+          onConfirm={(typed) => write(ask.accept(typed))} onCancel={ask.cancel} messages={messages} />
       )}
     </ControlTile>
   );

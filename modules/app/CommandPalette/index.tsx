@@ -153,6 +153,8 @@ export function CommandPalette({
           <Button
             variant="outline"
             size="sm"
+            // The visible text and the ⌘K hint make the name (no aria-label, WCAG 2.5.3); the shortcut is announced too.
+            aria-keyshortcuts="Control+K Meta+K"
             iconRight={<Badge variant="neutral" size="sm">⌘K</Badge>}
           >
             Quick actions…

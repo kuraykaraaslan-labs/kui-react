@@ -8,6 +8,7 @@ import type { StyleRecord } from '../card-logic';
 import { cssColor, fontStyle, tint } from '../settings/style';
 import type { Sparse } from '../settings/types';
 import type { SlotData } from '../kind';
+import { metaValue } from '../settings/source-meta';
 import {
   formatDateValue, fullDate, matchValue, relativeTime, statusColor, toEpoch,
   type DateDisplay, type ValueColor,
@@ -74,24 +75,29 @@ const TONE_ICON: Record<string, string> = {
  * Table rows → feed items in the configured order. A row with no title is skipped (an untitled
  * line says nothing); a row whose time does not parse is kept but always sorts last, so a bad
  * timestamp never hides an event. `max` caps the result (0 = no cap). The colour column may hold a
- * colour, a tone name, a status word or a value the value-colour map names.
+ * colour, a tone name, a status word or a value the value-colour map names. The title and the
+ * description print a value by the word its column's source gives it (`valueMap`), as the table does:
+ * an alarm's status "OPEN" reads "Open" ("Açık"), never the code (next-boilerplate phase 53.2.9).
  */
 export function feedItems(slot: SlotData | undefined, settings: Sparse, max?: number): FeedItem[] {
   const s = settings as FeedSettings;
   const timeKey = s.timeColumn || 'time';
   const titleKey = s.titleColumn || 'title';
+  const columns = slot?.columns ?? [];
+  const text = (key: string, raw: unknown): string =>
+    metaValue(columns.find((c) => c.key === key), raw)?.label ?? (typeof raw === 'object' ? JSON.stringify(raw) : String(raw));
   const items: FeedItem[] = [];
   (slot?.rows ?? []).forEach((row, i) => {
     const title = row[titleKey];
     if (title === null || title === undefined || String(title).trim() === '') return;
-    const description = s.descriptionColumn && row[s.descriptionColumn] != null ? String(row[s.descriptionColumn]) : '';
+    const description = s.descriptionColumn && row[s.descriptionColumn] != null ? text(s.descriptionColumn, row[s.descriptionColumn]) : '';
     const colorRaw = s.colorColumn ? row[s.colorColumn] : undefined;
     const mapped = matchValue(colorRaw, s.valueColors);
     const icon = iconName(s.iconColumn ? row[s.iconColumn] : undefined) ?? iconName(mapped?.icon);
     items.push({
       id: String(i),
       at: toEpoch(row[timeKey]),
-      title: typeof title === 'object' ? JSON.stringify(title) : String(title),
+      title: text(titleKey, title),
       description: description.length > 500 ? `${description.slice(0, 497)}…` : description,
       color: cssColor(mapped?.color) ?? statusColor(colorRaw),
       icon,

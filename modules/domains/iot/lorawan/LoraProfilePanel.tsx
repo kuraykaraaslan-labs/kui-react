@@ -13,7 +13,7 @@ import type { LoraCodecOption, LoraProfileSettings, LoraProfileView } from './ty
  * one form, plain headings, no accordion: radio (region EU868 only in this release, OD-55; LoRaWAN version; class; RX1 delay, 5 s by
  * default, OD-56; ADR and its data-rate range; the de-duplication window), decoding (the profile's codec, used by its devices on
  * Automatic, D306; the radio values on every message), joining (any JoinEUI; the shared AppKey, write-only: set, replace or remove, never
- * shown), and the profile's online rule read-only (OD-57 / OD-63: it is chosen in the profile's own Online status). The host saves only
+ * shown; NB D521: whether pairing mode's devices need approval), Class C's acknowledgement wait (NB D516), and the profile's online rule read-only (OD-57 / OD-63: it is chosen in the profile's own Online status). The host saves only
  * what changed (`onSave`, NB `PUT …/profiles/[id]/settings`). A profile that is not a LoRaWAN profile (`view` null) shows one line.
  */
 export type LoraProfileChange = Partial<LoraProfileSettings> & { sharedAppKey?: string | null };
@@ -50,10 +50,12 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
   // the two number fields are kept as typed (a person clears one and types again); they are checked on save, never clamped while typing
   const [rx1Text, setRx1Text] = useState(String(view?.settings.rx1DelayS ?? ''));
   const [dedupText, setDedupText] = useState(String(view?.settings.dedupMs ?? ''));
+  const [ccText, setCcText] = useState(String(view?.settings.classCConfirmTimeoutS ?? 60));
   const [seen, setSeen] = useState(view);
   if (view !== seen) {
     setSeen(view); setForm(view?.settings ?? null); setKey(''); setRemoveKey(false);
     setRx1Text(String(view?.settings.rx1DelayS ?? '')); setDedupText(String(view?.settings.dedupMs ?? ''));
+    setCcText(String(view?.settings.classCConfirmTimeoutS ?? 60));
   }
   if (error) return <Callout variant="danger">{error}</Callout>;
   if (loading && !view) return <p className="text-sm text-text-secondary">{all.common.loading}</p>;
@@ -64,6 +66,8 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
   const dedup = Number(dedupText);
   const rx1Bad = !(Number.isInteger(rx1) && rx1 >= 1 && rx1 <= 15);
   const dedupBad = !(Number.isInteger(dedup) && dedup >= 50 && dedup <= 1000);
+  const cc = Number(ccText);
+  const ccBad = !(Number.isInteger(cc) && cc >= 5 && cc <= 3600);
   const keyBad = key !== '' && !KEY.test(key.replace(/\s/g, ''));
   const dr = Array.from({ length: 6 }, (_, i) => ({ value: String(i), label: `DR${i}` }));
   const disabled = !onSave;
@@ -71,8 +75,9 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
   return (
     <form className="flex max-w-3xl flex-col gap-6" noValidate onSubmit={(e) => {
       e.preventDefault();
-      if (!onSave || drBad || keyBad || rx1Bad || dedupBad) return;
-      const change: LoraProfileChange = { ...profileChange(view.settings, { ...form, rx1DelayS: rx1, dedupMs: dedup }), ...(key ? { sharedAppKey: key.replace(/\s/g, '').toLowerCase() } : removeKey ? { sharedAppKey: null } : {}) };
+      if (!onSave || drBad || keyBad || rx1Bad || dedupBad || ccBad) return;
+      const stored = { ...view.settings, classCConfirmTimeoutS: view.settings.classCConfirmTimeoutS ?? 60, pairingAutoActivate: view.settings.pairingAutoActivate ?? false };
+      const change: LoraProfileChange = { ...profileChange(stored, { ...form, rx1DelayS: rx1, dedupMs: dedup, classCConfirmTimeoutS: cc, pairingAutoActivate: form.pairingAutoActivate ?? false }), ...(key ? { sharedAppKey: key.replace(/\s/g, '').toLowerCase() } : removeKey ? { sharedAppKey: null } : {}) };
       setBusy(true); setSaveError(null); setSaved(false);
       onSave(change).then(() => { setSaved(true); setKey(''); setRemoveKey(false); }, (err: unknown) => setSaveError(err instanceof Error ? err.message : String(err))).finally(() => setBusy(false));
     }}>
@@ -92,6 +97,8 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
           onChange={(e) => set('maxDr', Number(e.target.value))} />
         <Input id="lora-profile-dedup" type="number" min={50} max={1000} label={m.dedup} hint={m.dedupHint} value={dedupText} disabled={disabled}
           error={dedupBad ? m.dedupInvalid : undefined} onChange={(e) => { setDedupText(e.target.value); setSaved(false); }} />
+        <Input id="lora-profile-classc" type="number" min={5} max={3600} label={m.classCTimeout} hint={m.classCTimeoutHint} value={ccText} disabled={disabled}
+          error={ccBad ? m.classCTimeoutInvalid : undefined} onChange={(e) => { setCcText(e.target.value); setSaved(false); }} />
       </section>
       <section className="grid gap-4">
         <h3 className="text-sm font-semibold text-text-primary">{m.decoding}</h3>
@@ -102,6 +109,7 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
       <section className="grid gap-4">
         <h3 className="text-sm font-semibold text-text-primary">{m.joining}</h3>
         <Checkbox id="lora-profile-anyjoin" label={m.anyJoinEui} checked={form.anyJoinEui} disabled={disabled} onChange={(e) => set('anyJoinEui', e.target.checked)} />
+        <Checkbox id="lora-profile-pairing-auto" label={m.pairingAutoActivate} checked={form.pairingAutoActivate ?? false} disabled={disabled} onChange={(e) => set('pairingAutoActivate', e.target.checked)} />
         <p className="text-sm text-text-secondary">{view.hasSharedAppKey ? m.sharedKeySet : m.sharedKeyNone}</p>
         {!disabled && (
           <>
@@ -119,7 +127,7 @@ export function LoraProfilePanel({ view, codecOptions, onSave, onlineRuleLabel, 
       {onSave && (
         <div className="flex items-center justify-end gap-3">
           {saved && <span className="text-xs text-success-fg">{m.saved}</span>}
-          <Button type="submit" loading={busy} disabled={drBad || keyBad || rx1Bad || dedupBad}>{m.save}</Button>
+          <Button type="submit" loading={busy} disabled={drBad || keyBad || rx1Bad || dedupBad || ccBad}>{m.save}</Button>
         </div>
       )}
     </form>

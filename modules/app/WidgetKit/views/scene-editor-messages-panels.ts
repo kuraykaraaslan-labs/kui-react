@@ -234,6 +234,8 @@ export interface RulesMessages {
   label: string;
   tokens: string;
   insertToken: (token: string) => string;
+  /** The token for the value the rule's condition reads, as the host's language writes it (`{condition}`; `{koşul}` in Turkish). */
+  conditionToken: string;
   medium: string;
   motion: string;
   motionStop: string;
@@ -303,6 +305,8 @@ export const DEFAULT_RULES_MESSAGES: RulesMessages = {
   valueNames: {
     value: 'Reading', value2: 'Second reading', running: 'Running', status: 'Status', position: 'Opening', speed: 'Speed', direction: 'Direction',
     warning: 'Warning', critical: 'Critical', label: 'Name', capacity: 'Capacity', mode: 'Mode', quality: 'Data quality',
+    // the states layer's other columns (`STATE_COLUMNS`) by name too, never raw (next-boilerplate phase 52.6.1, UI test 3 #219)
+    ack: 'Alarm acknowledged', pending: 'Command pending', failed: 'Command failed',
   },
   parameterLabel: 'Parameter',
   ofRow: 'Of symbol',
@@ -336,6 +340,7 @@ export const DEFAULT_RULES_MESSAGES: RulesMessages = {
   label: 'Name',
   tokens: 'Insert a reading into the name',
   insertToken: (t) => `Insert ${t}`,
+  conditionToken: '{condition}',
   medium: 'Medium',
   motion: 'Motion',
   motionStop: 'Stop it',

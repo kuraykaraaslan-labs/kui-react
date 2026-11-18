@@ -345,7 +345,7 @@ export default function EventThemeLayout({ children }: { children: React.ReactNo
           <div className="mx-auto max-w-7xl px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
               <p className="font-bold text-white text-sm flex items-center gap-2"><FontAwesomeIcon icon={faTicket} className="w-4 h-4" aria-hidden="true" /> Etkinliklerden İlk Sen Haberdar Ol</p>
-              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.6)' }}>
                 Şehrine özel etkinlik bildirimleri ve erken bilet fırsatları.
               </p>
             </div>
@@ -381,13 +381,13 @@ export default function EventThemeLayout({ children }: { children: React.ReactNo
                 </div>
                 <div>
                   <div className="font-black text-white text-base tracking-tight">BiletMaster</div>
-                  <div className="text-[10px] uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.6)' }}>
                     Bilet Platformu
                   </div>
                 </div>
               </Link>
 
-              <p className="text-xs leading-relaxed max-w-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              <p className="text-xs leading-relaxed max-w-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
                 Türkiye&apos;nin en büyük etkinlik biletleme platformu. Konser, spor, tiyatro ve daha fazlası.
               </p>
 
@@ -411,18 +411,18 @@ export default function EventThemeLayout({ children }: { children: React.ReactNo
             {/* link columns */}
             {FOOTER_COLS.map((col) => (
               <div key={col.heading} className="space-y-3">
-                <h3 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                <h2 className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.6)' }}>
                   {col.heading}
-                </h3>
+                </h2>
                 <ul className="space-y-2">
                   {col.links.map((link) => (
                     <li key={link.label}>
                       <a
                         href={link.href}
                         className="text-sm transition-colors"
-                        style={{ color: 'rgba(255,255,255,0.45)' }}
+                        style={{ color: 'rgba(255,255,255,0.65)' }}
                         onMouseOver={(e) => (e.currentTarget.style.color = '#fff')}
-                        onMouseOut={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.45)')}
+                        onMouseOut={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.65)')}
                       >
                         {link.label}
                       </a>
@@ -437,7 +437,7 @@ export default function EventThemeLayout({ children }: { children: React.ReactNo
         {/* bottom bar */}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="mx-auto max-w-7xl px-6 py-4 flex flex-wrap items-center justify-between gap-4">
-            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+            <p className="text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
               © 2026 BiletMaster Biletleme A.Ş. Tüm hakları saklıdır.
             </p>
             <div className="flex items-center gap-2">
@@ -448,7 +448,7 @@ export default function EventThemeLayout({ children }: { children: React.ReactNo
                   style={{
                     background: 'rgba(255,255,255,0.05)',
                     border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'rgba(255,255,255,0.35)',
+                    color: 'rgba(255,255,255,0.6)',
                   }}
                 >
                   {badge}

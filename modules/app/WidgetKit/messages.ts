@@ -45,6 +45,13 @@ export interface WidgetCardMessages {
   zoomFit: string;
   zoomLevel: (percent: number) => string;
   zoomHint: string;
+  /**
+   * What a card that threw while it drew leaves in its cell (`FailedPlacementCard`): the heading when the card has no title of its own, the
+   * reason's badge and the one-line why.
+   */
+  failedTitle: string;
+  failedLabel: string;
+  failedDetail: string;
 }
 
 /** WidgetBoard: the toolbar, the edit buttons, the drawers, import and its errors. */
@@ -269,6 +276,12 @@ export interface ChartViewMessages {
   value: string;
   /** The button that leaves a zoomed time range (line and area charts). */
   resetZoom: string;
+  /** A gauge's value is over its scale's maximum (the bar stops at the end). */
+  aboveScale: string;
+  /** A gauge's value is under its scale's minimum. */
+  belowScale: string;
+  /** While the board is edited: a gauge's value is far off its scale, so the scale is likely wrong. */
+  scaleHint: string;
 }
 
 export interface ContentViewMessages {
@@ -375,6 +388,9 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     zoomFit: 'Fit to view',
     zoomLevel: (percent) => `Zoom ${percent}%`,
     zoomHint: 'Ctrl + wheel or pinch to zoom; scroll or drag to move.',
+    failedTitle: 'This card',
+    failedLabel: 'Failed to load',
+    failedDetail: 'Something went wrong while this card was drawn. Reload the page to try again.',
   },
   board: {
     export: 'Export',
@@ -538,6 +554,9 @@ export const DEFAULT_WIDGET_KIT_MESSAGES: WidgetKitMessages = {
     all: 'All',
     value: 'Value',
     resetZoom: 'Reset zoom',
+    aboveScale: 'Above the scale',
+    belowScale: 'Below the scale',
+    scaleHint: 'Far off the scale: set Minimum and Maximum in the card settings.',
   },
   content: {
     embedEmpty: 'Set a page address in this widget’s settings.',
@@ -651,7 +670,8 @@ export interface TemplateTextRef {
   templateId: string;
   /** A field key, `<repeater>.<sub-field>` for a repeater's field, a group id for `group`, '' for the template. */
   path: string;
-  prop: 'label' | 'description' | 'placeholder' | 'group' | 'option';
+  /** `emptyLabel`: a remote-select's empty choice ("The symbols drawn inside this card"). */
+  prop: 'label' | 'description' | 'placeholder' | 'emptyLabel' | 'group' | 'option';
   /** The option's stored value, when `prop` is `option`. */
   value?: string;
   /** The English text that shows when the host returns nothing. */

@@ -85,7 +85,7 @@ export function DeviceCard({ device, className, onClick }: DeviceCardProps) {
           {device.tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center rounded-full bg-surface-overlay px-2 py-0.5 text-xs text-text-secondary"
+              className="inline-flex items-center rounded-full bg-surface-overlay px-2 py-0.5 text-xs text-[color-mix(in_srgb,var(--text-secondary)_75%,var(--text-primary))]"
             >
               {tag}
             </span>

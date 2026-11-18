@@ -253,7 +253,8 @@ export function ControlSetpoint({
         </form>
       )}
       {ask.asking && confirm !== 'none' && (
-        <ControlConfirmPrompt mode={confirm} confirmText={confirmText} onConfirm={(typed) => write(ask.accept(typed))} onCancel={ask.cancel} messages={messages} />
+        <ControlConfirmPrompt mode={confirm} confirmText={confirmText} value={format && unit ? `${format(ask.asking.value)} ${unit}` : fmt(ask.asking.value)}
+          onConfirm={(typed) => write(ask.accept(typed))} onCancel={ask.cancel} messages={messages} />
       )}
     </ControlTile>
   );

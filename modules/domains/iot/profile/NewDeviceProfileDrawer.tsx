@@ -8,6 +8,7 @@ import { Textarea } from '@/modules/ui/Textarea';
 import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { blankProfileDraft, profileDraftIssues, type DeviceProfile, type ProfileTransport } from '../types/profile';
+import { LicensedProfilesSection } from './LicensedProfilesSection';
 import { OnlineRuleField, type OnlineRuleValue } from './OnlineRuleField';
 import { useProfileTransports } from './profile-transports';
 
@@ -15,7 +16,8 @@ import { useProfileTransports } from './profile-transports';
  * NewDeviceProfileDrawer — "New profile" (phase 01 §1.4): name, description, transport and the online rule. OD-63: the online rule
  * starts EMPTY for every transport and switching the transport never picks one. Nothing is marked before the first "Create": that press
  * shows what is missing where it is missing (no red before any input, and a disabled button that never says why). Every other setting
- * takes the protocol default and is edited on the profile page that opens after the create.
+ * takes the protocol default and is edited on the profile page that opens after the create. Above the form, the "Licensed device
+ * profiles" (NB 63-licensed-devices LD-3, `LicensedProfilesSection`): using one opens the workspace's copy through `onCreated` too.
  */
 export type NewDeviceProfileDrawerProps = {
   open: boolean;
@@ -37,6 +39,17 @@ export function NewDeviceProfileDrawer({ open, transports, onClose, onCreated }:
   const issues = profileDraftIssues(draft);
   const word = (k: string) => (issues[k] ? m.issue[issues[k]!] : fieldErrors[k]);
   const blocking = ['name', 'onlineRule', 'expectedIntervalS', 'onlineWindowFactor'].some((k) => issues[k]);
+  const [licensedShown, setLicensedShown] = useState(() => !!api?.templates);
+
+  /** A licensed profile's copy (made now or before): read it and hand it on like a created profile. */
+  async function openCopy(profileId: string) {
+    if (!api?.get) { onClose(); return; }
+    try {
+      onCreated?.(await api.get(profileId));
+    } catch (e) {
+      setError(errorMessage(e, m.newProfile.licensedFailed));
+    }
+  }
 
   async function submit() {
     setTouched(true);
@@ -77,7 +90,9 @@ export function NewDeviceProfileDrawer({ open, transports, onClose, onCreated }:
         </div>
       )}
     >
+      <LicensedProfilesSection className="mb-6" onOpen={(id) => void openCopy(id)} onPresence={setLicensedShown} />
       <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        {licensedShown && <h3 className="text-sm font-semibold text-text-primary">{m.newProfile.startEmpty}</h3>}
         {error && <p role="alert" className="text-sm text-error">{error}</p>}
         <Input id="new-profile-name" label={m.newProfile.name} required maxLength={128} value={draft.name}
           error={touched || draft.name ? word('name') : undefined} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />

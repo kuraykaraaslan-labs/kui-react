@@ -389,6 +389,18 @@
     "category": "Organism",
     "file": "doc-pager.md"
   },
+  "share-bar": {
+    "name": "ShareBar",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "share-bar.md"
+  },
+  "cookie-consent": {
+    "name": "CookieConsent",
+    "layer": "ui",
+    "category": "Molecule",
+    "file": "cookie-consent.md"
+  },
   "modal": {
     "name": "Modal",
     "layer": "ui",
@@ -503,6 +515,12 @@
     "category": "Organism",
     "file": "chat-thread.md"
   },
+  "assistant-launcher": {
+    "name": "AssistantLauncher",
+    "layer": "ui",
+    "category": "Organism",
+    "file": "assistant-launcher.md"
+  },
   "app-shell": {
     "name": "AppShell",
     "layer": "app",
@@ -586,6 +604,12 @@
     "layer": "app",
     "category": "App",
     "file": "onboarding-wizard.md"
+  },
+  "tour": {
+    "name": "Tour",
+    "layer": "app",
+    "category": "App",
+    "file": "tour.md"
   },
   "detail-header": {
     "name": "DetailHeader",
@@ -724,6 +748,12 @@
     "layer": "app",
     "category": "App",
     "file": "entity-aliases.md"
+  },
+  "common-auth-layout": {
+    "name": "AuthLayout",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "common-auth-layout.md"
   },
   "common-login-form": {
     "name": "LoginForm",
@@ -1732,6 +1762,30 @@
     "layer": "domain",
     "category": "Domain",
     "file": "forum-post-composer.md"
+  },
+  "forum-accepted-solution": {
+    "name": "AcceptedSolution",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-accepted-solution.md"
+  },
+  "forum-staff-badge": {
+    "name": "StaffBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-staff-badge.md"
+  },
+  "forum-translated-content": {
+    "name": "TranslatedContent",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-translated-content.md"
+  },
+  "forum-similar-topics": {
+    "name": "SimilarTopics",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-similar-topics.md"
   },
   "real-estate-property-status-badge": {
     "name": "PropertyStatusBadge",

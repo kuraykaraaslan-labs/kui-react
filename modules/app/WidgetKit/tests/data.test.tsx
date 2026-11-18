@@ -387,6 +387,28 @@ describe('DataFeedView', () => {
     below.unmount();
   });
 
+  it('next-boilerplate phase 53.2.9 (re-run 4 #27): a title or description prints its column\'s value words, never the raw code', () => {
+    // the open-alarms card of a Turkish workspace: the alarm source names its statuses (`valueMap`)
+    const alarms: SlotData = {
+      shape: 'table',
+      columns: [
+        { key: 'openedAt', label: 'Açıldı', type: 'date' }, { key: 'title', label: 'Alarm', type: 'text' },
+        { key: 'status', label: 'Durum', type: 'badge', kind: 'enum', valueMap: { OPEN: { label: 'Açık', color: 'var(--error)' }, ACKNOWLEDGED: { label: 'Onaylandı', color: 'var(--warning)' } } },
+      ],
+      rows: [
+        { openedAt: '2026-10-15T11:50:00Z', title: 'Tahıl ısınması', status: 'OPEN' },
+        { openedAt: '2026-10-15T11:40:00Z', title: 'Fan arızası', status: 'ACKNOWLEDGED' },
+        { openedAt: '2026-10-15T11:30:00Z', title: 'Eski alarm', status: 'RESOLVED' },
+      ],
+    };
+    const s = feedSettings({ timeColumn: 'openedAt', descriptionColumn: 'status' });
+    expect(feedItems(alarms, s).map((i) => i.description)).toEqual(['Açık', 'Onaylandı', 'RESOLVED']);
+    expect(feedItems(alarms, feedSettings({ timeColumn: 'openedAt', titleColumn: 'status' })).map((i) => i.title)).toEqual(['Açık', 'Onaylandı', 'RESOLVED']);
+    render(<DataFeedView settings={s} format={{}} data={{ events: alarms }} now={NOW} locale="tr" />);
+    expect(screen.getByText('Açık')).toBeTruthy();
+    expect(screen.queryByText('OPEN')).toBeNull();
+  });
+
   it('isEmpty and toCsv', () => {
     const s = feedSettings();
     expect(DATA_FEED_VIEW.isEmpty!({ events }, s)).toBe(false);

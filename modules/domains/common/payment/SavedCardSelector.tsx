@@ -1,40 +1,46 @@
 'use client';
 import { useState } from 'react';
 import { Button } from '@/modules/ui/Button';
+import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { cn } from '@/libs/utils/cn';
-import type { SavedCard, CardBrand } from '../PaymentTypes';
+import type { SavedCard } from '../PaymentTypes';
+import { CardBrandBadge } from './CardBrandBadge';
 
-const BRAND_COLOR: Record<CardBrand, string> = {
-  VISA:       'bg-blue-600',
-  MASTERCARD: 'bg-orange-500',
-  AMEX:       'bg-teal-600',
-  DISCOVER:   'bg-orange-400',
-  JCB:        'bg-blue-600',
-  TROY:       'bg-cyan-600',
-  MIR:        'bg-green-600',
-  UNIONPAY:   'bg-red-600',
-  UNKNOWN:    'bg-gray-500',
+export type SavedCardSelectorMessages = {
+  legend: string;
+  empty: string;
+  isDefault: string;
+  remove: string;
+  addNew: string;
+  /** The ConfirmDialog before a removal: `{last4}` is the card's last four digits. */
+  removeTitle: string;
+  removeMessage: string;
+  cancel: string;
 };
 
-function CardBrandBadge({ brand }: { brand: CardBrand }) {
-  const labels: Record<CardBrand, string> = {
-    VISA: 'VISA', MASTERCARD: 'MC', AMEX: 'AMEX', DISCOVER: 'DISC', JCB: 'JCB', TROY: 'TROY', MIR: 'MIR', UNIONPAY: 'UNIONPAY', UNKNOWN: '••',
-  };
-  return (
-    <span className={cn('inline-flex items-center justify-center rounded px-1.5 py-0.5 text-[10px] font-bold text-white tracking-wide shrink-0', BRAND_COLOR[brand])}>
-      {labels[brand]}
-    </span>
-  );
-}
+export const SAVED_CARD_SELECTOR_MESSAGES: SavedCardSelectorMessages = {
+  legend: 'Select payment card',
+  empty: 'No saved cards.',
+  isDefault: 'Default',
+  remove: 'Remove',
+  addNew: '+ Add new card',
+  removeTitle: 'Remove card',
+  removeMessage: 'The card ending in {last4} is removed from your saved cards.',
+  cancel: 'Cancel',
+};
 
 type SavedCardSelectorProps = {
   cards: SavedCard[];
   selectedCardId?: string;
   onSelect: (cardId: string, card: SavedCard) => void;
-  onRemove?: (cardId: string) => void;
+  /** Called once the removal is confirmed in the ConfirmDialog (never straight from the button). */
+  onRemove?: (cardId: string) => void | Promise<void>;
   onAddNew?: () => void;
+  messages?: Partial<SavedCardSelectorMessages>;
   className?: string;
 };
+
+const fill = (s: string, v: Record<string, string>) => s.replace(/\{(\w+)\}/g, (m, k: string) => v[k] ?? m);
 
 export function SavedCardSelector({
   cards,
@@ -42,21 +48,40 @@ export function SavedCardSelector({
   onSelect,
   onRemove,
   onAddNew,
+  messages,
   className,
 }: SavedCardSelectorProps) {
+  const m = { ...SAVED_CARD_SELECTOR_MESSAGES, ...messages };
   const [active, setActive] = useState<string | undefined>(selectedCardId);
+  const [removing, setRemoving] = useState<SavedCard | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | undefined>();
 
   function handleSelect(card: SavedCard) {
     setActive(card.cardId);
     onSelect(card.cardId, card);
   }
 
+  async function confirmRemove() {
+    if (!removing || !onRemove) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      await onRemove(removing.cardId);
+      setRemoving(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <fieldset className={cn('space-y-3', className)}>
-      <legend className="sr-only">Select payment card</legend>
+      <legend className="sr-only">{m.legend}</legend>
 
       {cards.length === 0 ? (
-        <p className="text-sm text-text-secondary py-4 text-center">No saved cards.</p>
+        <p className="text-sm text-text-secondary py-4 text-center">{m.empty}</p>
       ) : (
         <div className="space-y-2">
           {cards.map((card) => {
@@ -99,7 +124,7 @@ export function SavedCardSelector({
                   <p className="text-xs text-text-secondary">
                     {card.cardholderName} &middot; {card.expiryMonth}/{card.expiryYear}
                     {card.isDefault && (
-                      <span className="ml-2 text-[10px] font-semibold text-primary uppercase">Default</span>
+                      <span className="ml-2 text-[10px] font-semibold text-primary uppercase">{m.isDefault}</span>
                     )}
                   </p>
                 </div>
@@ -109,10 +134,10 @@ export function SavedCardSelector({
                     type="button"
                     variant="ghost"
                     size="xs"
-                    onClick={(e) => { e.preventDefault(); onRemove(card.cardId); }}
+                    onClick={(e) => { e.preventDefault(); setError(undefined); setRemoving(card); }}
                     className="text-error shrink-0"
                   >
-                    Remove
+                    {m.remove}
                   </Button>
                 )}
               </label>
@@ -123,8 +148,23 @@ export function SavedCardSelector({
 
       {onAddNew && (
         <Button variant="outline" size="sm" onClick={onAddNew} className="w-full">
-          + Add new card
+          {m.addNew}
         </Button>
+      )}
+
+      {onRemove && (
+        <ConfirmDialog
+          open={removing !== null}
+          tone="danger"
+          title={m.removeTitle}
+          message={removing ? fill(m.removeMessage, { last4: removing.last4 }) : undefined}
+          confirmLabel={m.remove}
+          cancelLabel={m.cancel}
+          busy={busy}
+          error={error}
+          onConfirm={() => void confirmRemove()}
+          onCancel={() => { if (!busy) setRemoving(null); }}
+        />
       )}
     </fieldset>
   );

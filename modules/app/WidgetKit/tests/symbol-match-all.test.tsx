@@ -223,7 +223,8 @@ describe('SymbolMatchAllDialog', () => {
     expect(boxes.map((b) => (b as HTMLInputElement).checked)).toEqual([true, true, true, false, true]);
     expect(within(table).getAllByText('Yes')).toHaveLength(4);
     expect(within(table).getByText('Check the kind')).toBeInTheDocument();
-    expect(within(table).getByText('21.5 · 3 s ago · Kitchen box')).toBeInTheDocument();
+    // the device leads the line, so a narrow window cuts the age, never the device (next-boilerplate run 3 note 105)
+    expect(within(table).getByText('Kitchen box · 21.5 · 3 s ago')).toBeInTheDocument();
     expect(dialog.textContent).not.toMatch(/scene key|slot|\brole\b/i);
     await user.click(boxes[2]);
     await user.click(within(dialog).getByRole('button', { name: 'Apply 3 proposals' }));
@@ -283,5 +284,46 @@ describe('SymbolMatchAllDialog', () => {
     render(<SymbolMatchAllDialog open rows={rows} onApply={vi.fn()} onClose={vi.fn()} now={NOW} />);
     expect(screen.getByText('Check the kind')).toBeInTheDocument();
     expect((screen.getByRole('checkbox', { name: /Apply this proposal/ }) as HTMLInputElement).checked).toBe(false);
+  });
+});
+
+describe('SymbolMatchAllDialog: next-boilerplate run 3', () => {
+  const row: MatchRow = {
+    id: 'p1.value', symbolId: 'p1', symbolLabel: 'Pump 1', kindLabel: 'Pump', field: 'value', fieldLabel: 'Value', deviceId: D1, deviceName: 'Turbine controller A',
+    key: 'on', keyLabel: 'On', value: true, ts: NOW - 3000, confident: false,
+  };
+  it('notes 105 and 11: the device name leads the line (its title holds it whole), and on/off is in the host\'s words', () => {
+    render(<SymbolMatchAllDialog open rows={[row]} onApply={vi.fn()} onClose={vi.fn()} now={NOW} messages={{ stateOn: 'Açık', stateOff: 'Kapalı' }} />);
+    const line = screen.getByText('Turbine controller A · Açık · 3 s ago');
+    expect(line).toHaveAttribute('title', 'Turbine controller A');
+  });
+  it('note 146: nothing sure on a partly connected drawing says how much is connected; none connected keeps the plain reason', () => {
+    const { rerender } = render(<SymbolMatchAllDialog open rows={[]} emptyReason="unsure" connected={{ connected: 7, total: 9 }} onApply={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByText('7 of 9 symbols are connected. No proposal for the rest is sure enough: click a symbol to pick its device and value by hand.')).toBeInTheDocument();
+    rerender(<SymbolMatchAllDialog open rows={[]} emptyReason="unsure" connected={{ connected: 0, total: 9 }} onApply={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.getByText('No proposal is sure enough. Click a symbol to pick its device and value by hand.')).toBeInTheDocument();
+    rerender(<SymbolMatchAllDialog open rows={[]} emptyReason="unsure" onApply={vi.fn()} onClose={vi.fn()} messages={{ matchAll: { unsureCount: (c, t) => `${c} / ${t} bağlı.` } }} connected={{ connected: 2, total: 3 }} />);
+    expect(screen.getByText('2 / 3 bağlı.')).toBeInTheDocument();
+  });
+  it('next-boilerplate phase 52.6.1: the table\'s own search, "N selected" and "Clear selection" are in the host\'s words; the dialog\'s own stay its', () => {
+    const many: MatchRow[] = Array.from({ length: 9 }, (_, i) => ({ ...row, id: `p${i}.value`, symbolId: `p${i}`, symbolLabel: `Pump ${i}`, confident: i < 2 }));
+    render(<SymbolMatchAllDialog
+      open rows={many} onApply={vi.fn()} onClose={vi.fn()} now={NOW}
+      tableMessages={{ searchPlaceholder: 'Ara…', selectedCount: '{count} seçili', clearSelection: 'Seçimi temizle', tableLabel: 'Veri tablosu' }}
+    />);
+    expect(screen.getByPlaceholderText('Ara…')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Search…')).toBeNull();
+    expect(screen.getByText('2 seçili')).toBeInTheDocument();
+    expect(screen.getByText('Seçimi temizle')).toBeInTheDocument();
+    // the dialog's own name for its table wins over the host's generic one
+    expect(screen.getByRole('table', { name: 'Proposals' })).toBeInTheDocument();
+  });
+  it('note 51: ticking the first row moves no row: the selection line keeps its room while nothing is ticked', async () => {
+    const user = userEvent.setup();
+    render(<SymbolMatchAllDialog open rows={[row]} onApply={vi.fn()} onClose={vi.fn()} now={NOW} />);
+    expect(document.querySelector('[data-part="selection-summary-slot"]')).not.toBeNull();
+    await user.click(screen.getByRole('checkbox', { name: /Apply this proposal/ }));
+    expect(document.querySelector('[data-part="selection-summary"]')).not.toBeNull();
+    expect(document.querySelector('[data-part="selection-summary-slot"]')).toBeNull();
   });
 });

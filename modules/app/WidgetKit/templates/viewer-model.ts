@@ -172,7 +172,7 @@ export const VIEWER_MODEL: SettingsTemplate = {
         }),
         color: { label: 'Then: colour', type: 'color', description: 'Replaces the marker\'s or the thing\'s colour.' },
         hidden: { label: 'Hide', type: 'select', options: YES_NO },
-        label: { label: 'Label', type: 'text', maxLength: MAX_RULE_LABEL, placeholder: 'High: {value}', description: 'Tokens: {value}, {value2}, {label}, {id}, {param:name}.' },
+        label: { label: 'Label', type: 'text', maxLength: MAX_RULE_LABEL, placeholder: 'High: {value}', description: 'Tokens: {value}, {value2}, {condition} (what the condition reads), {label}, {id}, {param:name}.' },
         pulse: { label: 'Pulse', type: 'select', options: YES_NO, description: 'The soft pulse an alarm draws: a marker rings, a thing breathes in size. Not when the viewer asks for reduced motion.' },
         size: { label: 'Size', type: 'number', nullable: true, display: 'input', min: 0, placeholder: 'No change', description: 'A marker: pixels. A thing: metres.' },
         dz: { label: 'Lift (m)', type: 'number', nullable: true, display: 'input', placeholder: '0', description: 'Moves it up (or down, negative) by this many metres.' },

@@ -420,3 +420,11 @@ describe('SceneInspector: mixed selections and the host\'s words', () => {
     expect(screen.getByRole('heading', { name: 'Diagram' })).toBeInTheDocument();
   });
 });
+
+describe('SceneInspector: the form controls speak the host\'s language (next-boilerplate run 3 note 10)', () => {
+  it('a checkbox reads the host\'s word for "Enabled", not the English default', () => {
+    mount({ selection: { elements: ['pump1'] }, wrap: (n) => <WidgetKitProvider value={{ messages: { form: { enabled: 'Etkin' } } }}>{n}</WidgetKitProvider> });
+    expect(screen.getAllByText('Etkin').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Enabled')).toBeNull();
+  });
+});

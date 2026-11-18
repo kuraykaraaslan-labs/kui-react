@@ -1,6 +1,6 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
-import type { CardBrand } from '../PaymentTypes';
+import type { CardBrand } from './cardBrand';
 
 const BRAND_STYLE: Record<CardBrand, { label: string; gradient: string }> = {
   VISA: {
@@ -41,11 +41,30 @@ const BRAND_STYLE: Record<CardBrand, { label: string; gradient: string }> = {
   },
 };
 
-function maskNumber(raw: string, brand: CardBrand): string {
-  const d = raw.replace(/\D/g, '').padEnd(brand === 'AMEX' ? 15 : 16, '•');
-  if (brand === 'AMEX') return `${d.slice(0, 4)} ${d.slice(4, 10)} ${d.slice(10, 15)}`;
-  return `${d.slice(0, 4)} ${d.slice(4, 8)} ${d.slice(8, 12)} ${d.slice(12, 16)}`;
+/**
+ * The number as it is typed, padded with dots to 16 (AMEX 15) and grouped by four (AMEX 4-6-5). A 17–19 digit card
+ * (Maestro, UnionPay, some TROY) shows every digit instead of losing the last ones.
+ */
+export function maskCardNumber(raw: string, brand: CardBrand): string {
+  const digits = raw.replace(/\D/g, '');
+  if (brand === 'AMEX') {
+    const d = digits.padEnd(15, '•');
+    return `${d.slice(0, 4)} ${d.slice(4, 10)} ${d.slice(10, 15)}`;
+  }
+  return (digits.padEnd(16, '•').match(/.{1,4}/g) ?? []).join(' ');
 }
+
+export type CreditCardVisualMessages = {
+  cardHolder: string;
+  expires: string;
+  cvv: string;
+};
+
+export const CREDIT_CARD_VISUAL_MESSAGES: CreditCardVisualMessages = {
+  cardHolder: 'Card Holder',
+  expires: 'Expires',
+  cvv: 'CVV',
+};
 
 type CreditCardVisualProps = {
   cardNumber?: string;
@@ -55,6 +74,8 @@ type CreditCardVisualProps = {
   cvv?: string;
   brand?: CardBrand;
   flipped?: boolean;
+  /** The three labels on the card (translations). */
+  messages?: Partial<CreditCardVisualMessages>;
   className?: string;
 };
 
@@ -66,9 +87,12 @@ export function CreditCardVisual({
   cvv = '',
   brand = 'UNKNOWN',
   flipped = false,
+  messages,
   className,
 }: CreditCardVisualProps) {
-  const { label, gradient } = BRAND_STYLE[brand];
+  const m = { ...CREDIT_CARD_VISUAL_MESSAGES, ...messages };
+  const { label, gradient } = BRAND_STYLE[brand] ?? BRAND_STYLE.UNKNOWN;
+  const long = cardNumber.replace(/\D/g, '').length > 16;
 
   return (
     <div
@@ -87,21 +111,23 @@ export function CreditCardVisual({
         >
           <div className="flex justify-between items-start">
             <div className="flex gap-1">
-              <div className="w-8 h-6 rounded bg-yellow-400/80" />
-              <div className="w-8 h-6 rounded bg-yellow-300/50 -ml-3" />
+              {/* The chip, on the warning token (no raw palette colours). */}
+              <div className="w-8 h-6 rounded bg-warning/80" />
+              <div className="w-8 h-6 rounded bg-warning/50 -ml-3" />
             </div>
             {label && <span className="text-sm font-bold tracking-widest opacity-90">{label}</span>}
           </div>
-          <p className="font-mono text-lg tracking-widest">{maskNumber(cardNumber, brand)}</p>
+          {/* A 17–19 digit number is set smaller so it stays on the card. */}
+          <p className={cn('font-mono tracking-widest', long ? 'text-sm' : 'text-lg')}>{maskCardNumber(cardNumber, brand)}</p>
           <div className="flex justify-between items-end">
             <div>
-              <p className="text-[9px] uppercase opacity-60 mb-0.5">Card Holder</p>
+              <p className="text-[9px] uppercase opacity-60 mb-0.5">{m.cardHolder}</p>
               <p className="text-xs font-medium tracking-wide uppercase truncate max-w-[10rem]">
                 {cardholderName || '••••• •••••'}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[9px] uppercase opacity-60 mb-0.5">Expires</p>
+              <p className="text-[9px] uppercase opacity-60 mb-0.5">{m.expires}</p>
               <p className="text-xs font-medium font-mono">{expiryMonth}/{expiryYear}</p>
             </div>
           </div>
@@ -115,9 +141,9 @@ export function CreditCardVisual({
           <div className="mt-7 h-10 bg-black/60 w-full" />
           <div className="px-5 mt-4 flex items-center justify-end gap-3">
             <div className="flex-1 h-6 bg-white/20 rounded" />
-            <div className="bg-white/90 rounded px-3 py-1 text-right min-w-[3.5rem]">
-              <p className="text-[9px] text-gray-500 mb-0.5">CVV</p>
-              <p className="font-mono text-sm text-gray-800 tracking-widest">
+            <div className="bg-surface-raised rounded px-3 py-1 text-right min-w-[3.5rem]">
+              <p className="text-[9px] text-text-secondary mb-0.5">{m.cvv}</p>
+              <p className="font-mono text-sm text-text-primary tracking-widest">
                 {cvv ? '•'.repeat(cvv.length) : '•••'}
               </p>
             </div>

@@ -389,6 +389,8 @@ export interface SceneModelInput {
   format?: SceneFormat;
   /** The effective board parameters, for rules that read a parameter. */
   params?: Record<string, unknown>;
+  /** The host's words of an on / off reading, for a rule label's `{condition}` (the state card's `stat.on` / `stat.off`); default On / Off. */
+  onOff?: { on: string; off: string };
   /**
    * A compute script's scene patch, already parsed (`parseScenePatch`), applied last: its things replace the things
    * table's rows, its objects override what the rules decided per id, its links and shapes add to the authored ones,
@@ -524,7 +526,7 @@ export function sceneModel(s: SceneSettings, data: Record<string, SlotData | und
   const ruled = Array.isArray(s.rules) && s.rules.length
     ? evaluateRules(s.rules, {
       rows: thingRows, params: o.params ?? {}, targets: [...byId.keys(), ...ownLinkIds], thingIds: placed.things.map((t) => t.e.id as string),
-      format: (id, n) => fmtOf(byId.get(id))(n),
+      format: (id, n) => fmtOf(byId.get(id))(n), ...(o.onOff ? { onOff: o.onOff } : {}),
     })
     : new Map<string, SceneEffects>();
   const objects = patch?.objects ?? {};

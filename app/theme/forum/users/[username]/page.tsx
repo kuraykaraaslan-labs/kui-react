@@ -42,6 +42,7 @@ export default function ForumUserProfilePage({
             reputation: user.reputation,
             role: user.role,
             online: user.online,
+            staff: user.staff,
           }}
           onFollow={() => undefined}
           onMessage={() => undefined}

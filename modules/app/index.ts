@@ -101,6 +101,8 @@ export type { MentionPickerProps, MentionPickerUser } from './MentionPicker';
 // Onboarding / flows
 export { OnboardingWizard } from './OnboardingWizard';
 export type { OnboardingWizardProps, OnboardingStep } from './OnboardingWizard';
+export { Tour, TourRunner, waitForElement, DEFAULT_TOUR_LABELS } from './Tour';
+export type { TourProps, TourStep, TourLabels, TourCloseReason, TourPlacement, TourAlign } from './Tour';
 
 // Schema-driven forms (FieldSchema vocabulary, OD-16)
 export {

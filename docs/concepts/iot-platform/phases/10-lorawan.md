@@ -144,3 +144,23 @@ no tabs or nested menus; the two tab cards show the device and profile tabs):
   keys it decodes, revisions, the table read-only; Save a copy / Edit / Delete / Withdraw / Restore are the host's), `LoraCodecEditor` (id
   `t.<slug>`, the table as JSON, Check with every own vector pass / fail, Publish, refusals in words) and `LoraCodecBench`. No JavaScript codec
   anywhere (OD-83).
+
+## 2026-11-05 — ABP, Class C and pairing mode (`feat/iot-lorawan-abp-classc`; NB iot_lorawan 04 §4.5/4.6, 05 §5.6, D508–D525)
+
+Built in `modules/domains/iot/lorawan/`, shown on `/theme/iot/lorawan` (two more cards: an ABP device added by pairing mode, the pairing
+section under the profile tab):
+
+- **Add device** (`LoraDeviceForm`): an Activation select first. OTAA asks for the AppKey as before; ABP asks for the DevAddr (8 hex, the
+  network checks its NetID) and the two LoRaWAN 1.0.x session keys (NwkSKey, AppSKey), each a password field, with a note that the device does
+  not join and that its counters start at 0. Nothing echoes a key; `isDevAddr` joins `isEui` / `isKey`.
+- **Device tab** (`LoraDevicePanel`): the activation row; an ABP device shows "Session keys: stored encrypted, never shown" and when its
+  counters were last reset, and has **Reset counters** instead of Reset session (an ABP device never joins, so its session must not end);
+  the **class** (A or C) with its own Save button (editors save on Save only); a **Keys** section of write-only fields (a new AppKey, or a new
+  DevAddr with both session keys) handed to the host, which asks first; a device pairing mode added and that waits for approval shows a
+  warning callout with **Approve**.
+- **Profile tab** (`LoraProfilePanel`): Class C's acknowledgement wait for confirmed downlinks (5–3600 s) and "devices added by pairing mode
+  are ready at once". New `LoraPairingPanel`: off by default; a duration (5–120 minutes) and **Start pairing**, then a live countdown with
+  **Stop**; without a shared AppKey it says so and offers nothing; the devices the window added in a DataTable (search, sort) with their
+  state and Approve for one that waits. `onExpired` tells the host when the countdown ends.
+- Texts: `deviceForm`, `deviceTab`, `profileTab` additions, the new `pairing` group, join states `pending_approval` / `not_otaa`, frame
+  reasons `pairing_pending` / `pending_approval` / `not_otaa`. Tests: `abp-pairing.test.tsx`.

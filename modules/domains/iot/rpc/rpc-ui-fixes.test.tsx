@@ -26,7 +26,7 @@ const PING: RpcCommand = {
 const SYNC: RpcCommand = { method: 'cfg.sync', label: 'Sync', tier: 'basic', highImpact: false, oneway: true, paramsSchema: {}, sendable: true };
 const REBOOT: RpcCommand = {
   method: 'sys.reboot', label: 'Reboot', tier: 'critical', highImpact: true, confirmText: 'REBOOT', oneway: true, sendable: true,
-  paramsSchema: { delay: { label: 'Delay', type: 'number' }, token: { label: 'Token', type: 'text' } }, maskedParams: ['token'],
+  paramsSchema: { delay: { label: 'Delay', type: 'number', value: 5 }, token: { label: 'Token', type: 'text', required: true } }, maskedParams: ['token'],
 };
 const req = (id: string, over: Partial<RpcRequest> = {}): RpcRequest => ({
   rpcId: id, deviceId: 'd1', method: 'sys.ping', oneway: false, persistent: false, status: 'QUEUED', source: 'console', createdAt: T0, ...over,
@@ -52,7 +52,8 @@ describe('masked values never come back as values (1.1, 1.2)', () => {
     const psk = screen.getByLabelText(/Password/) as HTMLInputElement;
     expect(psk.type).toBe('password');
     expect(psk.value).toBe('');
-    expect((screen.getByLabelText(/Network/) as HTMLInputElement).type).toBe('text');
+    // the network comes from the request: only the hidden value is asked for
+    expect(screen.queryByLabelText(/Network/)).toBeNull();
     expect(screen.getByText('Hidden values are not sent again: enter Password again.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Send' }));
     expect(onSend).not.toHaveBeenCalled();
@@ -70,42 +71,35 @@ describe('the send panel (1.5, 1.19, N1)', () => {
     expect(rpcParamsToSend({ on: { label: 'On', type: 'boolean' } }, {})).toEqual({ on: false });
   });
 
-  it('refuses a timeout or an expiry out of range, and puts the host\'s parameter refusal on its field', async () => {
+  it('puts the host\'s refusal of an asked value on its field, and of a catalog value in one line', async () => {
     const user = userEvent.setup();
-    const onSend = vi.fn().mockRejectedValue(new IotApiError('validation', 'Some values were not accepted.', { fieldErrors: { 'params.host': 'Not a host this device can reach.', params: 'x' } }));
+    const onSend = vi.fn().mockRejectedValue(new IotApiError('validation', 'Some values were not accepted.', {
+      fieldErrors: { 'params.host': 'Not a host this device can reach.', 'params.count': 'Count is out of range.' },
+    }));
     render(<RpcSendPanel commands={[PING]} onSend={onSend} />);
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.ping');
+    expect(screen.queryByLabelText(/Count/)).toBeNull();
     await user.type(screen.getByLabelText(/Host/), 'nowhere');
-    await user.type(screen.getByLabelText('Answer timeout (seconds)'), '601');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    expect(screen.getByText('Between 1 and 600 seconds.')).toBeInTheDocument();
-    expect(onSend).not.toHaveBeenCalled();
-    await user.clear(screen.getByLabelText('Answer timeout (seconds)'));
-    await user.click(screen.getByLabelText(/persistent/));
-    await user.type(screen.getByLabelText('Give up after (minutes)'), '20000');
-    await user.click(screen.getByRole('button', { name: 'Send' }));
-    expect(screen.getByText('Between 1 and 10080 minutes (7 days).')).toBeInTheDocument();
-    await user.clear(screen.getByLabelText('Give up after (minutes)'));
-    await user.type(screen.getByLabelText('Give up after (minutes)'), '30');
-    await user.click(screen.getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ persistent: true, expiresInS: 1800 })));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith(expect.objectContaining({ method: 'sys.ping', params: { host: 'nowhere' } })));
     expect(await screen.findByText('Not a host this device can reach.')).toBeInTheDocument();
+    expect(screen.getByText('Count is out of range.')).toBeInTheDocument();
     expect(screen.getByText('Some values were not accepted.')).toBeInTheDocument();
   });
 
-  it('offers one-way only for a raw method; a catalog command\'s one-way is shown, and a preset replaces earlier choices', async () => {
+  it('asks nothing about one-way, timeout or persistence for a ready command, and a preset replays the request\'s values', async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<RpcSendPanel commands={[SYNC, PING]} canSendRaw onSend={vi.fn()} />);
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(<RpcSendPanel commands={[SYNC, PING]} canSendRaw onSend={onSend} />);
     await user.selectOptions(screen.getByLabelText('Command'), 'cfg.sync');
-    expect(screen.queryByLabelText(/one-way/)).toBeNull();
-    expect(screen.getByText('One-way: the device does not answer this command (set in the catalog).')).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Command'), '__raw__');
-    expect(screen.getByLabelText(/one-way/)).not.toBeChecked();
-    await user.selectOptions(screen.getByLabelText('Command'), 'sys.ping');
-    await user.click(screen.getByLabelText(/persistent/));
-    rerender(<RpcSendPanel commands={[SYNC, PING]} canSendRaw onSend={vi.fn()} preset={{ method: 'sys.ping', params: { host: 'h' }, persistent: false, timeoutMs: 15_000 }} />);
-    expect(screen.getByLabelText(/persistent/)).not.toBeChecked();
-    expect(screen.getByLabelText('Answer timeout (seconds)')).toHaveValue(15);
+    expect(screen.queryByLabelText(/one-way/i)).toBeNull();
+    expect(screen.queryByLabelText(/timeout/i)).toBeNull();
+    expect(screen.queryByLabelText(/persistent/i)).toBeNull();
+    rerender(<RpcSendPanel commands={[SYNC, PING]} canSendRaw onSend={onSend} preset={{ method: 'sys.ping', params: { host: 'h' }, persistent: false, timeoutMs: 15_000 }} />);
+    expect(screen.getByLabelText('Command')).toHaveValue('sys.ping');
+    expect(screen.queryByLabelText(/Host/)).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith({ method: 'sys.ping', params: { host: 'h' }, requestKey: expect.any(String) }));
   });
 
   it('sends once: the key is kept after a send that got no answer, renewed after an answer', async () => {
@@ -135,10 +129,10 @@ describe('the high-impact confirmation (1.6, N4)', () => {
     const onSend = vi.fn().mockRejectedValueOnce(new IotApiError('validation', 'The typed confirmation does not match.')).mockResolvedValue(undefined);
     render(<RpcSendPanel commands={[REBOOT]} deviceName="Pump 7" onSend={onSend} />);
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.reboot');
-    await user.type(screen.getByLabelText('Delay'), '5');
-    await user.type(screen.getByLabelText('Token'), 'abc');
+    expect(screen.queryByLabelText('Delay')).toBeNull();
+    await user.type(screen.getByLabelText(/Token/), 'abc');
     await user.click(screen.getByRole('button', { name: 'Send' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Send Reboot (sys.reboot) to Pump 7?' });
+    const dialog = await screen.findByRole('dialog', { name: 'Send Reboot to Pump 7?' });
     expect(within(dialog).getByText('Delay').nextSibling).toHaveTextContent('5');
     expect(within(dialog).getByText('Token').nextSibling).toHaveTextContent('hidden');
     expect(dialog).not.toHaveTextContent('abc');
@@ -224,8 +218,9 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
     const notify = vi.fn();
     const { live, adapter } = fakes();
     render(<IotAdapterProvider adapter={adapter} live={live} notify={notify}><RpcConsoleView deviceId="d1" deviceOnline={false} /></IotAdapterProvider>);
+await user.click(await screen.findByRole('button', { name: 'Send a command' }));
     await user.selectOptions(await screen.findByLabelText('Command'), 'sys.ping');
-    expect(screen.getByText(/The device is offline: without "persistent"/)).toBeInTheDocument();
+    expect(screen.getByText(/The device is offline/)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Host/), 'h');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(notify).toHaveBeenCalledWith({ tone: 'error', message: 'The device is offline, so the command was not sent.' }));
@@ -238,10 +233,13 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
     await screen.findByText('net.status');
     const reads = (adapter.rpc!.list as ReturnType<typeof vi.fn>).mock.calls.length;
+    await user.click(await screen.findByRole('button', { name: 'Send a command' }));
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.ping');
     await user.type(screen.getByLabelText(/Host/), 'h');
     await user.click(screen.getByRole('button', { name: 'Send' }));
+    // no answer: the modal stays open with what happened
     expect(await screen.findByText(/the command may have been sent/)).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Send a command' })).toBeInTheDocument();
     await waitFor(() => expect((adapter.rpc!.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(reads + 1));
   });
 
@@ -252,7 +250,7 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
     render(<IotAdapterProvider adapter={adapter} live={live}><RpcConsoleView deviceId="d1" /></IotAdapterProvider>);
     expect(await screen.findByText('The commands of this device could not be read, so nothing can be sent yet.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByLabelText('Command')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Send a command' })).toBeInTheDocument();
   });
 
   it('offers Send again and Cancel only for what the viewer may send; Send again leaves the masked values out', async () => {
@@ -274,8 +272,8 @@ describe('RpcConsoleView (1.3, 1.4, 1.7, 1.10, 1.12–1.15)', () => {
     await user.click(await screen.findByText('net.wifi.set'));
     await waitFor(() => expect(screen.getByText(/"ssid": "Home"/)).toBeInTheDocument());
     await user.click(screen.getByRole('button', { name: 'Send again' }));
-    expect(await screen.findByLabelText(/Network/)).toHaveValue('Home');
-    expect(screen.getByLabelText(/Password/)).toHaveValue('');
+    expect(await screen.findByLabelText(/Password/)).toHaveValue('');
+    expect(screen.queryByLabelText(/Network/)).toBeNull();
   });
 
   it('merges the snapshot, never moves a row back, and polls a refused subscription', async () => {
@@ -317,20 +315,20 @@ describe('review fixes (41-ui-fixes/23 C1, C7, C9, C10, C12)', () => {
     await user.click(screen.getByRole('button', { name: 'Send' }));
     expect(onSend).toHaveBeenCalledTimes(1);
     // the note and the mark on the JSON box
-    expect(screen.getAllByText('Hidden values are not sent again: enter wifi.psk again.')).toHaveLength(2);
+    expect(screen.getAllByText('Hidden values are not sent again: enter params.wifi.psk again.')).toHaveLength(2);
   });
 
   it('C7: a name the host holds secret is a password field and hidden in the confirmation; "Send again" leaves it out', async () => {
     const user = userEvent.setup();
     const secret = (n: string, raw: boolean) => /pass|token/i.test(n) || (raw && n === 'key');
     const CMD: RpcCommand = { method: 'sys.set', label: 'Set', tier: 'basic', highImpact: true, oneway: false, sendable: true,
-      paramsSchema: { wifi_password: { label: 'Wi-Fi password', type: 'text' }, key: { label: 'Key', type: 'text' } } };
+      paramsSchema: { wifi_password: { label: 'Wi-Fi password', type: 'text', required: true }, key: { label: 'Key', type: 'text', required: true } } };
     render(<RpcSendPanel commands={[CMD]} isSecretParam={secret} onSend={vi.fn().mockResolvedValue(undefined)} />);
     await user.selectOptions(screen.getByLabelText('Command'), 'sys.set');
-    expect((screen.getByLabelText('Wi-Fi password') as HTMLInputElement).type).toBe('password');
-    expect((screen.getByLabelText('Key') as HTMLInputElement).type).toBe('text');
-    await user.type(screen.getByLabelText('Wi-Fi password'), 'pw1');
-    await user.type(screen.getByLabelText('Key'), 'pump');
+    expect((screen.getByLabelText(/Wi-Fi password/) as HTMLInputElement).type).toBe('password');
+    expect((screen.getByLabelText(/^Key/) as HTMLInputElement).type).toBe('text');
+    await user.type(screen.getByLabelText(/Wi-Fi password/), 'pw1');
+    await user.type(screen.getByLabelText(/^Key/), 'pump');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     const dialog = await screen.findByRole('dialog');
     expect(dialog).not.toHaveTextContent('pw1');

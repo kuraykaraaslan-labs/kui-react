@@ -89,12 +89,15 @@ export function Toggle({
           )}
         </div>
       </div>
-      <div>
-        <span className="text-sm font-medium text-text-primary">{label}</span>
-        {description && (
-          <p className="text-xs text-text-secondary mt-0.5">{description}</p>
-        )}
-      </div>
+      {/* No empty text box next to a switch without label or description: it only added the gap-3 (12px). */}
+      {(label || description) && (
+        <div>
+          {label && <span className="text-sm font-medium text-text-primary">{label}</span>}
+          {description && (
+            <p className="text-xs text-text-secondary mt-0.5">{description}</p>
+          )}
+        </div>
+      )}
     </label>
   );
 }

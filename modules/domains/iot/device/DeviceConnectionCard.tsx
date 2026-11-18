@@ -11,7 +11,7 @@ import type { IotMessagesInput } from '../messages';
 
 /**
  * DeviceConnectionCard — "Connection details" (NB phase 39 UX-23): what an integrator types into a device or a test client. The MQTT
- * endpoint (host, port, TLS or plain), how the credential logs in, the topics of the device's profile (`info.topics`, default the `v1/`
+ * endpoint (host, port, TLS or plain; and the plain listener beside TLS when `info.plain` names one), how the credential logs in, the topics of the device's profile (`info.topics`, default the `v1/`
  * ones: telemetry, attributes, commands and their answers when the scheme has them), the HTTPS telemetry URL with its bearer header, an example payload from the profile's keys, and ready `mosquitto_pub` and
  * `curl` lines with a copy button each. The secret is filled in only while the one-time notice shows it (`secret`); otherwise the lines
  * carry a placeholder, so nothing secret ever sits in the page.
@@ -50,20 +50,24 @@ const shellQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 export function connectionCommands(input: {
   info: DeviceConnectionInfo; credentialType: CredentialType; secret?: string | null; username?: string | null; clientId?: string | null;
   placeholders: { token: string; password: string };
-}): { mqtt: string | null; http: string | null } {
-  const { info, credentialType, secret, username, clientId, placeholders } = input;
+}): { mqtt: string | null; mqttPlain: string | null; http: string | null } {
+  const { info, credentialType, secret, username, placeholders } = input;
   const payload = examplePayload(info.telemetryKeys);
   let mqtt: string | null = null;
+  let mqttPlain: string | null = null;
   if (info.mqtt && credentialType !== 'X509_CERTIFICATE') {
+    // any client ID logs in (the server assigns the device's own), so the lines send none
     const login = credentialType === 'MQTT_BASIC'
-      ? `${clientId ? `-i ${shellQuote(clientId)} ` : ''}-u ${shellQuote(username || '<username>')} -P ${shellQuote(secret || placeholders.password)}`
+      ? `-u ${shellQuote(username || '<username>')} -P ${shellQuote(secret || placeholders.password)}`
       : `-u ${shellQuote(secret || placeholders.token)}`;
-    mqtt = `mosquitto_pub -h ${info.mqtt.host} -p ${info.mqtt.port}${info.mqtt.tls ? ' --capath /etc/ssl/certs' : ''} ${login} -t ${topicsOf(info).telemetry} -m ${shellQuote(payload)}`;
+    const tail = `${login} -t ${topicsOf(info).telemetry} -m ${shellQuote(payload)}`;
+    mqtt = `mosquitto_pub -h ${info.mqtt.host} -p ${info.mqtt.port}${info.mqtt.tls ? ' --capath /etc/ssl/certs' : ''} ${tail}`;
+    if (info.plain && info.mqtt.tls) mqttPlain = `mosquitto_pub -h ${info.plain.host} -p ${info.plain.port} ${tail}`;
   }
   const http = info.httpBase && credentialType === 'ACCESS_TOKEN'
     ? `curl -X POST ${info.httpBase}${TELEMETRY_PATH} -H ${shellQuote(`Authorization: Bearer ${secret || placeholders.token}`)} -H 'Content-Type: application/json' -d ${shellQuote(payload)}`
     : null;
-  return { mqtt, http };
+  return { mqtt, mqttPlain, http };
 }
 
 function CopyLine({ label, value, copyLabel, copiedLabel }: { label: string; value: string; copyLabel: string; copiedLabel: string }) {
@@ -101,6 +105,9 @@ export function DeviceConnectionCard({ info, credentialType = 'ACCESS_TOKEN', se
   if (info.mqtt) {
     rows.push([c.broker, <code key="b" className="font-mono">{`${info.mqtt.host}:${info.mqtt.port}`}</code>]);
     rows.push([c.security, info.mqtt.tls ? c.tls : c.plain]);
+    if (info.plain && info.mqtt.tls && credentialType !== 'X509_CERTIFICATE') {
+      rows.push([c.plainBroker, <span key="p"><code className="font-mono">{`${info.plain.host}:${info.plain.port}`}</code>{` · ${c.plainNote}`}</span>]);
+    }
     rows.push([c.login, credentialType === 'X509_CERTIFICATE' ? c.loginX509 : credentialType === 'MQTT_BASIC' ? c.loginBasic : c.loginToken]);
     rows.push([c.topicTelemetry, <code key="t" className="font-mono">{topics.telemetry}</code>]);
     rows.push([c.topicAttributes, <code key="a" className="font-mono">{topics.attributes}</code>]);
@@ -131,6 +138,7 @@ export function DeviceConnectionCard({ info, credentialType = 'ACCESS_TOKEN', se
       </dl>
       <CopyLine label={c.example} value={examplePayload(info.telemetryKeys)} copyLabel={m.common.copy} copiedLabel={m.common.copied} />
       {cmd.mqtt && <CopyLine label={c.mqttLine} value={cmd.mqtt} copyLabel={m.common.copy} copiedLabel={m.common.copied} />}
+      {cmd.mqttPlain && info.plain && <CopyLine label={fill(c.mqttPlainLine, { port: info.plain.port })} value={cmd.mqttPlain} copyLabel={m.common.copy} copiedLabel={m.common.copied} />}
       {cmd.http && <CopyLine label={c.httpLine} value={cmd.http} copyLabel={m.common.copy} copiedLabel={m.common.copied} />}
       <p className="text-xs text-text-secondary">{secret ? c.secretFilled : c.secretPlaceholder}</p>
     </section>

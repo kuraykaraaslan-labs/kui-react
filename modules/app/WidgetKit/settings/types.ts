@@ -106,6 +106,11 @@ export interface SettingsTemplate {
   formatDefaults?: Sparse;
   /** The setting a source's `direction` (higher / lower is better) defaults, e.g. `increaseIs`. Type templates only. */
   directionField?: string;
+  /**
+   * The settings a source's declared range (`ColumnMeta.min` / `max`) defaults, e.g. a gauge's scale. A person's own
+   * value, a preset's and a bound slot still win. Type templates only.
+   */
+  scaleFields?: { min: string; max: string };
   /** Terminal: the type was retired; its steps stay so old data still migrates. */
   retired?: boolean;
 }

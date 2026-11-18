@@ -93,6 +93,8 @@ export type { DeviceProfileListViewProps } from './profile/DeviceProfileListView
 export { DeviceProfileEditorView } from './profile/DeviceProfileEditorView';
 export type { DeviceProfileEditorViewProps } from './profile/DeviceProfileEditorView';
 export { NewDeviceProfileDrawer } from './profile/NewDeviceProfileDrawer';
+export { LicensedProfilesSection } from './profile/LicensedProfilesSection';
+export type { LicensedProfilesSectionProps } from './profile/LicensedProfilesSection';
 export { OnlineRuleField, formatSeconds } from './profile/OnlineRuleField';
 export type { OnlineRuleValue, OnlineRuleFieldProps } from './profile/OnlineRuleField';
 export { AuthModeSelector } from './profile/AuthModeSelector';

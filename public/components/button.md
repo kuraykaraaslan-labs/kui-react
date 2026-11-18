@@ -24,6 +24,7 @@ Core interactive element. Supports 6 visual styles (variants) and 5 sizes: secon
 - `reviews-review-submit-form`
 - `rich-text-editor`
 - `share-dialog`
+- `tour`
 - `translatable-field`
 
 ## Design tokens consumed

@@ -19,6 +19,8 @@ export type PageHeaderAction = {
   href?: string;
   variant?: ActionVariant;
   disabled?: boolean;
+  /** A guided-tour anchor, rendered as `data-tour` (modules/app/Tour targets it with `[data-tour="…"]`). */
+  dataTour?: string;
 };
 
 export function PageHeader({
@@ -62,7 +64,7 @@ export function PageHeader({
             );
             if (action.href) {
               return (
-                <a key={i} href={action.href} className={cls}>
+                <a key={i} href={action.href} className={cls} data-tour={action.dataTour}>
                   {action.label}
                 </a>
               );
@@ -74,6 +76,7 @@ export function PageHeader({
                 onClick={action.onClick}
                 disabled={action.disabled}
                 className={cls}
+                data-tour={action.dataTour}
               >
                 {action.label}
               </button>

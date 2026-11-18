@@ -30,7 +30,7 @@ export const PROGRESS: SettingsTemplate = {
     ]),
     target: {
       label: 'Target', type: 'number', display: 'input', min: 0, value: 100, group: 'target',
-      description: 'Used when no target slot is bound.',
+      description: 'Used when no value is chosen for Target on the Data tab.',
     },
     label: { label: 'Label', type: 'text', maxLength: 80, placeholder: 'Above the number', group: 'label' },
     labelFont: fontField('Label font', 'label', { advanced: true }),

@@ -143,6 +143,9 @@ export const ForumTopicSchema = z.object({
   lastPostAt: z.coerce.date().nullable().optional(),
   lastPostByUserId: IdSchema.nullable().optional(),
 
+  /** The accepted solution, marked by the topic's author or a moderator. Set = the topic is solved. */
+  solutionPostId: IdSchema.nullable().optional(),
+
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().nullable().optional(),
   deletedAt: z.coerce.date().nullable().optional(),

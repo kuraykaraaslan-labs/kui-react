@@ -17,6 +17,12 @@ Dismissible top-of-page banner for promotions and announcements. Supports an opt
 <AnnouncementBar icon={faBullhorn} message={<><span className="font-semibold">Velox 2.0 is here</span> — faster builds, smarter previews.</>} cta={{ label: 'Read the announcement', href: '#' }} />
 ```
 
+### Dark (black bar)
+
+```tsx
+<AnnouncementBar variant="dark" message="New release: faster dashboards and smarter rules." cta={{ label: 'See what is new', href: '#' }} />
+```
+
 ### Non-dismissible promo
 
 ```tsx

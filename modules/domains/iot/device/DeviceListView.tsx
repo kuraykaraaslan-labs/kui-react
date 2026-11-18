@@ -170,7 +170,8 @@ export function DeviceListView({
   const openRef = useRef(openId);
   useEffect(() => { openRef.current = openId; }, [openId]);
   const itemsRef = useRef(items);
-  useEffect(() => { itemsRef.current = items; }, [items]);
+  // before paint, like queryRef: a live event right after a read must see the rows it shows, or it asks for a needless re-read
+  useLayoutEffect(() => { itemsRef.current = items; }, [items]);
   // the host's query moved under the mounted list (its URL changed): follow it by value (NB 41-ui-fixes/21 1.19)
   const initialKey = hostKey(initialQuery);
   const [seenInitial, setSeenInitial] = useState(initialKey);

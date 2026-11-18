@@ -692,10 +692,21 @@ function drawBox(kind: 'zone' | 'divider', a: Pt, b: Pt): Box {
   return box.w >= box.h ? { x: box.x, y: a.y, w: box.w, h: 0 } : { x: a.x, y: box.y, w: 0, h: box.h };
 }
 
-/** The in-place rename: a text box over the symbol or shape; Enter commits, Escape closes, a refusal stays on screen. */
+/**
+ * What the in-place rename box holds (next-boilerplate phase 52.6.1; its OPB-10 and D45-10: a symbol's id is no word of a customer's): a symbol's own name
+ * (its `label`, empty when it has none, as the canvas then shows none), never its id; a title's or a zone's text. Pure.
+ */
+export function renameText(settings: SceneSettings, r: Renaming): string {
+  if (r.kind === 'shape') return String((shapesOf(settings)[r.index] as SceneShapeSetting | undefined)?.text ?? '');
+  const list: unknown[] = Array.isArray(settings.elements) ? settings.elements : [];
+  const e = list.find((x) => !!x && typeof x === 'object' && (x as { id?: unknown }).id === r.id) as { label?: unknown } | undefined;
+  return typeof e?.label === 'string' ? e.label : '';
+}
+
+/** The in-place rename: a text box over the symbol (its name) or shape (its text); Enter commits, Escape closes, a refusal stays on screen. */
 function RenameBox(p: SceneEditorCanvasProps & { vb: ViewBox }): ReactNode {
   const r = p.renaming as Renaming;
-  const initial = r.kind === 'element' ? r.id : String((shapesOf(p.settings)[r.index] as SceneShapeSetting | undefined)?.text ?? '');
+  const initial = renameText(p.settings, r);
   const [value, setValue] = useState(initial);
   const [error, setError] = useState<string | null>(null);
   const area = r.kind === 'element' ? elementBoxes(p.geo).get(r.id) : shapeBounds(shapesOf(p.settings)[r.index] as SceneShapeSetting);
@@ -709,6 +720,7 @@ function RenameBox(p: SceneEditorCanvasProps & { vb: ViewBox }): ReactNode {
       <input
         ref={el}
         aria-label={p.m.renameLabel}
+        placeholder={p.m.renameLabel}
         value={value}
         onChange={(e) => { setValue(e.target.value); setError(null); }}
         onKeyDown={(e) => {

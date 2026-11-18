@@ -2,6 +2,8 @@
 import { Callout } from '@/modules/ui/Callout';
 import { TableOfContents, type TocItem } from '@/modules/ui/TableOfContents';
 import { DocPager } from '@/modules/ui/DocPager';
+import { ShareBar } from '@/modules/ui/ShareBar';
+import { CookieConsent } from '@/modules/ui/CookieConsent';
 import type { ShowcaseComponent } from '../showcase.types';
 
 // Long-form documentation pieces: admonitions, "On this page" navigation and
@@ -296,6 +298,441 @@ export function DocPager({
           layout: 'stack',
           preview: <DocPager className="w-full max-w-2xl" next={{ title: 'Getting started', href: '#' }} labels={{ next: 'Start here' }} />,
           code: `<DocPager next={{ title: 'Getting started', href: '/docs/intro' }} labels={{ next: 'Start here' }} />`,
+        },
+      ],
+    },
+    {
+      id: 'share-bar',
+      title: 'ShareBar',
+      category: 'Molecule',
+      abbr: 'Sh',
+      description: 'Share the current page: networks inline and a … button that opens a window with every network, e-mail, copy link and the device share sheet. Plain links, no third-party scripts.',
+      filePath: 'modules/ui/ShareBar.tsx',
+      sourceCode: `'use client';
+import { useEffect, useId, useState } from 'react';
+import { cn } from '@/libs/utils/cn';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core';
+import { faEllipsis, faEnvelope, faLink } from '@fortawesome/free-solid-svg-icons';
+import { faFacebookF, faLinkedinIn, faRedditAlien, faTelegram, faWhatsapp, faXTwitter } from '@fortawesome/free-brands-svg-icons';
+import { Modal } from './Modal';
+
+// Share the current page: a few networks inline and a "…" button that opens a
+// window with every network, e-mail, copy link and the device's own share sheet.
+// Plain links to each network's share address: no third-party scripts, no tracking.
+
+export type ShareNetwork = 'linkedin' | 'x' | 'whatsapp' | 'facebook' | 'telegram' | 'reddit' | 'email';
+
+type ShareBarLabels = {
+  share?: string;
+  more?: string;
+  dialogTitle?: string;
+  address?: string;
+  copy?: string;
+  copied?: string;
+  moreApps?: string;
+  /** "Share on %s"; %s is the network name. */
+  shareOn?: string;
+  email?: string;
+};
+
+type ShareBarProps = {
+  /** Address to share. */
+  url: string;
+  /** Page title, sent where the network takes one. */
+  title?: string;
+  /** Networks shown as buttons in the bar. Default LinkedIn, X, WhatsApp. */
+  inline?: ShareNetwork[];
+  /** Networks in the window. Default all seven. */
+  networks?: ShareNetwork[];
+  /** Hide the "Share" label before the buttons. */
+  hideLabel?: boolean;
+  labels?: ShareBarLabels;
+  onShare?: (network: ShareNetwork | 'copy' | 'native') => void;
+  className?: string;
+} & Omit<React.HTMLAttributes<HTMLDivElement>, 'title'>;
+
+const NETWORKS: Record<ShareNetwork, { name: string; icon: IconDefinition; href: (u: string, t: string) => string }> = {
+  linkedin: { name: 'LinkedIn', icon: faLinkedinIn, href: (u) => \`https://www.linkedin.com/sharing/share-offsite/?url=\${u}\` },
+  x: { name: 'X', icon: faXTwitter, href: (u, t) => \`https://x.com/intent/post?url=\${u}&text=\${t}\` },
+  whatsapp: { name: 'WhatsApp', icon: faWhatsapp, href: (u, t) => \`https://wa.me/?text=\${t}%20\${u}\` },
+  facebook: { name: 'Facebook', icon: faFacebookF, href: (u) => \`https://www.facebook.com/sharer/sharer.php?u=\${u}\` },
+  telegram: { name: 'Telegram', icon: faTelegram, href: (u, t) => \`https://t.me/share/url?url=\${u}&text=\${t}\` },
+  reddit: { name: 'Reddit', icon: faRedditAlien, href: (u, t) => \`https://www.reddit.com/submit?url=\${u}&title=\${t}\` },
+  email: { name: 'E-mail', icon: faEnvelope, href: (u, t) => \`mailto:?subject=\${t}&body=\${u}\` },
+};
+
+const ALL: ShareNetwork[] = ['linkedin', 'x', 'whatsapp', 'facebook', 'telegram', 'reddit', 'email'];
+
+const buttonClass = cn(
+  'inline-grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface-base text-text-secondary transition-colors',
+  'hover:bg-surface-overlay hover:text-text-primary',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus'
+);
+
+const tileClass = cn(
+  'grid justify-items-center gap-1.5 rounded-[0.625rem] border border-border bg-surface-base px-1 py-3 text-xs text-text-primary transition-colors',
+  'hover:border-primary hover:text-primary',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus'
+);
+
+export function ShareBar({
+  url,
+  title = '',
+  inline = ['linkedin', 'x', 'whatsapp'],
+  networks = ALL,
+  hideLabel = false,
+  labels,
+  onShare,
+  className,
+  ...rest
+}: ShareBarProps) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const inputId = useId();
+  const l = {
+    share: 'Share',
+    more: 'More ways to share',
+    dialogTitle: 'Share this page',
+    address: 'Page address',
+    copy: 'Copy',
+    copied: 'Copied',
+    moreApps: 'More apps',
+    shareOn: 'Share on %s',
+    email: 'E-mail',
+    ...labels,
+  };
+  const u = encodeURIComponent(url);
+  const t = encodeURIComponent(title);
+  // The window only renders after a click, on the client, so the device share sheet can be checked here.
+  const canNative = open && typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  const name = (n: ShareNetwork) => (n === 'email' ? l.email : NETWORKS[n].name);
+
+  useEffect(() => {
+    if (!copied) return;
+    const id = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(id);
+  }, [copied]);
+
+  const link = (n: ShareNetwork, cls: string, withName: boolean) => {
+    const external = n !== 'email';
+    return (
+      <a
+        key={n}
+        href={NETWORKS[n].href(u, t)}
+        className={cls}
+        aria-label={l.shareOn.replace('%s', name(n))}
+        onClick={() => onShare?.(n)}
+        {...(external ? { target: '_blank', rel: 'noopener nofollow' } : {})}
+      >
+        <FontAwesomeIcon icon={NETWORKS[n].icon} className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
+        {withName ? <span>{name(n)}</span> : <span className="sr-only">{name(n)}</span>}
+      </a>
+    );
+  };
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      onShare?.('copy');
+    } catch {
+      (document.getElementById(inputId) as HTMLInputElement | null)?.select();
+    }
+  };
+
+  const native = () => {
+    navigator.share?.({ title, url }).then(() => onShare?.('native')).catch(() => {});
+  };
+
+  return (
+    <div className={cn('flex flex-wrap items-center gap-2.5', className)} {...rest}>
+      {!hideLabel && <span className="text-xs font-bold uppercase tracking-[0.06em] text-text-secondary">{l.share}</span>}
+      <div className="flex gap-1.5">
+        {inline.map((n) => link(n, buttonClass, false))}
+        <button type="button" className={buttonClass} aria-haspopup="dialog" aria-expanded={open} aria-label={l.more} onClick={() => setOpen(true)}>
+          <FontAwesomeIcon icon={faEllipsis} className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
+        </button>
+      </div>
+
+      <Modal open={open} onClose={() => setOpen(false)} title={l.dialogTitle} size="sm">
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface-base py-1.5 pl-3 pr-1.5 text-text-secondary">
+          <FontAwesomeIcon icon={faLink} className="h-4 w-4 shrink-0" aria-hidden="true" />
+          <input
+            id={inputId}
+            type="text"
+            readOnly
+            value={url}
+            aria-label={l.address}
+            onFocus={(e) => e.currentTarget.select()}
+            className="min-w-0 flex-1 border-0 bg-transparent text-sm text-text-primary outline-none"
+          />
+          <button
+            type="button"
+            onClick={copy}
+            className="rounded-md bg-primary px-3 py-1.5 text-[0.8125rem] font-semibold text-primary-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"
+          >
+            {copied ? l.copied : l.copy}
+          </button>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {networks.map((n) => link(n, tileClass, true))}
+          {canNative && (
+            <button type="button" className={tileClass} onClick={native}>
+              <FontAwesomeIcon icon={faEllipsis} className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
+              <span>{l.moreApps}</span>
+            </button>
+          )}
+        </div>
+      </Modal>
+    </div>
+  );
+}
+`,
+      variants: [
+        {
+          title: 'Default: LinkedIn, X, WhatsApp and more',
+          preview: <ShareBar url="https://example.com/docs/getting-started/" title="Getting started" />,
+          code: `<ShareBar url={pageUrl} title={pageTitle} />`,
+        },
+        {
+          title: 'Without label, custom inline networks, translated labels',
+          preview: (
+            <ShareBar
+              url="https://example.com/blog/release-notes/"
+              title="Release notes"
+              hideLabel
+              inline={['linkedin', 'email']}
+              labels={{ share: 'Teilen', more: 'Weitere Optionen', dialogTitle: 'Diese Seite teilen', address: 'Seitenadresse', copy: 'Kopieren', copied: 'Kopiert', moreApps: 'Weitere Apps', email: 'E-Mail', shareOn: 'Auf %s teilen' }}
+            />
+          ),
+          code: `<ShareBar url={pageUrl} title={pageTitle} hideLabel inline={['linkedin', 'email']} labels={{ copy: 'Kopieren', copied: 'Kopiert' }} />`,
+        },
+      ],
+    },
+    {
+      id: 'cookie-consent',
+      title: 'CookieConsent',
+      category: 'Molecule',
+      abbr: 'Cn',
+      description: 'Cookie consent for KVKK and GDPR: a banner until the visitor decides, with Reject all as prominent as Accept all, and a settings window with one switch per category. The choice is kept per policy version in a first-party cookie; other code checks hasConsent() or listens for the kui:consent event before loading analytics.',
+      filePath: 'modules/ui/CookieConsent.tsx',
+      sourceCode: `'use client';
+import { useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react';
+import { cn } from '@/libs/utils/cn';
+import { Button } from './Button';
+import { Modal } from './Modal';
+import { Toggle } from './Toggle';
+import {
+  CONSENT_COOKIE,
+  CONSENT_MAX_AGE_DAYS,
+  DEFAULT_CATEGORIES,
+  allChoices,
+  onConsentOpen,
+  parseConsent,
+  rawConsentCookie,
+  saveConsent,
+  subscribeConsent,
+  type ConsentCategory,
+  type ConsentChoices,
+  type ConsentState,
+} from './CookieConsent.store';
+
+// Cookie consent (KVKK / GDPR): a banner until the visitor decides, and a settings window with one switch per
+// category. "Reject all" is as prominent as "Accept all"; optional categories start off; the choice is kept for
+// a policy version and asked again when the version changes. Nothing is loaded here: other code reads the
+// choice with hasConsent() or listens for the \`kui:consent\` event before it loads analytics or marketing tags.
+
+export type CookieConsentLabels = {
+  title?: string;
+  text?: string;
+  policy?: string;
+  acceptAll?: string;
+  rejectAll?: string;
+  settings?: string;
+  dialogTitle?: string;
+  dialogText?: string;
+  save?: string;
+  alwaysOn?: string;
+};
+
+export type CookieConsentProps = {
+  /** Policy version. Change it when the cookie policy changes and every visitor is asked again. */
+  version: string;
+  categories?: ConsentCategory[];
+  /** Address of the cookie policy page. */
+  policyUrl?: string;
+  /** Cookie name. Default \`kui_consent\`. */
+  cookieName?: string;
+  /** How long a choice is kept. Default 180 days. */
+  maxAgeDays?: number;
+  /** Cookie domain, to share one choice across subdomains (".example.com"). */
+  domain?: string;
+  labels?: CookieConsentLabels;
+  /** Called after every saved choice. */
+  onChange?: (state: ConsentState) => void;
+  /** Banner position. */
+  position?: 'bottom' | 'bottom-start';
+  /** Render the banner in the page flow instead of fixed to the window (documentation, previews). */
+  inline?: boolean;
+  /** Show the banner even when a choice is stored (documentation, previews). */
+  forceShow?: boolean;
+  className?: string;
+};
+
+const L: Required<CookieConsentLabels> = {
+  title: 'Cookies on this site',
+  text: 'We use necessary cookies to run the site. With your permission we also use analytics and marketing cookies. You can change your choice at any time.',
+  policy: 'Cookie policy',
+  acceptAll: 'Accept all',
+  rejectAll: 'Reject all',
+  settings: 'Settings',
+  dialogTitle: 'Cookie settings',
+  dialogText: 'Choose which cookies we may use. Necessary cookies are always on.',
+  save: 'Save choices',
+  alwaysOn: 'Always on',
+};
+
+export function CookieConsent({
+  version,
+  categories = DEFAULT_CATEGORIES,
+  policyUrl,
+  cookieName = CONSENT_COOKIE,
+  maxAgeDays = CONSENT_MAX_AGE_DAYS,
+  domain,
+  labels,
+  onChange,
+  position = 'bottom',
+  inline = false,
+  forceShow = false,
+  className,
+}: CookieConsentProps) {
+  const t = { ...L, ...labels };
+  const titleId = useId();
+  // The raw cookie as an external store: null on the server and during hydration, so nothing renders until the
+  // browser knows the choice (no flash for visitors who already decided, no hydration mismatch).
+  const raw = useSyncExternalStore(subscribeConsent, () => rawConsentCookie(cookieName), () => null);
+  const state = useMemo(() => (raw === null ? undefined : parseConsent(raw, version, categories)), [raw, version, categories]);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<ConsentChoices>(() => allChoices(categories, false));
+
+  useEffect(
+    () =>
+      onConsentOpen(() => {
+        setDraft(parseConsent(rawConsentCookie(cookieName), version, categories)?.choices ?? allChoices(categories, false));
+        setOpen(true);
+      }),
+    [categories, cookieName, version]
+  );
+
+  const decide = (choices: ConsentChoices) => {
+    const next: ConsentState = { version, decidedAt: Math.floor(Date.now() / 1000), choices };
+    saveConsent(next, { name: cookieName, maxAgeDays, domain });
+    setOpen(false);
+    onChange?.(next);
+  };
+
+  const openSettings = () => {
+    setDraft(state?.choices ?? allChoices(categories, false));
+    setOpen(true);
+  };
+
+  const showBanner = state === null || (forceShow && state !== undefined); // undefined = not known yet (server / hydration)
+
+  return (
+    <>
+      {showBanner && (
+        <section
+          role="region"
+          aria-labelledby={titleId}
+          className={cn(
+            'max-w-2xl rounded-2xl border border-border bg-surface-raised p-5 shadow-xl',
+            !inline && 'fixed inset-x-4 bottom-4 z-[60] mx-auto',
+            !inline && position === 'bottom-start' && 'sm:right-auto sm:mx-0 sm:max-w-md',
+            className
+          )}
+        >
+          <h2 id={titleId} className="text-base font-semibold text-text-primary">{t.title}</h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-text-secondary">
+            {t.text}{' '}
+            {policyUrl && <a href={policyUrl} className="font-medium text-primary underline-offset-2 hover:underline">{t.policy}</a>}
+          </p>
+          <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+            <Button variant="ghost" onClick={openSettings} className="sm:mr-auto">{t.settings}</Button>
+            {/* Reject and accept carry the same weight: refusing must be as easy as accepting. */}
+            <Button variant="primary" onClick={() => decide(allChoices(categories, false))}>{t.rejectAll}</Button>
+            <Button variant="primary" onClick={() => decide(allChoices(categories, true))}>{t.acceptAll}</Button>
+          </div>
+        </section>
+      )}
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t.dialogTitle}
+        description={t.dialogText}
+        size="md"
+        footer={
+          <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" onClick={() => decide(allChoices(categories, false))}>{t.rejectAll}</Button>
+            <Button variant="outline" onClick={() => decide({ ...draft, ...Object.fromEntries(categories.filter((c) => c.required).map((c) => [c.id, true])) })}>{t.save}</Button>
+            <Button variant="primary" onClick={() => decide(allChoices(categories, true))}>{t.acceptAll}</Button>
+          </div>
+        }
+      >
+        <ul className="divide-y divide-border">
+          {categories.map((c) => (
+            <li key={c.id} className="flex items-start justify-between gap-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-text-primary">{c.label}</p>
+                {c.description && <p className="mt-0.5 text-sm text-text-secondary">{c.description}</p>}
+              </div>
+              {c.required ? (
+                <span className="shrink-0 rounded-full bg-surface-overlay px-2.5 py-1 text-xs font-medium text-text-secondary">{t.alwaysOn}</span>
+              ) : (
+                <Toggle
+                  id={\`kui-consent-\${c.id}\`}
+                  label=""
+                  ariaLabel={c.label}
+                  checked={draft[c.id] === true}
+                  onChange={(v) => setDraft((d) => ({ ...d, [c.id]: v }))}
+                  className="shrink-0"
+                />
+              )}
+            </li>
+          ))}
+        </ul>
+      </Modal>
+    </>
+  );
+}
+`,
+      variants: [
+        {
+          title: 'Banner (in the page flow for this preview; fixed to the bottom of the window by default)',
+          preview: <CookieConsent version="showcase" policyUrl="#cookie-policy" inline forceShow cookieName="kui_consent_showcase" />,
+          code: `<CookieConsent version="2026-11" policyUrl="/cookie-policy/" />`,
+        },
+        {
+          title: 'Custom categories and translated labels; a footer link reopens the settings',
+          preview: (
+            <CookieConsent
+              version="showcase-de"
+              inline
+              forceShow
+              cookieName="kui_consent_showcase_de"
+              policyUrl="#cookie-richtlinie"
+              categories={[
+                { id: 'necessary', label: 'Notwendig', description: 'Anmeldung, Sicherheit und Sprachwahl.', required: true },
+                { id: 'analytics', label: 'Statistik', description: 'Anonyme Zahlen dazu, welche Seiten besucht werden.' },
+              ]}
+              labels={{ title: 'Cookie-Einstellungen', text: 'Wir verwenden notwendige Cookies für den Betrieb der Website. Mit Ihrer Erlaubnis auch Statistik-Cookies.', policy: 'Cookie-Richtlinie', acceptAll: 'Alle akzeptieren', rejectAll: 'Alle ablehnen', settings: 'Einstellungen', dialogTitle: 'Cookie-Einstellungen', dialogText: 'Wählen Sie, welche Cookies wir verwenden dürfen. Notwendige Cookies sind immer aktiv.', save: 'Auswahl speichern', alwaysOn: 'Immer aktiv' }}
+            />
+          ),
+          code: `<CookieConsent version="2026-11" categories={categories} labels={deLabels} />
+<button onClick={openConsentSettings}>Cookie settings</button>
+// before loading analytics:
+if (hasConsent('analytics', '2026-11')) loadAnalytics();
+window.addEventListener('kui:consent', (e) => { if (e.detail?.choices.analytics) loadAnalytics(); });`,
         },
       ],
     },

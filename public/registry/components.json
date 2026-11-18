@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-04T13:41:53.702Z",
+  "generatedAt": "2026-11-13T06:50:55.317Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -256,6 +256,7 @@
         "reviews-review-submit-form",
         "rich-text-editor",
         "share-dialog",
+        "tour",
         "translatable-field"
       ]
     },
@@ -972,7 +973,7 @@
       "filePath": "modules/ui/Toggle.tsx",
       "abbr": "Tg",
       "description": "role=\"switch\" toggle/switch with three sizes, description slot, and disabled support. Fully accessible via CSS transform without a native input.",
-      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\n\nconst sizeMap = {\n  sm: { track: 'h-4 w-7',  thumb: 'h-3 w-3',     on: 'translate-x-3.5' },\n  md: { track: 'h-5 w-9',  thumb: 'h-3.5 w-3.5', on: 'translate-x-4'   },\n  lg: { track: 'h-6 w-11', thumb: 'h-4 w-4',     on: 'translate-x-5'   },\n};\n\nexport function Toggle({ id, label, description, checked, onChange, disabled, size = 'md', className }) {\n  const { track, thumb, on } = sizeMap[size];\n  return (\n    <label htmlFor={id} className={cn('flex items-start gap-3', disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer', className)}>\n      <div className=\"relative shrink-0 mt-0.5\">\n        <input id={id} type=\"checkbox\" role=\"switch\" checked={checked} onChange={(e) => onChange(e.target.checked)} disabled={disabled} aria-checked={checked} className=\"sr-only\" />\n        <div className={cn('rounded-full transition-colors duration-200', track, checked ? 'bg-primary' : 'bg-surface-sunken border border-border')} />\n        <div className={cn('absolute top-0.5 left-0.5 rounded-full bg-white shadow-sm transition-transform duration-200', thumb, checked ? on : 'translate-x-0')} />\n      </div>\n      <div>\n        <span className=\"text-sm font-medium text-text-primary\">{label}</span>\n        {description && <p className=\"text-xs text-text-secondary mt-0.5\">{description}</p>}\n      </div>\n    </label>\n  );\n}",
+      "source": "'use client';\nimport { cn } from '@/libs/utils/cn';\n\nconst sizeMap = {\n  sm: { track: 'h-4 w-7',   thumb: 'h-3 w-3',     on: 'translate-x-3.5' },\n  md: { track: 'h-5 w-9',   thumb: 'h-3.5 w-3.5', on: 'translate-x-4'   },\n  lg: { track: 'h-6 w-11',  thumb: 'h-4 w-4',     on: 'translate-x-5'   },\n};\n\nexport function Toggle({\n  id,\n  label,\n  ariaLabel,\n  description,\n  checked,\n  onChange,\n  disabled,\n  size = 'md',\n  pending = false,\n  mismatch = false,\n  describedBy,\n  className,\n}: {\n  id: string;\n  label: string;\n  /** Accessible name to use when `label` is empty (e.g. the visible text\n   * lives in a sibling element instead, like a settings-row layout). */\n  ariaLabel?: string;\n  description?: string;\n  checked: boolean;\n  onChange: (checked: boolean) => void;\n  disabled?: boolean;\n  size?: 'sm' | 'md' | 'lg';\n  /** An asynchronous write is in flight: the thumb shows a spinner, the input is disabled and `aria-busy` is set. No layout shift. */\n  pending?: boolean;\n  /** The other side reports a different value than was requested: a warning ring on the track. Pair with `describedBy`. */\n  mismatch?: boolean;\n  /** Id of a consumer-rendered hint element (e.g. the mismatch explanation). */\n  describedBy?: string;\n  className?: string;\n}) {\n  const { track, thumb, on } = sizeMap[size];\n\n  return (\n    <label\n      htmlFor={id}\n      className={cn(\n        'flex items-start gap-3',\n        disabled ? 'cursor-not-allowed opacity-50' : pending ? 'cursor-progress' : 'cursor-pointer',\n        className\n      )}\n    >\n      <div className=\"relative shrink-0 mt-0.5\">\n        <input\n          id={id}\n          type=\"checkbox\"\n          role=\"switch\"\n          checked={checked}\n          onChange={(e) => onChange(e.target.checked)}\n          disabled={disabled || pending}\n          aria-busy={pending || undefined}\n          aria-describedby={describedBy}\n          aria-invalid={mismatch || undefined}\n          aria-checked={checked}\n          aria-label={!label && ariaLabel ? ariaLabel : undefined}\n          data-testid={`toggle-${id}`}\n          className=\"sr-only\"\n        />\n        <div\n          className={cn(\n            'rounded-full transition-colors duration-200',\n            track,\n            checked ? 'bg-primary' : 'bg-surface-sunken border border-border',\n            mismatch && 'ring-2 ring-warning ring-offset-1 ring-offset-surface-base'\n          )}\n        />\n        <div\n          className={cn(\n            'absolute top-0.5 left-0.5 rounded-full bg-white shadow-sm transition-transform duration-200',\n            thumb,\n            checked ? on : 'translate-x-0'\n          )}\n        >\n          {pending && (\n            <span\n              aria-hidden=\"true\"\n              className=\"absolute inset-0 m-auto h-[70%] w-[70%] animate-spin rounded-full border border-primary border-t-transparent motion-reduce:animate-none\"\n            />\n          )}\n        </div>\n      </div>\n      {/* No empty text box next to a switch without label or description: it only added the gap-3 (12px). */}\n      {(label || description) && (\n        <div>\n          {label && <span className=\"text-sm font-medium text-text-primary\">{label}</span>}\n          {description && (\n            <p className=\"text-xs text-text-secondary mt-0.5\">{description}</p>\n          )}\n        </div>\n      )}\n    </label>\n  );\n}\n",
       "variants": [
         {
           "title": "Checked",
@@ -1019,7 +1020,8 @@
         "--secondary",
         "--surface-sunken",
         "--text-primary",
-        "--text-secondary"
+        "--text-secondary",
+        "--warning"
       ],
       "usedBy": [
         "control-tile",
@@ -2872,6 +2874,70 @@
       ]
     },
     {
+      "id": "share-bar",
+      "name": "ShareBar",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/ShareBar.tsx",
+      "abbr": "Sh",
+      "description": "Share the current page: networks inline and a … button that opens a window with every network, e-mail, copy link and the device share sheet. Plain links, no third-party scripts.",
+      "source": "'use client';\nimport { useEffect, useId, useState } from 'react';\nimport { cn } from '@/libs/utils/cn';\nimport { FontAwesomeIcon } from '@fortawesome/react-fontawesome';\nimport type { IconDefinition } from '@fortawesome/fontawesome-svg-core';\nimport { faEllipsis, faEnvelope, faLink } from '@fortawesome/free-solid-svg-icons';\nimport { faFacebookF, faLinkedinIn, faRedditAlien, faTelegram, faWhatsapp, faXTwitter } from '@fortawesome/free-brands-svg-icons';\nimport { Modal } from './Modal';\n\n// Share the current page: a few networks inline and a \"…\" button that opens a\n// window with every network, e-mail, copy link and the device's own share sheet.\n// Plain links to each network's share address: no third-party scripts, no tracking.\n\nexport type ShareNetwork = 'linkedin' | 'x' | 'whatsapp' | 'facebook' | 'telegram' | 'reddit' | 'email';\n\ntype ShareBarLabels = {\n  share?: string;\n  more?: string;\n  dialogTitle?: string;\n  address?: string;\n  copy?: string;\n  copied?: string;\n  moreApps?: string;\n  /** \"Share on %s\"; %s is the network name. */\n  shareOn?: string;\n  email?: string;\n};\n\ntype ShareBarProps = {\n  /** Address to share. */\n  url: string;\n  /** Page title, sent where the network takes one. */\n  title?: string;\n  /** Networks shown as buttons in the bar. Default LinkedIn, X, WhatsApp. */\n  inline?: ShareNetwork[];\n  /** Networks in the window. Default all seven. */\n  networks?: ShareNetwork[];\n  /** Hide the \"Share\" label before the buttons. */\n  hideLabel?: boolean;\n  labels?: ShareBarLabels;\n  onShare?: (network: ShareNetwork | 'copy' | 'native') => void;\n  className?: string;\n} & Omit<React.HTMLAttributes<HTMLDivElement>, 'title'>;\n\nconst NETWORKS: Record<ShareNetwork, { name: string; icon: IconDefinition; href: (u: string, t: string) => string }> = {\n  linkedin: { name: 'LinkedIn', icon: faLinkedinIn, href: (u) => `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },\n  x: { name: 'X', icon: faXTwitter, href: (u, t) => `https://x.com/intent/post?url=${u}&text=${t}` },\n  whatsapp: { name: 'WhatsApp', icon: faWhatsapp, href: (u, t) => `https://wa.me/?text=${t}%20${u}` },\n  facebook: { name: 'Facebook', icon: faFacebookF, href: (u) => `https://www.facebook.com/sharer/sharer.php?u=${u}` },\n  telegram: { name: 'Telegram', icon: faTelegram, href: (u, t) => `https://t.me/share/url?url=${u}&text=${t}` },\n  reddit: { name: 'Reddit', icon: faRedditAlien, href: (u, t) => `https://www.reddit.com/submit?url=${u}&title=${t}` },\n  email: { name: 'E-mail', icon: faEnvelope, href: (u, t) => `mailto:?subject=${t}&body=${u}` },\n};\n\nconst ALL: ShareNetwork[] = ['linkedin', 'x', 'whatsapp', 'facebook', 'telegram', 'reddit', 'email'];\n\nconst buttonClass = cn(\n  'inline-grid h-9 w-9 place-items-center rounded-lg border border-border bg-surface-base text-text-secondary transition-colors',\n  'hover:bg-surface-overlay hover:text-text-primary',\n  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus'\n);\n\nconst tileClass = cn(\n  'grid justify-items-center gap-1.5 rounded-[0.625rem] border border-border bg-surface-base px-1 py-3 text-xs text-text-primary transition-colors',\n  'hover:border-primary hover:text-primary',\n  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus'\n);\n\nexport function ShareBar({\n  url,\n  title = '',\n  inline = ['linkedin', 'x', 'whatsapp'],\n  networks = ALL,\n  hideLabel = false,\n  labels,\n  onShare,\n  className,\n  ...rest\n}: ShareBarProps) {\n  const [open, setOpen] = useState(false);\n  const [copied, setCopied] = useState(false);\n  const inputId = useId();\n  const l = {\n    share: 'Share',\n    more: 'More ways to share',\n    dialogTitle: 'Share this page',\n    address: 'Page address',\n    copy: 'Copy',\n    copied: 'Copied',\n    moreApps: 'More apps',\n    shareOn: 'Share on %s',\n    email: 'E-mail',\n    ...labels,\n  };\n  const u = encodeURIComponent(url);\n  const t = encodeURIComponent(title);\n  // The window only renders after a click, on the client, so the device share sheet can be checked here.\n  const canNative = open && typeof navigator !== 'undefined' && typeof navigator.share === 'function';\n  const name = (n: ShareNetwork) => (n === 'email' ? l.email : NETWORKS[n].name);\n\n  useEffect(() => {\n    if (!copied) return;\n    const id = window.setTimeout(() => setCopied(false), 1500);\n    return () => window.clearTimeout(id);\n  }, [copied]);\n\n  const link = (n: ShareNetwork, cls: string, withName: boolean) => {\n    const external = n !== 'email';\n    return (\n      <a\n        key={n}\n        href={NETWORKS[n].href(u, t)}\n        className={cls}\n        aria-label={l.shareOn.replace('%s', name(n))}\n        onClick={() => onShare?.(n)}\n        {...(external ? { target: '_blank', rel: 'noopener nofollow' } : {})}\n      >\n        <FontAwesomeIcon icon={NETWORKS[n].icon} className=\"h-[1.125rem] w-[1.125rem]\" aria-hidden=\"true\" />\n        {withName ? <span>{name(n)}</span> : <span className=\"sr-only\">{name(n)}</span>}\n      </a>\n    );\n  };\n\n  const copy = async () => {\n    try {\n      await navigator.clipboard.writeText(url);\n      setCopied(true);\n      onShare?.('copy');\n    } catch {\n      (document.getElementById(inputId) as HTMLInputElement | null)?.select();\n    }\n  };\n\n  const native = () => {\n    navigator.share?.({ title, url }).then(() => onShare?.('native')).catch(() => {});\n  };\n\n  return (\n    <div className={cn('flex flex-wrap items-center gap-2.5', className)} {...rest}>\n      {!hideLabel && <span className=\"text-xs font-bold uppercase tracking-[0.06em] text-text-secondary\">{l.share}</span>}\n      <div className=\"flex gap-1.5\">\n        {inline.map((n) => link(n, buttonClass, false))}\n        <button type=\"button\" className={buttonClass} aria-haspopup=\"dialog\" aria-expanded={open} aria-label={l.more} onClick={() => setOpen(true)}>\n          <FontAwesomeIcon icon={faEllipsis} className=\"h-[1.125rem] w-[1.125rem]\" aria-hidden=\"true\" />\n        </button>\n      </div>\n\n      <Modal open={open} onClose={() => setOpen(false)} title={l.dialogTitle} size=\"sm\">\n        <div className=\"mb-4 flex items-center gap-2 rounded-lg border border-border bg-surface-base py-1.5 pl-3 pr-1.5 text-text-secondary\">\n          <FontAwesomeIcon icon={faLink} className=\"h-4 w-4 shrink-0\" aria-hidden=\"true\" />\n          <input\n            id={inputId}\n            type=\"text\"\n            readOnly\n            value={url}\n            aria-label={l.address}\n            onFocus={(e) => e.currentTarget.select()}\n            className=\"min-w-0 flex-1 border-0 bg-transparent text-sm text-text-primary outline-none\"\n          />\n          <button\n            type=\"button\"\n            onClick={copy}\n            className=\"rounded-md bg-primary px-3 py-1.5 text-[0.8125rem] font-semibold text-primary-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus\"\n          >\n            {copied ? l.copied : l.copy}\n          </button>\n        </div>\n        <div className=\"grid grid-cols-4 gap-2\">\n          {networks.map((n) => link(n, tileClass, true))}\n          {canNative && (\n            <button type=\"button\" className={tileClass} onClick={native}>\n              <FontAwesomeIcon icon={faEllipsis} className=\"h-[1.125rem] w-[1.125rem]\" aria-hidden=\"true\" />\n              <span>{l.moreApps}</span>\n            </button>\n          )}\n        </div>\n      </Modal>\n    </div>\n  );\n}\n",
+      "variants": [
+        {
+          "title": "Default: LinkedIn, X, WhatsApp and more",
+          "code": "<ShareBar url={pageUrl} title={pageTitle} />"
+        },
+        {
+          "title": "Without label, custom inline networks, translated labels",
+          "code": "<ShareBar url={pageUrl} title={pageTitle} hideLabel inline={['linkedin', 'email']} labels={{ copy: 'Kopieren', copied: 'Kopiert' }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--primary-fg",
+        "--secondary",
+        "--surface-base",
+        "--surface-overlay",
+        "--text-primary",
+        "--text-secondary"
+      ]
+    },
+    {
+      "id": "cookie-consent",
+      "name": "CookieConsent",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/CookieConsent.tsx",
+      "abbr": "Cn",
+      "description": "Cookie consent for KVKK and GDPR: a banner until the visitor decides, with Reject all as prominent as Accept all, and a settings window with one switch per category. The choice is kept per policy version in a first-party cookie; other code checks hasConsent() or listens for the kui:consent event before loading analytics.",
+      "source": "'use client';\nimport { useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react';\nimport { cn } from '@/libs/utils/cn';\nimport { Button } from './Button';\nimport { Modal } from './Modal';\nimport { Toggle } from './Toggle';\nimport {\n  CONSENT_COOKIE,\n  CONSENT_MAX_AGE_DAYS,\n  DEFAULT_CATEGORIES,\n  allChoices,\n  onConsentOpen,\n  parseConsent,\n  rawConsentCookie,\n  saveConsent,\n  subscribeConsent,\n  type ConsentCategory,\n  type ConsentChoices,\n  type ConsentState,\n} from './CookieConsent.store';\n\n// Cookie consent (KVKK / GDPR): a banner until the visitor decides, and a settings window with one switch per\n// category. \"Reject all\" is as prominent as \"Accept all\"; optional categories start off; the choice is kept for\n// a policy version and asked again when the version changes. Nothing is loaded here: other code reads the\n// choice with hasConsent() or listens for the `kui:consent` event before it loads analytics or marketing tags.\n\nexport type CookieConsentLabels = {\n  title?: string;\n  text?: string;\n  policy?: string;\n  acceptAll?: string;\n  rejectAll?: string;\n  settings?: string;\n  dialogTitle?: string;\n  dialogText?: string;\n  save?: string;\n  alwaysOn?: string;\n};\n\nexport type CookieConsentProps = {\n  /** Policy version. Change it when the cookie policy changes and every visitor is asked again. */\n  version: string;\n  categories?: ConsentCategory[];\n  /** Address of the cookie policy page. */\n  policyUrl?: string;\n  /** Cookie name. Default `kui_consent`. */\n  cookieName?: string;\n  /** How long a choice is kept. Default 180 days. */\n  maxAgeDays?: number;\n  /** Cookie domain, to share one choice across subdomains (\".example.com\"). */\n  domain?: string;\n  labels?: CookieConsentLabels;\n  /** Called after every saved choice. */\n  onChange?: (state: ConsentState) => void;\n  /** Banner position. */\n  position?: 'bottom' | 'bottom-start';\n  /** Render the banner in the page flow instead of fixed to the window (documentation, previews). */\n  inline?: boolean;\n  /** Show the banner even when a choice is stored (documentation, previews). */\n  forceShow?: boolean;\n  className?: string;\n};\n\nconst L: Required<CookieConsentLabels> = {\n  title: 'Cookies on this site',\n  text: 'We use necessary cookies to run the site. With your permission we also use analytics and marketing cookies. You can change your choice at any time.',\n  policy: 'Cookie policy',\n  acceptAll: 'Accept all',\n  rejectAll: 'Reject all',\n  settings: 'Settings',\n  dialogTitle: 'Cookie settings',\n  dialogText: 'Choose which cookies we may use. Necessary cookies are always on.',\n  save: 'Save choices',\n  alwaysOn: 'Always on',\n};\n\nexport function CookieConsent({\n  version,\n  categories = DEFAULT_CATEGORIES,\n  policyUrl,\n  cookieName = CONSENT_COOKIE,\n  maxAgeDays = CONSENT_MAX_AGE_DAYS,\n  domain,\n  labels,\n  onChange,\n  position = 'bottom',\n  inline = false,\n  forceShow = false,\n  className,\n}: CookieConsentProps) {\n  const t = { ...L, ...labels };\n  const titleId = useId();\n  // The raw cookie as an external store: null on the server and during hydration, so nothing renders until the\n  // browser knows the choice (no flash for visitors who already decided, no hydration mismatch).\n  const raw = useSyncExternalStore(subscribeConsent, () => rawConsentCookie(cookieName), () => null);\n  const state = useMemo(() => (raw === null ? undefined : parseConsent(raw, version, categories)), [raw, version, categories]);\n  const [open, setOpen] = useState(false);\n  const [draft, setDraft] = useState<ConsentChoices>(() => allChoices(categories, false));\n\n  useEffect(\n    () =>\n      onConsentOpen(() => {\n        setDraft(parseConsent(rawConsentCookie(cookieName), version, categories)?.choices ?? allChoices(categories, false));\n        setOpen(true);\n      }),\n    [categories, cookieName, version]\n  );\n\n  const decide = (choices: ConsentChoices) => {\n    const next: ConsentState = { version, decidedAt: Math.floor(Date.now() / 1000), choices };\n    saveConsent(next, { name: cookieName, maxAgeDays, domain });\n    setOpen(false);\n    onChange?.(next);\n  };\n\n  const openSettings = () => {\n    setDraft(state?.choices ?? allChoices(categories, false));\n    setOpen(true);\n  };\n\n  const showBanner = state === null || (forceShow && state !== undefined); // undefined = not known yet (server / hydration)\n\n  return (\n    <>\n      {showBanner && (\n        <section\n          role=\"region\"\n          aria-labelledby={titleId}\n          className={cn(\n            'max-w-2xl rounded-2xl border border-border bg-surface-raised p-5 shadow-xl',\n            !inline && 'fixed inset-x-4 bottom-4 z-[60] mx-auto',\n            !inline && position === 'bottom-start' && 'sm:right-auto sm:mx-0 sm:max-w-md',\n            className\n          )}\n        >\n          <h2 id={titleId} className=\"text-base font-semibold text-text-primary\">{t.title}</h2>\n          <p className=\"mt-1.5 text-sm leading-relaxed text-text-secondary\">\n            {t.text}{' '}\n            {policyUrl && <a href={policyUrl} className=\"font-medium text-primary underline-offset-2 hover:underline\">{t.policy}</a>}\n          </p>\n          <div className=\"mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center\">\n            <Button variant=\"ghost\" onClick={openSettings} className=\"sm:mr-auto\">{t.settings}</Button>\n            {/* Reject and accept carry the same weight: refusing must be as easy as accepting. */}\n            <Button variant=\"primary\" onClick={() => decide(allChoices(categories, false))}>{t.rejectAll}</Button>\n            <Button variant=\"primary\" onClick={() => decide(allChoices(categories, true))}>{t.acceptAll}</Button>\n          </div>\n        </section>\n      )}\n      <Modal\n        open={open}\n        onClose={() => setOpen(false)}\n        title={t.dialogTitle}\n        description={t.dialogText}\n        size=\"md\"\n        footer={\n          <div className=\"flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end\">\n            <Button variant=\"outline\" onClick={() => decide(allChoices(categories, false))}>{t.rejectAll}</Button>\n            <Button variant=\"outline\" onClick={() => decide({ ...draft, ...Object.fromEntries(categories.filter((c) => c.required).map((c) => [c.id, true])) })}>{t.save}</Button>\n            <Button variant=\"primary\" onClick={() => decide(allChoices(categories, true))}>{t.acceptAll}</Button>\n          </div>\n        }\n      >\n        <ul className=\"divide-y divide-border\">\n          {categories.map((c) => (\n            <li key={c.id} className=\"flex items-start justify-between gap-4 py-3\">\n              <div className=\"min-w-0\">\n                <p className=\"text-sm font-medium text-text-primary\">{c.label}</p>\n                {c.description && <p className=\"mt-0.5 text-sm text-text-secondary\">{c.description}</p>}\n              </div>\n              {c.required ? (\n                <span className=\"shrink-0 rounded-full bg-surface-overlay px-2.5 py-1 text-xs font-medium text-text-secondary\">{t.alwaysOn}</span>\n              ) : (\n                <Toggle\n                  id={`kui-consent-${c.id}`}\n                  label=\"\"\n                  ariaLabel={c.label}\n                  checked={draft[c.id] === true}\n                  onChange={(v) => setDraft((d) => ({ ...d, [c.id]: v }))}\n                  className=\"shrink-0\"\n                />\n              )}\n            </li>\n          ))}\n        </ul>\n      </Modal>\n    </>\n  );\n}\n",
+      "variants": [
+        {
+          "title": "Banner (in the page flow for this preview; fixed to the bottom of the window by default)",
+          "code": "<CookieConsent version=\"2026-11\" policyUrl=\"/cookie-policy/\" />"
+        },
+        {
+          "title": "Custom categories and translated labels; a footer link reopens the settings",
+          "code": "<CookieConsent version=\"2026-11\" categories={categories} labels={deLabels} />\n<button onClick={openConsentSettings}>Cookie settings</button>\n// before loading analytics:\nif (hasConsent('analytics', '2026-11')) loadAnalytics();\nwindow.addEventListener('kui:consent', (e) => { if (e.detail?.choices.analytics) loadAnalytics(); });"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--border",
+        "--primary",
+        "--secondary",
+        "--surface-overlay",
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary"
+      ]
+    },
+    {
       "id": "modal",
       "name": "Modal",
       "layer": "ui",
@@ -3494,6 +3560,41 @@
       "designTokens": []
     },
     {
+      "id": "assistant-launcher",
+      "name": "AssistantLauncher",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/AssistantLauncher/index.tsx",
+      "abbr": "Ai",
+      "description": "A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, details asked as chat messages with `AssistantQuickReplies`, `AssistantQuote` and per-step `inputProps`, a header Restart (`onRestart`) and a Sound toggle (`sound`/`onSoundChange`, a two-note Web Audio chime for each new reply), a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.",
+      "source": "<AssistantLauncher\n  open={open}\n  onOpenChange={setOpen}\n  title=\"Hermetry assistant\"\n  greeting=\"Hi! What would you like to know?\"\n  items={messages}\n  pending={waitingForReply}\n  onSend={(text) => ask(text)}\n  consent={{ text: <ConsentText />, accepted, onAccept: () => setAccepted(true) }}\n  teaser={showTeaser ? { text: 'Questions? Ask our assistant.', onDismiss: hideTeaser } : undefined}\n  offline={resting ? <p>The assistant is resting. <a href=\"/contact\">Write to us</a>.</p> : undefined}\n  renderAfter={(item) => item.side === 'other' && sourcesOf(item).length > 0 && (\n    <AssistantSources sources={sourcesOf(item)} />\n  )}\n  messages={{ open: t('chat.open'), send: t('chat.send') }}\n/>",
+      "variants": [
+        {
+          "title": "Closed, with a teaser",
+          "code": "<AssistantLauncher open={open} onOpenChange={setOpen} title=\"Hermetry assistant\" greeting={greeting} items={items} onSend={send} teaser={{ text: 'Questions about pricing or devices?', onDismiss }} />"
+        },
+        {
+          "title": "Open, before consent",
+          "code": "<AssistantLauncher … consent={{ text: <ConsentText />, accepted, onAccept: () => setAccepted(true) }} />"
+        },
+        {
+          "title": "A conversation with sources and a quote card",
+          "code": "<AssistantLauncher … items={items} pending={pending} renderAfter={(item) => (\n  <>\n    <AssistantSources sources={item.sources} />\n    <AssistantCard title=\"Get a quote\" actions={<Button size=\"sm\">Request a quote</Button>}>…</AssistantCard>\n  </>\n)} />"
+        },
+        {
+          "title": "A request asked as chat messages, with Restart and Sound",
+          "code": "<AssistantLauncher … onSend={answerStep} inputProps={step.input /* autoComplete=\"email\" … */}\n  renderAfter={(item) => item.id === lastId && (\n    <AssistantQuickReplies replies={[{ value: 'confirm', label: 'Confirm', primary: true }, { value: 'cancel', label: 'Cancel' }]} onSelect={choose} />\n  )}\n  onRestart={clearConversation} sound={sound} onSoundChange={saveSoundChoice} />"
+        },
+        {
+          "title": "Offline",
+          "code": "<AssistantLauncher … offline={<p>The assistant is resting. <a href=\"/contact\">Write to us</a> or <a href=\"/forum\">ask the forum</a>.</p>} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
       "id": "app-shell",
       "name": "AppShell",
       "layer": "app",
@@ -3884,6 +3985,64 @@
         "--text-primary",
         "--text-secondary",
         "--border"
+      ]
+    },
+    {
+      "id": "tour",
+      "name": "Tour",
+      "layer": "app",
+      "category": "App",
+      "filePath": "modules/app/Tour/index.tsx",
+      "abbr": "GT",
+      "description": "Guided tour over the live page: each step dims the page, cuts out its target and explains it. Driver.js draws; the runner owns the steps, the text (plain text, never HTML) and the keyboard. Steps can wait for late content, run on other pages (beforeStep) and move on when the target is clicked. RTL mirrors placement and arrow keys.",
+      "source": "'use client';\nimport { useState } from 'react';\nimport { Tour, type TourStep } from '@/modules/app/Tour';\n\nconst steps: TourStep[] = [\n  { id: 'new', target: '[data-tour=\"demo.new\"]', title: 'New rule', text: 'Start a rule here.', placement: 'bottom', advanceOn: 'click' },\n  { id: 'filter', target: '[data-tour=\"demo.filter\"]', text: 'Narrow the list.', placement: 'bottom' },\n  { id: 'done', text: 'That is all. Open the tour again from the top bar.' },\n];\n\nconst [open, setOpen] = useState(false);\n<Button data-tour=\"demo.new\">New rule</Button>\n<Button onClick={() => setOpen(true)}>Take the tour</Button>\n<Tour steps={steps} open={open} onClose={() => setOpen(false)} />",
+      "variants": [
+        {
+          "title": "Three steps: click to advance, a plain step, a centred step",
+          "code": "<Tour steps={steps} open={open} onClose={(reason, index) => setOpen(false)} />"
+        },
+        {
+          "title": "Right-to-left: placement and arrow keys mirrored",
+          "code": "<Tour steps={steps} open={open} dir=\"rtl\" labels={{ next: 'التالي', previous: 'السابق', done: 'تم', close: 'إغلاق', progress: '{current} / {total}' }} onClose={() => setOpen(false)} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "composes": [
+        "button"
+      ],
+      "relatedTo": [
+        "onboarding-wizard"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "role=\"dialog\"",
+          "aria-describedby"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Enter / Click",
+            "action": "Next / Previous / Close"
+          },
+          {
+            "keys": "→ / ←",
+            "action": "Next / previous step, on the popover or the bare page (mirrored in RTL); a focused field, list or canvas keeps its own arrows"
+          },
+          {
+            "keys": "Escape",
+            "action": "Stop the tour"
+          }
+        ],
+        "notes": "Focus moves to the step's Next button on every step and returns to where it was when the tour ends. A step inside an open modal dialog (aria-modal) puts the popover and the overlay into that dialog, so its focus trap lets the keyboard reach the tour; a transformed dialog and a native <dialog> are left to Driver.js (container overrides it)."
+      },
+      "designTokens": [
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary",
+        "--primary",
+        "--border",
+        "--border-focus"
       ]
     },
     {
@@ -5162,6 +5321,28 @@
         "--error",
         "--error-subtle"
       ]
+    },
+    {
+      "id": "common-auth-layout",
+      "name": "AuthLayout",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/auth/AuthLayout.tsx",
+      "abbr": "AL",
+      "description": "The frame of every authentication page, from the kit's own pieces: BrandLogo above a Card, the page title in PageHeader type with one line of real information (the workspace address), the form, an optional footer below.",
+      "source": "import { AuthLayout } from '@/modules/domains/common/auth/AuthLayout';\n\n<AuthLayout\n  brand={<BrandLogo logoLight={logo} alt=\"Acme\" />}\n  title=\"Sign in\"\n  description=\"acme.example.com\"\n  footer={<>Don't have an account? <a href=\"/register\">Sign up</a></>}\n>\n  <LoginForm onSubmit={handleLogin} />\n</AuthLayout>",
+      "variants": [
+        {
+          "title": "Sign in",
+          "code": "<AuthLayout brand={<BrandLogo />} title=\"Sign in\" description=\"acme.example.com\" footer={...}><LoginForm onSubmit={handleLogin} /></AuthLayout>"
+        },
+        {
+          "title": "Title only",
+          "code": "<AuthLayout title=\"Verify your email\" description=\"We sent a link to jane@acme.com.\">…</AuthLayout>"
+        }
+      ],
+      "status": "stable",
+      "designTokens": []
     },
     {
       "id": "common-login-form",
@@ -7537,6 +7718,10 @@
           "code": "<AnnouncementBar icon={faBullhorn} message={<><span className=\"font-semibold\">Velox 2.0 is here</span> — faster builds, smarter previews.</>} cta={{ label: 'Read the announcement', href: '#' }} />"
         },
         {
+          "title": "Dark (black bar)",
+          "code": "<AnnouncementBar variant=\"dark\" message=\"New release: faster dashboards and smarter rules.\" cta={{ label: 'See what is new', href: '#' }} />"
+        },
+        {
           "title": "Non-dismissible promo",
           "code": "<AnnouncementBar message=\"Black Friday — 40% off all plans.\" cta={{ label: 'Claim offer', href: '#' }} dismissible={false} />"
         }
@@ -8979,7 +9164,7 @@
       "filePath": "modules/domains/forum/post/PostComposer.tsx",
       "abbr": "PC",
       "description": "Topic creation form: title + category + write/preview tabs + tag input. Composes UI primitives.",
-      "source": "import { PostComposer } from '@/modules/domains/forum/post/PostComposer';\n<PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />",
+      "source": "import { PostComposer } from '@/modules/domains/forum/post/PostComposer';\nimport { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from '@/modules/domains/forum/post/AcceptedSolution';\nimport { TranslatedContent } from '@/modules/domains/forum/post/TranslatedContent';\nimport { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';\nimport { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';\nimport { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';\nimport { cn } from '@/libs/utils/cn';\n<PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />",
       "variants": [
         {
           "title": "Default composer",
@@ -8992,6 +9177,100 @@
       ],
       "status": "stable",
       "since": "2026-05",
+      "designTokens": []
+    },
+    {
+      "id": "forum-accepted-solution",
+      "name": "AcceptedSolution",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/post/AcceptedSolution.tsx",
+      "abbr": "Qa",
+      "description": "Accepted solution: the \"Accepted solution\" chip, the \"Mark as solution\" / \"Unmark solution\" toggle for the topic author or a moderator, acceptedSolutionClasses that turn the post card green, and the \"Solved\" topic badge.",
+      "source": "import { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from '@/modules/domains/forum/post/AcceptedSolution';\n<MarkSolutionButton isSolution={isSolution} onToggle={setSolution} />",
+      "variants": [
+        {
+          "title": "Chip, toggle and Solved badge",
+          "code": "<AcceptedSolutionBadge />\n<MarkSolutionButton isSolution={false} onToggle={(next) => save(next)} />\n<TopicSolvedBadge size=\"sm\" />"
+        },
+        {
+          "title": "Green post card",
+          "code": "<article className={cn('rounded border border-border', isSolution && acceptedSolutionClasses.card)}>\n  <aside className={cn('bg-surface-raised', isSolution && acceptedSolutionClasses.author)}>…</aside>\n  <header className={cn('bg-surface-raised/50', isSolution && acceptedSolutionClasses.meta)}>\n    {isSolution && <AcceptedSolutionBadge />}\n  </header>\n</article>"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "forum-staff-badge",
+      "name": "StaffBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/user/StaffBadge.tsx",
+      "abbr": "Sf",
+      "description": "Verified-employee pill: check icon and \"<Org> staff\" in white on the organisation colour, with a soft ring. Shown in the post author column and on ForumUserCard.",
+      "source": "import { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';\n<StaffBadge org=\"Northwind\" colour=\"var(--secondary-active)\" />",
+      "variants": [
+        {
+          "title": "Organisations",
+          "code": "<StaffBadge org=\"Northwind\" colour=\"var(--secondary-active)\" />\n<StaffBadge org=\"Acme\" />"
+        },
+        {
+          "title": "On ForumUserCard",
+          "code": "<ForumUserCard user={{ username: 'mod_jane', staff: { org: 'Northwind', colour: 'var(--secondary-active)' } }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--secondary"
+      ]
+    },
+    {
+      "id": "forum-translated-content",
+      "name": "TranslatedContent",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/post/TranslatedContent.tsx",
+      "abbr": "Tx",
+      "description": "Machine-translated post: the translation with \"Translated from <Language> by AI · Show original\", and a button that toggles to the original (with its lang) and back.",
+      "source": "import { TranslatedContent } from '@/modules/domains/forum/post/TranslatedContent';\n<TranslatedContent sourceLanguage=\"Turkish\" sourceLang=\"tr\" translated={translation} original={original} />",
+      "variants": [
+        {
+          "title": "Translated from Turkish",
+          "code": "<TranslatedContent sourceLanguage=\"Turkish\" sourceLang=\"tr\" translated={<p>…</p>} original={<p>…</p>} />"
+        },
+        {
+          "title": "Other words, opened on the original",
+          "code": "<TranslatedContent sourceLanguage=\"German\" sourceLang=\"de\" defaultShowOriginal labels={{ showOriginal: 'Original' }} … />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "forum-similar-topics",
+      "name": "SimilarTopics",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/topic/SimilarTopics.tsx",
+      "abbr": "Sy",
+      "description": "Composer assistant: earlier topics that look like the title being typed (Solved chip, forum, replies) and the AI-suggested forum hint. PostComposer shows both from similarTopics / suggestedCategoryValue.",
+      "source": "import { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';\n<SimilarTopics topics={similar} />",
+      "variants": [
+        {
+          "title": "Similar topics and suggested forum",
+          "code": "<SimilarTopics topics={[{ title, href, solved: true, forumName: 'Tech Help', replyCount: 17 }]} />\n<SuggestedCategoryHint categoryName=\"Tech Help\" />"
+        },
+        {
+          "title": "In PostComposer",
+          "code": "<PostComposer\n  categories={categories}\n  onTitleChange={lookUp}          // debounced on the host\n  similarTopics={similar}\n  suggestedCategoryValue={suggested}\n/>"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
       "designTokens": []
     },
     {
@@ -11295,7 +11574,7 @@
       "category": "Domain",
       "filePath": "modules/domains/iot/asset/DevicePlacementPanel.tsx",
       "abbr": "DV",
-      "description": "Where a device is: the path of its asset with links, Change placement (DevicePlacementPicker) and Remove placement; the device page Placement tab.",
+      "description": "Where a device is and what it is related to: the path of its asset with links, Change placement (DevicePlacementPicker, saying where it is now) and Remove placement (asks first, naming the device and the path), then the device's relations (RelationsSection); the device page Placement & relations tab.",
       "source": "<DevicePlacementPanel deviceId={id} hrefs={{ asset }} />",
       "variants": [
         {

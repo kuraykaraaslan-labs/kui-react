@@ -53,6 +53,8 @@ export type ChatBubbleProps = {
   pending?: boolean;
   /** Spoken while pending (the caret and dots are decorative). */
   pendingLabel?: string;
+  /** Rendered under the bubble and its attachments (source links, a form card …). */
+  extras?: ReactNode;
 } & Omit<HTMLAttributes<HTMLElement>, 'children'>;
 
 const DEFAULT_DELIVERY_LABELS: Record<ChatDeliveryStatus, string> = {
@@ -112,6 +114,7 @@ export function ChatBubble({
   showAvatar = true,
   pending = false,
   pendingLabel = 'Writing…',
+  extras,
   className,
   ...rest
 }: ChatBubbleProps) {
@@ -120,6 +123,7 @@ export function ChatBubble({
       <article
         {...rest}
         aria-busy={pending || undefined}
+        data-side={side}
         className={cn('my-3 flex flex-col items-center gap-0.5 text-center', className)}
       >
         <div className="max-w-[85%] rounded-full bg-surface-sunken px-3 py-1 text-xs text-text-secondary whitespace-pre-wrap break-words">
@@ -145,6 +149,7 @@ export function ChatBubble({
     <article
       {...rest}
       aria-busy={pending || undefined}
+      data-side={side}
       className={cn(
         'group flex items-end gap-2',
         own ? 'flex-row-reverse' : 'flex-row',
@@ -158,7 +163,7 @@ export function ChatBubble({
         </div>
       )}
 
-      <div className={cn('flex min-w-0 max-w-[75%] flex-col', own ? 'items-end' : 'items-start')}>
+      <div data-part="content" className={cn('flex min-w-0 max-w-[75%] flex-col', own ? 'items-end' : 'items-start')}>
         {nameShown && (
           <p className="mb-0.5 px-1 text-[11px] font-medium text-text-secondary">{authorName}</p>
         )}
@@ -221,6 +226,12 @@ export function ChatBubble({
               );
             })}
           </ul>
+        )}
+
+        {extras && (
+          <div data-part="extras" className="mt-2 flex w-full flex-col gap-2">
+            {extras}
+          </div>
         )}
 
         {(time || status || (own && delivery) || visibleActions.length > 0) && (

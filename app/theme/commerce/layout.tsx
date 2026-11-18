@@ -240,7 +240,7 @@ export default function CommerceThemeLayout({ children }: { children: React.Reac
             {/* Link columns */}
             {FOOTER_COLUMNS.map((col) => (
               <div key={col.heading} className="space-y-3">
-                <h3 className="text-xs font-semibold uppercase tracking-widest text-text-primary">{col.heading}</h3>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-text-primary">{col.heading}</h2>
                 <ul className="space-y-2">
                   {col.links.map((link) => (
                     <li key={link.label}>

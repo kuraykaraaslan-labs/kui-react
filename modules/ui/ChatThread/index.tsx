@@ -40,6 +40,8 @@ export type ChatThreadMessage = {
   delivery?: ChatDeliveryStatus;
   attachments?: ChatAttachment[];
   actions?: ChatMessageAction[];
+  /** Rendered under the bubble: source links, a form card, a suggestion … */
+  extras?: ReactNode;
 };
 
 export type ChatThreadTyper = ChatThreadAuthor;
@@ -110,6 +112,8 @@ export type ChatThreadProps = {
   emptyMessage?: ReactNode;
   /** Show the author's name over the viewer's own messages too. */
   showOwnAuthor?: boolean;
+  /** Show the author's name over other people's messages (default true; an assistant panel names its one author in its header). */
+  showOtherAuthor?: boolean;
   /** Fold consecutive messages from the same author (within five minutes) under one avatar and name. */
   groupConsecutive?: boolean;
   showAvatars?: boolean;
@@ -161,6 +165,7 @@ export function ChatThread({
   formatDay,
   emptyMessage,
   showOwnAuthor = false,
+  showOtherAuthor = true,
   groupConsecutive = true,
   showAvatars = true,
   stickThreshold = 48,
@@ -354,10 +359,11 @@ export function ChatThread({
                   actions={item.actions}
                   actionsLabel={msgs.actions}
                   grouped={grouped}
-                  showAuthor={item.side === 'own' ? showOwnAuthor : true}
+                  showAuthor={item.side === 'own' ? showOwnAuthor : showOtherAuthor}
                   showAvatar={showAvatars}
                   pending={pending && isLast}
                   pendingLabel={msgs.writing}
+                  extras={item.extras}
                   aria-label={formatMessage(msgs.messageLabel, { author: item.author.name, time })}
                   data-message-id={item.id}
                 />

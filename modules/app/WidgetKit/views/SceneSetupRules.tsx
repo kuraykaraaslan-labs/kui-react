@@ -22,7 +22,8 @@ import type { SceneKey } from './scene-binding-logic';
 type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): string => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : '');
-const TOKENS = ['{value}', '{value2}', '{label}', '{id}'] as const;
+/** The label's tokens; the condition's reading (`{condition}`, D584) sits after the symbol's own two, in the host's word for it. */
+const tokensOf = (condition: string): string[] => ['{value}', '{value2}', condition, '{label}', '{id}'];
 
 export interface SceneSetupRulesProps {
   rules: readonly unknown[];
@@ -268,7 +269,7 @@ function RuleForm({
             aria-describedby={`${id('label')}-tokens`} onChange={(e) => set({ label: e.target.value })}
           />
           <div id={`${id('label')}-tokens`} role="group" aria-label={m.tokens} className="mt-1.5 flex flex-wrap gap-1">
-            {[...TOKENS, ...paramTokens].map((t) => (
+            {[...tokensOf(m.conditionToken ?? '{condition}'), ...paramTokens].map((t) => (
               <button
                 key={t} type="button" aria-label={m.insertToken(t)} onClick={() => insertToken(t)}
                 className="rounded-full border border-border px-2 py-0.5 font-mono text-[11px] text-text-secondary hover:border-border-strong hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus"

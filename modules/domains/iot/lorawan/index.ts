@@ -2,7 +2,7 @@ export { LoraGatewayTable, LORA_GATEWAY_SORT_KEYS, type LoraGatewayTableProps } 
 export { LoraDeviceTable, LORA_DEVICE_SORT_KEYS, type LoraDeviceTableProps } from './LoraDeviceTable';
 export { LoraFrameTable, type LoraFrameTableProps } from './LoraFrameTable';
 export { LoraStationSetup, type LoraStationSetupProps } from './LoraStationSetup';
-export { LoraGatewayForm, LoraDeviceForm, isEui, isKey } from './LoraForms';
+export { LoraGatewayForm, LoraDeviceForm, isEui, isKey, isDevAddr } from './LoraForms';
 export { LoraGatewayStatus, LoraProtocolBadge, LoraJoinStateBadge, loraJoinStateOf } from './LoraBadges';
 export { LoraGatewayMap, loraPinState, isPlaced, middleOf, type LoraGatewayMapProps, type LoraPinState } from './LoraGatewayMap';
 export { LoraCodecTable, LORA_CODEC_SORT_KEYS, type LoraCodecTableProps } from './LoraCodecTable';
@@ -11,6 +11,7 @@ export { LoraCodecDetail, type LoraCodecDetailProps } from './LoraCodecDetail';
 export { LoraCodecEditor, loraRefusalText, CODEC_OUTLINE, TENANT_CODEC_ID, type LoraCodecEditorProps } from './LoraCodecEditor';
 export { LoraDevicePanel, latestReception, type LoraDevicePanelProps } from './LoraDevicePanel';
 export { LoraGatewayPanel, type LoraGatewayPanelProps } from './LoraGatewayPanel';
+export { LoraPairingPanel, pairingLeft, PAIRING_MINUTES, type LoraPairingPanelProps } from './LoraPairingPanel';
 export { LoraProfilePanel, profileChange, type LoraProfileChange, type LoraProfilePanelProps } from './LoraProfilePanel';
 export { LORA_MESSAGES, mergeLoraMessages, type LoraMessages, type LoraMessagesInput } from './messages';
 export type * from './types';

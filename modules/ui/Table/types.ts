@@ -288,6 +288,8 @@ export type DataTableMessages = {
   actionsColumn?: string;
   /** Accessible label of the header checkbox (selects the rows shown). */
   selectAllRows?: string;
+  /** The card layout's select-all box (a visible label: the cards have no header row); `selectAllRows` when absent. */
+  selectAllCards?: string;
   /** Accessible label of a row's checkbox, followed by the row's number. */
   selectRow?: string;
   /** Selection summary above the table; `{count}` is the number of selected rows. */

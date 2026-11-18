@@ -297,8 +297,8 @@ describe('SymbolBindingPanel: the rows, their suggestions and what they show', (
     await user.click(within(r).getByRole('searchbox', { name: 'Reading' }));
     const options = within(await screen.findByRole('listbox')).getAllByRole('option');
     expect(options[0]).toHaveTextContent('reading');
-    expect(options[0]).toHaveTextContent('Suggested · high · just now');
-    expect(options.map((o) => o.textContent)).toEqual(['readingSuggested · high · just now', 'rssi-60 · just now', 'x2 · just now']);
+    // listed first, but never "Suggested": a value of the wrong kind is no suggestion in the picker either (next-boilerplate phase 52.2.4, test 3 #157)
+    expect(options.map((o) => o.textContent)).toEqual(['readinghigh · just now', 'rssi-60 · just now', 'x2 · just now']);
     await user.click(within(options[0]).getByRole('button'));
     expect(within(r).getByRole('searchbox', { name: 'Reading' })).toHaveValue('reading');
     // the picked value is text where a number is expected: said in words, with the way out
@@ -464,7 +464,8 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     await user.click(within(r).getByRole('button', { name: 'Invert' }));
     expect(expression('Running')).toHaveValue('!value');
     await waitFor(() => expect(within(r).getByText('1 → Off')).toBeInTheDocument());
-    // a second chip is applied to what the box holds (next-boilerplate AD-15), never written over it; "Scale 0–100" asks for the raw range first (E15)
+    // "Scale 0–100" asks for the raw range first (E15) and scales the RAW value, in place of what the box holds: its form says "from the raw value"
+    // (next-boilerplate phase 52.2.4, test 3 #27: a second scale wrapped the first and showed −80.7)
     await user.click(within(r).getByRole('button', { name: 'Scale 0–100' }));
     const form = within(r).getByTestId('scale-form');
     const use = within(form).getByRole('button', { name: 'Use these numbers' });
@@ -472,7 +473,7 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     await user.type(within(form).getByLabelText('Raw value at 0 %'), '1500');
     await user.type(within(form).getByLabelText('Raw value at 100 %'), '3300');
     await user.click(use);
-    expect(expression('Running')).toHaveValue('((!value) - 1500) / (3300 - 1500) * 100');
+    expect(expression('Running')).toHaveValue('(value - 1500) / (3300 - 1500) * 100');
     expect(within(r).queryByTestId('scale-form')).toBeNull();
   });
   it('"Scale 0–100" starts from the scale the key\'s profile declares, and refuses two equal numbers', async () => {
@@ -559,7 +560,8 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     const add = () => within(r).getByRole('searchbox', { name: 'Add a value' });
     await user.click(add());
     await user.click(within(await screen.findByRole('option', { name: /Supply temperature/ })).getByRole('button'));
-    expect(within(r).getByRole('button', { name: 'Insert supply_temp' })).toHaveTextContent('supply_temp · 60 °C');
+    // the chip names the value by its own name too (phase 53.3.1, re-run 4 #12)
+    expect(within(r).getByRole('button', { name: 'Insert supply_temp' })).toHaveTextContent('supply_temp · Supply temperature · 60 °C');
     await user.click(add());
     await user.click(within(await screen.findByRole('option', { name: /^Return/ })).getByRole('button'));
     // the key "return" is a word of the language: the name is made safe
@@ -574,6 +576,43 @@ describe('SymbolBindingPanel: an expression (source = An expression)', () => {
     expect(stubJudge('supply_temp - return_in', ['supply_temp', 'return_in'])).toBeNull();
     await user.click(within(r).getByRole('button', { name: 'Remove return_in' }));
     expect(within(r).queryByRole('button', { name: 'Insert return_in' })).toBeNull();
+  });
+  it('phase 53.3.1 (re-run 4 #7): both value pickers of an expression show their labels, "Main value (value)" over the symbol\'s own value and "Add a value"', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'checked', label: 'Checked bottles', value: 120, ts: NOW }, { key: 'rejected', label: 'Rejected bottles', value: 3, ts: NOW }];
+    const sym = symbol({ fields: [{ name: 'value', label: 'Reject rate', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'checked' }, currentScript: 'value' }] });
+    render(<SymbolBindingPanel {...props({ symbol: sym, loadKeys: vi.fn(async () => keys), previewScript: stub })} />);
+    const r = await screen.findByRole('group', { name: 'Reject rate' });
+    const main = await within(r).findByRole('searchbox', { name: 'Main value (value)' });
+    await waitFor(() => expect(main).toHaveValue('Checked bottles'));
+    const add = within(r).getByRole('searchbox', { name: 'Add a value' });
+    // shown, never for screen readers only: neither the label nor a wrapper hides it
+    for (const text of ['Main value (value)', 'Add a value']) {
+      const label = within(r).getByText(text);
+      expect(label.tagName).toBe('LABEL');
+      expect(label.closest('[class*="sr-only"]')).toBeNull();
+    }
+    await user.click(add);
+    await user.click(within(await screen.findByRole('option', { name: /^Rejected bottles/ })).getByRole('button'));
+    expect(within(r).getByRole('button', { name: 'Insert value' })).toHaveTextContent('value · Checked bottles · 120');
+    expect(within(r).getByRole('button', { name: 'Insert rejected' })).toHaveTextContent('rejected · Rejected bottles · 3');
+  });
+  it('phase 53.3.1 (re-run 4 #12): a chip names the value by its profile label, and says nothing more when the label only repeats the key', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'prim_return_t', label: 'Primary return temperature', unit: '°C', value: 24, ts: NOW }, { key: 'flow_rate', label: 'Flow rate', value: 7, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Delta' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Boiler room' }, previewScript: stub })} />);
+    const r = await screen.findByRole('group', { name: 'Delta' });
+    await waitFor(() => expect(within(r).getByRole('searchbox', { name: 'Delta' })).toBeEnabled());
+    await user.selectOptions(source('Delta'), 'expression');
+    for (const name of [/^Primary return temperature/, /^Flow rate/]) {
+      await user.click(within(r).getByRole('searchbox', { name: 'Add a value' }));
+      await user.click(within(await screen.findByRole('option', { name })).getByRole('button'));
+    }
+    const chip = within(r).getByRole('button', { name: 'Insert prim_return_t' });
+    expect(chip).toHaveTextContent('prim_return_t · Primary return temperature · 24 °C');
+    // the whole text on hover, the chip being cut at the panel's width
+    expect(chip).toHaveAttribute('title', 'prim_return_t · Primary return temperature · 24 °C');
+    expect(within(r).getByRole('button', { name: 'Insert flow_rate' })).toHaveTextContent(/^flow_rate · 7$/);
   });
   it('previews an expression over inputs with their live values and saves the entry with the inputs, without a key', async () => {
     const user = userEvent.setup();
@@ -840,6 +879,23 @@ describe('SymbolBindingPanel: Save, Next, Clear, Close', () => {
     rerender(<SymbolBindingPanel {...props({ symbol: symbol({ id: 'third' }), defaultDevice: { id: D1, name: 'Boiler room' }, suggestedDevice: { id: D2, name: 'Roof unit', why: 'last' } })} />);
     expect(deviceBox()).toHaveValue('Boiler room');
     expect(screen.queryByTestId('device-suggestion')).toBeNull();
+  });
+  it('next-boilerplate phase 53.2.7 (re-run 4 #11): with a suggestion the panel opens on its "Use", the device list stays shut over it, and the list puts the suggested device first, marked', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ suggestedDevice: { id: D2, name: 'Roof unit', why: 'name' } })} />);
+    expect(within(screen.getByTestId('device-suggestion')).getByRole('button', { name: 'Use' })).toHaveFocus();
+    expect(deviceBox()).not.toHaveFocus();
+    expect(screen.queryByRole('option')).toBeNull();
+    await user.click(deviceBox());
+    const options = await screen.findAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([expect.stringMatching(/^Roof unit.*Suggested/), expect.stringMatching(/^Boiler room/)]);
+    expect(options[1]).not.toHaveTextContent('Suggested');
+  });
+  it('a suggestion found after the panel opened takes the focus from the untouched search', async () => {
+    const { rerender } = render(<SymbolBindingPanel {...props()} />);
+    expect(deviceBox()).toHaveFocus();
+    rerender(<SymbolBindingPanel {...props({ suggestedDevice: { id: D2, name: 'Roof unit', why: 'place' } })} />);
+    await waitFor(() => expect(within(screen.getByTestId('device-suggestion')).getByRole('button', { name: 'Use' })).toHaveFocus());
   });
   it('an empty value list says the device sent nothing, never "nothing matches what you typed" (e2e round 5, V1-B18)', async () => {
     const user = userEvent.setup();
@@ -1117,5 +1173,168 @@ describe('SymbolBindingPanel: the "…" menu opens upward', () => {
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('menu')).toBeNull();
     await waitFor(() => expect(trigger).toHaveFocus());
+  });
+});
+
+describe('SymbolBindingPanel: next-boilerplate run 3', () => {
+  it('notes 45 and 121: reports whether the form holds the person\'s unsaved changes, and nothing unsaved once they are discarded or the form goes', async () => {
+    const onDirtyChange = vi.fn();
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    const { unmount } = render(<SymbolBindingPanel {...props({ symbol: BOUND, onClose, onDirtyChange })} />);
+    await rowsReady();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    await pickKey(user, 'Running', 'rssi');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(within(screen.getByRole('dialog', { name: 'Discard your changes?' })).getByRole('button', { name: 'Discard' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false);
+    onDirtyChange.mockClear();
+    unmount();
+    expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+  it('note 45: "Save and next" leaves nothing unsaved before it moves', async () => {
+    const onDirtyChange = vi.fn();
+    const calls: boolean[] = [];
+    const onNext = vi.fn(() => { calls.push(onDirtyChange.mock.lastCall?.[0] as boolean); });
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, onSave: vi.fn(async () => undefined), onNext, onDirtyChange })} />);
+    await rowsReady();
+    await pickKey(user, 'Running', 'rssi');
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+    await user.click(screen.getByRole('button', { name: 'Save and next' }));
+    await waitFor(() => expect(onNext).toHaveBeenCalledTimes(1));
+    expect(calls).toEqual([false]);
+  });
+  it('note 11: an on/off value is said in the host\'s words', async () => {
+    const on: SymbolBindingSymbol = symbol({ fields: [{ name: 'running', label: 'Running', currentSource: { deviceId: D2, deviceName: 'Roof unit', key: 'pump_on' }, live: true }] });
+    render(<SymbolBindingPanel {...props({ symbol: on, messages: { stateOn: 'Açık', stateOff: 'Kapalı' } })} />);
+    expect(await screen.findByText('Shows Açık now')).toBeInTheDocument();
+    expect(screen.queryByText('Shows On now')).toBeNull();
+  });
+  it('note 140: the picker of `value` stays drawn once a value is picked, so the boxes under it do not move up', async () => {
+    const tank: SymbolBindingSymbol = symbol({
+      fields: [{ name: 'value', label: 'Level', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'temperature' }, currentScript: 'value * 2' }],
+    });
+    render(<SymbolBindingPanel {...props({ symbol: tank })} />);
+    await screen.findAllByLabelText(/Level/);
+    const pick = document.querySelector('[id$="-field-value-input"]');
+    const adder = document.querySelector('[id$="-input-value-input"]');
+    expect(pick).not.toBeNull();
+    expect(adder).not.toBeNull();
+    expect(pick!.compareDocumentPosition(adder!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe('next-boilerplate phase 52.2.4 and 52.2.6: the panel\'s helpers', () => {
+  it('#28: "Shows … now" and the values list follow the workspace\'s language', async () => {
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ fields: [{ name: 'value', label: 'Temperature', currentSource: { deviceId: D1, deviceName: 'Boiler room', key: 'temperature' }, live: 46.2222 }] }), locale: 'tr' })} />);
+    expect(await screen.findByText('Shows 46,222 now')).toBeInTheDocument();
+  });
+  it('D589: "Difference" and "Ratio (%)" wait for a second value, then write A − B and A ÷ B × 100 over the picked value and the other one', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [
+      { key: 'depo.value', label: 'Depo · value', value: 78, ts: NOW - 2000 }, { key: 'cikis_debisi.value', label: 'Çıkış debisi · value', value: 142, ts: NOW - 2000 },
+    ];
+    render(<SymbolBindingPanel {...props({
+      symbol: symbol({ fields: [{ name: 'value', label: 'Reading', currentSource: { deviceId: D1, deviceName: 'Hisartepe deposu RTU', key: 'depo.value' } }] }),
+      loadKeys: vi.fn(async () => keys),
+    })} />);
+    await waitFor(() => expect(picker('Reading')).toBeEnabled());
+    await user.selectOptions(source('Reading'), 'expression');
+    const r = row('Reading');
+    expect(within(r).getByRole('button', { name: 'Difference' })).toBeDisabled();
+    expect(within(r).getByRole('button', { name: 'Ratio (%)' })).toHaveAttribute('title', 'Add a second value to use this.');
+    await user.click(within(r).getByRole('searchbox', { name: 'Add a value' }));
+    await user.click(within(await screen.findByRole('option', { name: /^Çıkış debisi/ })).getByRole('button'));
+    await user.click(within(r).getByRole('button', { name: 'Ratio (%)' }));
+    expect(expression('Reading')).toHaveValue('value / debisi_value * 100');
+    // the second chip writes its own formula, never the first one's wrapped (next-boilerplate phase 53.2.5)
+    await user.click(within(r).getByRole('button', { name: 'Difference' }));
+    expect(expression('Reading')).toHaveValue('value - debisi_value');
+  });
+  it('next-boilerplate phase 53.2.5 (re-run 4 #6): "Ratio (%)" over a typed formula writes A ÷ B × 100 of the two picked values, as its tooltip says', async () => {
+    const user = userEvent.setup();
+    // the filler's vision camera (S25): the checked bottles are the symbol's value, the rejected ones a second value, the box holds test 3's formula
+    const keys: DeviceKey[] = [
+      { key: 'kontrol', label: 'Kontrol edilen şişe', value: 149, unit: 'şişe/dk', ts: NOW - 2000 },
+      { key: 'reddedilen', label: 'Reddedilen şişe', value: 2.4, unit: 'şişe/dk', ts: NOW - 2000 },
+    ];
+    const typed = 'Math.round((reddedilen / value * 100) * 10) / 10';
+    render(<SymbolBindingPanel {...props({
+      symbol: symbol({ label: 'Doluluk kontrol', kindLabel: 'Vision camera', fields: [{
+        name: 'value', label: 'Reading',
+        currentSource: { deviceId: D1, deviceName: 'Dolum-kapama', key: 'kontrol', inputs: [{ name: 'reddedilen', deviceId: D1, deviceName: 'Dolum-kapama', key: 'reddedilen' }] },
+        currentScript: typed,
+      }] }),
+      loadKeys: vi.fn(async () => keys),
+    })} />);
+    await waitFor(() => expect(expression('Reading')).toHaveValue(typed));
+    const r = row('Reading');
+    await waitFor(() => expect(within(r).getByRole('button', { name: 'Ratio (%)' })).toBeEnabled());
+    expect(within(r).getByRole('button', { name: 'Ratio (%)' })).toHaveAttribute('title', 'value / reddedilen * 100');
+    await user.click(within(r).getByRole('button', { name: 'Ratio (%)' }));
+    expect(expression('Reading')).toHaveValue('value / reddedilen * 100');
+    await user.click(within(r).getByRole('button', { name: 'Difference' }));
+    expect(expression('Reading')).toHaveValue('value - reddedilen');
+  });
+  it('D594: "Save and next" names the symbol it goes to', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, onNext: vi.fn(), nextLabel: 'K6' })} />);
+    await rowsReady();
+    expect(screen.getByRole('button', { name: 'Next: K6' })).toBeInTheDocument();
+    await pickKey(user, 'Running', 'rssi');
+    expect(screen.getByRole('button', { name: 'Save and next: K6' })).toBeInTheDocument();
+  });
+  it('next-boilerplate phase 53.2.8 (re-run 4 #14): "Save and next" is a row of its own above Save, and its name is never cut', async () => {
+    const user = userEvent.setup();
+    render(<SymbolBindingPanel {...props({ symbol: BOUND, onNext: vi.fn(), nextLabel: 'Cable 3 · point 4 thermometer' })} />);
+    await rowsReady();
+    await pickKey(user, 'Running', 'rssi');
+    const next = screen.getByRole('button', { name: 'Save and next: Cable 3 · point 4 thermometer' });
+    const save = screen.getByRole('button', { name: 'Save' });
+    // the whole text, with nothing that cuts it, on the full width; Save and the menu on the row under it
+    expect(next).toHaveTextContent(/^Save and next: Cable 3 · point 4 thermometer$/);
+    expect(next.className).not.toMatch(/truncate|flex-1/);
+    expect(next.querySelector('.truncate')).toBeNull();
+    expect(next).toHaveClass('w-full', 'whitespace-normal');
+    expect(next.parentElement).not.toBe(save.parentElement);
+    expect(next.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+  it('#157: two values that score the same: neither is "Suggested" in the picker', async () => {
+    const user = userEvent.setup();
+    const keys: DeviceKey[] = [{ key: 'b1.running', label: 'Conveyor 1 · running', value: true, ts: NOW }, { key: 'b2.running', label: 'Conveyor 2 · running', value: true, ts: NOW }];
+    render(<SymbolBindingPanel {...props({ symbol: symbol({ label: 'Belt 3', kindLabel: 'Belt conveyor', fields: [{ name: 'running', label: 'Running' }] }), loadKeys: vi.fn(async () => keys), defaultDevice: { id: D1, name: 'Line PLC' } })} />);
+    await rowsReady();
+    await user.click(picker('Running'));
+    const options = within(await screen.findByRole('listbox')).getAllByRole('option');
+    expect(options.some((o) => /Suggested/.test(o.textContent ?? ''))).toBe(false);
+  });
+  it('52.2.6: a measuring symbol\'s Status is proposed from the part its Reading reads, never from another part', async () => {
+    const keys: DeviceKey[] = [
+      { key: 'h2s.value', label: 'H2S · value', unit: 'ppm', value: 3, ts: NOW }, { key: 'h2s.status', label: 'H2S · status', value: 'alarm', ts: NOW },
+      { key: 'pompa_1.status', label: 'Pompa 1 · status', value: 'ok', ts: NOW },
+    ];
+    render(<SymbolBindingPanel {...props({
+      symbol: symbol({ label: 'Islak kuyu gazı', kindLabel: 'Gas detector', fields: [
+        { name: 'value', label: 'Reading', currentSource: { deviceId: D1, deviceName: 'Köprübaşı PLC', key: 'h2s.value' } }, { name: 'status', label: 'Status', suggest: 'own' },
+      ] }),
+      loadKeys: vi.fn(async () => keys),
+    })} />);
+    await waitFor(() => expect(picker('Status')).toHaveValue('H2S · status'));
+  });
+});
+
+describe('next-boilerplate phase 52.2.5: the match-all dialog', () => {
+  it('#31, #80: a dialog wide enough for its names, which wrap; a row that reads "Check the kind" says why', async () => {
+    const { SymbolMatchAllDialog } = await import('../views/SymbolMatchAllDialog');
+    const rows = [{
+      id: 'gen.running', symbolId: 'gen', symbolLabel: 'Jeneratör', kindLabel: 'Diesel generator', field: 'running', fieldLabel: 'Running', deviceId: D1, deviceName: 'Köprübaşı PLC',
+      key: 'yakit', keyLabel: 'Jeneratör yakıtı', value: 64, unit: '%', ts: NOW, confident: false, mismatch: 'number-for-state' as const,
+    }];
+    render(<SymbolMatchAllDialog open rows={rows} onApply={vi.fn()} onClose={vi.fn()} now={NOW} />);
+    expect(screen.getByRole('dialog').querySelector('.max-w-5xl')).not.toBeNull();
+    expect(screen.getByTestId('match-mismatch-reason')).toHaveTextContent('This value is a number; the drawing expects on/off.');
   });
 });

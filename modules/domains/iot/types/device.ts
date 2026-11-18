@@ -113,6 +113,11 @@ export type IssuedSecret = { token: string } | { password: string };
 export type DeviceConnectionInfo = {
   /** Absent or null when the device cannot use MQTT here (no public broker, a profile that is HTTP-only or needs TLS on a plain port). */
   mqtt?: { host: string; port: number; tls: boolean } | null;
+  /**
+   * The plain MQTT listener beside a TLS `mqtt` (no TLS, e.g. port 1883), when the host offers it and the device's profile may log in
+   * there. Absent or null: TLS only. Never used for a certificate login (that needs TLS).
+   */
+  plain?: { host: string; port: number } | null;
   httpBase?: string | null;
   /**
    * The MQTT topics of the device's profile: telemetry, attributes and, when the profile's topic scheme has them, the command topics.
@@ -155,12 +160,14 @@ export type AttributeEntry = {
 export type DeviceConnectionEvent = {
   id: string;
   at: Date | string | number;
-  /** `connected`, `disconnected`, `taken_over`, `last_seen_only`, or a newer kind (drawn neutral). */
+  /** `connected`, `disconnected`, `taken_over`, `last_seen_only`, `login_refused`, or a newer kind (drawn neutral). */
   kind: string;
   reason?: string | null;
   detail?: string | null;
   transport?: string | null;
   remoteIp?: string | null;
+  /** `login_refused`: how many refused logins the line stands for (the gateway coalesces them). */
+  count?: number | null;
 };
 
 // ── device log (NB iot_device 05 §5.3: the Log tab) ──────────────────────────────────────────────────────────────────
@@ -181,7 +188,7 @@ export type DeviceLogEntry = {
   id: string;
   at: Date | string | number;
   source: DeviceLogSource;
-  /** `connected`, `disconnected`, … for a connection entry; the audit action for an audit entry. */
+  /** `connected`, `disconnected`, `login_refused`, … for a connection entry; the audit action for an audit entry. */
   kind: string;
   /** Absent or null: the system (a flow, a sweep, provisioning). */
   actor?: DeviceLogActor | null;
@@ -189,6 +196,8 @@ export type DeviceLogEntry = {
   transport?: string | null;
   reason?: string | null;
   detail?: string | null;
+  /** A `login_refused` connection entry: how many refused logins it stands for (the gateway coalesces them; absent: one). */
+  count?: number | null;
   metadata?: Record<string, unknown> | null;
 };
 

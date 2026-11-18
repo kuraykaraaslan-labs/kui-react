@@ -2,9 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
+import { ConfirmHost } from '@/modules/ui/ConfirmDialog';
 import type { IotAdapter, IotTelemetryApi, TelemetryLatest, TelemetryPoint } from '../api/adapter';
 import type { IotLive, IotLiveSubscription } from '../api/live';
-import { DeviceTelemetryView, kindOf, showValue } from './DeviceTelemetryView';
+import { DeviceTelemetryView, fullValue, kindOf, showValue } from './DeviceTelemetryView';
 
 vi.mock('@/modules/ui/Chart/charts/LineChart', () => ({
   LineChart: (p: { series: Array<{ name: string; data: unknown[] }>; xAxis?: string }) => (
@@ -209,5 +210,110 @@ describe('DeviceTelemetryView and another device (NB 41-ui-fixes/23 C2)', () => 
     expect(await screen.findByText('pressure')).toBeInTheDocument();
     await act(async () => { lateA([{ key: 'temperature', ts: NOW, value: 1 }]); });
     expect(screen.queryByText('temperature')).toBeNull();
+  });
+});
+
+describe('the View dialog: a value whole (JSON is cut in the table)', () => {
+  const BIG = { events: [{ value: [{ measurements: Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`${4097 + i}`, i * 1.5])) }] }] };
+
+  it('fullValue indents JSON, keeps a number in full precision and a flag as On / Off', () => {
+    const m = { on: 'On', off: 'Off' };
+    expect(fullValue(BIG, m)).toBe(JSON.stringify(BIG, null, 2));
+    expect(fullValue(1234.56789, m)).toBe('1234.56789');
+    expect(fullValue(true, m)).toBe('On');
+    expect(fullValue('eco', m)).toBe('eco');
+  });
+
+  it('every row has a View button; it opens the key\'s whole value, Copy copies it, Close shuts it', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    const { api } = telemetryApi([...LATEST, { key: 'events', ts: NOW - 30_000, value: BIG }]);
+    mount({ telemetry: api });
+    await screen.findByText('temperature');
+    expect(screen.getAllByRole('button', { name: /^View / })).toHaveLength(LATEST.length + 1);
+    // the table cuts it
+    expect(screen.queryByText(JSON.stringify(BIG))).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'View events' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByTestId('telemetry-full-value').textContent).toBe(JSON.stringify(BIG, null, 2));
+    expect(within(dialog).getByText('JSON')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalledWith(JSON.stringify(BIG, null, 2));
+    expect(within(dialog).getByRole('button', { name: 'Copied' })).toBeInTheDocument();
+    await user.click(within(dialog).getAllByRole('button', { name: 'Close' }).at(-1)!);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('a number shows with its unit, in full', async () => {
+    const user = userEvent.setup();
+    const { api } = telemetryApi([{ key: 'pressure', ts: NOW - 1_000, value: 101325.125, unit: 'Pa', label: 'Pressure' }]);
+    mount({ telemetry: api });
+    await user.click(await screen.findByRole('button', { name: 'View Pressure' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByTestId('telemetry-full-value').textContent).toBe('101325.125 Pa');
+    // a labelled key names its raw key too
+    expect(within(dialog).getByText('pressure')).toBeInTheDocument();
+  });
+});
+
+describe('deleting a key with its data', () => {
+  function mountWith(o: { deleteKeys?: (id: string, keys: string[]) => Promise<{ deleted: string[] }>; canDelete: boolean }) {
+    const { api } = telemetryApi();
+    const notify = vi.fn();
+    const telemetry = o.deleteKeys ? { ...api, deleteKeys: vi.fn(o.deleteKeys) } : api;
+    render(
+      <IotAdapterProvider adapter={{ telemetry }} capabilities={{ canReadTelemetry: true, canDeleteTelemetry: o.canDelete }} notify={notify}>
+        <ConfirmHost />
+        <DeviceTelemetryView deviceId="d1" now={NOW} locale="en" />
+      </IotAdapterProvider>,
+    );
+    return { telemetry, notify };
+  }
+
+  it('no Delete without the capability, or without the adapter\'s deleteKeys', async () => {
+    mountWith({ canDelete: false, deleteKeys: async () => ({ deleted: [] }) });
+    await screen.findByText('temperature');
+    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
+  });
+
+  it('no Delete when the host has no deleteKeys, even with the capability', async () => {
+    mountWith({ canDelete: true });
+    await screen.findByText('temperature');
+    expect(screen.queryByRole('button', { name: /^Delete / })).not.toBeInTheDocument();
+  });
+
+  it('asks first; Cancel deletes nothing; Delete removes the key and its row and says so', async () => {
+    const user = userEvent.setup();
+    const { telemetry, notify } = mountWith({ canDelete: true, deleteKeys: async (_id, keys) => ({ deleted: keys }) });
+    await screen.findByText('temperature');
+    expect(screen.getAllByRole('button', { name: /^Delete / })).toHaveLength(LATEST.length);
+    await user.click(screen.getByRole('button', { name: 'Delete mode' }));
+    let dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Delete "mode" and all its data?')).toBeInTheDocument();
+    expect(within(dialog).getByText(/cannot be undone/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(telemetry.deleteKeys).not.toHaveBeenCalled();
+    expect(screen.getByText('mode')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Delete mode' }));
+    dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    await waitFor(() => expect(screen.queryByText('mode')).not.toBeInTheDocument());
+    expect(telemetry.deleteKeys).toHaveBeenCalledWith('d1', ['mode']);
+    expect(notify).toHaveBeenCalledWith({ tone: 'success', message: '"mode" and its data were deleted.' });
+    expect(screen.getByText('temperature')).toBeInTheDocument();
+  });
+
+  it('a failed delete keeps the dialog open with the error, and the row stays', async () => {
+    const user = userEvent.setup();
+    mountWith({ canDelete: true, deleteKeys: async () => { throw new Error('boom'); } });
+    await screen.findByText('temperature');
+    await user.click(screen.getByRole('button', { name: 'Delete mode' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    expect(await within(dialog).findByText('Could not delete the key.')).toBeInTheDocument();
+    expect(screen.getAllByText('mode').length).toBeGreaterThan(0);
   });
 });

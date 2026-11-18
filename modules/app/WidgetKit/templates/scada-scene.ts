@@ -150,7 +150,7 @@ export const SCADA_SCENE: SettingsTemplate = {
         dim: { label: 'Passive look', type: 'select', options: YES_NO },
         blink: { label: 'Blink', type: 'select', options: YES_NO, description: 'Not when the viewer asks for reduced motion or the animation is off.' },
         hidden: { label: 'Hide', type: 'select', options: YES_NO, description: 'Connections that touch a hidden symbol still draw.' },
-        label: { label: 'Name', type: 'text', maxLength: MAX_RULE_LABEL, placeholder: 'High: {value}', description: 'Tokens: {value}, {value2}, {label}, {id}, {param:name}.' },
+        label: { label: 'Name', type: 'text', maxLength: MAX_RULE_LABEL, placeholder: 'High: {value}', description: 'Tokens: {value}, {value2}, {condition} (what the condition reads), {label}, {id}, {param:name}.' },
         medium: { label: 'Medium', type: 'select', options: [opt('', 'No change'), ...MEDIUM_OPTIONS] },
         animate: { label: 'Motion', type: 'select', options: [opt('', 'No change'), opt('false', 'Stop it'), opt('true', 'Leave it on')] },
         mode: { label: 'Mode', type: 'select', options: [opt('', 'No change'), opt('auto', 'Automatic'), opt('manual', 'Manual (M badge)'), opt('local', 'Local (L badge)'), opt('maintenance', 'In maintenance (wrench)'), opt('lockout', 'Locked out (padlock)'), opt('simulation', 'Simulated (S badge)')], description: 'A badge in the top right corner. A locked-out symbol does not run its actions.' },

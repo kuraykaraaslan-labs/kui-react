@@ -6,6 +6,68 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- Payment methods and consent for recurring subscriptions (next-boilerplate phase 68 step 06 §3, D68-54). `PaymentMethodList`
+  (`modules/domains/common/payment/`): a subscriber's saved methods in a DataTable: cards, direct-debit mandates, billing agreements,
+  SEPA mandates and bank tokens (`SavedPaymentMethod.kind`) with the card brand chip, last four, expiry, status (`active`, `expiring`,
+  `requires_reauth`, `expired`, `revoked`) and the default marker; sort, search and filters by status and type; row actions "Make default" (at
+  once, hidden on the default and on unusable methods) and "Remove" through the ConfirmDialog (a rejected promise keeps the dialog open
+  with the error); `inUse` keeps the default until another one is chosen (disabled with its reason) and warns that removing the last
+  method turns renewals into payment requests; "Add payment method" header button (`onAdd`) and `headerActions` slot; empty, loading,
+  error and `readOnly` (an operator's view) states; `paymentMethodName()`; every string from `messages`. `ConsentCheckbox`
+  (`modules/domains/common/consent/`): an explicit consent, unticked by default, with "Read the text" opening the versioned text in a
+  Drawer (`text`, `textTitle`, `version`, `textLoading`, `onOpenText`) without ticking the box; `required` and `invalid` with
+  `aria-required`, `aria-invalid` and the error tied by `aria-describedby`. `CardBrandBadge` (+ `cardBrandName()`): the brand chip
+  `SavedCardSelector` drew inline, now shared, named for screen readers ("Visa"). Showcase entries `common-payment-method-list`,
+  `common-consent-checkbox`, `common-card-brand-badge`.
+
+- `PaymentMethodList` status `expired` (next-boilerplate 68/06c, lead decision): a card past its expiry date reads "Expired" (an error
+  badge, its date in the error colour, the row dimmed like a revoked one), sorts after `requires_reauth`, has no "Make default", is a
+  status filter option and, like `revoked`, does not count as a method the subscription could still be charged on (a default beside
+  only expired cards is the last one: removable, with the payment-request warning). New string `messages.statusExpired`. Before it an
+  expired card had to be shown as "Revoked". Showcase: an expired Amex in "Methods of every kind".
+
+- `AssistantLauncher` asks for details as chat messages (owner 2026-11-13, from the kui-ai-chatbot WordPress plugin): the new
+  `AssistantQuickReplies` (answer chips under the newest question: Skip, Confirm, Send, Cancel; `primary` draws one filled) and
+  `AssistantQuote` (text read back for the visitor to confirm), and `inputProps` for a step's `autoComplete` / `inputMode` / `placeholder`.
+  A header Restart button (`onRestart`, shown while there are items; clears the draft and keeps focus in the panel) and a Sound toggle
+  (`sound` / `onSoundChange`, `aria-pressed`): a two-note Web Audio chime (784 Hz, then 1175 Hz) for each new assistant message, unlocked
+  on the visitor's first click or key press, played once when turned on, quiet for messages already there on the first render. The default
+  subtitle is just "AI assistant" (owner: no "answers can be wrong"); the header gap is 8px for the extra buttons. New strings
+  `messages.restart`, `messages.sound`. Showcase variant "A request asked as chat messages, with Restart and Sound".
+
+- `AssistantLauncher` (owner 2026-11-12): a floating AI-assistant chat for marketing sites, first built for the kui-ai-chatbot WordPress
+  plugin (kui-wordpress-saas), which ports it pixel for pixel. A 56px launcher fixed bottom right, an optional `teaser` bubble and a 380px
+  chat panel (full screen under 640px, where the launcher hides while it is open). Controlled: `open` / `onOpenChange`, `items`, `pending`
+  (a typing row, or a streamed last reply), `onSend`; `greeting` is the first assistant bubble, `consent` replaces the composer with a notice
+  and "Start chat" until accepted, `offline` replaces it outright, `renderAfter` adds cards under a message with the new `AssistantSources`
+  and `AssistantCard`. Enter sends, Shift+Enter breaks the line, the box grows to four lines, a counter shows past 80 % of `maxLength`;
+  Escape closes and returns focus to the launcher. `ChatThread` gains `ChatThreadMessage.extras` (rendered under the bubble), `showOtherAuthor`
+  and `data-side` / `data-part` hooks on its parts (`content`, `extras`, `typing-bubble`). Showcase entry `assistant-launcher`.
+
+- Forum community patterns (owner 2026-11-08), first built for the kui-community WordPress forum (kui-wordpress-saas) and owned by
+  kui-react from now on. Accepted solution: `AcceptedSolutionBadge` (the "Accepted solution" chip), `MarkSolutionButton` ("Mark as solution" /
+  "Unmark solution", `aria-pressed`, for the topic author or a moderator) and `acceptedSolutionClasses` (`card` / `author` / `meta`: the
+  post card turns green from the success token); `ForumTopic.solutionPostId`, `TopicSolvedBadge` and `TopicRow`'s `topic.isSolved` ("Solved"
+  beside the status, not a new `TopicStatus`). `StaffBadge` (`{ org, colour?, label? }`: "<Org> staff" in white on the organisation's colour,
+  default `var(--primary-active)`), also on `ForumUserCard` from `user.staff`. `TranslatedContent` (`{ sourceLanguage, sourceLang?, translated,
+  original, defaultShowOriginal?, labels? }`: "Translated from <Language> by AI · Show original" toggling to the original with its `lang`).
+  Composer assistant: `SimilarTopics` + `SuggestedCategoryHint`, and `PostComposer`'s optional `onTitleChange`, `similarTopics`,
+  `suggestedCategoryValue` (pre-selects the category until the user picks one) and `assistLabels`. The forum theme shows all four (topic
+  "Deploy Next.js to a VPS": a solved topic with a green answer by a staff member and a reply translated from Turkish; the new-topic page
+  matches the sample topics as the title is typed). Showcase entries `forum-accepted-solution`, `forum-staff-badge`,
+  `forum-translated-content`, `forum-similar-topics`.
+
+- WidgetKit gauge: the value's declared range is its default scale (next-boilerplate e2e run 3, item 110). `ColumnMeta` takes optional
+  `min` / `max` (a device profile's or a schema's range); `metaScale` reads a usable range and `metaScaleDefaults` turns it into the type
+  layer's defaults for a template that names `scaleFields` (the gauge: `min` / `max`). A person's own min / max, a saved definition's and a
+  bound min / max slot still win; a range whose minimum is not below its maximum, or a one-sided one that would empty the scale, is ignored.
+  A value off the scale is never drawn past an end: `GaugeChart` stops the bar and needle there and marks it with a note under the value
+  ("Above the scale" / "Below the scale", `aboveScaleLabel` / `belowScaleLabel`, the "Old data" badge's look), in its `aria-valuetext` and as
+  `data-off-scale`; `offScaleHint` adds a line under the note. `WidgetViewProps.editing` (PlacementCard's `isEditor`) lets the gauge add
+  `messages.charts.scaleHint` while the board is edited and the value is further off the scale than the scale is wide (`farOffScale`). New
+  kit messages `charts.aboveScale`, `charts.belowScale`, `charts.scaleHint`; four parity cases (`gauge.declared-range`, `gauge.off-scale`,
+  `gauge.off-scale-editor`, `gauge.below-scale`).
+
 - `TransportPolicyCard` (IoT kit): with plain MQTT allowed, "Commands allowed without TLS", the profile's `plaintextRpcMethods`
   (next-boilerplate gateway 12 §10, OD-160): exact command names in a tag input, none by default, checked like the host (no wildcard, never
   `sys.factory_reset`, at most 32, no duplicates), with the note that firmware and settings never go in clear (D222). `DeviceProfile` and
@@ -35,6 +97,28 @@ All notable changes to this project will be documented here. Format follows [Kee
   baselines, a job) on `settings/demo-settings.ts`.
 
 ### Changed
+
+- `SubscriptionPlanCard` (next-boilerplate phase 68 step 06 §3, compared with next-boilerplate's own plan card, which it now
+  replaces): the renewal line `renewal` ("Renews on <date> for <amount>", "Renews on <date>", or "Ends on <date>" when `ends`; a bare
+  `YYYY-MM-DD` is that calendar day in every time zone), the
+  trial line `trial` ("Trial ends on <date>; then <amount>"), the "Assigned by the operator" badge `assignedByOperator` (an operator's
+  gift: never charged, ends at its term, so neither cancel nor resume), "Cancel renewal" (`onCancelRenewal`) confirmed in a
+  ConfirmDialog that says "Cancelling stops the next renewal. You keep access until <date>. Payments already made are not refunded."
+  (the owner's no-refund rule, 2026-11-17) and "Resume renewal" (`onResumeRenewal`). Taken from next-boilerplate's card: `locale` for
+  prices and dates (was fixed `en-US`), the currency's own minor unit (`price` 1000 in JPY is ¥1,000, was ¥10), "Free" at a zero price with no unit, a struck list price beside `discount` with its note,
+  `priceNote` (a tax-inclusive view, a monthly equivalent), an interval switch (`intervalOptions`, `onIntervalChange`, "Billing
+  interval" group, `aria-pressed`, a saving badge), `actionLabel` (Upgrade / Downgrade / Switch), `actionNote` in place of the button,
+  `isSelected` reading "Selected" with `aria-pressed`, `disabled` while another checkout runs, `intervalLabel` for a host's own unit and
+  any interval string; every string from `messages`. Behaviour change: no button without `onSelect` and none on the current plan (the
+  badge already says it; it was a dead disabled button).
+- `CreditCardVisual`: next-boilerplate's fork is the better card and becomes this one (D68-54, decided on design quality): a 17–19
+  digit number (Maestro, UnionPay, some TROY) keeps every digit, grouped by four and set one size smaller, where the old card cut it at
+  16; the chip is drawn from the `warning` token and the CVV panel from `surface-raised` / `text-secondary` / `text-primary` (the old
+  `bg-yellow-*`, `bg-white/90`, `text-gray-*` broke the token rule and ignored dark mode); the labels come from `messages`
+  (`cardHolder`, `expires`, `cvv`). `maskCardNumber()` is exported.
+- `SavedCardSelector`: "Remove" asks through the ConfirmDialog first ("Remove card", "The card ending in <last4> is removed from your
+  saved cards.", as kui-ejs already did) and `onRemove` may return a promise; the brand chip is `CardBrandBadge`; every string from
+  `messages`.
 
 - `SceneSetupDrawer` (next-boilerplate phase 47, views by name): the slot leaves the drawer. The `slots`, `allowNewSlot`, `slotLocked` and
   `onSlotChange` props, the slot select, "New slot…" and the "Switch slot" confirmation are gone (Advanced included); section 1 is the type

@@ -543,3 +543,12 @@ describe('the field map (next-boilerplate phase 45, D45-3)', () => {
     expect(staleEntries({ sceneKeys: [key('heater')], deviceIds: [U1], map: { gone: { fields } }, devices: { '': U1 }, hidden: [] }).exceptions).toEqual(['gone']);
   });
 });
+
+describe('roleFromCode keeps a code\'s letters (next-boilerplate run 3 note 50)', () => {
+  it('folds Turkish letters to their base letter, keeps case, and stays in the grammar', () => {
+    expect(roleFromCode('Çıkış Ağzı K1')).toBe('Cikis_Agzi_K1');
+    expect(roleFromCode('İstasyon-Ğ')).toBe('Istasyon-G');
+    expect(roleFromCode('pump_1')).toBe('pump_1');
+    expect(isRoleName(roleFromCode('Çıkış Ağzı K1'))).toBe(true);
+  });
+});

@@ -863,6 +863,11 @@ function SceneSetupSession(props: SceneSetupDrawerProps) {
           <AlertBanner variant="info" message={m.matchNoElements} />
         </div>
       )}
+      {!noElements && !owns(devMap, MAIN_ROLE) && rows.some((r) => r.role === MAIN_ROLE && r.how !== 'hidden') && (
+        <div data-testid="match-no-main-device">
+          <AlertBanner variant="info" message={m.noMainDeviceHelp} />
+        </div>
+      )}
 
       <div className={cn('grid gap-4', preview && !chooseMode ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,20rem)]' : undefined)}>
         <div className="min-w-0 space-y-3">

@@ -7,7 +7,7 @@ import type {
 } from '../types/device';
 import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcCommandTemplate, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
 import type {
-  DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTransport, ProfileTransportOption, ProvisionKey, ProvisioningInfo,
+  DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTemplate, ProfileTransport, ProfileTransportOption, ProvisionKey, ProvisioningInfo,
   ProvisionStrategy,
 } from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
@@ -147,6 +147,12 @@ export interface IotDevicesApi {
 export const PROFILE_SORT_KEYS = ['name', 'transport', 'online', 'updated'] as const;
 export type ProfileSortKey = (typeof PROFILE_SORT_KEYS)[number];
 
+/** NB 63-licensed-devices LD-3: the licensed device profiles' sort keys (name, last update). */
+export const PROFILE_TEMPLATE_SORT_KEYS = ['name', 'updated'] as const;
+export type ProfileTemplateSortKey = (typeof PROFILE_TEMPLATE_SORT_KEYS)[number];
+/** A page of licensed device profiles; `page` is 1-based like every kit list query. */
+export type ProfileTemplateQuery = { page: number; pageSize: number; search?: string; sort?: IotListSort<ProfileTemplateSortKey> };
+
 export type ProfileListQuery = {
   page: number;
   pageSize: number;
@@ -194,6 +200,20 @@ export interface IotProfilesApi {
   keyUsage?(profileId: string, keys: string[], signal?: AbortSignal): Promise<ProfileKeyUsage[]>;
   /** Rewrites what reads the old keys to the new names (`{ old: new }`) where the viewer may; answers what each module changed. */
   renameKeys?(profileId: string, renames: Record<string, string>): Promise<ProfileKeyUsage[]>;
+  /**
+   * NB 63-licensed-devices LD-3: the profiles the platform publishes ("Licensed device profiles"), and `adopt`, which gives the workspace
+   * its own copy of one (made once: a second adopt answers the copy it has, `created: false`). Without it the new profile drawer offers
+   * only an empty profile.
+   */
+  templates?: {
+    list(query: ProfileTemplateQuery, signal?: AbortSignal): Promise<Page<ProfileTemplate>>;
+    adopt(templateKey: string): Promise<{ profileId: string; created: boolean }>;
+  };
+  /**
+   * NB 63-licensed-devices LD-3: publishes the profile as the licensed device profile `templateKey` (`isTemplateKey`), or unpublishes it
+   * (`null`; refused while the host still uses it as a factory profile). Answers the profile with its `platformTemplate` mark.
+   */
+  setTemplate?(profileId: string, templateKey: string | null): Promise<DeviceProfile>;
 }
 
 /**
@@ -529,6 +549,11 @@ export interface IotTelemetryApi {
   latest(deviceId: string, signal?: AbortSignal): Promise<TelemetryLatest[]>;
   /** One series per key over `[from, to)`, oldest first; a `TelemetrySeriesPage` says when the host cut it. */
   series(deviceId: string, query: TelemetrySeriesQuery, signal?: AbortSignal): Promise<TelemetrySeriesAnswer>;
+  /**
+   * Delete keys of the device with their whole history (latest value, readings, rollups); answers the keys it found. A key the device
+   * sends again starts afresh. Absent: the Telemetry tab offers no delete (and it also needs `canDeleteTelemetry`).
+   */
+  deleteKeys?(deviceId: string, keys: string[]): Promise<{ deleted: string[] }>;
 }
 
 // ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -556,6 +581,11 @@ export type IotCapabilities = {
   canManageProfiles: boolean;
   /** Edit a platform template profile (`platformTemplate`): its own permission beside `canManageProfiles`. */
   canManageTemplates: boolean;
+  /**
+   * NB 63-licensed-devices LD-3: publish a profile as a licensed device profile (a platform template every workspace may copy) and
+   * unpublish it. Only the platform's own workspace with the template permission.
+   */
+  canPublishTemplates: boolean;
   /** Manage a profile's provisioning: its strategy and keys (rotate, revoke). */
   canManageProvisioning: boolean;
   /** Edit the alarm rules of a profile. */
@@ -570,6 +600,8 @@ export type IotCapabilities = {
   canReadDevices: boolean;
   /** Read a device's telemetry (its latest values and series). */
   canReadTelemetry: boolean;
+  /** Delete a device's telemetry keys with their data (the Telemetry tab's delete; destructive, so its own capability). */
+  canDeleteTelemetry: boolean;
   /** Pick a certificate of the host's certificate authority for an X.509 credential (the authority is there and the viewer may read it). */
   canAttachCertificates: boolean;
 };
@@ -591,6 +623,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canSendRpc: false,
   canManageProfiles: false,
   canManageTemplates: false,
+  canPublishTemplates: false,
   canManageProvisioning: false,
   canManageAlarmRules: false,
   canManageRpcCommands: false,
@@ -598,6 +631,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canPlaceDevices: false,
   canReadDevices: false,
   canReadTelemetry: false,
+  canDeleteTelemetry: false,
   canAttachCertificates: false,
 };
 

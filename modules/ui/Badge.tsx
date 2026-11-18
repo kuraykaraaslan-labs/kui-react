@@ -12,7 +12,8 @@ const variantMap: Record<BadgeVariant, string> = {
   error:   'bg-error-subtle text-error-fg',
   warning: 'bg-warning-subtle text-warning-fg',
   info:    'bg-info-subtle text-info-fg',
-  neutral: 'bg-surface-sunken text-text-secondary',
+  // text-secondary on surface-sunken is 3.9:1; a step toward the primary text reaches 4.5:1 at badge size
+  neutral: 'bg-surface-sunken text-[color-mix(in_srgb,var(--text-secondary)_60%,var(--text-primary))]',
   primary: 'bg-primary-subtle text-primary',
 };
 

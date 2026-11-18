@@ -97,6 +97,9 @@ describe('DeviceCredentialPanel', () => {
     expect(screen.getByTestId('issued-secret')).not.toHaveTextContent('SECRET-TOKEN-123');
     await user.click(screen.getByRole('button', { name: 'Show' }));
     expect(screen.getByTestId('issued-secret')).toHaveTextContent('SECRET-TOKEN-123');
+    // selected as one unit, the secret alone: a double-click never takes the space after it
+    expect(screen.getByTestId('issued-secret').textContent).toBe('SECRET-TOKEN-123');
+    expect(screen.getByTestId('issued-secret')).toHaveClass('select-all');
     await user.click(screen.getByRole('button', { name: 'Copy' }));
     expect(writeText).toHaveBeenCalledWith('SECRET-TOKEN-123');
     await user.click(screen.getByRole('button', { name: 'I have stored it' }));
@@ -129,9 +132,28 @@ describe('DeviceCredentialPanel', () => {
     expect(screen.getAllByRole('region', { name: 'Connection details' })).toHaveLength(1);
     expect(examplePayload([])).toBe('{"temperature":21.5}');
     const basic = connectionCommands({ info, credentialType: 'MQTT_BASIC', username: 'pump-4', clientId: 'c-1', placeholders: { token: '<T>', password: '<P>' } });
-    expect(basic.mqtt).toContain("-i 'c-1' -u 'pump-4' -P '<P>'");
+    // any client ID logs in (the server assigns the device's own): the line sends none, even for a credential that pinned one
+    expect(basic.mqtt).toContain("-u 'pump-4' -P '<P>'");
+    expect(basic.mqtt).not.toContain('-i ');
     expect(basic.http).toBeNull();
-    expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: { token: '<T>', password: '<P>' } })).toEqual({ mqtt: null, http: null });
+    expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: { token: '<T>', password: '<P>' } })).toEqual({ mqtt: null, mqttPlain: null, http: null });
+  });
+
+  it('the plain MQTT listener beside TLS: its own row and line; never for a certificate, never without TLS beside it', () => {
+    const info = { mqtt: { host: 'acme.example.com', port: 8883, tls: true }, plain: { host: 'acme.example.com', port: 1883 }, httpBase: null };
+    const p = { token: '<T>', password: '<P>' };
+    const token = connectionCommands({ info, credentialType: 'ACCESS_TOKEN', secret: 'SECRET', placeholders: p });
+    expect(token.mqtt).toBe(`mosquitto_pub -h acme.example.com -p 8883 --capath /etc/ssl/certs -u 'SECRET' -t v1/telemetry -m '{"temperature":21.5}'`);
+    expect(token.mqttPlain).toBe(`mosquitto_pub -h acme.example.com -p 1883 -u 'SECRET' -t v1/telemetry -m '{"temperature":21.5}'`);
+    expect(connectionCommands({ info, credentialType: 'X509_CERTIFICATE', placeholders: p }).mqttPlain).toBeNull();
+    expect(connectionCommands({ info: { ...info, plain: null }, credentialType: 'ACCESS_TOKEN', placeholders: p }).mqttPlain).toBeNull();
+
+    render(<DeviceCredentialPanel credential={{ type: 'ACCESS_TOKEN' }} connection={info} />);
+    const card = screen.getByRole('region', { name: 'Connection details' });
+    expect(card).toHaveTextContent('MQTT without TLS');
+    expect(card).toHaveTextContent('acme.example.com:1883');
+    expect(card).toHaveTextContent('Or without TLS (port 1883)');
+    expect(card).toHaveTextContent("mosquitto_pub -h acme.example.com -p 1883 -u '<ACCESS_TOKEN>'");
   });
 
   it('UX-23: names the topics of the device\'s profile (a Legacy profile has no command topics)', () => {
@@ -302,5 +324,23 @@ describe('the device address (iot-device 03 §3.6)', () => {
     render(<DeviceTable rows={[{ id: 'd1', name: 'Pump 4', remoteIp: '203.0.113.7' }]} columns={['name', 'address']} now={NOW} tickMs={0} />);
     expect(screen.getByRole('columnheader', { name: 'IP address' })).toBeInTheDocument();
     expect(screen.getByText('203.0.113.7')).toBeInTheDocument();
+  });
+});
+
+describe('DeviceTable: a row with no connection field (next-boilerplate run 3 notes 13 and 75)', () => {
+  it('reads "Not known" with its hint and no last-seen time, never "Never connected"; a row with its fields keeps the dot', () => {
+    render(
+      <DeviceTable
+        now={NOW} locale="en" tickMs={0} columns={['name', 'connection', 'lastSeen']}
+        rows={[{ id: 'd1', name: 'Pump 4', connectionKnown: false }, { id: 'd2', name: 'Probe', online: false }]}
+      />,
+    );
+    const unknown = screen.getByText('Not known');
+    expect(unknown).toHaveAttribute('data-state', 'UNKNOWN');
+    expect(unknown).toHaveAttribute('title', 'These rows carry no connection state: show them from the devices source to see it.');
+    const row = screen.getByText('Pump 4').closest('tr')!;
+    expect(within(row).queryByText(/Never connected/)).toBeNull();
+    expect(within(row).getByText('—')).toBeInTheDocument();
+    expect(within(screen.getByText('Probe').closest('tr')!).getAllByText(/Never connected/).length).toBeGreaterThan(0);
   });
 });

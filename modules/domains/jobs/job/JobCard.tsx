@@ -48,13 +48,13 @@ export function JobCard({ job, href, onClick, showBadges = true, className }: Jo
           {job.tags.slice(0, 4).map((tag) => (
             <span
               key={tag}
-              className="inline-block rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-text-secondary"
+              className="inline-block rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-[color-mix(in_srgb,var(--text-secondary)_60%,var(--text-primary))]"
             >
               {tag}
             </span>
           ))}
           {job.tags.length > 4 && (
-            <span className="inline-block rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-text-secondary">
+            <span className="inline-block rounded-full bg-surface-sunken px-2 py-0.5 text-xs text-[color-mix(in_srgb,var(--text-secondary)_60%,var(--text-primary))]">
               +{job.tags.length - 4}
             </span>
           )}

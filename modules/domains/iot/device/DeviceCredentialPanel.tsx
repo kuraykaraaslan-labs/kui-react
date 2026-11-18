@@ -292,7 +292,8 @@ export function IssuedSecretNotice({ secret, onDismiss, messages, connection, cr
         <span className="text-xs text-warning-fg">{label}</span>
         <code
           data-testid="issued-secret"
-          className="min-w-0 flex-1 break-all rounded border border-border bg-surface-base px-2 py-1 font-mono text-xs text-text-primary"
+          // select-all: a click or double-click selects exactly the secret, never the space after it (Windows' word selection)
+          className="min-w-0 flex-1 select-all break-all rounded border border-border bg-surface-base px-2 py-1 font-mono text-xs text-text-primary"
         >
           {shown ? value : '•'.repeat(Math.min(32, value.length))}
         </code>

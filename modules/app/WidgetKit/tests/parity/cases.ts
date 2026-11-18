@@ -151,6 +151,11 @@ export const PARITY_CASES: ParityCase[] = [
   { id: 'gauge.bar-horizontal', kind: 'gauge', settings: { layout: 'bar-horizontal', min: 10, max: 90, ticks: 4, tickLabels: true, valueText: 'value' }, data: { value: scalar(55), min: scalar(0), max: scalar(100) } },
   { id: 'gauge.level', kind: 'gauge', settings: { layout: 'level', label: 'Tank', unitTitle: 'm', max: 5, ranges: [{ from: 0, to: 1, color: '#dc2626' }, { from: 1, to: 5, color: '#2563eb' }], rangeDisplay: 'track' }, data: { value: scalar(3.2, { meta: { unit: 'm', decimals: 1 } }) } },
   { id: 'gauge.empty-shape', kind: 'gauge', title: 'Pressure', settings: withTitle, data: {}, boundSlots: ['value'] },
+  // NB run 3, item 110: the value's declared range is the default scale; a value off the scale is marked, and far off it an editor is told why
+  { id: 'gauge.declared-range', kind: 'gauge', settings: { label: 'Sunlight' }, data: { value: scalar(812, { meta: { unit: 'W/m²', decimals: 0, min: 0, max: 1100 } }) } },
+  { id: 'gauge.off-scale', kind: 'gauge', settings: { label: 'Sunlight', needle: true }, data: { value: scalar(812, { meta: { unit: 'W/m²', decimals: 0 } }) } },
+  { id: 'gauge.off-scale-editor', kind: 'gauge', isEditor: true, settings: { layout: 'bar-horizontal', unitTitle: 'Irradiance' }, data: { value: scalar(812, { meta: { unit: 'W/m²' } }) } },
+  { id: 'gauge.below-scale', kind: 'gauge', settings: { layout: 'level', max: 5, showValue: false }, data: { value: scalar(-0.4, { meta: { unit: 'm', decimals: 1 } }) } },
   // ── scada.symbol and scada.scene (SVG node trees: kui-ejs writes the same markup with `svgToString`)
   { id: 'scada.tv-reading', kind: 'scada.symbol', title: 'Living room', settings: { ...withTitle, symbol: 'home.tv', max: 100, label: 'TV' }, data: { value: scalar(62, { meta: { unit: '%', decimals: 0 } }), running: scalar(true) } },
   { id: 'scada.router-running', kind: 'scada.symbol', settings: { symbol: 'home.router', label: 'Router' }, data: { running: scalar(true) } },

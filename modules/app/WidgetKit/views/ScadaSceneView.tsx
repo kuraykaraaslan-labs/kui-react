@@ -22,10 +22,13 @@ export const DOUBLE_CLICK_MS = 250;
  * A compute script's `scenePatch` is parsed here (its own caps) and applied after the authored settings and the rules.
  */
 export function ScadaSceneView({ settings, format, data, locale, title, elementActions, params, scenePatch }: WidgetViewProps) {
-  const m = useKitMessages().scada;
+  const kit = useKitMessages();
+  const m = kit.scada;
   const reduced = useReducedMotion();
   const parsed = useMemo(() => parseScenePatch(scenePatch), [scenePatch]);
-  const g = sceneModel(settings as S, data, { animate: !reduced, params, patch: parsed.patch, format: (n, own) => formatValue(n, format, own ?? {}, locale) });
+  // a rule label's `{condition}` words an on / off reading as the state card does (next-boilerplate phase 52.6.1)
+  const onOff = useMemo(() => ({ on: kit.stat.on, off: kit.stat.off }), [kit.stat.on, kit.stat.off]);
+  const g = sceneModel(settings as S, data, { animate: !reduced, params, patch: parsed.patch, format: (n, own) => formatValue(n, format, own ?? {}, locale), onOff });
   // What the patch itself lists and what its parser dropped: counted on the diagram and read out with it.
   const problemLines = [...g.patchProblems, ...parsed.problems];
   const problemCount = g.problems + parsed.problems.length;

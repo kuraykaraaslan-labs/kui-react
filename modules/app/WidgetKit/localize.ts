@@ -15,6 +15,8 @@ function localizeField<F extends FieldSchema>(f: F, path: string, text: (ref: Om
   const out: F = { ...f, label: text({ path, prop: 'label', english: f.label }) };
   if (f.description) out.description = text({ path, prop: 'description', english: f.description });
   if (f.placeholder) out.placeholder = text({ path, prop: 'placeholder', english: f.placeholder });
+  // a remote-select's empty choice is a text a person reads too (next-boilerplate phase 52.6.1, UI test 3 #5: "The symbols drawn inside this card" in Turkish)
+  if (f.emptyLabel) out.emptyLabel = text({ path, prop: 'emptyLabel', english: f.emptyLabel });
   if (f.options) {
     out.options = f.options.map((o): FieldOption => {
       const value = typeof o === 'string' ? o : o.value;
@@ -31,7 +33,7 @@ function localizeField<F extends FieldSchema>(f: F, path: string, text: (ref: Om
 }
 
 /**
- * A copy of `template` with its labels, descriptions, placeholders, option labels and group labels
+ * A copy of `template` with its labels, descriptions, placeholders, empty-choice labels, option labels and group labels
  * from `fn` (`undefined` or an empty string keeps the English). Group labels are also the editor's
  * grouping key, so no two groups end up with the same label: a later group whose translation is
  * taken keeps its English, and when that is taken too it gets `English (id)` (numbered if needed).

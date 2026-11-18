@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-04T13:41:53.702Z",
+  "generatedAt": "2026-11-13T06:50:55.317Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -201,6 +201,7 @@
         "reviews-review-submit-form",
         "rich-text-editor",
         "share-dialog",
+        "tour",
         "translatable-field"
       ],
       "variantCount": 13
@@ -598,7 +599,8 @@
         "--secondary",
         "--surface-sunken",
         "--text-primary",
-        "--text-secondary"
+        "--text-secondary",
+        "--warning"
       ],
       "usedBy": [
         "control-tile",
@@ -1714,6 +1716,50 @@
       "variantCount": 2
     },
     {
+      "id": "share-bar",
+      "name": "ShareBar",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/ShareBar.tsx",
+      "abbr": "Sh",
+      "description": "Share the current page: networks inline and a … button that opens a window with every network, e-mail, copy link and the device share sheet. Plain links, no third-party scripts.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--border",
+        "--border-focus",
+        "--primary",
+        "--primary-fg",
+        "--secondary",
+        "--surface-base",
+        "--surface-overlay",
+        "--text-primary",
+        "--text-secondary"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "cookie-consent",
+      "name": "CookieConsent",
+      "layer": "ui",
+      "category": "Molecule",
+      "filePath": "modules/ui/CookieConsent.tsx",
+      "abbr": "Cn",
+      "description": "Cookie consent for KVKK and GDPR: a banner until the visitor decides, with Reject all as prominent as Accept all, and a settings window with one switch per category. The choice is kept per policy version in a first-party cookie; other code checks hasConsent() or listens for the kui:consent event before loading analytics.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--border",
+        "--primary",
+        "--secondary",
+        "--surface-overlay",
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary"
+      ],
+      "variantCount": 2
+    },
+    {
       "id": "modal",
       "name": "Modal",
       "layer": "ui",
@@ -2034,6 +2080,19 @@
       "variantCount": 2
     },
     {
+      "id": "assistant-launcher",
+      "name": "AssistantLauncher",
+      "layer": "ui",
+      "category": "Organism",
+      "filePath": "modules/ui/AssistantLauncher/index.tsx",
+      "abbr": "Ai",
+      "description": "A floating AI-assistant chat for marketing sites: a 56px launcher fixed bottom right, an optional teaser bubble and a 380px chat panel (full screen under 640px). Controlled: the host owns `open`, the messages and every call. The list is ChatThread (greeting first, typing row while `pending`), cards under a message through `renderAfter` with `AssistantSources` and `AssistantCard`, details asked as chat messages with `AssistantQuickReplies`, `AssistantQuote` and per-step `inputProps`, a header Restart (`onRestart`) and a Sound toggle (`sound`/`onSoundChange`, a two-note Web Audio chime for each new reply), a consent gate, an offline state, a composer with Enter to send, Shift+Enter for a new line, auto-grow to four lines and a counter past 80 % of `maxLength`. Escape closes and returns focus to the launcher; every string from `messages`.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 5
+    },
+    {
       "id": "app-shell",
       "name": "AppShell",
       "layer": "app",
@@ -2267,6 +2326,54 @@
         "--text-primary",
         "--text-secondary",
         "--border"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "tour",
+      "name": "Tour",
+      "layer": "app",
+      "category": "App",
+      "filePath": "modules/app/Tour/index.tsx",
+      "abbr": "GT",
+      "description": "Guided tour over the live page: each step dims the page, cuts out its target and explains it. Driver.js draws; the runner owns the steps, the text (plain text, never HTML) and the keyboard. Steps can wait for late content, run on other pages (beforeStep) and move on when the target is clicked. RTL mirrors placement and arrow keys.",
+      "status": "stable",
+      "since": "2026-11",
+      "composes": [
+        "button"
+      ],
+      "relatedTo": [
+        "onboarding-wizard"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "role=\"dialog\"",
+          "aria-describedby"
+        ],
+        "keyboardInteractions": [
+          {
+            "keys": "Enter / Click",
+            "action": "Next / Previous / Close"
+          },
+          {
+            "keys": "→ / ←",
+            "action": "Next / previous step, on the popover or the bare page (mirrored in RTL); a focused field, list or canvas keeps its own arrows"
+          },
+          {
+            "keys": "Escape",
+            "action": "Stop the tour"
+          }
+        ],
+        "notes": "Focus moves to the step's Next button on every step and returns to where it was when the tour ends. A step inside an open modal dialog (aria-modal) puts the popover and the overlay into that dialog, so its focus trap lets the keyboard reach the tour; a transformed dialog and a native <dialog> are left to Driver.js (container overrides it)."
+      },
+      "designTokens": [
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary",
+        "--primary",
+        "--border",
+        "--border-focus"
       ],
       "variantCount": 2
     },
@@ -3160,6 +3267,18 @@
         "--error-subtle"
       ],
       "variantCount": 7
+    },
+    {
+      "id": "common-auth-layout",
+      "name": "AuthLayout",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/auth/AuthLayout.tsx",
+      "abbr": "AL",
+      "description": "The frame of every authentication page, from the kit's own pieces: BrandLogo above a Card, the page title in PageHeader type with one line of real information (the workspace address), the form, an optional footer below.",
+      "status": "stable",
+      "designTokens": [],
+      "variantCount": 2
     },
     {
       "id": "common-login-form",
@@ -4515,7 +4634,7 @@
       "status": "stable",
       "since": "2026-05",
       "designTokens": [],
-      "variantCount": 2
+      "variantCount": 3
     },
     {
       "id": "landing-mega-menu",
@@ -5357,6 +5476,60 @@
       "description": "Topic creation form: title + category + write/preview tabs + tag input. Composes UI primitives.",
       "status": "stable",
       "since": "2026-05",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "forum-accepted-solution",
+      "name": "AcceptedSolution",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/post/AcceptedSolution.tsx",
+      "abbr": "Qa",
+      "description": "Accepted solution: the \"Accepted solution\" chip, the \"Mark as solution\" / \"Unmark solution\" toggle for the topic author or a moderator, acceptedSolutionClasses that turn the post card green, and the \"Solved\" topic badge.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "forum-staff-badge",
+      "name": "StaffBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/user/StaffBadge.tsx",
+      "abbr": "Sf",
+      "description": "Verified-employee pill: check icon and \"<Org> staff\" in white on the organisation colour, with a soft ring. Shown in the post author column and on ForumUserCard.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [
+        "--secondary"
+      ],
+      "variantCount": 2
+    },
+    {
+      "id": "forum-translated-content",
+      "name": "TranslatedContent",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/post/TranslatedContent.tsx",
+      "abbr": "Tx",
+      "description": "Machine-translated post: the translation with \"Translated from <Language> by AI · Show original\", and a button that toggles to the original (with its lang) and back.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "forum-similar-topics",
+      "name": "SimilarTopics",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/topic/SimilarTopics.tsx",
+      "abbr": "Sy",
+      "description": "Composer assistant: earlier topics that look like the title being typed (Solved chip, forum, replies) and the AI-suggested forum hint. PostComposer shows both from similarTopics / suggestedCategoryValue.",
+      "status": "stable",
+      "since": "2026-11",
       "designTokens": [],
       "variantCount": 2
     },
@@ -6641,7 +6814,7 @@
       "category": "Domain",
       "filePath": "modules/domains/iot/asset/DevicePlacementPanel.tsx",
       "abbr": "DV",
-      "description": "Where a device is: the path of its asset with links, Change placement (DevicePlacementPicker) and Remove placement; the device page Placement tab.",
+      "description": "Where a device is and what it is related to: the path of its asset with links, Change placement (DevicePlacementPicker, saying where it is now) and Remove placement (asks first, naming the device and the path), then the device's relations (RelationsSection); the device page Placement & relations tab.",
       "status": "beta",
       "since": "2026-10",
       "designTokens": [],

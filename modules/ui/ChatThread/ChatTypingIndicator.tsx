@@ -33,7 +33,7 @@ export function ChatTypingIndicator({
       )}
       <div className="flex flex-col items-start">
         <span className="mb-0.5 px-1 text-[11px] font-medium text-text-secondary">{label}</span>
-        <div className="rounded-2xl rounded-bl-sm bg-surface-overlay px-3.5 py-2.5 text-text-secondary">
+        <div data-part="typing-bubble" className="rounded-2xl rounded-bl-sm bg-surface-overlay px-3.5 py-2.5 text-text-secondary">
           <TypingDots />
         </div>
       </div>

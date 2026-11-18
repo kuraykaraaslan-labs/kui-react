@@ -10,7 +10,8 @@ import { RuleList } from './RuleList';
 import { RuleStatusChip } from './RuleStatusChip';
 import { countdown, ruleState, when } from './rule-format';
 import { READY_KEYS, readyLabel, readyRule } from './rule-ready';
-import { draftProblems } from './rule-draft';
+import { draftProblems, firstEquipmentAction, stepWords } from './rule-draft';
+import { severityLabel } from './RuleRows';
 import { IOT_MESSAGES } from '../messages';
 
 /** The Rules card's components (docs/concepts/iot-rules 05): sentences by name, Manual / Auto, the list, the commands. */
@@ -366,15 +367,49 @@ describe('calendar rows in the editor', () => {
   it('a date trigger picks days of the month and months; choosing a day of the month drops the weekdays', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(undefined);
-    render(<RuleEditor scope={scope} initial={{ name: 'Monthly', definition: base({ when: [{ id: 't1', kind: 'date', at: '09:00', days: [1, 2] }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    render(<RuleEditor scope={scope} initial={{ name: 'Monthly', definition: base({ when: [{ id: 't1', kind: 'date', at: '09:00', days: [1, 2], daysOfMonth: [1], months: [1] }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByLabelText('What', { selector: '#trigger-t1-kind' })).toHaveValue('date');
     await user.click(document.querySelector('#trigger-t1-dom-15')!);
     await user.click(document.querySelector('#trigger-t1-months-6')!);
+    await user.click(document.querySelector('#trigger-t1-months-1')!);
     await user.click(screen.getByRole('button', { name: 'Save rule' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const t = onSave.mock.calls[0]![0].definition.when[0];
-    expect(t).toMatchObject({ kind: 'date', at: '09:00', daysOfMonth: [15], months: [6] });
+    expect(t).toMatchObject({ kind: 'date', at: '09:00', daysOfMonth: [1, 15], months: [6] });
     expect(t.days).toBeUndefined();
+  });
+
+  it('next-boilerplate phase 53.2.4 (re-run 4 #5): with every day lit, a click on one day turns that day off and the other six stay', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<RuleEditor scope={scope} initial={{ name: 'Weekdays', definition: base({ when: [{ id: 't1', kind: 'time', at: '22:30' }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    const sat = document.querySelector('#trigger-t1-days-6')!;
+    const sun = document.querySelector('#trigger-t1-days-7')!;
+    // every day lit, "Every day" said
+    expect(sat).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Every day')).toBeInTheDocument();
+    await user.click(sat);
+    expect(sat).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('#trigger-t1-days-1')).toHaveAttribute('aria-pressed', 'true');
+    expect(sun).toHaveAttribute('aria-pressed', 'true');
+    await user.click(sun);
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]![0].definition.when[0]).toMatchObject({ kind: 'time', at: '22:30', days: [1, 2, 3, 4, 5] });
+  });
+
+  it('turning the one day off again lights every day: no filter, never an empty set', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(<RuleEditor scope={scope} initial={{ name: 'Weekdays', definition: base({ when: [{ id: 't1', kind: 'time', at: '22:30' }] }) }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    const sat = document.querySelector('#trigger-t1-days-6')!;
+    await user.click(sat);
+    await user.click(sat);
+    expect(sat).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Every day')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]![0].definition.when[0].days).toBeUndefined();
   });
 
   it('a date condition holds a window of two dates; a holiday condition says working day or holiday', async () => {
@@ -449,5 +484,274 @@ describe('formula condition', () => {
     await user.click(screen.getByRole('button', { name: 'Save rule' }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0]![0].definition.onlyIf).toEqual({ all: [{ kind: 'expr', expr: '[Room 1].[temperature] > 28' }] });
+  });
+});
+
+describe('RuleEditor: next-boilerplate run 3', () => {
+  const m = IOT_MESSAGES;
+  const alarmy: RuleDefinition = {
+    v: 1, options: { overlap: 'ignore' },
+    when: [{ id: 't1', kind: 'alarm', target: { device: 'd1' }, event: 'raised', minSeverity: 'major' }],
+    then: [{ id: 'a1', kind: 'alarm', op: 'raise', target: { device: 'd2' }, alarmType: 'Hot', severity: 'warning' }],
+  };
+  it('note 127: the severities read the kit\'s severity words, the English for a word not given', () => {
+    render(<RuleEditor scope={scope} initial={{ name: 'Escalate', definition: alarmy }} messages={{ severity: { MAJOR: 'Büyük', WARNING: 'Uyarı' } }} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    const from = screen.getByLabelText(m.rules.alarmFrom, { selector: '#trigger-t1-severity' }) as HTMLSelectElement;
+    expect([...from.options].map((o) => o.textContent)).toEqual([m.rules.alarmAnySeverity, 'Critical', 'Büyük', 'Minor', 'Uyarı', 'Info']);
+    const level = screen.getByLabelText(m.rules.alarmSeverityLabel, { selector: '#action-a1-severity' }) as HTMLSelectElement;
+    expect([...level.options].map((o) => o.textContent)).toEqual(['Critical', 'Büyük', 'Minor', 'Uyarı', 'Info']);
+  });
+  it('severityLabel: the kit\'s word, the English when none is given', () => {
+    expect(severityLabel('major', { MAJOR: 'Büyük' })).toBe('Büyük');
+    expect(severityLabel('warning', { MAJOR: 'Büyük' })).toBe('Warning');
+    expect(severityLabel('critical')).toBe('Critical');
+  });
+  it('note 157: reports every state of the draft, the first as it opens, so a host that closes the editor itself can ask first', async () => {
+    const onDraftChange = vi.fn();
+    const user = userEvent.setup();
+    render(<RuleEditor scope={scope} initial={{ name: 'Escalate', definition: alarmy }} onDraftChange={onDraftChange} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(onDraftChange).toHaveBeenCalledWith({ name: 'Escalate', definition: alarmy });
+    await user.type(screen.getByLabelText('Name'), '!');
+    expect(onDraftChange).toHaveBeenLastCalledWith(expect.objectContaining({ name: 'Escalate!' }));
+  });
+});
+
+/**
+ * next-boilerplate UI test 3, scenario 25 (#213, #214, #85): a command row over a catalog command whose control is a required select with one
+ * option and whose value is typed by that control. The control showed but was never held ("The params do not match the command."), and the
+ * value was a raw "{ }" box. Now the control is picked like any choice and the value is the control's own: Açık / Kapalı, a number, nothing.
+ */
+describe('RuleEditor: a command of one control, its value typed by the control (UI test 3)', () => {
+  const setValue = (controls: Array<{ key: string; label: string; value: Record<string, unknown> | null }>) => ({
+    key: { label: 'Control', type: 'select', required: true, options: controls.map((c) => ({ value: c.key, label: c.label })) },
+    value: { label: 'Value', type: 'json', variants: { by: 'key', cases: Object.fromEntries(controls.map((c) => [c.key, c.value])) } },
+  });
+  const factory: RuleScope = {
+    place: { type: 'asset', id: 'f1', name: 'Çınaraltı fabrikası', hasLocation: true },
+    devices: [
+      { deviceId: 'co2', name: 'CO2 tankı', profileId: 'co2_tanki', values: [{ key: 'tank.value', label: 'CO2 tankı · value', sample: 24 }] },
+      { deviceId: 'dk', name: 'Dolum-kapama', profileId: 'dolum_kapama', values: [] },
+      { deviceId: 'cip', name: 'CIP istasyonu', profileId: 'cip', values: [] },
+    ],
+    deviceTypes: [
+      { profileId: 'co2_tanki', name: 'CO2 tankı', deviceCount: 1, commands: [] },
+      { profileId: 'dolum_kapama', name: 'Dolum-kapama monobloğu', deviceCount: 1, commands: [
+        { method: 'scada.set_value', label: 'Hat kumandası', tier: 'basic', highImpact: false, cardCanSend: true,
+          paramsSchema: setValue([{ key: 'calistir', label: 'Hattı çalıştır', value: { label: 'Hattı çalıştır', type: 'boolean', required: true } }]) },
+      ] },
+      { profileId: 'cip', name: 'CIP istasyonu', deviceCount: 1, commands: [
+        { method: 'scada.set_value', label: 'CIP kumandası', tier: 'basic', highImpact: false, cardCanSend: true,
+          paramsSchema: setValue([{ key: 'baslat', label: 'CIP başlat', value: null }]) },
+      ] },
+    ],
+    roles: ['OWNER', 'ADMIN', 'USER'],
+  };
+  const tr = { rules: { on: 'Açık', off: 'Kapalı' } };
+  const co2Low: RuleDefinition = {
+    v: 1, options: { overlap: 'ignore' },
+    when: [{ id: 't1', kind: 'value', target: { device: 'co2' }, key: 'tank.value', change: 'below', value: 20 }],
+    then: [{ id: 'a1', kind: 'command', target: { device: 'dk' }, command: 'scada.set_value' }],
+  };
+  const saveConfirmed = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByLabelText('Yes, let this rule act on its own'));
+    await user.click(within(dialog).getByRole('button', { name: 'Save rule' }));
+  };
+
+  it('"CO2 tankı below 20 → Hat kumandası on Dolum-kapama, Hattı çalıştır off" saves { key, value: false }', async () => {
+    const onSave = vi.fn(async (_input: unknown) => undefined);
+    const user = userEvent.setup();
+    render(<RuleEditor scope={factory} initial={{ name: 'CO2 %20 altında dolumu durdur', definition: co2Low }} messages={tr} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    const control = screen.getByLabelText(/Control/) as HTMLSelectElement;
+    expect(control.value).toBe('');
+    expect(screen.queryByPlaceholderText('{ }')).toBeNull();
+    await user.selectOptions(control, 'calistir');
+    await user.click(screen.getByRole('radio', { name: 'Kapalı' }));
+    await saveConfirmed(user);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const saved = onSave.mock.calls[0]![0] as { definition: RuleDefinition };
+    expect(saved.definition.then[0]).toMatchObject({ kind: 'command', target: { device: 'dk' }, command: 'scada.set_value', params: { key: 'calistir', value: false } });
+  });
+
+  it('"every weekday 22:30 → CIP kumandası, CIP başlat" saves the control alone: a button takes no value', async () => {
+    const onSave = vi.fn(async (_input: unknown) => undefined);
+    const user = userEvent.setup();
+    const cip: RuleDefinition = {
+      v: 1, options: { overlap: 'ignore' },
+      when: [{ id: 't1', kind: 'time', at: '22:30', days: [1, 2, 3, 4, 5] }],
+      then: [{ id: 'a1', kind: 'command', target: { device: 'cip' }, command: 'scada.set_value' }],
+    };
+    render(<RuleEditor scope={factory} initial={{ name: 'CIP her iş günü', definition: cip }} messages={tr} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText(/Control/), 'baslat');
+    expect(screen.queryByText('Value')).toBeNull();
+    await saveConfirmed(user);
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect((onSave.mock.calls[0]![0] as { definition: RuleDefinition }).definition.then[0]).toMatchObject({ params: { key: 'baslat' } });
+  });
+
+  it('a problem the server found in one value shows under that value, not a second time under the row', () => {
+    const problem = { path: ['then', 0, 'params', 'key'], code: 'bad_param', message: '“Control” boş: değerini seçin.' };
+    render(<RuleEditor scope={factory} initial={{ name: 'x', definition: co2Low }} problems={[problem]} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getAllByText('“Control” boş: değerini seçin.')).toHaveLength(1);
+    const field = document.querySelector('#action-a1-params [data-field="key"]')!;
+    expect(within(field as HTMLElement).getByRole('alert')).toHaveTextContent('“Control” boş: değerini seçin.');
+  });
+});
+
+/**
+ * next-boilerplate D580 and UI test 3 #215: Run now asks first when the rule moves equipment (a command, a setting or another rule), naming
+ * the rule and its first such step; a rule that only notifies people or raises alarms runs at once. A ready rule picked over a draft
+ * whose rows the author changed asks before it replaces them.
+ */
+describe('asking before acting (D580, UI test 3 #215)', () => {
+  const handlers = () => ({ onToggle: vi.fn(), onRun: vi.fn(), onEdit: vi.fn(), onDuplicate: vi.fn(), onHistory: vi.fn(), onDelete: vi.fn(async () => undefined) });
+  const stopFiller: RuleDefinition = {
+    v: 1, options: { overlap: 'ignore' },
+    when: [{ id: 't1', kind: 'value', target: { device: 'd1' }, key: 'temperature', change: 'above', value: 28 }],
+    then: [
+      { id: 'a1', kind: 'notify', recipients: [{ kind: 'role', role: 'ADMIN' }], text: 'Hot' },
+      { id: 'a2', kind: 'choose', branches: [{ if: { kind: 'sun', is: 'day' }, then: [{ id: 'a3', kind: 'command', target: { device: 'd2' }, command: 'fan.set', params: { speed: 3 } }] }] },
+    ],
+  };
+  const notifyOnly: RuleDefinition = { ...stopFiller, then: [{ id: 'a1', kind: 'notify', recipients: [{ kind: 'role', role: 'ADMIN' }], text: 'Hot' }] };
+
+  it('Run now on a rule that sends a command asks first, naming the rule and its first such step, and runs on Run now', async () => {
+    const h = handlers();
+    const user = userEvent.setup();
+    render(<RuleList rules={[rule({ definition: stopFiller })]} scope={scope} now={NOW} canManage canRun {...h} />);
+    await user.click(screen.getByRole('button', { name: 'More for Fan on when hot' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Run now' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Run Fan on when hot now?')).toBeInTheDocument();
+    expect(within(dialog).getByText('It moves equipment at once. Its first step: Fan 1: Fan on · 3.')).toBeInTheDocument();
+    expect(h.onRun).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: 'Run now' }));
+    expect(h.onRun).toHaveBeenCalledWith(expect.objectContaining({ ruleId: 'r1' }));
+  });
+
+  it('Cancel runs nothing; a rule that only tells people runs at once', async () => {
+    const h = handlers();
+    const user = userEvent.setup();
+    const { rerender } = render(<RuleList rules={[rule({ definition: stopFiller })]} scope={scope} now={NOW} canManage canRun {...h} />);
+    await user.click(screen.getByRole('button', { name: 'More for Fan on when hot' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Run now' }));
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Cancel' }));
+    expect(h.onRun).not.toHaveBeenCalled();
+    rerender(<RuleList rules={[rule({ definition: notifyOnly })]} scope={scope} now={NOW} canManage canRun {...h} />);
+    await user.click(screen.getByRole('button', { name: 'More for Fan on when hot' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Run now' }));
+    expect(h.onRun).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('names a setting, another rule, a kind of device and an on / off value by their words, never an id', () => {
+    const m = IOT_MESSAGES.rules;
+    const others = [{ ruleId: 'r9', name: 'Night mode' }];
+    expect(stepWords({ id: 'a', kind: 'rule', op: 'disable', rule: 'r9' }, scope, others, m)).toBe('Switch off Night mode');
+    expect(stepWords({ id: 'a', kind: 'rule', op: 'run', rule: 'r9' }, scope, others, m)).toBe('Start Night mode');
+    expect(stepWords({ id: 'a', kind: 'setting', target: { device: 'd2' }, key: 'eco', value: true }, scope, others, m)).toBe('Fan 1: eco to On');
+    expect(stepWords({ id: 'a', kind: 'command', target: { deviceType: 'p2' }, command: 'fan.set' }, scope, others, m)).toBe('Every Fan: Fan on');
+    expect(firstEquipmentAction(notifyOnly)).toBeNull();
+    expect(firstEquipmentAction(stopFiller)?.id).toBe('a3');
+  });
+
+  it('a ready rule over changed rows asks first; Cancel keeps the draft, Replace takes the ready rule and keeps the name', async () => {
+    const user = userEvent.setup();
+    render(<RuleEditor scope={scope} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.type(screen.getByLabelText('Name'), 'Mine');
+    await user.selectOptions(screen.getByLabelText('Device', { selector: '#trigger-t1-device' }), 'd:d1');
+    await user.selectOptions(screen.getByLabelText('Start from a ready rule'), 'sunset');
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Start from “Do something at sunset”?')).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByLabelText('What', { selector: '#trigger-t1-kind' })).toHaveValue('value');
+    expect(screen.getByLabelText('Device', { selector: '#trigger-t1-device' })).toHaveValue('d:d1');
+    expect(screen.getByLabelText('Start from a ready rule')).toHaveValue('');
+    await user.selectOptions(screen.getByLabelText('Start from a ready rule'), 'sunset');
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Replace' }));
+    expect(screen.getByLabelText('What', { selector: '#trigger-t1-kind' })).toHaveValue('sun');
+    expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe('Mine');
+    // the ready rule as it was left is no change: another ready rule replaces it without a question
+    await user.selectOptions(screen.getByLabelText('Start from a ready rule'), 'onHigh');
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('the device that triggered it (RL-E13)', () => {
+  const opts = (sel: string) => [...(screen.getByLabelText('Device', { selector: sel }) as HTMLSelectElement).options].map((o) => o.value);
+  const startedByFan: RuleDefinition = {
+    v: 1, options: { overlap: 'ignore' },
+    when: [{ id: 't1', kind: 'status', target: { device: 'd2' }, to: 'online' }],
+    then: [{ id: 'a1', kind: 'wait', sec: 60 }],
+  };
+
+  it('a rule a device starts offers it to a command, a setting and an alarm, and saves { trigger: true } with the commands of the triggering device', async () => {
+    const onSave = vi.fn(async (_input: unknown) => undefined);
+    const user = userEvent.setup();
+    render(<RuleEditor scope={scope} initial={{ name: 'Fan 1 acts on itself', definition: startedByFan }} onSave={onSave} onTest={vi.fn()} onCancel={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#action-a1-kind' }), 'command');
+    expect(opts('#action-a1-device')).toEqual(['', 'trigger', 'd:d1', 'd:d2']);
+    expect(screen.getByRole('option', { name: 'The device that triggered it' })).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Device', { selector: '#action-a1-device' }), 'trigger');
+    expect([...(screen.getByLabelText('Command', { selector: '#action-a1-command' }) as HTMLSelectElement).options].map((o) => o.value)).toEqual(['', 'fan.set', 'sys.reboot']);
+    await user.selectOptions(screen.getByLabelText('Command', { selector: '#action-a1-command' }), 'fan.set');
+    await user.type(await screen.findByLabelText(/Speed/), '2');
+    await user.click(screen.getByRole('button', { name: 'Add an action' }));
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#action-a2-kind' }), 'alarm');
+    expect(opts('#action-a2-device')).toEqual(['', 'trigger', 'd:d1', 'd:d2']);
+    await user.selectOptions(screen.getByLabelText('Device', { selector: '#action-a2-device' }), 'trigger');
+    await user.type(screen.getByLabelText('Alarm type', { selector: '#action-a2-type' }), 'Overheat');
+    await user.click(screen.getByRole('button', { name: 'Add an action' }));
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#action-a3-kind' }), 'setting');
+    expect(opts('#action-a3-device')).toContain('trigger');
+    await user.selectOptions(screen.getByLabelText('Device', { selector: '#action-a3-device' }), 'trigger');
+    await user.type(screen.getByLabelText('Setting', { selector: '#action-a3-key' }), 'eco');
+    await user.type(screen.getByLabelText('to', { selector: '#action-a3-value' }), '1');
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByLabelText('Yes, let this rule act on its own'));
+    await user.click(within(dialog).getByRole('button', { name: 'Save rule' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    const saved = (onSave.mock.calls[0]![0] as { definition: RuleDefinition }).definition;
+    expect(saved.then).toEqual([
+      { id: 'a1', kind: 'command', target: { trigger: true }, command: 'fan.set', params: { speed: 2 } },
+      { id: 'a2', kind: 'alarm', op: 'raise', target: { trigger: true }, alarmType: 'Overheat' },
+      { id: 'a3', kind: 'setting', target: { trigger: true }, key: 'eco', value: 1 },
+    ]);
+  });
+
+  it('a rule no device starts does not offer it; triggers and conditions never do', async () => {
+    const user = userEvent.setup();
+    const timed: RuleDefinition = { ...startedByFan, when: [{ id: 't1', kind: 'time', at: '08:00' }], then: [{ id: 'a1', kind: 'command', target: { device: '' }, command: '' }] };
+    render(<RuleEditor scope={scope} initial={{ name: 'Morning', definition: timed }} onSave={vi.fn()} onTest={vi.fn()} onCancel={vi.fn()} />);
+    expect(opts('#action-a1-device')).not.toContain('trigger');
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#trigger-t1-kind' }), 'value');
+    expect(opts('#action-a1-device')).toContain('trigger');
+    expect(opts('#trigger-t1-device')).not.toContain('trigger');
+    await user.click(screen.getByRole('button', { name: 'Add a condition' }));
+    expect(screen.getAllByLabelText('Device').flatMap((s) => [...(s as HTMLSelectElement).options].map((o) => o.value)).filter((v) => v === 'trigger')).toHaveLength(1);
+  });
+
+  it('a row that names it keeps it when the last device trigger goes; Save and Test now say why and ask nothing of the host', async () => {
+    const onSave = vi.fn(async () => undefined);
+    const onTest = vi.fn(async () => undefined);
+    const user = userEvent.setup();
+    const aimed: RuleDefinition = { ...startedByFan, then: [{ id: 'a1', kind: 'command', target: { trigger: true }, command: 'fan.set', params: { speed: 1 } }] };
+    render(<RuleEditor scope={scope} initial={{ name: 'Fan 1 acts on itself', definition: aimed }} onSave={onSave} onTest={onTest} onCancel={vi.fn()} />);
+    await user.selectOptions(screen.getByLabelText('What', { selector: '#trigger-t1-kind' }), 'every');
+    expect(screen.getByLabelText('Device', { selector: '#action-a1-device' })).toHaveValue('trigger');
+    await user.click(screen.getByRole('button', { name: 'Save rule' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getAllByText(IOT_MESSAGES.rules.targetTriggerNone)).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Test now' }));
+    expect(onTest).not.toHaveBeenCalled();
+  });
+
+  it('Run now’s question names it in words', () => {
+    const m = IOT_MESSAGES.rules;
+    const step = { id: 'a', kind: 'command' as const, target: { trigger: true as const }, command: 'fan.set' };
+    expect(stepWords(step, scope, [], m, [{ id: 't1', kind: 'status', target: { device: 'd2' }, to: 'offline' }])).toBe('The device that triggered it: Fan on');
+    expect(stepWords({ id: 'a', kind: 'setting', target: { trigger: true }, key: 'eco', value: false }, scope, [], m)).toBe('The device that triggered it: eco to Off');
   });
 });

@@ -2,11 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { ConfirmHost } from '@/modules/ui/ConfirmDialog';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
-import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
+import { IotApiError, type IotAdapter, type IotCapabilities, type ProfileTemplateQuery } from '../api/adapter';
 import {
-  allowedOnlineRules, blankProfileDraft, isNetwork, isPolledTransport, transportLogsIn, nextKeyOrigins, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, DEFAULT_RATE_LIMITS,
-  type DeviceProfile, type DeviceProfileDraft, type ProfileAuthMode, type ProfileRateLimits, type ProfileTransport,
+  allowedOnlineRules, blankProfileDraft, isNetwork, isPolledTransport, transportLogsIn, nextKeyOrigins, parseLimitString, profileDraftIssues, profilePatch, draftOf, telemetryKeyChanges, touchesAdmission, DEFAULT_RATE_LIMITS,
+  type DeviceProfile, type DeviceProfileDraft, type ProfileAuthMode, type ProfileRateLimits, type ProfileTemplate, type ProfileTransport,
 } from '../types/profile';
 import { OnlineRuleField, formatSeconds, type OnlineRuleValue } from './OnlineRuleField';
 import { AuthModeSelector } from './AuthModeSelector';
@@ -114,6 +115,49 @@ describe('plaintext commands (OD-160, gateway 12 §10)', () => {
     await user.type(input, 'fan.set{Enter}');
     expect(screen.getByText('fan.set')).toBeTruthy();
     expect(screen.getByText(/Firmware updates and device settings are never sent in clear/)).toBeTruthy();
+  });
+
+  it('every command without TLS (NB LD-2): shown with plain MQTT only, turned on only through the confirmation, off at once', async () => {
+    const user = userEvent.setup();
+    const seen: Array<Partial<TransportPolicyValue>> = [];
+    function Host({ start }: { start: TransportPolicyValue }) {
+      const [v, setV] = useState(start);
+      return <TransportPolicyCard value={v} onChange={(p) => { seen.push(p); setV((x) => ({ ...x, ...p })); }} />;
+    }
+    const base: TransportPolicyValue = { transportType: 'MQTT', mqttTransport: 'TLS_REQUIRED', allowTokenInUrl: false, allowedNetworks: [], plaintextRpcMethods: [] };
+    const { unmount } = render(<Host start={base} />);
+    expect(screen.queryByRole('switch', { name: 'Allow every command without TLS' })).toBeNull();
+    unmount();
+    render(<Host start={{ ...base, mqttTransport: 'PLAINTEXT_ALLOWED' }} />);
+    const toggle = () => screen.getByRole('switch', { name: 'Allow every command without TLS' });
+    expect(toggle()).not.toBeChecked();
+    // cancelled: nothing changes
+    await user.click(toggle());
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(seen).toEqual([]);
+    expect(toggle()).not.toBeChecked();
+    // confirmed: on, with the warning, and the list now asks only for the secret-carrying families
+    await user.click(toggle());
+    await user.click(screen.getByRole('button', { name: 'Allow every command' }));
+    expect(seen).toEqual([{ plaintextAllCommands: true }]);
+    expect(toggle()).toBeChecked();
+    expect(screen.getByText(/can be read and changed by anyone on the network/)).toBeInTheDocument();
+    expect(screen.getByText(/Name here only the certificate \(cert\.\*\)/)).toBeInTheDocument();
+    // off: at once, no question
+    await user.click(toggle());
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(seen).toEqual([{ plaintextAllCommands: true }, { plaintextAllCommands: false }]);
+    expect(screen.queryByText(/can be read and changed by anyone on the network/)).toBeNull();
+  });
+
+  it('draftOf reads the switch as off unless the host says exactly true; a change to it is an admission field', () => {
+    const d = blankProfileDraft('x');
+    expect(d.plaintextAllCommands).toBe(false);
+    const p = { ...d, profileId: 'p1', isDefault: false, createdAt: '', updatedAt: '' } as unknown as DeviceProfile;
+    expect(draftOf({ ...p, plaintextAllCommands: true }).plaintextAllCommands).toBe(true);
+    for (const v of [undefined, 'true', 1]) expect(draftOf({ ...p, plaintextAllCommands: v as unknown as boolean }).plaintextAllCommands, String(v)).toBe(false);
+    expect(touchesAdmission(profilePatch(d, { ...d, plaintextAllCommands: true }))).toBe(true);
   });
 
   it('draftOf copies the list (a profile from an older host without it gets none)', () => {
@@ -367,6 +411,79 @@ describe('NewDeviceProfileDrawer (OD-63)', () => {
   });
 });
 
+describe('Licensed device profiles in the new profile drawer (NB 63-licensed-devices LD-3)', () => {
+  const tpl = (over: Partial<ProfileTemplate> = {}): ProfileTemplate => ({
+    templateKey: 'dc620-dual', templateVersion: 3, name: 'DC620 Dual', description: 'Roltek I/O controller', transportType: 'MQTT',
+    topicSchemes: ['ROLTEK'], allowedAuthModes: ['ACCESS_TOKEN', 'MQTT_BASIC'], mqttTransport: 'PLAINTEXT_ALLOWED', plaintextAllCommands: true,
+    updatedAt: '2026-11-11T00:00:00Z', copyProfileId: null, ...over,
+  });
+  const STORE = [tpl(), tpl({ templateKey: 'acme-meter', templateVersion: 1, name: 'Acme meter', description: null, mqttTransport: 'TLS_REQUIRED', plaintextAllCommands: false, copyProfileId: 'p2' })];
+  function withTemplates(list = vi.fn(async (q: ProfileTemplateQuery) => {
+    const hit = STORE.filter((t) => !q.search || t.name.toLowerCase().includes(q.search.toLowerCase()));
+    return { items: hit, total: hit.length };
+  }), adopt = vi.fn(async () => ({ profileId: 'p9', created: true }))) {
+    const get = vi.fn(async (id: string) => profile({ profileId: id, name: id === 'p9' ? 'DC620 Dual' : 'Meters' }));
+    return { adapter: profilesAdapter({ templates: { list, adopt }, get }), list, adopt, get };
+  }
+
+  it('without the host\'s templates API the drawer offers only the empty profile, untitled', () => {
+    render(<Wrap adapter={profilesAdapter()}><NewDeviceProfileDrawer open onClose={() => undefined} /></Wrap>);
+    expect(screen.queryByText('Licensed device profiles')).toBeNull();
+    expect(screen.queryByText('Or start an empty profile')).toBeNull();
+  });
+
+  it('shows each template as a card; Use makes the copy and opens it, Open your copy opens the one the workspace has', async () => {
+    const user = userEvent.setup();
+    const { adapter, adopt, get } = withTemplates();
+    const created = vi.fn();
+    render(<Wrap adapter={adapter}><NewDeviceProfileDrawer open onClose={() => undefined} onCreated={created} /></Wrap>);
+    expect(await screen.findByText('DC620 Dual')).toBeInTheDocument();
+    expect(screen.getByText('Licensed device profiles')).toBeInTheDocument();
+    expect(screen.getByText('Or start an empty profile')).toBeInTheDocument();
+    expect(screen.getByText('Version 3')).toBeInTheDocument();
+    expect(screen.getByText('Every command without TLS')).toBeInTheDocument();
+    expect(screen.getByText('TLS only')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Use' }));
+    await waitFor(() => expect(created).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'p9' })));
+    expect(adopt).toHaveBeenCalledWith('dc620-dual');
+    created.mockClear();
+    adopt.mockClear();
+    await user.click(screen.getByRole('button', { name: 'Open your copy' }));
+    await waitFor(() => expect(created).toHaveBeenCalledWith(expect.objectContaining({ profileId: 'p2' })));
+    expect(adopt).not.toHaveBeenCalled();
+    expect(get).toHaveBeenCalledWith('p2');
+  });
+
+  it('a platform that publishes none: no section and no title over the form; a search with no match keeps the section', async () => {
+    const empty = withTemplates(vi.fn(async () => ({ items: [], total: 0 })));
+    const { unmount } = render(<Wrap adapter={empty.adapter}><NewDeviceProfileDrawer open onClose={() => undefined} /></Wrap>);
+    await waitFor(() => expect(empty.list).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('Licensed device profiles')).toBeNull());
+    await waitFor(() => expect(screen.queryByText('Or start an empty profile')).toBeNull());
+    unmount();
+    const user = userEvent.setup();
+    const some = withTemplates();
+    render(<Wrap adapter={some.adapter}><NewDeviceProfileDrawer open onClose={() => undefined} /></Wrap>);
+    await screen.findByText('DC620 Dual');
+    await user.type(screen.getByPlaceholderText('Search licensed profiles'), 'zzz');
+    await waitFor(() => expect(some.list).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'zzz', page: 1 }), expect.anything()));
+    // during a search the table says it found nothing for the words typed; the section stays
+    expect(await screen.findByText(/No results for/)).toBeInTheDocument();
+    expect(screen.getByText('Licensed device profiles')).toBeInTheDocument();
+  });
+
+  it('a refused use is said in a toast and opens nothing', async () => {
+    const user = userEvent.setup();
+    const notify = vi.fn();
+    const { adapter } = withTemplates(undefined, vi.fn(async () => { throw new IotApiError('conflict', 'The platform tenant owns these templates.'); }));
+    const created = vi.fn();
+    render(<IotAdapterProvider adapter={adapter} capabilities={ALL} notify={notify}><NewDeviceProfileDrawer open onClose={() => undefined} onCreated={created} /></IotAdapterProvider>);
+    await user.click(await screen.findByRole('button', { name: 'Use' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith(expect.objectContaining({ tone: 'error' })));
+    expect(created).not.toHaveBeenCalled();
+  });
+});
+
 describe('DeviceProfileEditorView', () => {
   it('saves only the changed fields, and blocks a transport the stored rule cannot serve until another rule is picked', async () => {
     const user = userEvent.setup();
@@ -605,6 +722,39 @@ describe('DeviceProfileEditorView', () => {
     render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
     expect(await screen.findByRole('button', { name: /Delete profile/ })).toBeDisabled();
     expect(screen.getAllByText('12 devices').length).toBeGreaterThan(0);
+  });
+
+  it('NB LD-3: the platform admin publishes a profile under a template key it types, and unpublishes it; nobody else sees either', async () => {
+    const user = userEvent.setup();
+    const setTemplate = vi.fn(async (id: string, key: string | null) => profile({ profileId: id, platformTemplate: key ? { key, version: 1 } : null }));
+    const notify = vi.fn();
+    const adapter = profilesAdapter({ setTemplate });
+    const { unmount } = render(<Wrap adapter={adapter}><DeviceProfileEditorView profileId="p1" /></Wrap>);
+    await screen.findByLabelText(/^Name/);
+    expect(screen.queryByRole('button', { name: 'Publish as licensed profile' })).toBeNull();
+    unmount();
+    render(
+      <IotAdapterProvider adapter={adapter} capabilities={{ ...ALL, canManageTemplates: true, canPublishTemplates: true }} notify={notify}>
+        <ConfirmHost /><DeviceProfileEditorView profileId="p1" />
+      </IotAdapterProvider>,
+    );
+    // a key that is not one is refused before the host is asked
+    await user.click(await screen.findByRole('button', { name: 'Publish as licensed profile' }));
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/Template key/), 'DC620_Dual');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish' }));
+    await waitFor(() => expect(notify).toHaveBeenCalledWith(expect.objectContaining({ tone: 'error', message: expect.stringMatching(/A template key is/) })));
+    expect(setTemplate).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Publish as licensed profile' }));
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/Template key/), 'dc620-dual');
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Publish' }));
+    await waitFor(() => expect(setTemplate).toHaveBeenCalledWith('p1', 'dc620-dual'));
+    expect(await screen.findByText('Platform template dc620-dual v1')).toBeInTheDocument();
+    // published: Unpublish, asked first
+    await user.click(screen.getByRole('button', { name: 'Unpublish' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Unpublish' }));
+    await waitFor(() => expect(setTemplate).toHaveBeenLastCalledWith('p1', null));
+    await waitFor(() => expect(screen.queryByText('Platform template dc620-dual v1')).toBeNull());
+    expect(screen.getByRole('button', { name: 'Publish as licensed profile' })).toBeInTheDocument();
   });
 });
 

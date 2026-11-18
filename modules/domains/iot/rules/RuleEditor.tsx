@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/modules/ui/Button';
 import { Checkbox } from '@/modules/ui/Checkbox';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
@@ -8,6 +8,7 @@ import { Select } from '@/modules/ui/Select';
 import { cn } from '@/libs/utils/cn';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
+import { fill } from '../format';
 import type { RuleDefinition, RuleProblem, RuleScope, RuleTestResult } from '../types/rules';
 import { ActionList, ConditionGroup, TriggerList, type RuleRowsContext } from './RuleRows';
 import { actsOnDevices, collectIds, draftProblems, emptyDefinition, emptyTrigger, freshId, problemsAt } from './rule-draft';
@@ -19,7 +20,8 @@ import { READY_KEYS, readyLabel, readyRule, type ReadyKey } from './rule-ready';
  * name. Nothing here shows an id, a key or JSON. Before it asks the server it lists the rows that are plainly unfinished; the server's
  * own problems (a device outside the place, a command the catalog does not have) come back with the row's path and show under that row.
  * A rule that sends commands or changes settings asks for the author's confirmation first (a ConfirmDialog with a tick). Test now runs
- * the draft against the values stored now and shows the answer in words under the buttons.
+ * the draft against the values stored now and shows the answer in words under the buttons. A ready rule picked over a draft whose
+ * When, Only if or Then the author changed asks before it replaces them (next-boilerplate UI test 3 #215).
  */
 export type RuleEditorProps = {
   scope: RuleScope;
@@ -37,6 +39,11 @@ export type RuleEditorProps = {
   onSave: (input: { name: string; definition: RuleDefinition; confirmed: boolean }) => Promise<void>;
   onTest: (input: { name: string; definition: RuleDefinition }) => Promise<void>;
   onCancel: () => void;
+  /**
+   * Every state of the draft, the first one as it opens: lets a host that closes the editor on its own (Escape, a click beside its drawer) ask
+   * before it drops changes (run 3 note 157: Escape lost a new rule without a word).
+   */
+  onDraftChange?: (draft: { name: string; definition: RuleDefinition }) => void;
   locale?: string;
   messages?: IotMessagesInput;
   className?: string;
@@ -53,7 +60,7 @@ const Block = ({ title, hint, children, id }: { title: string; hint?: string; ch
 );
 
 export function RuleEditor({
-  scope, initial, problems = [], saving = false, testing = false, testResult, serverNeedsConfirmation, otherRules, onSave, onTest, onCancel, locale, messages, className,
+  scope, initial, problems = [], saving = false, testing = false, testResult, serverNeedsConfirmation, otherRules, onSave, onTest, onCancel, onDraftChange, locale, messages, className,
 }: RuleEditorProps) {
   const { m } = useIotText(messages);
   const [name, setName] = useState(initial?.name ?? '');
@@ -62,12 +69,16 @@ export function RuleEditor({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [readyKey, setReadyKey] = useState('');
+  // the definition as it opened, or as the last ready rule left it: a ready rule replaces it without a question while it is still that
+  const [untouched, setUntouched] = useState(() => JSON.stringify(def));
+  const [replacing, setReplacing] = useState<ReadyKey | null>(null);
+  useEffect(() => { onDraftChange?.({ name, definition: def }); }, [name, def, onDraftChange]);
 
 
   const own = useMemo(() => draftProblems(name, def, m.rules), [name, def, m.rules]);
   const shown = tried ? [...own, ...problems] : [...problems];
   const taken = useMemo(() => collectIds(def), [def]);
-  const ctx: RuleRowsContext = { scope, m: m.rules, problems: shown, locale, otherRules };
+  const ctx: RuleRowsContext = { scope, m: m.rules, problems: shown, locale, otherRules, severity: m.severity, when: def.when };
   const acts = actsOnDevices(def) || (serverNeedsConfirmation?.length ?? 0) > 0;
 
   const input = { name: name.trim(), definition: def };
@@ -90,13 +101,19 @@ export function RuleEditor({
   const addTrigger = () => setDef((d) => ({ ...d, when: [...d.when, emptyTrigger('value', freshId('t', collectIds(d)))] }));
 
   // a ready rule only starts the draft: the name is kept when the person already typed one, nothing is saved
-  const startFrom = (key: string) => {
-    if (!key) return;
-    const r = readyRule(key as ReadyKey, m.rules);
+  const applyReady = (key: ReadyKey) => {
+    const r = readyRule(key, m.rules);
     setDef(r.definition);
+    setUntouched(JSON.stringify(r.definition));
     setName((n) => (n.trim() ? n : r.name));
     setTried(false);
     setReadyKey(key);
+  };
+  // over rows the author changed it asks first (UI test 3 #215: a trigger's values and a "Tell people" action were wiped without a word)
+  const startFrom = (key: string) => {
+    if (!key) return;
+    if (JSON.stringify(def) !== untouched) { setReplacing(key as ReadyKey); return; }
+    applyReady(key as ReadyKey);
   };
   return (
     <div className={cn('flex flex-col gap-6', className)}>
@@ -184,6 +201,21 @@ export function RuleEditor({
         <Button variant="outline" onClick={test} loading={testing}>{testing ? m.rules.testing : m.rules.testNow}</Button>
         <Button variant="ghost" onClick={onCancel}>{m.rules.cancel}</Button>
       </div>
+
+      <ConfirmDialog
+        open={replacing !== null}
+        title={fill(m.rules.readyAskTitle, { name: replacing ? readyLabel(m.rules, replacing) : '' })}
+        message={m.rules.readyAskBody}
+        tone="warning"
+        confirmLabel={m.rules.readyAskConfirm}
+        cancelLabel={m.rules.cancel}
+        onCancel={() => setReplacing(null)}
+        onConfirm={() => {
+          const key = replacing;
+          setReplacing(null);
+          if (key) applyReady(key);
+        }}
+      />
 
       <ConfirmDialog
         open={confirming}

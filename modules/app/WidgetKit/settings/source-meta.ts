@@ -1,10 +1,11 @@
 // What a data source says about its own values (next-boilerplate dashboard phase 23): the label, unit,
-// decimals, value-to-word map, kind and the direction that is "good". Pure; server and browser.
+// decimals, value-to-word map, kind, the direction that is "good" and the range the value is declared to take.
+// Pure; server and browser.
 //
 // A source applies its own scale before it answers, so there is no `scale` here: a widget never multiplies.
 // Precedence, lowest first: widget type defaults < the source < a saved definition's defaults < the placement.
 
-import type { Sparse } from './types';
+import type { SettingsTemplate, Sparse } from './types';
 import type { ValueFormat } from './style';
 
 /** One raw value's presentation. */
@@ -28,6 +29,12 @@ export interface ColumnMeta {
   kind?: 'number' | 'boolean' | 'enum' | 'string' | 'json';
   /** Which way is good for a number: drives the colour of a change on a stat card. */
   direction?: 'higherIsBetter' | 'lowerIsBetter' | 'neutral';
+  /**
+   * The range the value is declared to take (a device profile's or a schema's `min` / `max`): a gauge's default scale
+   * (`SettingsTemplate.scaleFields`). Either end may be left out; a range whose minimum is not below its maximum is ignored.
+   */
+  min?: number;
+  max?: number;
 }
 
 /** The meta label for a language: the exact tag, its base language, English, then the first entry. */
@@ -102,4 +109,31 @@ export function primaryMeta(
 export function metaTypeDefaults(directionField: string | undefined, meta: ColumnMeta | undefined): Sparse {
   const option = directionOption(meta?.direction);
   return directionField && option ? { [directionField]: option } : {};
+}
+
+const finite = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+
+/** The range a source declares, as far as it is usable: finite ends, and a minimum below the maximum when it gives both. */
+export function metaScale(meta: ColumnMeta | undefined): { min?: number; max?: number } {
+  const min = finite(meta?.min);
+  const max = finite(meta?.max);
+  if (min !== undefined && max !== undefined && min >= max) return {};
+  return { ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}) };
+}
+
+/**
+ * The type-layer defaults a source's declared range implies for a template that names its scale fields (a gauge's
+ * `min` / `max`). An end the source leaves out keeps the template's own default; a declared end that would meet or
+ * pass that other default gives nothing, so a one-sided range never makes an empty scale. A slot bound to the scale,
+ * a saved definition's defaults and the placement's own values all still win (`resolvePlacement`'s layers).
+ */
+export function metaScaleDefaults(template: Pick<SettingsTemplate, 'scaleFields' | 'fields'>, meta: ColumnMeta | undefined): Sparse {
+  const f = template.scaleFields;
+  if (!f) return {};
+  const r = metaScale(meta);
+  if (r.min === undefined && r.max === undefined) return {};
+  const lo = r.min ?? finite(template.fields[f.min]?.value);
+  const hi = r.max ?? finite(template.fields[f.max]?.value);
+  if (lo !== undefined && hi !== undefined && lo >= hi) return {};
+  return { ...(r.min !== undefined ? { [f.min]: r.min } : {}), ...(r.max !== undefined ? { [f.max]: r.max } : {}) };
 }
