@@ -8,7 +8,7 @@ IoT platform domain — device fleet management, telemetry, rulesets, alarms, an
 access/     restricted IoT access: TargetAccessPanel ("Who can see this" for a site, asset or device), SubjectAccessPanel (what a member or group can see, with a member's preview), IotAccessView (the page: subject picker + panel), AccessSubjectPicker (NB restricted IoT access)
 alarm/      alarm components and views (OD-9: Alarm, five severities; alarm-severity.ts is the one severity table)
 asset/      sites and assets: the table page with its asset and map drawers, the tree and pickers, device placement (phase 08; NB iot_asset)
-camera/     RecordingTimeline: the day bar of a camera's recordings (footage, gaps, kept clips, event markers, a slider cursor); NB iot_camera phase 10
+camera/     RecordingTimeline: the day bar of a camera's recordings (footage, gaps, kept clips, event markers, a slider cursor); NB iot_camera phase 10. SnapshotSchedule: a camera's still pictures on a schedule (a switch, every N minutes, Save; the last and next picture, a pause with its reason); NB iot_camera phase 09
 api/        the adapter contract, the live contract and IotAdapterProvider (docs/concepts/iot-platform/phases/00)
 device/     device components and views (the Log timeline and useDeviceLog; DeviceQuickView, the list's drawer)
 pki/        device certificates: status badge, detail card (Renew, Revoke), revoke dialog, recovery request card, the two lists (phase 13; NB iot_pki)

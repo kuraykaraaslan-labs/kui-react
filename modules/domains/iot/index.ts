@@ -13,6 +13,8 @@ export { LogStreamRow } from './telemetry/LogStreamRow';
 export type { LogLevel } from './telemetry/LogStreamRow';
 export { RecordingTimeline } from './camera/RecordingTimeline';
 export type { RecordingTimelineProps, RecordingRange, RecordingClipRange, RecordingMarker } from './camera/RecordingTimeline';
+export { SnapshotSchedule, SNAPSHOT_INTERVAL_MIN, SNAPSHOT_INTERVAL_MAX } from './camera/SnapshotSchedule';
+export type { SnapshotScheduleProps } from './camera/SnapshotSchedule';
 
 // ── Platform screens: adapter, live, texts (phase 00) ─────────────────────────────────────────────────────────────────
 export * from './api/adapter';
