@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createDemoOtaAdapter } from './demo-ota';
 import { FirmwareDetailView } from './FirmwareDetailView';
+import { SigningKeysDrawer } from './SigningKeysDrawer';
 import { FirmwareListView } from './FirmwareListView';
 import { compareOtaVersions } from './FirmwareUploadDrawer';
 import { OTA_MESSAGES, flattenOtaMessages, otaMessagesFrom } from './messages';
@@ -64,6 +65,22 @@ describe('OTA views (iot-platform 06)', () => {
     await userEvent.click(within(drawer).getByRole('button', { name: OTA_MESSAGES.assign.submit }));
     const confirm = (await screen.findAllByRole('dialog')).at(-1)!;
     expect(within(confirm).getByText(/Send roltek-rut-fw 24.10.1-r1234 to 1 devices\?/)).toBeTruthy();
+  });
+
+  it('without assignFleet the Assign drawer offers single devices only (a viewer limited to some devices)', async () => {
+    const adapter = createDemoOtaAdapter({ delayMs: 0 });
+    render(<FirmwareDetailView adapter={adapter} packageId="pkg-2" can={{ ...CAN, assignFleet: false }} />);
+    await userEvent.click(await screen.findByRole('button', { name: OTA_MESSAGES.detail.assign }));
+    const drawer = await screen.findByRole('dialog');
+    const to = within(drawer).getByLabelText(OTA_MESSAGES.assign.to) as HTMLSelectElement;
+    expect([...to.options].map((o) => o.value)).toEqual(['DEVICE']);
+  });
+
+  it('without revokeKeys the signing keys can be added but not revoked', async () => {
+    const adapter = createDemoOtaAdapter({ delayMs: 0 });
+    render(<SigningKeysDrawer open onClose={() => {}} adapter={adapter} canManage canRevoke={false} />);
+    expect(await screen.findByRole('region', { name: OTA_MESSAGES.keys.add })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: OTA_MESSAGES.keys.revoke })).toBeNull();
   });
 
   it('keeps an LTE device waiting until updates over LTE are allowed for it, asking first (OD-7)', async () => {

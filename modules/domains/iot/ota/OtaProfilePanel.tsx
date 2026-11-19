@@ -65,7 +65,9 @@ export function OtaProfilePanel({ adapter, profileId, profileName, can = {}, pac
       : <div className={cn('flex justify-center p-6', className)} role="status" aria-label={m.common.loading}><Spinner label={null} /></div>;
   }
 
-  const ro = !can.assign || busy;
+  // a profile's settings and assignments reach all its devices: the fleet flag (absent: `assign`)
+  const fleet = can.assignFleet ?? can.assign;
+  const ro = !fleet || busy;
   const set = <K extends keyof OtaProfileSettings>(k: K, v: OtaProfileSettings[K]) => setForm((f) => (f ? { ...f, [k]: v } : f));
   const numError = (k: keyof typeof LIMITS) => {
     const [lo, hi] = LIMITS[k];
@@ -116,7 +118,7 @@ export function OtaProfilePanel({ adapter, profileId, profileName, can = {}, pac
         </div>
         {notice && <Callout variant="tip">{notice}</Callout>}
         {error && <Callout variant="danger" role="alert">{error}</Callout>}
-        {can.assign ? (
+        {fleet ? (
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setForm(saved)} disabled={busy || !changed.length}>{m.common.cancel}</Button>
             <Button variant="primary" loading={busy} disabled={busy || !changed.length || invalid} onClick={() => (form.allowMetered && !saved.allowMetered ? setAskMetered(true) : void save())}>{m.common.save}</Button>
@@ -126,7 +128,7 @@ export function OtaProfilePanel({ adapter, profileId, profileName, can = {}, pac
       <section className="space-y-2 rounded-lg border border-border p-4" aria-label={m.profile.current}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-base font-semibold text-text-primary">{m.profile.current}</h3>
-          {can.assign && saved.otaEnabled && <Button variant="primary" onClick={() => setAssigning(true)}>{m.profile.assign}</Button>}
+          {fleet && saved.otaEnabled && <Button variant="primary" onClick={() => setAssigning(true)}>{m.profile.assign}</Button>}
         </div>
         {current ? (
           <p className="flex flex-wrap items-center gap-2 text-sm">

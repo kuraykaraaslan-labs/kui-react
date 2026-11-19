@@ -128,6 +128,8 @@ export function FirmwareDetailView({ adapter, packageId, can = {}, backHref, dev
   ];
   const title = { title: pkg.title, version: pkg.version };
 
+  // what reaches many devices at once (profile / group assignments, rollouts); absent: the same as `assign`
+  const fleet = can.assignFleet ?? can.assign;
   return (
     <div className={cn('space-y-5', className)} data-ota-package={pkg.packageId}>
       {backHref && <a href={backHref} className="text-sm text-text-secondary hover:text-text-primary">← {m.detail.back}</a>}
@@ -189,13 +191,15 @@ export function FirmwareDetailView({ adapter, packageId, can = {}, backHref, dev
         filterFields={filters}
         defaultSort={[{ key: 'createdAt', dir: 'desc' }]}
         emptyMessage={m.detail.noAssignments}
-        rowActions={can.assign ? [{ id: 'remove', label: m.detail.remove, destructive: true, onClick: (r) => setAsk({ remove: r }) }] : undefined}
+        // a device's assignment is the viewer's with `assign`; a profile's or a group's reaches many devices (`assignFleet`)
+        rowActions={can.assign ? [{ id: 'remove', label: m.detail.remove, destructive: true, hidden: (r) => r.targetType !== 'DEVICE' && !fleet, onClick: (r) => setAsk({ remove: r }) }] : undefined}
       />
       <OtaRolloutView
-        adapter={adapter} packageId={pkg.packageId} counts={counts} canRetry={can.assign} canManageRollouts={can.assign} title={pkg.title} version={pkg.version}
+        adapter={adapter} packageId={pkg.packageId} counts={counts} canRetry={can.assign} canManageRollouts={fleet} title={pkg.title} version={pkg.version}
         deviceHref={deviceHref} reloadKey={tick} messages={m} locale={lang}
       />
       <OtaAssignDrawer
+        targetTypes={fleet ? undefined : ['DEVICE']}
         open={assigning}
         onClose={() => setAssigning(false)}
         adapter={adapter}

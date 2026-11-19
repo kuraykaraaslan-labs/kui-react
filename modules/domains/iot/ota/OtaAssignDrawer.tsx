@@ -29,6 +29,8 @@ export interface OtaAssignDrawerProps {
   pkg?: OtaPackage | null;
   packages?: readonly OtaPackage[];
   preset?: OtaAssignPreset;
+  /** The kinds of target offered (absent: profile, group and device). A viewer who may assign single devices only gets `['DEVICE']`. */
+  targetTypes?: readonly OtaTargetType[];
   onAssigned: () => void;
   messages?: OtaMessagesInput;
   locale?: string;
@@ -52,10 +54,12 @@ export function previewLines(m: OtaMessages, p: OtaAssignPreview): { lines: stri
  * a profile or some devices may be sent in waves (`OtaWavesEditor`, the usual plan to start from); the check then shows each wave's size.
  * Nothing is saved before "Assign".
  */
-export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset, onAssigned, messages, locale }: OtaAssignDrawerProps) {
+export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset, targetTypes, onAssigned, messages, locale }: OtaAssignDrawerProps) {
   const { m } = useOtaText(messages, locale);
+  const offered: readonly OtaTargetType[] = targetTypes?.length ? targetTypes : ['PROFILE', 'GROUP', 'DEVICE'];
+  const firstType: OtaTargetType = preset?.targetType ?? (offered.includes('PROFILE') ? 'PROFILE' : offered[0]!);
   const [chosenId, setChosenId] = useState('');
-  const [targetType, setTargetType] = useState<OtaTargetType>(preset?.targetType ?? 'PROFILE');
+  const [targetType, setTargetType] = useState<OtaTargetType>(firstType);
   const [profiles, setProfiles] = useState<OtaOption[]>([]);
   const [profileId, setProfileId] = useState('');
   const [wholeProfile, setWholeProfile] = useState(false);
@@ -73,7 +77,7 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
   const chosen = pkg ?? ready.find((p) => p.packageId === chosenId) ?? null;
 
   const close = () => {
-    setChosenId(''); setTargetType(preset?.targetType ?? 'PROFILE'); setProfileId(''); setWholeProfile(false); setSearch(''); setPicked([]);
+    setChosenId(''); setTargetType(firstType); setProfileId(''); setWholeProfile(false); setSearch(''); setPicked([]);
     setPreview(null); setError(null); setAsking(false); setInWaves(false); setWaves(defaultOtaWaves());
     onClose();
   };
@@ -174,7 +178,8 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
           <>
             <Select
               id="ota-assign-to" label={m.assign.to} value={targetType} onChange={(e) => { setTargetType(e.target.value as OtaTargetType); setPicked([]); }}
-              options={[{ value: 'PROFILE', label: m.assign.toProfile }, { value: 'GROUP', label: m.assign.toGroup }, { value: 'DEVICE', label: m.assign.toDevice }]}
+              options={[{ value: 'PROFILE', label: m.assign.toProfile }, { value: 'GROUP', label: m.assign.toGroup }, { value: 'DEVICE', label: m.assign.toDevice }]
+                .filter((o) => offered.includes(o.value as OtaTargetType))}
               hint={targetType === 'PROFILE' ? m.assign.toProfileHint : targetType === 'GROUP' ? m.assign.toGroupHint : undefined}
             />
             <Select

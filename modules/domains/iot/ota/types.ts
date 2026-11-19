@@ -185,8 +185,16 @@ export interface OtaAbilities {
   managePackages?: boolean;
   /** Assign, change OTA settings, retry. */
   assign?: boolean;
+  /**
+   * Assign to a profile or a group, remove such an assignment, change a profile's OTA settings and act on rollouts: what reaches many
+   * devices at once. Absent: the same as `assign`. A host whose viewer works on single devices only (a member restricted to some devices)
+   * gives `assign` without this.
+   */
+  assignFleet?: boolean;
   /** Register and revoke signing public keys. */
   manageKeys?: boolean;
+  /** Revoke a signing key (it cancels attempts across the fleet). Absent: the same as `manageKeys`. */
+  revokeKeys?: boolean;
 }
 
 // ── rollouts in waves (NB iot_ota 03) ────────────────────────────────────────────────────────────────────────────────────────────

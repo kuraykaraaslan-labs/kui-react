@@ -22,8 +22,10 @@ export interface SigningKeysDrawerProps {
   open: boolean;
   onClose: () => void;
   adapter: OtaAdapter;
-  /** The viewer may add and revoke keys (the account owner). */
+  /** The viewer may add keys (the account owner). */
   canManage?: boolean;
+  /** The viewer may revoke keys (it cancels attempts across the fleet). Absent: the same as `canManage`. */
+  canRevoke?: boolean;
   messages?: OtaMessagesInput;
   locale?: string;
 }
@@ -33,7 +35,7 @@ export interface SigningKeysDrawerProps {
  * holds a private key and never signs). A DataTable (sort, filter by kind and state) with Revoke per key behind a ConfirmDialog that says
  * what it does (its packages are revoked, their updates not yet installing are stopped); the add form below for the owner.
  */
-export function SigningKeysDrawer({ open, onClose, adapter, canManage, messages, locale }: SigningKeysDrawerProps) {
+export function SigningKeysDrawer({ open, onClose, adapter, canManage, canRevoke = canManage, messages, locale }: SigningKeysDrawerProps) {
   const { m, locale: lang } = useOtaText(messages, locale);
   const [keys, setKeys] = useState<OtaSigningKey[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -114,7 +116,7 @@ export function SigningKeysDrawer({ open, onClose, adapter, canManage, messages,
           filterFields={filters}
           defaultSort={[{ key: 'createdAt', dir: 'desc' }]}
           emptyMessage={m.keys.empty}
-          rowActions={canManage ? [{ id: 'revoke', label: m.keys.revoke, destructive: true, hidden: (r) => !!r.revokedAt, onClick: (r) => setRevoking(r) }] : undefined}
+          rowActions={canRevoke ? [{ id: 'revoke', label: m.keys.revoke, destructive: true, hidden: (r) => !!r.revokedAt, onClick: (r) => setRevoking(r) }] : undefined}
         />
         {canManage ? (
           <section className="space-y-3 rounded-md border border-border p-3" aria-label={m.keys.add}>

@@ -125,7 +125,7 @@ export function FirmwareListView({ adapter, can = {}, packageHref, onOpenPackage
         messages={m}
         onUploaded={(p) => { setUploading(false); setNotice(fill(m.list.uploadedNotice, { title: p.title, version: p.version })); setTick((t) => t + 1); }}
       />
-      <SigningKeysDrawer open={keysOpen} onClose={() => setKeysOpen(false)} adapter={adapter} canManage={can.manageKeys} messages={m} />
+      <SigningKeysDrawer open={keysOpen} onClose={() => setKeysOpen(false)} adapter={adapter} canManage={can.manageKeys} canRevoke={can.revokeKeys ?? can.manageKeys} messages={m} />
     </div>
   );
 }
