@@ -222,6 +222,21 @@ export const IOT_MESSAGES = {
     noFootage: 'Nothing was recorded in this period.',
     legend: 'Recorded footage is green, kept clips are outlined, events are dots. Use the arrow keys to move a minute (with Shift ten), Home and End for the ends, Enter to play.',
   },
+  snapshotSchedule: {
+    title: 'Pictures on a schedule',
+    toggle: 'Take a picture by itself',
+    toggleHint: 'The camera sends one still picture each time; nothing is streamed. Each picture uses the camera storage and the month\'s bytes like one taken by hand, and the oldest go first when the storage is full.',
+    interval: 'Every (minutes)',
+    intervalHint: 'From {min} to {max} minutes.',
+    invalid: 'Enter a whole number of minutes from {min} to {max}.',
+    every: 'A picture is taken every {n} minutes.',
+    off: 'Pictures are taken only when someone asks.',
+    next: 'Next picture about {time}.',
+    last: 'Last scheduled picture: {time}.',
+    paused: 'Paused after several failed tries in a row: {reason}. Fix it, then save to try again.',
+    save: 'Save',
+    resume: 'Try again',
+  },
   /* Why a session ended (NB iot_device IOT_DISCONNECT_REASONS and the gateway's finer reasons); an unknown code shows as it is. */
   disconnectReason: {
     client_disconnect: 'The device closed the connection',

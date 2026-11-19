@@ -1,6 +1,7 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { RecordingTimeline, type RecordingClipRange, type RecordingMarker, type RecordingRange } from '@/modules/domains/iot/camera/RecordingTimeline';
+import { SnapshotSchedule } from '@/modules/domains/iot/camera/SnapshotSchedule';
 import { Card } from '@/modules/ui/Card';
 import { PageHeader } from '@/modules/ui/PageHeader';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
@@ -26,12 +27,18 @@ function demoDay(dayStart: number) {
   return { coverage, gaps, markers, clips };
 }
 
-/** /theme/iot/recordings — a camera's recordings day (NB iot_camera phase 10): the timeline the Recordings tab of a device puts above its player. */
+/** /theme/iot/recordings — a camera's recordings day (NB iot_camera phase 10): the timeline the Recordings tab of a device puts above its player; below it, the
+ * camera's still pictures on a schedule (SnapshotSchedule, NB iot_camera phase 09). */
 export default function RecordingsPage() {
   const [dayStart] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); });
   const day = useMemo(() => demoDay(dayStart), [dayStart]);
   const [cursor, setCursor] = useState<Date | null>(null);
   const [playing, setPlaying] = useState<Date | null>(null);
+  // the camera's still pictures on a schedule (NB iot_camera phase 09): saved here in memory, as a host saves through its API
+  const [interval, setInterval_] = useState<number | null>(15);
+  const [saving, setSaving] = useState(false);
+  const [shownAt] = useState(() => Date.now());
+  const saveSchedule = async (n: number | null) => { setSaving(true); await new Promise((r) => setTimeout(r, 400)); setInterval_(n); setSaving(false); };
   return (
     <>
       <DocumentTitle text="Recordings — IoT Theme" />
@@ -53,6 +60,16 @@ export default function RecordingsPage() {
           <div className="flex aspect-video w-full items-center justify-center rounded-md bg-black text-sm text-white/80" role="status">
             {playing ? `The player plays the recording from ${playing.toLocaleString()} (the host's player; the demo has no video).` : 'Choose a moment on the bar and press Enter.'}
           </div>
+        </Card>
+        <Card className="p-4">
+          <SnapshotSchedule
+            intervalMin={interval}
+            lastAt={interval ? new Date(shownAt - 4 * MIN) : null}
+            nextAt={interval ? new Date(shownAt + (interval - 4) * MIN) : null}
+            canManage
+            saving={saving}
+            onSave={saveSchedule}
+          />
         </Card>
       </div>
     </>
