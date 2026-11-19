@@ -66,8 +66,12 @@ import { PlacedDeviceTable } from '@/modules/domains/iot/asset/PlacedDeviceTable
 import { AssetRelationTable } from '@/modules/domains/iot/asset/AssetRelationTable';
 import { DevicePlacementPanel } from '@/modules/domains/iot/asset/DevicePlacementPanel';
 import { DevicePlacementPicker } from '@/modules/domains/iot/asset/DevicePlacementPicker';
-import type { AssetCrumb, AssetNode, AssetRecord, AssetRelation, AssetRow, AssetSummary, PlacedDevice } from '@/modules/domains/iot/types/asset';
-import { IotApiError, type AssetListQuery, type IotAdapter, type IotProvisioningApi } from '@/modules/domains/iot/api/adapter';
+import { TargetAccessPanel } from '@/modules/domains/iot/access/TargetAccessPanel';
+import { SubjectAccessPanel } from '@/modules/domains/iot/access/SubjectAccessPanel';
+import { IotAccessView } from '@/modules/domains/iot/access/IotAccessView';
+import type { IotAccessGrant, IotAccessSubject } from '@/modules/domains/iot/types/access';
+import { subtreeIds, type AssetCrumb, type AssetNode, type AssetRecord, type AssetRelation, type AssetRow, type AssetSummary, type PlacedDevice } from '@/modules/domains/iot/types/asset';
+import { IotApiError, type AssetListQuery, type IotAccessApi, type IotAdapter, type IotProvisioningApi } from '@/modules/domains/iot/api/adapter';
 import type { Alarm, AlarmEvent } from '@/modules/domains/iot/types/alarm';
 import type { AttributeEntry, DeviceConnectionEvent, DeviceLogEntry, DeviceLogFilter, DeviceRecord } from '@/modules/domains/iot/types/device';
 
@@ -77,9 +81,9 @@ const MIN = 60_000;
 const wait = (ms = 400) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** One place builds the entry, so the registry's `sourceCode` is a usage snippet written next to the variants. */
-function entry(def: Omit<ShowcaseComponent, 'sourceCode' | 'category' | 'since'> & { usage: string }): ShowcaseComponent {
-  const { usage, ...rest } = def;
-  const out = { ...rest, category: 'Domain', since: '2026-10', status: 'beta' } as ShowcaseComponent;
+function entry(def: Omit<ShowcaseComponent, 'sourceCode' | 'category' | 'since'> & { usage: string; since?: string }): ShowcaseComponent {
+  const { usage, since = '2026-10', ...rest } = def;
+  const out = { ...rest, category: 'Domain', since, status: 'beta' } as ShowcaseComponent;
   out.sourceCode = usage;
   return out;
 }
@@ -270,13 +274,92 @@ const RELATIONS: AssetRelation[] = [
   { relationId: 'rl3', fromType: 'DEVICE', fromId: 'd2', toType: 'ASSET', toId: 'bldg-a', type: 'MONITORS', fromName: 'Edge gateway 1', toName: 'Building A' },
 ];
 
+// ── restricted access (NB restricted IoT access) ──
+
+const ACCESS_SUBJECTS: IotAccessSubject[] = [
+  { type: 'USER', id: 'u-ada', label: 'Ada Lovelace', hint: 'ada@example.com' },
+  { type: 'USER', id: 'u-ayse', label: 'Ayşe Kaya', hint: 'ayse@example.com' },
+  { type: 'USER', id: 'u-alex', label: 'Alex Müller', hint: 'alex@example.com' },
+  { type: 'USER', id: 'u-sam', label: 'Sam Lee', hint: 'sam@example.com' },
+  { type: 'GROUP', id: 'g-hall', label: 'Hall 2 operators', hint: 'Group' },
+  { type: 'GROUP', id: 'g-depot', label: 'Depot staff', hint: 'Group' },
+];
+/** Ada's role sees everything; Ayşe is in Hall 2 operators; Sam has left the workspace. */
+const ACCESS_ALL = new Set(['u-ada']);
+const ACCESS_GROUPS: Record<string, string[]> = { 'u-ayse': ['g-hall'], 'u-alex': ['g-depot'] };
+const ACCESS_FORMER = new Set(['u-sam']);
+const ALL_ASSET_IDS = ASSET_ROWS.map((r) => r.assetId);
+
+/** Grants in memory: given, removed, listed by subject or target, and a member's effective access worked out from the tree. */
+function accessFixture(fail: boolean): IotAccessApi {
+  const failing = async () => { await wait(); throw new IotApiError('unavailable', 'The server did not answer.'); };
+  const nameOf = (type: 'ASSET' | 'DEVICE', id: string) => (type === 'ASSET' ? findAsset(id)?.node.name : DEVICES.find((d) => d.deviceId === id)?.name) ?? null;
+  const subjectOf = (id: string) => ACCESS_SUBJECTS.find((x) => x.id === id);
+  const grant = (grantId: string, subjectId: string, targetType: 'ASSET' | 'DEVICE', targetId: string, days: number): IotAccessGrant => {
+    const sub = subjectOf(subjectId);
+    return { grantId, subjectType: sub?.type ?? 'USER', subjectId, subjectLabel: sub?.label ?? null, targetType, targetId, targetName: nameOf(targetType, targetId), createdBy: 'Ada Lovelace', createdAt: ago(days * 86_400_000) };
+  };
+  let grants: IotAccessGrant[] = [
+    grant('gr1', 'u-ayse', 'ASSET', 'line-3', 30),
+    grant('gr2', 'u-ayse', 'DEVICE', 'd4', 12),
+    grant('gr3', 'g-hall', 'ASSET', 'bldg-a', 60),
+    grant('gr4', 'g-depot', 'ASSET', 'depot', 45),
+    grant('gr5', 'u-alex', 'DEVICE', 'd2', 3),
+    { ...grant('gr6', 'u-alex', 'DEVICE', 'd-old', 90), targetName: null },
+    grant('gr7', 'u-ada', 'ASSET', 'plant', 120),
+    grant('gr8', 'u-sam', 'ASSET', 'cold', 200),
+  ];
+  let n = 100;
+  return {
+    listGrants: fail ? failing : async (q) => {
+      await wait();
+      const rows = grants.filter((g) => (!q.subjectType || g.subjectType === q.subjectType) && (!q.subjectId || g.subjectId === q.subjectId)
+        && (!q.targetType || g.targetType === q.targetType) && (!q.targetId || g.targetId === q.targetId));
+      return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: rows.length };
+    },
+    async createGrant(input) {
+      await wait();
+      if (grants.some((g) => g.subjectType === input.subjectType && g.subjectId === input.subjectId && g.targetType === input.targetType && g.targetId === input.targetId)) {
+        throw new IotApiError('conflict', 'This member or group already has this access.');
+      }
+      const g = { ...grant(`gr${++n}`, input.subjectId, input.targetType, input.targetId, 0), createdAt: new Date() };
+      grants = [g, ...grants];
+      return g;
+    },
+    async deleteGrant(id) {
+      await wait();
+      if (!grants.some((g) => g.grantId === id)) throw new IotApiError('not_found', 'Grant not found.');
+      grants = grants.filter((g) => g.grantId !== id);
+    },
+    effective: fail ? failing : async (userId) => {
+      await wait();
+      const mine = grants.filter((g) => g.subjectId === userId);
+      const held = grants.filter((g) => g.subjectId === userId || (ACCESS_GROUPS[userId] ?? []).includes(g.subjectId));
+      const counts = { assets: mine.filter((g) => g.targetType === 'ASSET').length, devices: mine.filter((g) => g.targetType === 'DEVICE').length };
+      if (ACCESS_ALL.has(userId)) return { member: true, assets: { all: true, count: null, ids: ALL_ASSET_IDS }, devices: { all: true, count: null, ids: DEVICES.map((d) => d.deviceId) }, grants: counts };
+      if (ACCESS_FORMER.has(userId)) return { member: false, assets: { all: false, count: 0, ids: [] }, devices: { all: false, count: 0, ids: [] }, grants: counts };
+      const assets = new Set<string>();
+      for (const g of held) if (g.targetType === 'ASSET' && g.targetName) subtreeIds(ASSET_TREE, g.targetId).forEach((id) => assets.add(id));
+      const devices = new Set(held.filter((g) => g.targetType === 'DEVICE' && g.targetName).map((g) => g.targetId));
+      for (const p of PLACED) if (assets.has(p.placement.assetId)) devices.add(p.device.deviceId);
+      return { member: true, assets: { all: false, count: assets.size, ids: [...assets] }, devices: { all: false, count: devices.size, ids: [...devices] }, grants: counts };
+    },
+    async searchSubjects(text) {
+      await wait(200);
+      const q = text.trim().toLowerCase();
+      return ACCESS_SUBJECTS.filter((x) => !q || x.label.toLowerCase().includes(q) || (x.hint ?? '').toLowerCase().includes(q));
+    },
+  };
+}
+
 function fixtureAdapter(fail = false): IotAdapter {
   const failing = async () => { await wait(); throw new IotApiError('unavailable', 'The server did not answer.'); };
   const alarms = ALARMS.map((a) => ({ ...a }));
   return {
     name: 'Showcase fixtures',
+    access: accessFixture(fail),
     async capabilities() {
-      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true, canManageProfiles: !fail, canManageAlarmRules: !fail, canManageRpcCommands: !fail, canManageAssets: !fail, canPlaceDevices: !fail, canReadDevices: !fail };
+      return { canCreateDevice: true, canDeleteDevice: true, canViewCredentials: true, canReadAttributes: true, canWriteAttributes: true, canActivateDevice: true, canReadAlarms: true, canAcknowledge: true, canClear: true, canComment: true, canSendRpc: true, canManageProfiles: !fail, canManageAlarmRules: !fail, canManageRpcCommands: !fail, canManageAssets: !fail, canPlaceDevices: !fail, canReadDevices: !fail, canManageAccess: !fail };
     },
     profiles: {
       transports: ['MQTT', 'HTTP', 'ANY', 'LORAWAN'],
@@ -319,7 +402,12 @@ function fixtureAdapter(fail = false): IotAdapter {
       async importAll(_p, commands) { await wait(); return commands.map((c, i) => ({ ...c, commandId: `i${i}` })); },
     },
     devices: {
-      list: fail ? failing : async (q) => { await wait(); return { items: DEVICES.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: DEVICES.length }; },
+      list: fail ? failing : async (q) => {
+        await wait();
+        const s = q.search?.toLowerCase();
+        const rows = s ? DEVICES.filter((d) => d.name.toLowerCase().includes(s) || (d.label ?? '').toLowerCase().includes(s)) : DEVICES;
+        return { items: rows.slice((q.page - 1) * q.pageSize, q.page * q.pageSize), total: rows.length };
+      },
       get: fail ? failing : async (id) => { await wait(); const d = DEVICES.find((x) => x.deviceId === id); if (!d) throw new IotApiError('not_found', 'Device not found.'); return d; },
       async create(input) { await wait(); return { device: { ...DEVICES[0], deviceId: 'new', name: input.name }, credential: { type: 'ACCESS_TOKEN' }, secret: { token: 'Xq7Lr2VbN8tKc4Mp9WzH3sJd6Fy1Ag5E' } }; },
       async activate(ids) { await wait(); return { activated: ids.length }; },
@@ -471,6 +559,15 @@ function AssetDialogDemo({ which }: { which: 'form' | 'child' | 'move' | 'place'
       {open && which === 'move' && <MoveAssetDialog open asset={{ assetId: 'line-3', name: 'Line 3', parentId: 'bldg-a' }} nodes={ASSET_TREE} onClose={() => setOpen(false)} />}
       {open && which === 'place' && <PlaceDevicesDialog open asset={{ assetId: 'press-3', name: 'Press 3' }} placedIds={new Set(['d1'])} onClose={() => setOpen(false)} />}
       {open && which === 'picker' && <DevicePlacementPicker open value="press-3" onClose={() => setOpen(false)} onPick={() => setOpen(false)} />}
+    </Fixture>
+  );
+}
+
+/** The access panels on the fixture adapter; `readOnly`: a viewer without `canManageAccess` (the list only). */
+function AccessDemo({ readOnly = false, fail = false, children }: { readOnly?: boolean; fail?: boolean; children: React.ReactNode }) {
+  return (
+    <Fixture fail={fail}>
+      {readOnly ? <IotAdapterProvider adapter={{}} capabilities={{ canManageAccess: false }}>{children}</IotAdapterProvider> : children}
     </Fixture>
   );
 }
@@ -1228,6 +1325,48 @@ export function buildIoTPlatformEntries(): ShowcaseComponent[] {
       variants: [
         { title: 'Placed', layout: 'stack', preview: <Fixture><DevicePlacementPanel deviceId="d1" hrefs={{ asset: (id) => `#asset-${id}` }} /></Fixture>, code: '<DevicePlacementPanel deviceId="d1" hrefs={hrefs} />' },
         { title: 'Not readable', layout: 'stack', preview: <Fixture fail><DevicePlacementPanel deviceId="d1" /></Fixture>, code: '<DevicePlacementPanel deviceId="d1" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-target-access-panel',
+      since: '2026-11',
+      title: 'TargetAccessPanel',
+      abbr: 'TA',
+      description: 'Who can see this (restricted IoT access): the members and groups given one site, asset or device, each with a Member / Group badge and when; a note on who sees it anyway (a role that sees everything, the Full IoT view group) and, for an asset, that access includes everything below it; Give access (a member or group picker) and Remove (asks first) for a viewer who manages access, a read-only list otherwise.',
+      filePath: 'modules/domains/iot/access/TargetAccessPanel.tsx',
+      usage: `<IotAdapterProvider adapter={adapter}><TargetAccessPanel targetType="ASSET" targetId={asset.assetId} targetName={asset.name} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'A building, managed', layout: 'stack', preview: <AccessDemo><TargetAccessPanel targetType="ASSET" targetId="bldg-a" targetName="Building A" /></AccessDemo>, code: '<TargetAccessPanel targetType="ASSET" targetId="bldg-a" targetName="Building A" />' },
+        { title: 'A device, read-only', layout: 'stack', preview: <AccessDemo readOnly><TargetAccessPanel targetType="DEVICE" targetId="d2" targetName="Edge gateway 1" /></AccessDemo>, code: '<TargetAccessPanel targetType="DEVICE" targetId="d2" targetName="Edge gateway 1" />' },
+        { title: 'Nobody yet', layout: 'stack', preview: <AccessDemo><TargetAccessPanel targetType="ASSET" targetId="server-room" targetName="Server room" /></AccessDemo>, code: '<TargetAccessPanel targetType="ASSET" targetId="server-room" targetName="Server room" />' },
+      ],
+    }),
+    entry({
+      id: 'iot-subject-access-panel',
+      since: '2026-11',
+      title: 'SubjectAccessPanel',
+      abbr: 'SA',
+      description: 'What a member or group can see (restricted IoT access): for a member, a preview of what they see now (every site and device through their role or the Full IoT view group, or how many through their grants); their grants with a Site or asset / Device badge ("Removed" when the target is gone); Add a site or asset (the asset tree), Add a device (a device search) and Remove, each refreshing the preview.',
+      filePath: 'modules/domains/iot/access/SubjectAccessPanel.tsx',
+      usage: `<IotAdapterProvider adapter={adapter}><SubjectAccessPanel subject={{ type: 'USER', id, label: name }} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'A member with grants', layout: 'stack', preview: <AccessDemo><SubjectAccessPanel subject={ACCESS_SUBJECTS[1]} /></AccessDemo>, code: "<SubjectAccessPanel subject={{ type: 'USER', id: 'u-ayse', label: 'Ayşe Kaya' }} />" },
+        { title: 'A member whose role sees everything', layout: 'stack', preview: <AccessDemo><SubjectAccessPanel subject={ACCESS_SUBJECTS[0]} /></AccessDemo>, code: "<SubjectAccessPanel subject={{ type: 'USER', id: 'u-ada', label: 'Ada Lovelace' }} />" },
+        { title: 'A group, read-only', layout: 'stack', preview: <AccessDemo readOnly><SubjectAccessPanel subject={ACCESS_SUBJECTS[4]} /></AccessDemo>, code: "<SubjectAccessPanel subject={{ type: 'GROUP', id: 'g-hall', label: 'Hall 2 operators' }} />" },
+        { title: 'Failing adapter', layout: 'stack', preview: <AccessDemo fail><SubjectAccessPanel subject={ACCESS_SUBJECTS[2]} /></AccessDemo>, code: '<SubjectAccessPanel subject={subject} />' },
+      ],
+    }),
+    entry({
+      id: 'iot-access-view',
+      since: '2026-11',
+      title: 'IotAccessView',
+      abbr: 'IX',
+      description: 'The IoT access page: pick a member or a group (members and groups searched together), then see and change which sites, assets and devices they can see; an empty state explains the page until a pick.',
+      filePath: 'modules/domains/iot/access/IotAccessView.tsx',
+      usage: `<IotAdapterProvider adapter={adapter}><IotAccessView subject={fromUrl} onSubjectChange={toUrl} /></IotAdapterProvider>`,
+      variants: [
+        { title: 'Nothing picked yet', layout: 'stack', preview: <AccessDemo><IotAccessView /></AccessDemo>, code: '<IotAccessView />' },
+        { title: 'A member picked', layout: 'stack', preview: <AccessDemo><IotAccessView defaultSubject={ACCESS_SUBJECTS[2]} /></AccessDemo>, code: '<IotAccessView defaultSubject={subject} />' },
       ],
     }),
   ];

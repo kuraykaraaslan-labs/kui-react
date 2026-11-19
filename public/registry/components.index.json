@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-13T06:50:55.317Z",
+  "generatedAt": "2026-11-19T05:51:47.066Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -3733,6 +3733,45 @@
       "status": "beta",
       "since": "2025-05",
       "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "common-card-brand-badge",
+      "name": "CardBrandBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/payment/CardBrandBadge.tsx",
+      "abbr": "Bd",
+      "description": "The small scheme chip of a saved card (VISA, MC, AMEX, TROY, MIR, UnionPay …) in the scheme colour, named for screen readers (\"Visa\"). Shared by SavedCardSelector and PaymentMethodList; an unknown brand is the grey •• chip.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "common-payment-method-list",
+      "name": "PaymentMethodList",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/payment/PaymentMethodList.tsx",
+      "abbr": "Pw",
+      "description": "A subscriber's saved payment methods in a DataTable: cards (with the CardBrandBadge), direct-debit mandates, billing agreements, SEPA mandates and bank tokens with last four digits, expiry, status (active, expiring, needs re-authorisation, revoked) and the default marker. Sort, search and filter by status and type. Row actions \"Make default\" and \"Remove\" (ConfirmDialog; `inUse` keeps the default until another one is chosen and warns that removing the last method turns renewals into payment requests); \"Add payment method\" in the header; empty, loading and read-only states. Never shows or takes card numbers: the host's provider page adds a method.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "common-consent-checkbox",
+      "name": "ConsentCheckbox",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/consent/ConsentCheckbox.tsx",
+      "abbr": "Ck",
+      "description": "An explicit consent, unticked by default (automatic renewal, terms, distance-selling pre-information): the box, the statement as its label and a \"Read the text\" link that opens the full versioned text in a Drawer without ticking the box. Required and invalid states with aria-required, aria-invalid and the error tied by aria-describedby; every string from `messages`.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
       "variantCount": 2
     },
     {
@@ -3755,7 +3794,7 @@
       "category": "Domain",
       "filePath": "modules/domains/common/payment/SavedCardSelector.tsx",
       "abbr": "SC",
-      "description": "Radio-group list of saved payment cards. Shows brand badge, masked number, expiry, and default indicator. Supports remove and add-new callbacks.",
+      "description": "Radio-group list of saved payment cards. Shows the CardBrandBadge, masked number, expiry, and default indicator. Remove asks through the ConfirmDialog first; add-new callback; every string from `messages`.",
       "status": "beta",
       "since": "2025-05",
       "designTokens": [],
@@ -3807,11 +3846,11 @@
       "category": "Domain",
       "filePath": "modules/domains/common/subscription/SubscriptionPlanCard.tsx",
       "abbr": "SP",
-      "description": "Subscription plan card displaying name, price with currency formatting, billing interval, and feature list with checkmarks. Highlights the popular and current plans. Accepts onSelect callback for plan switching.",
+      "description": "Subscription plan card: name, locale-aware price (\"Free\" at zero, a struck list price beside a discount), an optional interval switch, a price note, the renewal line (\"Renews on <date> for <amount>\" / \"Ends on <date>\"), the trial line (\"Trial ends on <date>; then <amount>\"), the \"Assigned by the operator\" badge, features and one action (none without onSelect or on the current plan; \"Selected\" with aria-pressed; actionNote in its place). \"Cancel renewal\" confirms in a ConfirmDialog with the no-refund sentence; \"Resume renewal\" on a plan that ends.",
       "status": "stable",
       "since": "2025-05",
       "designTokens": [],
-      "variantCount": 2
+      "variantCount": 4
     },
     {
       "id": "common-charts",
@@ -6817,6 +6856,45 @@
       "description": "Where a device is and what it is related to: the path of its asset with links, Change placement (DevicePlacementPicker, saying where it is now) and Remove placement (asks first, naming the device and the path), then the device's relations (RelationsSection); the device page Placement & relations tab.",
       "status": "beta",
       "since": "2026-10",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "iot-target-access-panel",
+      "name": "TargetAccessPanel",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/access/TargetAccessPanel.tsx",
+      "abbr": "TA",
+      "description": "Who can see this (restricted IoT access): the members and groups given one site, asset or device, each with a Member / Group badge and when; a note on who sees it anyway (a role that sees everything, the Full IoT view group) and, for an asset, that access includes everything below it; Give access (a member or group picker) and Remove (asks first) for a viewer who manages access, a read-only list otherwise.",
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "iot-subject-access-panel",
+      "name": "SubjectAccessPanel",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/access/SubjectAccessPanel.tsx",
+      "abbr": "SA",
+      "description": "What a member or group can see (restricted IoT access): for a member, a preview of what they see now (every site and device through their role or the Full IoT view group, or how many through their grants); their grants with a Site or asset / Device badge (\"Removed\" when the target is gone); Add a site or asset (the asset tree), Add a device (a device search) and Remove, each refreshing the preview.",
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 4
+    },
+    {
+      "id": "iot-access-view",
+      "name": "IotAccessView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/access/IotAccessView.tsx",
+      "abbr": "IX",
+      "description": "The IoT access page: pick a member or a group (members and groups searched together), then see and change which sites, assets and devices they can see; an empty state explains the page until a pick.",
+      "status": "beta",
+      "since": "2026-11",
       "designTokens": [],
       "variantCount": 2
     },

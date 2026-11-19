@@ -7,3 +7,4 @@ export * from './alarm-rule';
 export * from './asset';
 export * from './rules';
 export * from './settings';
+export * from './access';

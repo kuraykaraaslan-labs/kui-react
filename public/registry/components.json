@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-13T06:50:55.317Z",
+  "generatedAt": "2026-11-19T05:51:47.066Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -6151,10 +6151,83 @@
         {
           "title": "Flipped (CVV)",
           "code": "<CreditCardVisual brand=\"AMEX\" cardNumber=\"378282246310005\" cardholderName=\"JANE DOE\" expiryMonth=\"03\" expiryYear=\"26\" cvv=\"1234\" flipped />"
+        },
+        {
+          "title": "19 digits and translated labels",
+          "code": "<CreditCardVisual brand=\"UNIONPAY\" cardNumber=\"6200000000000000005\" cardholderName=\"LI WEI\" expiryMonth=\"05\" expiryYear=\"30\" />\n<CreditCardVisual brand=\"TROY\" cardNumber=\"9792\" messages={{ cardHolder: 'Kart sahibi', expires: 'Son kullanma' }} />"
         }
       ],
       "status": "beta",
       "since": "2025-05",
+      "designTokens": []
+    },
+    {
+      "id": "common-card-brand-badge",
+      "name": "CardBrandBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/payment/CardBrandBadge.tsx",
+      "abbr": "Bd",
+      "description": "The small scheme chip of a saved card (VISA, MC, AMEX, TROY, MIR, UnionPay …) in the scheme colour, named for screen readers (\"Visa\"). Shared by SavedCardSelector and PaymentMethodList; an unknown brand is the grey •• chip.",
+      "source": "<CardBrandBadge brand=\"VISA\" />",
+      "variants": [
+        {
+          "title": "Every brand",
+          "code": "{brands.map((b) => <CardBrandBadge key={b} brand={b} />)}"
+        },
+        {
+          "title": "Inline with a card number",
+          "code": "<CardBrandBadge brand=\"TROY\" /> <span className=\"font-mono\">•••• 9792</span>"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "common-payment-method-list",
+      "name": "PaymentMethodList",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/payment/PaymentMethodList.tsx",
+      "abbr": "Pw",
+      "description": "A subscriber's saved payment methods in a DataTable: cards (with the CardBrandBadge), direct-debit mandates, billing agreements, SEPA mandates and bank tokens with last four digits, expiry, status (active, expiring, needs re-authorisation, revoked) and the default marker. Sort, search and filter by status and type. Row actions \"Make default\" and \"Remove\" (ConfirmDialog; `inUse` keeps the default until another one is chosen and warns that removing the last method turns renewals into payment requests); \"Add payment method\" in the header; empty, loading and read-only states. Never shows or takes card numbers: the host's provider page adds a method.",
+      "source": "<PaymentMethodList\n  methods={methods}\n  inUse\n  onAdd={() => startSetupSession()}\n  onMakeDefault={(pm) => api.makeDefault(pm.methodId)}\n  onRemove={(pm) => api.remove(pm.methodId)}\n/>",
+      "variants": [
+        {
+          "title": "Methods of every kind",
+          "code": "<PaymentMethodList methods={methods} inUse onAdd={add} onMakeDefault={makeDefault} onRemove={remove} />"
+        },
+        {
+          "title": "Empty, loading and read-only",
+          "code": "<PaymentMethodList methods={[]} onAdd={add} />\n<PaymentMethodList methods={[]} loading />\n<PaymentMethodList methods={methods} readOnly />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "common-consent-checkbox",
+      "name": "ConsentCheckbox",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/common/consent/ConsentCheckbox.tsx",
+      "abbr": "Ck",
+      "description": "An explicit consent, unticked by default (automatic renewal, terms, distance-selling pre-information): the box, the statement as its label and a \"Read the text\" link that opens the full versioned text in a Drawer without ticking the box. Required and invalid states with aria-required, aria-invalid and the error tied by aria-describedby; every string from `messages`.",
+      "source": "<ConsentCheckbox\n  checked={consent}\n  onChange={setConsent}\n  required\n  invalid={submitted && !consent}\n  label=\"I agree that my subscription renews automatically …\"\n  textTitle=\"Automatic renewal terms\"\n  version={text.version}\n  text={text.body}\n/>",
+      "variants": [
+        {
+          "title": "Required, with the text",
+          "code": "<ConsentCheckbox checked={consent} onChange={setConsent} required label=\"I agree …\" textTitle=\"Automatic renewal terms\" version=\"v3\" text={body} />"
+        },
+        {
+          "title": "Invalid after submit",
+          "code": "<ConsentCheckbox checked={false} onChange={setConsent} required invalid label=\"I have read the pre-information.\" text={body} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
       "designTokens": []
     },
     {
@@ -6187,7 +6260,7 @@
       "category": "Domain",
       "filePath": "modules/domains/common/payment/SavedCardSelector.tsx",
       "abbr": "SC",
-      "description": "Radio-group list of saved payment cards. Shows brand badge, masked number, expiry, and default indicator. Supports remove and add-new callbacks.",
+      "description": "Radio-group list of saved payment cards. Shows the CardBrandBadge, masked number, expiry, and default indicator. Remove asks through the ConfirmDialog first; add-new callback; every string from `messages`.",
       "source": "<SavedCardSelector\n  cards={savedCards}\n  selectedCardId={selected}\n  onSelect={(id, card) => setSelected(id)}\n  onRemove={(id) => deleteCard(id)}\n  onAddNew={() => setShowForm(true)}\n/>",
       "variants": [
         {
@@ -6283,7 +6356,7 @@
       "category": "Domain",
       "filePath": "modules/domains/common/subscription/SubscriptionPlanCard.tsx",
       "abbr": "SP",
-      "description": "Subscription plan card displaying name, price with currency formatting, billing interval, and feature list with checkmarks. Highlights the popular and current plans. Accepts onSelect callback for plan switching.",
+      "description": "Subscription plan card: name, locale-aware price (\"Free\" at zero, a struck list price beside a discount), an optional interval switch, a price note, the renewal line (\"Renews on <date> for <amount>\" / \"Ends on <date>\"), the trial line (\"Trial ends on <date>; then <amount>\"), the \"Assigned by the operator\" badge, features and one action (none without onSelect or on the current plan; \"Selected\" with aria-pressed; actionNote in its place). \"Cancel renewal\" confirms in a ConfirmDialog with the no-refund sentence; \"Resume renewal\" on a plan that ends.",
       "source": "'use client';\nimport { SubscriptionPlanCard } from '@/modules/domains/common/subscription/SubscriptionPlanCard';\n\n<SubscriptionPlanCard\n  plan={{\n    planId: 'pro',\n    name: 'Pro',\n    price: 1900,\n    currency: 'USD',\n    interval: 'MONTHLY',\n    features: ['Unlimited projects', '10 team members', 'Priority support'],\n    isPopular: true,\n  }}\n  onSelect={(planId) => handleUpgrade(planId)}\n/>",
       "variants": [
         {
@@ -6293,6 +6366,14 @@
         {
           "title": "Single card states",
           "code": "<SubscriptionPlanCard plan={plan} isCurrent />\n<SubscriptionPlanCard plan={{ ...plan, isPopular: true }} onSelect={handleSelect} />"
+        },
+        {
+          "title": "Renewal, trial and operator assignment",
+          "code": "<SubscriptionPlanCard plan={pro} isCurrent renewal={{ date: periodEnd, amount: pro.price, ends: cancelAtPeriodEnd }}\n  onCancelRenewal={cancelRenewal} onResumeRenewal={resumeRenewal} />\n<SubscriptionPlanCard plan={team} isCurrent trial={{ endsOn: trialEnd, thenAmount: team.price }} />\n<SubscriptionPlanCard plan={pro} isCurrent assignedByOperator renewal={{ date: termEnd, ends: true }} />"
+        },
+        {
+          "title": "Interval switch, discount and a free plan",
+          "code": "<SubscriptionPlanCard plan={plan} intervalOptions={[{ value: 'MONTHLY', label: 'Monthly' }, { value: 'YEARLY', label: 'Yearly', badge: '-17%' }]}\n  onIntervalChange={setTerm} discount={{ amount: 24000, note: 'LAUNCH: first year' }} actionLabel=\"Upgrade to Pro\" onSelect={choose} />\n<SubscriptionPlanCard plan={free} onSelect={choose} actionNote=\"Assigned by your workspace plan\" />"
         }
       ],
       "status": "stable",
@@ -11588,6 +11669,87 @@
       ],
       "status": "beta",
       "since": "2026-10",
+      "designTokens": []
+    },
+    {
+      "id": "iot-target-access-panel",
+      "name": "TargetAccessPanel",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/access/TargetAccessPanel.tsx",
+      "abbr": "TA",
+      "description": "Who can see this (restricted IoT access): the members and groups given one site, asset or device, each with a Member / Group badge and when; a note on who sees it anyway (a role that sees everything, the Full IoT view group) and, for an asset, that access includes everything below it; Give access (a member or group picker) and Remove (asks first) for a viewer who manages access, a read-only list otherwise.",
+      "source": "<IotAdapterProvider adapter={adapter}><TargetAccessPanel targetType=\"ASSET\" targetId={asset.assetId} targetName={asset.name} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "A building, managed",
+          "code": "<TargetAccessPanel targetType=\"ASSET\" targetId=\"bldg-a\" targetName=\"Building A\" />"
+        },
+        {
+          "title": "A device, read-only",
+          "code": "<TargetAccessPanel targetType=\"DEVICE\" targetId=\"d2\" targetName=\"Edge gateway 1\" />"
+        },
+        {
+          "title": "Nobody yet",
+          "code": "<TargetAccessPanel targetType=\"ASSET\" targetId=\"server-room\" targetName=\"Server room\" />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-subject-access-panel",
+      "name": "SubjectAccessPanel",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/access/SubjectAccessPanel.tsx",
+      "abbr": "SA",
+      "description": "What a member or group can see (restricted IoT access): for a member, a preview of what they see now (every site and device through their role or the Full IoT view group, or how many through their grants); their grants with a Site or asset / Device badge (\"Removed\" when the target is gone); Add a site or asset (the asset tree), Add a device (a device search) and Remove, each refreshing the preview.",
+      "source": "<IotAdapterProvider adapter={adapter}><SubjectAccessPanel subject={{ type: 'USER', id, label: name }} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "A member with grants",
+          "code": "<SubjectAccessPanel subject={{ type: 'USER', id: 'u-ayse', label: 'Ayşe Kaya' }} />"
+        },
+        {
+          "title": "A member whose role sees everything",
+          "code": "<SubjectAccessPanel subject={{ type: 'USER', id: 'u-ada', label: 'Ada Lovelace' }} />"
+        },
+        {
+          "title": "A group, read-only",
+          "code": "<SubjectAccessPanel subject={{ type: 'GROUP', id: 'g-hall', label: 'Hall 2 operators' }} />"
+        },
+        {
+          "title": "Failing adapter",
+          "code": "<SubjectAccessPanel subject={subject} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "iot-access-view",
+      "name": "IotAccessView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/iot/access/IotAccessView.tsx",
+      "abbr": "IX",
+      "description": "The IoT access page: pick a member or a group (members and groups searched together), then see and change which sites, assets and devices they can see; an empty state explains the page until a pick.",
+      "source": "<IotAdapterProvider adapter={adapter}><IotAccessView subject={fromUrl} onSubjectChange={toUrl} /></IotAdapterProvider>",
+      "variants": [
+        {
+          "title": "Nothing picked yet",
+          "code": "<IotAccessView />"
+        },
+        {
+          "title": "A member picked",
+          "code": "<IotAccessView defaultSubject={subject} />"
+        }
+      ],
+      "status": "beta",
+      "since": "2026-11",
       "designTokens": []
     },
     {

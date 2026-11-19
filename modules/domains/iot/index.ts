@@ -144,6 +144,17 @@ export type { DevicePlacementPanelProps } from './asset/DevicePlacementPanel';
 export { RelationsSection } from './asset/RelationsSection';
 export type { RelationsSectionProps } from './asset/RelationsSection';
 
+// ── Restricted IoT access (NB restricted IoT access): who sees which sites, assets and devices ─────────────────────────────
+export { TargetAccessPanel } from './access/TargetAccessPanel';
+export type { TargetAccessPanelProps } from './access/TargetAccessPanel';
+export { SubjectAccessPanel, EffectiveAccessCard, scopeText } from './access/SubjectAccessPanel';
+export type { SubjectAccessPanelProps, EffectiveAccessCardProps } from './access/SubjectAccessPanel';
+export { IotAccessView } from './access/IotAccessView';
+export type { IotAccessViewProps } from './access/IotAccessView';
+export { AccessSubjectPicker } from './access/AccessSubjectPicker';
+export type { AccessSubjectPickerProps } from './access/AccessSubjectPicker';
+export { AccessSubjectBadge, AccessTargetBadge } from './access/AccessGrantTable';
+
 // ── Deprecated (OD-9): the Alert* names, for one release; removed in the next minor ───────────────────────────────────
 /** @deprecated use AlarmSeverityBadge; removed in the next minor. */
 export { AlarmSeverityBadge as AlertSeverityBadge } from './alarm/AlarmSeverityBadge';

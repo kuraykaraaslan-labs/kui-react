@@ -965,6 +965,24 @@
     "category": "Domain",
     "file": "common-credit-card-visual.md"
   },
+  "common-card-brand-badge": {
+    "name": "CardBrandBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "common-card-brand-badge.md"
+  },
+  "common-payment-method-list": {
+    "name": "PaymentMethodList",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "common-payment-method-list.md"
+  },
+  "common-consent-checkbox": {
+    "name": "ConsentCheckbox",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "common-consent-checkbox.md"
+  },
   "common-credit-card-form": {
     "name": "CreditCardForm",
     "layer": "domain",
@@ -2380,6 +2398,24 @@
     "layer": "domain",
     "category": "Domain",
     "file": "iot-device-placement-panel.md"
+  },
+  "iot-target-access-panel": {
+    "name": "TargetAccessPanel",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-target-access-panel.md"
+  },
+  "iot-subject-access-panel": {
+    "name": "SubjectAccessPanel",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-subject-access-panel.md"
+  },
+  "iot-access-view": {
+    "name": "IotAccessView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "iot-access-view.md"
   },
   "iot-device-settings-view": {
     "name": "DeviceSettingsView",

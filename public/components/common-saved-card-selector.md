@@ -7,7 +7,7 @@
 - **status:** beta
 - **since:** 2025-05
 
-Radio-group list of saved payment cards. Shows brand badge, masked number, expiry, and default indicator. Supports remove and add-new callbacks.
+Radio-group list of saved payment cards. Shows the CardBrandBadge, masked number, expiry, and default indicator. Remove asks through the ConfirmDialog first; add-new callback; every string from `messages`.
 
 ## Variants
 

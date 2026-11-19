@@ -5,6 +5,7 @@ IoT platform domain — device fleet management, telemetry, rulesets, alarms, an
 ## Subdirectories
 
 ```
+access/     restricted IoT access: TargetAccessPanel ("Who can see this" for a site, asset or device), SubjectAccessPanel (what a member or group can see, with a member's preview), IotAccessView (the page: subject picker + panel), AccessSubjectPicker (NB restricted IoT access)
 alarm/      alarm components and views (OD-9: Alarm, five severities; alarm-severity.ts is the one severity table)
 asset/      sites and assets: the table page with its asset and map drawers, the tree and pickers, device placement (phase 08; NB iot_asset)
 camera/     RecordingTimeline: the day bar of a camera's recordings (footage, gaps, kept clips, event markers, a slider cursor); NB iot_camera phase 10
@@ -15,16 +16,17 @@ profile/    device profile list, editor and its sections (online rule, auth mode
 ruleset/
 settings/   a device's settings from its own manifest (the Settings tab, SettingsForm, firewall / Wi-Fi / LTE hints, baselines, bulk jobs; phase 12)
 telemetry/
-types/      platform entities, one file per entity (alarm.ts, alarm-rule.ts, asset.ts, device.ts, profile.ts, rpc.ts); ../types.ts re-exports them
+types/      platform entities, one file per entity (access.ts, alarm.ts, alarm-rule.ts, asset.ts, device.ts, profile.ts, rpc.ts); ../types.ts re-exports them
 workspace/
 format.ts   relative / absolute time helpers
-messages.ts every text of the alarm and device components (IotMessagesInput for a host's translations)
+messages.ts every text of the kit's components, the `access` section included (IotMessagesInput for a host's translations)
 index.ts
 types.ts
 ```
 
 Views (`DeviceListView`, `DeviceDetailView`, `AlarmListView`, `AlarmDetailView`, `AlarmBellMenu`, `RpcConsoleView`, `DeviceProfileListView`,
-`DeviceProfileEditorView`, `AlarmRuleSetEditor`, `RpcCommandCatalogEditor`, `AssetsView`, `AssetDrawer`, `DevicePlacementPanel`) read only through the adapter of
+`DeviceProfileEditorView`, `AlarmRuleSetEditor`, `RpcCommandCatalogEditor`, `AssetsView`, `AssetDrawer`, `DevicePlacementPanel`, `IotAccessView`,
+`TargetAccessPanel`, `SubjectAccessPanel`) read only through the adapter of
 the nearest `IotAdapterProvider`; leaf components take data and callbacks (`DeviceQuickView` is opened by `DeviceListView` on a row
 click, its device kept in the host's URL through `onQueryChange(query, how)` / `initialQuery.device`). Vendored into next-boilerplate's IoT kit
 (`modules/iot_device_profile/ui/kui/iot/`), so they import generic pieces from `modules/ui` only and never the vertical's
@@ -42,6 +44,14 @@ vendor's device with the code on its screen, offered in the New device drawer be
 `renderQuarantine` (the host's approval view of the quarantined devices, opened in a drawer by "Awaiting approval (n)", which then
 replaces the "Quarantined (n)" quick filter) and `moreActions` (a "⋯" menu). The kit stays free of the host's modules: the host draws
 those views.
+
+## Restricted access
+
+`access/` draws who may see which IoT sites, assets and devices through the optional `adapter.access` (`IotAccessApi`: `listGrants`,
+`createGrant`, `deleteGrant`, `effective`, `searchSubjects`; the host merges its members and groups in the subject search). A grant on
+an asset opens it and everything below it; members whose role sees everything and members of the Full IoT view group see all without
+one. Writes (Give access, Add a site or asset, Add a device, Remove) are offered only with the `canManageAccess` capability; without it
+the lists are read-only. Without `adapter.access` the access components draw nothing.
 
 ## Rule chain editor
 

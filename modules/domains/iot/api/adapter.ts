@@ -14,6 +14,7 @@ import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
 import type {
   AssetInput, AssetNode, AssetRecord, AssetRow, AssetSummary, AssetRelation, AssetRelationInput, DevicePlacement, PlacedDevice, RelationEntityType,
 } from '../types/asset';
+import type { IotAccessGrant, IotAccessGrantInput, IotAccessGrantQuery, IotAccessSubject, IotEffectiveAccess } from '../types/access';
 
 /*
  * The IoT adapter contract (docs/concepts/iot-platform/phases/00-api-adapter-layer.md §0.2): every IoT view reads and writes
@@ -556,6 +557,27 @@ export interface IotTelemetryApi {
   deleteKeys?(deviceId: string, keys: string[]): Promise<{ deleted: string[] }>;
 }
 
+// ── restricted access (NB restricted IoT access) ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Who may see which IoT sites, assets and devices: grants of a site or asset (it and everything below it) or a device to a member
+ * or a group. Members whose role sees every IoT site and device, and members of the Full IoT view group, see everything without a
+ * grant. The host refuses a write from a viewer who may not manage access (`forbidden`) and a grant that already exists (`conflict`);
+ * a view offers the writes only with `canManageAccess`.
+ */
+export interface IotAccessApi {
+  /** One page of grants, narrowed by subject and / or target (the panels ask for one subject's or one target's). */
+  listGrants(query: IotAccessGrantQuery, signal?: AbortSignal): Promise<Page<IotAccessGrant>>;
+  /** Gives the subject the target; answers the stored grant. */
+  createGrant(input: IotAccessGrantInput): Promise<IotAccessGrant>;
+  /** Removes one grant (the subject may still see the target through another grant, their role or the Full IoT view group). */
+  deleteGrant(grantId: string): Promise<void>;
+  /** What one member sees now (the preview of a member's access). */
+  effective(userId: string, signal?: AbortSignal): Promise<IotEffectiveAccess>;
+  /** Members and groups matching the text (empty text: the first ones), merged by the host: the subject pickers. */
+  searchSubjects(text: string, signal?: AbortSignal): Promise<IotAccessSubject[]>;
+}
+
 // ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -604,6 +626,8 @@ export type IotCapabilities = {
   canDeleteTelemetry: boolean;
   /** Pick a certificate of the host's certificate authority for an X.509 credential (the authority is there and the viewer may read it). */
   canAttachCertificates: boolean;
+  /** Give and remove members' and groups' access to sites, assets and devices (an administrator who sees everything). */
+  canManageAccess: boolean;
 };
 
 /** Fail closed: nothing until the host says so. */
@@ -633,6 +657,7 @@ export const NO_CAPABILITIES: IotCapabilities = {
   canReadTelemetry: false,
   canDeleteTelemetry: false,
   canAttachCertificates: false,
+  canManageAccess: false,
 };
 
 export interface IotAdapter {
@@ -649,6 +674,8 @@ export interface IotAdapter {
   rpcCatalog?: IotRpcCatalogApi;
   assets?: IotAssetsApi;
   telemetry?: IotTelemetryApi;
+  /** Restricted access: grants, a member's effective access, the subject search. Absent: the access panels draw nothing. */
+  access?: IotAccessApi;
   capabilities?(signal?: AbortSignal): Promise<Partial<IotCapabilities>>;
 }
 
