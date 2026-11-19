@@ -1792,6 +1792,7 @@ export const IOT_MESSAGES = {
     what: 'Site, asset or device',
     granted: 'Granted',
     actions: 'Actions',
+    searchGrants: 'Search',
     loadError: 'Could not load the access list.',
     remove: 'Remove',
     removeNamed: 'Remove access of {subject} to {target}',

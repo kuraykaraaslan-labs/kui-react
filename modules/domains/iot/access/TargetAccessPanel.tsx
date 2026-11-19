@@ -92,13 +92,10 @@ export function TargetAccessPanel({ targetType, targetId, targetName, onChanged,
       <AccessGrantTable
         by="target"
         rows={grants.rows}
-        total={grants.total}
-        paging={grants.paging}
         error={grants.error}
         onRetry={() => void grants.load()}
-        onQueryChange={grants.onQueryChange}
         canManage={canManage}
-        onRemoved={() => { grants.removedOne(); onChanged?.(); }}
+        onRemoved={() => { void grants.load(); onChanged?.(); }}
         caption={fill(a.targetCaption, { name: targetName })}
         emptyMessage={a.targetEmpty}
         names={{ target: targetName }}

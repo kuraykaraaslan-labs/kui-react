@@ -77,11 +77,21 @@ async function pick(user: ReturnType<typeof userEvent.setup>, field: string, tex
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 describe('TargetAccessPanel', () => {
+  it('searches the grants in the browser (every grant was read, the table pages them itself)', async () => {
+    const user = userEvent.setup();
+    wrap(<TargetAccessPanel targetType="ASSET" targetId="bldg-a" targetName="Building A" />, { access: accessApi() });
+    const table = await screen.findByRole('table', { name: 'Members and groups who can see Building A' });
+    expect(within(table).getByText('Hall 2 operators')).toBeInTheDocument();
+    await user.type(screen.getByRole('searchbox'), 'Ada');
+    expect(await within(table).findByText('Ada Lovelace')).toBeInTheDocument();
+    expect(within(table).queryByText('Hall 2 operators')).toBeNull();
+  });
+
   it('lists who was given the target, with Member / Group badges and the date, and says who sees it anyway', async () => {
     const api = accessApi();
     wrap(<TargetAccessPanel targetType="ASSET" targetId="bldg-a" targetName="Building A" />, { access: api });
     const table = await screen.findByRole('table', { name: 'Members and groups who can see Building A' });
-    expect(api.listGrants).toHaveBeenCalledWith({ targetType: 'ASSET', targetId: 'bldg-a', page: 1, pageSize: 10 }, expect.anything());
+    expect(api.listGrants).toHaveBeenCalledWith({ targetType: 'ASSET', targetId: 'bldg-a', page: 1, pageSize: 200 }, expect.anything());
     expect(within(table).getByText('Ada Lovelace')).toBeInTheDocument();
     expect(within(table).getByText('Member')).toBeInTheDocument();
     expect(within(table).getByText('Hall 2 operators')).toBeInTheDocument();
@@ -184,7 +194,7 @@ describe('SubjectAccessPanel', () => {
     const api = accessApi({}, SUBJECT_GRANTS);
     wrap(<SubjectAccessPanel subject={ADA} />, { access: api, assets: assetsApi(), devices: devicesApi() });
     const table = await screen.findByRole('table', { name: 'Sites, assets and devices Ada Lovelace can see' });
-    expect(api.listGrants).toHaveBeenCalledWith({ subjectType: 'USER', subjectId: 'u-ada', page: 1, pageSize: 10 }, expect.anything());
+    expect(api.listGrants).toHaveBeenCalledWith({ subjectType: 'USER', subjectId: 'u-ada', page: 1, pageSize: 200 }, expect.anything());
     expect(within(table).getByText('Building A')).toBeInTheDocument();
     expect(within(table).getByText('Site or asset')).toBeInTheDocument();
     expect(within(table).getByText('Pump 4')).toBeInTheDocument();

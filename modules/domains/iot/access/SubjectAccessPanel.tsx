@@ -95,13 +95,10 @@ export function SubjectAccessPanel({ subject, onChanged, messages, className }: 
       <AccessGrantTable
         by="subject"
         rows={grants.rows}
-        total={grants.total}
-        paging={grants.paging}
         error={grants.error}
         onRetry={() => void grants.load()}
-        onQueryChange={grants.onQueryChange}
         canManage={canManage}
-        onRemoved={() => { grants.removedOne(); changed(); }}
+        onRemoved={() => { void grants.load(); changed(); }}
         caption={fill(a.subjectCaption, { name })}
         emptyMessage={fill(a.subjectEmpty, { name })}
         names={{ subject: name }}

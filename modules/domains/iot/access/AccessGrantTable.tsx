@@ -7,7 +7,7 @@ import { Badge } from '@/modules/ui/Badge';
 import { Button } from '@/modules/ui/Button';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { DataTable } from '@/modules/ui/Table/DataTable';
-import type { Column, DataTableQuery } from '@/modules/ui/Table/types';
+import type { Column, DataTableFilterField } from '@/modules/ui/Table/types';
 import { useIotAdapter, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { errorMessage, IotApiError } from '../api/adapter';
 import { fill, formatDateTime } from '../format';
@@ -16,18 +16,15 @@ import type { IotAccessGrant, IotAccessSubjectType, IotAccessTargetType } from '
 
 /**
  * AccessGrantTable — the grants of one target (`by="target"`: who, a Member / Group badge, granted) or of one subject (`by="subject"`:
- * what, a Site or asset / Device badge, "Removed" for a target that no longer exists, granted), one page at a time from the panel's
- * `useAccessGrants`. With `canManage` each row has Remove, which asks first (ConfirmDialog) and deletes through `access.deleteGrant`;
+ * what, a Site or asset / Device badge, "Removed" for a target that no longer exists, granted): every grant the panel's `useAccessGrants`
+ * read, searched, sorted, filtered (Member / Group, or Site or asset / Device) and paged in the browser (`mode="paginated"`). With `canManage` each row has Remove, which asks first (ConfirmDialog) and deletes through `access.deleteGrant`;
  * a grant someone removed meanwhile is said and the page read again. Internal to `TargetAccessPanel` and `SubjectAccessPanel`.
  */
 export type AccessGrantTableProps = {
   by: 'target' | 'subject';
   rows: IotAccessGrant[] | null;
-  total: number;
-  paging: { page: number; pageSize: number };
   error: string | null;
   onRetry: () => void;
-  onQueryChange: (q: DataTableQuery) => void;
   canManage: boolean;
   /** A grant was removed (or was gone already): the panel reads again. */
   onRemoved: (grant: IotAccessGrant) => void;
@@ -72,7 +69,7 @@ export function AccessTargetBadge({ type, messages }: { type: IotAccessTargetTyp
 }
 
 export function AccessGrantTable({
-  by, rows, total, paging, error, onRetry, onQueryChange, canManage, onRemoved, caption, emptyMessage, names, messages, className,
+  by, rows, error, onRetry, canManage, onRemoved, caption, emptyMessage, names, messages, className,
 }: AccessGrantTableProps) {
   const api = useIotAdapter().access;
   const notify = useIotNotify();
@@ -110,6 +107,9 @@ export function AccessGrantTable({
   const who: Column<Row> = {
     key: 'subjectLabel',
     header: a.who,
+    sortable: true,
+    sortValue: (g) => (g.subjectLabel ?? g.subjectId).toLowerCase(),
+    searchValue: (g) => `${g.subjectLabel ?? ''} ${g.subjectId}`,
     render: (g) => (
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         <span className={cn('min-w-0 truncate text-sm text-text-primary', g.subjectLabel === null && 'font-mono text-xs')}>{g.subjectLabel ?? g.subjectId}</span>
@@ -120,6 +120,9 @@ export function AccessGrantTable({
   const what: Column<Row> = {
     key: 'targetName',
     header: a.what,
+    sortable: true,
+    sortValue: (g) => (g.targetName ?? '').toLowerCase(),
+    searchValue: (g) => g.targetName ?? a.targetGone,
     render: (g) => (
       <div className="flex min-w-0 flex-wrap items-center gap-2">
         {g.targetName === null ? (
@@ -136,6 +139,9 @@ export function AccessGrantTable({
     {
       key: 'createdAt',
       header: a.granted,
+      sortable: true,
+      sortValue: (g) => new Date(g.createdAt),
+      searchValue: () => '',
       render: (g) => <span className="text-sm">{formatDateTime(g.createdAt, { locale, timeZone })}</span>,
     },
     ...(canManage && api ? [{
@@ -157,24 +163,26 @@ export function AccessGrantTable({
     }] : []),
   ];
 
+  // a member or a group of one target; a site or asset or a device of one subject (the client match reads the row's key)
+  const filterFields: DataTableFilterField<Row>[] = by === 'target'
+    ? [{ id: 'subjectType', label: a.who, type: 'select', options: [{ value: 'USER', label: a.member }, { value: 'GROUP', label: a.group }] }]
+    : [{ id: 'targetType', label: a.what, type: 'select', options: [{ value: 'ASSET', label: a.siteOrAsset }, { value: 'DEVICE', label: a.device }] }];
+
   return (
     <>
       <DataTable<Row>
         className={className}
-        mode="manual"
+        mode="paginated"
         variant="plain"
         caption={caption}
         columns={columns}
         rows={(rows ?? []) as Row[]}
-        total={total}
-        query={{ page: paging.page, pageSize: paging.pageSize }}
-        onQueryChange={onQueryChange}
-        pageSize={paging.pageSize}
-        pageSizeOptions={[]}
-        searchable={false}
+        pageSize={10}
+        searchPlaceholder={a.searchGrants}
+        filterFields={filterFields}
         rowId={(g) => g.grantId}
-        loading={rows === null && !error}
-        error={error ?? undefined}
+        state={error ? 'error' : rows === null ? 'loading' : undefined}
+        errorMessage={error ?? undefined}
         onRetry={onRetry}
         emptyMessage={emptyMessage}
         messages={{ loading: m.common.loading, retry: m.common.retry }}
