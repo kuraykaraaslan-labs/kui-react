@@ -291,9 +291,29 @@ function ListField(props: FieldProps) {
   const [draft, setDraft] = useState<string | null>(null);
   if (list.length) {
     const selected = Array.isArray(value) ? value : [];
+    // `free` (on the list or its item): values the host list does not offer are kept, shown and typed in a second field
+    if (!(spec.free || item?.free)) {
+      return (
+        <CheckGroup id={id} legend={fieldLabel(name, spec)} hint={spec.hint} error={error} readOnly={readOnly} choices={list} selected={selected}
+          onToggle={(v) => onChange(toggleIn(selected, v))} />
+      );
+    }
+    const offered = (v: unknown) => list.some((c) => c.value == v);
+    const others = selected.filter((v) => !offered(v));
     return (
-      <CheckGroup id={id} legend={fieldLabel(name, spec)} hint={spec.hint} error={error} readOnly={readOnly} choices={list} selected={selected}
-        onToggle={(v) => onChange(toggleIn(selected, v))} />
+      <div className="space-y-2">
+        <CheckGroup id={id} legend={fieldLabel(name, spec)} hint={spec.hint} error={error} readOnly={readOnly} choices={list} selected={selected}
+          onToggle={(v) => onChange(toggleIn(selected, v))} />
+        <Input
+          id={`${id}-other`} label={m.formOtherValue} value={draft ?? joinList(others)} readOnly={readOnly} hint={m.formComma}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            const typed = splitList(e.target.value);
+            onChange([...selected.filter(offered), ...typed.filter((t) => !offered(t))]);
+          }}
+          onBlur={() => setDraft(null)}
+        />
+      </div>
     );
   }
   return (

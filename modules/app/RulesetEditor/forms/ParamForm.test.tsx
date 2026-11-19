@@ -249,6 +249,24 @@ describe('ParamForm', () => {
       expect(onValues).toHaveBeenLastCalledWith({ kinds: ['up'] });
       expect(screen.getByRole('checkbox', { name: 'down' })).toBeInTheDocument();
     });
+    it('list of a free source: the host list as checkboxes, values it does not offer kept and typed in Other value', async () => {
+      const user = userEvent.setup();
+      const onValues = vi.fn();
+      const schema: Record<string, ParamSpec> = { types: { type: 'list', items: { type: 'source', source: 'kinds', free: true } } };
+      render(<Harness schema={schema} choices={choices} initial={{ types: ['up', 'ZONE'] }} onValues={onValues} />);
+      expect(screen.getByRole('checkbox', { name: 'Link up' })).toBeChecked();
+      expect(screen.getByLabelText('Other value')).toHaveValue('ZONE');
+      await user.click(screen.getByRole('checkbox', { name: 'Link down' }));
+      expect(onValues).toHaveBeenLastCalledWith({ types: ['up', 'ZONE', 'down'] });
+      await user.clear(screen.getByLabelText('Other value'));
+      await user.type(screen.getByLabelText('Other value'), 'A, up');
+      // a typed value the list offers is not added twice from the text field
+      expect(onValues).toHaveBeenLastCalledWith({ types: ['up', 'down', 'A'] });
+    });
+    it('list of a source without free: only the host list, no Other value', () => {
+      render(<Harness schema={{ types: { type: 'list', items: { type: 'source', source: 'kinds' } } }} choices={choices} />);
+      expect(screen.queryByLabelText('Other value')).not.toBeInTheDocument();
+    });
     it('list of anything else: comma separated text', async () => {
       const user = userEvent.setup();
       const onValues = vi.fn();

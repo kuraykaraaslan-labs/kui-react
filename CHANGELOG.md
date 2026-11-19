@@ -6,6 +6,12 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- RulesetEditor `ParamForm`: a `list` whose items (or the list itself) name a host `source` with `free: true` keeps values the host
+  list does not offer. The list still shows as checkboxes; the values it does not offer are shown and typed, comma separated, in an
+  "Other value" field below it, and a typed value the list offers is not added twice (next-boilerplate iot-automation 11 §1.10:
+  `enrich.related`'s relation types, picked from `iot_asset.relation_types` while a tenant's own type can still be typed). Without
+  `free` nothing changes.
+
 - Payment methods and consent for recurring subscriptions (next-boilerplate phase 68 step 06 §3, D68-54). `PaymentMethodList`
   (`modules/domains/common/payment/`): a subscriber's saved methods in a DataTable: cards, direct-debit mandates, billing agreements,
   SEPA mandates and bank tokens (`SavedPaymentMethod.kind`) with the card brand chip, last four, expiry, status (`active`, `expiring`,
