@@ -6,6 +6,8 @@ export type LoraGatewayRow = {
   name: string;
   eui: string;
   protocol: 'BASICS_STATION' | 'ROLTEK_LINK';
+  /** How the gateway signs in: a Station token, a client certificate (NB iot_lorawan LWP-1), or a Roltek router's device certificate. */
+  authType?: 'TOKEN' | 'CLIENT_CERT' | 'DEVICE_CERT' | string;
   status: 'ACTIVE' | 'DISABLED' | 'PENDING';
   region: string;
   /** `CLOUD`: the cloud network server schedules on it; `LOCAL`: informational, a network server on the gateway itself. */
@@ -58,12 +60,23 @@ export type LoraFrameRow = {
   bytes?: number;
 };
 
-export type LoraSetup = { lnsUrl: string | null; routerInfoUrl: string | null; trustAvailable: boolean };
+/** `clientCertAvailable`: the host's network server can admit Basics Station client certificates (NB LWP-4); the add form offers them only then. */
+export type LoraSetup = { lnsUrl: string | null; routerInfoUrl: string | null; trustAvailable: boolean; clientCertAvailable?: boolean };
 
 /** A Station token just issued (shown once) and the files that carry it. */
 export type LoraIssuedToken = { token: string; files: Array<{ name: string; content: string }> | null };
 
-export type LoraGatewayInput = { name: string; eui: string; region: 'EU868' };
+/**
+ * A client certificate just issued (NB iot_lorawan LWP-1), shown once: the Station files (`tc.uri`, `tc.trust`, `tc.crt` and, when the
+ * platform generated the key, `tc.key`). `keyIncluded` false: the gateway made its own key with its certificate request and keeps it.
+ */
+export type LoraIssuedCertificate = { keyIncluded: boolean; notAfter?: number; files: Array<{ name: string; content: string }> | null };
+
+/** How a client-certificate gateway gets its certificate: its own request (PEM, CN = the EUI) or a key the platform generates. */
+export type LoraCertificateSpec = { csrPem: string } | { generateKey: true };
+
+/** A new Basics Station gateway: a token (the default) or a client certificate (`certificate` then says how). */
+export type LoraGatewayInput = { name: string; eui: string; region: 'EU868'; authType?: 'TOKEN' | 'CLIENT_CERT'; certificate?: LoraCertificateSpec };
 /**
  * A new end device. OTAA (the default): the AppKey, from which every join derives fresh session keys. ABP (NB iot_lorawan D508): no join;
  * the device's DevAddr and its two LoRaWAN 1.0.x session keys are entered once and never shown again, and its frame counters start at 0.

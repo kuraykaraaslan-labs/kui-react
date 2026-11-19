@@ -4,11 +4,13 @@ import { Button } from '@/modules/ui/Button';
 import { Callout } from '@/modules/ui/Callout';
 import { Input } from '@/modules/ui/Input';
 import { Select } from '@/modules/ui/Select';
+import { Textarea } from '@/modules/ui/Textarea';
 import { mergeLoraMessages, type LoraMessagesInput } from './messages';
 import type { LoraDeviceInput, LoraGatewayInput } from './types';
 
 /**
- * The two add forms (NB iot_lorawan 13): a Basics Station gateway (name, EUI; region EU868 in this release, OD-55) and an end device
+ * The two add forms (NB iot_lorawan 13): a Basics Station gateway (name, EUI; region EU868 in this release, OD-55; signed in with a token, or
+ * with a client certificate the platform issues when the host says it can, `clientCertAvailable`, NB LWP-1/LWP-4) and an end device
  * (name, DevEUI, JoinEUI, LoRaWAN 1.0.2–1.0.4, class A or C) that is either OTAA (its AppKey) or ABP (its DevAddr and two session keys,
  * NB D508). Identifiers are checked and normalised here (separators dropped, upper
  * case EUIs); the server checks them again. Keys are entered once: the form says they are never shown again, and nothing echoes them.
@@ -18,22 +20,47 @@ export const isEui = (v: string) => /^[0-9A-Fa-f]{16}$/.test(clean(v)) && !/^(0{
 export const isKey = (v: string) => /^[0-9A-Fa-f]{32}$/.test(clean(v));
 /** An ABP DevAddr: 8 hex digits (the network checks its NetID prefix). */
 export const isDevAddr = (v: string) => /^[0-9A-Fa-f]{8}$/.test(clean(v));
+/** A PEM certificate request (PKCS#10), whole; the server reads it and checks its CN. */
+export const isCsr = (v: string) => /-----BEGIN (NEW )?CERTIFICATE REQUEST-----[\s\S]+-----END (NEW )?CERTIFICATE REQUEST-----/.test(v.trim());
 
 type FormProps<T> = { onSubmit: (v: T) => void; onCancel?: () => void; busy?: boolean; error?: string | null; messages?: LoraMessagesInput; idPrefix?: string };
 
-export function LoraGatewayForm({ onSubmit, onCancel, busy, error, messages, idPrefix = 'lora-gw' }: FormProps<LoraGatewayInput>) {
+export function LoraGatewayForm({ onSubmit, onCancel, busy, error, messages, idPrefix = 'lora-gw', clientCertAvailable = false }: FormProps<LoraGatewayInput> & { clientCertAvailable?: boolean }) {
   const m = mergeLoraMessages(messages).gatewayForm;
   const [name, setName] = useState('');
   const [eui, setEui] = useState('');
+  const [auth, setAuth] = useState<'TOKEN' | 'CLIENT_CERT'>('TOKEN');
+  const [keySource, setKeySource] = useState<'generate' | 'csr'>('generate');
+  const [csr, setCsr] = useState('');
   const [tried, setTried] = useState(false);
+  const cert = clientCertAvailable && auth === 'CLIENT_CERT';
   const nameErr = tried && !name.trim() ? m.nameRequired : undefined;
   const euiErr = tried && !isEui(eui) ? m.euiInvalid : undefined;
+  const csrErr = tried && cert && keySource === 'csr' && !isCsr(csr) ? m.csrInvalid : undefined;
+  const submit = () => {
+    if (!name.trim() || !isEui(eui) || (cert && keySource === 'csr' && !isCsr(csr))) return;
+    const base: LoraGatewayInput = { name: name.trim(), eui: clean(eui).toUpperCase(), region: 'EU868' };
+    onSubmit(cert ? { ...base, authType: 'CLIENT_CERT', certificate: keySource === 'csr' ? { csrPem: csr.trim() } : { generateKey: true } } : base);
+  };
   return (
-    <form className="flex flex-col gap-4" noValidate onSubmit={(e) => { e.preventDefault(); setTried(true); if (name.trim() && isEui(eui)) onSubmit({ name: name.trim(), eui: clean(eui).toUpperCase(), region: 'EU868' }); }}>
+    <form className="flex flex-col gap-4" noValidate onSubmit={(e) => { e.preventDefault(); setTried(true); submit(); }}>
       <Input id={`${idPrefix}-name`} label={m.name} placeholder={m.namePlaceholder} value={name} onChange={(e) => setName(e.target.value)} error={nameErr} required maxLength={128} />
       <Input id={`${idPrefix}-eui`} label={m.eui} hint={m.euiHint} value={eui} onChange={(e) => setEui(e.target.value)} error={euiErr} required className="font-mono" />
       <Select id={`${idPrefix}-region`} label={m.region} options={[{ value: 'EU868', label: m.regionEu868 }]} value="EU868" disabled />
-      <Callout variant="note">{m.note}</Callout>
+      {clientCertAvailable && (
+        <Select id={`${idPrefix}-auth`} label={m.auth} options={[{ value: 'TOKEN', label: m.authToken }, { value: 'CLIENT_CERT', label: m.authCert }]} value={auth}
+          onChange={(e) => setAuth(e.target.value === 'CLIENT_CERT' ? 'CLIENT_CERT' : 'TOKEN')} />
+      )}
+      {cert && (
+        <>
+          <Select id={`${idPrefix}-key`} label={m.keySource} options={[{ value: 'generate', label: m.keyGenerate }, { value: 'csr', label: m.keyCsr }]} value={keySource}
+            onChange={(e) => setKeySource(e.target.value === 'csr' ? 'csr' : 'generate')} />
+          {keySource === 'csr' && (
+            <Textarea id={`${idPrefix}-csr`} label={m.csr} hint={m.csrHint} value={csr} onChange={(e) => setCsr(e.target.value)} error={csrErr} required rows={6} className="font-mono text-xs" spellCheck={false} />
+          )}
+        </>
+      )}
+      <Callout variant="note">{cert ? m.certNote : m.note}</Callout>
       {error && <Callout variant="danger">{error}</Callout>}
       <div className="flex justify-end gap-2">
         {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>{mergeLoraMessages(messages).common.cancel}</Button>}

@@ -6,12 +6,13 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { PageHeader } from '@/modules/ui/PageHeader';
 import { DocumentTitle } from '@/libs/utils/DocumentTitle';
+import { zipStored } from '@/modules/app/WidgetKit/settings/xlsx';
 import {
   CODEC_OUTLINE, LoraCodecDetail, LoraCodecEditor, LoraCodecTable, LoraDeviceForm, LoraDevicePanel, LoraDeviceTable, LoraFrameTable, LoraGatewayForm,
   LoraGatewayMap, LoraGatewayPanel, LoraGatewayTable, LoraPairingPanel, LoraProfilePanel, LoraStationSetup,
 } from '@/modules/domains/iot/lorawan';
 import type {
-  LoraBenchFrame, LoraCodecCheck, LoraCodecDoc as CodecDetail, LoraCodecRow, LoraDeviceRow, LoraFrameRow, LoraGatewayRow, LoraIssuedToken, LoraPairingView, LoraProfileView,
+  LoraBenchFrame, LoraCodecCheck, LoraCodecDoc as CodecDetail, LoraCodecRow, LoraDeviceRow, LoraFrameRow, LoraGatewayRow, LoraIssuedCertificate, LoraIssuedToken, LoraPairingView, LoraProfileView,
 } from '@/modules/domains/iot/lorawan';
 
 const now = Date.now();
@@ -63,7 +64,22 @@ const PAIRING: LoraPairingView = {
 const CODEC_OPTIONS = [{ value: 'auto', label: 'Automatic (by maker and port)' }, { value: 'none', label: 'None (raw payload to the flows)' }, ...CODECS.map((c) => ({ value: c.id, label: `${c.title} (${c.id})` }))];
 const later = <T,>(v: T) => new Promise<T>((r) => setTimeout(() => r(v), 300));
 
-const SETUP = { lnsUrl: 'wss://acme.lns.example.com', routerInfoUrl: 'wss://acme.lns.example.com/router-info', trustAvailable: true };
+const SETUP = { lnsUrl: 'wss://acme.lns.example.com', routerInfoUrl: 'wss://acme.lns.example.com/router-info', trustAvailable: true, clientCertAvailable: true };
+const ISSUED_CERT: LoraIssuedCertificate = {
+  keyIncluded: true,
+  files: [
+    { name: 'tc.uri', content: 'wss://acme.lns.example.com\n' }, { name: 'tc.trust', content: '-----BEGIN CERTIFICATE-----\n…\n' },
+    { name: 'tc.crt', content: '-----BEGIN CERTIFICATE-----\n…\n' }, { name: 'tc.key', content: '-----BEGIN PRIVATE KEY-----\n…\n' },
+  ],
+};
+/** The demo saves the Station files as one stored zip (the WidgetKit writer, no dependency). */
+function saveZip(files: Array<{ name: string; content: string }>): void {
+  const bytes = zipStored(files.map((f) => [f.name, f.content]));
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/zip' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = 'station-config.zip'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
 const ISSUED: LoraIssuedToken = {
   token: 'lns_Q2xvdWQgTG9SYVdBTiBkZW1vIHRva2VuIG9ubHkgb25jZQ',
   files: [{ name: 'tc.uri', content: 'wss://acme.lns.example.com\n' }, { name: 'tc.trust', content: '-----BEGIN CERTIFICATE-----\n…\n' }, { name: 'tc.key', content: 'Authorization: Bearer lns_…\n' }],
@@ -74,6 +90,7 @@ export default function LorawanPage() {
   const [addGw, setAddGw] = useState(false);
   const [addDev, setAddDev] = useState(false);
   const [issued, setIssued] = useState<LoraIssuedToken | null>(null);
+  const [issuedCert, setIssuedCert] = useState<LoraIssuedCertificate | null>(null);
   const [open, setOpen] = useState<LoraGatewayRow | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [gateways, setGateways] = useState(GATEWAYS);
@@ -107,7 +124,7 @@ export default function LorawanPage() {
 <Card title="Device page: the LoRaWAN tab of a gateway (Roof, north side)" className="p-4">
           <LoraGatewayPanel gateway={{ ...GATEWAYS[0], deviceId: 'dg1', mode: 'CLOUD', altitude: 40 }} setup={SETUP} issued={issued} frames={FRAMES.filter((f) => f.gateways.some((g) => g.gatewayId === 'g1'))}
             deviceName={(id) => DEVICES.find((d) => d.deviceId === id)?.name ?? undefined} gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} now={now}
-            onDownload={() => undefined} onRotate={() => setConfirm(true)} onDisable={() => undefined} onRemove={() => undefined} />
+            onDownload={() => undefined} onDownloadAll={saveZip} onRotate={() => setConfirm(true)} onDisable={() => undefined} onRemove={() => undefined} />
         </Card>
         <Card title="Device profile page: the LoRaWAN tab" className="p-4">
           <LoraProfilePanel view={PROFILE} codecOptions={CODEC_OPTIONS} onSave={() => later(undefined)} onlineRuleLabel={() => 'Recent message'} />
@@ -118,13 +135,19 @@ export default function LorawanPage() {
         <Card title="Frames" className="p-4"><LoraFrameTable rows={FRAMES} deviceName={(id) => DEVICES.find((d) => d.deviceId === id)?.name ?? undefined} gatewayName={(id) => GATEWAYS.find((g) => g.gatewayId === id)?.name} /></Card>
       </div>
       <Drawer open={addGw} onClose={() => setAddGw(false)} title="Add a gateway">
-        <LoraGatewayForm onCancel={() => setAddGw(false)} onSubmit={(v) => { setAddGw(false); setIssued(ISSUED); setOpen({ ...GATEWAYS[0], gatewayId: 'new', name: v.name, eui: v.eui, live: { online: false, rttMs: null, connectedAt: null } }); }} />
+        <LoraGatewayForm clientCertAvailable={SETUP.clientCertAvailable} onCancel={() => setAddGw(false)} onSubmit={(v) => {
+          setAddGw(false);
+          const certificate = v.authType === 'CLIENT_CERT';
+          setIssued(certificate ? null : ISSUED);
+          setIssuedCert(certificate ? (v.certificate && 'csrPem' in v.certificate ? { keyIncluded: false, files: ISSUED_CERT.files!.filter((f) => f.name !== 'tc.key') } : ISSUED_CERT) : null);
+          setOpen({ ...GATEWAYS[0], gatewayId: 'new', name: v.name, eui: v.eui, authType: v.authType ?? 'TOKEN', live: { online: false, rttMs: null, connectedAt: null } });
+        }} />
       </Drawer>
       <Drawer open={addDev} onClose={() => setAddDev(false)} title="Add a LoRaWAN device">
         <LoraDeviceForm onCancel={() => setAddDev(false)} onSubmit={() => setAddDev(false)} />
       </Drawer>
       <Drawer open={!!open} onClose={() => setOpen(null)} title={open?.name ?? ''} footer={open?.protocol === 'BASICS_STATION' ? <Button variant="outline" onClick={() => setConfirm(true)}>Rotate token</Button> : undefined}>
-        {open && <LoraStationSetup gateway={open} setup={SETUP} issued={issued} onDownload={() => undefined} />}
+        {open && <LoraStationSetup gateway={open} setup={SETUP} issued={issued} issuedCert={issuedCert} onDownload={() => undefined} onDownloadAll={saveZip} />}
       </Drawer>
       <Drawer open={mapOpen} onClose={() => setMapOpen(false)} title="Gateway map" className="w-[72rem]">
         <LoraGatewayMap gateways={gateways} now={now} onOpen={(g) => { setMapOpen(false); setOpen(g); }}

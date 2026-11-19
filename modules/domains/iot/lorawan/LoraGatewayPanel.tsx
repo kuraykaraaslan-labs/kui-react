@@ -7,7 +7,7 @@ import { fillText, mergeLoraMessages, type LoraMessagesInput } from './messages'
 import { LoraGatewayStatus, LoraProtocolBadge } from './LoraBadges';
 import { LoraFrameTable } from './LoraFrameTable';
 import { LoraStationSetup } from './LoraStationSetup';
-import type { LoraFrameRow, LoraGatewayRow, LoraIssuedToken, LoraSetup } from './types';
+import type { LoraFrameRow, LoraGatewayRow, LoraIssuedCertificate, LoraIssuedToken, LoraSetup } from './types';
 
 /**
  * LoraGatewayPanel — the LoRaWAN tab of a device that is a LoRaWAN gateway (NB iot_lorawan: a gateway is a device, shown under Devices),
@@ -16,7 +16,8 @@ import type { LoraFrameRow, LoraGatewayRow, LoraIssuedToken, LoraSetup } from '.
  * the Basics Station setup (`LoraStationSetup`: the token only while `issued` holds it, right after an add or a rotation); the frames this
  * gateway heard (the host reads them and refreshes them while the tab is open).
  *
- * The actions are the host's and each is asked through its ConfirmDialog before it runs: Rotate token (a Basics Station gateway with a token),
+ * The actions are the host's and each is asked through its ConfirmDialog before it runs: Rotate token (a Basics Station gateway with a token;
+ * New certificate for one with a client certificate, NB LWP-1),
  * Enable or Disable (by the gateway's status), Remove (danger). A prop left out hides its button (the viewer may not manage gateways).
  */
 export type LoraGatewayPanelProps = {
@@ -24,9 +25,13 @@ export type LoraGatewayPanelProps = {
   setup: LoraSetup | null;
   /** A token just issued (after the add or a rotation): shown once, then the host drops it. */
   issued?: LoraIssuedToken | null;
+  /** A client certificate just issued (after the add or a re-issue): shown once, then the host drops it. */
+  issuedCert?: LoraIssuedCertificate | null;
   frames: readonly LoraFrameRow[];
   /** The host saves a Station file (a Blob download). */
   onDownload?: (file: { name: string; content: string }) => void;
+  /** The host saves every Station file in one zip. */
+  onDownloadAll?: (files: Array<{ name: string; content: string }>) => void;
   onRotate?: () => void;
   onEnable?: () => void;
   onDisable?: () => void;
@@ -44,7 +49,7 @@ export type LoraGatewayPanelProps = {
 };
 
 export function LoraGatewayPanel({
-  gateway, setup, issued, frames, onDownload, onRotate, onEnable, onDisable, onRemove, deviceName, gatewayName, onOpenDevice, loading, error, now, locale, messages, className,
+  gateway, setup, issued, issuedCert, frames, onDownload, onDownloadAll, onRotate, onEnable, onDisable, onRemove, deviceName, gatewayName, onOpenDevice, loading, error, now, locale, messages, className,
 }: LoraGatewayPanelProps) {
   const all = mergeLoraMessages(messages);
   const m = all.gatewayTab;
@@ -68,7 +73,7 @@ export function LoraGatewayPanel({
     <div className={['space-y-6', className].filter(Boolean).join(' ')}>
       {hasActions && (
         <div className="flex flex-wrap gap-2">
-          {canRotate && <Button variant="outline" size="sm" onClick={onRotate}>{m.rotate}</Button>}
+          {canRotate && <Button variant="outline" size="sm" onClick={onRotate}>{gateway.authType === 'CLIENT_CERT' ? m.reissue : m.rotate}</Button>}
           {toggle && <Button variant="outline" size="sm" onClick={toggle}>{gateway.status === 'DISABLED' ? m.enable : m.disable}</Button>}
           {onRemove && <Button variant="danger" size="sm" onClick={onRemove}>{m.remove}</Button>}
         </div>
@@ -95,7 +100,7 @@ export function LoraGatewayPanel({
           ]}
         />
       </section>
-      <LoraStationSetup gateway={gateway} setup={setup} issued={issued} onDownload={onDownload} messages={messages} />
+      <LoraStationSetup gateway={gateway} setup={setup} issued={issued} issuedCert={issuedCert} onDownload={onDownload} onDownloadAll={onDownloadAll} messages={messages} />
       <section className="space-y-2">
         <h3 className="text-sm font-semibold text-text-primary">{m.heard}</h3>
         <LoraFrameTable rows={frames} deviceName={deviceName} gatewayName={nameOf} onOpenDevice={onOpenDevice} messages={messages} locale={locale} />
