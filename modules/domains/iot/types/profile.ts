@@ -272,7 +272,47 @@ export type TelemetryKeySpec = {
   decimals?: number;
   /** OD-114: a reference into the router-owned quantity vocabulary (`{ id, version }`); kept, never edited here. */
   quantity?: { id: string; version: string };
+  /**
+   * The key dictionary (NB iot-dashboard 07): boards show `stored × factor + offset` (offset 0 when left out). Storage stays raw, so
+   * a wrong factor is fixed here without re-sending anything. Numbers only; never with `valueMap`.
+   */
+  scale?: KeyScale;
+  /** The key dictionary (NB iot-dashboard 07): a stored value (as text: `0`, `true`, `OPEN`) → the word boards show. Never with `scale`. */
+  valueMap?: Record<string, string>;
 };
+
+/** `stored × factor + offset`: a factor other than 0, both finite. */
+export type KeyScale = { factor: number; offset?: number };
+
+/** The most words one key's value map holds, and the longest value and word (NB's DTO). */
+export const VALUE_MAP_MAX = 50;
+export const VALUE_MAP_TEXT_MAX = 64;
+
+/**
+ * A value map typed as `0=Closed, 1=Open` (commas, semicolons or new lines between pairs). A pair without `=`, or with an empty value
+ * or word, is kept with an empty word so the form refuses it (`invalid_value_map`) instead of dropping it; two values that differ only
+ * in case or spaces are one value (the later word wins), as boards compare them. Empty text: no map.
+ */
+export function parseValueMap(raw: string): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  const seen = new Map<string, string>();
+  for (const part of raw.split(/[,;\n]/).map((p) => p.trim()).filter(Boolean)) {
+    const at = part.indexOf('=');
+    const value = (at < 0 ? part : part.slice(0, at)).trim();
+    const word = at < 0 ? '' : part.slice(at + 1).trim();
+    const norm = value.toLowerCase();
+    const before = seen.get(norm);
+    if (before !== undefined) delete out[before];
+    seen.set(norm, value);
+    out[value] = word;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** A value map as the text the table shows (`0=Closed, 1=Open`). */
+export function valueMapText(map: Record<string, string> | undefined): string {
+  return map ? Object.entries(map).map(([v, w]) => `${v}=${w}`).join(', ') : '';
+}
 
 /** One fallback `cfg.*` key (FZ-27): integer, boolean or string, optionally an enum, ranges or lengths; `secret` is write-only. */
 export type CfgKeySpec = {
@@ -576,7 +616,8 @@ export type ProfileIssue =
   | 'name_required' | 'online_rule_required' | 'online_rule_not_allowed' | 'expected_interval_required' | 'out_of_range'
   | 'auth_mode_required' | 'topic_scheme_required' | 'raw_exceeds_payload' | 'invalid_limit' | 'invalid_network' | 'too_many_networks'
   | 'duplicate_key' | 'invalid_key' | 'invalid_method' | 'too_many_methods' | 'duplicate_method'
-  | 'invalid_value' | 'whole_number' | 'min_exceeds_max' | 'too_long' | 'invalid_enum' | 'too_many_values' | 'too_many_keys';
+  | 'invalid_value' | 'whole_number' | 'min_exceeds_max' | 'too_long' | 'invalid_enum' | 'too_many_values' | 'too_many_keys'
+  | 'invalid_value_map' | 'too_many_words' | 'scale_and_value_map' | 'scale_needs_number';
 
 const TELEMETRY_KEY = /^[A-Za-z0-9_.-]{1,64}$/;
 const RESERVED_TELEMETRY_KEY = /^(_|fw_|current_fw_|cfg\.)/;
@@ -661,6 +702,17 @@ export function telemetryKeyIssues(k: TelemetryKeySpec, at: string, out: Partial
     else if (k.decimals < 0 || k.decimals > 10) out[`${at}decimals`] = 'out_of_range';
   }
   if (finite(k.min) && finite(k.max) && k.min > k.max && !out[`${at}min`]) out[`${at}min`] = 'min_exceeds_max';
+  // the key dictionary (NB iot-dashboard 07): a factor other than 0; numbers only; a map of short, non-empty values and words
+  if (k.scale !== undefined) {
+    if (!finite(k.scale.factor) || k.scale.factor === 0 || (k.scale.offset !== undefined && !finite(k.scale.offset))) out[`${at}scale`] = 'invalid_value';
+    else if (k.type !== undefined && k.type !== 'number' && k.type !== 'integer') out[`${at}scale`] = 'scale_needs_number';
+  }
+  if (k.valueMap !== undefined) {
+    const entries = Object.entries(k.valueMap);
+    if (entries.length > VALUE_MAP_MAX) out[`${at}valueMap`] = 'too_many_words';
+    else if (!entries.length || entries.some(([v, w]) => !v.trim() || !w?.trim() || v.length > VALUE_MAP_TEXT_MAX || w.length > VALUE_MAP_TEXT_MAX)) out[`${at}valueMap`] = 'invalid_value_map';
+    else if (k.scale !== undefined && !out[`${at}scale`]) out[`${at}scale`] = 'scale_and_value_map';
+  }
   return out;
 }
 

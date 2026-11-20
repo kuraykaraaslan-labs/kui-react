@@ -11,7 +11,7 @@ import { LIST_PAGE_SIZES } from '../api/list-table';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
 import { fill } from '../format';
-import { isTelemetryKey, type TelemetryKeySpec } from '../types/profile';
+import { isTelemetryKey, parseValueMap, valueMapText, VALUE_MAP_MAX, VALUE_MAP_TEXT_MAX, type TelemetryKeySpec } from '../types/profile';
 
 /**
  * TelemetryKeySchemaTable — a profile's fallback telemetry keys (01 §1.1, P-4): key, type, unit, label, expected range and decimals,
@@ -22,6 +22,10 @@ import { isTelemetryKey, type TelemetryKeySpec } from '../types/profile';
  * The type reads in words ("Number", "Yes / no", …; "Not set" for an untyped key) and a new row starts as a number. A row's key is
  * marked only once it was typed in or left (or `showAll`, after a Save press), and the table's error waits for that too: a row just added
  * is not red before any input. Any other error (the host's refusal of a unit, a decimals value, the size of the table) shows at once.
+ *
+ * The key dictionary (NB iot-dashboard 07): `Scale` (multiply by, then add: boards show the stored value scaled, storage stays raw) and
+ * `Words` (`0=Closed, 1=Open`: the word a board shows for a stored value). A words cell keeps what is typed until it parses, as the cfg
+ * table's allowed values do.
  */
 export type TelemetryKeySchemaTableProps = {
   value: TelemetryKeySpec[];
@@ -40,6 +44,8 @@ export type TelemetryKeySchemaTableProps = {
 
 const TYPES: Array<NonNullable<TelemetryKeySpec['type']>> = ['number', 'integer', 'boolean', 'string', 'json'];
 const cell = 'w-full min-w-0 rounded-md border border-border bg-surface-base px-2 py-1 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus disabled:cursor-not-allowed disabled:opacity-50';
+/** The longest words text: the most pairs, each `value=word, `. */
+const WORDS_TEXT_MAX = VALUE_MAP_MAX * (VALUE_MAP_TEXT_MAX * 2 + 3);
 const num = (raw: string): number | undefined => (raw.trim() === '' ? undefined : Number(raw));
 /** A row of the table: the key and its position (the row's id, so editing a key keeps its row). */
 type TelemetryRow = { i: number; k: TelemetryKeySpec };
@@ -49,13 +55,29 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
   const cellError = (i: number, field: string) => fieldErrors[`${i}.${field}`];
   const [touched, setTouched] = useState<ReadonlySet<number>>(() => new Set());
   const locked = readOnly || !!fromFirmware;
+  // what is typed in a words cell, kept until it parses (a trailing comma, a half-typed pair)
+  const [wordsText, setWordsText] = useState<Record<number, string>>({});
+  // the table the typed texts belong to: a table the host replaces (Save, Discard, a reload) drops them, so they never outlive it
+  const [ownValue, setOwnValue] = useState<TelemetryKeySpec[] | null>(null);
+  const [seenValue, setSeenValue] = useState(value);
+  if (value !== seenValue) {
+    setSeenValue(value);
+    if (value !== ownValue) setWordsText({});
+  }
+  const emit = (next: TelemetryKeySpec[]) => { setOwnValue(next); onChange?.(next); };
   const typeLabel = (t: TelemetryKeySpec['type']) => (t ? m.schema[`type_${t}`] : m.schema.notSet);
   // an empty key nobody has typed in or left yet is not an error yet (the save stays blocked by the host's checks all the same)
   const pending = (i: number, k: TelemetryKeySpec) => !showAll && k.key === '' && !touched.has(i);
   const isBad = (i: number, k: TelemetryKeySpec) => !pending(i, k) && (!isTelemetryKey(k.key) || value.findIndex((x) => x.key === k.key) !== i);
   // an error waits only while rows nobody has typed in or left yet are all that is wrong with the keys (the error is then theirs)
   const shownError = error && (value.some((k, i) => isBad(i, k)) || !value.some((k, i) => pending(i, k))) ? error : undefined;
-  const set = (i: number, patch: Partial<TelemetryKeySpec>) => onChange?.(value.map((k, j) => (j === i ? clean({ ...k, ...patch }) : k)));
+  const set = (i: number, patch: Partial<TelemetryKeySpec>) => emit(value.map((k, j) => (j === i ? clean({ ...k, ...patch }) : k)));
+  const setScale = (i: number, k: TelemetryKeySpec, part: 'factor' | 'offset', raw: string) => {
+    const next = { factor: k.scale?.factor, offset: k.scale?.offset, [part]: num(raw) };
+    // both left empty: no scale; an offset alone keeps a factor of 1 to add to
+    set(i, { scale: next.factor === undefined && next.offset === undefined ? undefined : { factor: next.factor ?? 1, ...(next.offset !== undefined ? { offset: next.offset } : {}) } });
+  };
+  const scaleText = (k: TelemetryKeySpec) => (k.scale ? `× ${k.scale.factor}${k.scale.offset ? ` + ${k.scale.offset}` : ''}` : '—');
   // rows keep their position as id: a key being typed never remounts its row (and never loses the caret)
   const rows: TelemetryRow[] = value.map((k, i) => ({ i, k }));
   const nameOf = ({ i, k }: TelemetryRow) => k.key || i + 1;
@@ -127,13 +149,38 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
       searchable: false,
       render: (r) => (locked ? (r.k.decimals ?? '—') : <input className={cn(cell, cellError(r.i, 'decimals') && 'border-error')} type="number" min={0} max={10} step={1} value={r.k.decimals ?? ''} aria-label={`${m.schema.decimals} ${nameOf(r)}`} aria-invalid={!!cellError(r.i, 'decimals') || undefined} onChange={(e) => set(r.i, { decimals: num(e.target.value) })} />),
     },
+    {
+      key: 'scale',
+      header: m.schema.scale,
+      searchable: false,
+      render: (r) => (locked ? scaleText(r.k) : (
+        <span className="flex min-w-[9rem] items-center gap-1">
+          <span aria-hidden="true" className="text-xs text-text-secondary">×</span>
+          <input className={cn(cell, cellError(r.i, 'scale') && 'border-error')} type="number" step="any" value={r.k.scale?.factor ?? ''} aria-label={`${m.schema.scaleFactor} ${nameOf(r)}`}
+            aria-invalid={!!cellError(r.i, 'scale') || undefined} onChange={(e) => setScale(r.i, r.k, 'factor', e.target.value)} />
+          <span aria-hidden="true" className="text-xs text-text-secondary">+</span>
+          <input className={cn(cell, cellError(r.i, 'scale') && 'border-error')} type="number" step="any" value={r.k.scale?.offset ?? ''} aria-label={`${m.schema.scaleOffset} ${nameOf(r)}`}
+            aria-invalid={!!cellError(r.i, 'scale') || undefined} onChange={(e) => setScale(r.i, r.k, 'offset', e.target.value)} />
+        </span>
+      )),
+    },
+    {
+      key: 'valueMap',
+      header: m.schema.valueMap,
+      searchValue: (r) => valueMapText(r.k.valueMap),
+      render: (r) => (locked ? (valueMapText(r.k.valueMap) || '—') : (
+        <input className={cn(cell, 'min-w-[10rem]', cellError(r.i, 'valueMap') && 'border-error')} value={wordsText[r.i] ?? valueMapText(r.k.valueMap)} placeholder={m.schema.valueMapHint}
+          maxLength={WORDS_TEXT_MAX} aria-label={`${m.schema.valueMap} ${nameOf(r)}`} aria-invalid={!!cellError(r.i, 'valueMap') || undefined}
+          onChange={(e) => { setWordsText((t) => ({ ...t, [r.i]: e.target.value })); set(r.i, { valueMap: parseValueMap(e.target.value) }); }} />
+      )),
+    },
     ...(locked ? [] : [{
       key: 'actions',
       searchable: false,
       header: <span className="sr-only">{m.profiles.actions}</span>,
       align: 'right' as const,
       render: (r: TelemetryRow) => (
-        <button type="button" onClick={() => { setTouched((t) => new Set([...t].filter((j) => j !== r.i).map((j) => (j > r.i ? j - 1 : j)))); onChange?.(value.filter((_, j) => j !== r.i)); }} aria-label={fill(m.schema.remove, { key: r.k.key || String(r.i + 1) })}
+        <button type="button" onClick={() => { setTouched((t) => new Set([...t].filter((j) => j !== r.i).map((j) => (j > r.i ? j - 1 : j)))); setWordsText({}); emit(value.filter((_, j) => j !== r.i)); }} aria-label={fill(m.schema.remove, { key: r.k.key || String(r.i + 1) })}
           className="rounded p-1.5 text-text-secondary hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-focus">
           <FontAwesomeIcon icon={faTrash} className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -162,14 +209,14 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
         pageSize={25}
         pageSizeOptions={LIST_PAGE_SIZES}
         density="compact"
-        tableClassName="min-w-[48rem]"
+        tableClassName="min-w-[66rem]"
       />
       {shownError && <p role="alert" className="text-xs text-error">{shownError}</p>}
       {listed.length > 0 && (
         <ul role="alert" className="list-inside list-disc text-xs text-error">{listed.map((line) => <li key={line}>{line}</li>)}</ul>
       )}
       {!locked && (
-        <Button variant="outline" size="sm" onClick={() => onChange?.([...value, { key: '', type: 'number' }])} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
+        <Button variant="outline" size="sm" onClick={() => emit([...value, { key: '', type: 'number' }])} iconLeft={<FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" />}>
           {m.schema.add}
         </Button>
       )}
@@ -182,7 +229,7 @@ export function TelemetryKeySchemaTable({ value, onChange, fromFirmware, readOnl
  * (`quantity`, or anything a later host adds): editing a row never loses what the table does not show.
  */
 export function clean(k: TelemetryKeySpec): TelemetryKeySpec {
-  const { key, type, unit, label, min, max, decimals, ...kept } = k;
+  const { key, type, unit, label, min, max, decimals, scale, valueMap, ...kept } = k;
   const out: TelemetryKeySpec = { key };
   if (type) out.type = type;
   if (unit) out.unit = unit;
@@ -190,5 +237,10 @@ export function clean(k: TelemetryKeySpec): TelemetryKeySpec {
   if (typeof min === 'number' && Number.isFinite(min)) out.min = min;
   if (typeof max === 'number' && Number.isFinite(max)) out.max = max;
   if (typeof decimals === 'number' && Number.isFinite(decimals)) out.decimals = decimals;
+  // a half-typed factor stays (NaN is refused by the form, never dropped silently); an offset of 0 is no offset
+  if (scale && typeof scale === 'object' && typeof scale.factor === 'number') {
+    out.scale = { factor: scale.factor, ...(typeof scale.offset === 'number' && scale.offset !== 0 ? { offset: scale.offset } : {}) };
+  } else if (scale !== undefined) out.scale = scale; // a shape this table does not write is kept as stored
+  if (valueMap && Object.keys(valueMap).length) out.valueMap = valueMap;
   return { ...out, ...kept };
 }
