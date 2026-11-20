@@ -275,7 +275,7 @@ export const SETTINGS_MESSAGES = {
     driftPolicy: 'When a device differs from the baseline',
     driftReport: 'Only show it',
     driftEnforce: 'Send the baseline again',
-    driftHint: 'Applies to devices the baseline is assigned to. Settings that can cut a device off, dangerous settings and values only the device may change are never sent again automatically.',
+    driftHint: 'Applies to devices the baseline is assigned to. Settings that can cut a device off are sent again at most once a day, only while the platform is healthy. Dangerous settings and values only the device may change are never sent again automatically.',
     // the job drawer
     jobName: 'Job name',
     baseline: 'Baseline',
@@ -403,7 +403,7 @@ export const SETTINGS_MESSAGES = {
     removed: 'Assignment removed.',
     empty: 'No baseline is assigned yet.',
     emptyHint: 'Assign a baseline to keep it on a profile or on every device.',
-    enforceHint: 'Settings that can cut a device off, dangerous settings and values only the device may change are never sent again automatically: they are counted under "Need a person".',
+    enforceHint: 'Settings that can cut a device off are sent again at most once a day, only while the platform is healthy (no maintenance, data arriving normally). Dangerous settings and values only the device may change are never sent again automatically: they are counted under "Need a person".',
   },
   /** Fallback names of sections (the manifest's titles win where a view has the manifest). */
   sections: {
