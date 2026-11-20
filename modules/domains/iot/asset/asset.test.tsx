@@ -553,13 +553,15 @@ describe('AssetsView live changes', () => {
     act(() => h!.onLive?.(true));
     const lists = (assets.list as ReturnType<typeof vi.fn>).mock.calls.length;
     const sums = (assets.summary as ReturnType<typeof vi.fn>).mock.calls.length;
+    // the 50 ms poll may have read the drawer again before the source went live: count from here
+    const gets = (assets.get as ReturnType<typeof vi.fn>).mock.calls.length;
     // live: the 50 ms poll does not run
     await new Promise((r) => setTimeout(r, 150));
     expect((assets.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(lists);
     act(() => { h!.onChange({ changes: ['moved'], assetIds: ['press-line'] }); h!.onChange({ changes: ['placement'], assetIds: ['hub'] }); });
     await waitFor(() => expect((assets.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(lists + 1), { timeout: LIVE_SETTLE_MS + 1000 });
     expect((assets.summary as ReturnType<typeof vi.fn>).mock.calls.length).toBe(sums + 1);
-    await waitFor(() => expect(assets.get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(assets.get).toHaveBeenCalledTimes(gets + 1));
     // dropped and back: one read for what was missed (polling meanwhile is allowed)
     act(() => h!.onLive?.(false));
     act(() => h!.onLive?.(true));
