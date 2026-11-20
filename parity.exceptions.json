@@ -350,6 +350,34 @@
         "KUInative"
       ],
       "reason": "New for next-boilerplate data_import (the CSV import wizard: file, columns, check, result with undo and a target's one-time download). Its only consumer is next-boilerplate's Imports page, which vendors it from here; the owner's rule for this task is kui-react only, and neither kui-ejs nor KUInative has an import surface yet."
+    },
+    {
+      "id": "qr-scanner",
+      "name": "QrScanner",
+      "layer": "ui",
+      "path": "modules/ui/QrScanner",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "New in phase 9 (9.13), no counterpart (checked 2026-11-20: neither repo has a camera or QR reader). The browser's BarcodeDetector and getUserMedia are client-only, so kui-ejs has nothing to render; a native scanner for KUInative belongs with the native app (OD-82: the native app comes later)."
+    },
+    {
+      "id": "iot-provisioning-claim",
+      "name": "ClaimDeviceWizard, ReleaseDeviceDialog",
+      "layer": "domain",
+      "path": "modules/domains/iot/provisioning",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "IoT claim and release (next-boilerplate iot_provisioning 04, OD-6 / OD-24 / OD-82): the IoT vertical exists only in kui-react; mobile is responsive web + PWA until the native app."
     }
   ]
 }

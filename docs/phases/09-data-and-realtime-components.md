@@ -208,12 +208,22 @@ Seen in: device rows, latest-value tables, the state widget (IoT phases 01, 02, 
 
 ## 9.13 QR scanner and QR code `[react]`
 
-- [ ] `modules/ui/QrScanner.tsx`: camera preview, `BarcodeDetector` when the browser has it, lazy-loaded decoder fallback otherwise (MIT/ISC licence only; check before adding), permission states (prompt, denied with instructions, no camera), torch toggle when supported, manual code entry fallback, `onResult(text)`. Lazy-loaded through `modules/ui/lazy.tsx`.
+- [x] `modules/ui/QrScanner.tsx`: camera preview, `BarcodeDetector` when the browser has it, lazy-loaded decoder fallback otherwise (MIT/ISC licence only; check before adding), permission states (prompt, denied with instructions, no camera), torch toggle when supported, manual code entry fallback, `onResult(text)`. Lazy-loaded through `modules/ui/lazy.tsx`.
 - [ ] `modules/ui/QrCode.tsx`: real encoder (for example `qrcode-generator`, MIT), token colours, `size`, `level`, accessible label with the encoded text. Note: `modules/domains/event/TicketCard.tsx` draws a fake `QRPattern`; switching it is a follow-up for the event vertical, not part of this task.
-- [ ] Exception records: absent in kui-ejs and KUInative.
-- [ ] (OD-82) PWA standalone mode: `QrScanner` works when the host app runs as an installed PWA (`display-mode: standalone`) on Android Chrome and iOS Safari: rear camera by default, the permission states re-checked on every open (iOS standalone apps may ask again per session), a "denied" state whose instructions name the installed app rather than the browser tab, and the camera stream stopped when the app goes to the background (`visibilitychange`). Proven on real phones through a host page served over HTTPS; the kui-react demo itself ships no manifest or service worker.
+- [x] Exception records: absent in kui-ejs and KUInative (`qr-scanner`, 2026-11-20).
+- [~] (OD-82) PWA standalone mode: `QrScanner` works when the host app runs as an installed PWA (`display-mode: standalone`) on Android Chrome and iOS Safari: rear camera by default, the permission states re-checked on every open (iOS standalone apps may ask again per session), a "denied" state whose instructions name the installed app rather than the browser tab, and the camera stream stopped when the app goes to the background (`visibilitychange`). Proven on real phones through a host page served over HTTPS; the kui-react demo itself ships no manifest or service worker.
 
 Seen in: `/theme/iot/claim` ~~and claim-label printing in `/theme/iot/provisioning`~~ (IoT phase 05).
+
+> **→ 2026-11-20 (as built, `feat/qr-scanner-claim`).** `modules/ui/QrScanner/` (`QrScanner`, `camera.ts`, `messages.ts`): the camera opens only on
+> the person's press ("Scan with the camera"; the browser's prompt follows it, never the page load), rear camera (`facingMode: environment`),
+> closed as soon as a code is read, on Stop, on `visibilitychange` to hidden and on unmount; torch toggle when the track offers one; problems in
+> words (insecure origin, no camera API, no QR reader, denied, denied in the installed app, no camera, camera in use, failed), never the
+> browser's text; the typed entry (`manual`) always shown. **No decoder library is added:** reading uses the browser's `BarcodeDetector`
+> (`qr_code` checked through `getSupportedFormats`); for browsers without it (Safari, Firefox) the host may pass `decodeFrame` (its own
+> decoder, e.g. next-boilerplate's existing `jsqr`), else the typed entry is the way in. Not lazy-loaded: it imports no library, so there is
+> nothing heavy to defer. `QrCode` is not built (OD-6: no consumer; the IoT demo draws its panel QR with the existing `qrcode` dependency).
+> Real-phone PWA proof stays open (it needs the host's HTTPS PWA, NB). Tests: `modules/ui/QrScanner/QrScanner.test.tsx`.
 
 > **→ DECISION OD-6 (owner, 2026-10-04):** no printed claim labels; the claim QR is shown on the device's own panel. `QrScanner` is the IoT consumer; `QrCode` stays a generic component (IoT 05 uses it only for a demo stand-in of the device panel's QR, plus the `TicketCard` follow-up above), so it no longer has a label-printing use case.
 

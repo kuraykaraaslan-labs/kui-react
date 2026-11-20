@@ -22,6 +22,7 @@ import {
   faNetworkWired,
   faLayerGroup,
   faVideo, faTowerBroadcast, faUpload, faCertificate,
+  faQrcode,
 } from '@fortawesome/free-solid-svg-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -37,6 +38,7 @@ const NAV_GROUPS: AppSidebarNavGroup[] = [
     items: [
       { id: 'dashboard',  label: 'Dashboard',   icon: <FontAwesomeIcon icon={faServer}    className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot' },
       { id: 'widgets',    label: 'Widget gallery', icon: <FontAwesomeIcon icon={faTableCells} className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/widgets' },
+      { id: 'claim',      label: 'Add device',   icon: <FontAwesomeIcon icon={faQrcode}         className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/claim' },
       { id: 'devices',    label: 'Devices',      icon: <FontAwesomeIcon icon={faMicrochip}       className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/devices',   badge: 7 },
       { id: 'profiles',   label: 'Device profiles', icon: <FontAwesomeIcon icon={faSliders}     className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/profiles' },
       { id: 'assets',     label: 'Sites & assets', icon: <FontAwesomeIcon icon={faSitemap}       className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/assets' },
