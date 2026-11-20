@@ -201,6 +201,8 @@ export { SettingsHistoryTable } from './settings/SettingsHistoryTable';
 export { BaselinesView } from './settings/BaselinesView';
 export type { BaselinesViewProps } from './settings/BaselinesView';
 export { BaselineEditorDrawer } from './settings/BaselineEditorDrawer';
+export { AssignmentsDrawer } from './settings/AssignmentsDrawer';
+export type { AssignmentsDrawerProps } from './settings/AssignmentsDrawer';
 export { JobsView, JobStateBadge } from './settings/JobsView';
 export type { JobsViewProps } from './settings/JobsView';
 export { NewJobDrawer, JobPlanSummary } from './settings/NewJobDrawer';

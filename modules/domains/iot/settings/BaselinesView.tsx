@@ -12,6 +12,7 @@ import { fill } from '../format';
 import type { SettingsBaseline } from '../types/settings';
 import type { SettingsMessagesInput } from './messages';
 import type { SettingsFleetAdapter } from './settings-adapter';
+import { AssignmentsDrawer } from './AssignmentsDrawer';
 import { BaselineEditorDrawer } from './BaselineEditorDrawer';
 import { errorText } from './SectionEditorDrawer';
 import { titleCase } from './settings-schema';
@@ -26,6 +27,11 @@ export interface BaselinesViewProps {
   onOpenJobs?: () => void;
   /** "Start a job" on a baseline row. */
   onStartJob?: (b: SettingsBaseline) => void;
+  /**
+   * The header's "Assignments" button and its drawer (baselines kept on a profile or on every device). Shown only when this is true and
+   * the adapter has `assignments`: a host hides it from people who may not act on many devices.
+   */
+  showAssignments?: boolean;
   messages?: SettingsMessagesInput;
   locale?: string;
   className?: string;
@@ -37,7 +43,7 @@ export interface BaselinesViewProps {
  * row's menu deletes it through the ConfirmDialog (jobs already started keep their own copy). Without the right to manage baselines the
  * page is read-only.
  */
-export function BaselinesView({ adapter, jobsHref, onOpenJobs, onStartJob, messages, locale, className }: BaselinesViewProps) {
+export function BaselinesView({ adapter, jobsHref, onOpenJobs, onStartJob, showAssignments, messages, locale, className }: BaselinesViewProps) {
   const { m, locale: lang } = useSettingsText(messages, locale);
   const [canManage, setCanManage] = useState(false);
   const [editing, setEditing] = useState<SettingsBaseline | null | 'new'>(null);
@@ -45,6 +51,8 @@ export function BaselinesView({ adapter, jobsHref, onOpenJobs, onStartJob, messa
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
   const [notice, setNotice] = useState<{ tone: 'tip' | 'danger'; text: string } | null>(null);
+  const [assigning, setAssigning] = useState(false);
+  const withAssignments = !!showAssignments && !!adapter.assignments;
 
   const fetchPage = useCallback(async (args: DataTableFetchArgs): Promise<DataTableFetchResult<Row>> => {
     const r = await adapter.baselines.list({ page: Math.max(0, args.page - 1), pageSize: args.pageSize, search: args.search || undefined, dir: args.sort[0]?.dir ?? 'asc' }, args.signal);
@@ -86,6 +94,7 @@ export function BaselinesView({ adapter, jobsHref, onOpenJobs, onStartJob, messa
           {(jobsHref || onOpenJobs) && (
             jobsHref ? <Button as="a" href={jobsHref} variant="outline">{m.fleet.jobsButton}</Button> : <Button variant="outline" onClick={onOpenJobs}>{m.fleet.jobsButton}</Button>
           )}
+          {withAssignments && <Button variant="outline" onClick={() => setAssigning(true)}>{m.assign.button}</Button>}
           {canManage && <Button onClick={() => setEditing('new')}><FontAwesomeIcon icon={faPlus} className="mr-1.5" aria-hidden="true" />{m.fleet.newBaseline}</Button>}
         </div>
       </header>
@@ -123,6 +132,7 @@ export function BaselinesView({ adapter, jobsHref, onOpenJobs, onStartJob, messa
         messages={m}
         locale={lang}
       />}
+      {withAssignments && assigning && <AssignmentsDrawer open onClose={() => { setAssigning(false); setReload((n) => n + 1); }} adapter={adapter} messages={m} locale={lang} />}
       <ConfirmDialog
         open={!!deleting}
         tone="danger"

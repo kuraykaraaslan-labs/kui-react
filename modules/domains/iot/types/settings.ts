@@ -188,7 +188,8 @@ export const SETTINGS_TARGET_STATES: readonly SettingsTargetState[] = ['queued',
 
 export type SettingsWaveCounters = Record<SettingsTargetState, number> & { total: number };
 
-export interface SettingsJobSelector { deviceIds?: string[]; profileId?: string; models?: string[] }
+/** `all`: every device (the host asks for the count from a dry run to be typed back). */
+export interface SettingsJobSelector { deviceIds?: string[]; profileId?: string; models?: string[]; all?: true }
 
 export interface SettingsJob {
   jobId: string;
@@ -270,6 +271,49 @@ export interface NewSettingsJob {
   onConflict?: 'queue' | 'skip';
   offlineExpiryDays?: number;
   confirm?: boolean;
+  /** With `selector.all`: the number of devices the dry run counted, typed back. */
+  confirmCount?: number;
+}
+
+/** What a baseline assignment has done so far. */
+export interface SettingsAssignmentCounts {
+  /** Devices its jobs have taken. */
+  members: number;
+  /** Device settings it keeps. */
+  governed: number;
+  /** Changed by a person since: no longer kept until re-attached. */
+  detached: number;
+  /** Differ from the baseline on the device now. */
+  drifting: number;
+  /** Drifted and not sent again automatically (it could cut the device off, or is not allowed): a person looks at it. */
+  blocked: number;
+  /** Times a drifted setting was sent again. */
+  enforcements: number;
+}
+
+/** A baseline kept on a device profile or on every device: new devices get it too; under ENFORCE drift is sent again. */
+export interface SettingsAssignment {
+  assignmentId: string;
+  baselineId: string;
+  baselineName: string | null;
+  driftPolicy: 'REPORT' | 'ENFORCE' | null;
+  targetType: 'PROFILE' | 'ALL';
+  profileId: string | null;
+  profileName: string | null;
+  createdAt: number;
+  createdBy: string | null;
+  /** Why the last job for new devices could not start (a reason code). */
+  lastError: string | null;
+  jobRunning: boolean;
+  counts: SettingsAssignmentCounts;
+}
+
+export interface NewSettingsAssignment {
+  baselineId: string;
+  target: { type: 'PROFILE'; profileId: string } | { type: 'ALL' };
+  confirm?: boolean;
+  /** With `ALL`: the number of devices the dry run counted, typed back. */
+  confirmCount?: number;
 }
 
 export interface SettingsPage<T> { data: T[]; total: number }

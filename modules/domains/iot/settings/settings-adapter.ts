@@ -1,4 +1,5 @@
 import type {
+  NewSettingsAssignment, SettingsAssignment,
   DeviceSettings, DeviceSettingsSchema, NewSettingsJob, SettingsBaseline, SettingsBaselineInput, SettingsDryRun, SettingsHistoryEntry, SettingsJob,
   SettingsJobPlan, SettingsJobState, SettingsJobTarget, SettingsJobView, SettingsModel, SettingsPage, SettingsTargetState, SettingsWriteInput,
   SettingsWriteResult,
@@ -44,6 +45,15 @@ export interface SettingsFleetAdapter {
     pause(jobId: string): Promise<SettingsJob>;
     resume(jobId: string): Promise<SettingsJob>;
     cancel(jobId: string): Promise<SettingsJob>;
+  };
+  /** Baselines kept on a profile or on every device (optional: a host without them shows no Assignments button). */
+  assignments?: {
+    list(signal?: AbortSignal): Promise<{ data: SettingsAssignment[]; canManage?: boolean }>;
+    /** `dryRun`: the plan of the first job (null while no device is in the target), nothing stored. */
+    create(input: NewSettingsAssignment, opts: { dryRun?: boolean }): Promise<{ assignment: SettingsAssignment | { assignmentId: string }; job: SettingsJob | null } | { dryRun: true; plan: SettingsJobPlan | null }>;
+    remove(assignmentId: string): Promise<void>;
+    /** A job over the devices a person changed since, so the baseline keeps them again. */
+    reattach(assignmentId: string, opts?: { confirm?: boolean }): Promise<SettingsJob>;
   };
 }
 
