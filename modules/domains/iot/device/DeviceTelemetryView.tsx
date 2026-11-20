@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChartLine, faCheck, faCopy, faEye, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faChartLine, faCheck, faCopy, faEraser, faEye, faFileCsv, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { DataTable } from '@/modules/ui/Table/DataTable';
 import type { Column } from '@/modules/ui/Table/types';
@@ -18,6 +18,7 @@ import { fill, formatDateTime, formatRelative } from '../format';
 import type { IotMessagesInput } from '../messages';
 import { LineChart } from '@/modules/ui/Chart/charts/LineChart';
 import type { Series } from '@/modules/ui/Chart/types';
+import { TelemetryDeleteDrawer, TelemetryExportDrawer, type TelemetryKeyOption } from './TelemetryDataDrawers';
 
 /**
  * DeviceTelemetryView — the device page's Telemetry tab: every key the device sends with its latest value and when it came, live (a
@@ -30,6 +31,10 @@ import type { Series } from '@/modules/ui/Chart/types';
  * (NB 41-ui-fixes/23 1.18). Every row has a "View" button that opens the key's whole value in a dialog (JSON indented, nothing cut), with Copy:
  * the table shows a long value cut at 120 characters. With the adapter's `deleteKeys` and `canDeleteTelemetry`, a row also has Delete: the key
  * and its whole history go, behind a confirmation that says it cannot be undone.
+ *
+ * Header buttons beside the window (NB iot-telemetry 03 §3.4): "Export CSV" (with the adapter's `exportSeries`) opens a drawer that downloads
+ * some keys over a window at a resolution as one file; "Delete data" (with `deleteKeys` and `canDeleteTelemetry`) opens a drawer that deletes
+ * some keys' values on whole UTC days, behind a confirmation, and reads the table again after.
  */
 export type DeviceTelemetryViewProps = {
   deviceId: string;
@@ -149,6 +154,8 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
   const caps = useIotCapabilities();
   const notify = useIotNotify();
   const canDelete = !!api?.deleteKeys && caps.canDeleteTelemetry;
+  const canExport = !!api?.exportSeries;
+  const [drawer, setDrawer] = useState<'export' | 'delete' | null>(null);
 
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -306,6 +313,10 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
     },
   ];
 
+  // the drawers pick from the table's keys, in its default order (by name)
+  const keyOptions: TelemetryKeyOption[] = (rows ?? []).map((r) => ({ key: r.key, name: r.name, numeric: r.kind === 'number' }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   if (!api) return null;
   const chart = (() => {
     if (charted.length === 0) return <p className="text-sm text-text-secondary">{fill(t.chartPick, { max: maxCharted })}</p>;
@@ -326,6 +337,20 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
     <div className={cn('space-y-4', className)}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <span className="text-xs text-text-secondary" aria-live="polite">{liveState === 'live' ? m.common.live : m.common.polling}</span>
+        <div className="ml-auto flex flex-wrap items-end gap-2">
+          {canExport && (
+            <Button variant="outline" size="sm" disabled={!keyOptions.length} onClick={() => setDrawer('export')}
+              iconLeft={<FontAwesomeIcon icon={faFileCsv} className="h-3 w-3" aria-hidden="true" />}>
+              {t.export}
+            </Button>
+          )}
+          {canDelete && (
+            <Button variant="outline" size="sm" disabled={!keyOptions.length} onClick={() => setDrawer('delete')}
+              iconLeft={<FontAwesomeIcon icon={faEraser} className="h-3 w-3" aria-hidden="true" />}>
+              {t.deleteRange}
+            </Button>
+          )}
+        </div>
         <div className="w-44">
           <Select
             id={`telemetry-window-${deviceId}`}
@@ -373,6 +398,14 @@ function DeviceTelemetryBody({ deviceId, maxCharted = 4, locale, now, liveReread
           <TelemetryValueDialog row={viewed} kindLabel={kindLabel} onClose={() => setViewing(null)} t={t}
             common={{ copy: m.common.copy, copied: m.common.copied, close: m.common.close }} locale={lc} now={now} />
         </>
+      )}
+      {canExport && (
+        <TelemetryExportDrawer open={drawer === 'export'} deviceId={deviceId} api={api} keys={keyOptions} initialKeys={charted}
+          onClose={() => setDrawer(null)} now={now} />
+      )}
+      {canDelete && (
+        <TelemetryDeleteDrawer open={drawer === 'delete'} deviceId={deviceId} api={api} keys={keyOptions}
+          onClose={() => setDrawer(null)} onDeleted={() => { load(); setTick((n) => n + 1); }} now={now} />
       )}
     </div>
   );

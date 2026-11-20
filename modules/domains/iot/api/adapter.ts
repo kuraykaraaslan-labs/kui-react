@@ -541,6 +541,16 @@ export function seriesPageOf(a: TelemetrySeriesAnswer): TelemetrySeriesPage {
   return { series: a as Record<string, TelemetryPoint[]>, truncated: false };
 }
 
+/** The resolution an export asks (NB `/api/telemetry/series` buckets): the host's choice by window, raw readings, minute, hour or day aggregates. */
+export type TelemetryExportResolution = 'auto' | 'raw' | '1m' | '1h' | '1d';
+/** The aggregate of each bucket of an export (ignored for raw readings). */
+export type TelemetryExportAggregate = 'avg' | 'min' | 'max' | 'last' | 'sum' | 'count';
+export type TelemetryExportQuery = { keys: string[]; from: number; to: number; resolution: TelemetryExportResolution; aggregate: TelemetryExportAggregate };
+/** An exported file: its content, the name the host gives it, and whether the host cut a key at its point cap. */
+export type TelemetryExportFile = { blob: Blob; fileName: string; truncated: boolean };
+/** Whole UTC days `[from, to)`, epoch ms on UTC midnights (NB TQ-2: the host's hour and day aggregates cannot be cut inside a bucket). */
+export type TelemetryDayRange = { from: number; to: number };
+
 /**
  * A device's telemetry (NB `telemetry` + `iot_telemetry`): every key's latest value, and numeric series over a window. A host
  * aggregates a long window into buckets (its choice of resolution); a key that is not numeric answers an empty series.
@@ -552,9 +562,16 @@ export interface IotTelemetryApi {
   series(deviceId: string, query: TelemetrySeriesQuery, signal?: AbortSignal): Promise<TelemetrySeriesAnswer>;
   /**
    * Delete keys of the device with their whole history (latest value, readings, rollups); answers the keys it found. A key the device
-   * sends again starts afresh. Absent: the Telemetry tab offers no delete (and it also needs `canDeleteTelemetry`).
+   * sends again starts afresh. Absent: the Telemetry tab offers no delete (and it also needs `canDeleteTelemetry`). With `range` (NB
+   * iot-telemetry 03 §3.4): only the readings of those whole UTC days go, and a key whose latest value lay in them shows the newest
+   * reading before them (the tab's "Delete data" drawer).
    */
-  deleteKeys?(deviceId: string, keys: string[]): Promise<{ deleted: string[] }>;
+  deleteKeys?(deviceId: string, keys: string[], range?: TelemetryDayRange): Promise<{ deleted: string[] }>;
+  /**
+   * Some keys over a window as one CSV file at a resolution (NB `/api/telemetry/series?format=csv`, the same caps as a chart's read).
+   * Absent: the Telemetry tab offers no export.
+   */
+  exportSeries?(deviceId: string, query: TelemetryExportQuery): Promise<TelemetryExportFile>;
 }
 
 // ── restricted access (NB restricted IoT access) ─────────────────────────────────────────────────────────────────────
