@@ -90,7 +90,21 @@ export interface OtaAssignment {
   deviceCount: number | null;
   /** The rollout in waves of this assignment, when it has one (NB iot_ota 03). */
   rolloutId?: string | null;
+  /** What a group was frozen from, when it was made from a selector (NB iot_ota OA-2); absent for a hand-picked device list. */
+  selector?: OtaGroupSelectorRecord | null;
   createdAt: string;
+}
+
+/**
+ * A group's selector as recorded when it was resolved (NB iot_ota OA-2): the profile, the asset (and its name then, since it may be
+ * renamed or deleted later), how many devices it gave and when. The list itself stays frozen; this answers "why this device".
+ */
+export interface OtaGroupSelectorRecord {
+  profileId?: string;
+  assetId?: string;
+  assetName?: string | null;
+  devices: number;
+  resolvedAt: string;
 }
 
 /**

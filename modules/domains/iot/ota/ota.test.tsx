@@ -91,6 +91,25 @@ describe('OTA views (iot-platform 06)', () => {
     await waitFor(() => expect(sent.at(-1)).toEqual({ targetType: 'GROUP', selector: { assetId: 'a-1', profileId: profile.value } }));
   });
 
+  it('a group made from a selector says what it was frozen from: the asset by its recorded name, the profile by its name, when (OA-2)', async () => {
+    const demo = createDemoOtaAdapter({ delayMs: 0 });
+    const [profile] = await demo.profiles();
+    const groups = [
+      { assignmentId: 'g-1', targetType: 'GROUP' as const, targetId: 'g-1', packageId: 'pkg-2', deviceCount: 12, createdAt: '2026-11-20T09:00:00.000Z',
+        selector: { assetId: 'a-1', assetName: 'Building A', profileId: profile!.id, devices: 12, resolvedAt: '2026-11-20T09:00:00.000Z' } },
+      { assignmentId: 'g-2', targetType: 'GROUP' as const, targetId: 'g-2', packageId: 'pkg-2', deviceCount: 3, createdAt: '2026-11-20T09:00:00.000Z',
+        selector: { assetId: 'a-2', assetName: null, devices: 3, resolvedAt: '2026-11-20T09:00:00.000Z' } },
+      { assignmentId: 'g-3', targetType: 'GROUP' as const, targetId: 'g-3', packageId: 'pkg-2', deviceCount: 2, createdAt: '2026-11-20T09:00:00.000Z', selector: null },
+    ];
+    const adapter = { ...demo, assignments: { ...demo.assignments, list: async () => groups } };
+    render(<FirmwareDetailView adapter={adapter} packageId="pkg-2" can={CAN} />);
+    await waitFor(() => expect(screen.getAllByTestId('ota-assignment-selector')).toHaveLength(2));
+    const [both, unnamed] = screen.getAllByTestId('ota-assignment-selector');
+    await waitFor(() => expect(both!.textContent).toContain(`of profile ${profile!.name}`));
+    expect(both!.textContent).toMatch(/^on Building A and below · of profile .+ · matched /);
+    expect(unnamed!.textContent).toMatch(/^on an asset and below · matched /);
+  });
+
   it('without assets from the host (or with none) the drawer does not offer a device list by asset', async () => {
     const adapter = { ...createDemoOtaAdapter({ delayMs: 0 }), assets: async () => [] };
     render(<FirmwareDetailView adapter={adapter} packageId="pkg-2" can={CAN} />);

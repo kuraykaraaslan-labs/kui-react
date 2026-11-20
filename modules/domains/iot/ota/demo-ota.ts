@@ -254,6 +254,10 @@ export function createDemoOtaAdapter(opts: { delayMs?: number } = {}): DemoOtaAd
           assignmentId: target.targetType === 'GROUP' ? targetId : id('a'), targetType: target.targetType, targetId,
           targetName: target.targetType === 'PROFILE' ? PROFILES.find((p) => p.id === targetId)?.name : target.targetType === 'DEVICE' ? DEVICES.find((d) => d.id === targetId)?.name : null,
           packageId, deviceCount: target.targetType === 'GROUP' ? deviceIds.length : null, createdAt: new Date().toISOString(),
+          // a group made from a selector records what it was frozen from (NB iot_ota OA-2)
+          selector: target.targetType === 'GROUP' && 'selector' in target
+            ? { ...target.selector, ...(target.selector.assetId ? { assetName: null } : {}), devices: deviceIds.length, resolvedAt: new Date().toISOString() }
+            : null,
         };
         if (target.targetType !== 'GROUP') for (let i = assignments.length - 1; i >= 0; i--) if (assignments[i]!.targetType === target.targetType && assignments[i]!.targetId === targetId) assignments.splice(i, 1);
         assignments.unshift(a);

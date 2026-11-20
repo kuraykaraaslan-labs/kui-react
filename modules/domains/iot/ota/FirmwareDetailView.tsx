@@ -104,6 +104,20 @@ export function FirmwareDetailView({ adapter, packageId, can = {}, backHref, dev
     [m.detail.uploaded, formatDateTime(pkg.createdAt, { locale: lang })],
   ];
   const targetLabel = (a: OtaAssignment) => (a.targetType === 'PROFILE' ? m.detail.targetProfile : a.targetType === 'DEVICE' ? m.detail.targetDevice : m.detail.targetGroup);
+  // What a group was frozen from (NB iot_ota OA-2): the asset by its name then (it may be renamed or deleted since), the profile by its
+  // name now (a neutral word while the list loads or after it was removed), and when it was matched. Null for a hand-picked list.
+  const selectorText = (a: OtaAssignment): string | null => {
+    const s = a.selector;
+    if (a.targetType !== 'GROUP' || !s || (!s.assetId && !s.profileId)) return null;
+    const parts: string[] = [];
+    if (s.assetId) parts.push(s.assetName ? fill(m.detail.selectorAsset, { name: s.assetName }) : m.detail.selectorAssetUnnamed);
+    if (s.profileId) {
+      const name = profiles.find((p) => p.id === s.profileId)?.name;
+      parts.push(name ? fill(m.detail.selectorProfile, { name }) : m.detail.selectorProfileUnnamed);
+    }
+    if (s.resolvedAt) parts.push(fill(m.detail.selectorAt, { date: formatDateTime(s.resolvedAt, { locale: lang }) }));
+    return parts.join(' · ');
+  };
   const columns: Column<AssignmentRow>[] = [
     { key: 'targetType', header: m.detail.target, sortable: true, render: (r) => targetLabel(r) },
     {
@@ -114,6 +128,7 @@ export function FirmwareDetailView({ adapter, packageId, can = {}, backHref, dev
             : r.targetType === 'DEVICE' && deviceHref ? <a href={deviceHref(r.targetId)} className="text-primary hover:underline">{r.targetName ?? r.targetId}</a>
               : r.targetName ?? r.targetId}
           {r.rolloutId ? <span className="text-text-secondary"> · {m.detail.inWaves}</span> : null}
+          {selectorText(r) ? <span className="block text-xs text-text-secondary" data-testid="ota-assignment-selector">{selectorText(r)}</span> : null}
         </span>
       ),
     },
