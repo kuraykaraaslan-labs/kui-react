@@ -70,3 +70,18 @@ New Domain entries: `ClaimDeviceView`, `DeviceClaimPreviewCard`, `FactoryPoolVie
 - (OD-6) No label sheet, label PDF or `provisioning.labels` call exists in kui-react.
 - (OD-41) In the demo, a claim before pressing "Open claim window" on `DevicePanelQrMock` shows the `press_claim_button` state; after pressing it the claim succeeds; the countdown shows 15:00.
 - (OD-82) On an Android phone and an iPhone, the camera QR scan of `/theme/iot/claim` reads `DevicePanelQrMock` from another screen and the claim completes; with camera permission denied the instructions and manual entry work. The same check in **standalone mode** runs on NB's installed PWA with the vendored `ClaimDeviceView` (kui-react's demo ships no manifest or service worker; README §Parity, OD-82) and is recorded as NB's acceptance item.
+
+## 2026-11-20 — as built (`feat/qr-scanner-claim`)
+
+- **`ClaimDeviceWizard`** (`modules/domains/iot/provisioning/`, the plan's `ClaimDeviceView`, named as next-boilerplate's 04 names it): the
+  four steps (source, code, confirm, done) sized for a phone; the scan path is `QrScanner` (9.13) with the QR text field under it, a read
+  code checked at once; the typed path is serial + claim code. The host owns the code format and the requests (`parseScan`, `checkTyped`,
+  `check`, `claim`, `describeError`): the kit parses nothing itself, as this phase requires. Request sequencing: an answer after Back /
+  Start over is dropped. A retryable refusal (OD-41's closed claim window) offers Try again. The site / asset picker of step 3 is not in the
+  kit wizard (NB places a claimed device on its Placement tab, `iot_asset`); the done step's push offer (`onRequestPush`) is not built.
+- **`ReleaseDeviceDialog`** (OD-24): `ConfirmDialog` (danger) with the effect lines (the host may pass its own), an optional reason and the
+  serial typed again.
+- Demo `/theme/iot/claim`: the wizard against fixtures, a `DevicePanelQrMock` (the claim QR from `qrcode`, the grouped code, Open claim
+  window with its 15-minute countdown; the claim answers the closed-window state until it is pressed) and the release dialog.
+- Not built here: `FactoryPoolView`, `DeviceClaimStateBadge`, `ProvisioningImportView` (NB has its own factory console and the import
+  wizard). Parity: `iot-provisioning-claim` in `parity.exceptions.json`. Tests: `modules/domains/iot/provisioning/provisioning.test.tsx`.

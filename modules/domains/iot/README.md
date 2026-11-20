@@ -12,6 +12,7 @@ camera/     RecordingTimeline: the day bar of a camera's recordings (footage, ga
 api/        the adapter contract, the live contract and IotAdapterProvider (docs/concepts/iot-platform/phases/00)
 device/     device components and views (the Log timeline and useDeviceLog; DeviceQuickView, the list's drawer)
 pki/        device certificates: status badge, detail card (Renew, Revoke), revoke dialog, recovery request card, the two lists (phase 13; NB iot_pki)
+provisioning/ adding a device by the claim code on its screen (ClaimDeviceWizard on QrScanner) and the owner's ReleaseDeviceDialog (NB iot_provisioning 04)
 profile/    device profile list, editor and its sections (online rule, auth modes, transport policy, topic schemes, rate limits, key schemas)
 ruleset/
 settings/   a device's settings from its own manifest (the Settings tab, SettingsForm, firewall / Wi-Fi / LTE hints, baselines, bulk jobs; phase 12)
