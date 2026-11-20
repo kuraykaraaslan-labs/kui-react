@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotAssetsApi, type IotCapabilities } from '../api/adapter';
@@ -8,12 +8,13 @@ import {
   type AssetNode, type AssetRecord, type AssetRow, type AssetSummary, type PlacedDevice,
 } from '../types/asset';
 import type { DeviceRecord } from '../types/device';
+import type { AssetWatchHandlers } from '../types/asset';
 import { AssetKindBadge } from './AssetKindBadge';
 import { AssetTree } from './AssetTree';
 import { AssetPicker } from './AssetPicker';
 import { MoveAssetDialog } from './MoveAssetDialog';
 import { AssetDrawer } from './AssetDrawer';
-import { AssetsView } from './AssetsView';
+import { AssetsView, LIVE_SETTLE_MS } from './AssetsView';
 import { AssetsMapDrawer, clusterAlarmText, siteMarkerSize, siteMarkerText } from './AssetsMapDrawer';
 import { AssetFormDrawer } from './AssetFormDrawer';
 import { DevicePlacementPanel } from './DevicePlacementPanel';
@@ -538,6 +539,42 @@ describe('AssetsView', () => {
     await waitFor(() => expect(within(table).getByText('Press line')).toBeInTheDocument());
     expect(within(table).getAllByText('Berlin plant › Hall A').some((el) => el.classList.contains('md:hidden'))).toBe(true);
     expect(screen.getByTestId('assets-kpis')).toHaveClass('grid-cols-2');
+  });
+});
+
+describe('AssetsView live changes', () => {
+  it('a live change reads the table, the KPI row and the open drawer again, once per burst; no polling while live; a reconnect reads once', async () => {
+    let h: AssetWatchHandlers | null = null;
+    const stop = vi.fn();
+    const assets = fakeAssets({ watch: vi.fn((handlers: AssetWatchHandlers) => { h = handlers; return stop; }) });
+    const { unmount } = wrap(<AssetsView initialQuery={{ asset: 'press-line' }} pollMs={50} />, assets);
+    await screen.findByRole('dialog', { name: 'Asset Press line' });
+    await waitFor(() => expect(assets.get).toHaveBeenCalledTimes(1));
+    act(() => h!.onLive?.(true));
+    const lists = (assets.list as ReturnType<typeof vi.fn>).mock.calls.length;
+    const sums = (assets.summary as ReturnType<typeof vi.fn>).mock.calls.length;
+    // live: the 50 ms poll does not run
+    await new Promise((r) => setTimeout(r, 150));
+    expect((assets.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(lists);
+    act(() => { h!.onChange({ changes: ['moved'], assetIds: ['press-line'] }); h!.onChange({ changes: ['placement'], assetIds: ['hub'] }); });
+    await waitFor(() => expect((assets.list as ReturnType<typeof vi.fn>).mock.calls.length).toBe(lists + 1), { timeout: LIVE_SETTLE_MS + 1000 });
+    expect((assets.summary as ReturnType<typeof vi.fn>).mock.calls.length).toBe(sums + 1);
+    await waitFor(() => expect(assets.get).toHaveBeenCalledTimes(2));
+    // dropped and back: one read for what was missed (polling meanwhile is allowed)
+    act(() => h!.onLive?.(false));
+    act(() => h!.onLive?.(true));
+    await waitFor(() => expect((assets.summary as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(sums + 1));
+    unmount();
+    expect(stop).toHaveBeenCalled();
+  });
+
+  it('without watch it polls every pollMs while visible', async () => {
+    const assets = fakeAssets();
+    wrap(<AssetsView pollMs={60} />, assets);
+    await screen.findByRole('table', { name: 'Sites & assets' });
+    const first = (assets.list as ReturnType<typeof vi.fn>).mock.calls.length;
+    await waitFor(() => expect((assets.list as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(first), { timeout: 1000 });
+    expect((assets.summary as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(1);
   });
 });
 
