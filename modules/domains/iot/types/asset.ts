@@ -139,6 +139,23 @@ export type AssetSite = {
   alarmsBySeverity: Partial<Record<AlarmSeverity, number>> | null;
 };
 
+/**
+ * A change of the host's site and asset tree, as a live source announces it: the kinds of change and the nodes they touched (at most a
+ * few dozen; `more` when there were more), never the nodes' data. The views read their own rows again.
+ */
+export type AssetTreeChange = {
+  changes: Array<'created' | 'updated' | 'moved' | 'deleted' | 'relation' | 'placement'>;
+  assetIds: string[];
+  more?: boolean;
+};
+
+/** What `IotAssetsApi.watch` calls. */
+export interface AssetWatchHandlers {
+  onChange(change: AssetTreeChange): void;
+  /** true while changes arrive (the views stop polling); false when the source is connecting, refused or gone (the views poll). */
+  onLive?(live: boolean): void;
+}
+
 /** The page's KPI row and its sites. `alarms` false: the host shows no alarm counts (the KPI and the column are hidden). */
 export type AssetSummary = {
   sites: number;

@@ -35,6 +35,11 @@ import { assetKindLabel } from './asset-kind';
  *
  * Without alarm counts from the host (`alarms` false) the alarm KPI, column, filter and sort are left out. On a phone the header's
  * and the drawers' controls are at least 40 px tall.
+ *
+ * Changes made elsewhere (another person, an import, a device deleted): with the adapter's `assets.watch` live, each announced change
+ * reads the table, the KPI row and the open drawer again (a burst is read once, after `LIVE_SETTLE_MS`), and a reconnect reads once
+ * for what was missed. Without `watch`, or while it is not live, the same reads run every `pollMs` (default 30 s; 0 = never) while the
+ * page is visible.
  */
 export type AssetsViewProps = {
   initialQuery?: Partial<AssetListQuery>;
@@ -54,10 +59,18 @@ export type AssetsViewProps = {
   /** Open a link in the app (the host's router): the drawer's path, devices and relation ends. Without it the links are plain. */
   onNavigate?: (href: string) => void;
   now?: number;
+  /** How often the view reads again while no live source is (ms); 0 = never. */
+  pollMs?: number;
   className?: string;
 };
 
-export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreActions = [], drawerActions, onNavigate, pageSize = 20, now, className }: AssetsViewProps) {
+/** A burst of live changes is read once, this long after the first. */
+export const LIVE_SETTLE_MS = 400;
+export const ASSETS_POLL_MS = 30_000;
+
+export function AssetsView({
+  initialQuery, onQueryChange, hrefs = {}, moreActions = [], drawerActions, onNavigate, pageSize = 20, now, pollMs = ASSETS_POLL_MS, className,
+}: AssetsViewProps) {
   const api = useIotAdapter().assets;
   const caps = useIotCapabilities();
   const { m } = useIotText();
@@ -130,6 +143,36 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
 
   /** The table and the KPI row again (after a write in a drawer or a new site). */
   const reread = useCallback(() => { void load(queryRef.current); void loadSummary(); }, [load, loadSummary]);
+
+  // changes made elsewhere: the table, the KPI row and the open drawer read again (live through `watch`, else polled)
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [live, setLive] = useState(false);
+  const refresh = useCallback(() => { reread(); setRefreshKey((k) => k + 1); }, [reread]);
+  const refreshRef = useRef(refresh);
+  useEffect(() => { refreshRef.current = refresh; }, [refresh]);
+  useEffect(() => {
+    if (!api?.watch) return;
+    let settle: ReturnType<typeof setTimeout> | null = null;
+    let wasLive = false;
+    const stop = api.watch({
+      onChange: () => {
+        if (settle) return;
+        settle = setTimeout(() => { settle = null; refreshRef.current(); }, LIVE_SETTLE_MS);
+      },
+      onLive: (v) => {
+        setLive(v);
+        // events are not replayed: after a reconnect, read once what was missed
+        if (v && wasLive) refreshRef.current();
+        if (v) wasLive = true;
+      },
+    });
+    return () => { stop(); if (settle) clearTimeout(settle); setLive(false); };
+  }, [api]);
+  useEffect(() => {
+    if (!pollMs || (api?.watch && live)) return;
+    const id = setInterval(() => { if (typeof document === 'undefined' || document.visibilityState !== 'hidden') refreshRef.current(); }, pollMs);
+    return () => clearInterval(id);
+  }, [api, pollMs, live]);
 
   function report(q: AssetListQuery, d: { asset: string | null; map: boolean }, how: 'push' | 'replace') {
     const key = tableKey(q, pageSize);
@@ -306,6 +349,7 @@ export function AssetsView({ initialQuery, onQueryChange, hrefs = {}, moreAction
           onNavigate={onNavigate}
           actions={drawerActions?.(openId)}
           now={now}
+          refreshKey={refreshKey}
         />
       )}
 

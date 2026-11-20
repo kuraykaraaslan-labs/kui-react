@@ -59,10 +59,12 @@ export type AssetDrawerProps = {
   onNavigate?: (href: string) => void;
   pageSize?: number;
   now?: number;
+  /** A change made elsewhere (the host's live source or its poll): a new value reads the asset and its sections again in place. */
+  refreshKey?: number;
 };
 
 export function AssetDrawer({
-  assetId, open = true, onClose, hrefs = {}, onChanged, onDeleted, onOpenAsset, actions, onNavigate, pageSize = 10, now,
+  assetId, open = true, onClose, hrefs = {}, onChanged, onDeleted, onOpenAsset, actions, onNavigate, pageSize = 10, now, refreshKey = 0,
 }: AssetDrawerProps) {
   const api = useIotAdapter().assets;
   const caps = useIotCapabilities();
@@ -107,6 +109,16 @@ export function AssetDrawer({
     void load();
     onChanged?.();
   }, [load, onChanged]);
+
+  // a change made elsewhere: the same in-place re-read as after a write here, without telling the host (it told us)
+  const seenRefresh = useRef(refreshKey);
+  useEffect(() => {
+    if (seenRefresh.current === refreshKey) return;
+    seenRefresh.current = refreshKey;
+    setVersion((v) => v + 1);
+    setRereading(true);
+    void load();
+  }, [refreshKey, load]);
 
   async function remove(a: AssetRecord) {
     if (!api) return;

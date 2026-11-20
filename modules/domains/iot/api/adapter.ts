@@ -12,7 +12,7 @@ import type {
 } from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
 import type {
-  AssetInput, AssetNode, AssetRecord, AssetRow, AssetSummary, AssetRelation, AssetRelationInput, DevicePlacement, PlacedDevice, RelationEntityType,
+  AssetInput, AssetNode, AssetRecord, AssetRow, AssetSummary, AssetRelation, AssetRelationInput, AssetWatchHandlers, DevicePlacement, PlacedDevice, RelationEntityType,
 } from '../types/asset';
 import type { IotAccessGrant, IotAccessGrantInput, IotAccessGrantQuery, IotAccessSubject, IotEffectiveAccess } from '../types/access';
 
@@ -523,6 +523,11 @@ export interface IotAssetsApi {
   relationsPage?(entity: { type: RelationEntityType; id: string }, query: { page: number; pageSize: number; search?: string; sort?: IotListSort<'from' | 'type' | 'to' | 'createdAt'>; type?: string }, signal?: AbortSignal): Promise<Page<AssetRelation>>;
   createRelation?(input: AssetRelationInput): Promise<AssetRelation>;
   removeRelation?(relationId: string): Promise<void>;
+  /**
+   * The tree's changes as they happen (a host's live source). While `onLive(true)` the Sites & assets view does not poll; without `watch`,
+   * or while it is not live (a viewer the source refuses, a dropped connection), it reads again every `pollMs`. Returns the unsubscribe.
+   */
+  watch?(handlers: AssetWatchHandlers): () => void;
 }
 
 // ── telemetry (the device page's Telemetry tab) ───────────────────────────────────────────────────────────────────────
