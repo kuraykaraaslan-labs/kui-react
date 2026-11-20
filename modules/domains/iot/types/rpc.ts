@@ -303,3 +303,116 @@ export function isRefusedRpcMethod(method: string): boolean {
   const m = method.toLowerCase().replace(/[^a-z]/g, '');
   return m.includes('factoryreset') || m.includes('factorydefault') || m === 'cloudforget';
 }
+
+// ── entity controls and command bindings (NB 42-telemetry/14, iot-rpc 04; OD-222, OD-226) ─────────────────────────────────────────
+
+/** What a record's control may do to equipment; a bound command is never above it. */
+export type ControlTier = 'basic' | 'privileged' | 'critical';
+export const CONTROL_TIERS: readonly ControlTier[] = ['basic', 'privileged', 'critical'];
+export const CONTROL_TIER_RANK: Readonly<Record<ControlTier, number>> = { basic: 0, privileged: 1, critical: 2 };
+export type ControlConfirmation = 'none' | 'confirm' | 'typed';
+
+export type ControlParamSpec =
+  | { type: 'number' | 'integer'; label: string; labelKey?: string; required?: boolean; min?: number; max?: number; step?: number; unit?: string }
+  | { type: 'boolean'; label: string; labelKey?: string; required?: boolean }
+  | { type: 'text'; label: string; labelKey?: string; required?: boolean; maxLength: number }
+  | { type: 'select'; label: string; labelKey?: string; required?: boolean; options: ReadonlyArray<{ value: string; label: string; labelKey?: string }> };
+
+/** A named control a kind of record declares (`start`, `turn_off`, `set_value`). Its name is stored by the host and never shown. */
+export type EntityControl = {
+  name: string;
+  label: string;
+  labelKey?: string;
+  description?: string;
+  params: Record<string, ControlParamSpec>;
+  tier: ControlTier;
+  confirmation: ControlConfirmation;
+  /** `typed` only: the phrase the person types. */
+  confirmText?: string;
+};
+
+export type ControlBindingTarget = { targetId: string; label: string; tier: ControlTier };
+/** What one sink has bound to one control: labels where the viewer may read them, else a count. */
+export type ControlBindingSummary = { control: string; targets: ControlBindingTarget[] | { count: number } };
+
+/** One record's controls as the host answers them. */
+export type EntityControlsView = {
+  kind: string;
+  entityId: string;
+  controls: EntityControl[];
+  /** The viewer may send this record's controls. */
+  permitted: boolean;
+  sinks: Array<{ sink: string; bindings: ControlBindingSummary[] }>;
+  failedSinks: string[];
+};
+
+export type ControlSendBody = { params?: Record<string, unknown>; confirmed?: boolean; confirmText?: string };
+export type ControlOutcome = 'queued' | 'sent' | 'failed';
+export type ControlTargetResult = {
+  sink: string;
+  targetId: string;
+  label: string;
+  outcome: ControlOutcome;
+  ref?: { refType: string; refId: string };
+  /** A refused target's reason code (the host's), worded by the view; `message` is the host's English. */
+  reason?: string;
+  message?: string;
+};
+export type ControlSendResult =
+  | { outcome: 'nothing_bound'; failedSinks: string[] }
+  | { outcome: 'dispatched'; targets: ControlTargetResult[]; failedSinks: string[] };
+
+/** Where a bound value comes from: a parameter of the control, or a fixed value. */
+export type CommandBindingParamSource = { from: 'control'; param: string } | { const: unknown };
+export type CommandBindingTargetType = 'COMMAND' | 'ATTRIBUTES';
+export const COMMAND_BINDING_STATES = ['ok', 'record_missing', 'control_gone', 'command_gone'] as const;
+export type CommandBindingState = (typeof COMMAND_BINDING_STATES)[number];
+
+/** A record's control bound to a device: a catalog command, or a set of the device's shared values. */
+export type CommandBinding = {
+  bindingId: string;
+  targetKind: string;
+  targetKindLabel: string;
+  targetEntityId: string;
+  /** Null when the record is gone. */
+  targetLabel: string | null;
+  control: string;
+  controlLabel: string | null;
+  controlTier: ControlTier;
+  position: number;
+  deviceId: string;
+  deviceName: string;
+  targetType: CommandBindingTargetType;
+  method: string | null;
+  commandLabel: string | null;
+  paramMap: Record<string, CommandBindingParamSource>;
+  tier: ControlTier;
+  highImpact: boolean;
+  enabled: boolean;
+  note: string | null;
+  state: CommandBindingState;
+  version: number;
+  updatedAt: string | Date;
+};
+
+export type CommandBindingInput = {
+  targetKind: string;
+  targetEntityId: string;
+  control: string;
+  deviceId: string;
+  targetType: CommandBindingTargetType;
+  method?: string | null;
+  paramMap?: Record<string, CommandBindingParamSource>;
+  position?: number;
+  enabled?: boolean;
+  note?: string | null;
+};
+
+/** A rule a binding breaks, in the host's English (`reason` worded by the view when it knows it). */
+export type CommandBindingProblem = { reason: string; field?: string; message: string };
+/** A kind of record that declares controls (derived by the host, never listed by hand). */
+export type BindableKind = { kind: string; label: string; labelKey?: string; controls: EntityControl[] };
+/** A command of the device's catalog this control may bind. */
+export type BindableCommand = { method: string; label: string; tier: ControlTier; highImpact: boolean; paramsSchema: Record<string, FieldSchema> };
+/** At most 8 targets per record control (positions 0–7). */
+export const COMMAND_BINDING_POSITIONS = 8;

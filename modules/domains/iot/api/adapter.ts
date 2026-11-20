@@ -7,6 +7,10 @@ import type {
 } from '../types/device';
 import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcCommandTemplate, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
 import type {
+  BindableCommand, BindableKind, CommandBinding, CommandBindingInput, CommandBindingProblem, CommandBindingState, CommandBindingTargetType, ControlSendBody,
+  ControlSendResult, ControlTier, EntityControlsView,
+} from '../types/rpc';
+import type {
   DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTemplate, ProfileTransport, ProfileTransportOption, ProvisionKey, ProvisioningInfo,
   ProvisioningSettings, ProvisionStrategy, TemplateUpdate,
 } from '../types/profile';
@@ -612,6 +616,45 @@ export interface IotAccessApi {
   searchSubjects(text: string, signal?: AbortSignal): Promise<IotAccessSubject[]>;
 }
 
+// ── entity controls and command bindings (NB 42-telemetry/14, iot-rpc 04) ───────────────────────────────────────────────────────────
+
+/** A record's controls: what it declares and what is bound, and the send (one press, one idempotency key). */
+export interface IotEntityControlsApi {
+  describe(kind: string, entityId: string, signal?: AbortSignal): Promise<EntityControlsView>;
+  /** `idempotencyKey`: one per press, the same for a retry of that press. */
+  send(kind: string, entityId: string, control: string, body: ControlSendBody, idempotencyKey: string): Promise<ControlSendResult>;
+}
+
+export const COMMAND_BINDING_SORT_KEYS = ['updatedAt', 'control', 'targetKind', 'position'] as const;
+export type CommandBindingSortKey = (typeof COMMAND_BINDING_SORT_KEYS)[number];
+export type CommandBindingQuery = {
+  page: number;
+  pageSize: number;
+  search?: string;
+  sort?: IotListSort<CommandBindingSortKey>;
+  deviceId?: string;
+  targetKind?: string;
+  targetEntityId?: string;
+  control?: string;
+  targetType?: CommandBindingTargetType;
+  tier?: ControlTier;
+  enabled?: boolean;
+  state?: CommandBindingState;
+};
+
+/** Command bindings: a record's control to a device's catalog command or shared values. The host judges every rule again. */
+export interface IotCommandBindingsApi {
+  list(query: CommandBindingQuery, signal?: AbortSignal): Promise<Page<CommandBinding>>;
+  create(input: CommandBindingInput): Promise<CommandBinding>;
+  update(bindingId: string, patch: Partial<CommandBindingInput>, version: number): Promise<CommandBinding>;
+  remove(bindingId: string, version: number): Promise<void>;
+  /** The problems of a draft in words, without saving (`bindingId` when editing one). */
+  check(input: CommandBindingInput, bindingId?: string): Promise<CommandBindingProblem[]>;
+  kinds(signal?: AbortSignal): Promise<BindableKind[]>;
+  targets(kind: string, o: { search?: string; ids?: readonly string[] }, signal?: AbortSignal): Promise<Array<{ id: string; label: string }>>;
+  commands(deviceId: string, kind: string, control: string, signal?: AbortSignal): Promise<{ commands: BindableCommand[]; attributesAllowed: boolean }>;
+}
+
 // ── capabilities ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -710,6 +753,10 @@ export interface IotAdapter {
   telemetry?: IotTelemetryApi;
   /** Restricted access: grants, a member's effective access, the subject search. Absent: the access panels draw nothing. */
   access?: IotAccessApi;
+  /** A record's named controls (NB 42-telemetry/14). Absent: the controls drawer draws nothing. */
+  entityControls?: IotEntityControlsApi;
+  /** Command bindings (NB iot-rpc 04). Absent: the record-controls drawer draws nothing. */
+  commandBindings?: IotCommandBindingsApi;
   capabilities?(signal?: AbortSignal): Promise<Partial<IotCapabilities>>;
 }
 
