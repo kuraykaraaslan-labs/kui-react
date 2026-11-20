@@ -60,6 +60,16 @@ export const DeviceRecordSchema = z.object({
   /** Why the last session ended (a protocol reason such as `keepalive_timeout`), when known. */
   lastDisconnectReason: z.string().nullable().optional(),
   /**
+   * What the platform's rate limits dropped of the live session since it connected (NB iot-gateway 06 §6.4, GL-6): `count`, and the
+   * limit of the newest drop (`scope` the device's own or the workspace's, `kind` its family such as `telemetry_msgs`). `null`: no live
+   * session; absent: the host does not say, and the overview shows no row.
+   */
+  sessionDrops: z.object({
+    count: z.number().int().nonnegative(),
+    scope: z.enum(['device', 'tenant']).nullable().optional(),
+    kind: z.string().nullable().optional(),
+  }).nullable().optional(),
+  /**
    * Whether the device logs in to the platform itself (its profile's transport, as the host decides it; NB iot-device 05 D437): false for a
    * device that reaches the platform another way (polled, or a LoRaWAN radio or gateway), which hides the Credentials tab. Absent or null:
    * the host does not say, the tab shows.

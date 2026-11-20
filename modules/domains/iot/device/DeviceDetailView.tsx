@@ -12,6 +12,7 @@ import { errorMessage } from '../api/adapter';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrPoll } from '../api/IotAdapterProvider';
 import { iotTopics } from '../api/live';
 import { fill, formatDateTime, plural } from '../format';
+import type { IotMessages } from '../messages';
 import type {
   AttributeEntry, AttributeScope, DeviceConnectionInfo, DeviceCredential, DeviceLogFilter, DeviceRecord, IssuedSecret,
 } from '../types/device';
@@ -294,6 +295,15 @@ export function DeviceDetailView({
   );
 }
 
+/** "12 · last over Telemetry messages (workspace limit)", "0", or a dash without a live session (exported for tests). */
+export function sessionDropsText(m: IotMessages, drops: DeviceRecord['sessionDrops']): string {
+  if (!drops) return '—';
+  if (!drops.count || !drops.kind) return String(drops.count);
+  const family = (m.limits as Record<string, string>)[`family_${drops.kind}`] ?? drops.kind;
+  const limit = drops.scope === 'tenant' ? fill(m.device.sessionDropsWorkspace, { limit: family }) : family;
+  return fill(m.device.sessionDropsLast, { n: drops.count, limit });
+}
+
 function Overview({ device }: { device: DeviceRecord }) {
   const { m, locale, timeZone } = useIotText();
   const at = (v: DeviceRecord['lastActivityAt']) => formatDateTime(v, { locale, timeZone });
@@ -310,6 +320,8 @@ function Overview({ device }: { device: DeviceRecord }) {
       : '—'],
     [m.device.created, at(device.createdAt)],
   ];
+  // the live session's limit drops (GL-6): only when the host says (absent = no row); no live session reads as a dash
+  if (device.sessionDrops !== undefined) rows.splice(rows.length - 1, 0, [m.device.sessionDrops, sessionDropsText(m, device.sessionDrops)]);
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-3 rounded-xl border border-border bg-surface-raised p-4 text-sm sm:grid-cols-2 sm:p-5">
       {rows.map(([term, value]) => (

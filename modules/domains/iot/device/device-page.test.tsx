@@ -5,7 +5,7 @@ import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
 import type { IotLive, IotLiveSubscription } from '../api/live';
 import type { AttributeEntry, DeviceCredential, DeviceRecord } from '../types/device';
-import { DeviceDetailView } from './DeviceDetailView';
+import { DeviceDetailView, sessionDropsText } from './DeviceDetailView';
 import { DeviceAttributeTable, attributeKeyProblem } from './DeviceAttributeTable';
 import { DeviceCredentialPanel } from './DeviceCredentialPanel';
 import { passwordProblem } from './SetCredentialDrawer';
@@ -555,5 +555,28 @@ describe('review fixes (NB 41-ui-fixes/22 C2, C3, C8–C12)', () => {
     expect(within(drawer).getByText(/changed while you were editing/)).toBeInTheDocument();
     await user.click(within(drawer).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(adapter.devices!.update).toHaveBeenCalledWith('d1', { label: 'Hall' }));
+  });
+});
+
+describe('the live session\'s limit drops (NB iot-gateway 06 §6.4, GL-6)', () => {
+  const m = IOT_MESSAGES as unknown as Parameters<typeof sessionDropsText>[0];
+
+  it('words the count and the newest drop\'s limit; a dash without a live session', () => {
+    expect(sessionDropsText(m, null)).toBe('—');
+    expect(sessionDropsText(m, { count: 0 })).toBe('0');
+    expect(sessionDropsText(m, { count: 12, scope: 'device', kind: 'telemetry_msgs' })).toBe('12 · last over Telemetry messages');
+    expect(sessionDropsText(m, { count: 3, scope: 'tenant', kind: 'telemetry_points' })).toBe('3 · last over Telemetry points (workspace limit)');
+    // a family the kit does not know shows as it is
+    expect(sessionDropsText(m, { count: 1, scope: 'device', kind: 'future_family' })).toBe('1 · last over future_family');
+  });
+
+  it('shows the row on the overview only when the host says', async () => {
+    wrap(<DeviceDetailView deviceId="d1" />, { adapter: adapterWith({ device: { sessionDrops: { count: 7, scope: 'device', kind: 'attr_msgs' } } }) });
+    expect(await screen.findByText('Dropped by rate limits since connect')).toBeInTheDocument();
+    expect(screen.getByText('7 · last over Attribute updates')).toBeInTheDocument();
+    cleanup();
+    wrap(<DeviceDetailView deviceId="d1" />);
+    await waitFor(() => expect(screen.queryByText('Last connected')).toBeInTheDocument());
+    expect(screen.queryByText('Dropped by rate limits since connect')).toBeNull();
   });
 });
