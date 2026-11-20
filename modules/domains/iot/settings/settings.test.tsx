@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { DeviceSettings, DeviceSettingsSchema, SettingsSchemaNode, SettingsSection } from '../types/settings';
 import { DeviceSettingsView } from './DeviceSettingsView';
 import { BaselineEditorDrawer } from './BaselineEditorDrawer';
+import { AssignmentsDrawer } from './AssignmentsDrawer';
 import { JobDetailView } from './JobDetailView';
 import type { SettingsFleetAdapter } from './settings-adapter';
 import type { SettingsBaseline, SettingsJobView } from '../types/settings';
@@ -289,6 +290,77 @@ describe('BaselineEditorDrawer', () => {
     await userEvent.click(within(drawer).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(fleet.baselines.update).toHaveBeenCalledTimes(2));
     expect((fleet.baselines.update as ReturnType<typeof vi.fn>).mock.calls[1][1].sections).toEqual({});
+  });
+});
+
+describe('BaselineEditorDrawer drift policy', () => {
+  it('offers Only show it / Send the baseline again and saves the choice', async () => {
+    const b: SettingsBaseline = {
+      baselineId: 'b1', name: 'Shop Wi-Fi', description: null, models: ['roltek-420'], sections: { wifi: { ssids: [{ ssid: 'Shop', band: '2g', security: 'open' }] } },
+      driftPolicy: 'REPORT', offlineExpiryDays: 7, createdBy: null, createdAt: '', updatedAt: '',
+    };
+    const fleet = fleetOf();
+    render(<BaselineEditorDrawer open adapter={fleet} baseline={b} canManage onClose={() => undefined} onSaved={() => undefined} />);
+    const drawer = await screen.findByRole('dialog', { name: 'Shop Wi-Fi' });
+    await screen.findAllByText('Wi-Fi networks');
+    await userEvent.click(within(drawer).getByLabelText('Send the baseline again'));
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(fleet.baselines.update).toHaveBeenCalled());
+    expect((fleet.baselines.update as ReturnType<typeof vi.fn>).mock.calls[0][1]).toMatchObject({ driftPolicy: 'ENFORCE' });
+  });
+});
+
+describe('AssignmentsDrawer', () => {
+  const row = {
+    assignmentId: 'a1', baselineId: 'b1', baselineName: 'Shop Wi-Fi', driftPolicy: 'ENFORCE' as const, targetType: 'PROFILE' as const, profileId: 'p1', profileName: 'Shops',
+    createdAt: 0, createdBy: null, lastError: null, jobRunning: false, counts: { members: 12, governed: 12, detached: 2, drifting: 3, blocked: 1, enforcements: 4 },
+  };
+  const assignments = () => ({
+    list: vi.fn(async () => ({ data: [structuredClone(row)], canManage: true })),
+    create: vi.fn(async (_i: unknown, o: { dryRun?: boolean }) => (o.dryRun
+      ? { dryRun: true as const, plan: { devices: 25, excludedByModel: 0, skipped: 0, waveSizes: [1, 3, 21], coverage: [], needsConfirm: false } }
+      : { assignment: { assignmentId: 'a2' }, job: null })),
+    remove: vi.fn(async () => undefined),
+    reattach: vi.fn(async () => ({}) as never),
+  });
+  const baselines = { data: [{ baselineId: 'b1', name: 'Shop Wi-Fi' }], total: 1 };
+
+  it('lists the assignments with their counts; Remove and Re-attach go through the ConfirmDialog', async () => {
+    const api = assignments();
+    const fleet = fleetOf({ assignments: api });
+    (fleet.baselines.list as ReturnType<typeof vi.fn>).mockResolvedValue(baselines);
+    render(<AssignmentsDrawer open adapter={fleet} onClose={() => undefined} />);
+    const drawer = await screen.findByRole('dialog', { name: 'Baseline assignments' });
+    await within(drawer).findByText('Shops');
+    expect(within(drawer).getAllByText('Send again').length).toBeGreaterThan(0);
+    await userEvent.click(within(drawer).getAllByRole('button', { name: /Row actions/ })[0]);
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remove' }));
+    const confirm = await screen.findByRole('dialog', { name: 'Remove this assignment?' });
+    await userEvent.click(within(confirm).getByRole('button', { name: 'Remove' }));
+    await waitFor(() => expect(api.remove).toHaveBeenCalledWith('a1'));
+  });
+
+  it('every device: Check first, then the number of devices typed back before anything is stored', async () => {
+    const api = assignments();
+    const fleet = fleetOf({ assignments: api });
+    (fleet.baselines.list as ReturnType<typeof vi.fn>).mockResolvedValue(baselines);
+    render(<AssignmentsDrawer open adapter={fleet} onClose={() => undefined} />);
+    const drawer = await screen.findByRole('dialog', { name: 'Baseline assignments' });
+    await within(drawer).findByRole('option', { name: 'Shop Wi-Fi' });
+    await userEvent.selectOptions(within(drawer).getByLabelText('Baseline'), 'b1');
+    await userEvent.click(within(drawer).getByLabelText('Every device'));
+    expect((within(drawer).getByRole('button', { name: 'Assign' }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Check' }));
+    expect(await within(drawer).findByText(/25 devices get this baseline now/)).toBeTruthy();
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Assign' }));
+    const confirm = await screen.findByRole('dialog', { name: 'Assign this baseline?' });
+    const go = within(confirm).getByRole('button', { name: 'Assign' }) as HTMLButtonElement;
+    expect(go.disabled).toBe(true);
+    await userEvent.type(within(confirm).getByRole('textbox'), '25');
+    await userEvent.click(go);
+    await waitFor(() => expect(api.create).toHaveBeenCalledTimes(2));
+    expect(api.create.mock.calls[1][0]).toEqual({ baselineId: 'b1', target: { type: 'ALL' }, confirmCount: 25 });
+    expect(await within(drawer).findByText(/Devices that join later get the baseline/)).toBeTruthy();
   });
 });
 

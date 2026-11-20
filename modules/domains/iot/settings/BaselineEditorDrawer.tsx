@@ -42,6 +42,7 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
   const [description, setDescription] = useState(baseline?.description ?? '');
   const [chosen, setChosen] = useState<string[]>(baseline?.models ?? []);
   const [days, setDays] = useState(baseline?.offlineExpiryDays ?? 7);
+  const [policy, setPolicy] = useState<'REPORT' | 'ENFORCE'>(baseline?.driftPolicy ?? 'REPORT');
   const [patches, setPatches] = useState<Patches>(() => structuredClone(baseline?.sections ?? {}));
   const [included, setIncluded] = useState<Record<string, Set<string>>>(() => Object.fromEntries(Object.entries(baseline?.sections ?? {}).map(([s, p]) => [s, new Set(Object.keys(p))])));
   const [busy, setBusy] = useState(false);
@@ -108,7 +109,7 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
     setBusy(true);
     setError(null);
     try {
-      const input = { name: name.trim(), description: description.trim() || null, models: chosen, sections: out, driftPolicy: baseline?.driftPolicy ?? 'REPORT' as const, offlineExpiryDays: days };
+      const input = { name: name.trim(), description: description.trim() || null, models: chosen, sections: out, driftPolicy: policy, offlineExpiryDays: days };
       const saved = baseline ? await adapter.baselines.update(baseline.baselineId, input) : await adapter.baselines.create(input);
       onSaved(saved);
     } catch (e) {
@@ -162,6 +163,18 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
         </fieldset>
         <Input id="baseline-days" type="number" label={m.fleet.offlineDays} hint={m.fleet.offlineDaysHint} min={1} max={90} value={String(days)} disabled={readOnly}
           onChange={(e) => setDays(Math.min(90, Math.max(1, Number(e.target.value) || 1)))} />
+        <fieldset className="rounded-lg border border-border p-3" data-baseline-drift="">
+          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-text-secondary">{m.fleet.driftPolicy}</legend>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            {(['REPORT', 'ENFORCE'] as const).map((v) => (
+              <label key={v} className="inline-flex min-h-11 items-center gap-2 text-sm text-text-primary sm:min-h-0">
+                <input type="radio" name="baseline-drift" value={v} checked={policy === v} disabled={readOnly} onChange={() => setPolicy(v)} className="h-4 w-4 accent-primary" />
+                {v === 'REPORT' ? m.fleet.driftReport : m.fleet.driftEnforce}
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-text-secondary">{m.fleet.driftHint}</p>
+        </fieldset>
         <div className="space-y-3">
           <p className="text-sm font-medium text-text-primary">{m.fleet.sections}</p>
           <p className="text-xs text-text-secondary">{m.fleet.includeHint}</p>
