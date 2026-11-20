@@ -59,6 +59,17 @@ describe('codec library (10.7)', () => {
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ id: 't.mine' }));
   });
 
+  it('shows how many devices use each codec only when asked, a dash where the host did not count', () => {
+    const { unmount } = render(<LoraCodecTable rows={[codec({ devices: 12 })]} />);
+    expect(screen.queryByText('Devices')).toBeNull();
+    unmount();
+    render(<LoraCodecTable rows={[codec({ devices: 12 }), codec({ id: 't.mine', title: 'Mine', scope: 'tenant', devices: 0 }), codec({ id: 'x', title: 'Uncounted' })]} showDevices />);
+    expect(screen.getByText('Devices')).toBeTruthy();
+    expect(screen.getByText('12')).toBeTruthy();
+    expect(screen.getByText('0')).toBeTruthy();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+  });
+
   it('the bench checks its input and shows every decoded key with its unit', async () => {
     const onRun = vi.fn(async () => ({ fields: { temperature: 30.8, gps: { lat: 1 } }, units: { temperature: '°C' }, keys: { temperature: '°C', 'gps.lat': null }, warnings: ['short'] }));
     render(<LoraCodecBench onRun={onRun} />);

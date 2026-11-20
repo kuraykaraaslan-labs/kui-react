@@ -10,7 +10,9 @@ import type { LoraCodecRow } from './types';
 /**
  * LoraCodecTable — the LoRaWAN codec library and the tenant's own codecs in one list (NB iot_lorawan_codecs 05; kui-react iot 10.7): id
  * (monospace), name, vendor, models, FPorts, kind (`tlv` / `layout`), source (Library / Yours), verified, revision and last update; with
- * `showStatus` (the platform's own view) also Published / Withdrawn. A row opens the codec (keyboard too). Presentational.
+ * `showStatus` (the platform's own view) also Published / Withdrawn; with `showDevices` how many of the workspace's devices use it (the
+ * row's `devices`: by their own or their profile's choice; a dash when the host did not count it). A row opens the codec (keyboard
+ * too). Presentational.
  *
  * A full list on the DataTable's own toolbar: search (id, name, vendor, models, OUI), the Filters panel (source, kind, verified, and
  * status with `showStatus`), sortable columns (id, name, vendor, kind, revision, updated, source), rows per page and paging. With
@@ -25,6 +27,8 @@ export type LoraCodecTableProps = {
   defaultQuery?: Partial<DataTableQuery>;
   /** The platform's view: the Status column and filter (withdrawn library codecs are listed). */
   showStatus?: boolean;
+  /** The Devices column: how many devices use each codec (`LoraCodecRow.devices`, counted by the host; not sortable). */
+  showDevices?: boolean;
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
@@ -38,7 +42,7 @@ export const LORA_CODEC_SORT_KEYS = ['id', 'title', 'vendor', 'kind', 'rev', 'up
 const short = (list: readonly (string | number)[], n = 3): string => (list.length > n ? `${list.slice(0, n).join(', ')} +${list.length - n}` : list.join(', '));
 
 export function LoraCodecTable({
-  rows, onOpen, total, onQueryChange, defaultQuery, showStatus = false, loading = false, error, onRetry, locale, messages, className,
+  rows, onOpen, total, onQueryChange, defaultQuery, showStatus = false, showDevices = false, loading = false, error, onRetry, locale, messages, className,
 }: LoraCodecTableProps) {
   const all = mergeLoraMessages(messages);
   const m = all.codecs;
@@ -60,6 +64,10 @@ export function LoraCodecTable({
     },
     { key: 'rev', header: m.rev, sortable: true, searchable: false, align: 'right', hideBelow: 'md', render: (c) => <span className="tabular-nums text-xs">{c.rev}</span> },
     { key: 'updatedAt', header: m.updated, sortable: true, searchable: false, hideBelow: 'lg', render: (c) => <span className="text-xs">{date.format(new Date(c.updatedAt))}</span> },
+    ...(showDevices ? [{
+      key: 'devices', header: <span title={m.devicesTitle}>{m.devices}</span>, searchable: false, align: 'right', hideBelow: 'md',
+      render: (c: LoraCodecRow) => <span className="tabular-nums text-xs">{typeof c.devices === 'number' ? c.devices : all.common.none}</span>,
+    } as Column<LoraCodecRow>] : []),
     ...(showStatus ? [{
       key: 'status', header: m.status, searchable: false,
       render: (c: LoraCodecRow) => <Badge variant={c.status === 'WITHDRAWN' ? 'warning' : 'success'} size="sm">{c.status === 'WITHDRAWN' ? m.withdrawn : m.published}</Badge>,
