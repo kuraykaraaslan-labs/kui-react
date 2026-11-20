@@ -203,6 +203,8 @@ export const LORA_MESSAGES = {
     verifiedNo: 'Not verified',
     rev: 'Revision',
     updated: 'Updated',
+    devices: 'Devices',
+    devicesTitle: 'Devices that use this codec by their own or their profile\'s choice',
     status: 'Status',
     published: 'Published',
     withdrawn: 'Withdrawn',

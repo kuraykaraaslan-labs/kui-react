@@ -39,9 +39,9 @@ const FRAMES: LoraFrameRow[] = [
   { t: now - 150_000, type: 'up', result: 'processed', deviceId: 'd7', deviceName: 'Water meter 7', devEui: 'A840410000000007', fCnt: 96, fPort: 1, dr: 3, freq: 867_700_000, gateways: gws(2) },
 ];
 const CODECS: LoraCodecRow[] = [
-  { id: 'milesight-em300-th', title: 'Milesight EM300-TH temperature & humidity', vendor: 'Milesight', models: ['EM300-TH', 'EM320-TH'], fports: [85], oui: ['24E124'], kind: 'tlv', origin: 'clean-room', verified: false, rev: 1, updatedAt: ago(60 * 24), scope: 'public', status: 'PUBLISHED' },
-  { id: 'dragino-lht65n', title: 'Dragino LHT65N temperature & humidity', vendor: 'Dragino', models: ['LHT65N'], fports: [2], oui: ['A84041'], kind: 'layout', origin: 'clean-room', verified: true, rev: 2, updatedAt: ago(60 * 48), scope: 'public', status: 'PUBLISHED' },
-  { id: 't.cold-room', title: 'Cold room probe (our firmware)', vendor: 'Acme', models: ['CR-1'], fports: [85], oui: [], kind: 'tlv', origin: 'tenant', verified: false, rev: 3, updatedAt: ago(30), scope: 'tenant', status: 'PUBLISHED' },
+  { id: 'milesight-em300-th', title: 'Milesight EM300-TH temperature & humidity', vendor: 'Milesight', models: ['EM300-TH', 'EM320-TH'], fports: [85], oui: ['24E124'], kind: 'tlv', origin: 'clean-room', verified: false, rev: 1, updatedAt: ago(60 * 24), scope: 'public', status: 'PUBLISHED', devices: 14 },
+  { id: 'dragino-lht65n', title: 'Dragino LHT65N temperature & humidity', vendor: 'Dragino', models: ['LHT65N'], fports: [2], oui: ['A84041'], kind: 'layout', origin: 'clean-room', verified: true, rev: 2, updatedAt: ago(60 * 48), scope: 'public', status: 'PUBLISHED', devices: 0 },
+  { id: 't.cold-room', title: 'Cold room probe (our firmware)', vendor: 'Acme', models: ['CR-1'], fports: [85], oui: [], kind: 'tlv', origin: 'tenant', verified: false, rev: 3, updatedAt: ago(30), scope: 'tenant', status: 'PUBLISHED', devices: 3 },
 ];
 const EM300: CodecDetail = {
   id: 'milesight-em300-th', rev: 1, sha256: 'f76f06c922d4e1bd528325e6af190dbe66135d178e8992bfece348f3f18ed18d', scope: 'public',
@@ -157,7 +157,7 @@ export default function LorawanPage() {
         {codecView === 'list' && (
           <div className="space-y-3">
             <div className="flex justify-end"><Button onClick={() => setCodecView('edit')}>New codec</Button></div>
-            <LoraCodecTable rows={CODECS} onOpen={() => setCodecView('detail')} />
+            <LoraCodecTable rows={CODECS} onOpen={() => setCodecView('detail')} showDevices />
           </div>
         )}
         {codecView === 'detail' && (

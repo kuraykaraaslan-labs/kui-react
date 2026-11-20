@@ -164,3 +164,10 @@ section under the profile tab):
   state and Approve for one that waits. `onExpired` tells the host when the countdown ends.
 - Texts: `deviceForm`, `deviceTab`, `profileTab` additions, the new `pairing` group, join states `pending_approval` / `not_otaa`, frame
   reasons `pairing_pending` / `pending_approval` / `not_otaa`. Tests: `abp-pairing.test.tsx`.
+
+## 2026-11-20 — the devices column of the codec library (10.7)
+
+10.7 listed "devices using it" in the library table; built now (NB iot-lorawan 13, the devices-per-codec column). `LoraCodecTable` takes
+`showDevices`: a right-aligned, unsortable **Devices** column from the row's new optional `devices` (`LoraCodecRow.devices`, counted by the
+host: the devices whose own choice, or whose profile's choice when theirs is Automatic, names the codec; a dash when the host did not count
+it). Texts `codecs.devices`, `codecs.devicesTitle`. The `/theme/iot/lorawan` showcase shows it. Test: `codecs.test.tsx`.

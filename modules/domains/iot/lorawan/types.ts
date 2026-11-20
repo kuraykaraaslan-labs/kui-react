@@ -116,6 +116,11 @@ export type LoraCodecRow = {
   scope: 'public' | 'tenant';
   /** `PUBLISHED`, or `WITHDRAWN` for a library codec the platform took out (the root view only). */
   status: string;
+  /**
+   * How many of the workspace's devices decode with this codec by choice: their own choice, or their profile's when theirs is
+   * Automatic (devices on Automatic all the way are decided per message and counted nowhere). Absent when the host does not count.
+   */
+  devices?: number | null;
 };
 
 /** One codec as the codecs API returns it: the current rev's document (the roltek-lns table format) and its output set (key → unit). */
