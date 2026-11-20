@@ -8,7 +8,7 @@ import type {
 import type { RpcCatalogCommand, RpcCommand, RpcCommandInput, RpcCommandTemplate, RpcRequest, RpcSendInput, RpcStatus } from '../types/rpc';
 import type {
   DeviceProfile, DeviceProfileInput, DeviceProfileUsage, IssuedProvisionKey, OnlineRule, ProfileKeyUsage, ProfileTemplate, ProfileTransport, ProfileTransportOption, ProvisionKey, ProvisioningInfo,
-  ProvisionStrategy,
+  ProvisioningSettings, ProvisionStrategy, TemplateUpdate,
 } from '../types/profile';
 import type { AlarmRuleDefinition, AlarmRuleRecord } from '../types/alarm-rule';
 import type {
@@ -215,6 +215,16 @@ export interface IotProfilesApi {
    * (`null`; refused while the host still uses it as a factory profile). Answers the profile with its `platformTemplate` mark.
    */
   setTemplate?(profileId: string, templateKey: string | null): Promise<DeviceProfile>;
+  /**
+   * NB 00 §0.3 (P0-E25): a copy of a platform template learns that the template changed and takes the changes the viewer picks. `get`
+   * answers null when there is nothing newer (or the profile is no copy). `apply` writes the template's values of `fields` (an empty list
+   * keeps every value of the copy) and records `toVersion` as seen; the host refuses it when the template moved past `toVersion`
+   * meanwhile, and with `expectedVersion` when the profile was saved since it was read (code `stale`). Answers the saved profile.
+   */
+  templateUpdate?: {
+    get(profileId: string, signal?: AbortSignal): Promise<TemplateUpdate | null>;
+    apply(profileId: string, input: { toVersion: number; fields: string[]; expectedVersion?: number }): Promise<DeviceProfile>;
+  };
 }
 
 /**
@@ -225,6 +235,8 @@ export interface IotProvisioningApi {
   get(profileId: string, signal?: AbortSignal): Promise<ProvisioningInfo>;
   /** Sets the strategy (the editor's Save sends it here instead of in the profile patch); answers the stored one. */
   setStrategy?(profileId: string, strategy: ProvisionStrategy): Promise<ProvisionStrategy>;
+  /** Sets the settings beside the strategy (only the changed ones; the editor's Save sends them here); answers the stored settings. */
+  setSettings?(profileId: string, patch: Partial<ProvisioningSettings>): Promise<ProvisioningSettings>;
   /** A new active key; the previous active key is retired with `graceDays` (absent: the host's default). The secret is in the answer only. */
   rotate(profileId: string, input: { graceDays?: number }): Promise<IssuedProvisionKey>;
   /** Immediate and final; `confirmKeyId` is the key id the viewer typed again. */

@@ -18,8 +18,9 @@ import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText, useLiveOrP
 import { fill, formatDateTime, plural } from '../format';
 import {
   CFG_DRIFT_POLICIES, KEY_USAGE_MAX_KEYS, RATE_LIMIT_FAMILIES, draftOf, isTelemetryKey, isTemplateKey, nextKeyOrigins, profileDraftIssues, profilePatch,
-  telemetryKeyChanges, touchesAdmission, transportLabel, transportLogsIn,
-  type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileKeyUsage, type ProfileTransport, type ProvisionStrategy,
+  provisioningSettingsIssues, provisioningSettingsPatch, telemetryKeyChanges, touchesAdmission, transportLabel, transportLogsIn,
+  type CfgDriftPolicy, type DeviceProfile, type DeviceProfileDraft, type DeviceProfileUsage, type ProfileKeyUsage, type ProfileTransport, type ProvisioningSettings,
+  type ProvisionStrategy,
 } from '../types/profile';
 import { AuthModeSelector } from './AuthModeSelector';
 import { CfgSchemaTable } from './CfgSchemaTable';
@@ -29,6 +30,7 @@ import { ProtocolMappingCard } from './ProtocolMappingCard';
 import { ProvisioningSettingsCard } from './ProvisioningSettingsCard';
 import { RateLimitEditor } from './RateLimitEditor';
 import { TelemetryKeySchemaTable } from './TelemetryKeySchemaTable';
+import { TemplateUpdateBanner } from './TemplateUpdateBanner';
 import { TransportPolicyCard } from './TransportPolicyCard';
 import { ProfileSection, RangeNumberField } from './profile-fields';
 import { useProfileTransports } from './profile-transports';
@@ -39,7 +41,10 @@ import { announceProfileKeyRenames } from './profile-key-events';
  * adapter. Own tabs: General, Transport & auth (transport, plain MQTT or TLS, URL tokens, networks, auth modes, topic schemes and
  * custom topics), Online status (OD-57 / OD-63), Limits (rate limits, payload and session caps), Telemetry keys, Configuration keys and
  * Provisioning (strategy; the keys are the host's `provisioningKeys`, e.g. `ProvisioningKeysPanel`, else a disabled placeholder; with
- * `adapter.provisioning.setStrategy` Save sends a changed strategy there, apart from the profile patch). Every own tab edits ONE draft with one Save:
+ * `adapter.provisioning.setStrategy` Save sends a changed strategy there, apart from the profile patch; with `setSettings` and
+ * `canManageProvisioning` the registrations per key and hour, "Activate new devices at once" and, on a platform template, the certificate
+ * lifetime join the draft and Save sends the changed ones there too). A copy of a platform template shows `TemplateUpdateBanner` when
+ * the template has a newer version (nothing is applied until the viewer picks and applies). Every own tab edits ONE draft with one Save:
  * only the changed fields are sent, the form blocks what the host would refuse (a transport that forbids the chosen online rule
  * included) and shows the host's own refusal when it still comes. The host's `extraTabs` (Alarm rules, Commands, … contributed by other
  * modules) follow, each saving on its own. Without `canManageProfiles` everything is read-only. The device count follows every 30 s.
@@ -95,7 +100,7 @@ const TAB_OF: Array<[RegExp, string]> = [
   [/^(rateLimits\..*|replayMsgsPerS|payloadMaxBytes|downlinkMaxBytes|maxInflightMessages|inactivityTimeoutSec|maxGatewayChildren|rpcTimeoutDefaultSec)$/, 'limits'],
   [/^(telemetrySchema(\..*)?|strictKeys)$/, 'telemetry'],
   [/^(cfgSchema(\..*)?|cfgDriftPolicy)$/, 'config'],
-  [/^provisionStrategy$/, 'provisioning'],
+  [/^(provisionStrategy|provisionRateLimitPerHour|autoActivate|certLifetimeDays)$/, 'provisioning'],
 ];
 const tabOf = (field: string) => TAB_OF.find(([re]) => re.test(field))?.[1] ?? 'general';
 
@@ -141,6 +146,9 @@ export function DeviceProfileEditorView({
   const [copied, setCopied] = useState(false);
   // the host refused the save because the profile changed since it was read (NB 41-ui-fixes/20 1.7)
   const [stale, setStale] = useState(false);
+  // the provisioning settings beside the strategy (02 §2.1), read from the provisioning API for a viewer who manages it: saved with Save
+  const [provBase, setProvBase] = useState<ProvisioningSettings | null>(null);
+  const [provDraft, setProvDraft] = useState<ProvisioningSettings | null>(null);
 
   // a save made beside the editor (a host tab) moved the stored version: the next edit starts from it, the draft stays (NB 41-ui-fixes/28 G1.7)
   if (profile && typeof profileVersion === 'number' && typeof profile.version === 'number' && profileVersion > profile.version) {
@@ -153,7 +161,9 @@ export function DeviceProfileEditorView({
     setKeyOrigins(d ? d.telemetrySchema.map((_, i) => i) : []);
     setShowAllIssues(false);
   }, []);
-  const dirty = !!(base && draft && JSON.stringify(base) !== JSON.stringify(draft));
+  // (the settings are read only while the viewer may manage provisioning; `readSettings` below)
+  const provDirty = !!(caps.canManageProvisioning && provBase && provDraft && Object.keys(provisioningSettingsPatch(provBase, provDraft)).length);
+  const dirty = !!(base && draft && JSON.stringify(base) !== JSON.stringify(draft)) || provDirty;
 
   const readUsage = useCallback((signal?: AbortSignal) => {
     if (!api?.usage) return Promise.resolve();
@@ -185,6 +195,22 @@ export function DeviceProfileEditorView({
 
   useLiveOrPoll({ key: profileId, poll: () => { void readUsage(); } });
 
+  // the settings come with the provisioning read, which only a viewer who manages provisioning may make
+  const settingsApi = caps.ready && !caps.failed && caps.canManageProvisioning && provisioning?.setSettings ? provisioning : null;
+  const readSettings = useCallback((signal?: AbortSignal): Promise<void> => {
+    // without the API or the permission nothing is read; the settings drawn are gated on `settingsApi` too
+    if (!settingsApi) return Promise.resolve();
+    return settingsApi.get(profileId, signal).then(
+      (info) => { if (!signal?.aborted) { setProvBase(info.settings ?? null); setProvDraft(info.settings ?? null); } },
+      () => { if (!signal?.aborted) { setProvBase(null); setProvDraft(null); } },
+    );
+  }, [settingsApi, profileId]);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    readSettings(ctrl.signal).catch(() => undefined);
+    return () => ctrl.abort();
+  }, [readSettings]);
+
   useEffect(() => {
     const ctrl = new AbortController();
     api?.options(ctrl.signal).then((o) => { if (!ctrl.signal.aborted) setChildProfiles(o); }, () => { if (!ctrl.signal.aborted) setChildProfiles([]); });
@@ -205,7 +231,7 @@ export function DeviceProfileEditorView({
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
   }, [guarded]);
-  const issues = draft ? profileDraftIssues(draft) : {};
+  const issues: Partial<Record<string, ReturnType<typeof profileDraftIssues>[string]>> = draft ? { ...profileDraftIssues(draft), ...provisioningSettingsIssues(settingsApi ? provDraft : null) } : {};
   const blocking = Object.keys(issues).length > 0;
   // the only thing wrong is a new key row nobody has typed in yet: nothing is marked before Save is pressed, so nothing is said either
   const unmarkedOnly = !showAllIssues && Object.keys(issues).length === 1 && 'telemetrySchema' in issues && !!draft
@@ -235,6 +261,12 @@ export function DeviceProfileEditorView({
       return kept.length === Object.keys(cur).length ? cur : Object.fromEntries(kept);
     });
   };
+  const setSettings = (patch: Partial<ProvisioningSettings>) => {
+    setProvDraft((d) => (d ? { ...d, ...patch } : d));
+    setSaveError(null);
+    const fields = Object.keys(patch);
+    setServerErrors((cur) => (fields.some((f) => f in cur) ? Object.fromEntries(Object.entries(cur).filter(([k]) => !fields.includes(k))) : cur));
+  };
   const setKeys = (next: DeviceProfileDraft['telemetrySchema']) => {
     if (draft) setKeyOrigins((o) => nextKeyOrigins(draft.telemetrySchema, next, o));
     set({ telemetrySchema: next });
@@ -247,7 +279,8 @@ export function DeviceProfileEditorView({
   async function save() {
     if (!api?.update || !base || !draft || !profile || blocking) return;
     const patch = profilePatch(base, draft);
-    if (!Object.keys(patch).length) return;
+    const provPatch = provBase && provDraft && settingsApi?.setSettings ? provisioningSettingsPatch(provBase, provDraft) : {};
+    if (!Object.keys(patch).length && !Object.keys(provPatch).length) return;
     if (!(await admissionConfirmed(patch))) return;
     const keyChanges = telemetryKeyChanges(base.telemetrySchema, draft.telemetrySchema, keyOrigins);
     setSaving(true);
@@ -269,6 +302,21 @@ export function DeviceProfileEditorView({
           setProfile(saved);
           setDraft({ ...draftOf(saved), provisionStrategy: provisionStrategy! });
           throw e instanceof IotApiError && !e.fieldErrors ? new IotApiError(e.code, e.message, { fieldErrors: { provisionStrategy: e.message } }) : e;
+        }
+      }
+      if (Object.keys(provPatch).length) {
+        try {
+          const stored = await settingsApi!.setSettings!(profileId, provPatch);
+          setProvBase(stored);
+          setProvDraft(stored);
+          // a settings write is a write of the row too: read it back, so the next edit starts from its version
+          saved = api.get ? await api.get(profileId) : saved;
+        } catch (e) {
+          // what went before is saved: keep it, and keep the settings change in the form so Save can try it again
+          setProfile(saved);
+          setDraft(draftOf(saved));
+          const field = Object.keys(provPatch)[0];
+          throw e instanceof IotApiError && !e.fieldErrors && Object.keys(provPatch).length === 1 ? new IotApiError(e.code, e.message, { fieldErrors: { [field]: e.message } }) : e;
         }
       }
       setProfile(saved);
@@ -589,7 +637,10 @@ export function DeviceProfileEditorView({
       id: 'provisioning', label: m.profile.provisioningTab, order: 60, badge: badge('provisioning'),
       content: (
         <ProvisioningSettingsCard strategy={draft.provisionStrategy} availableStrategies={availableStrategies} keys={provisioningKeys} disabled={readOnly}
-          onChange={(s) => set({ provisionStrategy: s })} />
+          onChange={(s) => set({ provisionStrategy: s })}
+          settings={settingsApi ? provDraft : null} settingsDisabled={readOnly} certLifetime={!!profile.platformTemplate}
+          settingsErrors={{ provisionRateLimitPerHour: err('provisionRateLimitPerHour'), certLifetimeDays: err('certLifetimeDays'), autoActivate: err('autoActivate') }}
+          onSettingsChange={setSettings} />
       ),
     },
     ...extraTabs.map((t, i) => ({ ...t, order: t.order ?? 100 + i })),
@@ -651,6 +702,10 @@ export function DeviceProfileEditorView({
         </Callout>
       ) : caps.ready && readOnly && <Callout variant="info" title={null}>{templateLocked && caps.canManageProfiles ? m.profile.readOnlyTemplate : m.profile.readOnly}</Callout>}
 
+      <TemplateUpdateBanner profile={profile} canApply={!readOnly} dirty={dirty}
+        confirmApply={(fields) => admissionConfirmed(Object.fromEntries(fields.map((f) => [f, true])) as ReturnType<typeof profilePatch>)}
+        onApplied={(p) => { setProfile(p); setDraft(draftOf(p)); setStale(false); setServerErrors({}); setSaveError(null); void readUsage(); }} />
+
       <TabGroup tabs={tabs} defaultTab={tab} activeTab={tab} onTabChange={onTabChange} label={m.profile.tabs} isolate retryLabel={m.common.retry} errorLabel={m.common.loadFailed} errorDetail={m.common.loadFailedDetail} />
 
       {dirty && !readOnly && (
@@ -668,7 +723,7 @@ export function DeviceProfileEditorView({
                 : <p className="text-xs text-text-secondary">{m.profile.leaveTab}</p>}
           </div>
           <div className="flex gap-2">
-            <Button variant="ghost" size="sm" disabled={saving} onClick={() => { setDraft(base); setSaveError(null); setServerErrors({}); }}>{m.profile.discard}</Button>
+            <Button variant="ghost" size="sm" disabled={saving} onClick={() => { setDraft(base); setProvDraft(provBase); setSaveError(null); setServerErrors({}); }}>{m.profile.discard}</Button>
             <Button variant="primary" size="sm" loading={saving} onClick={pressSave}>{m.profile.save}</Button>
           </div>
         </div>

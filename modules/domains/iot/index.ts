@@ -97,6 +97,10 @@ export type { DeviceProfileEditorViewProps } from './profile/DeviceProfileEditor
 export { NewDeviceProfileDrawer } from './profile/NewDeviceProfileDrawer';
 export { LicensedProfilesSection } from './profile/LicensedProfilesSection';
 export type { LicensedProfilesSectionProps } from './profile/LicensedProfilesSection';
+export { TemplateUpdateBanner, templateFieldLabel, describeTemplateValue, defaultPicks } from './profile/TemplateUpdateBanner';
+export type { TemplateUpdateBannerProps } from './profile/TemplateUpdateBanner';
+export { PlatformTemplatesDrawer } from './profile/PlatformTemplatesDrawer';
+export type { PlatformTemplatesDrawerProps } from './profile/PlatformTemplatesDrawer';
 export { OnlineRuleField, formatSeconds } from './profile/OnlineRuleField';
 export type { OnlineRuleValue, OnlineRuleFieldProps } from './profile/OnlineRuleField';
 export { AuthModeSelector } from './profile/AuthModeSelector';

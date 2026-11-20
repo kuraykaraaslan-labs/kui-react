@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClone, faPlus, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faClone, faLayerGroup, faPlus, faStar, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Badge } from '@/modules/ui/Badge';
 import { Callout } from '@/modules/ui/Callout';
@@ -17,6 +17,7 @@ import { fill, formatDateTime, formatRelative } from '../format';
 import { ONLINE_RULES, transportLabel, type DeviceProfile, type DeviceProfileUsage, type ProfileTransport } from '../types/profile';
 import { useProfileTransports } from './profile-transports';
 import { NewDeviceProfileDrawer } from './NewDeviceProfileDrawer';
+import { PlatformTemplatesDrawer } from './PlatformTemplatesDrawer';
 
 /**
  * DeviceProfileListView — the device profiles of a workspace (phase 01 §1.4; NB iot_device_profile 03 §3.3), read through the adapter,
@@ -30,7 +31,8 @@ import { NewDeviceProfileDrawer } from './NewDeviceProfileDrawer';
  * loading); a page past the end (the last row of the last page deleted, a page number from a stale URL) moves to the last page. The
  * host's `initialQuery` is followed when it changes (the URL changed under the mounted list: a menu click, the back button). `onOpen`
  * opens a profile in the host's router (a plain click; a modified click keeps the link's own behaviour). A platform template is tagged
- * and its delete is disabled with the reason, which assistive tech reads too.
+ * and its delete is disabled with the reason, which assistive tech reads too. A viewer who publishes templates (`canPublishTemplates`)
+ * gets "Platform templates" in the header: the published templates in a drawer (`PlatformTemplatesDrawer`), each opening its profile.
  */
 export type DeviceProfileListViewProps = {
   hrefs: { profile: (profileId: string) => string };
@@ -96,6 +98,8 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
   const [error, setError] = useState<string | null>(null);
   const [usage, setUsage] = useState<Record<string, DeviceProfileUsage>>({});
   const [creating, setCreating] = useState(false);
+  // the platform's "Platform templates" drawer (a viewer who publishes templates)
+  const [showTemplates, setShowTemplates] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const queryRef = useRef(query);
   // a layout effect: the table reports its page for a query the host moved before the passive effects run, and must compare with it
@@ -314,10 +318,17 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
       <PageHeader
         title={m.profiles.title}
         subtitle={m.profiles.subtitle}
-        actions={canManage && api.create ? [{
-          label: <><FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" /> {m.profiles.new}</>,
-          onClick: () => setCreating(true),
-        }] : undefined}
+        actions={[
+          ...(caps.ready && !caps.failed && caps.canPublishTemplates && api.templates ? [{
+            label: <><FontAwesomeIcon icon={faLayerGroup} className="h-3 w-3" aria-hidden="true" /> {m.platformTemplates.open}</>,
+            onClick: () => setShowTemplates(true),
+            variant: 'outline' as const,
+          }] : []),
+          ...(canManage && api.create ? [{
+            label: <><FontAwesomeIcon icon={faPlus} className="h-3 w-3" aria-hidden="true" /> {m.profiles.new}</>,
+            onClick: () => setCreating(true),
+          }] : []),
+        ]}
       />
       {caps.failed && (
         <Callout variant="warning" title={null}>
@@ -350,6 +361,10 @@ export function DeviceProfileListView({ hrefs, initialQuery, onQueryChange, onCr
         keyboardNavigation
       />
       {api.usage && <p className="text-xs text-text-secondary">{m.profiles.countsHint}</p>}
+      {showTemplates && (
+        <PlatformTemplatesDrawer open={showTemplates} onClose={() => setShowTemplates(false)}
+          onOpen={(id) => { if (onOpen) onOpen(id); else window.location.assign(hrefs.profile(id)); }} />
+      )}
       {creating && (
         <NewDeviceProfileDrawer
           open={creating}

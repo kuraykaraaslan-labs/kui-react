@@ -391,6 +391,29 @@ export function createDemoAdapter(live: DemoLive, opts: { latencyMs?: number } =
         for (const x of store.profiles) x.isDefault = x.profileId === id;
         return structuredClone(p);
       },
+      // NB 00 §0.3: the platform published roltek-m1 v4; the gateways copy has v3 (one change of theirs, one setting edited here)
+      templateUpdate: {
+        async get(id) {
+          await wait();
+          const p = profileOf(id);
+          if (p.template?.key !== 'roltek-m1' || p.template.version >= 4) return null;
+          const fields = [
+            { field: 'rpcTimeoutDefaultSec', mine: p.rpcTimeoutDefaultSec, theirs: 20, edited: false },
+            { field: 'downlinkMaxBytes', mine: p.downlinkMaxBytes, theirs: 8192, edited: true },
+          ].filter((f) => f.mine !== f.theirs);
+          return { templateKey: 'roltek-m1', fromVersion: p.template.version, toVersion: 4, fields };
+        },
+        async apply(id, { toVersion, fields }) {
+          await wait();
+          const p = profileOf(id);
+          if (toVersion !== 4) throw new IotApiError('conflict', 'The template changed meanwhile.', { details: { reason: 'template_moved' } });
+          if (fields.includes('rpcTimeoutDefaultSec')) p.rpcTimeoutDefaultSec = 20;
+          if (fields.includes('downlinkMaxBytes')) p.downlinkMaxBytes = 8192;
+          p.template = { key: 'roltek-m1', version: 4 };
+          p.updatedAt = new Date();
+          return structuredClone(p);
+        },
+      },
       async usage(ids) {
         await wait();
         return Object.fromEntries(ids.filter((id) => store.profiles.some((p) => p.profileId === id)).map((id) => [id, usageOf(id)]));

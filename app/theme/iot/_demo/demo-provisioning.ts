@@ -1,5 +1,5 @@
 import { IotApiError, type IotProvisioningApi } from '@/modules/domains/iot/api/adapter';
-import type { DeviceProfile, ProvisionKey, ProvisionStrategy } from '@/modules/domains/iot/types/profile';
+import type { DeviceProfile, ProvisionKey, ProvisioningSettings, ProvisionStrategy } from '@/modules/domains/iot/types/profile';
 
 /*
  * The demo's provisioning keys (NB iot_device_profile 02 §2.2, OD-1), in memory: a rotation makes a new active key and retires the
@@ -32,6 +32,9 @@ export function createDemoProvisioning(wait: () => Promise<void>, profileOf: (id
   const keys = seed(Date.now());
   const list = (id: string) => keys.get(id) ?? [];
   const templateCopy = (p: DeviceProfile) => !!p.template;
+  // the settings beside the strategy (02 §2.1), per profile, from the host's defaults
+  const settings = new Map<string, ProvisioningSettings>();
+  const settingsOf = (id: string) => settings.get(id) ?? { provisionRateLimitPerHour: 60, autoActivate: false, certLifetimeDays: 365 };
   return {
     async get(id) {
       await wait();
@@ -40,7 +43,18 @@ export function createDemoProvisioning(wait: () => Promise<void>, profileOf: (id
         keys: structuredClone(list(id)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
         availableStrategies: templateCopy(p) ? ['DISABLED'] : TENANT_STRATEGIES,
         rotationGrace: GRACE,
+        settings: structuredClone(settingsOf(id)),
       };
+    },
+    async setSettings(id, patch) {
+      await wait();
+      profileOf(id);
+      const next = { ...settingsOf(id), ...patch };
+      if (!Number.isInteger(next.provisionRateLimitPerHour) || next.provisionRateLimitPerHour < 1 || next.provisionRateLimitPerHour > 10_000) {
+        throw new IotApiError('validation', 'Registrations per key per hour are 1-10000.', { fieldErrors: { provisionRateLimitPerHour: 'From 1 to 10000.' } });
+      }
+      settings.set(id, next);
+      return structuredClone(next);
     },
     async setStrategy(id, strategy) {
       await wait();

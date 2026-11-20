@@ -122,7 +122,40 @@ export type ProvisioningInfo = {
   availableStrategies: ProvisionStrategy[];
   /** The grace a rotation may give the previous key, in days; null = none (a factory profile: the old key stays for its own units). */
   rotationGrace: { min: number; max: number; default: number } | null;
+  /** The settings beside the strategy, when the host serves them (the editor's Provisioning tab edits them and Save sends them). */
+  settings?: ProvisioningSettings;
 };
+
+/**
+ * 02 §2.1 (OD-1 mitigations 2 and 3): the provisioning settings a viewer with `canManageProvisioning` edits beside the strategy. NB
+ * stores them on the profile but serves them only on its provisioning route, so they travel apart from the profile and its patch.
+ */
+export type ProvisioningSettings = {
+  /** Successful registrations per key and hour; over it a registration is refused for the rest of the hour and the operator alerted. */
+  provisionRateLimitPerHour: number;
+  /** A device created by `ALLOW_CREATE_NEW_DEVICES` starts active (true) or quarantined until someone activates it (false, the default). */
+  autoActivate: boolean;
+  /** The days a certificate issued to the profile's devices is valid; NB issues them only to a platform template's factory units. */
+  certLifetimeDays: number;
+};
+export const PROVISIONING_SETTING_KEYS = ['provisionRateLimitPerHour', 'autoActivate', 'certLifetimeDays'] as const satisfies ReadonlyArray<keyof ProvisioningSettings>;
+
+/** The fields of `next` that differ from `base` (a settings save sends only these). */
+export function provisioningSettingsPatch(base: ProvisioningSettings, next: ProvisioningSettings): Partial<ProvisioningSettings> {
+  const out: Partial<ProvisioningSettings> = {};
+  for (const k of PROVISIONING_SETTING_KEYS) if (base[k] !== next[k]) (out as Record<string, unknown>)[k] = next[k];
+  return out;
+}
+
+/** What blocks a settings save: a number out of its range or not whole. */
+export function provisioningSettingsIssues(s: ProvisioningSettings | null | undefined): Partial<Record<keyof ProvisioningSettings, ProfileIssue>> {
+  const out: Partial<Record<keyof ProvisioningSettings, ProfileIssue>> = {};
+  if (!s) return out;
+  for (const k of ['provisionRateLimitPerHour', 'certLifetimeDays'] as const) {
+    if (!inRange(s[k], k) || !Number.isInteger(s[k])) out[k] = 'out_of_range';
+  }
+  return out;
+}
 
 /** A rotation's answer: the new key row and its secret, returned this once and never again. */
 export type IssuedProvisionKey = {
@@ -160,6 +193,10 @@ export const PROFILE_RANGES = {
   expectedIntervalS: { min: 60, max: 604_800 },
   onlineWindowFactor: { min: 1.5, max: 10 },
   maxInflightMessages: { min: 1, max: 1000 },
+  /** 02 §2.1 (OD-1): successful registrations per provisioning key and hour. */
+  provisionRateLimitPerHour: { min: 1, max: 10_000 },
+  /** 02 §2.1: the days a certificate issued under the profile is valid (06 §5). */
+  certLifetimeDays: { min: 30, max: 825 },
 } as const;
 export type ProfileRangeKey = keyof typeof PROFILE_RANGES;
 
@@ -180,6 +217,32 @@ export type ProfileTemplate = {
   plaintextAllCommands: boolean;
   updatedAt: string;
   copyProfileId: string | null;
+  /** The template's own profile, given only to the workspace that publishes it (the platform's "Platform templates" view opens it). */
+  profileId?: string | null;
+};
+
+/**
+ * One setting of a template copy that its platform template now holds differently (NB 00 §0.3, P0-E25: a newer template version is never
+ * applied by itself). `mine` is the copy's value, `theirs` the template's. `edited`: the copy's value is no longer what the template had
+ * when the copy was made or last updated, so the workspace changed it (true), it did not (false), or the host cannot tell (null: a copy
+ * made before the host kept that record). `locked`: this viewer may not apply it (a provisioning setting without `canManageProvisioning`).
+ */
+export type TemplateUpdateField = {
+  field: string;
+  mine: unknown;
+  theirs: unknown;
+  edited: boolean | null;
+  locked?: boolean;
+};
+
+/** A newer version of the platform template a copy was made from, and what it changes (only the settings that differ from the copy's). */
+export type TemplateUpdate = {
+  templateKey: string;
+  /** The template version the copy has. */
+  fromVersion: number;
+  /** The template version now published. */
+  toVersion: number;
+  fields: TemplateUpdateField[];
 };
 
 /** A licensed device profile's key (NB's OD-20 cloud model id): lower-case letters, digits and hyphens, 2 to 32, not starting with a hyphen. */

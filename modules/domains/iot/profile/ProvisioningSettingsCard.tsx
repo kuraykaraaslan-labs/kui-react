@@ -5,11 +5,12 @@ import { faKey } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
 import { Callout } from '@/modules/ui/Callout';
 import { Select } from '@/modules/ui/Select';
+import { Toggle } from '@/modules/ui/Toggle';
 import { UnavailableContribution } from '@/modules/ui/UnavailableContribution';
 import { useIotText } from '../api/IotAdapterProvider';
 import type { IotMessagesInput } from '../messages';
-import { PROVISION_STRATEGIES, type ProvisionStrategy } from '../types/profile';
-import { ProfileSection } from './profile-fields';
+import { PROVISION_STRATEGIES, type ProvisioningSettings, type ProvisionStrategy } from '../types/profile';
+import { ProfileSection, RangeNumberField } from './profile-fields';
 
 /**
  * ProvisioningSettingsCard — a profile's provisioning (02 §2.1, OD-1): the strategy select, where a strategy the host cannot serve yet
@@ -17,6 +18,11 @@ import { ProfileSection } from './profile-fields';
  * secret) are the host's `keys` (`ProvisioningKeysPanel`), with a note while the strategy is `DISABLED` (no device can register yet);
  * without them (`keys` absent: no provisioning service, or a viewer who may not manage it) the section is a clearly disabled
  * placeholder and no secret, key or button is drawn. `ROLTEK_FACTORY` belongs to platform templates and is never offered to a tenant.
+ *
+ * With `settings` (a viewer who manages provisioning, on a host that serves them, 02 §2.1 / OD-1): "Devices that register themselves",
+ * the registrations per key and hour, "Activate new devices at once" (off by default; turned on, a warning stays) and, with
+ * `certLifetime` (the host issues certificates under this profile: NB's platform templates), the certificate lifetime. They belong to
+ * the editor's draft and Save, like the strategy; the key buttons act at once.
  */
 export type ProvisioningSettingsCardProps = {
   strategy: ProvisionStrategy;
@@ -25,12 +31,24 @@ export type ProvisioningSettingsCardProps = {
   availableStrategies?: readonly ProvisionStrategy[];
   /** The key management, when the host has it; absent = the disabled placeholder. */
   keys?: React.ReactNode;
+  /** The settings beside the strategy (absent: not drawn). */
+  settings?: ProvisioningSettings | null;
+  onSettingsChange?: (patch: Partial<ProvisioningSettings>) => void;
+  /** The settings' errors (the form's own and the host's), by field. */
+  settingsErrors?: Partial<Record<keyof ProvisioningSettings, string>>;
+  /** The certificate lifetime is drawn (the host issues certificates under this profile). */
+  certLifetime?: boolean;
+  /** The settings are shown but cannot be changed. */
+  settingsDisabled?: boolean;
   disabled?: boolean;
   messages?: IotMessagesInput;
   className?: string;
 };
 
-export function ProvisioningSettingsCard({ strategy, onChange, availableStrategies = ['DISABLED'], keys, disabled, messages, className }: ProvisioningSettingsCardProps) {
+export function ProvisioningSettingsCard({
+  strategy, onChange, availableStrategies = ['DISABLED'], keys, settings, onSettingsChange, settingsErrors = {}, certLifetime, settingsDisabled, disabled,
+  messages, className,
+}: ProvisioningSettingsCardProps) {
   const { m } = useIotText(messages);
   const id = useId();
   const choosable = availableStrategies.length > 1;
@@ -53,6 +71,24 @@ export function ProvisioningSettingsCard({ strategy, onChange, availableStrategi
         />
         <p className="text-xs text-text-secondary">{m.provisioning.volumeHint}</p>
       </ProfileSection>
+
+      {settings && (
+        <ProfileSection title={m.provisioning.settingsTitle} hint={m.provisioning.settingsHint}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <RangeNumberField id={`${id}-rate`} label={m.provisioning.rateLimit} range="provisionRateLimitPerHour" hint={m.provisioning.rateLimitHint}
+              value={settings.provisionRateLimitPerHour} disabled={settingsDisabled} error={settingsErrors.provisionRateLimitPerHour}
+              onChange={(v) => onSettingsChange?.({ provisionRateLimitPerHour: v ?? Number.NaN })} />
+            {certLifetime && (
+              <RangeNumberField id={`${id}-cert`} label={m.provisioning.certLifetime} range="certLifetimeDays" hint={m.provisioning.certLifetimeHint}
+                value={settings.certLifetimeDays} disabled={settingsDisabled} error={settingsErrors.certLifetimeDays}
+                onChange={(v) => onSettingsChange?.({ certLifetimeDays: v ?? Number.NaN })} />
+            )}
+          </div>
+          <Toggle id={`${id}-auto`} label={m.provisioning.autoActivate} description={m.provisioning.autoActivateHint}
+            checked={settings.autoActivate} disabled={settingsDisabled} onChange={(v) => onSettingsChange?.({ autoActivate: v })} />
+          {settings.autoActivate && <Callout variant="warning" title={null}>{m.provisioning.autoActivateWarning}</Callout>}
+        </ProfileSection>
+      )}
 
       <ProfileSection title={m.provisioning.keysTitle}>
         {keys && strategy === 'DISABLED' && <Callout variant="info" title={null}>{m.provisioning.disabledNote}</Callout>}
