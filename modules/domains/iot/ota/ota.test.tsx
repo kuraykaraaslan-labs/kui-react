@@ -67,6 +67,39 @@ describe('OTA views (iot-platform 06)', () => {
     expect(within(confirm).getByText(/Send roltek-rut-fw 24.10.1-r1234 to 1 devices\?/)).toBeTruthy();
   });
 
+  it('a device list by asset: offered when the host lists assets, sent as the selector (narrowed to the profile chosen), checked first', async () => {
+    const demo = createDemoOtaAdapter({ delayMs: 0 });
+    const sent: unknown[] = [];
+    const adapter = {
+      ...demo,
+      assets: async () => [{ id: 'a-1', name: 'Building A', hint: 'Istanbul HQ' }],
+      assignments: { ...demo.assignments, create: async (pkgId: string, target: unknown, opts?: { dryRun?: boolean }) => { sent.push(target); return demo.assignments.create(pkgId, { targetType: 'DEVICE', targetId: 'd-1' }, opts); } },
+    };
+    render(<FirmwareDetailView adapter={adapter} packageId="pkg-2" can={CAN} />);
+    await userEvent.click(await screen.findByRole('button', { name: OTA_MESSAGES.detail.assign }));
+    const drawer = await screen.findByRole('dialog');
+    await userEvent.selectOptions(within(drawer).getByLabelText(OTA_MESSAGES.assign.to), 'GROUP');
+    await userEvent.click(within(drawer).getByRole('checkbox', { name: new RegExp(OTA_MESSAGES.assign.allUnderAsset) }));
+    expect(within(drawer).getByText(OTA_MESSAGES.assign.pickAssetFirst)).toBeTruthy();
+    expect((within(drawer).getByRole('button', { name: OTA_MESSAGES.assign.check }) as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.selectOptions(await within(drawer).findByLabelText(OTA_MESSAGES.assign.asset), 'a-1');
+    await userEvent.click(within(drawer).getByRole('button', { name: OTA_MESSAGES.assign.check }));
+    await waitFor(() => expect(sent.at(-1)).toEqual({ targetType: 'GROUP', selector: { assetId: 'a-1' } }));
+    const profile = within(drawer).getByLabelText(OTA_MESSAGES.assign.profile) as HTMLSelectElement;
+    await userEvent.selectOptions(profile, [...profile.options].find((o) => o.value)!.value);
+    await userEvent.click(within(drawer).getByRole('button', { name: OTA_MESSAGES.assign.check }));
+    await waitFor(() => expect(sent.at(-1)).toEqual({ targetType: 'GROUP', selector: { assetId: 'a-1', profileId: profile.value } }));
+  });
+
+  it('without assets from the host the drawer does not offer a device list by asset', async () => {
+    const adapter = createDemoOtaAdapter({ delayMs: 0 });
+    render(<FirmwareDetailView adapter={adapter} packageId="pkg-2" can={CAN} />);
+    await userEvent.click(await screen.findByRole('button', { name: OTA_MESSAGES.detail.assign }));
+    const drawer = await screen.findByRole('dialog');
+    await userEvent.selectOptions(within(drawer).getByLabelText(OTA_MESSAGES.assign.to), 'GROUP');
+    expect(within(drawer).queryByRole('checkbox', { name: new RegExp(OTA_MESSAGES.assign.allUnderAsset) })).toBeNull();
+  });
+
   it('without assignFleet the Assign drawer offers single devices only (a viewer limited to some devices)', async () => {
     const adapter = createDemoOtaAdapter({ delayMs: 0 });
     render(<FirmwareDetailView adapter={adapter} packageId="pkg-2" can={{ ...CAN, assignFleet: false }} />);

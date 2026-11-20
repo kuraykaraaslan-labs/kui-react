@@ -93,12 +93,15 @@ export interface OtaAssignment {
   createdAt: string;
 }
 
-/** Assign to a profile (its devices), one device, or a group: a device list or a profile's devices frozen now. */
+/**
+ * Assign to a profile (its devices), one device, or a group: a device list, or the devices a selector matches frozen now (a profile's,
+ * the ones on an asset and below it, or the ones in both).
+ */
 export type OtaAssignTarget =
   | { targetType: 'PROFILE'; targetId: string }
   | { targetType: 'DEVICE'; targetId: string }
   | { targetType: 'GROUP'; deviceIds: string[] }
-  | { targetType: 'GROUP'; selector: { profileId: string } };
+  | { targetType: 'GROUP'; selector: { profileId?: string; assetId?: string } };
 
 /** Why a device would not take the package (it is SKIPPED). */
 export const OTA_BLOCK_REASONS = [

@@ -50,6 +50,8 @@ export interface OtaAdapter {
   /** The profiles and devices the assign drawer offers. */
   profiles(signal?: AbortSignal): Promise<OtaOption[]>;
   devices(q: { search: string; profileId?: string; pageSize: number }, signal?: AbortSignal): Promise<OtaOption[]>;
+  /** The sites and assets a device list may be chosen by (each with its place as `hint`). Absent: the drawer does not offer it. */
+  assets?(signal?: AbortSignal): Promise<OtaOption[]>;
   /**
    * Rollouts in waves (optional: a host without them hides the waves editor and panel). `act` pauses a running rollout, resumes a paused
    * one (past the gate that stopped it) or aborts either (its assignment is removed).

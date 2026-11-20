@@ -48,7 +48,8 @@ export function previewLines(m: OtaMessages, p: OtaAssignPreview): { lines: stri
 
 /**
  * OtaAssignDrawer — who gets a package: every device of a profile (later ones too), some devices (a list frozen now: picked one by one,
- * or all devices a profile has now), or one device. "Check" runs a dry run and shows what would happen (devices covered, offline, already
+ * all devices a profile has now, or, with a host that offers `assets`, all devices on a site or asset and below it, narrowed to a profile
+ * when one is chosen), or one device. "Check" runs a dry run and shows what would happen (devices covered, offline, already
  * on the version, and the ones that would not take it with the reason in words, plus the metered-link and router-approval rules,
  * OD-7/OD-13); "Assign" asks once more through the ConfirmDialog with the device count. With a host that runs rollouts (`adapter.rollouts`),
  * a profile or some devices may be sent in waves (`OtaWavesEditor`, the usual plan to start from); the check then shows each wave's size.
@@ -63,6 +64,9 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
   const [profiles, setProfiles] = useState<OtaOption[]>([]);
   const [profileId, setProfileId] = useState('');
   const [wholeProfile, setWholeProfile] = useState(false);
+  const [assets, setAssets] = useState<OtaOption[]>([]);
+  const [underAsset, setUnderAsset] = useState(false);
+  const [assetId, setAssetId] = useState('');
   const [search, setSearch] = useState('');
   const [found, setFound] = useState<OtaOption[]>([]);
   const [picked, setPicked] = useState<DataTableRowId[]>([]);
@@ -77,7 +81,7 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
   const chosen = pkg ?? ready.find((p) => p.packageId === chosenId) ?? null;
 
   const close = () => {
-    setChosenId(''); setTargetType(firstType); setProfileId(''); setWholeProfile(false); setSearch(''); setPicked([]);
+    setChosenId(''); setTargetType(firstType); setProfileId(''); setWholeProfile(false); setUnderAsset(false); setAssetId(''); setSearch(''); setPicked([]);
     setPreview(null); setError(null); setAsking(false); setInWaves(false); setWaves(defaultOtaWaves());
     onClose();
   };
@@ -86,10 +90,12 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
     if (!open || preset) return;
     const ac = new AbortController();
     adapter.profiles(ac.signal).then(setProfiles, () => setProfiles([]));
+    adapter.assets?.(ac.signal).then(setAssets, () => setAssets([]));
     return () => ac.abort();
   }, [open, preset, adapter]);
 
-  const listing = open && !preset && (targetType === 'DEVICE' || (targetType === 'GROUP' && !wholeProfile));
+  const byAsset = !!adapter.assets && underAsset;
+  const listing = open && !preset && (targetType === 'DEVICE' || (targetType === 'GROUP' && !wholeProfile && !byAsset));
   useEffect(() => {
     if (!listing) return;
     const ac = new AbortController();
@@ -104,6 +110,7 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
     ? { targetType: preset.targetType, targetId: preset.targetId }
     : targetType === 'PROFILE' ? (profileId ? { targetType: 'PROFILE', targetId: profileId } : null)
       : targetType === 'DEVICE' ? (picked[0] ? { targetType: 'DEVICE', targetId: String(picked[0]) } : null)
+        : byAsset ? (assetId ? { targetType: 'GROUP', selector: { assetId, ...(profileId ? { profileId } : {}) } } : null)
         : wholeProfile ? (profileId ? { targetType: 'GROUP', selector: { profileId } } : null)
           : picked.length ? { targetType: 'GROUP', deviceIds: picked.map(String) } : null;
 
@@ -187,9 +194,22 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
               options={[...(targetType === 'PROFILE' ? [] : [{ value: '', label: m.common.anyProfile }]), ...profiles.map((p) => ({ value: p.id, label: p.name }))]}
             />
             {targetType === 'GROUP' && (
-              <Checkbox id="ota-assign-whole" label={m.assign.allOfProfile} checked={wholeProfile} onChange={(e) => setWholeProfile(e.target.checked)} />
+              <Checkbox id="ota-assign-whole" label={m.assign.allOfProfile} checked={wholeProfile} onChange={(e) => { setWholeProfile(e.target.checked); if (e.target.checked) setUnderAsset(false); }} />
             )}
             {targetType === 'GROUP' && wholeProfile && !profileId && <p className="text-sm text-text-secondary">{m.assign.pickProfileFirst}</p>}
+            {targetType === 'GROUP' && adapter.assets && (
+              <Checkbox
+                id="ota-assign-under-asset" label={m.assign.allUnderAsset} hint={m.assign.allUnderAssetHint} checked={underAsset}
+                onChange={(e) => { setUnderAsset(e.target.checked); if (e.target.checked) setWholeProfile(false); }}
+              />
+            )}
+            {targetType === 'GROUP' && byAsset && (
+              <Select
+                id="ota-assign-asset" label={m.assign.asset} value={assetId} onChange={(e) => setAssetId(e.target.value)} placeholder={m.assign.asset}
+                options={assets.map((a) => ({ value: a.id, label: a.hint ? `${a.name} (${a.hint})` : a.name }))}
+              />
+            )}
+            {targetType === 'GROUP' && byAsset && !assetId && <p className="text-sm text-text-secondary">{m.assign.pickAssetFirst}</p>}
             {listing && (
               <div className="space-y-2">
                 <Input id="ota-assign-search" label={m.assign.devices} placeholder={m.assign.searchDevices} value={search} onChange={(e) => setSearch(e.target.value)} />
