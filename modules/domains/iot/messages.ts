@@ -2078,6 +2078,9 @@ export const IOT_MESSAGES = {
     deleted: 'Binding removed.',
     saveFailed: 'Could not save the binding.',
     pickFirst: 'Pick the record, the control and the device first.',
+    colReaches: 'Reaches',
+    colActions: 'Actions',
+    searchControls: 'Search controls',
   },
 } as const;
 

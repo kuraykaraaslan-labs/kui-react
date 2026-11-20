@@ -7,11 +7,14 @@ import { confirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Drawer } from '@/modules/ui/Drawer';
 import { Input } from '@/modules/ui/Input';
 import { Select } from '@/modules/ui/Select';
+import { DataTable } from '@/modules/ui/Table/DataTable';
+import type { Column } from '@/modules/ui/Table/types';
 import { errorMessage } from '../api/adapter';
 import { useIotAdapter, useIotText } from '../api/IotAdapterProvider';
+import { LIST_PAGE_SIZES } from '../api/list-table';
 import { fill } from '../format';
 import type { IotMessages, IotMessagesInput } from '../messages';
-import type { ControlSendResult, EntityControl, EntityControlsView } from '../types/rpc';
+import { CONTROL_TIER_RANK, type ControlSendResult, type EntityControl, type EntityControlsView } from '../types/rpc';
 import { CommandBindingEditorDrawer } from './RpcCommandBindingsDrawer';
 import { boundOf, boundText, controlParams, newPressKey, tierText, tierVariant } from './entity-controls';
 
@@ -25,7 +28,8 @@ import { boundOf, boundText, controlParams, newPressKey, tierText, tierVariant }
  * result per device in words (Queued / Sent / Failed and why). Each press carries one idempotency key, kept for a retry of the same
  * press (an answer lost on the way is never a second command) and dropped once the host answered. `nothing_bound` reads "Not connected
  * to any device"; a sink that could not answer reads "Could not reach Device commands". With `canManageBindings` each control offers
- * "Bind a device…", the binding editor with the record and the control fixed.
+ * "Bind a device…", the binding editor with the record and the control fixed. The controls are a browser-mode DataTable (search, sortable
+ * columns, paging); the values, the error or the answer of the control being sent show under it.
  */
 export type EntityControlsDrawerProps = {
   open: boolean;
@@ -136,6 +140,42 @@ export function EntityControlsDrawer({ open, onClose, kind, entityId, recordName
     void start(asking.control, params);
   };
 
+  // the control whose values, error or answer is shown under the table (one at a time)
+  const activeName = asking?.control.name ?? result?.control.name ?? sendError?.control ?? null;
+  const active = view?.controls.find((c) => c.name === activeName) ?? null;
+  const columns: Column<EntityControl>[] = [
+    {
+      key: 'label', header: m.controls.colControl, sortable: true, sortValue: (c) => c.label, searchValue: (c) => `${c.label} ${c.description ?? ''}`,
+      render: (c) => (
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text-primary">{c.label}</p>
+          {c.description && <p className="text-xs text-text-secondary">{c.description}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'tier', header: m.controls.colTier, sortable: true, searchable: false, sortValue: (c) => CONTROL_TIER_RANK[c.tier],
+      render: (c) => <Badge variant={tierVariant(c.tier)} size="sm">{tierText(c.tier, m)}</Badge>,
+    },
+    {
+      key: 'reaches', header: m.controls.colReaches, sortable: true, hideBelow: 'sm',
+      sortValue: (c) => (view ? boundOf(view, c.name).count : 0), searchValue: (c) => (view ? boundText(view, c.name, m) : ''),
+      render: (c) => <span className="text-xs text-text-secondary">{view ? boundText(view, c.name, m) : ''}</span>,
+    },
+    {
+      key: 'actions', header: m.controls.colActions, searchable: false, align: 'right',
+      render: (c) => (
+        <div className="flex justify-end gap-2">
+          {canManageBindings && <Button variant="outline" size="sm" onClick={() => setBinding(c)}>{m.controls.bindDevice}</Button>}
+          <Button variant="primary" size="sm" disabled={!view?.permitted || !view || boundOf(view, c.name).count === 0} onClick={() => onSendClick(c)}
+            aria-label={`${m.controls.send}: ${c.label}`}>
+            {m.controls.send}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   if (!api) return null;
   return (
     <>
@@ -154,55 +194,49 @@ export function EntityControlsDrawer({ open, onClose, kind, entityId, recordName
           {view && view.failedSinks.length > 0 && (
             <p role="status" className="text-sm text-warning-fg">{view.failedSinks.map((s) => fill(m.controls.sinkFailed, { sink: sinkLabel(s, m) })).join(' · ')}</p>
           )}
-          <ul className="divide-y divide-border-default">
-            {view?.controls.map((c) => {
-              const bound = boundOf(view, c.name);
-              return (
-                <li key={c.name} className="space-y-2 py-3" data-control={c.name}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-sm font-medium text-text-primary">
-                        {c.label}
-                        <Badge variant={tierVariant(c.tier)} size="sm">{tierText(c.tier, m)}</Badge>
-                      </p>
-                      {c.description && <p className="text-xs text-text-secondary">{c.description}</p>}
-                      <p className="text-xs text-text-secondary">{boundText(view, c.name, m)}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      {canManageBindings && <Button variant="outline" size="sm" onClick={() => setBinding(c)}>{m.controls.bindDevice}</Button>}
-                      <Button variant="primary" size="sm" disabled={!view.permitted || bound.count === 0} onClick={() => onSendClick(c)}
-                        aria-label={`${m.controls.send}: ${c.label}`}>
-                        {m.controls.send}
-                      </Button>
-                    </div>
+          {view && view.controls.length > 0 && (
+            <DataTable<EntityControl>
+              mode="paginated"
+              variant="plain"
+              caption={m.controls.title}
+              columns={columns}
+              rows={view.controls}
+              rowId={(c) => c.name}
+              pageSize={10}
+              pageSizeOptions={LIST_PAGE_SIZES}
+              searchPlaceholder={m.controls.searchControls}
+              emptyMessage={m.controls.empty}
+              messages={{ loading: m.common.loading, retry: m.common.retry }}
+              density="compact"
+            />
+          )}
+          {active && (
+            <section className="space-y-2" aria-label={active.label} data-control={active.name}>
+              {asking?.control.name === active.name && (
+                <form noValidate className="space-y-2 rounded-md border border-border-default p-3" onSubmit={(e) => { e.preventDefault(); submitParams(); }}>
+                  <p className="text-sm font-medium">{fill(m.controls.paramsTitle, { control: active.label })}</p>
+                  {Object.entries(active.params).map(([k, p]) => {
+                    const id = `${uid}-${active.name}-${k}`;
+                    const err = asking.problems[k];
+                    const setRaw = (v: string | boolean) => setAsking({ ...asking, raw: { ...asking.raw, [k]: v }, problems: { ...asking.problems, [k]: '' } });
+                    if (p.type === 'boolean') return <Checkbox key={k} id={id} label={p.label} checked={asking.raw[k] === true} onChange={(e) => setRaw(e.target.checked)} />;
+                    if (p.type === 'select') {
+                      return <Select key={k} id={id} label={p.label} required={p.required} error={err || undefined} value={String(asking.raw[k] ?? '')}
+                        placeholder={p.label} options={p.options.map((o) => ({ value: o.value, label: o.label }))} onChange={(e) => setRaw(e.target.value)} />;
+                    }
+                    return <Input key={k} id={id} label={'unit' in p && p.unit ? `${p.label} (${p.unit})` : p.label} required={p.required} error={err || undefined}
+                      inputMode={p.type === 'text' ? undefined : 'decimal'} value={String(asking.raw[k] ?? '')} onChange={(e) => setRaw(e.target.value)} />;
+                  })}
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" size="sm" type="button" onClick={() => setAsking(null)}>{m.controls.cancel}</Button>
+                    <Button variant="primary" size="sm" type="submit">{m.controls.send}</Button>
                   </div>
-                  {asking?.control.name === c.name && (
-                    <form noValidate className="space-y-2 rounded-md border border-border-default p-3" onSubmit={(e) => { e.preventDefault(); submitParams(); }}>
-                      <p className="text-sm font-medium">{fill(m.controls.paramsTitle, { control: c.label })}</p>
-                      {Object.entries(c.params).map(([k, p]) => {
-                        const id = `${uid}-${c.name}-${k}`;
-                        const err = asking.problems[k];
-                        const setRaw = (v: string | boolean) => setAsking({ ...asking, raw: { ...asking.raw, [k]: v }, problems: { ...asking.problems, [k]: '' } });
-                        if (p.type === 'boolean') return <Checkbox key={k} id={id} label={p.label} checked={asking.raw[k] === true} onChange={(e) => setRaw(e.target.checked)} />;
-                        if (p.type === 'select') {
-                          return <Select key={k} id={id} label={p.label} required={p.required} error={err || undefined} value={String(asking.raw[k] ?? '')}
-                            placeholder={p.label} options={p.options.map((o) => ({ value: o.value, label: o.label }))} onChange={(e) => setRaw(e.target.value)} />;
-                        }
-                        return <Input key={k} id={id} label={'unit' in p && p.unit ? `${p.label} (${p.unit})` : p.label} required={p.required} error={err || undefined}
-                          inputMode={p.type === 'text' ? undefined : 'decimal'} value={String(asking.raw[k] ?? '')} onChange={(e) => setRaw(e.target.value)} />;
-                      })}
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm" type="button" onClick={() => setAsking(null)}>{m.controls.cancel}</Button>
-                        <Button variant="primary" size="sm" type="submit">{m.controls.send}</Button>
-                      </div>
-                    </form>
-                  )}
-                  {sendError?.control === c.name && <p role="alert" className="text-sm text-error-fg">{sendError.text}</p>}
-                  {result?.control.name === c.name && <ControlResult res={result.res} m={m} />}
-                </li>
-              );
-            })}
-          </ul>
+                </form>
+              )}
+              {sendError?.control === active.name && <p role="alert" className="text-sm text-error-fg">{sendError.text}</p>}
+              {result?.control.name === active.name && <ControlResult res={result.res} m={m} />}
+            </section>
+          )}
         </div>
       </Drawer>
       <CommandBindingEditorDrawer
