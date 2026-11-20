@@ -13,15 +13,16 @@ import { useIotText } from '../api/IotAdapterProvider';
 import { ALARM_SEVERITIES, type AlarmSeverity } from '../types/alarm';
 import { fill } from '../format';
 import {
-  ALARM_RULE_KEY_MAX, ALARM_RULE_OPS, ALARM_RULE_TITLE_MAX, alarmRuleIssues, isAlarmRuleKey, isInactivityRule, isLeafCondition, leafValueIssue, undeclaredRuleKeys,
-  type AlarmRuleDefinition, type AlarmRuleLeaf, type AlarmRuleOp, type InactivityAlarmRule, type ThresholdAlarmRule,
+  ALARM_RULE_KEY_MAX, ALARM_RULE_OPS, ALARM_RULE_TITLE_MAX, alarmRuleIssues, debounceFromAttribute, isAlarmRuleKey, isInactivityRule, isLeafCondition, leafValueIssue, undeclaredRuleKeys,
+  type AlarmRuleDebounceValue, type AlarmRuleDefinition, type AlarmRuleLeaf, type AlarmRuleOp, type InactivityAlarmRule, type ThresholdAlarmRule,
 } from '../types/alarm-rule';
 
 /**
  * AlarmRuleDrawer — edits one alarm rule of a profile (phase 01 §1.4 "Alarm rules", NB iot_alarm 01 §1.1) as a form or as JSON. The
  * form covers the common shape: type, title, enabled; for a threshold rule one comparison per severity (key, operator, value, optional
  * topic, OD-25), debounce, hysteresis and runbook; for the `device_offline` rule the delay and severity. Settings the form does not
- * draw (notifications, dampening, a clear condition) are kept as they are; a rule with combined conditions opens as JSON. "Add to list"
+ * draw (notifications, dampening, a clear condition) are kept as they are; a rule with combined conditions, or a debounce read from a
+ * device attribute (NB NA-28), opens as JSON. "Add to list"
  * (or "Update the list") returns the rule to the set; nothing is sent until the set is saved.
  *
  * Laid out for its own width (container queries, never the viewport): each severity is one line of severity, then one of key,
@@ -59,10 +60,11 @@ export function formatRuleValue(v: AlarmRuleLeaf['value']): string {
   return typeof v === 'object' && v !== null ? `attribute:${v.attribute}` : String(v);
 }
 
-/** True when every severity's condition is one comparison (the form can draw it). */
+/** True when every severity's condition is one comparison and the debounce is numbers (the form can draw it). */
 export function isFormable(r: AlarmRuleDefinition): boolean {
-  return isInactivityRule(r) || r.severities.every((s) => isLeafCondition(s.condition));
+  return isInactivityRule(r) || (r.severities.every((s) => isLeafCondition(s.condition)) && !debounceFromAttribute(r.debounce));
 }
+const sideNumber = (v: AlarmRuleDebounceValue | undefined): number => (typeof v === 'number' ? v : 1);
 
 export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetryKeys = [], isNew = false, typeLocked = false }: AlarmRuleDrawerProps) {
   const { m } = useIotText();
@@ -233,10 +235,10 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
                     options={[{ value: 'count', label: m.alarmRules.debounceCount }, { value: 'duration', label: m.alarmRules.debounceDuration }]}
                     onChange={(e) => setT({ debounce: { raise: 1, clear: 1, ...threshold.debounce, mode: e.target.value as 'count' | 'duration' } })} />
                   <Input id={`${id}-raise`} type="number" label={holdMode === 'count' ? m.alarmRules.raiseCount : m.alarmRules.raiseDuration} min={1} max={86_400} step={1}
-                    value={threshold.debounce?.raise ?? 1}
+                    value={sideNumber(threshold.debounce?.raise)}
                     onChange={(e) => setT({ debounce: { mode: 'count', clear: 1, ...threshold.debounce, raise: Number(e.target.value) } })} />
                   <Input id={`${id}-clear`} type="number" label={holdMode === 'count' ? m.alarmRules.clearCount : m.alarmRules.clearDuration} min={1} max={86_400} step={1}
-                    value={threshold.debounce?.clear ?? 1}
+                    value={sideNumber(threshold.debounce?.clear)}
                     onChange={(e) => setT({ debounce: { mode: 'count', raise: 1, ...threshold.debounce, clear: Number(e.target.value) } })} />
                   <p className="text-xs text-text-secondary @md:col-span-2">{holdMode === 'count' ? m.alarmRules.debounceHint_count : m.alarmRules.debounceHint_duration}</p>
                   <Input id={`${id}-hysteresis`} type="number" label={m.alarmRules.hysteresis} min={0} step="any" value={threshold.hysteresis ?? ''}

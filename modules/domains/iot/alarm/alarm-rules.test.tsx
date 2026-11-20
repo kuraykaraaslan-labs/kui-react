@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import { IotApiError, type IotAdapter, type IotCapabilities } from '../api/adapter';
 import {
-  alarmRuleIssues, leafValueIssue, describeCondition, isAlarmRuleKey, newInactivityRule, newThresholdRule, renameAlarmRuleKeys, undeclaredRuleKeys, type AlarmRuleDefinition, type AlarmRuleRecord, type ThresholdAlarmRule,
+  alarmRuleIssues, debounceSideText, leafValueIssue, describeCondition, isAlarmRuleKey, newInactivityRule, newThresholdRule, renameAlarmRuleKeys, undeclaredRuleKeys, type AlarmRuleDefinition, type AlarmRuleRecord, type ThresholdAlarmRule,
 } from '../types/alarm-rule';
 import { blankProfileDraft, type DeviceProfile } from '../types/profile';
 import { announceProfileKeyRenames } from '../profile/profile-key-events';
@@ -102,6 +102,13 @@ describe('alarm rule checks the host makes on write (NB 41-ui-fixes/24 1.6, 1.13
     expect(alarmRuleIssues({ ...newThresholdRule(), debounce: { mode: 'count', raise: 0, clear: 1 } })).toEqual(['debounce_out_of_range']);
     expect(alarmRuleIssues({ ...newThresholdRule(), debounce: { mode: 'count', raise: 1.5, clear: 1 } })).toEqual(['debounce_out_of_range']);
     expect(alarmRuleIssues({ ...newThresholdRule(), hysteresis: -1 })).toEqual(['hysteresis_out_of_range']);
+    // NB NA-28: a side read from a device attribute, with a default the host takes
+    const fromDevice = { ...newThresholdRule(), debounce: { mode: 'duration' as const, raise: { attribute: 'openAlarmSec', default: 600 }, clear: 30 } };
+    expect(alarmRuleIssues(fromDevice)).toEqual([]);
+    expect(isFormable(fromDevice)).toBe(false);
+    expect(debounceSideText(fromDevice.debounce.raise)).toBe('attribute:openAlarmSec (600)');
+    expect(alarmRuleIssues({ ...fromDevice, debounce: { ...fromDevice.debounce, raise: { attribute: '', default: 600 } } })).toEqual(['debounce_out_of_range']);
+    expect(alarmRuleIssues({ ...fromDevice, debounce: { ...fromDevice.debounce, raise: { attribute: 'a', default: 0 } } })).toEqual(['debounce_out_of_range']);
     expect(alarmRuleIssues({ ...newThresholdRule(), title: 'x'.repeat(301) })).toEqual(['title_too_long']);
     expect(alarmRuleIssues({ ...newThresholdRule(), clear: { key: 'k'.repeat(129), op: '<', value: 1 } })).toEqual(['key_too_long']);
     expect(alarmRuleIssues({ ...newThresholdRule(), clear: { key: 'temperature', op: '<', value: '7O' } })).toEqual(['value_not_number']);

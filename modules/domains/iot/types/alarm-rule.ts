@@ -37,7 +37,22 @@ export type AlarmRuleLeaf = {
 };
 export type AlarmRuleCondition = AlarmRuleLeaf | { all: AlarmRuleCondition[] } | { any: AlarmRuleCondition[] };
 
-export type AlarmRuleDebounce = { mode: 'count' | 'duration'; raise: number; clear: number };
+/**
+ * A debounce side: a count or a number of seconds, or (NB NA-28) read from an attribute of the device with the `default` used when the
+ * device has none or a bad one. The form draws numbers; a rule with an attribute side opens as JSON (`isFormable` in the drawer).
+ */
+export type AlarmRuleDebounceValue = number | { attribute: string; default: number };
+export type AlarmRuleDebounce = { mode: 'count' | 'duration'; raise: AlarmRuleDebounceValue; clear: AlarmRuleDebounceValue };
+
+/** A debounce side as text: the number, or `attribute:<name> (<default>)` for one read from the device. */
+export function debounceSideText(v: AlarmRuleDebounceValue): string {
+  return typeof v === 'number' ? String(v) : `attribute:${v.attribute} (${v.default})`;
+}
+
+/** True when a side of the debounce is read from a device attribute (NB NA-28). */
+export function debounceFromAttribute(d: AlarmRuleDebounce | undefined): boolean {
+  return !!d && (typeof d.raise === 'object' || typeof d.clear === 'object');
+}
 
 export type ThresholdAlarmRule = {
   type: string;
@@ -176,7 +191,11 @@ export function alarmRuleIssues(r: AlarmRuleDefinition, others: readonly AlarmRu
   for (const issue of all.map(leafValueIssue)) if (issue && !out.includes(issue)) out.push(issue);
   const d = r.debounce;
   const count = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 86_400;
-  if (d && (!count(d.raise) || !count(d.clear))) out.push('debounce_out_of_range');
+  // a side read from an attribute needs its name and a default the host would take as a number (NB NA-28)
+  const side = (v: unknown) => count(v) || (typeof v === 'object' && v !== null && typeof (v as { attribute?: unknown }).attribute === 'string'
+    && (v as { attribute: string }).attribute.trim().length > 0 && (v as { attribute: string }).attribute.trim().length <= ALARM_RULE_KEY_MAX
+    && count((v as { default?: unknown }).default));
+  if (d && (!side(d.raise) || !side(d.clear))) out.push('debounce_out_of_range');
   if (r.hysteresis !== undefined && !(typeof r.hysteresis === 'number' && Number.isFinite(r.hysteresis) && r.hysteresis >= 0 && r.hysteresis <= 1e9)) {
     out.push('hysteresis_out_of_range');
   }

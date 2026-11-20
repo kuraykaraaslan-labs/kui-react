@@ -17,7 +17,7 @@ import { errorMessage, IotApiError, type AlarmRuleSaveResult } from '../api/adap
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill, plural } from '../format';
 import {
-  DEVICE_OFFLINE_RULE_TYPE, describeCondition, isInactivityRule, newInactivityRule, newThresholdRule, renameAlarmRuleKeys, undeclaredRuleKeys, type AlarmRuleDefinition,
+  DEVICE_OFFLINE_RULE_TYPE, debounceFromAttribute, debounceSideText, describeCondition, isInactivityRule, newInactivityRule, newThresholdRule, renameAlarmRuleKeys, undeclaredRuleKeys, type AlarmRuleDefinition,
   type AlarmRuleRecord,
 } from '../types/alarm-rule';
 import { onProfileKeyRenames } from '../profile/profile-key-events';
@@ -348,8 +348,8 @@ export function AlarmRuleSetEditor({ profileId, className }: AlarmRuleSetEditorP
                   <code className="font-mono">{describeCondition(s.condition, words)}</code>
                 </li>
               ))}
-              {r.debounce && (r.debounce.raise > 1 || r.debounce.clear > 1) && (
-                <li>{`${m.alarmRules.debounce}: ${r.debounce.raise} / ${r.debounce.clear} (${r.debounce.mode === 'count' ? m.alarmRules.debounceCount : m.alarmRules.debounceDuration})`}</li>
+              {r.debounce && (debounceFromAttribute(r.debounce) || (r.debounce.raise as number) > 1 || (r.debounce.clear as number) > 1) && (
+                <li>{`${m.alarmRules.debounce}: ${debounceSideText(r.debounce.raise)} / ${debounceSideText(r.debounce.clear)} (${r.debounce.mode === 'count' ? m.alarmRules.debounceCount : m.alarmRules.debounceDuration})`}</li>
               )}
             </>
           )}
