@@ -91,8 +91,8 @@ describe('OTA views (iot-platform 06)', () => {
     await waitFor(() => expect(sent.at(-1)).toEqual({ targetType: 'GROUP', selector: { assetId: 'a-1', profileId: profile.value } }));
   });
 
-  it('without assets from the host the drawer does not offer a device list by asset', async () => {
-    const adapter = createDemoOtaAdapter({ delayMs: 0 });
+  it('without assets from the host (or with none) the drawer does not offer a device list by asset', async () => {
+    const adapter = { ...createDemoOtaAdapter({ delayMs: 0 }), assets: async () => [] };
     render(<FirmwareDetailView adapter={adapter} packageId="pkg-2" can={CAN} />);
     await userEvent.click(await screen.findByRole('button', { name: OTA_MESSAGES.detail.assign }));
     const drawer = await screen.findByRole('dialog');

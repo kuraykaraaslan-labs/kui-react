@@ -48,8 +48,8 @@ export function previewLines(m: OtaMessages, p: OtaAssignPreview): { lines: stri
 
 /**
  * OtaAssignDrawer — who gets a package: every device of a profile (later ones too), some devices (a list frozen now: picked one by one,
- * all devices a profile has now, or, with a host that offers `assets`, all devices on a site or asset and below it, narrowed to a profile
- * when one is chosen), or one device. "Check" runs a dry run and shows what would happen (devices covered, offline, already
+ * all devices a profile has now, or, with a host that lists `assets` (and has some), all devices on a site or asset and below it,
+ * narrowed to a profile when one is chosen), or one device. "Check" runs a dry run and shows what would happen (devices covered, offline, already
  * on the version, and the ones that would not take it with the reason in words, plus the metered-link and router-approval rules,
  * OD-7/OD-13); "Assign" asks once more through the ConfirmDialog with the device count. With a host that runs rollouts (`adapter.rollouts`),
  * a profile or some devices may be sent in waves (`OtaWavesEditor`, the usual plan to start from); the check then shows each wave's size.
@@ -197,7 +197,7 @@ export function OtaAssignDrawer({ open, onClose, adapter, pkg, packages, preset,
               <Checkbox id="ota-assign-whole" label={m.assign.allOfProfile} checked={wholeProfile} onChange={(e) => { setWholeProfile(e.target.checked); if (e.target.checked) setUnderAsset(false); }} />
             )}
             {targetType === 'GROUP' && wholeProfile && !profileId && <p className="text-sm text-text-secondary">{m.assign.pickProfileFirst}</p>}
-            {targetType === 'GROUP' && adapter.assets && (
+            {targetType === 'GROUP' && adapter.assets && assets.length > 0 && (
               <Checkbox
                 id="ota-assign-under-asset" label={m.assign.allUnderAsset} hint={m.assign.allUnderAssetHint} checked={underAsset}
                 onChange={(e) => { setUnderAsset(e.target.checked); if (e.target.checked) setWholeProfile(false); }}
