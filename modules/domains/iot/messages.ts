@@ -1329,6 +1329,7 @@ export const IOT_MESSAGES = {
     empty: 'none',
     keys_one: '{n} key',
     keys_other: '{n} keys',
+    search: 'Search settings',
     f_protocolSettings: 'Protocol settings',
     f_csrKeyPolicy: 'Certificate key type',
     f_requirePresenceForClaim: 'Claiming needs the device present',

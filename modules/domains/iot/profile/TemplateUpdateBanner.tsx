@@ -227,11 +227,13 @@ export function TemplateUpdateBanner({ profile, canApply, dirty, confirmApply, o
           {error && <p role="alert" className="text-sm text-error">{error}</p>}
           {update.fields.length ? (
             <DataTable<Row>
+              mode="paginated"
               variant="plain"
               caption={fill(m.templateUpdate.title, { key: update.templateKey, version: update.toVersion })}
               columns={columns}
               rows={update.fields as Row[]}
-              searchable={false}
+              searchText={(r) => `${templateFieldLabel(r.field, m)} ${describeTemplateValue(r.field, r.mine, m, locale)} ${describeTemplateValue(r.field, r.theirs, m, locale)}`}
+              searchPlaceholder={m.templateUpdate.search}
               pageSize={50}
               rowId={(r) => r.field}
               selectable={canApply}
