@@ -115,6 +115,11 @@ export type { ProvisioningKeysPanelProps } from './profile/ProvisioningKeysPanel
 export { AlarmRuleSetEditor } from './alarm/AlarmRuleSetEditor';
 export { AlarmRuleDrawer, parseRuleValue, formatRuleValue, isFormable } from './alarm/AlarmRuleDrawer';
 export { RpcCommandCatalogEditor } from './rpc/RpcCommandCatalogEditor';
+export { RpcCommandBindingsDrawer, CommandBindingEditorDrawer } from './rpc/RpcCommandBindingsDrawer';
+export type { RpcCommandBindingsDrawerProps, CommandBindingEditorDrawerProps } from './rpc/RpcCommandBindingsDrawer';
+export { EntityControlsDrawer } from './rpc/EntityControlsDrawer';
+export type { EntityControlsDrawerProps } from './rpc/EntityControlsDrawer';
+export { boundText, controlParams, paramMapOf, newPressKey } from './rpc/entity-controls';
 
 // ── Sites and assets (phase 08; NB iot_asset 03) ─────────────────────────────────────────────────────────────────────
 export { AssetKindBadge } from './asset/AssetKindBadge';
