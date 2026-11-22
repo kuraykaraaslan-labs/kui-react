@@ -350,6 +350,20 @@
         "KUInative"
       ],
       "reason": "New for next-boilerplate data_import (the CSV import wizard: file, columns, check, result with undo and a target's one-time download). Its only consumer is next-boilerplate's Imports page, which vendors it from here; the owner's rule for this task is kui-react only, and neither kui-ejs nor KUInative has an import surface yet."
+    },
+    {
+      "id": "iot-asset-add-relation",
+      "name": "AddRelationDrawer",
+      "layer": "domain",
+      "path": "modules/domains/iot/asset/AddRelationDrawer.tsx",
+      "presentIn": [
+        "kui-react"
+      ],
+      "absentIn": [
+        "kui-ejs",
+        "KUInative"
+      ],
+      "reason": "IoT typed relations editor (next-boilerplate iot-dashboard 09 §9.5, W8bV-1): the IoT vertical exists only in kui-react (checked 2026-11-22: neither repo has an IoT domain or the asset relations section it extends); not created there, per the rule that absent components are not created."
     }
   ]
 }
