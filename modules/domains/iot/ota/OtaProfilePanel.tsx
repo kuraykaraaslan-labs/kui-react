@@ -5,6 +5,7 @@ import { Button } from '@/modules/ui/Button';
 import { Callout } from '@/modules/ui/Callout';
 import { ConfirmDialog } from '@/modules/ui/ConfirmDialog';
 import { Input } from '@/modules/ui/Input';
+import { Select } from '@/modules/ui/Select';
 import { Spinner } from '@/modules/ui/Spinner';
 import { Toggle } from '@/modules/ui/Toggle';
 import type { OtaMessagesInput } from './messages';
@@ -12,9 +13,9 @@ import type { OtaAdapter } from './ota-adapter';
 import { OtaAssignDrawer } from './OtaAssignDrawer';
 import { OtaPackageStatusBadge } from './OtaStateBadge';
 import { otaErrorText, useOtaText } from './OtaText';
-import type { OtaAbilities, OtaAssignment, OtaPackage, OtaProfileSettings } from './types';
+import { OTA_REQUIRED_SIGNATURES, type OtaAbilities, type OtaAssignment, type OtaPackage, type OtaProfileSettings } from './types';
 
-const DEFAULTS: OtaProfileSettings = { otaEnabled: false, allowMetered: false, allowUnsigned: false, downloadTimeoutMin: 60, updateTimeoutMin: 20, maxAttempts: 3 };
+const DEFAULTS: OtaProfileSettings = { otaEnabled: false, allowMetered: false, allowUnsigned: false, requiredSignature: null, downloadTimeoutMin: 60, updateTimeoutMin: 20, maxAttempts: 3 };
 const LIMITS = { downloadTimeoutMin: [5, 1440], updateTimeoutMin: [2, 240], maxAttempts: [1, 10] } as const;
 
 export interface OtaProfilePanelProps {
@@ -110,7 +111,10 @@ export function OtaProfilePanel({ adapter, profileId, profileName, can = {}, pac
         </div>
         <Toggle id={`ota-enabled-${profileId}`} label={m.profile.enabled} checked={form.otaEnabled} onChange={(v) => set('otaEnabled', v)} disabled={ro} />
         <Toggle id={`ota-metered-${profileId}`} label={m.profile.metered} description={m.profile.meteredHint} checked={form.allowMetered} onChange={(v) => set('allowMetered', v)} disabled={ro || !form.otaEnabled} />
-        <Toggle id={`ota-unsigned-${profileId}`} label={m.profile.unsigned} description={m.profile.unsignedHint} checked={form.allowUnsigned} onChange={(v) => set('allowUnsigned', v)} disabled={ro || !form.otaEnabled} />
+        <Select id={`ota-signature-${profileId}`} label={m.profile.requiredSignature} hint={m.profile.requiredSignatureHint} value={form.requiredSignature ?? ''}
+          options={[{ value: '', label: m.profile.requiredSignature_any }, ...OTA_REQUIRED_SIGNATURES.map((v) => ({ value: v, label: m.profile[`requiredSignature_${v === 'usign-ed25519' ? 'usign' : 'esp32'}`] }))]}
+          onChange={(e) => { const v = e.target.value || null; setForm((f) => (f ? { ...f, requiredSignature: v, ...(v ? { allowUnsigned: false } : {}) } : f)); }} disabled={ro || !form.otaEnabled} />
+        <Toggle id={`ota-unsigned-${profileId}`} label={m.profile.unsigned} description={form.requiredSignature ? m.profile.unsignedRequired : m.profile.unsignedHint} checked={form.allowUnsigned} onChange={(v) => set('allowUnsigned', v)} disabled={ro || !form.otaEnabled || !!form.requiredSignature} />
         <div className="grid gap-4 sm:grid-cols-3">
           {num('downloadTimeoutMin', m.profile.downloadTimeout)}
           {num('updateTimeoutMin', m.profile.updateTimeout)}

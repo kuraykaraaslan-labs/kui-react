@@ -120,7 +120,10 @@ export type OtaAssignTarget =
 /** Why a device would not take the package (it is SKIPPED). */
 export const OTA_BLOCK_REASONS = [
   'package_not_ready', 'profile_mismatch', 'hardware_mismatch', 'version_unknown', 'version_too_old', 'ota_disabled', 'unsigned_not_allowed',
+  'signature_required',
 ] as const;
+/** NB W8P-12 (DS-Q11): the signature schemes a profile may require; absent or null = any. */
+export const OTA_REQUIRED_SIGNATURES = ['usign-ed25519', 'esp32-secure-boot-v2'] as const;
 export type OtaBlockReason = (typeof OTA_BLOCK_REASONS)[number];
 
 /** The counts an assignment's confirmation shows (a dry run; nothing is written). */
@@ -179,6 +182,8 @@ export interface OtaProfileSettings {
   otaEnabled: boolean;
   allowMetered: boolean;
   allowUnsigned: boolean;
+  /** NB W8P-12: the only scheme the profile's devices take (the Roltek router templates: usign); null = any. */
+  requiredSignature?: string | null;
   downloadTimeoutMin: number;
   updateTimeoutMin: number;
   maxAttempts: number;

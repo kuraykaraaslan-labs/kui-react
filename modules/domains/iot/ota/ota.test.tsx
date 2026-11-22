@@ -225,3 +225,23 @@ describe('rollouts in waves (NB iot_ota 03)', () => {
     expect(within(confirm).getByText(/Resuming accepts what happened so far/)).toBeTruthy();
   });
 });
+
+describe('NB W8P-12: a profile that requires a signature kind', () => {
+  it('offers the required signature, turns unsigned off and sends both on save', async () => {
+    const { OtaProfilePanel } = await import('./OtaProfilePanel');
+    const demo = createDemoOtaAdapter({ delayMs: 0 });
+    const [profile] = await demo.profiles();
+    await demo.settings.put('profile', profile!.id, { otaEnabled: true, allowUnsigned: true });
+    const sent: unknown[] = [];
+    const adapter = { ...demo, settings: { ...demo.settings, put: async (t: 'profile' | 'device', id: string, input: Record<string, unknown>) => { sent.push(input); return demo.settings.put(t, id, input); } } };
+    render(<OtaProfilePanel adapter={adapter as never} profileId={profile!.id} profileName={profile!.name} can={{ assign: true }} />);
+    const select = await screen.findByLabelText(OTA_MESSAGES.profile.requiredSignature);
+    await userEvent.selectOptions(select, 'usign-ed25519');
+    const unsigned = document.getElementById(`ota-unsigned-${profile!.id}`) as HTMLInputElement | HTMLButtonElement;
+    expect(unsigned.getAttribute('aria-checked') ?? String((unsigned as HTMLInputElement).checked)).toBe('false');
+    expect(unsigned.hasAttribute('disabled')).toBe(true);
+    await userEvent.click(screen.getByRole('button', { name: OTA_MESSAGES.common.save }));
+    await waitFor(() => expect(sent).toEqual([expect.objectContaining({ requiredSignature: 'usign-ed25519', allowUnsigned: false })]));
+    expect(OTA_MESSAGES.block.signature_required).toBeTruthy();
+  });
+});
