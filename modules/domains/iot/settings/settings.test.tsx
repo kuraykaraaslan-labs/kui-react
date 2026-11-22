@@ -203,6 +203,15 @@ describe('DeviceSettingsView', () => {
     expect(input.values.country).toBe('TR');
   });
 
+  it('opens a section a workspace policy keeps the viewer off read only, with the notice; the others stay editable', async () => {
+    const a = adapterOf(settings({ viewer: { classes: ['operate', 'admin', 'dangerous'], deniedSections: ['lte'] } }));
+    render(<DeviceSettingsView adapter={a} deviceId="d1" pollMs={0} />);
+    await userEvent.click(await screen.findByText('LTE'));
+    const drawer = await screen.findByRole('dialog', { name: 'LTE settings' });
+    expect(within(drawer).getByText(/Your access lets you see this section but not change it/)).toBeTruthy();
+    expect(within(drawer).queryByRole('button', { name: 'Save' })).toBeNull();
+  });
+
   it('asks for the section name typed before a change that can cut the device off', async () => {
     const a = adapterOf(settings(), async (_d, id, input) => (input.dryRun
       ? { dryRun: true, section: id, rev: 4, class: 'dangerous', paths: [{ path: 'mode', before: 'auto', after: '4g' }], needsConfirm: true, secrets: 0, manifestHash: 'h1' }

@@ -48,6 +48,7 @@ export const SETTINGS_MESSAGES = {
     readOnly: 'Read only: update the firmware to change settings',
     readOnlyHint: 'This firmware is past its support window. You can still see its settings; update the device to change them.',
     viewOnly: 'You can see these settings but not change them.',
+    sectionDenied: 'Your access lets you see this section but not change it. Ask an administrator if you need to.',
     unsupported: 'This device does not take settings from the cloud',
     unsupportedHint: 'Its firmware does not support it, or it is not a Roltek router. Update the firmware to manage its settings here.',
     manifestUnknown: 'The settings of this model are not known yet',

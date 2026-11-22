@@ -105,8 +105,11 @@ export interface DeviceSettings {
   /** `false` once the firmware is past its support window: everything stays readable. */
   writable: boolean;
   sections: SettingsSection[];
-  /** The classes the viewer may change (none: read only). */
-  viewer?: { classes: SettingClass[] };
+  /**
+   * The classes the viewer may change (none: read only), and the sections a workspace access policy keeps the viewer off (the per-section
+   * allow-list: such a section opens read only; the server judges every write again).
+   */
+  viewer?: { classes: SettingClass[]; deniedSections?: string[] };
 }
 
 export interface SettingsHistoryEntry {

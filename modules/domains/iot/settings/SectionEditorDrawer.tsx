@@ -76,7 +76,9 @@ export function SectionEditorDrawer({ open, onClose, adapter, deviceId, settings
   const [review, setReview] = useState<SettingsHistoryEntry | null>(null);
   const dirty = !sameValues(values, initial);
   const classes = useMemo<ReadonlySet<SettingClass> | null>(() => (settings.viewer ? new Set(settings.viewer.classes) : null), [settings.viewer]);
-  const canChange = settings.writable && (!classes || classes.size > 0);
+  // the per-section allow-list: a workspace policy may keep the viewer off this section whatever their classes
+  const sectionDenied = !!settings.viewer?.deniedSections?.includes(section.section);
+  const canChange = settings.writable && (!classes || classes.size > 0) && !sectionDenied;
 
   const reset = (doc = start()) => {
     setInitial(doc);
@@ -226,6 +228,7 @@ export function SectionEditorDrawer({ open, onClose, adapter, deviceId, settings
           <>
             {!settings.writable && <Callout variant="warning" title={m.tab.readOnly}>{m.tab.readOnlyHint}</Callout>}
             {settings.writable && classes && classes.size === 0 && <Callout variant="info">{m.tab.viewOnly}</Callout>}
+            {settings.writable && (!classes || classes.size > 0) && sectionDenied && <Callout variant="info">{m.tab.sectionDenied}</Callout>}
             {section.state === 'pending' && <Callout variant="info">{m.editor.pending}</Callout>}
             {section.state === 'confirming' && <Callout variant="info">{m.editor.confirming}</Callout>}
             {(section.state === 'reverted' || section.state === 'rejected' || section.state === 'expired') && (
