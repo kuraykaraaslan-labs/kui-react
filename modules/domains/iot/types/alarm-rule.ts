@@ -7,8 +7,20 @@ import type { AlarmSeverity } from './alarm';
  * editor sends it back whole. Self-contained (no zod), like the other entity files.
  */
 
-export const ALARM_RULE_OPS = ['>', '>=', '<', '<=', '==', '!='] as const;
+export const ALARM_RULE_COMPARISON_OPS = ['>', '>=', '<', '<=', '==', '!='] as const;
+/** NB NA-23 (W8P-2): ThingsBoard's string predicates; `in` / `notIn` compare with a list of words. */
+export const ALARM_RULE_STRING_OPS = ['contains', 'notContains', 'startsWith', 'endsWith', 'in', 'notIn'] as const;
+/** Every operator a comparison may use, in the order the editor offers them. */
+export const ALARM_RULE_OPS = [...ALARM_RULE_COMPARISON_OPS, ...ALARM_RULE_STRING_OPS] as const;
 export type AlarmRuleOp = (typeof ALARM_RULE_OPS)[number];
+export type AlarmRuleStringOp = (typeof ALARM_RULE_STRING_OPS)[number];
+export const isStringOp = (op: string): op is AlarmRuleStringOp => (ALARM_RULE_STRING_OPS as readonly string[]).includes(op);
+export const isListOp = (op: string): op is 'in' | 'notIn' => op === 'in' || op === 'notIn';
+/** Most words of an `in` / `notIn` list (NB `MAX_LIST_VALUES`). */
+export const ALARM_RULE_LIST_MAX = 50;
+/** NB NA-19 (W8P-1): `follow` lowers an active alarm with its conditions (the default); `escalate` never lowers it (ThingsBoard). */
+export const ALARM_SEVERITY_MODES = ['follow', 'escalate'] as const;
+export type AlarmSeverityMode = (typeof ALARM_SEVERITY_MODES)[number];
 
 /** The inactivity rule's fixed type (NB `DEVICE_OFFLINE_TYPE`). */
 export const DEVICE_OFFLINE_RULE_TYPE = 'device_offline';
@@ -30,8 +42,12 @@ export const ALARM_RULE_TITLE_MAX = 300;
 export type AlarmRuleLeaf = {
   key: string;
   op: AlarmRuleOp;
-  /** A number, string or boolean, or a per-device threshold from an attribute. */
-  value: number | string | boolean | { attribute: string };
+  /** A number, string or boolean, or a per-device threshold from an attribute; a list of words for `in` / `notIn` (NB NA-23). */
+  value: number | string | boolean | { attribute: string } | string[];
+  /** NB NA-23: compare text in lower case (the string operators, `==`, `!=`). */
+  ignoreCase?: boolean;
+  /** NB NA-60 (W8P-3): the value is a date and time in epoch ms; the device's reading compares as one (a number or ISO-8601 text). */
+  valueType?: 'datetime';
   /** OD-25: exact `metadata.topic`; null = only the default topics; absent = any topic. */
   topic?: string | null;
 };
@@ -58,6 +74,8 @@ export type ThresholdAlarmRule = {
   type: string;
   title: string;
   severities: Array<{ severity: AlarmSeverity; condition: AlarmRuleCondition }>;
+  /** NB NA-19: absent = `follow`. */
+  severityMode?: AlarmSeverityMode;
   clear?: AlarmRuleCondition;
   debounce?: AlarmRuleDebounce;
   hysteresis?: number;
@@ -104,9 +122,12 @@ export function conditionLeaves(c: AlarmRuleCondition): AlarmRuleLeaf[] {
 export function describeCondition(c: AlarmRuleCondition, words: { and: string; or: string; attribute: string; topic: string } = { and: 'and', or: 'or', attribute: 'attribute', topic: 'on' }): string {
   if ('all' in c) return `(${c.all.map((x) => describeCondition(x, words)).join(` ${words.and} `)})`;
   if ('any' in c) return `(${c.any.map((x) => describeCondition(x, words)).join(` ${words.or} `)})`;
-  const v = typeof c.value === 'object' && c.value !== null ? `${words.attribute}:${c.value.attribute}` : JSON.stringify(c.value);
+  const v = Array.isArray(c.value) ? `[${c.value.map((w) => JSON.stringify(w)).join(', ')}]`
+    : typeof c.value === 'object' && c.value !== null ? `${words.attribute}:${c.value.attribute}`
+      : c.valueType === 'datetime' && typeof c.value === 'number' && Number.isFinite(c.value) ? new Date(c.value).toISOString()
+        : JSON.stringify(c.value);
   const topic = c.topic ? ` ${words.topic} ${c.topic}` : c.topic === null ? ` ${words.topic} v1/` : '';
-  return `${c.key} ${c.op} ${v}${topic}`;
+  return `${c.key} ${c.op} ${v}${c.ignoreCase ? ' (aA)' : ''}${topic}`;
 }
 
 /** The new rules a profile starts from in the editor. */
@@ -125,16 +146,23 @@ export function newInactivityRule(): InactivityAlarmRule {
 
 /** What the editor checks before it sends a set (the host validates the full schema again). */
 export type AlarmRuleIssue = 'type_invalid' | 'type_duplicate' | 'title_required' | 'title_too_long' | 'severity_required' | 'severity_duplicate'
-  | 'key_required' | 'key_invalid' | 'key_too_long' | 'value_not_number' | 'value_comma' | 'value_too_long' | 'debounce_out_of_range'
+  | 'key_required' | 'key_invalid' | 'key_too_long' | 'value_not_number' | 'value_comma' | 'value_too_long' | 'value_list' | 'value_text'
+  | 'value_date' | 'debounce_out_of_range'
   | 'hysteresis_out_of_range' | 'after_out_of_range';
 
 /**
  * What is wrong with one comparison's value: an ordering operator (`>`, `>=`, `<`, `<=`) needs a number, or a per-device attribute
  * (`80,5` with a comma has its own hint; `80 °C`, `8O`, `true` are refused), and a text value is at most 256 characters. Null: nothing.
  */
-export function leafValueIssue(l: AlarmRuleLeaf): 'value_not_number' | 'value_comma' | 'value_too_long' | null {
+export function leafValueIssue(l: AlarmRuleLeaf): 'value_not_number' | 'value_comma' | 'value_too_long' | 'value_list' | 'value_text' | 'value_date' | null {
   const v = l.value;
+  // NB NA-23: a list of 1 to 50 words exactly with `in` / `notIn`; text with the other string operators
+  if (isListOp(l.op) !== Array.isArray(v)) return 'value_list';
+  if (Array.isArray(v)) return v.length === 0 || v.length > ALARM_RULE_LIST_MAX ? 'value_list' : v.some((w) => w.length > ALARM_RULE_VALUE_MAX) ? 'value_too_long' : null;
   if (typeof v === 'string' && v.length > ALARM_RULE_VALUE_MAX) return 'value_too_long';
+  if (isStringOp(l.op)) return typeof v === 'number' || typeof v === 'boolean' ? 'value_text' : null;
+  // NB NA-60: a date is whole epoch ms (or a per-device attribute)
+  if (l.valueType === 'datetime') return (typeof v === 'number' && Number.isInteger(v)) || (typeof v === 'object' && v !== null) ? null : 'value_date';
   if (!ORDERING_OPS.includes(l.op) || typeof v === 'number' || (typeof v === 'object' && v !== null)) return null;
   if (typeof v === 'string' && THRESHOLD_NUMBER_RE.test(v.trim())) return null;
   return typeof v === 'string' && DECIMAL_COMMA_RE.test(v.trim()) ? 'value_comma' : 'value_not_number';

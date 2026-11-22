@@ -9,7 +9,7 @@ import {
 import { blankProfileDraft, type DeviceProfile } from '../types/profile';
 import { announceProfileKeyRenames } from '../profile/profile-key-events';
 import { AlarmRuleSetEditor, adoptRenamed, changedRuleCount, pendingRuleChanges, refusedRule, ruleSaveResult } from './AlarmRuleSetEditor';
-import { formatRuleValue, isFormable, parseRuleValue } from './AlarmRuleDrawer';
+import { formatRuleValue, fromLocalInput, isFormable, parseRuleList, parseRuleValue, toLocalInput, withOp } from './AlarmRuleDrawer';
 
 const THRESHOLD: AlarmRuleDefinition = {
   type: 'high_temperature', title: 'Hot', enabled: true,
@@ -118,6 +118,53 @@ describe('alarm rule checks the host makes on write (NB 41-ui-fixes/24 1.6, 1.13
     expect(refusedRule(e, [THRESHOLD, COMPOUND])).toEqual({ type: 'battery', detail: 'With > the value must be a number.' });
     expect(refusedRule(new IotApiError('unavailable', ''), [THRESHOLD])).toBeNull();
     expect(pendingRuleChanges([THRESHOLD, COMPOUND], [{ ...THRESHOLD, enabled: false }])).toEqual({ removed: ['battery'], disabled: ['high_temperature'] });
+  });
+});
+
+describe('NB parity rows NA-19, NA-23, NA-60 (W8P-1…W8P-3)', () => {
+  it('describes lists, ignore case and dates; checks list, text and date values like the host', () => {
+    expect(describeCondition({ key: 'mode', op: 'in', value: ['run', 'idle'], ignoreCase: true })).toBe('mode in ["run", "idle"] (aA)');
+    expect(describeCondition({ key: 'due', op: '<', value: Date.UTC(2026, 10, 22), valueType: 'datetime' })).toBe('due < 2026-11-22T00:00:00.000Z');
+    expect(leafValueIssue({ key: 'mode', op: 'in', value: 'run' })).toBe('value_list');
+    expect(leafValueIssue({ key: 'mode', op: 'in', value: [] })).toBe('value_list');
+    expect(leafValueIssue({ key: 'mode', op: '==', value: ['run'] })).toBe('value_list');
+    expect(leafValueIssue({ key: 'mode', op: 'contains', value: 5 })).toBe('value_text');
+    expect(leafValueIssue({ key: 'mode', op: 'contains', value: 'err' })).toBeNull();
+    expect(leafValueIssue({ key: 'due', op: '<', value: 'tomorrow', valueType: 'datetime' })).toBe('value_date');
+    expect(leafValueIssue({ key: 'due', op: '<', value: Number.NaN, valueType: 'datetime' })).toBe('value_date');
+    expect(leafValueIssue({ key: 'due', op: '<', value: 1_763_800_000_000, valueType: 'datetime' })).toBeNull();
+  });
+
+  it('switching the operator reshapes the value: a list for is one of, text for the string operators, no case on ordering', () => {
+    expect(withOp({ key: 'm', op: '==', value: 'a, b' }, 'in')).toEqual({ key: 'm', op: 'in', value: ['a', 'b'] });
+    expect(withOp({ key: 'm', op: 'in', value: ['a', 'b'] }, 'contains')).toEqual({ key: 'm', op: 'contains', value: 'a, b' });
+    expect(withOp({ key: 'm', op: '>', value: 5, valueType: 'datetime' }, 'startsWith')).toEqual({ key: 'm', op: 'startsWith', value: '5' });
+    expect(withOp({ key: 'm', op: '==', value: 'x', ignoreCase: true }, '>')).toEqual({ key: 'm', op: '>', value: 'x' });
+    expect(parseRuleList(' a ,, b ,c ')).toEqual(['a', 'b', 'c']);
+    expect(formatRuleValue(['a', 'b'])).toBe('a, b');
+    const ms = new Date(2026, 10, 22, 14, 5).getTime();
+    expect(toLocalInput(ms)).toBe('2026-11-22T14:05');
+    expect(fromLocalInput('2026-11-22T14:05')).toBe(ms);
+    expect(Number.isNaN(fromLocalInput(''))).toBe(true);
+  });
+
+  it('edits a string operator with ignore case and the severity mode in the form, and sends them', async () => {
+    const user = userEvent.setup();
+    const { replace } = setup([THRESHOLD]);
+    await user.click(await screen.findByRole('button', { name: 'Edit high_temperature' }));
+    await user.selectOptions(screen.getAllByLabelText('Operator')[0], 'in');
+    const value = screen.getAllByLabelText('Value')[0];
+    await user.clear(value);
+    await user.type(value, 'ALARM, fault');
+    await user.click(screen.getAllByText('Advanced')[0]);
+    await user.click(screen.getAllByLabelText('Ignore upper and lower case')[0]);
+    await user.selectOptions(screen.getByLabelText('When a lower severity is true'), 'escalate');
+    await user.click(screen.getByRole('button', { name: 'Update the list' }));
+    await user.click(screen.getByRole('button', { name: 'Save rules' }));
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    const sent = replace.mock.calls[0][1][0] as ThresholdAlarmRule;
+    expect(sent.severities[0].condition).toEqual({ key: 'temperature', op: 'in', value: ['ALARM', 'fault'], ignoreCase: true });
+    expect(sent.severityMode).toBe('escalate');
   });
 });
 

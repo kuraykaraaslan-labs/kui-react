@@ -13,8 +13,9 @@ import { useIotText } from '../api/IotAdapterProvider';
 import { ALARM_SEVERITIES, type AlarmSeverity } from '../types/alarm';
 import { fill } from '../format';
 import {
-  ALARM_RULE_KEY_MAX, ALARM_RULE_OPS, ALARM_RULE_TITLE_MAX, alarmRuleIssues, debounceFromAttribute, isAlarmRuleKey, isInactivityRule, isLeafCondition, leafValueIssue, undeclaredRuleKeys,
-  type AlarmRuleDebounceValue, type AlarmRuleDefinition, type AlarmRuleLeaf, type AlarmRuleOp, type InactivityAlarmRule, type ThresholdAlarmRule,
+  ALARM_RULE_KEY_MAX, ALARM_RULE_OPS, ALARM_RULE_TITLE_MAX, ALARM_SEVERITY_MODES, alarmRuleIssues, debounceFromAttribute, isAlarmRuleKey, isInactivityRule, isLeafCondition, isListOp,
+  isStringOp, leafValueIssue, undeclaredRuleKeys,
+  type AlarmRuleDebounceValue, type AlarmRuleDefinition, type AlarmRuleLeaf, type AlarmRuleOp, type AlarmSeverityMode, type InactivityAlarmRule, type ThresholdAlarmRule,
 } from '../types/alarm-rule';
 
 /**
@@ -32,6 +33,11 @@ import {
  * It checks what the host checks on write (NB 41-ui-fixes/24 1.6, 1.13): the type pattern, a number for `>`, `>=`, `<`, `<=` (a comma
  * decimal says to use a point), whole debounce counts from 1, a hysteresis of 0 or more, and the lengths of keys, values and the title.
  * A saved rule (`typeLocked`) keeps its type: the host would delete it and resolve its open alarms under a new type (1.5).
+ *
+ * NB parity rows (W8P-1…W8P-3): the operator offers ThingsBoard's string predicates beside the comparisons (`is one of` / `is none of`
+ * take words separated by commas), "Ignore upper and lower case" for text comparisons and "Compare as a date and time" (a date picker in
+ * the viewer's time zone, stored as epoch ms) sit under "Advanced", and a rule with more than one severity chooses whether a lower true
+ * severity lowers the open alarm (`follow`, the default) or never does (`escalate`).
  */
 export type AlarmRuleDrawerProps = {
   open: boolean;
@@ -57,7 +63,38 @@ export function parseRuleValue(raw: string): AlarmRuleLeaf['value'] {
   return raw;
 }
 export function formatRuleValue(v: AlarmRuleLeaf['value']): string {
+  if (Array.isArray(v)) return v.join(', ');
   return typeof v === 'object' && v !== null ? `attribute:${v.attribute}` : String(v);
+}
+
+/** `a, b ,, c` → `['a', 'b', 'c']`: the words of an `in` / `notIn` list (NB NA-23). */
+export function parseRuleList(raw: string): string[] {
+  return raw.split(',').map((w) => w.trim()).filter(Boolean);
+}
+
+/** Epoch ms → the `datetime-local` text in the viewer's time zone (`2026-11-22T14:05`); empty for anything else. */
+export function toLocalInput(ms: unknown): string {
+  if (typeof ms !== 'number' || !Number.isFinite(ms)) return '';
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+/** The `datetime-local` text → epoch ms in the viewer's time zone; NaN when empty or not a date. */
+export function fromLocalInput(text: string): number {
+  return text ? new Date(text).getTime() : Number.NaN;
+}
+
+/** The leaf after its operator changed: a list for `in` / `notIn`, text for the other string operators, no date or case where it cannot apply. */
+export function withOp(l: AlarmRuleLeaf, op: AlarmRuleOp): AlarmRuleLeaf {
+  const next: AlarmRuleLeaf = { ...l, op };
+  if (isListOp(op) && !Array.isArray(l.value)) next.value = typeof l.value === 'object' && l.value !== null ? [] : parseRuleList(String(l.value));
+  else if (!isListOp(op) && Array.isArray(l.value)) next.value = l.value.join(', ');
+  if (isStringOp(op)) {
+    delete next.valueType;
+    if (typeof next.value === 'number' || typeof next.value === 'boolean') next.value = String(next.value);
+  }
+  if (!isStringOp(op) && op !== '==' && op !== '!=') delete next.ignoreCase;
+  return next;
 }
 
 /** True when every severity's condition is one comparison and the debounce is numbers (the form can draw it). */
@@ -73,6 +110,8 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
   const [mode, setMode] = useState<'form' | 'json'>(() => (isFormable(rule) ? 'form' : 'json'));
   const [json, setJson] = useState(() => JSON.stringify(rule, null, 2));
   const [jsonError, setJsonError] = useState<string | null>(null);
+  /** The text of each `is one of` box as typed (the list drops empty words, so a trailing comma must survive the round trip). */
+  const [listText, setListText] = useState<Record<number, string>>({});
 
   const issues = alarmRuleIssues(draft, others, telemetryKeys);
   const issueText = issues.map((i) => m.alarmRules[`issue_${i}`]);
@@ -118,6 +157,9 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
   const setI = (patch: Partial<InactivityAlarmRule>) => setDraft({ ...(draft as InactivityAlarmRule), ...patch });
   const setLeaf = (i: number, patch: Partial<AlarmRuleLeaf>) => threshold && setT({
     severities: threshold.severities.map((s, j) => (j === i ? { ...s, condition: { ...(s.condition as AlarmRuleLeaf), ...patch } } : s)),
+  });
+  const setLeafWhole = (i: number, leaf: AlarmRuleLeaf) => threshold && setT({
+    severities: threshold.severities.map((s, j) => (j === i ? { ...s, condition: leaf } : s)),
   });
   const severityOptions = ALARM_SEVERITIES.map((s) => ({ value: s, label: m.severity[s] }));
   const known = new Set(telemetryKeys);
@@ -191,7 +233,7 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
                         <Select id={`${id}-sev-${i}`} label={m.alarmRules.severity} value={s.severity} options={severityOptions} className="min-w-0 flex-1"
                           onChange={(e) => setT({ severities: threshold.severities.map((x, j) => (j === i ? { ...x, severity: e.target.value as AlarmSeverity } : x)) })} />
                         <Button variant="ghost" size="sm" aria-label={`${m.alarmRules.removeSeverity} (${m.severity[s.severity]})`} disabled={threshold.severities.length < 2}
-                          onClick={() => setT({ severities: threshold.severities.filter((_, j) => j !== i) })}>
+                          onClick={() => { setListText({}); setT({ severities: threshold.severities.filter((_, j) => j !== i) }); }}>
                           <FontAwesomeIcon icon={faXmark} className="h-3 w-3" aria-hidden="true" />
                         </Button>
                       </div>
@@ -199,16 +241,38 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
                         <Input id={`${id}-key-${i}`} label={m.alarmRules.key} value={leaf.key} className="font-mono" autoComplete="off" maxLength={128}
                           list={telemetryKeys.length > 0 ? keyListId : undefined} error={keyError(leaf.key)} hint={keyHint(leaf.key)}
                           onChange={(e) => setLeaf(i, { key: e.target.value })} />
-                        <Select id={`${id}-op-${i}`} label={m.alarmRules.op} value={leaf.op} options={ALARM_RULE_OPS.map((o) => ({ value: o, label: o }))}
-                          onChange={(e) => setLeaf(i, { op: e.target.value as AlarmRuleOp })} />
-                        <Input id={`${id}-value-${i}`} label={m.alarmRules.value} hint={m.alarmRules.valueHint} value={formatRuleValue(leaf.value)} error={valueError(leaf)}
-                          onChange={(e) => setLeaf(i, { value: parseRuleValue(e.target.value) })} />
+                        <Select id={`${id}-op-${i}`} label={m.alarmRules.op} value={leaf.op}
+                          options={ALARM_RULE_OPS.map((o) => ({ value: o, label: isStringOp(o) ? m.alarmRules[`op_${o}`] : o }))}
+                          onChange={(e) => { const { [i]: _t, ...rest } = listText; setListText(rest); setLeafWhole(i, withOp(leaf, e.target.value as AlarmRuleOp)); }} />
+                        {leaf.valueType === 'datetime' && !isStringOp(leaf.op) ? (
+                          <Input id={`${id}-value-${i}`} type="datetime-local" label={m.alarmRules.dateValue} hint={m.alarmRules.dateHint} value={toLocalInput(leaf.value)}
+                            error={valueError(leaf)} onChange={(e) => setLeaf(i, { value: fromLocalInput(e.target.value) })} />
+                        ) : (
+                          <Input id={`${id}-value-${i}`} label={m.alarmRules.value} hint={isListOp(leaf.op) ? m.alarmRules.listHint : m.alarmRules.valueHint}
+                            value={isListOp(leaf.op) && listText[i] !== undefined ? listText[i] : formatRuleValue(leaf.value)} error={valueError(leaf)}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (isListOp(leaf.op)) setListText({ ...listText, [i]: raw });
+                              setLeaf(i, { value: isListOp(leaf.op) ? parseRuleList(raw) : isStringOp(leaf.op) ? raw : parseRuleValue(raw) });
+                            }} />
+                        )}
                       </div>
-                      <details open={!!leaf.topic} className="text-sm">
+                      <details open={!!leaf.topic || !!leaf.ignoreCase || leaf.valueType === 'datetime'} className="text-sm">
                         <summary className="cursor-pointer select-none text-xs text-text-secondary">{m.alarmRules.advanced}</summary>
-                        <div className="pt-2">
+                        <div className="space-y-2 pt-2">
                           <Input id={`${id}-topic-${i}`} label={m.alarmRules.topic} placeholder={m.alarmRules.topicHint} value={leaf.topic ?? ''}
                             onChange={(e) => setLeaf(i, { topic: e.target.value || undefined })} />
+                          {(isStringOp(leaf.op) || leaf.op === '==' || leaf.op === '!=') && leaf.valueType !== 'datetime' && (
+                            <Toggle id={`${id}-case-${i}`} label={m.alarmRules.ignoreCase} checked={!!leaf.ignoreCase}
+                              onChange={(v) => { const { ignoreCase: _c, ...rest } = leaf; setLeafWhole(i, v ? { ...rest, ignoreCase: true } : rest); }} />
+                          )}
+                          {!isStringOp(leaf.op) && (
+                            <Toggle id={`${id}-date-${i}`} label={m.alarmRules.asDate} checked={leaf.valueType === 'datetime'}
+                              onChange={(v) => {
+                                const { valueType: _t, ignoreCase: _c, ...rest } = leaf;
+                                setLeafWhole(i, v ? { ...rest, valueType: 'datetime', value: typeof leaf.value === 'number' ? leaf.value : Date.now() } : rest);
+                              }} />
+                          )}
                         </div>
                       </details>
                     </div>
@@ -223,6 +287,15 @@ export function AlarmRuleDrawer({ open, rule, others, onApply, onClose, telemetr
                     }}>
                     {m.alarmRules.addSeverity}
                   </Button>
+                )}
+                {threshold.severities.length > 1 && (
+                  <Select id={`${id}-severity-mode`} label={m.alarmRules.severityMode} value={threshold.severityMode ?? 'follow'}
+                    options={ALARM_SEVERITY_MODES.map((v) => ({ value: v, label: m.alarmRules[`severityMode_${v}`] }))}
+                    onChange={(e) => {
+                      const { severityMode: _m, ...rest } = threshold;
+                      const mode = e.target.value as AlarmSeverityMode;
+                      setDraft(mode === 'escalate' ? { ...rest, severityMode: mode } : rest);
+                    }} />
                 )}
               </fieldset>
             )}
