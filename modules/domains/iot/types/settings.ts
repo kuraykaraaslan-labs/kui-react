@@ -209,7 +209,8 @@ export interface SettingsJob {
   state: SettingsJobState;
   /** Cancelled or completed, with devices still answering. */
   settling: boolean;
-  pauseReason: 'manual' | 'gate_failed' | 'no_data' | null;
+  /** `creator_left`: the person who started the job is no longer a member of the workspace. */
+  pauseReason: 'manual' | 'gate_failed' | 'no_data' | 'creator_left' | null;
   currentWave: number;
   waveStartedAt: number | null;
   createdBy: string | null;

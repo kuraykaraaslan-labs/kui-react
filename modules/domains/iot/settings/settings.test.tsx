@@ -384,6 +384,16 @@ describe('JobDetailView', () => {
     await userEvent.click(within(ask).getByRole('button', { name: 'Go on anyway' }));
     await waitFor(() => expect(fleet.jobs.resume).toHaveBeenCalledWith('j1'));
   });
+
+  it('says a job paused because the person who started it left, and resumes it without the gate dialog', async () => {
+    const fleet = fleetOf();
+    const base = await fleetOf().jobs.get('j1');
+    (fleet.jobs.get as ReturnType<typeof vi.fn>).mockImplementation(async () => ({ ...base, job: { ...base.job, pauseReason: 'creator_left' as const } }));
+    render(<JobDetailView adapter={fleet} jobId="j1" pollMs={0} />);
+    expect(await screen.findByText(/no longer a member of this workspace/)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    await waitFor(() => expect(fleet.jobs.resume).toHaveBeenCalledWith('j1'));
+  });
 });
 
 void (null as unknown as SettingsSchemaNode);

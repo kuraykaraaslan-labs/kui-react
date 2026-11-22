@@ -338,6 +338,7 @@ export const SETTINGS_MESSAGES = {
     cancelMessage: 'Devices not changed yet are skipped. Devices already changed keep their new settings.',
     settling: 'Waiting for the last devices to answer',
     pausedManual: 'Paused by a person.',
+    pausedCreatorLeft: 'Paused: the person who started this job is no longer a member of this workspace. Resume it to carry on under your name, or cancel it.',
     pausedGate: 'Paused: wave {n} did not pass its check ({applied} % applied, {reverted} % undone).',
     pausedNoData: 'Paused: no device of wave {n} answered.',
     targets: 'Devices',
