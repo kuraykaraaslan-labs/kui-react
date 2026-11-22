@@ -269,7 +269,7 @@ export function AssetDrawer({
           </Section>
           {(api.relations || api.relationsPage) && (
             <Section title={m.asset.relations}>
-              <RelationsSection key={a.assetId} entity={{ type: 'ASSET', id: a.assetId }} hrefs={{ asset: hrefs.asset, device: caps.canReadDevices ? hrefs.device : undefined }}
+              <RelationsSection key={a.assetId} entity={{ type: 'ASSET', id: a.assetId }} entityName={a.name} hrefs={{ asset: hrefs.asset, device: caps.canReadDevices ? hrefs.device : undefined }}
                 reloadKey={version} pageSize={pageSize} onChanged={changed} onNavigate={onNavigate} />
             </Section>
           )}

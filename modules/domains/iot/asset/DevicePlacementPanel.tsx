@@ -165,6 +165,7 @@ export function DevicePlacementPanel({ deviceId, deviceName, hrefs = {}, onNavig
           <p className="text-xs text-text-secondary">{m.placement.relationsHint}</p>
           <RelationsSection
             entity={{ type: 'DEVICE', id: deviceId }}
+            entityName={deviceName ?? placement?.deviceName ?? null}
             hrefs={hrefs}
             onNavigate={onNavigate}
             reloadKey={relationsVersion}

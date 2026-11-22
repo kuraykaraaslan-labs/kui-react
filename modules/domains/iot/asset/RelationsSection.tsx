@@ -7,7 +7,9 @@ import { toIotSort } from '../api/list-table';
 import { useIotAdapter, useIotCapabilities, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill } from '../format';
 import type { AssetRelation, RelationEntityType } from '../types/asset';
+import { AddRelationDrawer } from './AddRelationDrawer';
 import { AssetRelationTable, RELATION_SORT_KEYS, relationWords, type RelationSortKey } from './AssetRelationTable';
+import { Button } from '@/modules/ui/Button';
 
 /**
  * RelationsSection — the relations of one asset or one device (the asset drawer's Relations section; the device's "Placement &
@@ -15,10 +17,14 @@ import { AssetRelationTable, RELATION_SORT_KEYS, relationWords, type RelationSor
  * and type filter when the host pages them (`relationsPage`), else every row in the browser. Removing a relation asks first and names
  * both ends (a placement says the device is no longer placed); a relation already gone says so. `onChanged` runs after a removal (a
  * placement's end changes the counts, the devices and where a device is) and is expected to bump `reloadKey`, which reads the same page
- * again (without `onChanged` the section reads again itself).
+ * again (without `onChanged` the section reads again itself). "Add relation" (NB iot-dashboard 09 §9.5, W8bV-1) opens `AddRelationDrawer`
+ * for this end when the host can create relations and the person may change the topology (`canPlaceDevices`); `entityName` names this
+ * end in its direction words.
  */
 export type RelationsSectionProps = {
   entity: { type: RelationEntityType; id: string };
+  /** This end's name, said in the add drawer's direction words. */
+  entityName?: string | null;
   hrefs?: { asset?: (assetId: string) => string; device?: (deviceId: string) => string };
   reloadKey?: number;
   pageSize?: number;
@@ -27,7 +33,7 @@ export type RelationsSectionProps = {
   className?: string;
 };
 
-export function RelationsSection({ entity, hrefs = {}, reloadKey = 0, pageSize = 10, onChanged, onNavigate, className }: RelationsSectionProps) {
+export function RelationsSection({ entity, entityName, hrefs = {}, reloadKey = 0, pageSize = 10, onChanged, onNavigate, className }: RelationsSectionProps) {
   const api = useIotAdapter().assets!;
   const caps = useIotCapabilities();
   const notify = useIotNotify();
@@ -39,6 +45,7 @@ export function RelationsSection({ entity, hrefs = {}, reloadKey = 0, pageSize =
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const seq = useRef(0);
   const { type: entityType, id: entityId } = entity;
   // a host that pages relations is read a page at a time (none dropped unseen); a write elsewhere (reloadKey) reads the same page again
@@ -87,9 +94,15 @@ export function RelationsSection({ entity, hrefs = {}, reloadKey = 0, pageSize =
       setBusyId(null);
     }
   }
+  const canAdd = caps.canPlaceDevices && !!api.createRelation;
   return (
+    <div className={className}>
+    {canAdd && (
+      <div className="mb-2 flex justify-end">
+        <Button variant="outline" size="sm" onClick={() => setAdding(true)}>{m.relations.add}</Button>
+      </div>
+    )}
     <AssetRelationTable
-      className={className}
       rows={rows ?? []}
       hrefs={hrefs}
       onNavigate={onNavigate}
@@ -114,5 +127,9 @@ export function RelationsSection({ entity, hrefs = {}, reloadKey = 0, pageSize =
       } : {})}
       onRemove={caps.canPlaceDevices && api.removeRelation ? (id, r) => void removeRelation(id, r) : undefined}
     />
+    {canAdd && adding && (
+      <AddRelationDrawer open entity={{ ...entity, name: entityName }} onClose={() => setAdding(false)} onSaved={() => changed()} />
+    )}
+    </div>
   );
 }
