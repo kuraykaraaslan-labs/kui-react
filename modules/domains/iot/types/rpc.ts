@@ -126,7 +126,20 @@ export type RpcRequest = {
   deliveredAt?: Date | string | null;
   completedAt?: Date | string | null;
   lateResponseAt?: Date | string | null;
+  /**
+   * A long method's outcome (protocol 05 §1.1): the device's `rpc_result` as it sent it (`{ job_id, method, ok, result? | error? }`), and
+   * when it arrived; null or absent until it does (NB iot-rpc RPC-13…RPC-16). An accepted request reads "running" until then.
+   */
+  jobResult?: unknown;
+  jobResultAt?: Date | string | null;
 };
+
+/** Whether a long method's outcome says it failed (`ok: false`, or an `error` without `ok: true`). */
+export function jobFailed(jobResult: unknown): boolean {
+  if (!jobResult || typeof jobResult !== 'object' || Array.isArray(jobResult)) return false;
+  const j = jobResult as { ok?: unknown; error?: unknown };
+  return j.ok === false || (j.ok !== true && j.error !== undefined && j.error !== null);
+}
 
 export type RpcSendInput = {
   /** A catalog command's key; with `payload`, the method the payload names (`rpcCustomMethodOf`), for the history. */

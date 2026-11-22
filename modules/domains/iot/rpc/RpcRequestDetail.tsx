@@ -8,7 +8,7 @@ import { Drawer } from '@/modules/ui/Drawer';
 import { Timeline, type TimelineItem } from '@/modules/ui/Timeline';
 import { useIotText } from '../api/IotAdapterProvider';
 import { fill, toDate } from '../format';
-import { RPC_OPEN_STATUSES, type RpcRequest } from '../types/rpc';
+import { RPC_OPEN_STATUSES, jobFailed, type RpcRequest } from '../types/rpc';
 import type { IotMessages, IotMessagesInput } from '../messages';
 import { RpcStatusBadge } from './RpcStatusBadge';
 
@@ -17,7 +17,8 @@ import { RpcStatusBadge } from './RpcStatusBadge';
  * the answer or why it did not succeed (in the viewer's words, with what the device said), the progress as a `Timeline` (created, sent,
  * delivered, completed, late answer; to the second, with the zone), "Send again" (pre-fills the send panel) and "Cancel command" for a
  * request that has not reached the device (QUEUED or SENT). The host offers both only to a viewer who may use them; cancelling a SENT
- * request asks first, since the device may already have it (NB 41-ui-fixes/23 1.7).
+ * request asks first, since the device may already have it (NB 41-ui-fixes/23 1.7). A long method's outcome (`jobResult`, the device's
+ * `rpc_result`) has its own section and timeline step, marked failed when it says `ok: false` (NB W8P-9, protocol 05 §1.1).
  */
 export type RpcRequestDetailProps = {
   request: RpcRequest | null;
@@ -54,7 +55,13 @@ export function RpcRequestDetail({ request, open, onClose, onCancel, onRerun, re
       icon: <FontAwesomeIcon icon={r.status === 'SUCCESSFUL' ? faCircleCheck : r.status === 'CANCELLED' ? faBan : faXmark} className="h-3 w-3" aria-hidden="true" />,
     }] : []),
     ...(r.lateResponseAt ? [{ id: 'l', at: toDate(r.lateResponseAt)!, title: m.rpc.late, tone: 'warning' as const }] : []),
+    ...(r.jobResultAt ? [{
+      id: 'j', at: toDate(r.jobResultAt)!, title: jobFailed(r.jobResult) ? m.rpc.jobFailed : m.rpc.jobDone,
+      tone: jobFailed(r.jobResult) ? 'error' as const : 'success' as const,
+      icon: <FontAwesomeIcon icon={jobFailed(r.jobResult) ? faXmark : faCircleCheck} className="h-3 w-3" aria-hidden="true" />,
+    }] : []),
   ] : [];
+  const hasJob = !!r && r.jobResult !== undefined && r.jobResult !== null;
   const cancellable = !!r && (r.status === 'QUEUED' || r.status === 'SENT') && RPC_OPEN_STATUSES.includes(r.status);
   const errorText = r ? rpcErrorText(r, m) : null;
 
@@ -96,6 +103,13 @@ export function RpcRequestDetail({ request, open, onClose, onCancel, onRerun, re
             ) : r.response !== undefined && r.response !== null ? <pre className="max-h-64 overflow-auto rounded-md bg-surface-sunken p-2 font-mono text-xs">{json(r.response)}</pre>
               : <p className="text-text-secondary">{m.rpc.noResponse}</p>}
           </section>
+          {hasJob && (
+            <section aria-label={m.rpc.jobResult}>
+              <h3 className="mb-1 text-xs font-semibold uppercase text-text-secondary">{m.rpc.jobResult}</h3>
+              <p className={jobFailed(r.jobResult) ? 'mb-1 text-error' : 'mb-1 text-text-secondary'}>{jobFailed(r.jobResult) ? m.rpc.jobFailed : m.rpc.jobDone}</p>
+              <pre className="max-h-64 overflow-auto rounded-md bg-surface-sunken p-2 font-mono text-xs">{json(r.jobResult)}</pre>
+            </section>
+          )}
           <section aria-label={m.rpc.timeline}>
             <h3 className="mb-1 text-xs font-semibold uppercase text-text-secondary">{m.rpc.timeline}</h3>
             <Timeline items={steps} groupByDay={false} locale={lang} timeZone={timeZone} timePrecision="seconds" showTimeZone />

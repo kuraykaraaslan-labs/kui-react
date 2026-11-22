@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { IotAdapterProvider } from '../api/IotAdapterProvider';
 import type { IotAdapter, RpcCatalog } from '../api/adapter';
 import type { IotLive, IotLiveSubscription } from '../api/live';
-import { isRefusedRpcMethod, rpcCommandKeyOf, rpcCustomMethodOf, rpcPresetOf, rpcWireMethodOf, type RpcCommand, type RpcRequest } from '../types/rpc';
+import { isRefusedRpcMethod, jobFailed, rpcCommandKeyOf, rpcCustomMethodOf, rpcPresetOf, rpcWireMethodOf, type RpcCommand, type RpcRequest } from '../types/rpc';
 import { paramRowIssues, paramRowsOf, paramsSchemaOf } from './RpcParamsBuilder';
 import { RpcStatusBadge } from './RpcStatusBadge';
 import { RpcSendPanel } from './RpcSendPanel';
@@ -198,6 +198,22 @@ describe('RpcRequestList and RpcRequestDetail', () => {
     expect(onCancel).toHaveBeenCalledWith('b');
     rerender(<RpcRequestDetail open request={req('c', { status: 'FAILED', error: 'device offline' })} onClose={vi.fn()} />);
     expect(screen.getByText('device offline')).toBeInTheDocument();
+  });
+  it('NB W8P-9: shows a long method\'s outcome (rpc_result) with its own step, failed when ok is false', () => {
+    expect(jobFailed({ ok: false, error: 'unreachable' })).toBe(true);
+    expect(jobFailed({ ok: true, result: {} })).toBe(false);
+    expect(jobFailed({ error: 'x' })).toBe(true);
+    expect(jobFailed(null)).toBe(false);
+    const accepted = { status: 'SUCCESSFUL' as const, response: { ok: true, accepted: true, job_id: '43' }, sentAt: T0, completedAt: T0 };
+    const { rerender } = render(<RpcRequestDetail open request={req('j', { ...accepted, outcome: 'running' })} onClose={vi.fn()} />);
+    expect(screen.queryByRole('region', { name: 'Job result' })).toBeNull();
+    rerender(<RpcRequestDetail open request={req('j', { ...accepted, jobResult: { job_id: '43', method: 'sys.traceroute', ok: true, result: { hops: [1] } }, jobResultAt: T0 })} onClose={vi.fn()} />);
+    const job = screen.getByRole('region', { name: 'Job result' });
+    expect(within(job).getByText('The job finished')).toBeInTheDocument();
+    expect(within(job).getByText(/"hops"/)).toBeInTheDocument();
+    rerender(<RpcRequestDetail open request={req('j', { ...accepted, jobResult: { job_id: '43', ok: false, error: 'unreachable' }, jobResultAt: T0 })} onClose={vi.fn()} />);
+    expect(within(screen.getByRole('region', { name: 'Job result' })).getByText('The job failed')).toBeInTheDocument();
+    expect(screen.getAllByText('The job failed').length).toBeGreaterThanOrEqual(2);
   });
 });
 
