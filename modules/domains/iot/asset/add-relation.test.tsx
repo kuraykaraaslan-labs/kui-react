@@ -30,6 +30,15 @@ function setup(o: { create?: IotAssetsApi['createRelation']; canPlace?: boolean 
   return { adapter, createRelation, list, notify, canPlace: o.canPlace ?? true };
 }
 
+/** Types into the device ComboBox and picks the option named `name` (the search waits for its pause). */
+async function pickDevice(text: string, name: string) {
+  const input = screen.getByRole('searchbox', { name: 'Device' });
+  await userEvent.click(input);
+  await userEvent.type(input, text);
+  const option = await screen.findByRole('option', { name: new RegExp(name) }, { timeout: 2000 });
+  await userEvent.click(within(option).getByRole('button'));
+}
+
 describe('AddRelationDrawer', () => {
   it('offers the device list without this device, and saves this device FEEDS the picked one', async () => {
     const s = setup();
@@ -39,10 +48,15 @@ describe('AddRelationDrawer', () => {
         <AddRelationDrawer open entity={{ type: 'DEVICE', id: 'd1', name: 'Tank 1' }} onClose={() => undefined} onSaved={onSaved} />
       </IotAdapterProvider>,
     );
-    const group = await screen.findByRole('radiogroup');
-    expect(within(group).queryByText('Tank 1')).toBeNull();
     await userEvent.selectOptions(screen.getByLabelText('Relation'), 'FEEDS');
-    await userEvent.click(within(group).getByLabelText('Pump 2'));
+    const input = screen.getByRole('searchbox', { name: 'Device' });
+    await userEvent.click(input);
+    await userEvent.type(input, 'Tank');
+    await waitFor(() => expect(s.list).toHaveBeenCalledWith(expect.objectContaining({ search: 'Tank' }), expect.anything()));
+    // the ComboBox's own options (the Direction select also names this device)
+    expect(screen.queryAllByRole('option').filter((o) => o.closest('[role="listbox"]') && /Tank 1/.test(o.textContent ?? ''))).toEqual([]);
+    await userEvent.clear(input);
+    await pickDevice('Pump', 'Pump 2');
     await userEvent.click(screen.getByRole('button', { name: 'Add relation' }));
     await waitFor(() => expect(s.createRelation).toHaveBeenCalledWith({ fromType: 'DEVICE', fromId: 'd1', toType: 'DEVICE', toId: 'd2', type: 'FEEDS' }));
     expect(onSaved).toHaveBeenCalled();
@@ -56,8 +70,7 @@ describe('AddRelationDrawer', () => {
         <AddRelationDrawer open entity={{ type: 'DEVICE', id: 'd1', name: 'Tank 1' }} onClose={() => undefined} />
       </IotAdapterProvider>,
     );
-    const group = await screen.findByRole('radiogroup');
-    await userEvent.click(within(group).getByLabelText('Pump 3'));
+    await pickDevice('Pump', 'Pump 3');
     await userEvent.selectOptions(screen.getByLabelText('Relation'), '__custom__');
     const custom = screen.getByLabelText(/Relation type/);
     await userEvent.type(custom, '1bad');
@@ -83,8 +96,7 @@ describe('AddRelationDrawer', () => {
         <AddRelationDrawer open entity={{ type: 'DEVICE', id: 'd1' }} onClose={onClose} />
       </IotAdapterProvider>,
     );
-    const group = await screen.findByRole('radiogroup');
-    await userEvent.click(within(group).getByLabelText('Pump 2'));
+    await pickDevice('Pump', 'Pump 2');
     await userEvent.click(screen.getByRole('button', { name: 'Add relation' }));
     expect(await screen.findByText('This relation already exists.')).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();

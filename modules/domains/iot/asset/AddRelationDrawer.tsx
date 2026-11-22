@@ -3,16 +3,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/modules/ui/Button';
 import { Drawer } from '@/modules/ui/Drawer';
 import { Input } from '@/modules/ui/Input';
-import { SearchBar } from '@/modules/ui/SearchBar';
+import { ComboBox, type ComboBoxOption } from '@/modules/ui/ComboBox';
 import { Select } from '@/modules/ui/Select';
 import { Spinner } from '@/modules/ui/Spinner';
 import { errorMessage, IotApiError } from '../api/adapter';
 import { useIotAdapter, useIotNotify, useIotText } from '../api/IotAdapterProvider';
 import { fill } from '../format';
 import type { AssetNode, AssetRelation, RelationEntityType } from '../types/asset';
-import type { DeviceRecord } from '../types/device';
 import { AssetPicker } from './AssetPicker';
-import { SEARCH_HITS, useDebounced } from './asset-search';
+import { SEARCH_HITS } from './asset-search';
 
 /**
  * AddRelationDrawer — "Add relation" for one device or asset (NB iot-dashboard 09 §9.5, OQ-4; W8bV-1): a typed edge from this end to a
@@ -45,10 +44,6 @@ export function AddRelationDrawer({ open, entity, onClose, onSaved }: AddRelatio
   const [typeChoice, setTypeChoice] = useState<string>(ADDABLE_RELATION_TYPES[0]);
   const [customType, setCustomType] = useState('');
   const [otherId, setOtherId] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const paused = useDebounced(search);
-  // the hits of one search, kept with the search they answer (a newer search shows the spinner until it answers)
-  const [found, setFound] = useState<{ q: string; items: DeviceRecord[] } | null>(null);
   const [tree, setTree] = useState<{ nodes: AssetNode[]; truncated: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [typeError, setTypeError] = useState<string | undefined>(undefined);
@@ -56,18 +51,20 @@ export function AddRelationDrawer({ open, entity, onClose, onSaved }: AddRelatio
 
   // a fresh form each time it opens: the host mounts the drawer only while it is open (RelationsSection does)
 
-  // devices: the host's list, its record scope applies; this device is never offered
+  // devices: the host's list through the ComboBox's own search (its record scope applies); this device is never offered
   const devices = adapter.devices;
-  useEffect(() => {
-    if (!open || otherType !== 'DEVICE' || !devices) return;
-    const ctrl = new AbortController();
-    const q = paused.trim();
-    devices.list({ page: 1, pageSize: SEARCH_HITS, ...(q ? { search: q } : {}) }, ctrl.signal).then(
-      (p) => { if (!ctrl.signal.aborted) setFound({ q, items: p.items.filter((d) => !(entity.type === 'DEVICE' && d.deviceId === entity.id)) }); },
-      (e) => { if (!ctrl.signal.aborted) { setFound({ q, items: [] }); setError(errorMessage(e, m.devices.loadError)); } },
-    );
-    return () => ctrl.abort();
-  }, [open, otherType, devices, paused, entity.type, entity.id, m.devices.loadError]);
+  const searchDevices = useCallback(async (q: string, signal?: AbortSignal): Promise<ComboBoxOption[]> => {
+    if (!devices) return [];
+    try {
+      const page = await devices.list({ page: 1, pageSize: SEARCH_HITS, ...(q.trim() ? { search: q.trim() } : {}) }, signal);
+      return page.items
+        .filter((d) => !(entity.type === 'DEVICE' && d.deviceId === entity.id))
+        .map((d) => ({ value: d.deviceId, label: d.label?.trim() || d.name, ...(d.label?.trim() ? { description: d.name } : {}) }));
+    } catch (e) {
+      if (!signal?.aborted) setError(errorMessage(e, m.devices.loadError));
+      return [];
+    }
+  }, [devices, entity.type, entity.id, m.devices.loadError]);
 
   // assets: the tree, with the host's search when it cut it
   useEffect(() => {
@@ -85,7 +82,6 @@ export function AddRelationDrawer({ open, entity, onClose, onSaved }: AddRelatio
     [list],
   );
 
-  const hits = found && found.q === paused.trim() ? found.items : null;
   const relType = typeChoice === CUSTOM ? customType.trim() : typeChoice;
   const thisName = entity.name?.trim() || (entity.type === 'DEVICE' ? m.placement.thisDevice : m.relations.thisAsset);
 
@@ -158,24 +154,17 @@ export function AddRelationDrawer({ open, entity, onClose, onSaved }: AddRelatio
           ]}
         />
         {otherType === 'DEVICE' ? (
-          <div className="space-y-2">
-            <SearchBar value={search} onChange={setSearch} placeholder={m.asset.searchDevices} label={m.asset.searchDevices} />
-            {hits === null ? <Spinner size="sm" label={m.common.loading} /> : hits.length === 0 ? (
-              <p className="text-sm text-text-secondary">{m.relations.noDevice}</p>
-            ) : (
-              <ul role="radiogroup" aria-label={m.asset.entityDevice} className="max-h-72 divide-y divide-border overflow-y-auto rounded-lg border border-border">
-                {hits.map((d) => (
-                  <li key={d.deviceId}>
-                    <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-surface-hover">
-                      <input type="radio" name="relation-device" value={d.deviceId} checked={otherId === d.deviceId} onChange={() => setOtherId(d.deviceId)} />
-                      <span className="truncate text-text-primary">{d.label?.trim() || d.name}</span>
-                      {d.label?.trim() && <span className="truncate text-xs text-text-secondary">{d.name}</span>}
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <ComboBox
+            id="relation-device"
+            label={m.asset.entityDevice}
+            placeholder={m.asset.searchDevices}
+            options={[]}
+            value={otherId ?? ''}
+            onSearch={searchDevices}
+            onChange={(id) => setOtherId(id || null)}
+            noResultsText={m.relations.noDevice}
+            messages={{ loading: m.common.loading }}
+          />
         ) : tree ? (
           <AssetPicker
             nodes={tree.nodes}
