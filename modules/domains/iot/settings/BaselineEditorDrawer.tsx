@@ -11,7 +11,7 @@ import type { SettingsMessagesInput } from './messages';
 import type { SettingsFleetAdapter } from './settings-adapter';
 import { errorText } from './SectionEditorDrawer';
 import { issueMessages, SettingsForm } from './SettingsForm';
-import { localized, validateValues } from './settings-schema';
+import { isKeptSecret, localized, pathOf, pathText, secretPaths, validateValues, valueAt } from './settings-schema';
 import { useSettingsText } from './SettingsText';
 
 export interface BaselineEditorDrawerProps {
@@ -28,11 +28,37 @@ export interface BaselineEditorDrawerProps {
 
 type Patches = Record<string, Record<string, unknown>>;
 
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** The baseline's patches with each sealed password marked as kept where its item is (so the form shows "Set"); never a value. */
+function withKeptSecrets(sections: Patches, secrets: SettingsBaseline['secrets']): Patches {
+  const out = structuredClone(sections);
+  for (const s of secrets ?? []) {
+    const path = pathOf(s.path);
+    const parent = valueAt(out[s.section], path.slice(0, -1));
+    if (isObj(parent)) parent[String(path[path.length - 1])] = { $keep: true };
+  }
+  return out;
+}
+
+/** Takes the passwords out of one section's part: typed ones become sealed values, kept ones stay as they are, none stays in the patch. */
+function takeSecrets(section: string, schema: SettingsSchemaNode | undefined, part: Record<string, unknown>, out: Array<{ section: string; path: string; value: string | null }>): void {
+  if (!schema) return;
+  for (const p of secretPaths(schema, part)) {
+    const parent = valueAt(part, p.slice(0, -1));
+    if (!isObj(parent)) continue;
+    const key = String(p[p.length - 1]);
+    const v = parent[key];
+    if (typeof v === 'string' && v) out.push({ section, path: pathText(p), value: v });
+    delete parent[key];
+  }
+}
+
 /**
  * BaselineEditorDrawer — a baseline: its name, the models it is for, and the part of each section it sets. The sections offered are those
  * of the newest settings list of the chosen models (schema forms restricted to the chosen models); a section one of them does not have
- * says so. Only what is included is part of the baseline (a JSON merge patch: everything else stays as each device has it); passwords,
- * keys and what only the device can change are never part of one. Mount it per baseline (`key`): it starts from the baseline it is given.
+ * says so. Only what is included is part of the baseline (a JSON merge patch: everything else stays as each device has it); what only
+  * the device can change is never part of one, and passwords and keys are taken out of the patch and sent as sealed values (`secrets`). Mount it per baseline (`key`): it starts from the baseline it is given.
  */
 export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canManage, onSaved, messages, locale }: BaselineEditorDrawerProps) {
   const { m, locale: lang } = useSettingsText(messages, locale);
@@ -43,7 +69,8 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
   const [chosen, setChosen] = useState<string[]>(baseline?.models ?? []);
   const [days, setDays] = useState(baseline?.offlineExpiryDays ?? 7);
   const [policy, setPolicy] = useState<'REPORT' | 'ENFORCE'>(baseline?.driftPolicy ?? 'REPORT');
-  const [patches, setPatches] = useState<Patches>(() => structuredClone(baseline?.sections ?? {}));
+  const [patches, setPatches] = useState<Patches>(() => withKeptSecrets(baseline?.sections ?? {}, baseline?.secrets));
+  const [dropped, setDropped] = useState<{ saved: SettingsBaseline; paths: string[] } | null>(null);
   const [included, setIncluded] = useState<Record<string, Set<string>>>(() => Object.fromEntries(Object.entries(baseline?.sections ?? {}).map(([s, p]) => [s, new Set(Object.keys(p))])));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; lines: string[] } | null>(null);
@@ -93,6 +120,7 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
   async function save() {
     const out: Patches = {};
     const issues: string[] = [];
+    const secrets: Array<{ section: string; path: string; value: string | null }> = [];
     for (const [id, keys] of Object.entries(included)) {
       const sec = sections.find(([s]) => s === id)?.[1];
       const values = patches[id] ?? {};
@@ -103,15 +131,26 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
         const node = sec?.schema.properties?.[k];
         if (node) issues.push(...issueMessages(m, id, sec!.schema, validateValues(node, values[k], [k]), lang).lines);
       }
-      if (Object.keys(part).length) out[id] = part;
+      if (Object.keys(part).length) {
+        const kept = structuredClone(part);
+        takeSecrets(id, sec?.schema, kept, secrets);
+        out[id] = kept;
+        // a password that was set and is no longer kept or typed here is removed
+        for (const s of baseline?.secrets ?? []) {
+          if (s.section !== id || secrets.some((x) => x.section === id && x.path === s.path)) continue;
+          if (!isKeptSecret(valueAt(part, pathOf(s.path)))) secrets.push({ section: id, path: s.path, value: null });
+        }
+      }
     }
     if (issues.length) { setError({ text: m.editor.invalid, lines: issues }); return; }
     setBusy(true);
     setError(null);
     try {
-      const input = { name: name.trim(), description: description.trim() || null, models: chosen, sections: out, driftPolicy: policy, offlineExpiryDays: days };
+      const input = { name: name.trim(), description: description.trim() || null, models: chosen, sections: out, driftPolicy: policy, offlineExpiryDays: days, ...(secrets.length ? { secrets } : {}) };
       const saved = baseline ? await adapter.baselines.update(baseline.baselineId, input) : await adapter.baselines.create(input);
-      onSaved(saved);
+      // a password whose network changed was removed by the save: say which before the drawer closes
+      if (saved.secretsDropped?.length) setDropped({ saved, paths: saved.secretsDropped.map((d) => `${d.section}.${d.path}`) });
+      else onSaved(saved);
     } catch (e) {
       setError({ text: errorText(m, e), lines: [] });
     } finally {
@@ -124,7 +163,7 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
   return (
     <Drawer
       open={open}
-      onClose={onClose}
+      onClose={() => { if (dropped) onSaved(dropped.saved); else onClose(); }}
       title={baseline ? baseline.name : m.fleet.newBaseline}
       closeLabel={m.common.close}
       className="w-full sm:max-w-2xl"
@@ -137,6 +176,7 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
     >
       <div className="space-y-4" data-baseline-editor="">
         {readOnly && <Callout variant="info">{m.fleet.canView}</Callout>}
+        {dropped && <Callout variant="warning" role="status" data-secrets-dropped="">{fill(m.fleet.secretsDropped, { paths: dropped.paths.join(', ') })}</Callout>}
         {error && (
           <Callout variant="danger" role="alert">
             <p>{error.text}</p>
@@ -197,6 +237,7 @@ export function BaselineEditorDrawer({ open, onClose, adapter, baseline, canMana
                     values={patches[id] ?? {}}
                     onChange={(v) => setPatches((p) => ({ ...p, [id]: v }))}
                     mode="baseline"
+                    sealedSecrets
                     include={{ keys: included[id], onToggle: (k, v) => toggleKey(id, k, v) }}
                     readOnly={readOnly}
                     sections={patches}

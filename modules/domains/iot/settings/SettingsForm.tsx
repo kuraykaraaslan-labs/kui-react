@@ -53,6 +53,8 @@ export interface SettingsFormProps {
   mode?: 'device' | 'baseline';
   /** Baseline mode: which top-level settings are part of it. */
   include?: { keys: ReadonlySet<string>; onToggle: (key: string, on: boolean) => void };
+  /** Baseline mode: passwords and keys may be set (the host stores them sealed); without it they are left out of a baseline. */
+  sealedSecrets?: boolean;
   messages?: SettingsMessagesInput;
   locale?: string;
   className?: string;
@@ -68,6 +70,7 @@ interface FormCtx {
   preset: PresetContext;
   mode: 'device' | 'baseline';
   include?: SettingsFormProps['include'];
+  sealedSecrets: boolean;
   m: SettingsMessages;
   locale?: string;
   idBase: string;
@@ -85,18 +88,18 @@ const idOf = (base: string, path: Path) => `${base}-${pathText(path).replace(/[^
 
 export function SettingsForm({
   section, schema, values, onChange, reported = null, classes = null, readOnly = false, errors = {}, sections = {}, mode = 'device', include,
-  messages, locale, className,
+  sealedSecrets = false, messages, locale, className,
 }: SettingsFormProps) {
   const { m, locale: lang } = useSettingsText(messages, locale);
   const idBase = useId().replace(/:/g, '');
   const ctx = useMemo<FormCtx>(() => ({
-    section, root: schema, reported, classes, readOnly, errors, mode, include, m, locale: lang, idBase,
+    section, root: schema, reported, classes, readOnly, errors, mode, include, sealedSecrets, m, locale: lang, idBase,
     preset: { sections: { ...sections, [section]: values }, m, locale: lang },
-  }), [section, schema, reported, classes, readOnly, errors, mode, include, m, lang, idBase, sections, values]);
+  }), [section, schema, reported, classes, readOnly, errors, mode, include, sealedSecrets, m, lang, idBase, sections, values]);
   return (
     <Ctx.Provider value={ctx}>
       <div className={cn('min-w-0 space-y-4', className)} data-settings-form={section}>
-        {mode === 'baseline' && hasSecretsOrFixed(schema) && <p className="text-xs text-text-secondary">{m.fleet.noSecrets}</p>}
+        {mode === 'baseline' && hasSecretsOrFixed(schema) && <p className="text-xs text-text-secondary">{sealedSecrets ? m.fleet.sealedSecrets : m.fleet.noSecrets}</p>}
         <ObjectFields node={schema} value={values} onChange={onChange} path={[]} inherited={classOf(schema)} />
       </div>
     </Ctx.Provider>
@@ -146,7 +149,7 @@ function ObjectFields({ node, value, onChange, path, inherited }: {
     const hint = preset.fields?.[sk];
     if (hint?.visible && !hint.visible(value)) continue;
     const kind = nodeKind(prop);
-    if (c.mode === 'baseline' && (kind === 'secret' || kind === 'fixed')) continue;
+    if (c.mode === 'baseline' && (kind === 'fixed' || (kind === 'secret' && !c.sealedSecrets))) continue;
     const cls = classOf(prop, inherited);
     const locked = c.readOnly || (!!c.classes && !c.classes.has(cls));
     if (!top && kind === 'scalar' && !hint?.widget) {

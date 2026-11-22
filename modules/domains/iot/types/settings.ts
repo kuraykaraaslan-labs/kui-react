@@ -185,9 +185,16 @@ export interface SettingsBaseline {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
+  /** The passwords and keys the baseline holds sealed: their paths only, never a value. */
+  secrets?: Array<{ section: string; path: string; updatedAt: string }>;
+  /** After a save: the sealed values the edit dropped because their list item changed or went (enter them again). */
+  secretsDropped?: Array<{ section: string; path: string }>;
 }
 
-export type SettingsBaselineInput = Pick<SettingsBaseline, 'name' | 'description' | 'models' | 'sections' | 'driftPolicy' | 'offlineExpiryDays'>;
+export type SettingsBaselineInput = Pick<SettingsBaseline, 'name' | 'description' | 'models' | 'sections' | 'driftPolicy' | 'offlineExpiryDays'> & {
+  /** Sealed values for passwords and keys: a string sets one, null removes it; absent: they stay as they are. Write only. */
+  secrets?: Array<{ section: string; path: string; value: string | null }>;
+};
 
 export type SettingsJobState = 'running' | 'paused' | 'cancelled' | 'completed';
 export const SETTINGS_JOB_STATES: readonly SettingsJobState[] = ['running', 'paused', 'cancelled', 'completed'];

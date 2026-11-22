@@ -267,6 +267,8 @@ export const SETTINGS_MESSAGES = {
     includeHint: 'Only what you include is changed on the devices; everything else stays as it is.',
     partialField: 'Include',
     noSecrets: 'Passwords and keys are not part of a baseline: set them on each device.',
+    sealedSecrets: 'Passwords and keys you set here are stored sealed and never shown again; each device gets its own copy when the baseline is applied. Changing a network\'s other settings asks for its password again.',
+    secretsDropped: 'Enter these passwords again: their network changed, so the old ones were removed: {paths}.',
     offlineDays: 'Wait for offline devices (days)',
     offlineDaysHint: 'A device offline longer than this does not get the change.',
     deleteTitle: 'Delete this baseline?',

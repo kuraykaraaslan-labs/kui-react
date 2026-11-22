@@ -301,15 +301,38 @@ describe('BaselineEditorDrawer', () => {
     render(<BaselineEditorDrawer open adapter={fleet} baseline={b} canManage onClose={() => undefined} onSaved={() => undefined} />);
     const drawer = await screen.findByRole('dialog', { name: 'Shop Wi-Fi' });
     await screen.findAllByText('Wi-Fi networks');
-    expect(within(drawer).queryByText('Password')).toBeNull();
-    expect(within(drawer).getByText(/Passwords and keys are not part of a baseline/)).toBeTruthy();
+    expect(within(drawer).getByText(/Passwords and keys you set here are stored sealed/)).toBeTruthy();
     await userEvent.click(within(drawer).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(fleet.baselines.update).toHaveBeenCalled());
     expect((fleet.baselines.update as ReturnType<typeof vi.fn>).mock.calls[0][1]).toMatchObject({ sections: { wifi: { ssids: [{ ssid: 'Shop', band: '2g', security: 'open' }] } }, models: ['roltek-420'] });
+    expect((fleet.baselines.update as ReturnType<typeof vi.fn>).mock.calls[0][1].secrets).toBeUndefined();
     await userEvent.click(within(drawer).getByLabelText(/Include: Wi-Fi networks/));
     await userEvent.click(within(drawer).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(fleet.baselines.update).toHaveBeenCalledTimes(2));
     expect((fleet.baselines.update as ReturnType<typeof vi.fn>).mock.calls[1][1].sections).toEqual({});
+  });
+});
+
+describe('BaselineEditorDrawer sealed passwords (W8bS-6)', () => {
+  const b: SettingsBaseline = {
+    baselineId: 'b1', name: 'Office Wi-Fi', description: null, models: ['roltek-420'], sections: { wifi: { ssids: [{ ssid: 'Office', band: '2g', security: 'wpa2-psk' }] } },
+    driftPolicy: 'REPORT', offlineExpiryDays: 7, createdBy: null, createdAt: '', updatedAt: '', secrets: [{ section: 'wifi', path: 'ssids.0.key', updatedAt: '2026-11-22T00:00:00Z' }],
+  };
+
+  it('a sealed password stays as it is: never in the patch, nothing sent for it; a save that dropped one says which before closing', async () => {
+    const fleet = fleetOf();
+    const onSaved = vi.fn();
+    (fleet.baselines.update as ReturnType<typeof vi.fn>).mockImplementation(async () => ({ ...b, secrets: [], secretsDropped: [{ section: 'wifi', path: 'ssids.0.key' }] }));
+    render(<BaselineEditorDrawer open adapter={fleet} baseline={b} canManage onClose={() => undefined} onSaved={onSaved} />);
+    const drawer = await screen.findByRole('dialog', { name: 'Office Wi-Fi' });
+    await screen.findAllByText('Wi-Fi networks');
+    await userEvent.click(within(drawer).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(fleet.baselines.update).toHaveBeenCalled());
+    const sent = (fleet.baselines.update as ReturnType<typeof vi.fn>).mock.calls[0][1];
+    expect(sent.sections).toEqual({ wifi: { ssids: [{ ssid: 'Office', band: '2g', security: 'wpa2-psk' }] } });
+    expect(sent.secrets).toBeUndefined();
+    expect(await within(drawer).findByText(/Enter these passwords again: .*wifi\.ssids\.0\.key/)).toBeTruthy();
+    expect(onSaved).not.toHaveBeenCalled();
   });
 });
 
