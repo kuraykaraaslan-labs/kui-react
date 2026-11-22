@@ -247,7 +247,9 @@ export function createDemoFleetAdapter(opts: { latencyMs?: number; canManage?: b
       async create(input) {
         await sleep(latency);
         if ([...baselines.values()].some((b) => b.name === input.name)) throw new SettingsApiError('Name taken.', 409, { reason: 'name_taken' });
-        const b: SettingsBaseline = { ...structuredClone(input), baselineId: `b-${++n}`, createdBy: 'demo', createdAt: now(), updatedAt: now() };
+        const { secrets, ...rest } = structuredClone(input);
+        // the demo keeps only which passwords are set, never a value (as the platform answers)
+        const b: SettingsBaseline = { ...rest, secrets: (secrets ?? []).filter((x) => x.value !== null).map((x) => ({ section: x.section, path: x.path, updatedAt: now() })), baselineId: `b-${++n}`, createdBy: 'demo', createdAt: now(), updatedAt: now() };
         baselines.set(b.baselineId, b);
         return b;
       },
@@ -255,7 +257,10 @@ export function createDemoFleetAdapter(opts: { latencyMs?: number; canManage?: b
         await sleep(latency);
         const cur = baselines.get(id);
         if (!cur) throw new SettingsApiError('Baseline not found.', 404, { reason: 'baseline_not_found' });
-        const b = { ...cur, ...structuredClone(input), updatedAt: now() };
+        const { secrets, ...rest } = structuredClone(input);
+        const kept = (cur.secrets ?? []).filter((m) => !(secrets ?? []).some((x) => x.section === m.section && x.path === m.path) && Object.hasOwn(rest.sections, m.section));
+        const set = (secrets ?? []).filter((x) => x.value !== null).map((x) => ({ section: x.section, path: x.path, updatedAt: now() }));
+        const b: SettingsBaseline = { ...cur, ...rest, secrets: [...kept, ...set], updatedAt: now() };
         baselines.set(id, b);
         return b;
       },
