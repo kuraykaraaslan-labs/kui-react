@@ -232,3 +232,14 @@ export {
   ESIM_MESSAGES, mergeEsimMessages, esimMessagesFrom, flattenEsimMessages,
 } from './esim';
 export type { EsimAdapter, EsimMessages, EsimMessagesInput } from './esim';
+
+// ── Rate limits (next-boilerplate iot-gateway 06 §6.4, W8G-6): the device page's "Rate limits" header button and drawer (read-only) ──────
+export {
+  DeviceRateLimitsAction, DeviceRateLimitsPanel, limitText, createDemoRateLimitsAdapter, DEMO_RATE_LIMITS,
+  RATE_LIMITS_MESSAGES, mergeRateLimitsMessages, rateLimitsMessagesFrom, flattenRateLimitsMessages,
+  DEVICE_LIMIT_FAMILIES, WORKSPACE_LIMIT_KEYS,
+} from './ratelimits';
+export type {
+  DeviceRateLimitsActionProps, DeviceRateLimitsPanelProps, RateLimitsMessages, RateLimitsMessagesInput, RateLimitsAdapter, DeviceRateLimitsView,
+  DeviceLimitRow, DeviceLimitFamily, DeviceLimitMode, WorkspaceLimitKey,
+} from './ratelimits';

@@ -21,8 +21,7 @@ import {
   faSitemap,
   faNetworkWired,
   faLayerGroup,
-  faVideo, faTowerBroadcast, faUpload, faCertificate,
-} from '@fortawesome/free-solid-svg-icons';
+  faVideo, faTowerBroadcast, faUpload, faCertificate, faGaugeHigh } from '@fortawesome/free-solid-svg-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { IotAdapterProvider } from '@/modules/domains/iot/api/IotAdapterProvider';
@@ -47,6 +46,7 @@ const NAV_GROUPS: AppSidebarNavGroup[] = [
       { id: 'certificates', label: 'Certificates', icon: <FontAwesomeIcon icon={faCertificate} className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/certificates' },
       { id: 'firmware',   label: 'Firmware',     icon: <FontAwesomeIcon icon={faUpload}         className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/firmware' },
       { id: 'esim',       label: 'eSIM',         icon: <FontAwesomeIcon icon={faSimCard}        className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/esim' },
+      { id: 'rate-limits', label: 'Rate limits',  icon: <FontAwesomeIcon icon={faGaugeHigh}      className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/rate-limits' },
       { id: 'rpc',        label: 'Commands',     icon: <FontAwesomeIcon icon={faTerminal}       className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/rpc' },
       { id: 'device-settings', label: 'Bulk settings', icon: <FontAwesomeIcon icon={faLayerGroup} className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/device-settings' },
       { id: 'workspaces', label: 'Workspaces',   icon: <FontAwesomeIcon icon={faCloud}          className="w-4 h-4" aria-hidden="true" />, href: '/theme/iot/workspaces' },
