@@ -104,7 +104,7 @@ export function SeriesChart({
   const zoomable = isTime && zoom && !selecting;
   const dragOn = zoomable || selecting;
   const rows: Row[][] = useMemo(
-    () => (isTime ? timePoints(visible) : visible.map((s) => s.data.map((p, i) => ({ t: i, y: p.y, label: p.label })))),
+    () => (isTime ? timePoints(visible) : visible.map((s) => s.data.map((p, i) => ({ t: i, y: p.y, label: p.label, lower: p.lower, upper: p.upper })))),
     [isTime, visible],
   );
   const full: TimeDomain = useMemo(() => (isTime ? timeExtent(visible) : [0, 1]), [isTime, visible]);
@@ -122,7 +122,14 @@ export function SeriesChart({
     // A stack always starts at zero; otherwise the author decides.
     const zero = yIncludeZero || isStacked;
     if (isTime) return visibleYExtent(idx.map((i) => rows[i]), domain, zero);
-    return topsExtent(idx.map((i) => stack!.tops[i]), zero);
+    const e = topsExtent(idx.map((i) => stack!.tops[i]), zero);
+    // an interval series widens the band axis too (not on a stacked chart, where no band is drawn)
+    if (!isStacked) for (const i of idx) for (const p of rows[i]) for (const v of [p.lower, p.upper]) {
+      if (v === null || v === undefined || !Number.isFinite(v)) continue;
+      if (v < e.min) e.min = v;
+      if (v > e.max) e.max = v;
+    }
+    return e;
   };
   const thrL = thresholds?.filter((t) => t.yAxis !== 'right');
   const thrR = thresholds?.filter((t) => t.yAxis === 'right');
@@ -190,8 +197,29 @@ export function SeriesChart({
                 areaPath = `${top} L${solid[solid.length - 1].x} ${baselineY} L${solid[0].x} ${baselineY} Z`;
               }
             }
+            // The interval (INS-4): one closed shape per run of points whose lower AND upper are numbers.
+            let bandPath = '';
+            if (!isStacked) {
+              const runs: Array<Array<{ x: number; lo: number; hi: number }>> = [];
+              let run: Array<{ x: number; lo: number; hi: number }> = [];
+              for (const p of rows[si]) {
+                const lo = p.lower; const hi = p.upper;
+                if (lo === null || lo === undefined || hi === null || hi === undefined || !Number.isFinite(lo) || !Number.isFinite(hi)) {
+                  if (run.length) runs.push(run);
+                  run = [];
+                  continue;
+                }
+                run.push({ x: xPx(p.t), lo: scale(Math.min(lo, hi)), hi: scale(Math.max(lo, hi)) });
+              }
+              if (run.length) runs.push(run);
+              bandPath = runs.filter((r) => r.length > 1).map((r) => {
+                const upper = r.map((q) => ({ x: q.x, y: q.hi }));
+                const lower = r.map((q) => ({ x: q.x, y: q.lo })).reverse();
+                return `${curvePath(upper, curve)} ${continuePath(lower, curve, 'before')} Z`;
+              }).join(' ');
+            }
             return {
-              s, si, color, w, pts, solid, opacity, areaPath,
+              s, si, color, w, pts, solid, opacity, areaPath, bandPath, bandOpacity: s.bandOpacity ?? 0.16,
               gradientId: s.fillGradient ? `sc-grad-${uid}-${si}` : null,
               path: curvePath(pts, curve),
               solo: solid.length === 1 ? solid[0] : null,
@@ -231,7 +259,9 @@ export function SeriesChart({
                 const y = p?.y ?? null;
                 return [{
                   seriesId: s.id, seriesName: s.name, color: s.color as string, x: isTime ? at : header, y,
-                  valueLabel: y === null ? undefined : (tooltipValueFormat ? tooltipValueFormat(y, s) : valueText(s, y, p, yFormat)),
+                  valueLabel: y === null ? undefined : (tooltipValueFormat ? tooltipValueFormat(y, s) : valueText(s, y, p, yFormat))
+                    + (p && p.lower != null && p.upper != null && Number.isFinite(p.lower) && Number.isFinite(p.upper)
+                      ? ` (${(s.format ?? fmt)(Math.min(p.lower, p.upper))} – ${(s.format ?? fmt)(Math.max(p.lower, p.upper))})` : ''),
                   py: y === null ? Number.NaN : plotY(si, j, y),
                 }];
               });
@@ -366,6 +396,9 @@ export function SeriesChart({
                   <g clipPath={`url(#${clipId})`}>
                     {projected.map((p) => (
                       <g key={p.s.id} data-series={p.s.id}>
+                        {p.bandPath && (
+                          <path d={p.bandPath} fill={p.color} opacity={p.bandOpacity} stroke="none" data-band="" />
+                        )}
                         {p.areaPath && (
                           <path d={p.areaPath} fill={p.gradientId ? `url(#${p.gradientId})` : p.color} opacity={p.gradientId ? undefined : p.opacity} data-area=""
                             data-fill={p.gradientId ? 'gradient' : 'opacity'}

@@ -46,13 +46,13 @@ export function timeExtent(series: Series[]): TimeDomain {
 }
 
 /** Points of each series that fall inside the domain (inclusive), as `{ t, y, label }`. */
-export interface TimePoint { t: number; y: number | null; label?: string }
+export interface TimePoint { t: number; y: number | null; label?: string; lower?: number | null; upper?: number | null }
 export function timePoints(series: Series[]): TimePoint[][] {
   return series.map((s) => {
     const out: TimePoint[] = [];
     for (const p of s.data) {
       const t = toTime(p.x);
-      if (t !== null) out.push({ t, y: p.y, label: p.label });
+      if (t !== null) out.push({ t, y: p.y, label: p.label, ...(p.lower != null || p.upper != null ? { lower: p.lower, upper: p.upper } : {}) });
     }
     return out.sort((a, b) => a.t - b.t);
   });
@@ -68,9 +68,12 @@ export function visibleYExtent(all: TimePoint[][], domain: TimeDomain, includeZe
   let max = -Infinity;
   for (const pts of all) {
     for (const p of inDomain(pts, domain)) {
-      if (p.y === null || p.y === undefined) continue;
-      if (p.y < min) min = p.y;
-      if (p.y > max) max = p.y;
+      // an interval's edges count as values, so a band is never clipped (INS-4)
+      for (const v of [p.y, p.lower, p.upper]) {
+        if (v === null || v === undefined || !Number.isFinite(v)) continue;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
     }
   }
   if (!Number.isFinite(min)) min = 0;

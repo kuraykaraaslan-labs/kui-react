@@ -12,6 +12,19 @@ import {
 import type { ShowcaseComponent } from '../showcase.types';
 
 // ── Demo data ───────────────────────────────────────────────────────
+// Interval series (INS-4): 36 hours of readings, then a 24-hour forecast whose band widens with the horizon.
+const T0 = Date.UTC(2026, 10, 20, 0);
+const wave = (h: number) => 20 + 6 * Math.sin((h / 24) * 2 * Math.PI);
+const forecastSeries: Series[] = [
+  { id: 'actual', name: 'Temperature', data: Array.from({ length: 36 }, (_, h) => ({ x: T0 + h * 3_600_000, y: Math.round((wave(h) + ((h * 7) % 5) / 5 - 0.4) * 10) / 10 })) },
+  {
+    id: 'forecast', name: 'Forecast', lineStyle: 'dashed',
+    data: Array.from({ length: 25 }, (_, i) => {
+      const h = 35 + i; const half = 0.6 + i * 0.12;
+      return { x: T0 + h * 3_600_000, y: Math.round(wave(h) * 10) / 10, lower: Math.round((wave(h) - half) * 10) / 10, upper: Math.round((wave(h) + half) * 10) / 10 };
+    }),
+  },
+];
 const lineSeries: Series[] = [
   {
     id: 'active',
@@ -152,6 +165,23 @@ const series: Series[] = [
     { id: 'signups', name: 'New signups',  data: [{ x: 'Mon', y: 300 },  /* … */] },
   ]}
   height={220}
+/>`,
+        },
+        {
+          title: 'Interval series (forecast band)',
+          layout: 'stack' as const,
+          preview: (
+            <Frame title="Readings and the next day's forecast with its 80 % range">
+              <LineChart series={forecastSeries} xAxis="time" curve="linear" yIncludeZero={false} height={220} />
+            </Frame>
+          ),
+          code: `<LineChart
+  xAxis="time"
+  series={[
+    { id: 'actual',   name: 'Temperature', data: [{ x: 1763596800000, y: 20.1 }, /* … */] },
+    // a point with lower and upper draws a shaded range under its line; null leaves a gap
+    { id: 'forecast', name: 'Forecast', lineStyle: 'dashed', data: [{ x: 1763722800000, y: 23.4, lower: 22.8, upper: 24.0 }, /* … */] },
+  ]}
 />`,
         },
         {

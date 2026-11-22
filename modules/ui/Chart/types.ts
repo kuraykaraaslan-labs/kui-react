@@ -18,6 +18,12 @@ export type SeriesPoint = {
   color?: string;
   /** Free-form label override for tooltips / a11y. */
   label?: string;
+  /**
+   * Line / Area / time axis: the lower and upper edge of an interval around this point (a forecast's or an expected
+   * range's band). Where both are numbers the series draws a shaded range under its line; `null` or absent leaves a gap.
+   */
+  lower?: number | null;
+  upper?: number | null;
 };
 
 export type Series = {
@@ -54,6 +60,8 @@ export type Series = {
   stack?: string;
   /** Value text for this series' tooltip rows, legend values and value labels (else the chart's `yFormat`). */
   format?: (value: number) => string;
+  /** Interval series (points with `lower` / `upper`): the shaded range's alpha (0..1). Default = 0.16. Not drawn on a stacked chart. */
+  bandOpacity?: number;
 };
 
 /** A stroke pattern. */

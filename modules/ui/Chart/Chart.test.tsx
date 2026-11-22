@@ -380,3 +380,38 @@ describe('chart settings surface (phase 21 depth)', () => {
     expect(total).not.toMatch(/Total/);
   });
 });
+
+describe('interval series (INS-4)', () => {
+  const pts = (n: number, band = true) => Array.from({ length: n }, (_, i) => ({
+    x: Date.UTC(2026, 10, 1, i), y: 10 + i, ...(band ? { lower: 8 + i, upper: 12 + i } : {}),
+  }));
+
+  it('draws one shaded range under the line where every point has both edges, on a time and on a band axis', () => {
+    const { container } = render(<LineChart xAxis="time" series={[{ id: 'f', name: 'Forecast', data: pts(6) }]} />);
+    const band = container.querySelector('path[data-band]');
+    expect(band).toBeTruthy();
+    expect(band!.getAttribute('opacity')).toBe('0.16');
+    expect(band!.getAttribute('d')!.match(/Z/g)).toHaveLength(1);
+    const { container: c2 } = render(<LineChart series={[{ id: 'f', name: 'F', bandOpacity: 0.3, data: [{ x: 'a', y: 1, lower: 0, upper: 2 }, { x: 'b', y: 2, lower: 1, upper: 3 }] }]} />);
+    expect(c2.querySelector('path[data-band]')!.getAttribute('opacity')).toBe('0.3');
+  });
+
+  it('a gap in the edges splits the range; a series without edges draws none; a stacked chart draws none', () => {
+    const gappy = pts(6).map((p, i) => (i === 2 ? { ...p, lower: null } : p));
+    const { container } = render(<LineChart xAxis="time" series={[{ id: 'f', name: 'F', data: gappy }]} />);
+    expect(container.querySelector('path[data-band]')!.getAttribute('d')!.match(/Z/g)).toHaveLength(2);
+    const { container: plain } = render(<LineChart xAxis="time" series={[{ id: 'p', name: 'P', data: pts(6, false) }]} />);
+    expect(plain.querySelector('path[data-band]')).toBeNull();
+    const cat = [{ x: 'a', y: 1, lower: 0, upper: 2 }, { x: 'b', y: 2, lower: 1, upper: 3 }];
+    const { container: st } = render(<AreaChart stacked series={[{ id: 'a', name: 'A', data: cat }, { id: 'b', name: 'B', data: cat }]} />);
+    expect(st.querySelector('path[data-band]')).toBeNull();
+  });
+
+  it('the value axis widens to the edges, so the band is never clipped', () => {
+    const data = [{ x: 'a', y: 50, lower: 10, upper: 400 }, { x: 'b', y: 60, lower: 20, upper: 410 }];
+    const { container } = render(<LineChart series={[{ id: 'f', name: 'F', data }]} yIncludeZero={false} />);
+    const labels = [...container.querySelectorAll('text')].map((t) => Number(t.textContent)).filter(Number.isFinite);
+    expect(Math.max(...labels)).toBeGreaterThanOrEqual(400);
+    expect(Math.min(...labels)).toBeLessThanOrEqual(10);
+  });
+});
