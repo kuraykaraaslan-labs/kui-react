@@ -161,6 +161,7 @@ export function JobDetailView({ adapter, jobId, pollMs = 10_000, backHref, devic
       {error && <Callout variant="danger">{error}</Callout>}
       {job.state === 'paused' && job.pauseReason === 'manual' && <Callout variant="info">{m.fleet.pausedManual}</Callout>}
       {job.state === 'paused' && job.pauseReason === 'creator_left' && <Callout variant="warning">{m.fleet.pausedCreatorLeft}</Callout>}
+      {job.state === 'paused' && job.pauseReason === 'creator_rights_changed' && <Callout variant="warning">{m.fleet.pausedCreatorRights}</Callout>}
       {job.state === 'paused' && job.pauseReason === 'gate_failed' && (
         <Callout variant="warning">{fill(m.fleet.pausedGate, { n: job.currentWave + 1, ...shares(gate) })}</Callout>
       )}

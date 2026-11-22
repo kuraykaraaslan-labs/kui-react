@@ -91,6 +91,11 @@ export interface SettingsSection {
   drift: boolean;
   pendingSince: string | null;
   expiresAt: string | null;
+  /**
+   * The baseline assignment governing this section and whether it is detached: someone changed the section after the assignment applied
+   * it, so nothing re-applies it until a person re-attaches it (Assignments). Absent or null: not governed by a baseline.
+   */
+  governedBy?: { assignmentId: string; baselineId: string; baselineName: string; detached: boolean } | null;
 }
 
 export type DeviceSettingsUnsupported = 'settings_unsupported' | 'manifest_unknown';
@@ -209,8 +214,8 @@ export interface SettingsJob {
   state: SettingsJobState;
   /** Cancelled or completed, with devices still answering. */
   settling: boolean;
-  /** `creator_left`: the person who started the job is no longer a member of the workspace. */
-  pauseReason: 'manual' | 'gate_failed' | 'no_data' | 'creator_left' | null;
+  /** `creator_left`: the person who started the job is no longer a member of the workspace. `creator_rights_changed`: their role changed and they may no longer run it. */
+  pauseReason: 'manual' | 'gate_failed' | 'no_data' | 'creator_left' | 'creator_rights_changed' | null;
   currentWave: number;
   waveStartedAt: number | null;
   createdBy: string | null;

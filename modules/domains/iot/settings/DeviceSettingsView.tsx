@@ -119,7 +119,17 @@ export function DeviceSettingsView({ adapter, deviceId, pollMs = 5000, initialSe
     return Number.isNaN(d.getTime()) ? iso : d.toLocaleString(lang);
   };
   const columns: Column<Row>[] = [
-    { key: 'title', header: m.tab.section, sortable: true, render: (r) => <span className="font-medium text-text-primary">{r.title}</span> },
+    {
+      key: 'title', header: m.tab.section, sortable: true,
+      render: (r) => (
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span className="font-medium text-text-primary">{r.title}</span>
+          {r.s.governedBy && (r.s.governedBy.detached
+            ? <Badge size="sm" variant="warning" title={fill(m.tab.detachedHint, { name: r.s.governedBy.baselineName })} data-detached="">{fill(m.tab.detachedFrom, { name: r.s.governedBy.baselineName })}</Badge>
+            : <Badge size="sm" variant="neutral" data-governed="">{fill(m.tab.governedBy, { name: r.s.governedBy.baselineName })}</Badge>)}
+        </span>
+      ),
+    },
     { key: 'status', header: m.tab.status, sortable: true, render: (r) => <SettingsStateBadge state={r.s.state} drift={r.s.drift} size="sm" messages={m} /> },
     { key: 'applied', header: m.tab.lastApplied, sortable: true, hideBelow: 'sm', render: (r) => when(r.s.appliedAt) },
     {

@@ -294,6 +294,7 @@ export const LORA_MESSAGES = {
     refusal_codec_tests_failed: 'some test vectors fail (see below).',
     refusal_codec_incompatible: 'a published version decoded keys this one no longer does ({keys}). Publish it under a new id instead.',
     refusal_codec_model_claimed: 'another of your codecs already covers {models}.',
+    refusal_codec_commands: 'a downlink command template is broken ({issues}).',
     refusal_codec_exists: 'a codec with this id exists. Choose another id.',
     refusal_other: '{reason}',
   },

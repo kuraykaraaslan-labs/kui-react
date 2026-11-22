@@ -229,6 +229,7 @@ export function SectionEditorDrawer({ open, onClose, adapter, deviceId, settings
             {!settings.writable && <Callout variant="warning" title={m.tab.readOnly}>{m.tab.readOnlyHint}</Callout>}
             {settings.writable && classes && classes.size === 0 && <Callout variant="info">{m.tab.viewOnly}</Callout>}
             {settings.writable && (!classes || classes.size > 0) && sectionDenied && <Callout variant="info">{m.tab.sectionDenied}</Callout>}
+            {section.governedBy?.detached && <Callout variant="warning" data-detached-callout="">{fill(m.tab.detachedHint, { name: section.governedBy.baselineName })}</Callout>}
             {section.state === 'pending' && <Callout variant="info">{m.editor.pending}</Callout>}
             {section.state === 'confirming' && <Callout variant="info">{m.editor.confirming}</Callout>}
             {(section.state === 'reverted' || section.state === 'rejected' || section.state === 'expired') && (

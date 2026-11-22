@@ -179,6 +179,16 @@ describe('DeviceSettingsView', () => {
     expect(screen.getByText('Changed on the device')).toBeTruthy();
   });
 
+  it('marks a section a baseline governs, and a detached one with the way back (W8bS-4)', async () => {
+    const s = settings();
+    s.sections[2] = section('wifi', { governedBy: { assignmentId: 'a1', baselineId: 'b1', baselineName: 'Shop Wi-Fi', detached: false } });
+    s.sections[3] = section('lte', { governedBy: { assignmentId: 'a2', baselineId: 'b2', baselineName: 'Field LTE', detached: true } });
+    render(<DeviceSettingsView adapter={adapterOf(s)} deviceId="d1" pollMs={0} />);
+    expect(await screen.findByText('Baseline: Shop Wi-Fi')).toBeTruthy();
+    const detached = screen.getByText('Detached from Field LTE');
+    expect(detached.getAttribute('title')).toMatch(/Re-attach it from the profile's Assignments/);
+  });
+
   it('changes an SSID: the row drawer, a dry run, the confirmation, then the write with If-Match and the kept password', async () => {
     const a = adapterOf(settings());
     render(<DeviceSettingsView adapter={a} deviceId="d1" pollMs={0} />);
@@ -412,6 +422,16 @@ describe('JobDetailView', () => {
     (fleet.jobs.get as ReturnType<typeof vi.fn>).mockImplementation(async () => ({ ...base, job: { ...base.job, pauseReason: 'creator_left' as const } }));
     render(<JobDetailView adapter={fleet} jobId="j1" pollMs={0} />);
     expect(await screen.findByText(/no longer a member of this workspace/)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    await waitFor(() => expect(fleet.jobs.resume).toHaveBeenCalledWith('j1'));
+  });
+
+  it('says a job paused because its creator\'s role changed, and resumes it without the gate dialog (W8bS-5)', async () => {
+    const fleet = fleetOf();
+    const base = await fleetOf().jobs.get('j1');
+    (fleet.jobs.get as ReturnType<typeof vi.fn>).mockImplementation(async () => ({ ...base, job: { ...base.job, pauseReason: 'creator_rights_changed' as const } }));
+    render(<JobDetailView adapter={fleet} jobId="j1" pollMs={0} />);
+    expect(await screen.findByText(/role of the person who started this job changed/)).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Resume' }));
     await waitFor(() => expect(fleet.jobs.resume).toHaveBeenCalledWith('j1'));
   });
