@@ -22,7 +22,9 @@ import { ProfileSection, RangeNumberField } from './profile-fields';
  * With `settings` (a viewer who manages provisioning, on a host that serves them, 02 §2.1 / OD-1): "Devices that register themselves",
  * the registrations per key and hour, "Activate new devices at once" (off by default; turned on, a warning stays) and, with
  * `certLifetime` (the host issues certificates under this profile: NB's platform templates), the certificate lifetime. They belong to
- * the editor's draft and Save, like the strategy; the key buttons act at once.
+ * the editor's draft and Save, like the strategy; the key buttons act at once. With `csrIssuance` and a settings object that carries
+ * `allowCsrForProvisioned`, "Devices may ask for a certificate" (a device of the profile asks for an X.509 certificate over its token
+ * or basic login; the profile must allow certificate logins).
  */
 export type ProvisioningSettingsCardProps = {
   strategy: ProvisionStrategy;
@@ -38,6 +40,8 @@ export type ProvisioningSettingsCardProps = {
   settingsErrors?: Partial<Record<keyof ProvisioningSettings, string>>;
   /** The certificate lifetime is drawn (the host issues certificates under this profile). */
   certLifetime?: boolean;
+  /** "Devices may ask for a certificate" is drawn (the host issues certificates to the profile's own devices on request). */
+  csrIssuance?: boolean;
   /** The settings are shown but cannot be changed. */
   settingsDisabled?: boolean;
   disabled?: boolean;
@@ -46,7 +50,7 @@ export type ProvisioningSettingsCardProps = {
 };
 
 export function ProvisioningSettingsCard({
-  strategy, onChange, availableStrategies = ['DISABLED'], keys, settings, onSettingsChange, settingsErrors = {}, certLifetime, settingsDisabled, disabled,
+  strategy, onChange, availableStrategies = ['DISABLED'], keys, settings, onSettingsChange, settingsErrors = {}, certLifetime, csrIssuance, settingsDisabled, disabled,
   messages, className,
 }: ProvisioningSettingsCardProps) {
   const { m } = useIotText(messages);
@@ -87,6 +91,10 @@ export function ProvisioningSettingsCard({
           <Toggle id={`${id}-auto`} label={m.provisioning.autoActivate} description={m.provisioning.autoActivateHint}
             checked={settings.autoActivate} disabled={settingsDisabled} onChange={(v) => onSettingsChange?.({ autoActivate: v })} />
           {settings.autoActivate && <Callout variant="warning" title={null}>{m.provisioning.autoActivateWarning}</Callout>}
+          {csrIssuance && settings.allowCsrForProvisioned !== undefined && (
+            <Toggle id={`${id}-csr`} label={m.provisioning.csrIssuance} description={m.provisioning.csrIssuanceHint}
+              checked={settings.allowCsrForProvisioned} disabled={settingsDisabled} onChange={(v) => onSettingsChange?.({ allowCsrForProvisioned: v })} />
+          )}
         </ProfileSection>
       )}
 

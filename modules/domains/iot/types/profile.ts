@@ -137,8 +137,13 @@ export type ProvisioningSettings = {
   autoActivate: boolean;
   /** The days a certificate issued to the profile's devices is valid; NB issues them only to a platform template's factory units. */
   certLifetimeDays: number;
+  /**
+   * A device of the profile may ask for an X.509 certificate over its token or basic login and renew it (NB protocol 06 §8 ENROLL).
+   * Optional: a host that does not send it gets no switch drawn.
+   */
+  allowCsrForProvisioned?: boolean;
 };
-export const PROVISIONING_SETTING_KEYS = ['provisionRateLimitPerHour', 'autoActivate', 'certLifetimeDays'] as const satisfies ReadonlyArray<keyof ProvisioningSettings>;
+export const PROVISIONING_SETTING_KEYS = ['provisionRateLimitPerHour', 'autoActivate', 'certLifetimeDays', 'allowCsrForProvisioned'] as const satisfies ReadonlyArray<keyof ProvisioningSettings>;
 
 /** The fields of `next` that differ from `base` (a settings save sends only these). */
 export function provisioningSettingsPatch(base: ProvisioningSettings, next: ProvisioningSettings): Partial<ProvisioningSettings> {

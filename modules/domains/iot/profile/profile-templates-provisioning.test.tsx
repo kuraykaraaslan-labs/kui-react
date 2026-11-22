@@ -91,6 +91,26 @@ describe('provisioning settings (02 §2.1)', () => {
     expect(screen.getByText('Fix the marked fields before saving.')).toBeTruthy();
   });
 
+  it('a host that sends allowCsrForProvisioned gets "Devices may ask for a certificate" on a tenant profile; Save sends only it', async () => {
+    const user = userEvent.setup();
+    const provisioning = provisioningOf({ ...SETTINGS, allowCsrForProvisioned: false });
+    renderEditor(adapterOf([profile()], { provisioning }), { canManageProfiles: true, canManageProvisioning: true });
+    await user.click(await screen.findByRole('switch', { name: /Devices may ask for a certificate/ }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(provisioning.setSettings).toHaveBeenCalledWith('p1', { allowCsrForProvisioned: true }));
+  });
+
+  it('no switch without the field (an older host) or on a platform template (its units get certificates at bootstrap)', async () => {
+    renderEditor(adapterOf([profile()], { provisioning: provisioningOf() }), { canManageProfiles: true, canManageProvisioning: true });
+    await screen.findByLabelText('Registrations per key per hour');
+    expect(screen.queryByRole('switch', { name: /Devices may ask for a certificate/ })).toBeNull();
+    cleanup();
+    renderEditor(adapterOf([profile({ platformTemplate: { key: 'dc620-dual', version: 3 } })], { provisioning: provisioningOf({ ...SETTINGS, allowCsrForProvisioned: false }) }),
+      { canManageProfiles: true, canManageProvisioning: true, canManageTemplates: true });
+    await screen.findByLabelText('Certificate lifetime (days)');
+    expect(screen.queryByRole('switch', { name: /Devices may ask for a certificate/ })).toBeNull();
+  });
+
   it('a platform template shows the certificate lifetime', async () => {
     const provisioning = provisioningOf();
     renderEditor(adapterOf([profile({ platformTemplate: { key: 'dc620-dual', version: 3 } })], { provisioning }),

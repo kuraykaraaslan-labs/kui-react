@@ -638,7 +638,7 @@ export function DeviceProfileEditorView({
       content: (
         <ProvisioningSettingsCard strategy={draft.provisionStrategy} availableStrategies={availableStrategies} keys={provisioningKeys} disabled={readOnly}
           onChange={(s) => set({ provisionStrategy: s })}
-          settings={settingsApi ? provDraft : null} settingsDisabled={readOnly} certLifetime={!!profile.platformTemplate}
+          settings={settingsApi ? provDraft : null} settingsDisabled={readOnly} certLifetime={!!profile.platformTemplate} csrIssuance={!profile.platformTemplate}
           settingsErrors={{ provisionRateLimitPerHour: err('provisionRateLimitPerHour'), certLifetimeDays: err('certLifetimeDays'), autoActivate: err('autoActivate') }}
           onSettingsChange={setSettings} />
       ),

@@ -1313,6 +1313,8 @@ export const IOT_MESSAGES = {
     autoActivate: 'Activate new devices at once',
     autoActivateHint: 'Off: a device created by "Allow creating new devices" starts quarantined and works only after someone activates it.',
     autoActivateWarning: 'Anyone who holds this profile\'s key and secret can now add working devices without anyone approving them.',
+    csrIssuance: 'Devices may ask for a certificate',
+    csrIssuanceHint: 'A device of this profile may ask for its own X.509 certificate over its token or user-name login, and renew it. Needs certificate logins allowed above.',
     certLifetime: 'Certificate lifetime (days)',
     certLifetimeHint: 'How long the certificates issued to this model\'s factory units are valid.',
   },
