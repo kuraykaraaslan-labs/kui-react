@@ -360,6 +360,23 @@ export const SETTINGS_MESSAGES = {
     back: 'All jobs',
   },
   /** Baseline assignments: a baseline kept on a device profile or on every device. */
+  support: {
+    button: 'Support by model',
+    title: 'Settings outcomes by model',
+    subtitle: 'For each model and firmware, over every workspace: what the devices applied, undid, refused or let expire, and what waits for a check after a firmware update. The worst share undone comes first; workspaces are counted, never named. Today\'s numbers fill in overnight.',
+    window: 'Period',
+    days: 'Last {n} days',
+    model: 'Model',
+    fw: 'Firmware',
+    applied: 'Applied',
+    reverted: 'Undone',
+    share: 'Share undone',
+    rejected: 'Refused',
+    expired: 'Expired',
+    needsReview: 'To check',
+    workspaces: 'Workspaces',
+    empty: 'No settings changes in this period.',
+  },
   assign: {
     button: 'Assignments',
     title: 'Baseline assignments',

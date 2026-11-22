@@ -5,6 +5,7 @@ import type { DeviceSettings, DeviceSettingsSchema, SettingsSchemaNode, Settings
 import { DeviceSettingsView } from './DeviceSettingsView';
 import { BaselineEditorDrawer } from './BaselineEditorDrawer';
 import { AssignmentsDrawer } from './AssignmentsDrawer';
+import { JobsView } from './JobsView';
 import { JobDetailView } from './JobDetailView';
 import type { SettingsFleetAdapter } from './settings-adapter';
 import type { SettingsBaseline, SettingsJobView } from '../types/settings';
@@ -370,6 +371,26 @@ describe('AssignmentsDrawer', () => {
     await waitFor(() => expect(api.create).toHaveBeenCalledTimes(2));
     expect(api.create.mock.calls[1][0]).toEqual({ baselineId: 'b1', target: { type: 'ALL' }, confirmCount: 25 });
     expect(await within(drawer).findByText(/Devices that join later get the baseline/)).toBeTruthy();
+  });
+});
+
+describe('Support by model', () => {
+  const outcomes = [{ model: 'roltek-420', fw: '1.4.2', applied: 80, reverted: 20, rejected: 2, expired: 1, needsReview: 3, workspaces: 2, revertShare: 0.2 }];
+  it('shows the button only to a host that passes supportModels and showSupport; the drawer lists the outcomes and changes the window', async () => {
+    const fleet = fleetOf();
+    fleet.jobs.list = vi.fn(async () => ({ data: [], total: 0, canManage: false }));
+    const { unmount } = render(<JobsView adapter={fleet} jobHref={(id) => `/j/${id}`} showSupport />);
+    expect(screen.queryByRole('button', { name: 'Support by model' })).toBeNull();
+    unmount();
+    const supportModels = vi.fn(async (days: number) => ({ days, data: outcomes }));
+    render(<JobsView adapter={{ ...fleet, supportModels }} jobHref={(id) => `/j/${id}`} showSupport />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Support by model' }));
+    const drawer = await screen.findByRole('dialog', { name: 'Settings outcomes by model' });
+    expect(await within(drawer).findByText('roltek-420')).toBeTruthy();
+    expect(within(drawer).getByText('20 %')).toBeTruthy();
+    expect(supportModels).toHaveBeenCalledWith(7, expect.anything());
+    await userEvent.selectOptions(within(drawer).getByLabelText('Period'), '30');
+    await waitFor(() => expect(supportModels).toHaveBeenLastCalledWith(30, expect.anything()));
   });
 });
 

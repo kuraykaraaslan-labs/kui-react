@@ -13,6 +13,7 @@ import { SETTINGS_JOB_STATES, type SettingsJob, type SettingsJobState } from '..
 import type { SettingsMessages, SettingsMessagesInput } from './messages';
 import type { SettingsFleetAdapter } from './settings-adapter';
 import { NewJobDrawer } from './NewJobDrawer';
+import { SupportByModelDrawer } from './SupportByModelDrawer';
 import { useSettingsText } from './SettingsText';
 
 type Row = SettingsJob & Record<string, unknown>;
@@ -39,6 +40,8 @@ export interface JobsViewProps {
   onOpenBaselines?: () => void;
   /** Open the New job drawer on this baseline (a deep link from the baselines page). */
   startWithBaseline?: string;
+  /** Show the "Support by model" header button (the platform workspace's host; needs the adapter's `supportModels`). */
+  showSupport?: boolean;
   messages?: SettingsMessagesInput;
   locale?: string;
   className?: string;
@@ -46,12 +49,15 @@ export interface JobsViewProps {
 
 /**
  * JobsView — the tenant's bulk settings jobs: one DataTable (filter by status, newest first, paged by the host) with each job's status and
- * how far its waves have gone; a row opens the job's page. The header holds "Baselines" (the baselines page) and "New job" (a drawer).
+ * how far its waves have gone; a row opens the job's page. The header holds "Baselines" (the baselines page), "Support by model" (the platform
+ * workspace only: a read-only drawer of outcomes per model and firmware) and "New job" (a drawer).
  */
-export function JobsView({ adapter, jobHref, onOpenJob, baselinesHref, onOpenBaselines, startWithBaseline, messages, locale, className }: JobsViewProps) {
+export function JobsView({ adapter, jobHref, onOpenJob, baselinesHref, onOpenBaselines, startWithBaseline, showSupport, messages, locale, className }: JobsViewProps) {
   const { m, locale: lang } = useSettingsText(messages, locale);
   const [canManage, setCanManage] = useState(false);
   const [creating, setCreating] = useState(!!startWithBaseline);
+  const [supporting, setSupporting] = useState(false);
+  const withSupport = !!showSupport && !!adapter.supportModels;
   const [reload, setReload] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -89,6 +95,7 @@ export function JobsView({ adapter, jobHref, onOpenJob, baselinesHref, onOpenBas
           {(baselinesHref || onOpenBaselines) && (
             baselinesHref ? <Button as="a" href={baselinesHref} variant="outline">{m.fleet.baselinesButton}</Button> : <Button variant="outline" onClick={onOpenBaselines}>{m.fleet.baselinesButton}</Button>
           )}
+          {withSupport && <Button variant="outline" onClick={() => setSupporting(true)}>{m.support.button}</Button>}
           {canManage && <Button onClick={() => setCreating(true)}><FontAwesomeIcon icon={faPlus} className="mr-1.5" aria-hidden="true" />{m.fleet.newJob}</Button>}
         </div>
       </header>
@@ -121,6 +128,7 @@ export function JobsView({ adapter, jobHref, onOpenJob, baselinesHref, onOpenBas
         messages={m}
         locale={lang}
       />}
+      {withSupport && supporting && <SupportByModelDrawer open onClose={() => setSupporting(false)} adapter={adapter} messages={m} locale={lang} />}
     </div>
   );
 }

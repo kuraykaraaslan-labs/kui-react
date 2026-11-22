@@ -2,7 +2,7 @@ import type {
   NewSettingsAssignment, SettingsAssignment,
   DeviceSettings, DeviceSettingsSchema, NewSettingsJob, SettingsBaseline, SettingsBaselineInput, SettingsDryRun, SettingsHistoryEntry, SettingsJob,
   SettingsJobPlan, SettingsJobState, SettingsJobTarget, SettingsJobView, SettingsModel, SettingsPage, SettingsTargetState, SettingsWriteInput,
-  SettingsWriteResult,
+  SettingsWriteResult, SettingsModelOutcome,
 } from '../types/settings';
 
 /**
@@ -46,6 +46,11 @@ export interface SettingsFleetAdapter {
     resume(jobId: string): Promise<SettingsJob>;
     cancel(jobId: string): Promise<SettingsJob>;
   };
+  /**
+   * The platform's support view: settings outcomes per model and firmware over every workspace for the last `days` days (optional: only the
+   * platform workspace's host passes it, and only then the Support button shows).
+   */
+  supportModels?(days: 1 | 7 | 30 | 90, signal?: AbortSignal): Promise<{ days: number; data: SettingsModelOutcome[] }>;
   /** Baselines kept on a profile or on every device (optional: a host without them shows no Assignments button). */
   assignments?: {
     list(signal?: AbortSignal): Promise<{ data: SettingsAssignment[]; canManage?: boolean }>;

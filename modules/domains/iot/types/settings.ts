@@ -321,3 +321,18 @@ export interface NewSettingsAssignment {
 }
 
 export interface SettingsPage<T> { data: T[]; total: number }
+
+/** Settings outcomes of one model and firmware over every workspace (the platform's support view; counts only, never which workspace). */
+export interface SettingsModelOutcome {
+  model: string;
+  fw: string;
+  applied: number;
+  reverted: number;
+  rejected: number;
+  expired: number;
+  needsReview: number;
+  /** In how many workspaces devices of this model and firmware had outcomes. */
+  workspaces: number;
+  /** reverted / (applied + reverted); 0 with none. */
+  revertShare: number;
+}
