@@ -108,3 +108,11 @@ export function readActivationCode(raw: string): { host: string; confirmationReq
   if (parts[4] !== undefined && parts[4] !== '1') return null;
   return { host: host.toLowerCase(), confirmationRequired: parts[4] === '1' };
 }
+
+/** What a live source calls while a device's eSIM operations are watched (`EsimAdapter.watch`). */
+export interface EsimWatchHandlers {
+  /** An operation of the device changed (the API's view). */
+  onOperation(op: EsimOperation): void;
+  /** true while events arrive (the panel stops polling); false when the source is connecting or gone (the panel polls). */
+  onLive?(live: boolean): void;
+}

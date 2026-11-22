@@ -46,7 +46,7 @@ type Ask = { kind: 'enable' | 'disable' | 'delete' | 'nickname'; profile: EsimPr
  * which connection), the profiles (a DataTable: switch to, turn off, delete, rename, each through the one ConfirmDialog with the ICCID's
  * last six digits typed for the three that can cut the router off or cannot be undone; turning off the profile in use also asks the
  * person to confirm another connection is up), "Add profile" (the activation code, write-only) and "Read again", the operation in flight
- * and the operation history (a DataTable). Reads again every `pollMs` while an operation is on its way. A router without eSIM shows why.
+ * and the operation history (a DataTable). Reads again every `pollMs` while an operation is on its way, or on each live event when the adapter can `watch` (no polling while live). A router without eSIM shows why.
  */
 export function EsimPanel({ adapter, deviceId, can = {}, inDrawer = false, pollMs = 5000, onView, messages, locale, className }: EsimPanelProps) {
   const { m, locale: lang } = useEsimText(messages, locale);
@@ -70,12 +70,29 @@ export function EsimPanel({ adapter, deviceId, can = {}, inDrawer = false, pollM
     return () => ac.abort();
   }, [adapter, deviceId, tick, m]);
 
+  // live operations (adapter.watch): each change reads the view again (the outcome also changes the profiles); a reconnect reads once more
+  const [watching, setWatching] = useState(false);
+  const wasWatching = useRef(false);
+  useEffect(() => {
+    if (!adapter.watch) return;
+    wasWatching.current = false;
+    const stop = adapter.watch(deviceId, {
+      onOperation: (op) => { if (op.deviceId === deviceId) setTick((t) => t + 1); },
+      onLive: (v) => {
+        setWatching(v);
+        if (v && wasWatching.current) setTick((t) => t + 1);
+        if (v) wasWatching.current = true;
+      },
+    });
+    return () => { stop(); setWatching(false); };
+  }, [adapter, deviceId]);
+
   const live = !!view?.inFlight && ESIM_IN_FLIGHT.has(view.inFlight.state);
   useEffect(() => {
-    if (!pollMs || !live) return;
+    if (!pollMs || !live || watching) return;
     const id = setInterval(() => { if (typeof document === 'undefined' || document.visibilityState !== 'hidden') setTick((t) => t + 1); }, pollMs);
     return () => clearInterval(id);
-  }, [pollMs, live]);
+  }, [pollMs, live, watching]);
 
   const reload = useCallback(() => setTick((t) => t + 1), []);
   const nameOf = useCallback((p: Pick<EsimProfile, 'iccid' | 'nickname' | 'operator'>) => p.nickname || p.operator || `…${esimConfirmText(p.iccid)}`, []);

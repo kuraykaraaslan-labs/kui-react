@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createDemoEsimAdapter } from './demo-esim';
@@ -6,7 +6,7 @@ import { EsimDeviceAction } from './EsimDeviceAction';
 import { EsimOperationBadge, esimStateWord } from './EsimOperationBadge';
 import { EsimPanel } from './EsimPanel';
 import { ESIM_MESSAGES, esimMessagesFrom, flattenEsimMessages } from './messages';
-import { esimConfirmText, esimMayBeOnlyUplink, readActivationCode } from './types';
+import { esimConfirmText, esimMayBeOnlyUplink, readActivationCode, type EsimOperation, type EsimWatchHandlers } from './types';
 
 const CAN = { manage: true };
 const M = ESIM_MESSAGES;
@@ -110,5 +110,33 @@ describe('eSIM views (NB iot_esim 01)', () => {
     expect(await screen.findByText(M.common.viewOnly)).toBeTruthy();
     expect(screen.queryByRole('button', { name: M.profiles.add })).toBeNull();
     expect(screen.getByRole('button', { name: new RegExp(M.profiles.refresh) })).toBeTruthy();
+  });
+
+  it('reads again on each live event of the device and stops polling while live; a reconnect reads once more', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const base = createDemoEsimAdapter();
+      let h: EsimWatchHandlers | null = null;
+      const stop = vi.fn();
+      const device = vi.fn(base.device);
+      const adapter = { ...base, device, watch: (_id: string, handlers: EsimWatchHandlers) => { h = handlers; return stop; } };
+      const { unmount } = render(<EsimPanel adapter={adapter} deviceId="d-1" can={CAN} pollMs={1000} />);
+      await screen.findByText(M.profiles.title);
+      const reads = () => device.mock.calls.length;
+      const first = reads();
+      act(() => h!.onLive!(true));
+      act(() => h!.onOperation({ operationId: 'o1', deviceId: 'd-1', state: 'running' } as EsimOperation));
+      await waitFor(() => expect(reads()).toBe(first + 1));
+      act(() => h!.onOperation({ operationId: 'o2', deviceId: 'other', state: 'running' } as EsimOperation));
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+      expect(reads()).toBe(first + 1);
+      act(() => h!.onLive!(false));
+      act(() => h!.onLive!(true));
+      await waitFor(() => expect(reads()).toBe(first + 2));
+      unmount();
+      expect(stop).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

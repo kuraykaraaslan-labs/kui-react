@@ -1,4 +1,4 @@
-import type { EsimDeviceView, EsimOperation, EsimStartInput } from './types';
+import type { EsimDeviceView, EsimOperation, EsimStartInput, EsimWatchHandlers } from './types';
 
 /**
  * What the eSIM views read and write through. The host implements it over its API (next-boilerplate: `/api/iot/devices/[deviceId]/esim…`
@@ -11,6 +11,11 @@ export interface EsimAdapter {
   operations(deviceId: string, q: { limit?: number }, signal?: AbortSignal): Promise<EsimOperation[]>;
   /** Starts one operation; it settles on later reads. */
   start(deviceId: string, input: EsimStartInput): Promise<EsimOperation>;
+  /**
+   * Optional: the device's operations as they change (NB: the `esim` topic of the `/iot` live namespace). While `onLive(true)` the panel
+   * stops polling and reads again on each event; without it, or while not live, it polls as before. Returns the unsubscribe.
+   */
+  watch?(deviceId: string, handlers: EsimWatchHandlers): () => void;
 }
 
 /** A refused request: the HTTP status and the server's `details.reason`. */
