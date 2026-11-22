@@ -15,7 +15,8 @@ export interface SlotData {
   value?: number | string | boolean | null;
   /** What the source says about the value of a scalar (unit, decimals, value map, direction). */
   meta?: ColumnMeta;
-  series?: Array<{ name: string; points: Array<{ t: string; v: number }>; meta?: ColumnMeta }>;
+  /** A point may carry an interval (`lower` / `upper`, a forecast's or an expected range's band): the line views shade it (INS-4). */
+  series?: Array<{ name: string; points: Array<{ t: string; v: number; lower?: number | null; upper?: number | null }>; meta?: ColumnMeta }>;
   /** A table's columns; a column may carry its own meta (the fields of `ColumnMeta`). */
   columns?: Array<{ key: string; label: string; type: 'text' | 'number' | 'date' | 'badge' } & Omit<ColumnMeta, 'label'>>;
   rows?: Array<Record<string, unknown>>;

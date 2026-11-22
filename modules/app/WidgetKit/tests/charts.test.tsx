@@ -641,3 +641,19 @@ describe('series names (next-boilerplate e2e run 1, V3-B7)', () => {
     expect(toBandSeries(result, 'tr')!.map((s) => [s.id, s.name])).toEqual([['savak_seviyesi', 'Savak seviyesi'], ['pil', 'pil']]);
   });
 });
+
+describe('interval edges reach the chart (INS-4)', () => {
+  it('a slot point with lower and upper keeps them on both axes; one edge alone is dropped', async () => {
+    const { toTimeSeries, toBandSeries } = await import('../views/chart-data');
+    const slot = { shape: 'series' as const, series: [{ name: 'forecast', points: [
+      { t: '2026-11-20T00:00:00Z', v: 10, lower: 8, upper: 12 },
+      { t: '2026-11-20T01:00:00Z', v: 11, lower: 9 },
+    ] }] };
+    const time = toTimeSeries(slot)!;
+    expect(time[0].data[0]).toMatchObject({ y: 10, lower: 8, upper: 12 });
+    expect(time[0].data[1].lower).toBeUndefined();
+    const band = toBandSeries(slot)!;
+    expect(band[0].data[0]).toMatchObject({ y: 10, lower: 8, upper: 12 });
+    expect(band[0].data[1]).not.toHaveProperty('upper');
+  });
+});

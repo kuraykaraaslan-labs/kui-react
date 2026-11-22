@@ -110,6 +110,11 @@ function seriesName(s: NonNullable<SlotData['series']>[number], locale?: string)
   return metaLabel(s.meta?.label, locale)?.trim() || s.name;
 }
 
+/** A point's interval, only when both edges are numbers (the Chart's interval series, INS-4). */
+function band(p: { lower?: number | null; upper?: number | null } | undefined): { lower?: number; upper?: number } {
+  return p && typeof p.lower === 'number' && Number.isFinite(p.lower) && typeof p.upper === 'number' && Number.isFinite(p.upper) ? { lower: p.lower, upper: p.upper } : {};
+}
+
 /** Band-axis series: every series aligned onto the union of timestamps (no shifted second series). */
 export function toBandSeries(result: SlotData | undefined, locale?: string): Series[] | null {
   const series = result?.series;
@@ -118,8 +123,14 @@ export function toBandSeries(result: SlotData | undefined, locale?: string): Ser
   if (stamps.length === 0) return null;
   const labels = formatAxisLabels(stamps, locale, result?.window?.explicitTimezone);
   return series.map((s) => {
-    const byT = new Map(s.points.map((p) => [p.t, p.v]));
-    return { id: s.name, name: seriesName(s, locale), data: stamps.map((t, i) => ({ x: labels[i], y: byT.get(t) ?? null })) };
+    const byT = new Map(s.points.map((p) => [p.t, p]));
+    return {
+      id: s.name, name: seriesName(s, locale),
+      data: stamps.map((t, i) => {
+        const p = byT.get(t);
+        return { x: labels[i], y: p?.v ?? null, ...band(p) };
+      }),
+    };
   });
 }
 
@@ -147,7 +158,7 @@ export function toTimeSeries(result: SlotData | undefined, locale?: string): Ser
     for (const p of s.points) {
       const t = Date.parse(p.t);
       if (Number.isNaN(t)) return null;
-      data.push({ x: t, y: p.v });
+      data.push({ x: t, y: p.v, ...band(p) });
       any = true;
     }
     out.push({ id: s.name, name: seriesName(s, locale), data });
