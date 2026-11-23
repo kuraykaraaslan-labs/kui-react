@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-23T18:17:55.326Z",
+  "generatedAt": "2026-11-23T19:29:36.896Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -10391,6 +10391,102 @@
       ],
       "status": "stable",
       "since": "2026-05",
+      "designTokens": []
+    },
+    {
+      "id": "ai-chatbot-report-view",
+      "name": "ChatbotReportView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/ai/report/ChatbotReportView.tsx",
+      "abbr": "CQ",
+      "description": "How a site's AI chat assistant is used and what it could and could not answer: KPIs against the previous period (conversations, questions, answered from pages, handed on, could not answer, declined or held back, errors, estimated cost), how questions ended, questions per day in three groups, languages, the pages chats start on, what the assistant searched for, the questions it could not answer, every stored question (kept 30 days) and the forum help bot.",
+      "source": "import { ChatbotReportView } from '@/modules/domains/ai';\n<ChatbotReportView report={report} locale=\"en-US\" siteUrl=\"https://example.com\" rangeOptions={[7, 30, 90]} onRangeChange={setDays} />",
+      "variants": [
+        {
+          "title": "30 days with the period picker, the questions and the forum help bot",
+          "code": "<ChatbotReportView report={report} locale=\"en-US\" siteUrl=\"https://example.com\" rangeOptions={[7, 30, 90]} onRangeChange={setDays} />"
+        },
+        {
+          "title": "90 days (lists cover the 30 days questions are kept), forum bot off, translated words",
+          "code": "<ChatbotReportView report={report} locale=\"de-DE\" messages={{ title: 'KI-Chat-Bericht' }} />"
+        },
+        {
+          "title": "Nobody has asked yet",
+          "code": "<ChatbotReportView report={emptyReport} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "ai-chatbot-outcome-badge",
+      "name": "ChatbotOutcomeBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/ai/report/ChatbotOutcomeBadge.tsx",
+      "abbr": "QO",
+      "description": "What one AI chat question ended in (answered with or without sources, sent to the forum, offered a quote, pointed to the team, could not answer, declined, held back, error), as an icon and words; status colours only where the outcome is a status.",
+      "source": "<ChatbotOutcomeBadge outcome=\"forum\" />",
+      "variants": [
+        {
+          "title": "Every outcome",
+          "code": "{CHATBOT_OUTCOMES.map((o) => <ChatbotOutcomeBadge key={o} outcome={o} />)}"
+        },
+        {
+          "title": "Small, translated",
+          "code": "<ChatbotOutcomeBadge outcome=\"unanswered\" size=\"sm\" label=\"Keine Antwort gefunden\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "ai-chatbot-questions-table",
+      "name": "ChatbotQuestionsTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/ai/report/ChatbotQuestionsTable.tsx",
+      "abbr": "QT",
+      "description": "The visitors' questions to the AI chat, newest first: searchable, filtered by outcome or \"could not answer\", 10 a page; a row opens to the sources shown, what the assistant searched for, the page, conversation, model, tokens and cost.",
+      "source": "<ChatbotQuestionsTable questions={report.questions} locale=\"en-US\" siteUrl=\"https://example.com\" />",
+      "variants": [
+        {
+          "title": "All questions",
+          "code": "<ChatbotQuestionsTable questions={questions} locale=\"en-US\" siteUrl=\"https://example.com\" />"
+        },
+        {
+          "title": "Filtered to the questions it could not answer, 5 a page",
+          "code": "<ChatbotQuestionsTable questions={questions} defaultOutcome={COULD_NOT_ANSWER_FILTER} pageSize={5} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "ai-forum-help-bot-card",
+      "name": "ForumHelpBotCard",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/ai/report/ForumHelpBotCard.tsx",
+      "abbr": "HB",
+      "description": "The forum help bot in a period: topics it looked at and what it did with each (answered, no sources, not answerable, stopped, errors, skipped, waiting) against the previous period, replies accepted as the solution, and the latest topics with their status.",
+      "source": "<ForumHelpBotCard report={report.forumBot} locale=\"en-US\" />",
+      "variants": [
+        {
+          "title": "On",
+          "code": "<ForumHelpBotCard report={forumBot} locale=\"en-US\" />"
+        },
+        {
+          "title": "Switched off (earlier topics still counted), 7 days",
+          "code": "<ForumHelpBotCard report={forumBot} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
       "designTokens": []
     },
     {

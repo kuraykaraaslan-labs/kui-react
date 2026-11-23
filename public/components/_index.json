@@ -2063,6 +2063,30 @@
     "category": "Domain",
     "file": "ai-usage-stats-card.md"
   },
+  "ai-chatbot-report-view": {
+    "name": "ChatbotReportView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "ai-chatbot-report-view.md"
+  },
+  "ai-chatbot-outcome-badge": {
+    "name": "ChatbotOutcomeBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "ai-chatbot-outcome-badge.md"
+  },
+  "ai-chatbot-questions-table": {
+    "name": "ChatbotQuestionsTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "ai-chatbot-questions-table.md"
+  },
+  "ai-forum-help-bot-card": {
+    "name": "ForumHelpBotCard",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "ai-forum-help-bot-card.md"
+  },
   "social-post-status-badge": {
     "name": "PostStatusBadge",
     "layer": "domain",
