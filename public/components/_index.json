@@ -1529,11 +1529,35 @@
     "category": "Domain",
     "file": "jobs-job-card.md"
   },
+  "jobs-apply-actions": {
+    "name": "JobApplyActions",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "jobs-apply-actions.md"
+  },
   "jobs-company-card": {
     "name": "CompanyCard",
     "layer": "domain",
     "category": "Domain",
     "file": "jobs-company-card.md"
+  },
+  "analytics-site-insights-view": {
+    "name": "SiteInsightsView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-site-insights-view.md"
+  },
+  "analytics-kpi-tile": {
+    "name": "InsightsKpiTile",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-kpi-tile.md"
+  },
+  "analytics-source-badge": {
+    "name": "InsightsSourceBadge",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-source-badge.md"
   },
   "fintech-wallet-status-badge": {
     "name": "WalletStatusBadge",

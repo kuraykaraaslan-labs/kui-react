@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-19T05:51:47.066Z",
+  "generatedAt": "2026-11-23T16:22:05.427Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -160,6 +160,21 @@
       "name": "--info-subtle",
       "light": "#ecfeff",
       "purpose": "Info background"
+    },
+    {
+      "name": "--chart-1",
+      "light": "#2a78d6",
+      "purpose": "Chart series 1 (categorical, fixed order)"
+    },
+    {
+      "name": "--chart-2",
+      "light": "#eb6834",
+      "purpose": "Chart series 2 (categorical, fixed order)"
+    },
+    {
+      "name": "--chart-3",
+      "light": "#1baf7a",
+      "purpose": "Chart series 3 (categorical, fixed order)"
     }
   ],
   "components": [
@@ -4972,6 +4987,18 @@
       "status": "stable",
       "since": "2026-05",
       "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "jobs-apply-actions",
+      "name": "JobApplyActions",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/jobs/job/JobApplyActions.tsx",
+      "abbr": "JA",
+      "description": "A job's apply buttons: \"Apply on <platform>\" for each job board or ATS the job is posted on (new tab, named from the address) and/or \"Apply now\" to the host's form. The first button is primary.",
+      "status": "stable",
+      "designTokens": [],
       "variantCount": 2
     },
     {
@@ -4984,6 +5011,45 @@
       "description": "Company profile card showing logo, name, industry, location, and open job count.",
       "status": "stable",
       "since": "2026-05",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "analytics-site-insights-view",
+      "name": "SiteInsightsView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/insights/SiteInsightsView.tsx",
+      "abbr": "IV",
+      "description": "A site's analytics and search data in one place: an Overview combining every connected search engine (Google, Bing, Yandex) beside Google Analytics, and a tab per source. KPIs against the previous period, one measure per chart axis, every number also in a table; sources that are not connected or failing say so.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "analytics-kpi-tile",
+      "name": "InsightsKpiTile",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/insights/InsightsKpiTile.tsx",
+      "abbr": "IK",
+      "description": "A headline number with its change against the previous period: arrow for direction, colour for good or bad (flipped for lower-is-better metrics such as average position).",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "analytics-source-badge",
+      "name": "InsightsSourceBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/insights/InsightsSourceBadge.tsx",
+      "abbr": "IB",
+      "description": "A data source and its state (connected, not connected, last fetch failed) with an icon and words, never colour alone.",
+      "status": "stable",
+      "since": "2026-11",
       "designTokens": [],
       "variantCount": 2
     },

@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-19T05:51:47.066Z",
+  "generatedAt": "2026-11-23T16:22:05.427Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -160,6 +160,21 @@
       "name": "--info-subtle",
       "light": "#ecfeff",
       "purpose": "Info background"
+    },
+    {
+      "name": "--chart-1",
+      "light": "#2a78d6",
+      "purpose": "Chart series 1 (categorical, fixed order)"
+    },
+    {
+      "name": "--chart-2",
+      "light": "#eb6834",
+      "purpose": "Chart series 2 (categorical, fixed order)"
+    },
+    {
+      "name": "--chart-3",
+      "light": "#1baf7a",
+      "purpose": "Chart series 3 (categorical, fixed order)"
     }
   ],
   "components": [
@@ -8290,10 +8305,36 @@
         {
           "title": "No badges",
           "code": "<JobCard job={job} showBadges={false} />"
+        },
+        {
+          "title": "Opens a job board (new tab)",
+          "code": "<JobCard job={job} href={job.applyLinks[0].url} external />"
         }
       ],
       "status": "stable",
       "since": "2026-05",
+      "designTokens": []
+    },
+    {
+      "id": "jobs-apply-actions",
+      "name": "JobApplyActions",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/jobs/job/JobApplyActions.tsx",
+      "abbr": "JA",
+      "description": "A job's apply buttons: \"Apply on <platform>\" for each job board or ATS the job is posted on (new tab, named from the address) and/or \"Apply now\" to the host's form. The first button is primary.",
+      "source": "import { JobApplyActions } from '@/modules/domains/jobs/job/JobApplyActions';\n<JobApplyActions job={job} />",
+      "variants": [
+        {
+          "title": "Applications elsewhere only",
+          "code": "<JobApplyActions job={{ applyLinks: [{ url: 'https://www.linkedin.com/jobs/view/…' }, { url: 'https://boards.greenhouse.io/…' }] }} />"
+        },
+        {
+          "title": "Form and a platform, in a row",
+          "code": "<JobApplyActions job={{ applyMode: 'BOTH', applyLinks: [{ url: 'https://www.indeed.com/…' }] }} applyHref=\"#apply\" layout=\"row\" />"
+        }
+      ],
+      "status": "stable",
       "designTokens": []
     },
     {
@@ -8317,6 +8358,75 @@
       ],
       "status": "stable",
       "since": "2026-05",
+      "designTokens": []
+    },
+    {
+      "id": "analytics-site-insights-view",
+      "name": "SiteInsightsView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/insights/SiteInsightsView.tsx",
+      "abbr": "IV",
+      "description": "A site's analytics and search data in one place: an Overview combining every connected search engine (Google, Bing, Yandex) beside Google Analytics, and a tab per source. KPIs against the previous period, one measure per chart axis, every number also in a table; sources that are not connected or failing say so.",
+      "source": "import { SiteInsightsView } from '@/modules/domains/analytics';\n<SiteInsightsView snapshot={snapshot} locale=\"en-US\" siteUrl=\"https://example.com\" onRefresh={refresh} />",
+      "variants": [
+        {
+          "title": "Overview (Google Analytics, Google Search and Bing connected; Yandex not)",
+          "code": "<SiteInsightsView snapshot={snapshot} locale=\"en-US\" siteUrl=\"https://example.com\" onRefresh={refresh} />"
+        },
+        {
+          "title": "One engine failing (its last data kept), all four connected",
+          "code": "<SiteInsightsView snapshot={snapshot} defaultTab=\"bing\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "analytics-kpi-tile",
+      "name": "InsightsKpiTile",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/insights/InsightsKpiTile.tsx",
+      "abbr": "IK",
+      "description": "A headline number with its change against the previous period: arrow for direction, colour for good or bad (flipped for lower-is-better metrics such as average position).",
+      "source": "<InsightsKpiTile label=\"Clicks\" value=\"1,912\" delta={{ change: 0.18, good: true }} deltaText=\"+18%\" caption=\"vs previous period\" />",
+      "variants": [
+        {
+          "title": "Up, down, lower is better, nothing to compare",
+          "code": "<InsightsKpiTile label=\"Avg. position\" value=\"12.4\" delta={{ change: -0.06, good: true }} deltaText=\"-6%\" caption=\"vs previous period\" hint=\"lower is better\" />"
+        },
+        {
+          "title": "Unchanged",
+          "code": "<InsightsKpiTile label=\"Sessions\" value=\"5,120\" delta={{ change: 0, good: null }} deltaText=\"0%\" caption=\"vs previous period\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "analytics-source-badge",
+      "name": "InsightsSourceBadge",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/insights/InsightsSourceBadge.tsx",
+      "abbr": "IB",
+      "description": "A data source and its state (connected, not connected, last fetch failed) with an icon and words, never colour alone.",
+      "source": "<InsightsSourceBadge label=\"Bing\" state=\"error\" stateLabel=\"Last fetch failed\" detail=\"The API answered 401\" />",
+      "variants": [
+        {
+          "title": "States",
+          "code": "<InsightsSourceBadge label=\"Google Search\" state=\"ok\" stateLabel=\"Connected\" />\n<InsightsSourceBadge label=\"Yandex\" state=\"off\" stateLabel=\"Not connected\" />\n<InsightsSourceBadge label=\"Bing\" state=\"error\" stateLabel=\"Last fetch failed\" detail=\"The API answered 401\" />"
+        },
+        {
+          "title": "Translated state words",
+          "code": "<InsightsSourceBadge label=\"Google Analytics\" state=\"ok\" stateLabel=\"Verbunden\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
       "designTokens": []
     },
     {

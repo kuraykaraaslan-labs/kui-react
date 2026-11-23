@@ -8,6 +8,7 @@
 //   import { ProductCard } from '@/modules/domains/commerce';
 
 export * as AI from './ai';
+export * as Analytics from './analytics';
 export * as ApiDoc from './api-doc';
 export * as Blog from './blog';
 export * as Commerce from './commerce';

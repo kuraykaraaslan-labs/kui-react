@@ -56,6 +56,13 @@
   --brand-tone-one: #3b82f6;
   --brand-tone-two: #8b5cf6;
   --brand-tile:     #0f172a;
+  /* Categorical chart series, fixed order (never cycled), for charts whose series are entities (search
+     engines, sources). Validated together as a set on --surface-raised: CVD separation and a normal-vision
+     floor, all pairs, light and dark (dataviz validate_palette). --chart-3 is under 3:1 on the light
+     surface: always ship a legend or a table beside it. Not the status colours. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
 }
 
 .dark {
@@ -108,6 +115,9 @@
   --brand-tone-one: #60a5fa;
   --brand-tone-two: #8b5cf6;
   --brand-tile:     #0f172a;
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
 }
 
 @theme inline {

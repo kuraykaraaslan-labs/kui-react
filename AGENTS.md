@@ -277,7 +277,7 @@ kui-react and kui-ejs are two implementations of the same design system (see `do
 
 - Shared verticals, kept in parity: `common`, `api-doc`.
 - Shared themes without a domain vertical: `scada` (WidgetKit SCADA console; its diagram editor page is React-only, kui-ejs has Overview and Diagram).
-- React-only by design (13 verticals): `ai`, `blog`, `commerce`, `event`, `fintech`, `food`, `forum`, `iot`, `jobs`, `landing`, `media`, `nft`, `real-estate`, `reviews`, `social`, `travel`.
+- React-only by design (17 verticals): `ai`, `analytics`, `blog`, `commerce`, `event`, `fintech`, `food`, `forum`, `iot`, `jobs`, `landing`, `media`, `nft`, `real-estate`, `reviews`, `social`, `travel`.
 - EJS-only by design: `invoice`, `modem`, `ups` — device/admin-panel demos with no React counterpart.
 - App-layer exceptions: kui-ejs deliberately reverted `Gantt` and `FormBuilder` after shipping them ("moved out of scope" commits) — do not re-add without deciding scope first.
 
@@ -286,6 +286,7 @@ Before adding a component to only one repo, check whether it belongs in the othe
 | Vertical | Directory | Sample components |
 |----------|-----------|-------------------|
 | AI | `ai/` | `ModelCard`, `ChatMessage`, `ChatInputBar`, `UsageStatsCard` |
+| Analytics | `analytics/` | `SiteInsightsView`, `InsightsKpiTile`, `InsightsSourceBadge`, `InsightsTopTable`, `combineInsights` |
 | API documentation | `api-doc/` | `EndpointRow`, `OperationPanel`, `SchemaViewer`, `ParameterTable` |
 | Blog | `blog/` | `PostCard`, `PostContent`, `CommentForm`, `CategoryBadge` |
 | Commerce | `commerce/` | `ProductCard`, `OrderCard`, `CartItem`, `StockStatusBadge` |

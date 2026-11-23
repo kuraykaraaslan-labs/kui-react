@@ -23,6 +23,12 @@ Summarises a job posting with company logo, title, badges, tags, and meta.
 <JobCard job={job} showBadges={false} />
 ```
 
+### Opens a job board (new tab)
+
+```tsx
+<JobCard job={job} href={job.applyLinks[0].url} external />
+```
+
 ## Full source
 
 ```tsx

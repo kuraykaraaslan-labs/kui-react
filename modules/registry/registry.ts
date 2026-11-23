@@ -76,6 +76,9 @@ const DESIGN_TOKENS: RegistryToken[] = [
   { name: '--error-subtle',    light: '#fef2f2', purpose: 'Error background' },
   { name: '--info',            light: '#06b6d4', purpose: 'Informational state' },
   { name: '--info-subtle',     light: '#ecfeff', purpose: 'Info background' },
+  { name: '--chart-1',         light: '#2a78d6', purpose: 'Chart series 1 (categorical, fixed order)' },
+  { name: '--chart-2',         light: '#eb6834', purpose: 'Chart series 2 (categorical, fixed order)' },
+  { name: '--chart-3',         light: '#1baf7a', purpose: 'Chart series 3 (categorical, fixed order)' },
 ];
 
 function inferLayer(filePath: string, isExternal: boolean): RegistryLayer {
