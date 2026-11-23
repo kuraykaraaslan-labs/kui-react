@@ -10,6 +10,19 @@ import { ModelComparisonTable, type ModelComparisonRow } from '@/modules/domains
 import { FeatureCheckCell } from '@/modules/domains/ai/compare/FeatureCheckCell';
 import { ModelScoreSparkline } from '@/modules/domains/ai/compare/ModelScoreSparkline';
 import type { AIModel, AIChatMessage, AIUsage } from '@/modules/domains/ai/types';
+import { useState } from 'react';
+import { ChatbotReportView } from '@/modules/domains/ai/report/ChatbotReportView';
+import { ChatbotOutcomeBadge } from '@/modules/domains/ai/report/ChatbotOutcomeBadge';
+import { ChatbotQuestionsTable, COULD_NOT_ANSWER_FILTER } from '@/modules/domains/ai/report/ChatbotQuestionsTable';
+import { ForumHelpBotCard } from '@/modules/domains/ai/report/ForumHelpBotCard';
+import { demoChatbotReport } from '@/modules/domains/ai/report/demo';
+import { CHATBOT_OUTCOMES } from '@/modules/domains/ai/report/types';
+
+/** The report with its period picker wired to the demo (7, 30 or 90 days). */
+function ChatbotReportDemo() {
+  const [days, setDays] = useState(30);
+  return <ChatbotReportView report={demoChatbotReport({ days })} locale="en-US" siteUrl="https://example.com" rangeOptions={[7, 30, 90]} onRangeChange={setDays} />;
+}
 
 /* ─── demo data ─── */
 
@@ -444,6 +457,122 @@ export function buildAIDomainData(): ShowcaseComponent[] {
             </div>
           ),
           code: `<UsageStatsCard usage={cheapUsage} />`,
+        },
+      ],
+    },
+    {
+      id: 'ai-chatbot-report-view',
+      title: 'ChatbotReportView',
+      category: 'Domain',
+      abbr: 'CQ',
+      description:
+        'How a site\'s AI chat assistant is used and what it could and could not answer: KPIs against the previous period (conversations, questions, answered from pages, handed on, could not answer, declined or held back, errors, estimated cost), how questions ended, questions per day in three groups, languages, the pages chats start on, what the assistant searched for, the questions it could not answer, every stored question (kept 30 days) and the forum help bot.',
+      filePath: 'modules/domains/ai/report/ChatbotReportView.tsx',
+      sourceCode: `import { ChatbotReportView } from '@/modules/domains/ai';
+<ChatbotReportView report={report} locale="en-US" siteUrl="https://example.com" rangeOptions={[7, 30, 90]} onRangeChange={setDays} />`,
+      variants: [
+        {
+          title: '30 days with the period picker, the questions and the forum help bot',
+          layout: 'stack',
+          preview: <ChatbotReportDemo />,
+          code: `<ChatbotReportView report={report} locale="en-US" siteUrl="https://example.com" rangeOptions={[7, 30, 90]} onRangeChange={setDays} />`,
+        },
+        {
+          title: '90 days (lists cover the 30 days questions are kept), forum bot off, translated words',
+          layout: 'stack',
+          preview: (
+            <ChatbotReportView
+              report={demoChatbotReport({ days: 90, forumBot: 'off', questionCap: 25 })}
+              locale="de-DE"
+              messages={{ title: 'KI-Chat-Bericht', conversations: 'Gespräche', questions: 'Fragen' }}
+            />
+          ),
+          code: `<ChatbotReportView report={report} locale="de-DE" messages={{ title: 'KI-Chat-Bericht' }} />`,
+        },
+        {
+          title: 'Nobody has asked yet',
+          layout: 'stack',
+          preview: <ChatbotReportView report={demoChatbotReport({ days: 7, empty: true, forumBot: 'none' })} locale="en-US" />,
+          code: `<ChatbotReportView report={emptyReport} />`,
+        },
+      ],
+    },
+    {
+      id: 'ai-chatbot-outcome-badge',
+      title: 'ChatbotOutcomeBadge',
+      category: 'Domain',
+      abbr: 'QO',
+      description: 'What one AI chat question ended in (answered with or without sources, sent to the forum, offered a quote, pointed to the team, could not answer, declined, held back, error), as an icon and words; status colours only where the outcome is a status.',
+      filePath: 'modules/domains/ai/report/ChatbotOutcomeBadge.tsx',
+      sourceCode: `<ChatbotOutcomeBadge outcome="forum" />`,
+      variants: [
+        {
+          title: 'Every outcome',
+          layout: 'stack',
+          preview: (
+            <div className="flex flex-wrap gap-2">
+              {CHATBOT_OUTCOMES.map((o) => <ChatbotOutcomeBadge key={o} outcome={o} />)}
+            </div>
+          ),
+          code: `{CHATBOT_OUTCOMES.map((o) => <ChatbotOutcomeBadge key={o} outcome={o} />)}`,
+        },
+        {
+          title: 'Small, translated',
+          layout: 'stack',
+          preview: (
+            <div className="flex flex-wrap gap-2">
+              <ChatbotOutcomeBadge outcome="sourced" size="sm" label="Mit Quellen beantwortet" />
+              <ChatbotOutcomeBadge outcome="unanswered" size="sm" label="Keine Antwort gefunden" />
+              <ChatbotOutcomeBadge outcome="error" size="sm" label="Fehler" />
+            </div>
+          ),
+          code: `<ChatbotOutcomeBadge outcome="unanswered" size="sm" label="Keine Antwort gefunden" />`,
+        },
+      ],
+    },
+    {
+      id: 'ai-chatbot-questions-table',
+      title: 'ChatbotQuestionsTable',
+      category: 'Domain',
+      abbr: 'QT',
+      description: 'The visitors\' questions to the AI chat, newest first: searchable, filtered by outcome or "could not answer", 10 a page; a row opens to the sources shown, what the assistant searched for, the page, conversation, model, tokens and cost.',
+      filePath: 'modules/domains/ai/report/ChatbotQuestionsTable.tsx',
+      sourceCode: `<ChatbotQuestionsTable questions={report.questions} locale="en-US" siteUrl="https://example.com" />`,
+      variants: [
+        {
+          title: 'All questions',
+          layout: 'stack',
+          preview: <ChatbotQuestionsTable questions={demoChatbotReport().questions} locale="en-US" siteUrl="https://example.com" />,
+          code: `<ChatbotQuestionsTable questions={questions} locale="en-US" siteUrl="https://example.com" />`,
+        },
+        {
+          title: 'Filtered to the questions it could not answer, 5 a page',
+          layout: 'stack',
+          preview: <ChatbotQuestionsTable questions={demoChatbotReport().questions} locale="en-US" defaultOutcome={COULD_NOT_ANSWER_FILTER} pageSize={5} />,
+          code: `<ChatbotQuestionsTable questions={questions} defaultOutcome={COULD_NOT_ANSWER_FILTER} pageSize={5} />`,
+        },
+      ],
+    },
+    {
+      id: 'ai-forum-help-bot-card',
+      title: 'ForumHelpBotCard',
+      category: 'Domain',
+      abbr: 'HB',
+      description: 'The forum help bot in a period: topics it looked at and what it did with each (answered, no sources, not answerable, stopped, errors, skipped, waiting) against the previous period, replies accepted as the solution, and the latest topics with their status.',
+      filePath: 'modules/domains/ai/report/ForumHelpBotCard.tsx',
+      sourceCode: `<ForumHelpBotCard report={report.forumBot} locale="en-US" />`,
+      variants: [
+        {
+          title: 'On',
+          layout: 'stack',
+          preview: <ForumHelpBotCard report={demoChatbotReport().forumBot!} locale="en-US" />,
+          code: `<ForumHelpBotCard report={forumBot} locale="en-US" />`,
+        },
+        {
+          title: 'Switched off (earlier topics still counted), 7 days',
+          layout: 'stack',
+          preview: <ForumHelpBotCard report={demoChatbotReport({ days: 7, forumBot: 'off' }).forumBot!} locale="en-US" />,
+          code: `<ForumHelpBotCard report={forumBot} />`,
         },
       ],
     },
