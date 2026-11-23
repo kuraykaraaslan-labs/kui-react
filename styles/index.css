@@ -54,6 +54,11 @@
   --info:            #06b6d4;
   --info-subtle:     #ecfeff;
   --info-fg:         #164e63;
+
+  /* Categorical chart series, fixed order (see app/globals.css for the validation note). */
+  --chart-1:         #2a78d6;
+  --chart-2:         #eb6834;
+  --chart-3:         #1baf7a;
 }
 
 .dark {
@@ -103,6 +108,10 @@
   --info:            #22d3ee;
   --info-subtle:     #083344;
   --info-fg:         #cffafe;
+
+  --chart-1:         #3987e5;
+  --chart-2:         #d95926;
+  --chart-3:         #199e70;
 }
 
 /* Sidebar scrollbar utility — used by AppSidebar */

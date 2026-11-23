@@ -55,9 +55,9 @@ export const INSIGHTS_TOP_LIMIT = 25
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
 
+/** A source counts when it is not off and has days or any totals (the PHP port's rule, byte for byte). */
 function hasData(s: { days?: unknown[]; totals?: Record<string, unknown> }): boolean {
-  if ((s.days ?? []).length > 0) return true
-  return Object.values(s.totals ?? {}).some((v) => num(v) > 0)
+  return (s.days ?? []).length > 0 || Object.keys(s.totals ?? {}).length > 0
 }
 
 /** The engines that count, in the fixed engine order. */
