@@ -1,10 +1,11 @@
-import type { InsightsSnapshot, InsightsSourceState } from '../types'
+import type { InsightsSnapshot, InsightsSourceState, VitalsByFormFactor, VitalsHistoryRow, VitalsSource } from '../types'
 
 /**
  * A deterministic demo snapshot (showcase and tests): 28 days ending 2026-11-22, Google Analytics, Google Search and
- * Bing connected, Yandex as asked. Numbers follow a weekly rhythm with a slow rise, so charts look like a real site.
+ * Bing connected, Yandex as asked, Core Web Vitals (Chrome UX Report) as asked (connected by default). Numbers follow a
+ * weekly rhythm with a slow rise, so charts look like a real site.
  */
-export function demoInsightsSnapshot(opts: { yandex?: InsightsSourceState; bing?: InsightsSourceState; analytics?: InsightsSourceState } = {}): InsightsSnapshot {
+export function demoInsightsSnapshot(opts: { yandex?: InsightsSourceState; bing?: InsightsSourceState; analytics?: InsightsSourceState; vitals?: InsightsSourceState } = {}): InsightsSnapshot {
   const days = 28
   const end = Date.UTC(2026, 10, 22)
   const dates = Array.from({ length: days }, (_, i) => new Date(end - (days - 1 - i) * 86400000).toISOString().slice(0, 10))
@@ -88,6 +89,81 @@ export function demoInsightsSnapshot(opts: { yandex?: InsightsSourceState; bing?
       searchSource('gsc', 'Google Search', 'ok', gscDays, gscT, 6.2, 1.18),
       searchSource('bing', 'Bing', opts.bing ?? 'ok', bingDays, bingT, 4.1, 1.07),
       searchSource('yandex', 'Yandex', opts.yandex ?? 'off', yandexDays, yandexT, 3.3, 0.94),
+      demoVitalsSource(opts.vitals ?? 'ok', pages.map(([key]) => key)),
     ],
   }
 }
+
+type V = [p75: number, good: number, needsImprovement: number, poor: number]
+const vital = ([p75, good, needsImprovement, poor]: V) => ({ p75, good, needsImprovement, poor })
+const metrics = (lcp: V, inp: V | null, cls: V, fcp: V, ttfb: V) => ({
+  lcp: vital(lcp), ...(inp ? { inp: vital(inp) } : {}), cls: vital(cls), fcp: vital(fcp), ttfb: vital(ttfb),
+})
+
+/**
+ * The demo's Core Web Vitals: phones fail the assessment on LCP, desktops pass; two pages have too few visits for
+ * CrUX and one has desktop data only; 25 weekly collection periods in which phones get slowly faster.
+ */
+export function demoVitalsSource(state: InsightsSourceState, paths: string[] = ['/']): VitalsSource {
+  const origin = 'https://example.com'
+  const base = { id: 'crux' as const, kind: 'vitals' as const, label: 'Core Web Vitals', origin }
+  if (state === 'off') return { ...base, state, message: '', fetchedAt: null, originVitals: {}, urls: [], history: {} }
+  const originVitals: VitalsByFormFactor = {
+    phone: metrics([2870, 0.68, 0.21, 0.11], [168, 0.81, 0.14, 0.05], [0.04, 0.89, 0.07, 0.04], [1940, 0.71, 0.2, 0.09], [910, 0.64, 0.27, 0.09]),
+    desktop: metrics([1720, 0.86, 0.1, 0.04], [64, 0.95, 0.04, 0.01], [0.06, 0.84, 0.11, 0.05], [1190, 0.85, 0.11, 0.04], [620, 0.79, 0.16, 0.05]),
+  }
+  // Per page: a factor on the origin's p75s (and shares); null = CrUX has too few visits for it.
+  const pageShape: Record<string, { phone: number | null; desktop: number | null }> = {
+    '/': { phone: 1, desktop: 1 },
+    '/pricing/': { phone: 1.5, desktop: 1.2 },
+    '/scada/': { phone: 0.8, desktop: 0.85 },
+    '/docs/getting-started/': { phone: 0.7, desktop: 0.75 },
+    '/platform/devices/': { phone: null, desktop: 1.1 },
+  }
+  const scaled = (m: NonNullable<VitalsByFormFactor['phone']>, f: number) => {
+    const out: NonNullable<VitalsByFormFactor['phone']> = {}
+    for (const [k, v] of Object.entries(m) as [keyof typeof m, NonNullable<(typeof m)['lcp']>][]) {
+      const good = Math.max(0.05, Math.min(0.97, v.good / f))
+      const poor = Math.max(0.01, Math.min(0.9, v.poor * f))
+      const ni = Math.max(0, 1 - good - poor)
+      out[k] = { p75: k === 'cls' ? Math.round(v.p75 * f * 100) / 100 : Math.round(v.p75 * f), good: round4(good), needsImprovement: round4(ni), poor: round4(poor) }
+    }
+    return out
+  }
+  const urls = paths.map((key) => {
+    const shape = pageShape[key] ?? { phone: null, desktop: null }
+    const vitals: VitalsByFormFactor = {}
+    if (shape.phone !== null) vitals.phone = scaled(originVitals.phone!, shape.phone)
+    if (shape.desktop !== null) vitals.desktop = scaled(originVitals.desktop!, shape.desktop)
+    return { url: `${origin}${key}`, key, vitals }
+  })
+  const lastEnd = Date.UTC(2026, 10, 21)
+  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+  const history = (from: Record<string, number>, to: Record<string, number>, gap?: { at: number; metric: string }): VitalsHistoryRow[] =>
+    Array.from({ length: 25 }, (_, i) => {
+      const end = lastEnd - (24 - i) * 7 * 86400000
+      const t = i / 24
+      const wobble = Math.sin(i * 1.3) * 0.03
+      const row: VitalsHistoryRow = { start: iso(end - 27 * 86400000), end: iso(end) }
+      for (const k of Object.keys(to) as ('lcp' | 'inp' | 'cls' | 'fcp' | 'ttfb')[]) {
+        const v = (from[k] + (to[k] - from[k]) * t) * (1 + wobble)
+        row[k] = gap && gap.at === i && gap.metric === k ? null : k === 'cls' ? Math.round(v * 100) / 100 : Math.round(v)
+      }
+      return row
+    })
+  return {
+    ...base,
+    state,
+    message: state === 'error' ? 'Chrome UX Report: HTTP 429 (Quota exceeded).' : '',
+    fetchedAt: state === 'error' ? '2026-11-21T06:00:00Z' : '2026-11-23T06:00:00Z',
+    range: { start: iso(lastEnd - 27 * 86400000), end: iso(lastEnd), days: 28 },
+    originVitals,
+    urls,
+    history: {
+      phone: history({ lcp: 3420, inp: 236, cls: 0.09, fcp: 2210, ttfb: 1010 }, { lcp: 2870, inp: 168, cls: 0.04, fcp: 1940, ttfb: 910 }),
+      desktop: history({ lcp: 1980, inp: 81, cls: 0.07, fcp: 1310, ttfb: 690 }, { lcp: 1720, inp: 64, cls: 0.06, fcp: 1190, ttfb: 620 }, { at: 3, metric: 'inp' }),
+    },
+  }
+}
+
+const round4 = (v: number) => Math.round(v * 10000) / 10000

@@ -3,7 +3,11 @@ import type { ShowcaseComponent } from '../showcase.types';
 import { SiteInsightsView } from '@/modules/domains/analytics/insights/SiteInsightsView';
 import { InsightsKpiTile } from '@/modules/domains/analytics/insights/InsightsKpiTile';
 import { InsightsSourceBadge } from '@/modules/domains/analytics/insights/InsightsSourceBadge';
+import { InsightsVitalTile } from '@/modules/domains/analytics/insights/InsightsVitalTile';
 import { demoInsightsSnapshot } from '@/modules/domains/analytics/insights/demo';
+
+const VITAL_LABELS = { good: 'Good', 'needs-improvement': 'Needs improvement', poor: 'Poor' } as const;
+const share = (f: number) => `${Math.round(f * 100)}%`;
 
 export function buildAnalyticsDomainData(): ShowcaseComponent[] {
   return [
@@ -13,7 +17,7 @@ export function buildAnalyticsDomainData(): ShowcaseComponent[] {
       category: 'Domain',
       abbr: 'IV',
       description:
-        'A site\'s analytics and search data in one place: an Overview combining every connected search engine (Google, Bing, Yandex) beside Google Analytics, and a tab per source. KPIs against the previous period, one measure per chart axis, every number also in a table; sources that are not connected or failing say so.',
+        'A site\'s analytics and search data in one place: an Overview combining every connected search engine (Google, Bing, Yandex) beside Google Analytics, and a tab per source. KPIs against the previous period, one measure per chart axis, every number also in a table; sources that are not connected or failing say so. The Core Web Vitals tab shows real-user data from the Chrome UX Report per device: a tile per metric (p75, rating, distribution), the weekly p75 history with the good and poor thresholds, and the top pages.',
       filePath: 'modules/domains/analytics/insights/SiteInsightsView.tsx',
       sourceCode: `import { SiteInsightsView } from '@/modules/domains/analytics';
 <SiteInsightsView snapshot={snapshot} locale="en-US" siteUrl="https://example.com" onRefresh={refresh} />`,
@@ -29,6 +33,48 @@ export function buildAnalyticsDomainData(): ShowcaseComponent[] {
           layout: 'stack',
           preview: <SiteInsightsView snapshot={demoInsightsSnapshot({ yandex: 'ok', bing: 'error' })} locale="en-US" defaultTab="bing" />,
           code: `<SiteInsightsView snapshot={snapshot} defaultTab="bing" />`,
+        },
+        {
+          title: 'Core Web Vitals tab (Chrome UX Report: phones fail on LCP, desktops pass)',
+          layout: 'stack',
+          preview: <SiteInsightsView snapshot={demoInsightsSnapshot()} locale="en-US" defaultTab="crux" />,
+          code: `<SiteInsightsView snapshot={snapshot} locale="en-US" defaultTab="crux" />`,
+        },
+      ],
+    },
+    {
+      id: 'analytics-vital-tile',
+      title: 'InsightsVitalTile',
+      category: 'Domain',
+      abbr: 'WV',
+      description:
+        'One Web Vital of real users (Chrome UX Report): the 75th percentile, its rating as a status pill (icon + words) and the share of page loads rated good, needs improvement and poor as a thin status-coloured segmented bar, each share printed beside its rating icon.',
+      filePath: 'modules/domains/analytics/insights/InsightsVitalTile.tsx',
+      sourceCode: `<InsightsVitalTile abbr="LCP" name="Largest Contentful Paint" value="2.9 s" rating="needs-improvement"
+  shares={{ good: 0.68, needsImprovement: 0.21, poor: 0.11 }} labels={labels} formatShare={pct} caption="75th percentile" coreLabel="Core Web Vital" />`,
+      variants: [
+        {
+          title: 'Good, needs improvement, poor',
+          layout: 'stack',
+          preview: (
+            <div className="grid gap-3 md:grid-cols-3">
+              <InsightsVitalTile abbr="INP" name="Interaction to Next Paint" value="168 ms" rating="good" shares={{ good: 0.81, needsImprovement: 0.14, poor: 0.05 }} labels={VITAL_LABELS} formatShare={share} caption="75th percentile" coreLabel="Core Web Vital" />
+              <InsightsVitalTile abbr="LCP" name="Largest Contentful Paint" value="2.9 s" rating="needs-improvement" shares={{ good: 0.68, needsImprovement: 0.21, poor: 0.11 }} labels={VITAL_LABELS} formatShare={share} caption="75th percentile" coreLabel="Core Web Vital" />
+              <InsightsVitalTile abbr="TTFB" name="Time to First Byte" value="2.1 s" rating="poor" shares={{ good: 0.31, needsImprovement: 0.3, poor: 0.39 }} labels={VITAL_LABELS} formatShare={share} caption="75th percentile" />
+            </div>
+          ),
+          code: `<InsightsVitalTile abbr="TTFB" name="Time to First Byte" value="2.1 s" rating="poor" shares={{ good: 0.31, needsImprovement: 0.3, poor: 0.39 }} labels={labels} formatShare={pct} />`,
+        },
+        {
+          title: 'Not enough data; a unitless metric with no poor loads',
+          layout: 'stack',
+          preview: (
+            <div className="grid max-w-xl gap-3 md:grid-cols-2">
+              <InsightsVitalTile abbr="INP" name="Interaction to Next Paint" labels={VITAL_LABELS} formatShare={share} coreLabel="Core Web Vital" notEnoughData="Not enough data" />
+              <InsightsVitalTile abbr="CLS" name="Cumulative Layout Shift" value="0.02" rating="good" shares={{ good: 0.96, needsImprovement: 0.04, poor: 0 }} labels={VITAL_LABELS} formatShare={share} caption="75th percentile" coreLabel="Core Web Vital" />
+            </div>
+          ),
+          code: `<InsightsVitalTile abbr="INP" name="Interaction to Next Paint" labels={labels} formatShare={pct} notEnoughData="Not enough data" />`,
         },
       ],
     },

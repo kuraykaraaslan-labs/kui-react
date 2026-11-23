@@ -12,6 +12,8 @@ import { TabGroup } from '@/modules/ui/TabGroup';
 import { LineChart } from '@/modules/ui/Chart/charts/LineChart';
 import type { Series } from '@/modules/ui/Chart/types';
 import type { AnalyticsSource, InsightsSnapshot, InsightsSource, SearchEngineId, SearchSource } from '../types';
+import { InsightsVitalsSummary, InsightsVitalsTab } from './InsightsVitalsTab';
+import { activeVitals } from './vitals';
 import { combineInsights, insightsDelta } from './combineInsights';
 import { ENGINE_COLOR, SINGLE_SERIES_COLOR, insightsFormat, type InsightsFormat } from './format';
 import { InsightsKpiTile } from './InsightsKpiTile';
@@ -20,7 +22,7 @@ import { InsightsTopTable } from './InsightsTopTable';
 import { DEFAULT_SITE_INSIGHTS_MESSAGES, fillInsights, type SiteInsightsMessages } from './messages';
 
 type SiteInsightsViewProps = {
-  /** The cached snapshot the host fetched (GA4, Search Console, Bing, Yandex). */
+  /** The cached snapshot the host fetched (GA4, Search Console, Bing, Yandex, Chrome UX Report). */
   snapshot: InsightsSnapshot;
   /** Number and date formats (BCP 47). Default = the browser's. */
   locale?: string;
@@ -215,6 +217,7 @@ function AnalyticsTab({ source, fmt, m, locale, siteUrl }: { source: AnalyticsSo
 
 function OverviewTab({ snapshot, fmt, m, locale, siteUrl }: { snapshot: InsightsSnapshot; fmt: InsightsFormat; m: SiteInsightsMessages; locale?: string; siteUrl?: string }) {
   const c = useMemo(() => combineInsights(snapshot), [snapshot]);
+  const vitals = activeVitals(snapshot);
   const engines = c.byEngine.map((e) => ({ id: e.id, label: e.label }));
   const a = c.analytics;
   const kpis: Kpi[] = [];
@@ -232,7 +235,15 @@ function OverviewTab({ snapshot, fmt, m, locale, siteUrl }: { snapshot: Insights
       { label: m.views, value: fmt.int(a.totals.views ?? 0), current: a.totals.views ?? 0, previous: a.previousTotals.views },
     );
   }
-  if (!engines.length && !a) return <OffState m={m} />;
+  if (!engines.length && !a) {
+    if (!vitals) return <OffState m={m} />;
+    return (
+      <div className="flex flex-col gap-4">
+        <InsightsVitalsSummary source={vitals} m={m} locale={locale} />
+        <Callout variant="info" title={null}>{m.noSearch}</Callout>
+      </div>
+    );
+  }
 
   const clickSeries: Series[] = c.byEngine.map((e) =>
     engineSeries(e.id, e.label, c.days.map((d) => ({ x: d.date, y: d.engines[e.id] ?? null }))),
@@ -256,6 +267,7 @@ function OverviewTab({ snapshot, fmt, m, locale, siteUrl }: { snapshot: Insights
           </Card>
         )}
       </div>
+      {vitals && <InsightsVitalsSummary source={vitals} m={m} locale={locale} />}
       {!engines.length && <Callout variant="info" title={null}>{m.noSearch}</Callout>}
       {engines.length > 0 && (
         <Card title={m.engineShare}>
@@ -293,9 +305,10 @@ function OverviewTab({ snapshot, fmt, m, locale, siteUrl }: { snapshot: Insights
 
 /**
  * SiteInsightsView — a site's analytics and search data in one place: an Overview that combines every connected
- * search engine (and puts the analytics source beside it), and a tab per source (Google Analytics, Google Search,
- * Bing, Yandex). Headline numbers compare with the previous period of the same length; charts show one measure per
- * axis; every number is also in a table. The host fetches and caches the snapshot (`InsightsSnapshot`); this view
+ * search engine (and puts the analytics source beside it, with a Core Web Vitals line per device), and a tab per
+ * source (Google Analytics, Google Search, Bing, Yandex, Core Web Vitals from the Chrome UX Report). Headline numbers
+ * compare with the previous period of the same length; charts show one measure per axis; every number is also in a
+ * table. The host fetches and caches the snapshot (`InsightsSnapshot`); this view
  * only reads it. Sources that are not connected say so instead of showing empty charts.
  */
 export function SiteInsightsView({ snapshot, locale, messages, onRefresh, refreshing = false, siteUrl, defaultTab = 'overview', className }: SiteInsightsViewProps) {
@@ -310,7 +323,9 @@ export function SiteInsightsView({ snapshot, locale, messages, onRefresh, refres
       label: s.label,
       content: s.kind === 'analytics'
         ? <AnalyticsTab source={s} fmt={fmt} m={m} locale={locale} siteUrl={siteUrl} />
-        : <SearchTab source={s} fmt={fmt} m={m} locale={locale} siteUrl={siteUrl} />,
+        : s.kind === 'vitals'
+          ? (s.state === 'off' ? <OffState m={m} /> : <div className="flex flex-col gap-4"><StateNotes source={s} fmt={fmt} m={m} /><InsightsVitalsTab source={s} fmt={fmt} m={m} locale={locale} /></div>)
+          : <SearchTab source={s} fmt={fmt} m={m} locale={locale} siteUrl={siteUrl} />,
     })),
   ];
 

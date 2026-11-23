@@ -375,6 +375,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'analytics-site-insights-view', title: 'SiteInsightsView',    category: 'Domain', abbr: 'IV', since: '2026-11' },
       { id: 'analytics-kpi-tile',           title: 'InsightsKpiTile',     category: 'Domain', abbr: 'IK', since: '2026-11' },
       { id: 'analytics-source-badge',       title: 'InsightsSourceBadge', category: 'Domain', abbr: 'IB', since: '2026-11' },
+      { id: 'analytics-vital-tile',         title: 'InsightsVitalTile',   category: 'Domain', abbr: 'WV', since: '2026-11' },
     ],
   },
   {

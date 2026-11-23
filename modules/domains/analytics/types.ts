@@ -2,13 +2,14 @@ import { z } from 'zod'
 
 /* =========================================================
    SITE INSIGHTS — one snapshot of a site's analytics and search data
-   (Google Analytics 4, Google Search Console, Bing Webmaster, Yandex Webmaster).
+   (Google Analytics 4, Google Search Console, Bing Webmaster, Yandex Webmaster) and its real-user
+   Core Web Vitals (Chrome UX Report).
    The host fetches and caches it; the view only reads it. The WordPress port
    (kui-wordpress-saas plugin/kui-insights) produces exactly this shape.
 ========================================================= */
 
-export const InsightsSourceIdEnum = z.enum(['ga4', 'gsc', 'bing', 'yandex'])
-export const InsightsSourceKindEnum = z.enum(['analytics', 'search'])
+export const InsightsSourceIdEnum = z.enum(['ga4', 'gsc', 'bing', 'yandex', 'crux'])
+export const InsightsSourceKindEnum = z.enum(['analytics', 'search', 'vitals'])
 /** `off`: not configured. `error`: the last fetch failed (its last good data, if any, is kept). */
 export const InsightsSourceStateEnum = z.enum(['ok', 'off', 'error'])
 
@@ -69,7 +70,77 @@ export const SearchSourceSchema = SourceBaseSchema.extend({
   topPages: z.array(SearchRowSchema).default([]),
 })
 
-export const InsightsSourceSchema = z.discriminatedUnion('kind', [AnalyticsSourceSchema, SearchSourceSchema])
+/* ---------------------------------------------------------
+   CORE WEB VITALS (Chrome UX Report): real Chrome users over a 28-day collection period
+--------------------------------------------------------- */
+
+/** Largest Contentful Paint, Interaction to Next Paint, Cumulative Layout Shift, First Contentful Paint, Time to First Byte. */
+export const VitalMetricEnum = z.enum(['lcp', 'inp', 'cls', 'fcp', 'ttfb'])
+/** CrUX's device split; `all` when the data has no split (too few visits per device). */
+export const VitalFormFactorEnum = z.enum(['phone', 'desktop', 'all'])
+export const VitalRatingEnum = z.enum(['good', 'needs-improvement', 'poor'])
+
+const share = z.number().min(0).max(1).default(0)
+
+/**
+ * One metric: its 75th percentile (milliseconds; CLS unitless) and the share of page loads rated good, needs
+ * improvement and poor (fractions adding up to 1). A metric CrUX has no data for is left out.
+ */
+export const VitalValueSchema = z.object({
+  p75: z.number().nonnegative(),
+  good: share,
+  needsImprovement: share,
+  poor: share,
+})
+
+export const VitalsMetricsSchema = z.object({
+  lcp: VitalValueSchema.optional(),
+  inp: VitalValueSchema.optional(),
+  cls: VitalValueSchema.optional(),
+  fcp: VitalValueSchema.optional(),
+  ttfb: VitalValueSchema.optional(),
+})
+
+/** A value per form factor; a form factor without data is left out. */
+const byFormFactor = <T extends z.ZodTypeAny>(item: T) => z.object({ phone: item.optional(), desktop: item.optional(), all: item.optional() })
+
+export const VitalsByFormFactorSchema = byFormFactor(VitalsMetricsSchema)
+
+/** A page of the site: `url` absolute (what CrUX was asked), `key` its path. No form factor = not enough data. */
+export const VitalsUrlSchema = z.object({
+  url: z.string(),
+  key: z.string(),
+  vitals: VitalsByFormFactorSchema.default({}),
+})
+
+const p75 = z.number().nonnegative().nullable().optional()
+
+/** One collection period of the history (28 days ending `end`, a week apart): the origin's p75s, null without data. */
+export const VitalsHistoryRowSchema = z.object({
+  start: z.string(),
+  end: z.string(),
+  lcp: p75,
+  inp: p75,
+  cls: p75,
+  fcp: p75,
+  ttfb: p75,
+})
+
+export const VitalsHistorySchema = byFormFactor(z.array(VitalsHistoryRowSchema))
+
+/**
+ * Core Web Vitals of the site's origin and of its top pages, per form factor, with up to 25 weekly collection
+ * periods of the origin's p75s (oldest first). `range` is the latest collection period.
+ */
+export const VitalsSourceSchema = SourceBaseSchema.extend({
+  kind: z.literal('vitals'),
+  origin: z.string().default(''),
+  originVitals: VitalsByFormFactorSchema.default({}),
+  urls: z.array(VitalsUrlSchema).default([]),
+  history: VitalsHistorySchema.default({}),
+})
+
+export const InsightsSourceSchema = z.discriminatedUnion('kind', [AnalyticsSourceSchema, SearchSourceSchema, VitalsSourceSchema])
 
 export const InsightsSnapshotSchema = z.object({
   generatedAt: z.string().nullable().default(null),
@@ -94,6 +165,15 @@ export type AnalyticsPageRow = z.infer<typeof AnalyticsPageRowSchema>
 export type ChannelRow = z.infer<typeof ChannelRowSchema>
 export type AnalyticsSource = z.infer<typeof AnalyticsSourceSchema>
 export type SearchSource = z.infer<typeof SearchSourceSchema>
+export type VitalsSource = z.infer<typeof VitalsSourceSchema>
+export type VitalMetric = z.infer<typeof VitalMetricEnum>
+export type VitalFormFactor = z.infer<typeof VitalFormFactorEnum>
+export type VitalRating = z.infer<typeof VitalRatingEnum>
+export type VitalValue = z.infer<typeof VitalValueSchema>
+export type VitalsMetrics = z.infer<typeof VitalsMetricsSchema>
+export type VitalsByFormFactor = z.infer<typeof VitalsByFormFactorSchema>
+export type VitalsUrl = z.infer<typeof VitalsUrlSchema>
+export type VitalsHistoryRow = z.infer<typeof VitalsHistoryRowSchema>
 export type InsightsSource = z.infer<typeof InsightsSourceSchema>
 export type InsightsSnapshot = z.infer<typeof InsightsSnapshotSchema>
 

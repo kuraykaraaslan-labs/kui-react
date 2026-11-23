@@ -1,6 +1,6 @@
 /**
  * The words of the site insights view, English by default. A host passes `messages` (any subset) to translate them.
- * `{count}`, `{date}`, `{start}`, `{end}` and `{days}` are filled in.
+ * `{count}`, `{date}`, `{start}`, `{end}`, `{days}`, `{metric}` and `{value}` are filled in.
  */
 export const DEFAULT_SITE_INSIGHTS_MESSAGES = {
   title: 'Site insights',
@@ -47,6 +47,38 @@ export const DEFAULT_SITE_INSIGHTS_MESSAGES = {
   lowerIsBetter: 'lower is better',
   chooseMetric: 'Metric shown',
   searchPlaceholder: 'Search…',
+  // Core Web Vitals
+  vitalsTitle: 'Core Web Vitals',
+  vitalsPeriod: 'Real Chrome users, {start} – {end}',
+  vitalsNoData: 'Chrome does not have enough real-user data for this site yet.',
+  formFactor: 'Device',
+  phone: 'Phone',
+  desktop: 'Desktop',
+  allDevices: 'All devices',
+  lcp: 'Largest Contentful Paint',
+  inp: 'Interaction to Next Paint',
+  cls: 'Cumulative Layout Shift',
+  fcp: 'First Contentful Paint',
+  ttfb: 'Time to First Byte',
+  coreVital: 'Core Web Vital',
+  ratingGood: 'Good',
+  ratingNeedsImprovement: 'Needs improvement',
+  ratingPoor: 'Poor',
+  notEnoughData: 'Not enough data',
+  p75: '75th percentile',
+  metric: 'Metric',
+  assessment: 'Core Web Vitals assessment',
+  assessmentPassed: 'Passed',
+  assessmentFailed: 'Failed',
+  goodUpTo: 'Good ≤ {value}',
+  poorOver: 'Poor > {value}',
+  vitalsHistory: '{metric} over time (75th percentile)',
+  vitalsHistoryEmpty: 'No history yet.',
+  periodEnd: '28 days ending',
+  vitalsPages: 'Pages',
+  showTable: 'Show as a table',
+  ratingLegend: 'Ratings',
+  rating: 'Rating',
 }
 
 export type SiteInsightsMessages = typeof DEFAULT_SITE_INSIGHTS_MESSAGES
