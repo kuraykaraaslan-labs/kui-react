@@ -376,6 +376,9 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'analytics-kpi-tile',           title: 'InsightsKpiTile',     category: 'Domain', abbr: 'IK', since: '2026-11' },
       { id: 'analytics-source-badge',       title: 'InsightsSourceBadge', category: 'Domain', abbr: 'IB', since: '2026-11' },
       { id: 'analytics-vital-tile',         title: 'InsightsVitalTile',   category: 'Domain', abbr: 'WV', since: '2026-11' },
+      { id: 'analytics-security-summary-view', title: 'SecuritySummaryView', category: 'Domain', abbr: 'YS', since: '2026-11' },
+      { id: 'analytics-security-status-line', title: 'SecurityStatusLine',  category: 'Domain', abbr: 'YL', since: '2026-11' },
+      { id: 'analytics-security-breakdown',   title: 'SecurityBreakdown',   category: 'Domain', abbr: 'YB', since: '2026-11' },
     ],
   },
   {

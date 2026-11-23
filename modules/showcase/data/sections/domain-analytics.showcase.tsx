@@ -5,6 +5,26 @@ import { InsightsKpiTile } from '@/modules/domains/analytics/insights/InsightsKp
 import { InsightsSourceBadge } from '@/modules/domains/analytics/insights/InsightsSourceBadge';
 import { InsightsVitalTile } from '@/modules/domains/analytics/insights/InsightsVitalTile';
 import { demoInsightsSnapshot } from '@/modules/domains/analytics/insights/demo';
+import { useState } from 'react';
+import { SecuritySummaryView } from '@/modules/domains/analytics/security/SecuritySummaryView';
+import { SecurityStatusLine } from '@/modules/domains/analytics/security/SecurityStatusLine';
+import { SecurityBreakdown } from '@/modules/domains/analytics/security/SecurityBreakdown';
+import { demoSecuritySnapshot } from '@/modules/domains/analytics/security/demo';
+import { shareRows } from '@/modules/domains/analytics/security/summary';
+import { insightsFormat } from '@/modules/domains/analytics/insights/format';
+
+/** The summary with its range buttons wired (the demo only rebuilds the snapshot for the chosen length). */
+function SecuritySummaryDemo() {
+  const [days, setDays] = useState(30);
+  return (
+    <SecuritySummaryView
+      snapshot={demoSecuritySnapshot({ days, open: 'health' })}
+      locale="en-US"
+      rangeOptions={[7, 30, 90]}
+      onRangeChange={setDays}
+    />
+  );
+}
 
 const VITAL_LABELS = { good: 'Good', 'needs-improvement': 'Needs improvement', poor: 'Poor' } as const;
 const share = (f: number) => `${Math.round(f * 100)}%`;
@@ -145,6 +165,101 @@ export function buildAnalyticsDomainData(): ShowcaseComponent[] {
             </div>
           ),
           code: `<InsightsSourceBadge label="Google Analytics" state="ok" stateLabel="Verbunden" />`,
+        },
+      ],
+    },
+    {
+      id: 'analytics-security-summary-view',
+      title: 'SecuritySummaryView',
+      category: 'Domain',
+      abbr: 'YS',
+      description:
+        'What a site\'s protections refused, blocked and noticed over a range of days: a status line (open file-integrity and health alerts, icon and words), headline counts against the previous period, and tabs for geo-IP refusals (by action, reason, country), sign-in security, spam the forms caught, the server (fail2ban bans per jail, alerts) and the short recent-refusals list, the only part that holds IP addresses. One measure per chart axis, every number also in a table.',
+      filePath: 'modules/domains/analytics/security/SecuritySummaryView.tsx',
+      sourceCode: `import { SecuritySummaryView } from '@/modules/domains/analytics';
+<SecuritySummaryView snapshot={snapshot} locale="en-US" rangeOptions={[7, 30, 90, 365]} onRangeChange={load} />`,
+      variants: [
+        {
+          title: 'Overview with a health alert open, range buttons',
+          layout: 'stack',
+          preview: <SecuritySummaryDemo />,
+          code: `<SecuritySummaryView snapshot={snapshot} locale="en-US" rangeOptions={[7, 30, 90]} onRangeChange={setDays} />`,
+        },
+        {
+          title: 'Integrity alert open, Server tab',
+          layout: 'stack',
+          preview: <SecuritySummaryView snapshot={demoSecuritySnapshot({ open: 'integrity' })} locale="en-US" defaultTab="server" />,
+          code: `<SecuritySummaryView snapshot={snapshot} defaultTab="server" />`,
+        },
+        {
+          title: 'Server not reporting yet, quiet site, recent refusals (holds IP addresses)',
+          layout: 'stack',
+          preview: <SecuritySummaryView snapshot={demoSecuritySnapshot({ server: 'off', quiet: true })} locale="en-US" defaultTab="recent" />,
+          code: `<SecuritySummaryView snapshot={snapshot} defaultTab="recent" />`,
+        },
+      ],
+    },
+    {
+      id: 'analytics-security-status-line',
+      title: 'SecurityStatusLine',
+      category: 'Domain',
+      abbr: 'YL',
+      description: 'The one-line verdict of the security summary: an icon and words for the state (no alerts, a health alert, an integrity alert, the server not reporting), never colour alone; a live region.',
+      filePath: 'modules/domains/analytics/security/SecurityStatusLine.tsx',
+      sourceCode: `<SecurityStatusLine tone="critical" text="1 integrity alert open" label="Status" />`,
+      variants: [
+        {
+          title: 'Tones',
+          layout: 'stack',
+          preview: (
+            <div className="flex flex-col gap-2">
+              <SecurityStatusLine tone="ok" text="No alerts open" label="Status" detail="Last server report Nov 22, 2026, 12:10 AM" />
+              <SecurityStatusLine tone="warning" text="1 health alert open" label="Status" />
+              <SecurityStatusLine tone="critical" text="1 integrity alert open · 2 health alerts open" label="Status" />
+              <SecurityStatusLine tone="off" text="No alerts open on this site; the server has not reported yet" label="Status" />
+            </div>
+          ),
+          code: `<SecurityStatusLine tone="warning" text="1 health alert open" label="Status" />`,
+        },
+        {
+          title: 'Translated words',
+          layout: 'stack',
+          preview: <SecurityStatusLine tone="ok" text="Keine offenen Warnungen" label="Status" />,
+          code: `<SecurityStatusLine tone="ok" text="Keine offenen Warnungen" label="Status" />`,
+        },
+      ],
+    },
+    {
+      id: 'analytics-security-breakdown',
+      title: 'SecurityBreakdown',
+      category: 'Domain',
+      abbr: 'YB',
+      description: 'Counts of one period split by a key (action, reason, spam kind, jail, country): words, count, share and the previous period\'s count, with a bar to scale. Every number printed, so the list is its own table.',
+      filePath: 'modules/domains/analytics/security/SecurityBreakdown.tsx',
+      sourceCode: `<SecurityBreakdown rows={shareRows(snapshot.refusals.byReason)} label={reasonLabel} fmt={fmt} previousLabel="Previous period" emptyText="Nothing recorded." ariaLabel="By reason" />`,
+      variants: [
+        {
+          title: 'Refusals by reason',
+          layout: 'stack',
+          preview: (
+            <div className="max-w-md">
+              <SecurityBreakdown
+                rows={shareRows(demoSecuritySnapshot().refusals.byReason, ['country', 'address-limit', 'country-cap', 'staff-country'])}
+                label={(k) => ({ country: 'Country rule', 'address-limit': 'Address limit', 'country-cap': 'Country cap', 'staff-country': 'Staff country' } as Record<string, string>)[k] ?? k}
+                fmt={insightsFormat('en-US')}
+                previousLabel="Previous period"
+                emptyText="Nothing recorded in this period."
+                ariaLabel="By reason"
+              />
+            </div>
+          ),
+          code: `<SecurityBreakdown rows={shareRows(byReason, REFUSAL_REASONS)} label={reasonLabel} fmt={insightsFormat('en-US')} previousLabel="Previous period" emptyText="Nothing recorded in this period." ariaLabel="By reason" />`,
+        },
+        {
+          title: 'Empty',
+          layout: 'stack',
+          preview: <SecurityBreakdown rows={[]} label={(k) => k} fmt={insightsFormat('en-US')} previousLabel="Previous period" emptyText="Nothing recorded in this period." ariaLabel="By kind" />,
+          code: `<SecurityBreakdown rows={[]} label={(k) => k} fmt={fmt} previousLabel="Previous period" emptyText="Nothing recorded in this period." ariaLabel="By kind" />`,
         },
       ],
     },

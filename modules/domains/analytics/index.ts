@@ -20,3 +20,16 @@ export type { VitalsFormat } from './insights/vitals';
 export { InsightsVitalTile, InsightsVitalRating, VitalRatingIcon, VitalsDistributionBar, VITAL_RATING_STYLE, VITAL_RATINGS } from './insights/InsightsVitalTile';
 export type { VitalShares, VitalRatingLabels } from './insights/InsightsVitalTile';
 export { InsightsVitalsTab, InsightsVitalsSummary } from './insights/InsightsVitalsTab';
+// Security summary: what the site's protections refused, blocked and noticed (kui-shield on WordPress).
+export * from './security/types';
+export {
+  securityStatus, securityStatusText, keyLabel, countryLabel, shareRows, rangeDates, fillDays, dayValue, overviewDays,
+  neutralDelta, securityKpis, sortAlerts, viewChoices,
+} from './security/summary';
+export type { SecurityTone, SecurityStatus, ShareRow, SecurityKpi } from './security/summary';
+export { DEFAULT_SECURITY_SUMMARY_MESSAGES } from './security/messages';
+export type { SecuritySummaryMessages } from './security/messages';
+export { SecurityStatusLine } from './security/SecurityStatusLine';
+export { SecurityBreakdown } from './security/SecurityBreakdown';
+export { SecuritySummaryView } from './security/SecuritySummaryView';
+export { demoSecuritySnapshot } from './security/demo';
