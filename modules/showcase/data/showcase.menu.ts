@@ -515,7 +515,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'ai-usage-stats-card',     title: 'UsageStatsCard',     category: 'Domain', abbr: 'US', since: '2026-05' },
       { id: 'ai-chatbot-report-view',  title: 'ChatbotReportView',  category: 'Domain', abbr: 'CQ', since: '2026-11' },
       { id: 'ai-chatbot-outcome-badge', title: 'ChatbotOutcomeBadge', category: 'Domain', abbr: 'QO', since: '2026-11' },
-      { id: 'ai-chatbot-questions-table', title: 'ChatbotQuestionsTable', category: 'Domain', abbr: 'QT', since: '2026-11' },
+      { id: 'ai-chatbot-questions-table', title: 'ChatbotQuestionsTable', category: 'Domain', abbr: 'QL', since: '2026-11' },
       { id: 'ai-forum-help-bot-card',  title: 'ForumHelpBotCard',   category: 'Domain', abbr: 'HB', since: '2026-11' },
     ],
   },

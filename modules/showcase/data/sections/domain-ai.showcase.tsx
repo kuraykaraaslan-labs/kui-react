@@ -534,7 +534,7 @@ export function buildAIDomainData(): ShowcaseComponent[] {
       id: 'ai-chatbot-questions-table',
       title: 'ChatbotQuestionsTable',
       category: 'Domain',
-      abbr: 'QT',
+      abbr: 'QL',
       description: 'The visitors\' questions to the AI chat, newest first: searchable, filtered by outcome or "could not answer", 10 a page; a row opens to the sources shown, what the assistant searched for, the page, conversation, model, tokens and cost.',
       filePath: 'modules/domains/ai/report/ChatbotQuestionsTable.tsx',
       sourceCode: `<ChatbotQuestionsTable questions={report.questions} locale="en-US" siteUrl="https://example.com" />`,
