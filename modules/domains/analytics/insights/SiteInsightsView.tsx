@@ -78,7 +78,11 @@ function MetricChart<K extends string>({
     id: def.key,
     name: def.label,
     color: SINGLE_SERIES_COLOR,
-    data: days.map((d) => ({ x: d.date, y: typeof d[def.key] === 'number' ? (d[def.key] as number) : null })),
+    // An unknown average position (0) is a gap, not a line at rank 0.
+    data: days.map((d) => {
+      const v = d[def.key];
+      return { x: d.date, y: typeof v === 'number' && !(def.key === 'position' && v <= 0) ? v : null };
+    }),
   }];
   return (
     <Card

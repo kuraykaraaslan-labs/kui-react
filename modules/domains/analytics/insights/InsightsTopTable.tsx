@@ -91,7 +91,8 @@ export function InsightsTopTable({ kind, rows, search = true, analytics = false,
     columns.push(
       { key: 'impressions', header: m.impressions, align: 'right', sortable: true, searchable: false, sortValue: (r) => num(r.impressions), render: (r) => <span className="tabular-nums">{fmt.int(num(r.impressions))}</span> },
       { key: 'ctr', header: m.ctr, align: 'right', sortable: true, searchable: false, sortValue: (r) => num(r.ctr), render: (r) => <span className="tabular-nums">{fmt.percent(num(r.ctr))}</span> },
-      { key: 'position', header: m.position, align: 'right', sortable: true, searchable: false, sortValue: (r) => (num(r.position) > 0 ? num(r.position) : Number.POSITIVE_INFINITY), render: (r) => <span className="tabular-nums">{fmt.position(num(r.position))}</span> },
+      // An unknown rank (0) sorts as empty: last in both directions (DataTable's NULLS LAST).
+      { key: 'position', header: m.position, align: 'right', sortable: true, searchable: false, sortValue: (r) => (num(r.position) > 0 ? num(r.position) : null), render: (r) => <span className="tabular-nums">{fmt.position(num(r.position))}</span> },
     );
   }
   return (

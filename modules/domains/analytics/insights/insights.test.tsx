@@ -144,4 +144,23 @@ describe('SiteInsightsView', () => {
     fireEvent.click(within(group).getByRole('button', { name: 'Impressions' }));
     expect(screen.getByText('Impressions per day')).toBeTruthy();
   });
+
+  it('sorting by average position starts with the best rank and keeps unknown ranks last', () => {
+    const demo = demoInsightsSnapshot();
+    const gsc = demo.sources.find((x) => x.id === 'gsc');
+    if (!gsc || gsc.kind !== 'search') throw new Error('demo');
+    gsc.topQueries = [
+      { key: 'unknown rank', clicks: 9, impressions: 90, ctr: 0.1, position: 0 },
+      { key: 'rank twelve', clicks: 8, impressions: 80, ctr: 0.1, position: 12 },
+      { key: 'rank two', clicks: 7, impressions: 70, ctr: 0.1, position: 2 },
+    ];
+    render(<SiteInsightsView snapshot={demo} defaultTab="gsc" locale="en-US" />);
+    const table = screen.getAllByRole('table')[0];
+    fireEvent.click(within(table).getByRole('button', { name: /Avg\. position/ }));
+    const firstCells = () => within(table).getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell')[0].textContent);
+    expect(firstCells()).toEqual(['rank two', 'rank twelve', 'unknown rank']);
+    fireEvent.click(within(table).getByRole('button', { name: /Avg\. position/ }));
+    expect(firstCells()).toEqual(['rank twelve', 'rank two', 'unknown rank']);
+  });
 });
+

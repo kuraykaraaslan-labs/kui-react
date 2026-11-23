@@ -37,6 +37,9 @@ import {
 import { chartLegend, plotPadding, useSeriesVisibility, valueText } from './_cartesian';
 import { PointMark, useEntrance, valueLabelProps } from './_marks';
 
+/** A time axis labels at most this many instants, however wide the chart (one per 90 px crowded wide cards). */
+const MAX_TIME_TICKS = 6;
+
 export type SeriesChartProps = BaseChartProps & {
   variant: 'line' | 'area';
   mode: 'band' | 'time';
@@ -164,7 +167,7 @@ export function SeriesChart({
           const yTicks = hasLeft ? leftTicks.map((_, i) => ({ position: yPixels[i], label: yTickLabels[i] })) : [];
           const y2Ticks = R ? R.ticks.map((v, i) => ({ position: yPxR(v), label: y2TickLabels![i] })) : [];
           const xTicks = isTime
-            ? timeTicks(domain, Math.max(2, Math.floor(rect.width / 90)), timeZone)
+            ? timeTicks(domain, Math.max(2, Math.min(MAX_TIME_TICKS, Math.floor(rect.width / 90))), timeZone)
               .map((t) => ({ position: xTime(t, domain, rect), label: formatTick(t, span, locale, timeZone) }))
             : thinLabels(categories.map((label, i) => ({ position: bandCenter(i, categories.length, rect), label })), rect.width);
 
