@@ -379,6 +379,8 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'analytics-security-summary-view', title: 'SecuritySummaryView', category: 'Domain', abbr: 'YS', since: '2026-11' },
       { id: 'analytics-security-status-line', title: 'SecurityStatusLine',  category: 'Domain', abbr: 'YL', since: '2026-11' },
       { id: 'analytics-security-breakdown',   title: 'SecurityBreakdown',   category: 'Domain', abbr: 'YB', since: '2026-11' },
+      { id: 'analytics-search-report-view', title: 'SearchReportView',    category: 'Domain', abbr: 'SQ', since: '2026-11' },
+      { id: 'analytics-search-query-table', title: 'SearchQueryTable',    category: 'Domain', abbr: 'QT', since: '2026-11' },
     ],
   },
   {
