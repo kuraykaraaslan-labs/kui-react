@@ -4,6 +4,16 @@ import { SiteInsightsView } from '@/modules/domains/analytics/insights/SiteInsig
 import { InsightsKpiTile } from '@/modules/domains/analytics/insights/InsightsKpiTile';
 import { InsightsSourceBadge } from '@/modules/domains/analytics/insights/InsightsSourceBadge';
 import { demoInsightsSnapshot } from '@/modules/domains/analytics/insights/demo';
+import { useState } from 'react';
+import { SearchReportView } from '@/modules/domains/analytics/search/SearchReportView';
+import { SearchQueryTable } from '@/modules/domains/analytics/search/SearchQueryTable';
+import { demoSearchReport } from '@/modules/domains/analytics/search/demo';
+
+/** The report with a working period picker (the host aggregates again; here the demo is rebuilt). */
+function SearchReportDemo() {
+  const [days, setDays] = useState(28);
+  return <SearchReportView report={demoSearchReport({ days })} locale="en-US" siteUrl="https://example.com" onRangeChange={setDays} />;
+}
 
 export function buildAnalyticsDomainData(): ShowcaseComponent[] {
   return [
@@ -99,6 +109,71 @@ export function buildAnalyticsDomainData(): ShowcaseComponent[] {
             </div>
           ),
           code: `<InsightsSourceBadge label="Google Analytics" state="ok" stateLabel="Verbunden" />`,
+        },
+      ],
+    },
+    {
+      id: 'analytics-search-report-view',
+      title: 'SearchReportView',
+      category: 'Domain',
+      abbr: 'SQ',
+      description:
+        'What visitors search for on the site itself: searches, searchers, the share that found nothing and the click-through against the previous period, searches per day (all and those that found nothing, one axis), the top searches, the searches that found nothing (content gaps), the results opened most and the search languages. Every number is also in a table; queries arrive masked.',
+      filePath: 'modules/domains/analytics/search/SearchReportView.tsx',
+      sourceCode: `import { SearchReportView } from '@/modules/domains/analytics';
+<SearchReportView report={report} locale="en-US" siteUrl="https://example.com" onRangeChange={(days) => load(days)} />`,
+      variants: [
+        {
+          title: '28 days with the period picker (English, German, Turkish and French searches)',
+          layout: 'stack',
+          preview: <SearchReportDemo />,
+          code: `<SearchReportView report={report} locale="en-US" siteUrl="https://example.com" onRangeChange={(days) => load(days)} />`,
+        },
+        {
+          title: 'Nobody searched yet',
+          layout: 'stack',
+          preview: <SearchReportView report={demoSearchReport({ empty: true })} locale="en-US" />,
+          code: `<SearchReportView report={emptyReport} />`,
+        },
+        {
+          title: 'Translated (German words and formats), 7 days',
+          layout: 'stack',
+          preview: (
+            <SearchReportView
+              report={demoSearchReport({ days: 7 })}
+              locale="de-DE"
+              messages={{
+                title: 'Website-Suche', searches: 'Suchen', searchers: 'Suchende', noResultsRate: 'Ohne Treffer', clickThrough: 'Klickrate',
+                vsPrevious: 'ggü. Vorzeitraum', lowerIsBetter: 'niedriger ist besser', perDay: 'Suchen pro Tag', seriesSearches: 'Suchen', seriesNoResults: 'Ohne Treffer',
+                topQueries: 'Häufigste Suchen', zeroQueries: 'Suchen ohne Treffer', topClicked: 'Am häufigsten geöffnet', languages: 'Suchsprachen',
+                rangeLine: '{start} – {end} · verglichen mit den vorherigen {days} Tagen',
+              }}
+            />
+          ),
+          code: `<SearchReportView report={report} locale="de-DE" messages={{ title: 'Website-Suche', searches: 'Suchen' }} />`,
+        },
+      ],
+    },
+    {
+      id: 'analytics-search-query-table',
+      title: 'SearchQueryTable',
+      category: 'Domain',
+      abbr: 'QT',
+      description: 'Site search queries in a sortable, searchable table: searches, how often each found nothing, clicks, CTR, language and when last searched. A query that never found anything carries a "nothing found" tag (icon and words); the zero-result list keeps only searches, language and date.',
+      filePath: 'modules/domains/analytics/search/SearchQueryTable.tsx',
+      sourceCode: `<SearchQueryTable kind="top" rows={report.topQueries} locale="en-US" />`,
+      variants: [
+        {
+          title: 'Top searches',
+          layout: 'stack',
+          preview: <SearchQueryTable kind="top" rows={demoSearchReport().topQueries} locale="en-US" />,
+          code: `<SearchQueryTable kind="top" rows={report.topQueries} locale="en-US" />`,
+        },
+        {
+          title: 'Searches that found nothing',
+          layout: 'stack',
+          preview: <SearchQueryTable kind="zero" rows={demoSearchReport().zeroResultQueries} locale="en-US" />,
+          code: `<SearchQueryTable kind="zero" rows={report.zeroResultQueries} locale="en-US" />`,
         },
       ],
     },
