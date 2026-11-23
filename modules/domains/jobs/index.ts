@@ -2,6 +2,8 @@
 export * from './types';
 export { ApplicationStatusBadge } from './application/ApplicationStatusBadge';
 export { CompanyCard } from './company/CompanyCard';
+export { JobApplyActions } from './job/JobApplyActions';
+export { jobApplyLinkName, jobPlatformName, resolveJobApplyMode } from './job/jobApply';
 export { JobCard } from './job/JobCard';
 export { JobExperienceBadge } from './job/JobExperienceBadge';
 export { JobMeta } from './job/JobMeta';

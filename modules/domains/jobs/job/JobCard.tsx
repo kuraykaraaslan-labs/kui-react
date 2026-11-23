@@ -10,12 +10,14 @@ import type { JobWithData } from '../types';
 type JobCardProps = {
   job: JobWithData;
   href?: string;
+  /** The link leaves the site (a job board's page): opens in a new tab. */
+  external?: boolean;
   onClick?: () => void;
   showBadges?: boolean;
   className?: string;
 };
 
-export function JobCard({ job, href, onClick, showBadges = true, className }: JobCardProps) {
+export function JobCard({ job, href, external = false, onClick, showBadges = true, className }: JobCardProps) {
   const isInteractive = !!(href || onClick);
 
   const body = (
@@ -74,7 +76,9 @@ export function JobCard({ job, href, onClick, showBadges = true, className }: Jo
   );
 
   if (href) {
-    return <a href={href} className={baseClass}>{body}</a>;
+    return external
+      ? <a href={href} target="_blank" rel="noopener noreferrer" className={baseClass}>{body}</a>
+      : <a href={href} className={baseClass}>{body}</a>;
   }
   if (onClick) {
     return (

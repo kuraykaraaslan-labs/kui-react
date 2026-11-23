@@ -6,6 +6,7 @@ import { JobWorkModeBadge } from '@/modules/domains/jobs/job/JobWorkModeBadge';
 import { JobExperienceBadge } from '@/modules/domains/jobs/job/JobExperienceBadge';
 import { JobMeta } from '@/modules/domains/jobs/job/JobMeta';
 import { JobCard } from '@/modules/domains/jobs/job/JobCard';
+import { JobApplyActions } from '@/modules/domains/jobs/job/JobApplyActions';
 import { CompanyCard } from '@/modules/domains/jobs/company/CompanyCard';
 import { ApplicationStatusBadge } from '@/modules/domains/jobs/application/ApplicationStatusBadge';
 import type { JobWithData, Company } from '@/modules/domains/jobs/types';
@@ -264,6 +265,43 @@ export function buildJobsDomainData(): ShowcaseComponent[] {
             </div>
           ),
           code: `<JobCard job={job} showBadges={false} />`,
+        },
+        {
+          title: 'Opens a job board (new tab)',
+          preview: (
+            <div className="max-w-sm">
+              <JobCard job={DEMO_JOB} href="https://www.linkedin.com/jobs/" external />
+            </div>
+          ),
+          code: `<JobCard job={job} href={job.applyLinks[0].url} external />`,
+        },
+      ],
+    },
+    {
+      id: 'jobs-apply-actions',
+      title: 'JobApplyActions',
+      category: 'Domain',
+      abbr: 'JA',
+      description: 'A job\'s apply buttons: "Apply on <platform>" for each job board or ATS the job is posted on (new tab, named from the address) and/or "Apply now" to the host\'s form. The first button is primary.',
+      filePath: 'modules/domains/jobs/job/JobApplyActions.tsx',
+      sourceCode: `import { JobApplyActions } from '@/modules/domains/jobs/job/JobApplyActions';
+<JobApplyActions job={job} />`,
+      variants: [
+        {
+          title: 'Applications elsewhere only',
+          preview: (
+            <div className="max-w-xs">
+              <JobApplyActions job={{ applyLinks: [{ url: 'https://www.linkedin.com/jobs/' }, { url: 'https://boards.greenhouse.io/' }] }} />
+            </div>
+          ),
+          code: `<JobApplyActions job={{ applyLinks: [{ url: 'https://www.linkedin.com/jobs/view/…' }, { url: 'https://boards.greenhouse.io/…' }] }} />`,
+        },
+        {
+          title: 'Form and a platform, in a row',
+          preview: (
+            <JobApplyActions job={{ applyMode: 'BOTH', applyLinks: [{ url: 'https://www.indeed.com/' }] }} applyHref="#apply" layout="row" />
+          ),
+          code: `<JobApplyActions job={{ applyMode: 'BOTH', applyLinks: [{ url: 'https://www.indeed.com/…' }] }} applyHref="#apply" layout="row" />`,
         },
       ],
     },

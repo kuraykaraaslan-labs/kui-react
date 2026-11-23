@@ -11,6 +11,7 @@ import { JobWorkModeBadge } from '@/modules/domains/jobs/job/JobWorkModeBadge';
 import { JobExperienceBadge } from '@/modules/domains/jobs/job/JobExperienceBadge';
 import { JobMeta } from '@/modules/domains/jobs/job/JobMeta';
 import { JobCard } from '@/modules/domains/jobs/job/JobCard';
+import { JobApplyActions } from '@/modules/domains/jobs/job/JobApplyActions';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faArrowLeft,
@@ -107,9 +108,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
               )}
 
               <div className="flex gap-2 pt-1 border-t border-border">
-                <Button variant="primary" size="md" fullWidth className="sm:flex-none sm:w-auto sm:px-8">
-                  Apply Now
-                </Button>
+                <JobApplyActions job={job} applyHref="#apply" applyLabel="Apply Now" layout="row" note={null} className="flex-1" />
                 <Button variant="outline" size="md" iconOnly aria-label="Save job">
                   <FontAwesomeIcon icon={faBookmark} className="w-4 h-4" aria-hidden="true" />
                 </Button>
@@ -162,7 +161,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
           {/* ── Sidebar ── */}
           <aside className="hidden lg:flex flex-col gap-5 w-72 shrink-0">
             {/* Quick apply card */}
-            <div className="rounded-xl border border-border bg-surface-raised p-5 space-y-4">
+            <div id="apply" className="rounded-xl border border-border bg-surface-raised p-5 space-y-4 scroll-mt-24">
               <h2 className="font-semibold text-text-primary">Quick Apply</h2>
               {job.salaryVisible && job.salaryMin && job.salaryMax && (
                 <div>
@@ -183,7 +182,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ slug
                 <FontAwesomeIcon icon={faUsers} className="w-4 h-4 shrink-0" aria-hidden="true" />
                 {job.applicationsCount} applicants
               </div>
-              <Button variant="primary" fullWidth size="md">Apply Now</Button>
+              <JobApplyActions job={job} applyHref="#apply" applyLabel="Apply Now" />
               <Button variant="outline" fullWidth size="sm">Save for Later</Button>
             </div>
 

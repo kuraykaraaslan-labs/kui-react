@@ -99,6 +99,10 @@ export const JOBS: JobWithData[] = [
     views: 3412,
     applicationsCount: 128,
     publishedAt: new Date('2026-04-28'),
+    applyLinks: [
+      { url: 'https://www.linkedin.com/jobs/' },
+      { url: 'https://boards.greenhouse.io/' },
+    ],
     company: { companyId: 'c-01', name: 'Vercel', slug: 'vercel', logo: 'https://avatars.githubusercontent.com/u/14985020', verified: true },
     category: { categoryId: 'cat-01', title: 'Engineering', slug: 'engineering' },
   },

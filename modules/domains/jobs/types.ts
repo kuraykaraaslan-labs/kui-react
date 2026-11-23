@@ -37,6 +37,13 @@ export const JobExperienceLevelEnum = z.enum([
   'DIRECTOR',
 ])
 
+/** How a job takes applications: on other platforms (LinkedIn, Indeed, an ATS), with a form here, or both. */
+export const JobApplyModeEnum = z.enum([
+  'LINKS',
+  'FORM',
+  'BOTH',
+])
+
 export const ApplicationStatusEnum = z.enum([
   'PENDING',
   'REVIEWING',
@@ -106,6 +113,12 @@ export const JobTagSchema = z.object({
    JOB
 ========================================================= */
 
+/** One place a job takes applications elsewhere. `label` empty = the platform's name from the address. */
+export const JobApplyLinkSchema = z.object({
+  url: z.url(),
+  label: z.string().nullable().optional(),
+})
+
 export const JobSchema = z.object({
   jobId: IdSchema,
 
@@ -139,6 +152,10 @@ export const JobSchema = z.object({
   status: JobStatusEnum.default('DRAFT'),
 
   applicationDeadline: z.coerce.date().nullable().optional(),
+
+  /** Where applications go. Without it: FORM when there are no links, LINKS when there are (see resolveJobApplyMode). */
+  applyMode: JobApplyModeEnum.optional(),
+  applyLinks: z.array(JobApplyLinkSchema).max(6).optional(),
 
   views: z.number().int().nonnegative().default(0),
   applicationsCount: z.number().int().nonnegative().default(0),
@@ -316,12 +333,14 @@ export type JobType = z.infer<typeof JobTypeEnum>
 export type JobWorkMode = z.infer<typeof JobWorkModeEnum>
 export type JobExperienceLevel = z.infer<typeof JobExperienceLevelEnum>
 export type ApplicationStatus = z.infer<typeof ApplicationStatusEnum>
+export type JobApplyMode = z.infer<typeof JobApplyModeEnum>
 
 export type Company = z.infer<typeof CompanySchema>
 export type JobCategory = z.infer<typeof JobCategorySchema>
 export type JobTag = z.infer<typeof JobTagSchema>
 
 export type Job = z.infer<typeof JobSchema>
+export type JobApplyLink = z.infer<typeof JobApplyLinkSchema>
 export type JobWithData = z.infer<typeof JobWithDataSchema>
 export type JobTranslation = z.infer<typeof JobTranslationSchema>
 
