@@ -452,6 +452,8 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'forum-staff-badge',         title: 'StaffBadge',        category: 'Domain', abbr: 'Sf', since: '2026-11' },
       { id: 'forum-translated-content',  title: 'TranslatedContent', category: 'Domain', abbr: 'Tx', since: '2026-11' },
       { id: 'forum-similar-topics',      title: 'SimilarTopics',     category: 'Domain', abbr: 'Sy', since: '2026-11' },
+      { id: 'forum-moderation-queue',    title: 'ModerationQueueView', category: 'Domain', abbr: 'Mo', since: '2026-11' },
+      { id: 'forum-report-post',         title: 'ReportPostDialog',  category: 'Domain', abbr: 'Rr', since: '2026-11' },
     ],
   },
   {

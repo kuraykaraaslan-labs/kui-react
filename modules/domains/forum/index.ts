@@ -18,3 +18,22 @@ export { PostComposer } from './post/PostComposer';
 export { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from './post/AcceptedSolution';
 export { TranslatedContent } from './post/TranslatedContent';
 export { StaffBadge } from './user/StaffBadge';
+export { ModerationQueueView } from './moderation/ModerationQueueView';
+export { ReportPostDialog, ReportPostButton } from './moderation/ReportPostDialog';
+export { DEFAULT_FORUM_MODERATION_MESSAGES, fillModeration } from './moderation/messages';
+export type { ForumModerationMessages } from './moderation/messages';
+export {
+  MODERATION_TABS,
+  applicableIds,
+  applyModerationAction,
+  bulkActions,
+  isDestructive,
+  itemActions,
+  itemTabs,
+  itemsForTab,
+  moderationCounts,
+  openReports,
+  reasonSummary,
+  relativeAge,
+} from './moderation/queue';
+export { demoModerationQueue, MODERATION_DEMO_NOW } from './moderation/demo';

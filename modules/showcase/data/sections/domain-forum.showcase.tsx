@@ -15,6 +15,12 @@ import { TranslatedContent } from '@/modules/domains/forum/post/TranslatedConten
 import { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';
 import { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';
 import { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';
+import { ModerationQueueView } from '@/modules/domains/forum/moderation/ModerationQueueView';
+import { ReportPostButton } from '@/modules/domains/forum/moderation/ReportPostDialog';
+import { applyModerationAction } from '@/modules/domains/forum/moderation/queue';
+import { demoModerationQueue, MODERATION_DEMO_NOW } from '@/modules/domains/forum/moderation/demo';
+import type { ModerationTab } from '@/modules/domains/forum/types';
+import { useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 
 /* ─── demo data ─── */
@@ -100,6 +106,40 @@ function DemoPost({ solution, author, body }: { solution: boolean; author: strin
         <div className="border-t border-border px-3 py-2">
           <MarkSolutionButton isSolution={solution} />
         </div>
+      </div>
+    </article>
+  );
+}
+
+/** The moderation screen with the demo queue; actions change it locally (as the host would after its API call). */
+function ModerationDemo({ empty = false, tab, showReporters = true }: { empty?: boolean; tab?: ModerationTab; showReporters?: boolean }) {
+  const [queue, setQueue] = useState(() => demoModerationQueue({ empty }));
+  return (
+    <ModerationQueueView
+      queue={queue}
+      now={MODERATION_DEMO_NOW}
+      locale="en"
+      defaultTab={tab}
+      showReporters={showReporters}
+      onAction={async (action, ids) => {
+        await new Promise((r) => setTimeout(r, 400));
+        setQueue((q) => ({ ...q, items: applyModerationAction(q.items, action, ids, { id: 'me', name: 'You' }, MODERATION_DEMO_NOW) }));
+      }}
+    />
+  );
+}
+
+/** A post footer with the member's Report button (the send waits a moment, as a real request would). */
+function ReportDemo({ reported = false, fail = false }: { reported?: boolean; fail?: boolean }) {
+  return (
+    <article className="max-w-2xl overflow-hidden rounded border border-border bg-surface-base">
+      <p className="px-4 py-3 text-sm text-text-primary">Third update in a month and the dashboard is still slow. The people defending this in the other thread are idiots.</p>
+      <div className="flex items-center justify-between gap-2 border-t border-border bg-surface-raised/50 px-3 py-1.5 text-xs text-text-secondary">
+        <span>rafael.m · Regular · 212 posts</span>
+        <ReportPostButton
+          reported={reported}
+          onReport={() => new Promise<void>((resolve, reject) => setTimeout(() => (fail ? reject(new Error('offline')) : resolve()), 500))}
+        />
       </div>
     </article>
   );
@@ -478,6 +518,12 @@ import { TranslatedContent } from '@/modules/domains/forum/post/TranslatedConten
 import { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';
 import { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';
 import { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';
+import { ModerationQueueView } from '@/modules/domains/forum/moderation/ModerationQueueView';
+import { ReportPostButton } from '@/modules/domains/forum/moderation/ReportPostDialog';
+import { applyModerationAction } from '@/modules/domains/forum/moderation/queue';
+import { demoModerationQueue, MODERATION_DEMO_NOW } from '@/modules/domains/forum/moderation/demo';
+import type { ModerationTab } from '@/modules/domains/forum/types';
+import { useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 <PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />`,
       variants: [
@@ -695,5 +741,70 @@ import { cn } from '@/libs/utils/cn';
       ],
     }, `import { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';
 <SimilarTopics topics={similar} />`),
+    withUsage({
+      id: 'forum-moderation-queue',
+      title: 'ModerationQueueView',
+      category: 'Domain',
+      abbr: 'Mo',
+      description: 'The forum moderation screen: Reported (each report with reason, note, reporter for moderators and time), Held (posts the spam rules held back, the reason in words) and Spam, a count per tab; per post the excerpt, topic and forum, author level, title and post count, age; Approve / Not spam, Mark as spam, Trash, Dismiss reports and Open in forum, one at a time or on a selection; spam and trash confirmed in a ConfirmDialog. Container queries: the author moves beside the post from @3xl.',
+      filePath: 'modules/domains/forum/moderation/ModerationQueueView.tsx',
+      variants: [
+        {
+          title: 'Reports, held posts and spam (actions work)',
+          layout: 'stack',
+          preview: <ModerationDemo />,
+          code: `<ModerationQueueView
+  queue={queue}                       // wp kui-community moderation --json
+  onAction={(action, ids) => api.moderate(action, ids).then(reload)}
+/>`,
+        },
+        {
+          title: 'Held tab in a narrow column, reporters hidden',
+          layout: 'stack',
+          preview: (
+            <div className="max-w-md">
+              <ModerationDemo tab="held" showReporters={false} />
+            </div>
+          ),
+          code: `<ModerationQueueView queue={queue} defaultTab="held" showReporters={false} onAction={run} />`,
+        },
+        {
+          title: 'Nothing to moderate',
+          layout: 'stack',
+          preview: <ModerationDemo empty />,
+          code: `<ModerationQueueView queue={{ generatedAt, items: [] }} />`,
+        },
+      ],
+    }, `import { ModerationQueueView } from '@/modules/domains/forum/moderation/ModerationQueueView';
+<ModerationQueueView queue={queue} onAction={(action, ids) => moderate(action, ids)} />`),
+    withUsage({
+      id: 'forum-report-post',
+      title: 'ReportPostDialog',
+      category: 'Domain',
+      abbr: 'Rr',
+      description: 'A member reports a post: the Report button under someone else\'s post opens a dialog with the reason (spam, abuse or harassment, off-topic, personal data, something else) and an optional note (500 characters); after sending it says "Reported, thank you" and the button reads "Reported".',
+      filePath: 'modules/domains/forum/moderation/ReportPostDialog.tsx',
+      variants: [
+        {
+          title: 'Report button under a post',
+          layout: 'stack',
+          preview: <ReportDemo />,
+          code: `<ReportPostButton onReport={({ reason, note }) => api.report(postId, reason, note)} />`,
+        },
+        {
+          title: 'Already reported',
+          layout: 'stack',
+          preview: <ReportDemo reported />,
+          code: `<ReportPostButton reported onReport={send} />`,
+        },
+        {
+          title: 'Sending fails (the dialog stays open with an error)',
+          layout: 'stack',
+          preview: <ReportDemo fail />,
+          code: `<ReportPostButton onReport={() => Promise.reject(new Error('offline'))} />`,
+        },
+      ],
+    }, `import { ReportPostButton } from '@/modules/domains/forum/moderation/ReportPostDialog';
+<ReportPostButton reported={alreadyReported} onReport={({ reason, note }) => report(postId, reason, note)} />`),
   ];
 }
