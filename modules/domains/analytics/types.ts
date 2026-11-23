@@ -100,3 +100,79 @@ export type InsightsSnapshot = z.infer<typeof InsightsSnapshotSchema>
 /** The search engines, in their fixed chart order (colour slot follows the engine, never its rank). */
 export const SEARCH_ENGINES = ['gsc', 'bing', 'yandex'] as const
 export type SearchEngineId = (typeof SEARCH_ENGINES)[number]
+
+/* =========================================================
+   SITE SEARCH REPORT — what visitors search for on the site itself (the header's search window and the full results
+   page), which searches find nothing and which results they open. The host aggregates its own log and passes one
+   report; the view only reads it. The WordPress port (kui-wordpress-saas plugin/kui-search) produces exactly this
+   shape. Queries arrive normalised (trimmed, single spaces, lower case) and masked (e-mail addresses, phone, card,
+   account and long reference numbers replaced by a [label]); no field names a visitor.
+========================================================= */
+
+/** Headline counts. `searchers`: distinct search sessions per day, added up over the range (a session id lives one day, so the same visitor on two days counts twice). `clickThrough`: the fraction of searches that ended in a click on a result. */
+export const SiteSearchTotalsSchema = z.object({
+  searches: z.number().int().nonnegative().default(0),
+  searchers: z.number().int().nonnegative().default(0),
+  zeroResult: z.number().int().nonnegative().default(0),
+  clicks: z.number().int().nonnegative().default(0),
+  clickThrough: z.number().nonnegative().default(0),
+})
+
+export const SiteSearchDaySchema = z.object({
+  date: z.string(),
+  searches: z.number().int().nonnegative().default(0),
+  searchers: z.number().int().nonnegative().default(0),
+  zeroResult: z.number().int().nonnegative().default(0),
+  clicks: z.number().int().nonnegative().default(0),
+})
+
+/** One normalised query. `language`: the language it was searched in most (two-letter code, '' = unknown); `lastSeen`: ISO date-time of its latest search; `ctr` = clicks / searches. */
+export const SiteSearchQueryRowSchema = z.object({
+  key: z.string(),
+  searches: z.number().int().nonnegative().default(0),
+  zeroResults: z.number().int().nonnegative().default(0),
+  clicks: z.number().int().nonnegative().default(0),
+  ctr: z.number().nonnegative().default(0),
+  lastSeen: z.string().nullable().default(null),
+  language: z.string().default(''),
+})
+
+/** A result visitors opened from the search: its address (a path on the site), its title when known, and the queries that led there (most first). */
+export const SiteSearchClickedRowSchema = z.object({
+  url: z.string(),
+  title: z.string().default(''),
+  clicks: z.number().int().nonnegative().default(0),
+  fromQueries: z.array(z.string()).default([]),
+})
+
+export const SiteSearchLanguageRowSchema = z.object({
+  key: z.string(),
+  searches: z.number().int().nonnegative().default(0),
+  zeroResults: z.number().int().nonnegative().default(0),
+  clicks: z.number().int().nonnegative().default(0),
+})
+
+export const SiteSearchReportSchema = z.object({
+  generatedAt: z.string().nullable().default(null),
+  range: InsightsRangeSchema,
+  previousRange: InsightsRangeSchema.optional(),
+  /** Days the query rows are kept (the lists cannot reach further back). */
+  retentionDays: z.number().int().nonnegative().default(90),
+  totals: SiteSearchTotalsSchema,
+  /** Empty when there was nothing to compare with. */
+  previousTotals: SiteSearchTotalsSchema.partial().default({}),
+  /** Every day of the range, ascending; a day without searches is a zero. */
+  days: z.array(SiteSearchDaySchema).default([]),
+  topQueries: z.array(SiteSearchQueryRowSchema).default([]),
+  /** Queries whose every search in the range found nothing. */
+  zeroResultQueries: z.array(SiteSearchQueryRowSchema).default([]),
+  topClicked: z.array(SiteSearchClickedRowSchema).default([]),
+  languages: z.array(SiteSearchLanguageRowSchema).default([]),
+})
+
+export type SiteSearchTotals = z.infer<typeof SiteSearchTotalsSchema>
+export type SiteSearchDay = z.infer<typeof SiteSearchDaySchema>
+export type SiteSearchQueryRow = z.infer<typeof SiteSearchQueryRowSchema>
+export type SiteSearchClickedRow = z.infer<typeof SiteSearchClickedRowSchema>
+export type SiteSearchLanguageRow = z.infer<typeof SiteSearchLanguageRowSchema>
+export type SiteSearchReport = z.infer<typeof SiteSearchReportSchema>

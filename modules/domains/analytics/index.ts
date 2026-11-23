@@ -12,3 +12,14 @@ export { InsightsTopTable } from './insights/InsightsTopTable';
 export type { InsightsTopRow } from './insights/InsightsTopTable';
 export { SiteInsightsView } from './insights/SiteInsightsView';
 export { demoInsightsSnapshot } from './insights/demo';
+// Site search report (what visitors search for on the site itself).
+export {
+  combineSearchReport, mergeSearchQueries, cleanSearchQuery, maskSearchQuery, searchReportRates, searchLanguageName,
+  SEARCH_REPORT_LIMIT, SEARCH_QUERY_MAX,
+} from './search/searchReport';
+export type { CombinedSearchReport, SearchRates, SearchLanguageShare } from './search/searchReport';
+export { DEFAULT_SEARCH_REPORT_MESSAGES } from './search/messages';
+export type { SearchReportMessages } from './search/messages';
+export { SearchQueryTable } from './search/SearchQueryTable';
+export { SearchReportView, SEARCH_SERIES_COLOR } from './search/SearchReportView';
+export { demoSearchReport } from './search/demo';
