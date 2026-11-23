@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-23T16:22:05.427Z",
+  "generatedAt": "2026-11-23T18:15:36.236Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -8367,7 +8367,7 @@
       "category": "Domain",
       "filePath": "modules/domains/analytics/insights/SiteInsightsView.tsx",
       "abbr": "IV",
-      "description": "A site's analytics and search data in one place: an Overview combining every connected search engine (Google, Bing, Yandex) beside Google Analytics, and a tab per source. KPIs against the previous period, one measure per chart axis, every number also in a table; sources that are not connected or failing say so.",
+      "description": "A site's analytics and search data in one place: an Overview combining every connected search engine (Google, Bing, Yandex) beside Google Analytics, and a tab per source. KPIs against the previous period, one measure per chart axis, every number also in a table; sources that are not connected or failing say so. The Core Web Vitals tab shows real-user data from the Chrome UX Report per device: a tile per metric (p75, rating, distribution), the weekly p75 history with the good and poor thresholds, and the top pages.",
       "source": "import { SiteInsightsView } from '@/modules/domains/analytics';\n<SiteInsightsView snapshot={snapshot} locale=\"en-US\" siteUrl=\"https://example.com\" onRefresh={refresh} />",
       "variants": [
         {
@@ -8377,6 +8377,33 @@
         {
           "title": "One engine failing (its last data kept), all four connected",
           "code": "<SiteInsightsView snapshot={snapshot} defaultTab=\"bing\" />"
+        },
+        {
+          "title": "Core Web Vitals tab (Chrome UX Report: phones fail on LCP, desktops pass)",
+          "code": "<SiteInsightsView snapshot={snapshot} locale=\"en-US\" defaultTab=\"crux\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "analytics-vital-tile",
+      "name": "InsightsVitalTile",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/insights/InsightsVitalTile.tsx",
+      "abbr": "WV",
+      "description": "One Web Vital of real users (Chrome UX Report): the 75th percentile, its rating as a status pill (icon + words) and the share of page loads rated good, needs improvement and poor as a thin status-coloured segmented bar, each share printed beside its rating icon.",
+      "source": "<InsightsVitalTile abbr=\"LCP\" name=\"Largest Contentful Paint\" value=\"2.9 s\" rating=\"needs-improvement\"\n  shares={{ good: 0.68, needsImprovement: 0.21, poor: 0.11 }} labels={labels} formatShare={pct} caption=\"75th percentile\" coreLabel=\"Core Web Vital\" />",
+      "variants": [
+        {
+          "title": "Good, needs improvement, poor",
+          "code": "<InsightsVitalTile abbr=\"TTFB\" name=\"Time to First Byte\" value=\"2.1 s\" rating=\"poor\" shares={{ good: 0.31, needsImprovement: 0.3, poor: 0.39 }} labels={labels} formatShare={pct} />"
+        },
+        {
+          "title": "Not enough data; a unitless metric with no poor loads",
+          "code": "<InsightsVitalTile abbr=\"INP\" name=\"Interaction to Next Paint\" labels={labels} formatShare={pct} notEnoughData=\"Not enough data\" />"
         }
       ],
       "status": "stable",

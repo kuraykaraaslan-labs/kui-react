@@ -1547,6 +1547,12 @@
     "category": "Domain",
     "file": "analytics-site-insights-view.md"
   },
+  "analytics-vital-tile": {
+    "name": "InsightsVitalTile",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-vital-tile.md"
+  },
   "analytics-kpi-tile": {
     "name": "InsightsKpiTile",
     "layer": "domain",
