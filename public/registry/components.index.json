@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-23T18:15:36.236Z",
+  "generatedAt": "2026-11-23T18:17:55.326Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -5067,6 +5067,71 @@
       "variantCount": 2
     },
     {
+      "id": "analytics-security-summary-view",
+      "name": "SecuritySummaryView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/security/SecuritySummaryView.tsx",
+      "abbr": "YS",
+      "description": "What a site's protections refused, blocked and noticed over a range of days: a status line (open file-integrity and health alerts, icon and words), headline counts against the previous period, and tabs for geo-IP refusals (by action, reason, country), sign-in security, spam the forms caught, the server (fail2ban bans per jail, alerts) and the short recent-refusals list, the only part that holds IP addresses. One measure per chart axis, every number also in a table.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "analytics-search-report-view",
+      "name": "SearchReportView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/search/SearchReportView.tsx",
+      "abbr": "SQ",
+      "description": "What visitors search for on the site itself: searches, searchers, the share that found nothing and the click-through against the previous period, searches per day (all and those that found nothing, one axis), the top searches, the searches that found nothing (content gaps), the results opened most and the search languages. Every number is also in a table; queries arrive masked.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "analytics-security-status-line",
+      "name": "SecurityStatusLine",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/security/SecurityStatusLine.tsx",
+      "abbr": "YL",
+      "description": "The one-line verdict of the security summary: an icon and words for the state (no alerts, a health alert, an integrity alert, the server not reporting), never colour alone; a live region.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "analytics-security-breakdown",
+      "name": "SecurityBreakdown",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/security/SecurityBreakdown.tsx",
+      "abbr": "YB",
+      "description": "Counts of one period split by a key (action, reason, spam kind, jail, country): words, count, share and the previous period's count, with a bar to scale. Every number printed, so the list is its own table.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
+      "id": "analytics-search-query-table",
+      "name": "SearchQueryTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/search/SearchQueryTable.tsx",
+      "abbr": "QT",
+      "description": "Site search queries in a sortable, searchable table: searches, how often each found nothing, clicks, CTR, language and when last searched. A query that never found anything carries a \"nothing found\" tag (icon and words); the zero-result list keeps only searches, language and date.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 2
+    },
+    {
       "id": "fintech-wallet-status-badge",
       "name": "WalletStatusBadge",
       "layer": "domain",
@@ -5650,6 +5715,32 @@
       "since": "2026-11",
       "designTokens": [],
       "variantCount": 2
+    },
+    {
+      "id": "forum-moderation-queue",
+      "name": "ModerationQueueView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/moderation/ModerationQueueView.tsx",
+      "abbr": "Mo",
+      "description": "The forum moderation screen: Reported (each report with reason, note, reporter for moderators and time), Held (posts the spam rules held back, the reason in words) and Spam, a count per tab; per post the excerpt, topic and forum, author level, title and post count, age; Approve / Not spam, Mark as spam, Trash, Dismiss reports and Open in forum, one at a time or on a selection; spam and trash confirmed in a ConfirmDialog. Container queries: the author moves beside the post from @3xl.",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 3
+    },
+    {
+      "id": "forum-report-post",
+      "name": "ReportPostDialog",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/moderation/ReportPostDialog.tsx",
+      "abbr": "Rr",
+      "description": "A member reports a post: the Report button under someone else's post opens a dialog with the reason (spam, abuse or harassment, off-topic, personal data, something else) and an optional note (500 characters); after sending it says \"Reported, thank you\" and the button reads \"Reported\".",
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": [],
+      "variantCount": 3
     },
     {
       "id": "real-estate-property-status-badge",

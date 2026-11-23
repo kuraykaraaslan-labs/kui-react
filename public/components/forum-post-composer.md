@@ -32,6 +32,12 @@ import { TranslatedContent } from '@/modules/domains/forum/post/TranslatedConten
 import { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';
 import { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';
 import { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';
+import { ModerationQueueView } from '@/modules/domains/forum/moderation/ModerationQueueView';
+import { ReportPostButton } from '@/modules/domains/forum/moderation/ReportPostDialog';
+import { applyModerationAction } from '@/modules/domains/forum/moderation/queue';
+import { demoModerationQueue, MODERATION_DEMO_NOW } from '@/modules/domains/forum/moderation/demo';
+import type { ModerationTab } from '@/modules/domains/forum/types';
+import { useState } from 'react';
 import { cn } from '@/libs/utils/cn';
 <PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />
 ```

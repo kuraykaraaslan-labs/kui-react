@@ -1565,6 +1565,36 @@
     "category": "Domain",
     "file": "analytics-source-badge.md"
   },
+  "analytics-security-summary-view": {
+    "name": "SecuritySummaryView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-security-summary-view.md"
+  },
+  "analytics-search-report-view": {
+    "name": "SearchReportView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-search-report-view.md"
+  },
+  "analytics-security-status-line": {
+    "name": "SecurityStatusLine",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-security-status-line.md"
+  },
+  "analytics-security-breakdown": {
+    "name": "SecurityBreakdown",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-security-breakdown.md"
+  },
+  "analytics-search-query-table": {
+    "name": "SearchQueryTable",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "analytics-search-query-table.md"
+  },
   "fintech-wallet-status-badge": {
     "name": "WalletStatusBadge",
     "layer": "domain",
@@ -1834,6 +1864,18 @@
     "layer": "domain",
     "category": "Domain",
     "file": "forum-similar-topics.md"
+  },
+  "forum-moderation-queue": {
+    "name": "ModerationQueueView",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-moderation-queue.md"
+  },
+  "forum-report-post": {
+    "name": "ReportPostDialog",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "forum-report-post.md"
   },
   "real-estate-property-status-badge": {
     "name": "PropertyStatusBadge",

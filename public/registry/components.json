@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-23T18:15:36.236Z",
+  "generatedAt": "2026-11-23T18:17:55.326Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -8457,6 +8457,129 @@
       "designTokens": []
     },
     {
+      "id": "analytics-security-summary-view",
+      "name": "SecuritySummaryView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/security/SecuritySummaryView.tsx",
+      "abbr": "YS",
+      "description": "What a site's protections refused, blocked and noticed over a range of days: a status line (open file-integrity and health alerts, icon and words), headline counts against the previous period, and tabs for geo-IP refusals (by action, reason, country), sign-in security, spam the forms caught, the server (fail2ban bans per jail, alerts) and the short recent-refusals list, the only part that holds IP addresses. One measure per chart axis, every number also in a table.",
+      "source": "import { SecuritySummaryView } from '@/modules/domains/analytics';\n<SecuritySummaryView snapshot={snapshot} locale=\"en-US\" rangeOptions={[7, 30, 90, 365]} onRangeChange={load} />",
+      "variants": [
+        {
+          "title": "Overview with a health alert open, range buttons",
+          "code": "<SecuritySummaryView snapshot={snapshot} locale=\"en-US\" rangeOptions={[7, 30, 90]} onRangeChange={setDays} />"
+        },
+        {
+          "title": "Integrity alert open, Server tab",
+          "code": "<SecuritySummaryView snapshot={snapshot} defaultTab=\"server\" />"
+        },
+        {
+          "title": "Server not reporting yet, quiet site, recent refusals (holds IP addresses)",
+          "code": "<SecuritySummaryView snapshot={snapshot} defaultTab=\"recent\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "analytics-search-report-view",
+      "name": "SearchReportView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/search/SearchReportView.tsx",
+      "abbr": "SQ",
+      "description": "What visitors search for on the site itself: searches, searchers, the share that found nothing and the click-through against the previous period, searches per day (all and those that found nothing, one axis), the top searches, the searches that found nothing (content gaps), the results opened most and the search languages. Every number is also in a table; queries arrive masked.",
+      "source": "import { SearchReportView } from '@/modules/domains/analytics';\n<SearchReportView report={report} locale=\"en-US\" siteUrl=\"https://example.com\" onRangeChange={(days) => load(days)} />",
+      "variants": [
+        {
+          "title": "28 days with the period picker (English, German, Turkish and French searches)",
+          "code": "<SearchReportView report={report} locale=\"en-US\" siteUrl=\"https://example.com\" onRangeChange={(days) => load(days)} />"
+        },
+        {
+          "title": "Nobody searched yet",
+          "code": "<SearchReportView report={emptyReport} />"
+        },
+        {
+          "title": "Translated (German words and formats), 7 days",
+          "code": "<SearchReportView report={report} locale=\"de-DE\" messages={{ title: 'Website-Suche', searches: 'Suchen' }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "analytics-security-status-line",
+      "name": "SecurityStatusLine",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/security/SecurityStatusLine.tsx",
+      "abbr": "YL",
+      "description": "The one-line verdict of the security summary: an icon and words for the state (no alerts, a health alert, an integrity alert, the server not reporting), never colour alone; a live region.",
+      "source": "<SecurityStatusLine tone=\"critical\" text=\"1 integrity alert open\" label=\"Status\" />",
+      "variants": [
+        {
+          "title": "Tones",
+          "code": "<SecurityStatusLine tone=\"warning\" text=\"1 health alert open\" label=\"Status\" />"
+        },
+        {
+          "title": "Translated words",
+          "code": "<SecurityStatusLine tone=\"ok\" text=\"Keine offenen Warnungen\" label=\"Status\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "analytics-security-breakdown",
+      "name": "SecurityBreakdown",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/security/SecurityBreakdown.tsx",
+      "abbr": "YB",
+      "description": "Counts of one period split by a key (action, reason, spam kind, jail, country): words, count, share and the previous period's count, with a bar to scale. Every number printed, so the list is its own table.",
+      "source": "<SecurityBreakdown rows={shareRows(snapshot.refusals.byReason)} label={reasonLabel} fmt={fmt} previousLabel=\"Previous period\" emptyText=\"Nothing recorded.\" ariaLabel=\"By reason\" />",
+      "variants": [
+        {
+          "title": "Refusals by reason",
+          "code": "<SecurityBreakdown rows={shareRows(byReason, REFUSAL_REASONS)} label={reasonLabel} fmt={insightsFormat('en-US')} previousLabel=\"Previous period\" emptyText=\"Nothing recorded in this period.\" ariaLabel=\"By reason\" />"
+        },
+        {
+          "title": "Empty",
+          "code": "<SecurityBreakdown rows={[]} label={(k) => k} fmt={fmt} previousLabel=\"Previous period\" emptyText=\"Nothing recorded in this period.\" ariaLabel=\"By kind\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "analytics-search-query-table",
+      "name": "SearchQueryTable",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/analytics/search/SearchQueryTable.tsx",
+      "abbr": "QT",
+      "description": "Site search queries in a sortable, searchable table: searches, how often each found nothing, clicks, CTR, language and when last searched. A query that never found anything carries a \"nothing found\" tag (icon and words); the zero-result list keeps only searches, language and date.",
+      "source": "<SearchQueryTable kind=\"top\" rows={report.topQueries} locale=\"en-US\" />",
+      "variants": [
+        {
+          "title": "Top searches",
+          "code": "<SearchQueryTable kind=\"top\" rows={report.topQueries} locale=\"en-US\" />"
+        },
+        {
+          "title": "Searches that found nothing",
+          "code": "<SearchQueryTable kind=\"zero\" rows={report.zeroResultQueries} locale=\"en-US\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
       "id": "fintech-wallet-status-badge",
       "name": "WalletStatusBadge",
       "layer": "domain",
@@ -9382,7 +9505,7 @@
       "filePath": "modules/domains/forum/post/PostComposer.tsx",
       "abbr": "PC",
       "description": "Topic creation form: title + category + write/preview tabs + tag input. Composes UI primitives.",
-      "source": "import { PostComposer } from '@/modules/domains/forum/post/PostComposer';\nimport { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from '@/modules/domains/forum/post/AcceptedSolution';\nimport { TranslatedContent } from '@/modules/domains/forum/post/TranslatedContent';\nimport { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';\nimport { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';\nimport { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';\nimport { cn } from '@/libs/utils/cn';\n<PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />",
+      "source": "import { PostComposer } from '@/modules/domains/forum/post/PostComposer';\nimport { AcceptedSolutionBadge, MarkSolutionButton, acceptedSolutionClasses } from '@/modules/domains/forum/post/AcceptedSolution';\nimport { TranslatedContent } from '@/modules/domains/forum/post/TranslatedContent';\nimport { TopicSolvedBadge } from '@/modules/domains/forum/topic/TopicStatusBadge';\nimport { SimilarTopics, SuggestedCategoryHint } from '@/modules/domains/forum/topic/SimilarTopics';\nimport { StaffBadge } from '@/modules/domains/forum/user/StaffBadge';\nimport { ModerationQueueView } from '@/modules/domains/forum/moderation/ModerationQueueView';\nimport { ReportPostButton } from '@/modules/domains/forum/moderation/ReportPostDialog';\nimport { applyModerationAction } from '@/modules/domains/forum/moderation/queue';\nimport { demoModerationQueue, MODERATION_DEMO_NOW } from '@/modules/domains/forum/moderation/demo';\nimport type { ModerationTab } from '@/modules/domains/forum/types';\nimport { useState } from 'react';\nimport { cn } from '@/libs/utils/cn';\n<PostComposer categories={[{ value, label }]} onSubmit={(data) => ...} />",
       "variants": [
         {
           "title": "Default composer",
@@ -9485,6 +9608,60 @@
         {
           "title": "In PostComposer",
           "code": "<PostComposer\n  categories={categories}\n  onTitleChange={lookUp}          // debounced on the host\n  similarTopics={similar}\n  suggestedCategoryValue={suggested}\n/>"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "forum-moderation-queue",
+      "name": "ModerationQueueView",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/moderation/ModerationQueueView.tsx",
+      "abbr": "Mo",
+      "description": "The forum moderation screen: Reported (each report with reason, note, reporter for moderators and time), Held (posts the spam rules held back, the reason in words) and Spam, a count per tab; per post the excerpt, topic and forum, author level, title and post count, age; Approve / Not spam, Mark as spam, Trash, Dismiss reports and Open in forum, one at a time or on a selection; spam and trash confirmed in a ConfirmDialog. Container queries: the author moves beside the post from @3xl.",
+      "source": "import { ModerationQueueView } from '@/modules/domains/forum/moderation/ModerationQueueView';\n<ModerationQueueView queue={queue} onAction={(action, ids) => moderate(action, ids)} />",
+      "variants": [
+        {
+          "title": "Reports, held posts and spam (actions work)",
+          "code": "<ModerationQueueView\n  queue={queue}                       // wp kui-community moderation --json\n  onAction={(action, ids) => api.moderate(action, ids).then(reload)}\n/>"
+        },
+        {
+          "title": "Held tab in a narrow column, reporters hidden",
+          "code": "<ModerationQueueView queue={queue} defaultTab=\"held\" showReporters={false} onAction={run} />"
+        },
+        {
+          "title": "Nothing to moderate",
+          "code": "<ModerationQueueView queue={{ generatedAt, items: [] }} />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "designTokens": []
+    },
+    {
+      "id": "forum-report-post",
+      "name": "ReportPostDialog",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/forum/moderation/ReportPostDialog.tsx",
+      "abbr": "Rr",
+      "description": "A member reports a post: the Report button under someone else's post opens a dialog with the reason (spam, abuse or harassment, off-topic, personal data, something else) and an optional note (500 characters); after sending it says \"Reported, thank you\" and the button reads \"Reported\".",
+      "source": "import { ReportPostButton } from '@/modules/domains/forum/moderation/ReportPostDialog';\n<ReportPostButton reported={alreadyReported} onReport={({ reason, note }) => report(postId, reason, note)} />",
+      "variants": [
+        {
+          "title": "Report button under a post",
+          "code": "<ReportPostButton onReport={({ reason, note }) => api.report(postId, reason, note)} />"
+        },
+        {
+          "title": "Already reported",
+          "code": "<ReportPostButton reported onReport={send} />"
+        },
+        {
+          "title": "Sending fails (the dialog stays open with an error)",
+          "code": "<ReportPostButton onReport={() => Promise.reject(new Error('offline'))} />"
         }
       ],
       "status": "stable",
