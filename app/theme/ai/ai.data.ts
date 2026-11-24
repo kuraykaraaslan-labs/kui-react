@@ -71,7 +71,7 @@ export const CHAT_SESSIONS: AIChatSession[] = [
   {
     sessionId: 'sess-01',
     userId: 'user-01',
-    title: '2026 yapay zeka trendleri hakkında blog',
+    title: '2026 yapay zekâ trendleri hakkında blog',
     modelId: 'gokce-5.2',
     createdAt: new Date('2026-05-09T10:00:00Z'),
     updatedAt: new Date('2026-05-09T10:15:00Z'),
@@ -102,7 +102,7 @@ export const CHAT_MESSAGES: Record<string, AIChatMessage[]> = {
       messageId: 'msg-01',
       sessionId: 'sess-01',
       role: 'USER',
-      content: '2026 yılının en önemli yapay zeka trendleri hakkında kısa bir giriş paragrafı yazar mısın?',
+      content: '2026 yılının en önemli yapay zekâ trendleri hakkında kısa bir giriş paragrafı yazar mısın?',
       tokens: 22,
       createdAt: new Date('2026-05-09T10:01:00Z'),
     },
@@ -111,7 +111,7 @@ export const CHAT_MESSAGES: Record<string, AIChatMessage[]> = {
       sessionId: 'sess-01',
       role: 'ASSISTANT',
       content:
-        '2026 yılında yapay zeka, üç temel dönüşümle şekilleniyor: açık ağırlıklı modellerin yaygınlaşmasıyla sınır modellere erişimin demokratikleşmesi, birden fazla modeli zincirleme biçimde kullanan otonom iş akışlarının yükselişi ve çok modlu akıl yürütmenin artık premium bir özellik olmaktan çıkıp standart bir kabiliyet hâline gelmesi.',
+        '2026 yılında yapay zekâ, üç temel dönüşümle şekilleniyor: açık ağırlıklı modellerin yaygınlaşmasıyla sınır modellere erişimin demokratikleşmesi, birden fazla modeli zincirleme biçimde kullanan otonom iş akışlarının yükselişi ve çok modlu akıl yürütmenin artık premium bir özellik olmaktan çıkıp standart bir kabiliyet hâline gelmesi.',
       tokens: 74,
       createdAt: new Date('2026-05-09T10:01:05Z'),
     },
@@ -128,7 +128,7 @@ export const CHAT_MESSAGES: Record<string, AIChatMessage[]> = {
       sessionId: 'sess-01',
       role: 'ASSISTANT',
       content:
-        'Otonom iş akışları, yapay zeka modellerinin karmaşık görevleri alt görevlere ayırmasına, bunları özel araçlara veya alt ajanlara devretmesine ve sonuçları bağımsız biçimde sentezlemesine olanak tanır. Tek bir soru-cevap döngüsü yerine kullanıcı bir hedef tanımlar; sistem planlama, yürütme ve iyileştirme adımlarını kendi başına tamamlar. Bu yaklaşım, her aşamada insan müdahalesi gerekmeksizin gerçekleştirilebileceklerin sınırını önemli ölçüde genişletir.',
+        'Otonom iş akışları, yapay zekâ modellerinin karmaşık görevleri alt görevlere ayırmasına, bunları özel araçlara veya alt ajanlara devretmesine ve sonuçları bağımsız biçimde sentezlemesine olanak tanır. Tek bir soru-cevap döngüsü yerine kullanıcı bir hedef tanımlar; sistem planlama, yürütme ve iyileştirme adımlarını kendi başına tamamlar. Bu yaklaşım, her aşamada insan müdahalesi gerekmeksizin gerçekleştirilebileceklerin sınırını önemli ölçüde genişletir.',
       tokens: 92,
       createdAt: new Date('2026-05-09T10:02:10Z'),
     },

@@ -302,7 +302,7 @@ export function ProductDetailView({ product, categoryName, editingItem, onBack, 
         </div>
       </div>
 
-      {/* Sabit alt aksiyon çubuğu */}
+      {/* Fixed bottom action bar */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface-base/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>

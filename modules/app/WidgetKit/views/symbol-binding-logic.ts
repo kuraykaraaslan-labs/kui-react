@@ -536,9 +536,9 @@ export const STALE_PENALTY = 40;
  */
 export const FOREIGN_PENALTY = 30;
 
-/** The words that make a key a set-point: `setpoint`, `sp`, `target` and their Turkish `hedef`, or the pairs "set point" and "ayar noktası". */
+/** The words that make a key a set-point: `setpoint`, `sp`, `target` and their Turkish `hedef`, or the pairs "set point", "set değeri" and "ayar noktası". */
 const SETPOINT_WORDS = new Set(['setpoint', 'sp', 'target', 'targets', 'hedef', 'soll', 'setp']);
-const SETPOINT_PAIRS: ReadonlyArray<readonly [string, string]> = [['set', 'point'], ['set', 'pt'], ['ayar', 'noktasi'], ['ayar', 'degeri']];
+const SETPOINT_PAIRS: ReadonlyArray<readonly [string, string]> = [['set', 'point'], ['set', 'pt'], ['set', 'degeri'], ['ayar', 'noktasi'], ['ayar', 'degeri']];
 
 /** Whether some words (in their order) name a set-point. */
 export function isSetpointWords(words: readonly string[]): boolean {

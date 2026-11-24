@@ -242,7 +242,7 @@ export const EVENTS: EventWithData[] = [
     title: 'Istanbul Tech Summit 2026',
     slug: 'istanbul-tech-summit-2026',
     description: `
-      Türkiye'nin en büyük teknoloji konferansı geri dönüyor! Yapay zeka, blockchain, cloud computing
+      Türkiye'nin en büyük teknoloji konferansı geri dönüyor! Yapay zekâ, blockchain, cloud computing
       ve girişimcilik alanlarında 80'den fazla konuşmacı ve 5.000+ katılımcı.
       Workshop'lar, networking oturumları ve startuplar için pitch competition ile dolu dolu 2 gün.
     `,
@@ -262,7 +262,7 @@ export const EVENTS: EventWithData[] = [
     currency: 'TRY',
     totalCapacity: 5000,
     remainingCapacity: 2100,
-    tags: ['teknoloji', 'yapay zeka', 'girişimcilik', 'konferans'],
+    tags: ['teknoloji', 'yapay zekâ', 'girişimcilik', 'konferans'],
     keywords: ['tech summit', 'istanbul', 'ai', 'startup'],
     publishedAt: new Date('2026-04-10'),
     createdAt: new Date('2026-04-01'),

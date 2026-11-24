@@ -768,6 +768,8 @@ describe('rankKeysForField: the run\'s wrong "certain" pairs (e2e round 5, E3)',
     expect(rankKeysForField({ name: 'value2', label: 'Set point' }, keys, undefined, [], ['Sera 1', 'Greenhouse'])[0]).toMatchObject({ key: 'target' });
     expect(isSetpointWords(wordsOf('Spillway gate set-point'))).toBe(true);
     expect(isSetpointWords(wordsOf('Booster set'))).toBe(false);
+    expect(isSetpointWords(wordsOf('Sera 1 set değeri'))).toBe(true);
+    expect(isSetpointWords(wordsOf('Kazan ayar noktası'))).toBe(true);
   });
   it('a percent says no more than a word: a door\'s Opening is never certain of a relative humidity (S17)', () => {
     const ranked = rankKeysForField({ name: 'position', label: 'Opening' }, [key('temp_c', 20.4, { label: 'Room temperature', unit: '°C' }), key('rh_pct', 41, { label: 'Relative humidity', unit: '%' })], undefined, [], ['Airlock door', 'Door']);

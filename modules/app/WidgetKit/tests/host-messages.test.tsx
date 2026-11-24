@@ -45,7 +45,7 @@ const TR: WidgetKitMessagesInput = {
   card: { refresh: 'Yenile', download: 'Veriyi indir (CSV)', fullscreen: 'Tam ekran', noData: 'Veri yok', unconfigured: 'Yapılandırılmadı.', error: 'Yüklenemedi.', retry: 'Tekrar dene', updated: (w) => `Güncellendi: ${w}`, about: (t) => `${t} hakkında`, oldData: 'Eski veri', loading: 'Yükleniyor' },
   editor: { tabDisplay: 'Görünüm', tabCard: 'Kart', tabData: 'Veri', title: 'Başlık', advancedOn: 'Gelişmiş: açık', advancedOff: 'Gelişmiş: kapalı', tabsLabel: 'Bileşen ayarları', newerVersion: 'Daha yeni bir sürüm kaydetti.' },
   form: { reset: 'Sıfırla', addItem: 'Öğe ekle', item: (n) => `Öğe ${n}`, searchLabel: 'Ayarlarda ara' },
-  controls: { notConnected: 'Bağlı değil.', on: 'Açık', off: 'Kapalı', unknownLabel: 'Bilinmiyor', now: 'Şimdi', value: 'Değer', setpoint: 'Ayar noktası', reported: (v) => `Bildirilen: ${v}`, run: 'Çalıştır', confirm: 'Onayla', cancel: 'Vazgeç', typeToConfirm: 'Onaylamak için "{text}" yazın', failed: 'Değişiklik başarısız.' },
+  controls: { notConnected: 'Bağlı değil.', on: 'Açık', off: 'Kapalı', unknownLabel: 'Bilinmiyor', now: 'Şimdi', value: 'Değer', setpoint: 'Set değeri', reported: (v) => `Bildirilen: ${v}`, run: 'Çalıştır', confirm: 'Onayla', cancel: 'Vazgeç', typeToConfirm: 'Onaylamak için "{text}" yazın', failed: 'Değişiklik başarısız.' },
   table: { search: 'Ara', columns: 'Sütunlar' },
   feed: { unknownDay: 'Zaman bilinmiyor' },
   map: { loading: 'Harita yükleniyor…', map: 'Harita', open: 'Aç', legend: 'Açıklama' },
@@ -309,7 +309,7 @@ describe('control texts', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent('Bağlı değil.');
     expect(screen.getByRole('slider', { name: 'Değer' })).toBeInTheDocument();
     expect(screen.getByText('Şimdi')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Ayar noktası' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Set değeri' })).toBeInTheDocument();
   });
 
   it('a host failure text leads and the reason follows it in brackets', async () => {
