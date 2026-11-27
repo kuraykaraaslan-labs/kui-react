@@ -82,6 +82,33 @@ export const PricingPlanSchema = z.object({
 })
 
 /* =========================================================
+   PROMO (time-boxed campaign: banner, top strip, pricing ribbon)
+========================================================= */
+
+export const PromoToneEnum = z.enum(['primary', 'success', 'warning', 'info', 'neutral'])
+
+export const PromoImageSchema = z.object({
+  src: z.string(),
+  /** Empty (the default) marks the image as decorative. */
+  alt: z.string().optional(),
+  /** A separate crop for phones (below the `sm` breakpoint). */
+  mobileSrc: z.string().optional(),
+})
+
+export const PromoSchema = z.object({
+  id: z.string().optional(),
+  eyebrow: z.string().optional(),
+  headline: z.string(),
+  body: z.string().optional(),
+  cta: CtaButtonSchema.optional(),
+  image: PromoImageSchema.optional(),
+  /** ISO date-time the campaign ends; shows a countdown. */
+  endsAt: z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'endsAt must be an ISO date-time').optional(),
+  couponCode: z.string().optional(),
+  tone: PromoToneEnum.optional(),
+})
+
+/* =========================================================
    TESTIMONIAL
 ========================================================= */
 
@@ -180,3 +207,6 @@ export type SocialLink = z.infer<typeof SocialLinkSchema>
 export type TeamMember = z.infer<typeof TeamMemberSchema>
 export type PartnerLogo = z.infer<typeof PartnerLogoSchema>
 export type HowItWorksStep = z.infer<typeof HowItWorksStepSchema>
+export type PromoTone = z.infer<typeof PromoToneEnum>
+export type PromoImage = z.infer<typeof PromoImageSchema>
+export type Promo = z.infer<typeof PromoSchema>

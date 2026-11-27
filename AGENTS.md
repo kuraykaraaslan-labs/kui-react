@@ -107,6 +107,7 @@ Stateless or locally-stateful primitive components. No business logic, no extern
 | Separator | `Separator.tsx` | `orientation`, `decorative`, `label` |
 | StarRating | `StarRating.tsx` | `value` (0–5), `readonly`, `onChange`, `size` |
 | Statistic | `Statistic.tsx` | `label`, `value`, `precision`, `prefix`, `suffix`, `trend`, `loading` |
+| Countdown | `Countdown/` | `endsAt`, `now` (server time), `showSeconds`, `variant` (compact\|boxed), `size` (sm\|md), `locale`, `labels`, `endedLabel`, `onEnd` |
 
 ### Molecules — composed from atoms
 
@@ -297,7 +298,7 @@ Before adding a component to only one repo, check whether it belongs in the othe
 | Forum | `forum/` | `ForumCategoryCard`, `TopicRow`, `ReactionTypeBadge` |
 | IoT | `iot/` | `DeviceCard`, `CloudWorkspaceCard`, `RulesetEditor`, `AlarmSeverityBadge`, `DeviceListView`, `AlarmListView`, `RpcConsoleView`, `DeviceProfileEditorView` |
 | Jobs | `jobs/` | `JobCard`, `CompanyCard`, `JobMeta`, `ApplicationStatusBadge` |
-| Landing | `landing/` | `HeroSection`, `PricingGrid`, `FeatureCard`, `FaqAccordion` |
+| Landing | `landing/` | `HeroSection`, `PricingGrid`, `FeatureCard`, `FaqAccordion`, `PromoBanner` |
 | Media | `media/` | `VideoCard`, `ChannelCard`, `VideoStatusBadge` |
 | NFT marketplace | `nft/` | `NftCard`, `NftDetailHeader`, `CollectionCard`, `RarityBadge` |
 | Real estate | `real-estate/` | `PropertyCard`, `AgentCard`, `MortgageCalculator` |

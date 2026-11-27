@@ -10,6 +10,7 @@ import { buildEventDomainData } from './sections/domain-event.showcase';
 import { buildMapData } from './sections/ui-molecule-map.showcase';
 import { buildApiDocDomainData } from './sections/domain-api-doc.showcase';
 import { buildLandingDomainData } from './sections/domain-landing.showcase';
+import { buildLandingPromoData } from './sections/domain-landing-promo.showcase';
 import { buildJobsDomainData } from './sections/domain-jobs.showcase';
 import { buildAnalyticsDomainData } from './sections/domain-analytics.showcase';
 import { buildFintechDomainData } from './sections/domain-fintech.showcase';
@@ -83,6 +84,7 @@ export function buildShowcaseData() {
     ...buildMapData(),
     ...buildApiDocDomainData(),
     ...buildLandingDomainData(),
+    ...buildLandingPromoData(),
     ...buildJobsDomainData(),
     ...buildAnalyticsDomainData(),
     ...buildFintechDomainData(),

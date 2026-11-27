@@ -83,6 +83,12 @@
     "category": "Atom",
     "file": "statistic.md"
   },
+  "countdown": {
+    "name": "Countdown",
+    "layer": "ui",
+    "category": "Atom",
+    "file": "countdown.md"
+  },
   "input": {
     "name": "Input",
     "layer": "ui",
@@ -1486,6 +1492,12 @@
     "layer": "domain",
     "category": "Domain",
     "file": "landing-reviews-strip.md"
+  },
+  "landing-promo-banner": {
+    "name": "PromoBanner",
+    "layer": "domain",
+    "category": "Domain",
+    "file": "landing-promo-banner.md"
   },
   "jobs-status-badge": {
     "name": "JobStatusBadge",

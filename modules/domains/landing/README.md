@@ -13,6 +13,7 @@ how-it-works/
 nav/
 partner/
 pricing/
+promo/
 stat/
 team/
 testimonial/

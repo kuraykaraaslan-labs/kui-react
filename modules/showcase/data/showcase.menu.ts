@@ -36,6 +36,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'scroll-area',  title: 'ScrollArea',      category: 'Atom',     abbr: 'SA', since: '2026-09' },
       { id: 'progress',     title: 'Progress',        category: 'Atom',     abbr: 'Pr', since: '2026-09' },
       { id: 'statistic',    title: 'Statistic',       category: 'Atom',     abbr: 'St', since: '2026-09' },
+      { id: 'countdown',    title: 'Countdown',       category: 'Atom',     abbr: 'Cd', since: '2026-11' },
     ],
   },
   {
@@ -284,6 +285,7 @@ const NAV_GROUPS: NavGroup[] = [
       { id: 'landing-qr-codes', title: 'QrCodes', category: 'Domain', abbr: 'QR', since: '2026-11' },
       { id: 'landing-newsletter', title: 'NewsletterSignup', category: 'Domain', abbr: 'NL', since: '2026-11' },
       { id: 'landing-reviews-strip', title: 'ReviewsStrip', category: 'Domain', abbr: 'RS', since: '2026-11' },
+      { id: 'landing-promo-banner', title: 'PromoBanner', category: 'Domain', abbr: 'Pm', since: '2026-11' },
     ],
   },
   {

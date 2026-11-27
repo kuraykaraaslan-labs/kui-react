@@ -41,3 +41,7 @@ export { StatsBar } from './stat/StatsBar';
 export { TeamMemberCard } from './team/TeamMemberCard';
 export { TestimonialCard } from './testimonial/TestimonialCard';
 export { TestimonialGrid } from './testimonial/TestimonialGrid';
+export { PromoBanner, PROMO_TONES, DEFAULT_PROMO_BANNER_MESSAGES } from './promo/PromoBanner';
+export type { PromoBannerProps, PromoBannerLayout, PromoBannerMessages } from './promo/PromoBanner';
+export { PromoCoupon } from './promo/PromoCoupon';
+export type { PromoCouponProps } from './promo/PromoCoupon';

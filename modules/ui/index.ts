@@ -10,6 +10,8 @@ export { Badge } from './Badge';
 export { BrandLogo } from './BrandLogo';
 export { Button } from './Button';
 export { Checkbox } from './Checkbox';
+export { Countdown, DEFAULT_COUNTDOWN_LABELS, countdownLabels, splitRemaining } from './Countdown';
+export type { CountdownProps, CountdownLabels, CountdownParts } from './Countdown';
 export { DatePicker } from './DatePicker';
 export { FileInput } from './FileInput';
 export { Input } from './Input';

@@ -6,6 +6,19 @@ All notable changes to this project will be documented here. Format follows [Kee
 
 ### Added
 
+- `Countdown` (`modules/ui/Countdown/`, kui-campaigns K-3): counts down to `endsAt`, compact ("2d 4h 12m") or boxed, sizes sm/md,
+  seconds optional. Ticks once a minute (once a second with `showSeconds`) on the minute of the time left; the numbers sit in
+  `role="timer"` with `aria-live="off"` and a visually hidden "Ends <time datetime>" gives the end date; no animation. The server and
+  the first client render show "--" (or the time at `now`), so hydration never mismatches. English and Turkish words built in
+  (`locale`, `labels`, `endedLabel`), `onEnd` once on the client. The pure helpers (`splitRemaining`, `msUntilNextTick`) count elapsed
+  time, so a daylight-saving change never shifts the countdown. kui-ejs `modules/ui/Countdown.ejs` draws the same DOM.
+
+- `PromoBanner` (`modules/domains/landing/promo/`, kui-campaigns K-2; React-only like the landing vertical): a time-boxed campaign as a
+  `banner` (image beside the text, stacks on phones, the image box keeps its aspect ratio), a one-line `strip` (closable through
+  `onDismiss`) or a pricing-card `ribbon` (a Badge). Eyebrow, headline, body, a Button link, a Countdown to `endsAt` and a coupon code
+  with a copy button (`PromoCoupon`); tones primary, success, warning, info and neutral from the existing tokens. `PromoSchema` in the
+  landing types.
+
 - RulesetEditor `ParamForm`: a `list` whose items (or the list itself) name a host `source` with `free: true` keeps values the host
   list does not offer. The list still shows as checkboxes; the values it does not offer are shown and typed, comma separated, in an
   "Other value" field below it, and a typed value the list offers is not added twice (next-boilerplate iot-automation 11 §1.10:

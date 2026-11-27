@@ -19,6 +19,7 @@ Core interactive element. Supports 6 visual styles (variants) and 5 sizes: secon
 - `entity-aliases`
 - `form-builder`
 - `gantt`
+- `landing-promo-banner`
 - `onboarding-wizard`
 - `popconfirm`
 - `reviews-review-submit-form`

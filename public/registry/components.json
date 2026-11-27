@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-23T19:30:12.915Z",
+  "generatedAt": "2026-11-27T11:19:38.715Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -266,6 +266,7 @@
         "entity-aliases",
         "form-builder",
         "gantt",
+        "landing-promo-banner",
         "onboarding-wizard",
         "popconfirm",
         "reviews-review-submit-form",
@@ -342,6 +343,7 @@
       ],
       "usedBy": [
         "kanban-board",
+        "landing-promo-banner",
         "maintenance-page",
         "reviews-review-card"
       ]
@@ -726,6 +728,54 @@
         "stat-card"
       ],
       "designTokens": []
+    },
+    {
+      "id": "countdown",
+      "name": "Countdown",
+      "layer": "ui",
+      "category": "Atom",
+      "filePath": "modules/ui/Countdown/Countdown.tsx",
+      "abbr": "Cd",
+      "description": "Counts down to an end date: compact (\"2d 4h 12m\") or one box per unit, sm/md, seconds optional. Ticks once a minute (once a second with seconds), never announces each tick to screen readers (role=\"timer\", aria-live=\"off\") and reads the end date from a <time datetime>. Renders \"--\" on the server (or the server time when `now` is given) and ticks on the client, so hydration never mismatches. English and Turkish words built in, all overridable.",
+      "source": "'use client';\nimport { Countdown } from '@/modules/ui/Countdown';\n\n<Countdown endsAt=\"2027-01-01T00:00:00Z\" />\n<Countdown endsAt={campaign.endsAt} now={requestTime} variant=\"boxed\" showSeconds locale=\"tr\" onEnd={hideBanner} />",
+      "variants": [
+        {
+          "title": "Compact (sm, md, with seconds)",
+          "code": "<Countdown endsAt=\"2027-01-01T00:00:00Z\" size=\"sm\" />\n<Countdown endsAt=\"2027-01-01T00:00:00Z\" />\n<Countdown endsAt=\"2027-01-01T00:00:00Z\" showSeconds />"
+        },
+        {
+          "title": "Boxed (md, sm, Turkish)",
+          "code": "<Countdown endsAt=\"2027-01-01T00:00:00Z\" variant=\"boxed\" showSeconds />\n<Countdown endsAt=\"2027-01-01T00:00:00Z\" variant=\"boxed\" size=\"sm\" locale=\"tr\" />"
+        },
+        {
+          "title": "Ended",
+          "code": "<Countdown endsAt=\"2026-01-01T00:00:00Z\" />\n<Countdown endsAt=\"2026-01-01T00:00:00Z\" endedLabel=\"This offer has ended\" variant=\"boxed\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "whenToUse": "Time-boxed offers and campaigns (top bar, banner, pricing), event starts, deadlines.",
+      "whenNotToUse": "Elapsed time or durations that do not end (use a plain formatted value or Statistic).",
+      "relatedTo": [
+        "landing-promo-banner",
+        "statistic"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "Timer (aria-live off)"
+        ],
+        "notes": "The ticking numbers sit in role=\"timer\" with aria-live=\"off\"; a visually hidden \"Ends <time datetime>…</time>\" gives the end date. No animation, so reduced motion needs no special case."
+      },
+      "designTokens": [
+        "--border",
+        "--surface-raised",
+        "--text-primary",
+        "--text-secondary"
+      ],
+      "usedBy": [
+        "landing-promo-banner"
+      ]
     },
     {
       "id": "input",
@@ -8165,6 +8215,67 @@
       "status": "stable",
       "since": "2026-11",
       "designTokens": []
+    },
+    {
+      "id": "landing-promo-banner",
+      "name": "PromoBanner",
+      "layer": "domain",
+      "category": "Domain",
+      "filePath": "modules/domains/landing/promo/PromoBanner.tsx",
+      "abbr": "Pm",
+      "description": "A time-boxed campaign in three layouts: `banner` (image beside the text, stacks on phones, image box keeps its aspect ratio so a late banner does not shift the page), `strip` (a one-line top bar, closable through `onDismiss`) and `ribbon` (a badge for pricing cards). Eyebrow, headline, body, a button, a Countdown to `endsAt` and a coupon code with a copy button, in the primary, success, warning, info or neutral tone.",
+      "source": "import { PromoBanner } from '@/modules/domains/landing';\n\n<PromoBanner promo={campaign} />\n<PromoBanner promo={campaign} layout=\"strip\" onDismiss={() => remember(campaign.id)} />\n<PromoBanner promo={{ headline: 'Summer: −20% first year' }} layout=\"ribbon\" tone=\"warning\" />",
+      "variants": [
+        {
+          "title": "Banner (image, countdown, coupon)",
+          "code": "<PromoBanner promo={{\n  eyebrow: 'Summer sale',\n  headline: '20% off your first year',\n  body: 'Every yearly plan, for new workspaces.',\n  cta: { label: 'See plans', href: '/pricing' },\n  image: { src: '/promo.jpg', mobileSrc: '/promo-phone.jpg' },\n  endsAt: '2027-01-01T00:00:00Z',\n  couponCode: 'SUMMER20',\n}} />"
+        },
+        {
+          "title": "Banner tones (no image)",
+          "code": "<PromoBanner promo={promo} tone=\"warning\" />\n<PromoBanner promo={promo} tone=\"info\" headingLevel={3} />\n<PromoBanner promo={promo} tone=\"neutral\" locale=\"tr\" />"
+        },
+        {
+          "title": "Strip (top bar, closable)",
+          "code": "<PromoBanner promo={campaign} layout=\"strip\" onDismiss={() => localStorage.setItem('promo:' + campaign.id, '1')} />"
+        },
+        {
+          "title": "Ribbon (pricing cards)",
+          "code": "<PromoBanner promo={{ headline: 'Summer: −20% first year' }} layout=\"ribbon\" tone=\"warning\" />"
+        }
+      ],
+      "status": "stable",
+      "since": "2026-11",
+      "whenToUse": "Marketing campaigns and limited offers on a public site: above the header, between sections, on a pricing plan.",
+      "whenNotToUse": "Product or system notices (use AlertBanner or AnnouncementBar), cookie or consent notices.",
+      "composes": [
+        "button",
+        "badge",
+        "countdown"
+      ],
+      "relatedTo": [
+        "landing-announcement-bar",
+        "landing-pricing-plan-card",
+        "landing-hero-section"
+      ],
+      "a11y": {
+        "wcagLevel": "AA",
+        "ariaPatterns": [
+          "Region (banner, strip)",
+          "Timer (aria-live off)",
+          "Status (copied)"
+        ],
+        "notes": "The banner is a section named by its heading; the strip a region named by its headline. The close and copy buttons have names; a copy is announced through a polite status line."
+      },
+      "designTokens": [
+        "--primary-subtle",
+        "--success-subtle",
+        "--warning-subtle",
+        "--info-subtle",
+        "--surface-raised",
+        "--border-strong",
+        "--text-primary",
+        "--text-secondary"
+      ]
     },
     {
       "id": "jobs-status-badge",

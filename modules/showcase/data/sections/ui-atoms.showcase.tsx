@@ -13,6 +13,7 @@ import { buildSeparatorData } from './ui-atom-separator.showcase';
 import { buildScrollAreaData } from './ui-atom-scroll-area.showcase';
 import { buildProgressData } from './ui-atom-progress.showcase';
 import { buildStatisticData } from './ui-atom-statistic.showcase';
+import { buildCountdownData } from './ui-atom-countdown.showcase';
 import type { ShowcaseComponent } from '../showcase.types';
 
 export function buildAtomsData(): ShowcaseComponent[] {
@@ -31,5 +32,6 @@ export function buildAtomsData(): ShowcaseComponent[] {
     ...buildScrollAreaData(),
     ...buildProgressData(),
     ...buildStatisticData(),
+    ...buildCountdownData(),
   ];
 }
