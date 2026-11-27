@@ -1,9 +1,10 @@
 'use client';
 import { cn } from '@/libs/utils/cn';
-import type { Event } from '../types';
+import type { CalendarTelemetry, Event } from '../types';
 import { EventCard } from '../parts/EventCard';
 import { eventOnDay, isSameDay, isSameMonth, monthGrid } from '../date-utils';
 import type { LocaleBundle } from '../locale';
+import { MonthRangeView } from './MonthRangeView';
 
 type MonthViewProps = {
   date: Date;
@@ -13,6 +14,14 @@ type MonthViewProps = {
   onEventClick?: (e: Event, anchorRect: DOMRect) => void;
   /** Maximum event rows per cell before showing "+N more". */
   maxPerDay?: number;
+  /** Continuous multi-day bars (MonthRangeView). */
+  bars?: boolean;
+  /** Day-range drag + keyboard (MonthRangeView); implies `bars`. */
+  rangeDrag?: boolean;
+  onEventCreate?: (range: { start: Date; end: Date; allDay?: boolean }) => void | Promise<void>;
+  onEventUpdate?: (event: Event) => void | Promise<void>;
+  onStepDays?: (delta: number) => void;
+  onTelemetry?: (e: CalendarTelemetry) => void;
 };
 
 const HEADER_ORDER = (weekStart: 0 | 1) =>
@@ -25,7 +34,30 @@ export function MonthView({
   today,
   onEventClick,
   maxPerDay = 3,
+  bars = false,
+  rangeDrag = false,
+  onEventCreate,
+  onEventUpdate,
+  onStepDays,
+  onTelemetry,
 }: MonthViewProps) {
+  if (bars || rangeDrag) {
+    return (
+      <MonthRangeView
+        date={date}
+        events={events}
+        locale={locale}
+        today={today}
+        draggable={rangeDrag}
+        onEventClick={onEventClick}
+        onEventCreate={onEventCreate}
+        onEventUpdate={onEventUpdate}
+        onStepDays={onStepDays}
+        onTelemetry={onTelemetry}
+        maxPerDay={maxPerDay}
+      />
+    );
+  }
   const cells = monthGrid(date, locale.weekStart);
   const headerOrder = HEADER_ORDER(locale.weekStart);
 

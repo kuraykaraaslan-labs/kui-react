@@ -33,6 +33,9 @@ export type CalendarState = {
   // sub-components can resolve event colours via the store (M4).
   calendars: CalendarSource[];
   hiddenCalendarIds: Set<string>;
+
+  // Live-region text pushed by an interaction (month range drag); cleared on navigation so the period label is read again.
+  liveMessage: string;
 };
 
 export type CalendarActions = {
@@ -46,6 +49,8 @@ export type CalendarActions = {
 
   setCalendars: (cals: CalendarSource[]) => void;
   toggleCalendar: (id: string) => void;
+
+  announce: (message: string) => void;
 };
 
 export type CalendarStore = CalendarState & CalendarActions;
@@ -61,6 +66,7 @@ export function createCalendarStore(initial: { date: Date; view: View }) {
     drag: IDLE_DRAG,
     calendars: [],
     hiddenCalendarIds: new Set<string>(),
+    liveMessage: '',
 
     setDate: (d) => set({ date: d }),
     setView: (v) => set({ view: v }),
@@ -78,6 +84,8 @@ export function createCalendarStore(initial: { date: Date; view: View }) {
         else next.add(id);
         return { hiddenCalendarIds: next };
       }),
+
+    announce: (message) => set({ liveMessage: message }),
   }));
 }
 

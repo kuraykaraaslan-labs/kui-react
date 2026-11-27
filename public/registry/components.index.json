@@ -3,7 +3,7 @@
   "name": "kui-react",
   "version": "0.1.0",
   "registryVersion": "1.0.0",
-  "generatedAt": "2026-11-27T11:19:38.715Z",
+  "generatedAt": "2026-11-27T11:46:34.829Z",
   "description": "Machine-readable catalog of every component, theme, design token, and convention in the kui-react library. Consume this from an AI assistant to know what exists, where it lives, and how to use it.",
   "layers": {
     "ui": "modules/ui/ — Primitive, locally-stateful components (atoms + molecules). No business logic. Every file starts with 'use client' and imports cn from @/libs/utils/cn.",
@@ -2918,7 +2918,7 @@
       "category": "App",
       "filePath": "modules/app/Calendar/index.tsx",
       "abbr": "Cl",
-      "description": "Month / week / day / agenda / resource calendar with view switcher, full keyboard nav (PageUp/Down + T + arrow keys for day-step), per-event color and icon, all-day bars + timed pills, TR/EN locales, full interactions (anchored popover, drag-move, edge-resize, drag-create), in-house RRULE expansion (FREQ/INTERVAL/COUNT/UNTIL/BYDAY + exceptions), multi-calendar overlay with per-calendar visibility legend, ResourceView lanes with O(n²) conflict highlighting, agenda list (search + date grouping) and a composable MiniCalendar sidebar. WAI-ARIA grid pattern with live-region nav announcements (\"Showing May 2026\") and event-count cell labels (\"Tuesday May 12, 3 events\"). Optional Intl.DateTimeFormat-based time formatting for locale-aware clocks.",
+      "description": "Month / week / day / agenda / resource calendar with view switcher, full keyboard nav (PageUp/Down + T + arrow keys for day-step), per-event color and icon, all-day bars + timed pills, opt-in continuous multi-day bars in the month view (monthBars) with day-range drag-create, drag-move and edge-resize plus keyboard equivalents (monthDrag), TR/EN locales, full interactions (anchored popover, drag-move, edge-resize, drag-create), in-house RRULE expansion (FREQ/INTERVAL/COUNT/UNTIL/BYDAY + exceptions), multi-calendar overlay with per-calendar visibility legend, ResourceView lanes with O(n²) conflict highlighting, agenda list (search + date grouping) and a composable MiniCalendar sidebar. WAI-ARIA grid pattern with live-region nav announcements (\"Showing May 2026\") and event-count cell labels (\"Tuesday May 12, 3 events\"). Optional Intl.DateTimeFormat-based time formatting for locale-aware clocks.",
       "status": "beta",
       "since": "2026-05",
       "composes": [],
@@ -2962,14 +2962,34 @@
           },
           {
             "keys": "Escape",
-            "action": "Close popover / cancel drag in progress"
+            "action": "Close popover / cancel drag in progress / drop a month day selection"
+          },
+          {
+            "keys": "Shift + Arrow keys",
+            "action": "Month view with monthDrag, on a day: select days from the focused day"
+          },
+          {
+            "keys": "Enter",
+            "action": "Month view with monthDrag, on a day: create an all-day event for the selection (or the day)"
+          },
+          {
+            "keys": "Alt + Arrow keys",
+            "action": "Month view with monthDrag, on a bar: move it by a day (Left / Right) or a week (Up / Down)"
+          },
+          {
+            "keys": "Shift + Arrow Left / Right",
+            "action": "Month view with monthDrag, on a bar: change its end by a day"
+          },
+          {
+            "keys": "Alt + Shift + Arrow Left / Right",
+            "action": "Month view with monthDrag, on a bar: change its start by a day"
           },
           {
             "keys": "Tab",
             "action": "Focus the next interactive element (events, nav buttons, legend chips)"
           }
         ],
-        "notes": "Month view uses role=\"grid\" with role=\"gridcell\" per day. Cells announce \"Tuesday May 12, 3 events\" via aria-label. View switcher uses role=\"tablist\". Legend chips use role=\"switch\". Nav changes push a polite live-region message (\"Showing May 2026\"). Drag is direct manipulation (no animated motion), so prefers-reduced-motion is a no-op for the calendar."
+        "notes": "Month view uses role=\"grid\" with role=\"gridcell\" per day. Cells announce \"Tuesday May 12, 3 events\" via aria-label. View switcher uses role=\"tablist\". Legend chips use role=\"switch\". Nav changes push a polite live-region message (\"Showing May 2026\"); month range drags announce the selection (\"13 May – 15 May selected\") and keyboard moves (\"Spring sale now runs 14 May – 20 May\"), and day cells and bars carry a keyboard hint via aria-describedby. Month drags work with mouse, pen and touch (a touch drag starts after a 300 ms press, so swipes still scroll). Drag is direct manipulation (no animated motion), so prefers-reduced-motion is a no-op for the calendar."
       },
       "designTokens": [
         "--primary",
@@ -2989,7 +3009,7 @@
         "--text-secondary",
         "--text-disabled"
       ],
-      "variantCount": 9
+      "variantCount": 10
     },
     {
       "id": "gantt",

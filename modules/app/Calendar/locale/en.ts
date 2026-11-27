@@ -26,6 +26,10 @@ export const EN_MESSAGES: CalendarMessages = {
     : count === 1
       ? `${date}, 1 event`
       : `${date}, ${count} events`,
+  rangeSelected: (days) => `${days} selected`,
+  rangeChanged: (title, days) => `${title} now runs ${days}`,
+  cellKeysHint: 'Shift and the arrow keys select days, Enter creates an event.',
+  barKeysHint: 'Alt and the arrow keys move the event, Shift and Left or Right change its end, Alt, Shift and Left or Right change its start.',
 };
 
 /** Sunday-start (US default). */

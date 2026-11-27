@@ -33,6 +33,8 @@ export function useKeyboardNav({ rootRef, onPrev, onNext, onToday, onStepDays, e
     if (!root) return;
 
     function onKey(e: KeyboardEvent) {
+      // A child already handled the key (the month range drag's Shift / Alt + arrows, Enter on a day).
+      if (e.defaultPrevented) return;
       // Ignore when user is typing into an input / textarea / contenteditable
       const target = e.target as HTMLElement | null;
       if (

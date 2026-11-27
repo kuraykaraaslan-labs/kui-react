@@ -10,6 +10,7 @@ import {
   faGraduationCap,
 } from '@fortawesome/free-solid-svg-icons';
 import type { ShowcaseComponent } from '../showcase.types';
+import { CalendarMonthRangeDemo } from './app-calendar-range.demo';
 
 /** Anchor demos to a stable date so the grid layout is deterministic. */
 const DEMO_ANCHOR = new Date(2026, 4, 13); // 13 May 2026 (Wed)
@@ -353,7 +354,7 @@ export function buildAppCalendarData(): ShowcaseComponent[] {
       category: 'App',
       abbr: 'Cl',
       description:
-        'Month / week / day / agenda / resource calendar with view switcher, full keyboard nav (PageUp/Down + T + arrow keys for day-step), per-event color and icon, all-day bars + timed pills, TR/EN locales, full interactions (anchored popover, drag-move, edge-resize, drag-create), in-house RRULE expansion (FREQ/INTERVAL/COUNT/UNTIL/BYDAY + exceptions), multi-calendar overlay with per-calendar visibility legend, ResourceView lanes with O(n²) conflict highlighting, agenda list (search + date grouping) and a composable MiniCalendar sidebar. WAI-ARIA grid pattern with live-region nav announcements ("Showing May 2026") and event-count cell labels ("Tuesday May 12, 3 events"). Optional Intl.DateTimeFormat-based time formatting for locale-aware clocks.',
+        'Month / week / day / agenda / resource calendar with view switcher, full keyboard nav (PageUp/Down + T + arrow keys for day-step), per-event color and icon, all-day bars + timed pills, opt-in continuous multi-day bars in the month view (monthBars) with day-range drag-create, drag-move and edge-resize plus keyboard equivalents (monthDrag), TR/EN locales, full interactions (anchored popover, drag-move, edge-resize, drag-create), in-house RRULE expansion (FREQ/INTERVAL/COUNT/UNTIL/BYDAY + exceptions), multi-calendar overlay with per-calendar visibility legend, ResourceView lanes with O(n²) conflict highlighting, agenda list (search + date grouping) and a composable MiniCalendar sidebar. WAI-ARIA grid pattern with live-region nav announcements ("Showing May 2026") and event-count cell labels ("Tuesday May 12, 3 events"). Optional Intl.DateTimeFormat-based time formatting for locale-aware clocks.',
       filePath: 'modules/app/Calendar/index.tsx',
       since: '2026-05',
       status: 'beta',
@@ -405,11 +406,16 @@ const events: Event[] = [
           { keys: 'Arrow Right', action: 'Step forward one day' },
           { keys: 'Arrow Up',    action: 'Step back one week' },
           { keys: 'Arrow Down',  action: 'Step forward one week' },
-          { keys: 'Escape',      action: 'Close popover / cancel drag in progress' },
+          { keys: 'Escape',      action: 'Close popover / cancel drag in progress / drop a month day selection' },
+          { keys: 'Shift + Arrow keys', action: 'Month view with monthDrag, on a day: select days from the focused day' },
+          { keys: 'Enter',       action: 'Month view with monthDrag, on a day: create an all-day event for the selection (or the day)' },
+          { keys: 'Alt + Arrow keys', action: 'Month view with monthDrag, on a bar: move it by a day (Left / Right) or a week (Up / Down)' },
+          { keys: 'Shift + Arrow Left / Right', action: 'Month view with monthDrag, on a bar: change its end by a day' },
+          { keys: 'Alt + Shift + Arrow Left / Right', action: 'Month view with monthDrag, on a bar: change its start by a day' },
           { keys: 'Tab',         action: 'Focus the next interactive element (events, nav buttons, legend chips)' },
         ],
         notes:
-          'Month view uses role="grid" with role="gridcell" per day. Cells announce "Tuesday May 12, 3 events" via aria-label. View switcher uses role="tablist". Legend chips use role="switch". Nav changes push a polite live-region message ("Showing May 2026"). Drag is direct manipulation (no animated motion), so prefers-reduced-motion is a no-op for the calendar.',
+          'Month view uses role="grid" with role="gridcell" per day. Cells announce "Tuesday May 12, 3 events" via aria-label. View switcher uses role="tablist". Legend chips use role="switch". Nav changes push a polite live-region message ("Showing May 2026"); month range drags announce the selection ("13 May – 15 May selected") and keyboard moves ("Spring sale now runs 14 May – 20 May"), and day cells and bars carry a keyboard hint via aria-describedby. Month drags work with mouse, pen and touch (a touch drag starts after a 300 ms press, so swipes still scroll). Drag is direct manipulation (no animated motion), so prefers-reduced-motion is a no-op for the calendar.',
       },
       designTokens: [
         '--primary', '--primary-fg',
@@ -596,6 +602,26 @@ const [view, setView] = useState<View>('week');
     onDateChange={setDate}
   />
 </div>`,
+        },
+        {
+          title: 'Month view — drag to plan ranges',
+          layout: 'stack',
+          preview: <CalendarMonthRangeDemo />,
+          code: `<Calendar
+  events={events}
+  view="month"
+  defaultDate={new Date(2026, 4, 13)}
+  locale="en"
+  monthDrag                       // implies monthBars: continuous multi-day bars
+  onEventCreate={({ start, end, allDay }) =>
+    // start = first day 00:00, end = the day after the last day 00:00, allDay = true
+    setEvents((prev) => [...prev, { id: crypto.randomUUID(), title: 'New campaign', start, end, allDay }])
+  }
+  onEventUpdate={(updated) =>
+    // moved / resized by whole days; times of day kept
+    setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)))
+  }
+/>`,
         },
       ],
     },

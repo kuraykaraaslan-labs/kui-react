@@ -24,6 +24,10 @@ export const TR_MESSAGES: CalendarMessages = {
   cellLabel: (date, count) => count > 0
     ? `${date}, ${count} etkinlik`
     : `${date}, etkinlik yok`,
+  rangeSelected: (days) => `${days} seçildi`,
+  rangeChanged: (title, days) => `${title} artık ${days}`,
+  cellKeysHint: 'Shift ve ok tuşları günleri seçer, Enter etkinlik oluşturur.',
+  barKeysHint: 'Alt ve ok tuşları etkinliği taşır, Shift ile sol veya sağ ok bitişini, Alt, Shift ile sol veya sağ ok başlangıcını değiştirir.',
 };
 
 /** Monday-start (TR default). */

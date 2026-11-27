@@ -81,6 +81,8 @@ function CalendarInner({
   onCalendarToggle,
   hideCalendarLegend,
   onTelemetry,
+  monthBars = false,
+  monthDrag = false,
   className,
 }: CalendarProps) {
   const date = useCalStore((s) => s.date);
@@ -88,6 +90,8 @@ function CalendarInner({
   const openPopover = useCalStore((s) => s.openPopover);
   const setCalendars = useCalStore((s) => s.setCalendars);
   const hiddenCalendarIds = useCalStore((s) => s.hiddenCalendarIds);
+  const liveMessage = useCalStore((s) => s.liveMessage);
+  const announce = useCalStore((s) => s.announce);
 
   // Push `calendars` prop into the store so descendants resolve effective colour.
   useEffect(() => {
@@ -130,10 +134,12 @@ function CalendarInner({
   const setDate = useCallback(
     (next: Date, direction: 'prev' | 'next' | 'today') => {
       setStoreDate(next);
+      // Navigation reads the period label again (an interaction's message would otherwise stay in the live region).
+      announce('');
       onDateChange?.(next);
       onTelemetry?.({ type: 'nav', date: next, direction });
     },
-    [setStoreDate, onDateChange, onTelemetry],
+    [setStoreDate, announce, onDateChange, onTelemetry],
   );
 
   const goPrev = useCallback(() => {
@@ -221,6 +227,12 @@ function CalendarInner({
           locale={{ ...localeBundle, messages }}
           today={today}
           onEventClick={handleEventClick}
+          bars={monthBars}
+          rangeDrag={monthDrag}
+          onEventCreate={onEventCreate}
+          onEventUpdate={onEventUpdate}
+          onStepDays={stepDays}
+          onTelemetry={onTelemetry}
         />
       )}
       {view === 'week' && (
@@ -282,7 +294,7 @@ function CalendarInner({
         onTelemetry={onTelemetry}
       />
 
-      <LiveRegion message={announcement} />
+      <LiveRegion message={liveMessage || announcement} />
     </div>
   );
 }

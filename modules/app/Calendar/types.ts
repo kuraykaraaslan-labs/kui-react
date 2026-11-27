@@ -102,6 +102,14 @@ export type CalendarMessages = {
   showing: (periodLabel: string) => string;
   /** Cell aria-label template — `${weekday} ${day} ${month}` + event count (M6). */
   cellLabel: (dateLabel: string, eventCount: number) => string;
+  /** Month range drag (`monthDrag`): live-region text for a keyboard day selection; `days` is "14 May – 16 May" or "14 May". */
+  rangeSelected: (days: string) => string;
+  /** Month range drag: live-region text after a bar was moved or resized from the keyboard. */
+  rangeChanged: (title: string, days: string) => string;
+  /** Month range drag: screen-reader hint on the day cells. */
+  cellKeysHint: string;
+  /** Month range drag: screen-reader hint on the bars. */
+  barKeysHint: string;
 };
 
 /** Working-hours config (visual shading hint only in M1). */
@@ -125,7 +133,15 @@ export type CalendarDragState =
   | { kind: 'idle' }
   | { kind: 'move'; eventId: string; ghostStart: Date; ghostEnd: Date; dayIndex: number }
   | { kind: 'resize'; eventId: string; ghostEnd: Date }
-  | { kind: 'create'; ghostStart: Date; ghostEnd: Date; dayIndex: number };
+  | { kind: 'create'; ghostStart: Date; ghostEnd: Date; dayIndex: number }
+  /** Month view day-range drag (`monthDrag`): the ghost days are `[ghostStart, ghostEnd)`. */
+  | {
+      kind: 'range';
+      change: 'create' | 'move' | 'resize-start' | 'resize-end';
+      eventId?: string;
+      ghostStart: Date;
+      ghostEnd: Date;
+    };
 
 /** Telemetry payload — reserved for future analytics integrations. */
 export type CalendarTelemetry =
@@ -157,12 +173,28 @@ export type CalendarProps = {
   onDateChange?: (d: Date) => void;
   /** Click handler — fires once per event press. */
   onEventClick?: (e: Event) => void;
-  /** Fired after a drag-create gesture commits. */
-  onEventCreate?: (range: { start: Date; end: Date }) => void | Promise<void>;
+  /**
+   * Fired after a drag-create gesture commits. From the month view (`monthDrag`) the range is whole days: `start` is the first
+   * day 00:00, `end` the day after the last day 00:00 (exclusive), and `allDay` is true.
+   */
+  onEventCreate?: (range: { start: Date; end: Date; allDay?: boolean }) => void | Promise<void>;
   /** Fired after a drag-move or resize gesture commits. */
   onEventUpdate?: (event: Event) => void | Promise<void>;
   /** Fired from the popover's delete-confirm. */
   onEventDelete?: (id: string) => void | Promise<void>;
+
+  /**
+   * Month view: draw all-day and multi-day events as continuous bars across the day cells and week rows (lanes, "+N more"),
+   * instead of one card per day. Default false. Implied by `monthDrag`.
+   */
+  monthBars?: boolean;
+  /**
+   * Month view: drag across empty days to create an all-day range (`onEventCreate`), drag a bar to move it and drag a bar's
+   * start or end edge to resize it (`onEventUpdate`), all by whole days keeping the times of day. Keyboard: Shift + arrows
+   * select days and Enter creates; on a bar Alt + arrows move, Shift + Left / Right change the end and Alt + Shift + Left /
+   * Right change the start. Default false (opt-in; the week / day time grid drag is always on).
+   */
+  monthDrag?: boolean;
 
   /** Resources column list — used by ResourceView. */
   resources?: Resource[];
