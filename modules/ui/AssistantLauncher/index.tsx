@@ -23,6 +23,7 @@ import {
   faXmark,
 } from '@fortawesome/free-solid-svg-icons';
 import { cn } from '@/libs/utils/cn';
+import { useKeyboardSafePanel } from './useKeyboardSafePanel';
 import { Button } from '@/modules/ui/Button';
 import { ChatThread, type ChatThreadMessage, type ChatThreadMessages } from '@/modules/ui/ChatThread';
 import { formatMessage } from '@/modules/ui/Table/types';
@@ -240,6 +241,7 @@ export function AssistantLauncher({
   const [draft, setDraft] = useState('');
 
   const chime = useChime();
+  useKeyboardSafePanel(panelRef, open);
 
   // A new assistant message chimes; the ones already there on the first render do not.
   const otherCount = items.filter((item) => item.side === 'other').length;
@@ -527,7 +529,7 @@ export function AssistantLauncher({
                       onKeyDown={handleTextareaKeyDown}
                       className={cn(
                         'max-h-26 min-h-10 flex-1 resize-none overflow-y-auto rounded-xl border border-border-strong bg-surface-base',
-                        'px-3 py-2 text-sm leading-normal text-text-primary placeholder:text-text-disabled',
+                        'px-3 py-2 text-sm leading-normal text-text-primary placeholder:text-text-disabled max-sm:text-base', // 16 px on phones: smaller makes iOS zoom in on focus
                         'focus:border-border-focus focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-border-focus',
                       )}
                     />
